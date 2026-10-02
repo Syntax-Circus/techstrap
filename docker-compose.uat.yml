@@ -2,6 +2,9 @@
 # It reuses the pinned subnet, so do not run it on the same Docker host as the production stack.
 #   cp .env.production.example .env.uat   # then edit (TECHSTRAP_IMAGE_TAG may be a pre-release tag)
 #   docker compose --env-file .env.uat -f docker-compose.uat.yml up -d
+# Client IPs: ports publish on 127.0.0.1 only, so a same-host reverse proxy appears to the containers
+# as the compose gateway (172.16.31.1). Set REVERSE_PROXY_CIDR=172.16.31.1/32 for that setup, or the
+# proxy's own address if it runs on another machine (never a wide range).
 # Required values (POSTGRES_PASSWORD, REVERSE_PROXY_CIDR, TECHSTRAP_PORTAL_PUBLIC_URL) make compose
 # refuse to start when they are missing.
 name: techstrap-uat

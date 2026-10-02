@@ -52,6 +52,9 @@ The API applies the database migrations on startup. Stop the stack with `docker 
 Troubleshooting: if compose reports `Pool overlaps with other one on this address space`, another Docker network already uses
 the pinned subnet `172.16.31.0/24`. Pick a free one for this stack, for example `TECHSTRAP_SUBNET=10.245.31.0/24 docker compose up -d --build`.
 
+For production, `REVERSE_PROXY_CIDR` must be the address the containers see the reverse proxy from. With the loopback-only
+published ports and a proxy on the same host, that is the compose gateway (`172.16.31.1/32`), never a wide range.
+
 ### Develop
 
 ```bash

@@ -74,9 +74,9 @@ Describe 'docker-compose files' -Skip:(-not $script:DockerAvailable) {
 
         $result.Config.networks.default.ipam.config[0].subnet | Should -Be $script:PinnedSubnet
         $services.api.environment.TRUSTEDPROXY__TRUSTEDNETWORKS__0 | Should -Be $script:PinnedSubnet
-        $services.api.environment.TRUSTEDPROXY__TRUSTEDNETWORKS__1 | Should -Be '192.168.1.55/32'
+        $services.api.environment.TRUSTEDPROXY__TRUSTEDNETWORKS__1 | Should -Be '172.16.31.1/32'
         foreach ($service in 'admin', 'portal') {
-            $services.$service.environment.TRUSTEDPROXY__TRUSTEDNETWORKS__0 | Should -Be '192.168.1.55/32'
+            $services.$service.environment.TRUSTEDPROXY__TRUSTEDNETWORKS__0 | Should -Be '172.16.31.1/32'
             $services.$service.environment.PSObject.Properties.Name | Should -Not -Contain 'TRUSTEDPROXY__TRUSTEDNETWORKS__1'
         }
         $services.api.image | Should -Be 'ghcr.io/syntax-circus/techstrap-api:latest'
