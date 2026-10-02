@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/TechStrap.Api/TechStrap.Api.csproj" />
+    <ProjectReference Include="../../src/TechStrap.Worker/TechStrap.Worker.csproj" />
+    <ProjectReference Include="../../src/TechStrap.Admin/TechStrap.Admin.csproj" />
+    <ProjectReference Include="../../src/TechStrap.Portal/TechStrap.Portal.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+  </ItemGroup>
+
+</Project>

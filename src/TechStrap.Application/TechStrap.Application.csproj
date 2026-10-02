@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../TechStrap.Domain/TechStrap.Domain.csproj" />
+    <ProjectReference Include="../TechStrap.Contracts/TechStrap.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SyntaxCircus.Common" />
+  </ItemGroup>
+
+</Project>

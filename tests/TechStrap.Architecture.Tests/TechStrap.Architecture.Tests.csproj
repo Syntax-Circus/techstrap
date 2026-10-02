@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/TechStrap.Application/TechStrap.Application.csproj" />
+    <ProjectReference Include="../../src/TechStrap.Infrastructure/TechStrap.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/TechStrap.Api/TechStrap.Api.csproj" />
+  </ItemGroup>
+
+</Project>

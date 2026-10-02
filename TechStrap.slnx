@@ -1,0 +1,33 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".dockerignore" />
+    <File Path=".editorconfig" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Build.targets" />
+    <File Path="Directory.Packages.props" />
+    <File Path="GitVersion.yml" />
+    <File Path="global.json" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/TechStrap.Admin/TechStrap.Admin.csproj" />
+    <Project Path="src/TechStrap.Api/TechStrap.Api.csproj" />
+    <Project Path="src/TechStrap.Application/TechStrap.Application.csproj" />
+    <Project Path="src/TechStrap.Client.Maui/TechStrap.Client.Maui.csproj" />
+    <Project Path="src/TechStrap.Client/TechStrap.Client.csproj" />
+    <Project Path="src/TechStrap.Contracts/TechStrap.Contracts.csproj" />
+    <Project Path="src/TechStrap.Domain/TechStrap.Domain.csproj" />
+    <Project Path="src/TechStrap.Infrastructure/TechStrap.Infrastructure.csproj" />
+    <Project Path="src/TechStrap.Portal/TechStrap.Portal.csproj" />
+    <Project Path="src/TechStrap.Worker/TechStrap.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TechStrap.Api.Tests/TechStrap.Api.Tests.csproj" />
+    <Project Path="tests/TechStrap.Application.Tests/TechStrap.Application.Tests.csproj" />
+    <Project Path="tests/TechStrap.Architecture.Tests/TechStrap.Architecture.Tests.csproj" />
+    <Project Path="tests/TechStrap.Domain.Tests/TechStrap.Domain.Tests.csproj" />
+    <Project Path="tests/TechStrap.Infrastructure.IntegrationTests/TechStrap.Infrastructure.IntegrationTests.csproj" />
+  </Folder>
+</Solution>
