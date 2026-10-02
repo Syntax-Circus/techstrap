@@ -1,0 +1,945 @@
+<title>TechStrap — Night Shift Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Archivo+Narrow:wght@400;500;600;700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/*
+DIRECTION: Night Shift Console
+CONCEPT: The 2am support desk: a dark, keyboard-first ops console where every pixel is a phosphor-lit
+  data cell, with a "daylight terminal" (beige paper, navy ink) for people who work in the sun.
+TYPOGRAPHY: JetBrains Mono for all data (ticket ids, timestamps, tags, badges, kbd hints). It has
+  real character (slashed zero, tight ligature-free forms) and aligns columns with tabular-nums.
+  Archivo Narrow for UI chrome and message prose: narrow so a dense queue + preview pane both fit
+  on a laptop. Portal uses Figtree (friendly, neutral) so it never reads as the console.
+GEOMETRY AND MOTIFS: zero radius, 1px hairline grid, square initial-boxes instead of round avatars,
+  bracketed badges "[ OPEN ]" with a status LED dot, "//" section labels, kbd keycaps everywhere,
+  a persistent status bar of shortcuts, hatched stripes for anything internal/suspect, a faint
+  scanline only on the brand moment. Colour: navy-black tube with CRT blue (focus, selection,
+  public) and LED green (live, ok), spark yellow reserved for internal/pending/warning.
+  Light mode inverts to beige plastic with navy ink.
+LOGO-REMOVAL TEST: the bracketed mono badges, keycap hints, status bar, hairline-ruled data grid
+  and the navy/blue/LED-green palette on beige-or-black are unmistakably "console", with no mascot.
+RISKS: density and mono type can feel cold or intimidating to new agents; the keyboard-first
+  affordances need discoverability work; wide mono ids eat horizontal space on narrow panes; hatched
+  stripes can be visually noisy if overused; the cheeky mascot is the only warmth, so the brand
+  moments must carry the personality.
+*/
+:root {
+  color-scheme: dark;
+  --font-data: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --font-ui: "Archivo Narrow", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --font-portal: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --bg: #070e1c;
+  --bg-2: #0b1628;
+  --bg-3: #101f38;
+  --line: #1e3358;
+  --line-strong: #34548a;
+  --text: #dbe7f7;
+  --text-dim: #9bb1d0;
+  --text-faint: #8197b8;
+  --blue: #5aaeff;
+  --blue-bg: #0f2a4d;
+  --on-blue: #04101f;
+  --on-yellow: #1a1300;
+  --green: #3fcf6e;
+  --green-bg: #0d2a1c;
+  --yellow: #f6c12b;
+  --yellow-line: #f6c12b;
+  --yellow-bg: #241d0b;
+  --red: #ff7b82;
+  --red-bg: #331418;
+  --selected: #12284a;
+  --focus: #f6c12b;
+  --scrim: #000000b8;
+  --scan: #ffffff0a;
+  --stripe: #f6c12b1f;
+  --stripe-red: #ff7b8226;
+  --shadow: #00000099;
+
+  /* Portal: light-only in v1, explicit and independent of the admin theme */
+  --p-bg: #f7f6f3;
+  --p-surface: #ffffff;
+  --p-text: #1c1917;
+  --p-dim: #57534e;
+  --p-line: #d6d3d1;
+  --p-field: #78716c;
+  --p-ok-bg: #dcfce7;
+  --p-ok: #14532d;
+  --p-dark: #111111;
+  --p-white: #ffffff;
+  --p-accent: #7c3aed;
+  --p-on-accent: #ffffff;
+  --p-ink: #7c3aed;
+  --p-soft: #f1eafd;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #e9e1cb;
+    --bg-2: #f5efde;
+    --bg-3: #fffcf2;
+    --line: #cdc19f;
+    --line-strong: #8a7f5e;
+    --text: #0b1f4b;
+    --text-dim: #34476f;
+    --text-faint: #4e5f85;
+    --blue: #0a55b0;
+    --blue-bg: #d9e7f9;
+    --on-blue: #ffffff;
+    --on-yellow: #1a1300;
+    --green: #11652a;
+    --green-bg: #d7ebd5;
+    --yellow: #6e4d00;
+    --yellow-line: #b27d00;
+    --yellow-bg: #fbe8ad;
+    --red: #a80f18;
+    --red-bg: #f8d6d2;
+    --selected: #dde6f3;
+    --focus: #0b1f4b;
+    --scrim: #0b1f4bb0;
+    --scan: #0b1f4b0d;
+    --stripe: #b27d0033;
+    --stripe-red: #a80f1826;
+    --shadow: #0b1f4b44;
+  }
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #e9e1cb;
+  --bg-2: #f5efde;
+  --bg-3: #fffcf2;
+  --line: #cdc19f;
+  --line-strong: #8a7f5e;
+  --text: #0b1f4b;
+  --text-dim: #34476f;
+  --text-faint: #4e5f85;
+  --blue: #0a55b0;
+  --blue-bg: #d9e7f9;
+  --on-blue: #ffffff;
+    --on-yellow: #1a1300;
+  --green: #11652a;
+  --green-bg: #d7ebd5;
+  --yellow: #6e4d00;
+  --yellow-line: #b27d00;
+  --yellow-bg: #fbe8ad;
+  --red: #a80f18;
+  --red-bg: #f8d6d2;
+  --selected: #dde6f3;
+  --focus: #0b1f4b;
+  --scrim: #0b1f4bb0;
+  --scan: #0b1f4b0d;
+  --stripe: #b27d0033;
+  --stripe-red: #a80f1826;
+  --shadow: #0b1f4b44;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #070e1c;
+  --bg-2: #0b1628;
+  --bg-3: #101f38;
+  --line: #1e3358;
+  --line-strong: #34548a;
+  --text: #dbe7f7;
+  --text-dim: #9bb1d0;
+  --text-faint: #8197b8;
+  --blue: #5aaeff;
+  --blue-bg: #0f2a4d;
+  --on-blue: #04101f;
+  --on-yellow: #1a1300;
+  --green: #3fcf6e;
+  --green-bg: #0d2a1c;
+  --yellow: #f6c12b;
+  --yellow-line: #f6c12b;
+  --yellow-bg: #241d0b;
+  --red: #ff7b82;
+  --red-bg: #331418;
+  --selected: #12284a;
+  --focus: #f6c12b;
+  --scrim: #000000b8;
+  --scan: #ffffff0a;
+  --stripe: #f6c12b1f;
+  --stripe-red: #ff7b8226;
+  --shadow: #00000099;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.4;
+  overflow-x: hidden;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.mono, .num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+kbd {
+  font-family: var(--font-data);
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 5px 3px;
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  background: var(--bg-3);
+  color: var(--text);
+  white-space: nowrap;
+}
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.label {
+  font-family: var(--font-data);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.label::before { content: "// "; color: var(--blue); }
+
+/* ---------- sticky switcher ---------- */
+.switcher {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap;
+  padding: 6px 16px;
+  background: var(--bg-3);
+  border-bottom: 1px solid var(--line-strong);
+}
+.switcher .title { font-family: var(--font-data); font-size: 12px; color: var(--text-dim); margin-right: auto; min-width: 0; }
+.switcher .title b { color: var(--text); }
+.tabs { display: flex; gap: 0; flex-wrap: wrap; }
+.tab {
+  background: none; border: 1px solid var(--line-strong); margin-left: -1px;
+  padding: 4px 10px; font-family: var(--font-data); font-size: 12px; color: var(--text-dim);
+}
+.tab[aria-current="page"] { background: var(--blue); color: var(--on-blue); border-color: var(--blue); position: relative; }
+.btn-s {
+  background: none; border: 1px solid var(--line-strong); padding: 4px 10px;
+  font-family: var(--font-data); font-size: 12px; color: var(--text);
+  display: inline-flex; gap: 8px; align-items: center;
+}
+.btn-s:hover { background: var(--selected); }
+
+/* ---------- admin shell ---------- */
+.shell { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: var(--bg); }
+@media (min-width: 900px) { .shell { height: calc(100dvh - 45px); min-height: 560px; } }
+.topbar {
+  display: flex; align-items: center; gap: 12px; padding: 0 16px; min-height: 40px;
+  background: var(--bg-2); border-bottom: 1px solid var(--line);
+}
+.logo { display: flex; align-items: center; gap: 8px; font-family: var(--font-data); font-weight: 700; font-size: 13px; letter-spacing: 0.02em; }
+.logo img { width: 26px; height: 26px; image-rendering: auto; display: block; }
+.logo small { font-weight: 400; color: var(--text-faint); font-size: 11px; }
+.top-spacer { flex: 1; min-width: 0; }
+.cmdk { display: inline-flex; align-items: center; gap: 10px; background: var(--bg); border: 1px solid var(--line-strong); padding: 4px 8px; color: var(--text-dim); font-size: 13px; min-width: 0; }
+.cmdk:hover { border-color: var(--blue); }
+.live { display: inline-flex; gap: 6px; align-items: center; font-family: var(--font-data); font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.led { width: 8px; height: 8px; background: var(--green); display: inline-block; flex: none; animation: blink 2.4s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0.35; } }
+.ini {
+  display: inline-grid; place-items: center; width: 24px; height: 24px; flex: none;
+  border: 1px solid var(--line-strong); background: var(--bg-3);
+  font-family: var(--font-data); font-size: 10px; font-weight: 700; color: var(--text);
+}
+.ini.me { background: var(--blue); color: var(--on-blue); border-color: var(--blue); }
+.ini.none { border-style: dashed; color: var(--text-faint); font-weight: 400; background: none; }
+
+.body { display: grid; grid-template-columns: 184px minmax(0, 1fr); min-height: 0; }
+.rail { background: var(--bg-2); border-right: 1px solid var(--line); padding: 10px 0; overflow-y: auto; }
+.rail .label { padding: 8px 16px 4px; display: block; }
+.rail ul { list-style: none; margin: 0; padding: 0; }
+.vbtn {
+  display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px;
+  background: none; border: 0; border-left: 3px solid transparent;
+  padding: 6px 16px 6px 13px; text-align: left; color: var(--text-dim); font-size: 15px;
+}
+.vbtn:hover { background: var(--bg-3); color: var(--text); }
+.vbtn[aria-current="true"] { border-left-color: var(--blue); background: var(--selected); color: var(--text); font-weight: 600; }
+.vbtn .n { font-family: var(--font-data); font-size: 12px; color: var(--text-faint); }
+.vbtn .n.hot { color: var(--on-blue); background: var(--blue); padding: 0 5px; }
+.main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.view { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+
+.statusbar {
+  display: flex; gap: 6px 16px; flex-wrap: wrap; align-items: center; padding: 5px 16px;
+  background: var(--bg-3); border-top: 1px solid var(--line-strong);
+  font-family: var(--font-data); font-size: 11px; color: var(--text-dim);
+}
+.statusbar span.h { display: inline-flex; gap: 5px; align-items: center; white-space: nowrap; }
+.statusbar .msg { margin-left: auto; color: var(--green); }
+
+/* ---------- queue ---------- */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--bg-2); }
+.filters label { display: grid; gap: 2px; min-width: 0; }
+.filters label span { font-family: var(--font-data); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
+.field {
+  background: var(--bg); border: 1px solid var(--line-strong); padding: 4px 8px; min-width: 0;
+  font-family: var(--font-data); font-size: 12px; color: var(--text); border-radius: 0;
+}
+.field:focus-visible { border-color: var(--blue); }
+.filters .search { flex: 1 1 200px; }
+.filters .search .field { width: 100%; }
+.count { margin-left: auto; font-family: var(--font-data); font-size: 11px; color: var(--text-faint); padding-bottom: 6px; }
+
+.split { display: grid; grid-template-columns: minmax(0, 1fr); flex: 1; min-height: 0; }
+@media (min-width: 1100px) { .split { grid-template-columns: minmax(0, 1fr) 360px; } }
+.qwrap { min-width: 0; min-height: 0; overflow-y: auto; }
+.qhead, .row {
+  display: grid; align-items: center; gap: 0 10px; padding: 0 16px;
+  grid-template-columns: 82px minmax(0, 1fr) 88px 34px 28px 42px;
+}
+.qhead { position: sticky; top: 0; z-index: 2; background: var(--bg-2); border-bottom: 1px solid var(--line-strong); padding-top: 5px; padding-bottom: 5px; }
+.qhead span { font-family: var(--font-data); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
+#rows { list-style: none; margin: 0; padding: 0; }
+.row {
+  padding-top: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--line); cursor: pointer;
+  border-left: 3px solid transparent; padding-left: 13px; position: relative;
+}
+.row:hover { background: var(--bg-3); }
+.row[aria-selected="true"] { background: var(--selected); border-left-color: var(--blue); }
+.row.spam { background-image: repeating-linear-gradient(135deg, var(--stripe-red) 0 6px, transparent 6px 12px); }
+.row .id { font-family: var(--font-data); font-size: 12px; font-weight: 500; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.row .subj { min-width: 0; }
+.row .subj b { display: block; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row.unread .subj b { color: var(--text); }
+.row .meta { display: flex; gap: 4px 8px; align-items: center; min-width: 0; font-size: 13px; color: var(--text-dim); overflow: hidden; white-space: nowrap; }
+.row .meta .prod { color: var(--blue); }
+.tag { font-family: var(--font-data); font-size: 10.5px; color: var(--text-dim); border: 1px solid var(--line-strong); padding: 0 4px; flex: none; }
+.tag.spamchip { color: var(--red); border-color: var(--red); background: var(--red-bg); font-weight: 700; }
+.row .tm { font-family: var(--font-data); font-size: 11px; color: var(--text-faint); text-align: right; font-variant-numeric: tabular-nums; }
+.st {
+  display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-data); font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase; padding: 1px 5px; border: 1px solid; white-space: nowrap; line-height: 1.5;
+}
+.st::before { content: ""; width: 6px; height: 6px; background: currentColor; flex: none; }
+.st-new { background: var(--blue); color: var(--on-blue); border-color: var(--blue); }
+.st-open { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+.st-pending { background: var(--yellow-bg); color: var(--yellow); border-color: var(--yellow-line); }
+.st-pending::before { background: none; border: 1px solid currentColor; }
+.st-solved { color: var(--text-dim); border-color: var(--line-strong); }
+.st-solved::before { content: "✓"; background: none; width: auto; height: auto; font-size: 10px; }
+.st-closed { color: var(--text-faint); border-color: var(--line); border-style: dashed; }
+.st-closed::before { content: "×"; background: none; width: auto; height: auto; font-size: 11px; }
+.pr { font-family: var(--font-data); font-size: 11px; font-weight: 700; text-align: center; border: 1px solid var(--line-strong); color: var(--text-dim); padding: 0 3px; }
+.pr.p1 { background: var(--red); color: var(--bg); border-color: var(--red); }
+.pr.p2 { color: var(--yellow); border-color: var(--yellow-line); }
+
+/* phone: stacked cards */
+@media (max-width: 700px) {
+  .body { grid-template-columns: minmax(0, 1fr); }
+  .rail { display: flex; overflow-x: auto; padding: 0; border-right: 0; border-bottom: 1px solid var(--line); }
+  .rail .label, .rail .rail-more { display: none; }
+  .rail ul { display: flex; }
+  .vbtn { border-left: 0; border-bottom: 3px solid transparent; padding: 8px 12px; white-space: nowrap; gap: 6px; }
+  .vbtn[aria-current="true"] { border-bottom-color: var(--blue); }
+  .qhead { display: none; }
+  .row {
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto; grid-template-areas: "id tm st pr as" "subj subj subj subj subj";
+    gap: 4px 8px; padding-top: 10px; padding-bottom: 10px;
+  }
+  .row .id { grid-area: id; } .row .tm { grid-area: tm; text-align: left; } .row .st { grid-area: st; }
+  .row .pr { grid-area: pr; } .row .as { grid-area: as; } .row .subj { grid-area: subj; }
+  .row .subj b { white-space: normal; }
+  .row .meta { flex-wrap: wrap; white-space: normal; }
+  .statusbar .h { display: none; }
+  .topbar .live, .topbar .cmdk .t { display: none; }
+  .filters .count { margin-left: 0; width: 100%; padding: 0; }
+  .logo small { display: none; }
+}
+
+/* preview pane */
+.preview { display: none; border-left: 1px solid var(--line-strong); background: var(--bg-2); overflow-y: auto; min-width: 0; }
+@media (min-width: 1100px) { .preview { display: block; } }
+.preview .inner { padding: 14px 16px; display: grid; gap: 12px; }
+.preview h2 { margin: 0; font-size: 19px; line-height: 1.2; font-weight: 700; }
+.kv { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 4px 10px; margin: 0; font-size: 14px; }
+.kv dt { font-family: var(--font-data); font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; padding-top: 2px; }
+.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.quote { border-left: 3px solid var(--line-strong); padding: 4px 0 4px 10px; color: var(--text-dim); font-size: 14px; margin: 0; }
+.acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; background: var(--bg-3); border: 1px solid var(--line-strong);
+  padding: 5px 10px; font-size: 14px; color: var(--text); border-radius: 0;
+}
+.btn:hover { border-color: var(--blue); }
+.btn.primary { background: var(--blue); border-color: var(--blue); color: var(--on-blue); font-weight: 600; }
+.btn.primary kbd { background: none; color: var(--on-blue); border-color: var(--on-blue); }
+
+/* ---------- detail ---------- */
+.dhead { padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--bg-2); display: grid; gap: 6px; }
+.dhead h1 { margin: 0; font-size: 20px; line-height: 1.2; font-weight: 700; overflow-wrap: anywhere; }
+.dline { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 13px; color: var(--text-dim); }
+.presence { display: inline-flex; gap: 6px; align-items: center; font-family: var(--font-data); font-size: 11px; color: var(--green); }
+.presence .dots::after { content: "…"; animation: dots 1.2s steps(3) infinite; display: inline-block; width: 1ch; overflow: hidden; vertical-align: bottom; }
+@keyframes dots { 0% { width: 0; } 100% { width: 1.2ch; } }
+.dgrid { display: grid; grid-template-columns: minmax(0, 1fr); flex: 1; min-height: 0; }
+@media (min-width: 900px) { .dgrid { grid-template-columns: minmax(0, 1fr) 300px; } }
+.thread { min-width: 0; min-height: 0; overflow-y: auto; padding: 14px 16px; display: grid; gap: 10px; align-content: start; }
+.entry { border: 1px solid var(--line); background: var(--bg-2); min-width: 0; }
+.entry .eh { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; padding: 4px 10px; border-bottom: 1px solid var(--line); font-family: var(--font-data); font-size: 11px; color: var(--text-dim); }
+.entry .eh .who { color: var(--text); font-weight: 700; }
+.entry .eh .when { margin-left: auto; color: var(--text-faint); }
+.entry .eb { padding: 8px 10px 10px; font-size: 15px; overflow-wrap: anywhere; }
+.entry .eb p { margin: 0 0 6px; } .entry .eb p:last-child { margin: 0; }
+.entry code, .sys code { font-family: var(--font-data); font-size: 12px; background: var(--bg); border: 1px solid var(--line); padding: 0 4px; }
+.kind { font-weight: 700; padding: 0 5px; border: 1px solid; font-size: 10.5px; letter-spacing: 0.05em; }
+.entry.cust .kind { color: var(--text-dim); border-color: var(--line-strong); }
+.entry.pub { border-left: 4px solid var(--blue); background: var(--blue-bg); margin-left: 24px; }
+.entry.pub .kind { background: var(--blue); color: var(--on-blue); border-color: var(--blue); }
+.entry.pub .eh { border-bottom-color: var(--line-strong); }
+.entry.note {
+  border: 2px dashed var(--yellow-line); margin-left: 24px; background: var(--yellow-bg);
+  background-image: repeating-linear-gradient(135deg, var(--stripe) 0 8px, transparent 8px 16px);
+}
+.entry.note .eh { background: var(--yellow-bg); border-bottom: 1px dashed var(--yellow-line); color: var(--yellow); }
+.entry.note .kind { background: var(--yellow-line); color: var(--on-yellow); border-color: var(--yellow-line); }
+.entry.note .eb { background: var(--yellow-bg); margin: 0; }
+.entry.note .eh .who { color: var(--yellow); }
+.sys { font-family: var(--font-data); font-size: 11.5px; color: var(--text-faint); display: flex; gap: 8px; align-items: center; padding: 0 4px; }
+.sys::before { content: ""; width: 14px; border-top: 1px solid var(--line-strong); flex: none; }
+.sys .when { margin-left: auto; white-space: nowrap; }
+
+.composer { border-top: 1px solid var(--line-strong); background: var(--bg-2); padding: 10px 16px 12px; display: grid; gap: 8px; }
+.composer.is-note { background: var(--yellow-bg); background-image: repeating-linear-gradient(135deg, var(--stripe) 0 8px, transparent 8px 16px); border-top: 2px dashed var(--yellow-line); }
+.mode { display: flex; gap: 0; }
+.mode button { background: var(--bg); border: 1px solid var(--line-strong); padding: 4px 12px; font-size: 14px; color: var(--text-dim); display: inline-flex; gap: 8px; align-items: center; }
+.mode button + button { margin-left: -1px; }
+.mode button[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: var(--on-blue); font-weight: 600; }
+.mode button.note[aria-pressed="true"] { background: var(--yellow-line); border-color: var(--yellow-line); color: var(--on-yellow); }
+.mode kbd { background: none; border-color: currentColor; color: inherit; }
+.warn { display: none; font-family: var(--font-data); font-size: 12px; color: var(--yellow); font-weight: 700; }
+.composer.is-note .warn { display: block; }
+.composer textarea { width: 100%; min-height: 84px; resize: vertical; background: var(--bg); border: 1px solid var(--line-strong); padding: 8px 10px; font-size: 15px; border-radius: 0; }
+.composer.is-note textarea { border: 2px dashed var(--yellow-line); }
+.cfoot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cfoot .to { font-family: var(--font-data); font-size: 11px; color: var(--text-dim); margin-right: auto; min-width: 0; }
+
+.side { border-left: 1px solid var(--line-strong); background: var(--bg-2); overflow-y: auto; min-width: 0; }
+@media (max-width: 899px) { .side { border-left: 0; border-top: 1px solid var(--line-strong); } }
+.side section { padding: 10px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.side .field { width: 100%; font-family: var(--font-ui); font-size: 14px; }
+.side label span { display: block; font-family: var(--font-data); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 2px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.card { display: flex; gap: 10px; align-items: center; }
+.card .ini { width: 34px; height: 34px; font-size: 12px; }
+.card small { display: block; color: var(--text-dim); font-size: 13px; overflow-wrap: anywhere; }
+.kb { display: block; border: 1px solid var(--line-strong); padding: 6px 8px; color: var(--blue); text-decoration: none; font-size: 14px; }
+.kb:hover { background: var(--selected); }
+.kb small { display: block; font-family: var(--font-data); font-size: 10.5px; color: var(--text-faint); }
+
+/* ---------- brand moment ---------- */
+.empty { flex: 1; display: grid; place-items: center; padding: 24px 16px; position: relative; overflow: hidden; }
+.empty::before { content: ""; position: absolute; inset: 0; background-image: repeating-linear-gradient(0deg, var(--scan) 0 1px, transparent 1px 3px); pointer-events: none; }
+.crt { position: relative; text-align: center; display: grid; gap: 12px; justify-items: center; max-width: 440px; }
+.crt .frame { border: 2px solid var(--line-strong); background: var(--bg-2); padding: 14px; box-shadow: 6px 6px 0 var(--shadow); }
+.crt img { width: 112px; height: 112px; display: block; }
+.crt h2 { margin: 0; font-family: var(--font-data); font-size: 20px; font-weight: 700; }
+.crt h2 .cur { display: inline-block; width: 0.6em; height: 1em; background: var(--green); vertical-align: -0.12em; animation: blink 1.1s steps(1) infinite; }
+.crt p { margin: 0; color: var(--text-dim); font-size: 16px; }
+.crt .status { font-family: var(--font-data); font-size: 11px; color: var(--green); display: inline-flex; gap: 8px; align-items: center; }
+
+/* ---------- palette ---------- */
+.scrim { position: fixed; inset: 0; z-index: 50; background: var(--scrim); display: grid; justify-items: center; align-content: start; padding: 12vh 16px 16px; }
+.pal { width: min(560px, 100%); background: var(--bg-2); border: 1px solid var(--blue); box-shadow: 8px 8px 0 var(--shadow); }
+.pal input { width: 100%; background: var(--bg); border: 0; border-bottom: 1px solid var(--line-strong); padding: 12px 14px; font-family: var(--font-data); font-size: 14px; border-radius: 0; }
+.pal ul { list-style: none; margin: 0; padding: 4px 0; max-height: 40vh; overflow-y: auto; }
+.pal li { display: flex; justify-content: space-between; gap: 12px; padding: 7px 14px; font-size: 15px; cursor: pointer; }
+.pal li .hint { font-family: var(--font-data); font-size: 11px; color: var(--text-faint); white-space: nowrap; }
+.pal li[aria-selected="true"] { background: var(--blue); color: var(--on-blue); }
+.pal li[aria-selected="true"] .hint { color: var(--on-blue); }
+.pal .foot { display: flex; gap: 14px; padding: 6px 14px; border-top: 1px solid var(--line); font-family: var(--font-data); font-size: 11px; color: var(--text-dim); }
+
+/* ---------- portal (light-only, product-themed) ---------- */
+.mockbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 8px 16px; background: var(--bg-2); border-bottom: 1px solid var(--line); }
+.mockbar .seg button { background: var(--bg); border: 1px solid var(--line-strong); padding: 4px 12px; font-family: var(--font-data); font-size: 12px; color: var(--text); }
+.mockbar .seg button + button { margin-left: -1px; }
+.mockbar .seg button[aria-pressed="true"] { background: var(--blue); color: var(--on-blue); border-color: var(--blue); }
+.mockbar .note { font-family: var(--font-data); font-size: 11px; color: var(--text-dim); }
+.portal {
+  background: var(--p-bg); color: var(--p-text); font-family: var(--font-portal); font-size: 16px; line-height: 1.5;
+  color-scheme: light; min-height: 70vh; display: flex; flex-direction: column;
+}
+.portal :focus-visible { outline: 3px solid var(--p-ink); outline-offset: 2px; }
+.p-head { background: var(--p-accent); color: var(--p-on-accent); padding: 14px 16px; }
+.p-head .in { max-width: 880px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; }
+.p-logo { width: 38px; height: 38px; background: var(--p-on-accent); color: var(--p-accent); display: grid; place-items: center; font-weight: 700; font-size: 22px; flex: none; }
+.p-name { font-weight: 700; font-size: 20px; margin-right: auto; min-width: 0; }
+.p-name small { display: block; font-weight: 400; font-size: 13px; opacity: 0.9; }
+.p-nav { display: flex; gap: 16px; font-size: 15px; font-weight: 500; flex-wrap: wrap; }
+.p-nav a { color: var(--p-on-accent); text-decoration: underline; text-underline-offset: 3px; }
+.p-main { flex: 1; max-width: 880px; width: 100%; margin: 0 auto; padding: 24px 16px 32px; display: grid; gap: 18px; align-content: start; }
+.p-main h1 { margin: 0; font-size: 28px; line-height: 1.15; }
+.p-main .lead { margin: 4px 0 0; color: var(--p-dim); }
+.pform { display: grid; gap: 16px; background: var(--p-surface); border: 1px solid var(--p-line); border-top: 4px solid var(--p-accent); padding: 20px; max-width: 640px; }
+.pform label.l { display: grid; gap: 4px; font-weight: 600; font-size: 15px; }
+.pform .opt { font-weight: 400; color: var(--p-dim); }
+.pin { background: var(--p-surface); color: var(--p-text); border: 1px solid var(--p-field); padding: 9px 11px; font-size: 16px; border-radius: 2px; width: 100%; font-family: inherit; }
+.pin:focus-visible { border-color: var(--p-ink); }
+.p-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 560px) { .p-two { grid-template-columns: minmax(0, 1fr); } }
+.sugg { background: var(--p-soft); border: 1px solid var(--p-ink); padding: 10px 14px; display: grid; gap: 6px; }
+.sugg h2 { margin: 0; font-size: 14px; color: var(--p-ink); }
+.sugg ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.sugg a { color: var(--p-ink); font-weight: 600; }
+.pbtn { background: var(--p-accent); color: var(--p-on-accent); border: 2px solid var(--p-ink); padding: 10px 20px; font-weight: 700; font-size: 16px; font-family: inherit; border-radius: 2px; justify-self: start; }
+.pbtn.ghost { background: var(--p-surface); color: var(--p-ink); }
+.pdone { background: var(--p-surface); border: 1px solid var(--p-line); border-top: 4px solid var(--p-accent); padding: 22px; max-width: 640px; display: grid; gap: 12px; }
+.pdone .ok { background: var(--p-ok-bg); color: var(--p-ok); padding: 8px 12px; font-weight: 600; }
+.pdone .tid { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--p-ink); }
+.pdone code { background: var(--p-bg); border: 1px solid var(--p-line); padding: 2px 6px; font-size: 14px; overflow-wrap: anywhere; }
+.p-foot { border-top: 1px solid var(--p-line); background: var(--p-surface); padding: 14px 16px; text-align: center; font-size: 13px; color: var(--p-dim); }
+.p-foot img { width: 16px; height: 16px; vertical-align: -3px; margin-right: 4px; }
+.p-foot a { color: var(--p-ink); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+</style>
+
+<div class="switcher">
+  <span class="title"><b>TechStrap</b> // Night Shift Console</span>
+  <nav class="tabs" aria-label="Mockup screens">
+    <button class="tab" data-go="queue" aria-current="page">1 Queue</button>
+    <button class="tab" data-go="detail">2 Ticket</button>
+    <button class="tab" data-go="empty">3 Caught up</button>
+    <button class="tab" data-go="portal">4 Portal</button>
+  </nav>
+  <button class="btn-s" id="themeBtn" type="button" aria-label="Cycle theme">Theme: <span id="themeLbl">auto</span></button>
+  <button class="btn-s" id="palBtn" type="button">Palette <kbd>Ctrl K</kbd></button>
+</div>
+
+<div id="admin" class="shell">
+  <header class="topbar">
+    <div class="logo"><img data-mark alt="TechStrap mascot" width="26" height="26"><span>techstrap <small>// admin</small></span></div>
+    <span class="top-spacer"></span>
+    <span class="live"><i class="led"></i>3 agents online</span>
+    <button class="cmdk" type="button" id="cmdkTop"><span class="t">Jump to…</span> <kbd>Ctrl K</kbd></button>
+    <span class="ini me" title="Jon Seeley">JS</span>
+  </header>
+
+  <div class="body">
+    <nav class="rail" aria-label="Views">
+      <span class="label">Queues</span>
+      <ul>
+        <li><button class="vbtn" data-view="unassigned">Unassigned <span class="n hot">7</span></button></li>
+        <li><button class="vbtn" data-view="mine">Mine <span class="n">4</span></button></li>
+        <li><button class="vbtn" data-view="open">Open <span class="n">23</span></button></li>
+        <li><button class="vbtn" data-view="pending">Pending <span class="n">9</span></button></li>
+        <li><button class="vbtn" data-view="all" aria-current="true">All <span class="n">212</span></button></li>
+      </ul>
+      <span class="label rail-more" style="margin-top:8px">Manage</span>
+      <ul class="rail-more">
+        <li><button class="vbtn" type="button">Knowledge base</button></li>
+        <li><button class="vbtn" type="button">Settings</button></li>
+      </ul>
+    </nav>
+
+    <main class="main">
+      <!-- QUEUE -->
+      <div class="view" id="v-queue">
+        <div class="filters" role="search">
+          <label><span>Product</span>
+            <select class="field" id="fProd"><option value="">All products</option><option>Acme Cloud Backup</option><option>Orbitly</option><option>Pixelforge</option></select></label>
+          <label><span>Status</span>
+            <select class="field" id="fStatus"><option value="">Any status</option><option>new</option><option>open</option><option>pending</option><option>solved</option><option>closed</option></select></label>
+          <label><span>Tag</span>
+            <select class="field" id="fTag"><option value="">Any tag</option><option>auth</option><option>billing</option><option>backup</option><option>webhooks</option><option>export</option></select></label>
+          <label><span>Priority</span>
+            <select class="field" id="fPrio"><option value="">Any</option><option value="1">P1 urgent</option><option value="2">P2 high</option><option value="3">P3 normal</option><option value="4">P4 low</option></select></label>
+          <label class="search"><span>Search <kbd>/</kbd></span>
+            <input class="field" id="fText" type="search" placeholder="id, subject, requester…" autocomplete="off"></label>
+          <span class="count num" id="count" aria-live="polite"></span>
+        </div>
+        <div class="split">
+          <div class="qwrap">
+            <div class="qhead" aria-hidden="true"><span>Ticket</span><span>Subject / product / requester</span><span>Status</span><span>Pri</span><span>Agt</span><span style="text-align:right">Age</span></div>
+            <ul id="rows" aria-label="Ticket queue"></ul>
+          </div>
+          <aside class="preview" aria-label="Ticket preview"><div class="inner" id="prev"></div></aside>
+        </div>
+      </div>
+
+      <!-- DETAIL -->
+      <div class="view" id="v-detail" hidden>
+        <div class="dhead">
+          <div class="dline"><span class="mono" style="color:var(--text)">ACME-142</span><span class="st st-pending">Pending</span><span>Acme Cloud Backup</span><span class="presence" role="status"><i class="led"></i>Priya is replying<span class="dots"></span></span><button class="btn" style="margin-left:auto" type="button" data-go="queue">Back <kbd>Esc</kbd></button></div>
+          <h1>Backup job fails with exit code 17 after 2.4 update</h1>
+        </div>
+        <div class="dgrid">
+          <div style="display:flex;flex-direction:column;min-width:0;min-height:0">
+            <div class="thread" id="thread">
+              <article class="entry cust"><div class="eh"><span class="kind">CUSTOMER</span><span class="who">Dana Whitfield</span><span class="when num">Tue 09:12</span></div>
+                <div class="eb"><p>Since upgrading to 2.4.0 our nightly job on three servers fails with <code>exit code 17</code>. Nothing else changed. Logs attached below.</p><p>This is blocking our offsite copies, so any help today would be great.</p></div></article>
+              <div class="sys"><span>Ticket created via portal · Tag <code>backup</code> added by rule</span><span class="when num">09:12</span></div>
+              <article class="entry pub"><div class="eh"><span class="kind">PUBLIC REPLY</span><span class="who">Sam Okafor</span><span>→ customer sees this</span><span class="when num">Tue 09:31</span></div>
+                <div class="eb"><p>Thanks Dana, that is enough to start. Can you confirm whether a previous run was still active when the job started? Exit 17 usually means the lock file was held.</p></div></article>
+              <article class="entry cust"><div class="eh"><span class="kind">CUSTOMER</span><span class="who">Dana Whitfield</span><span class="when num">Tue 09:48</span></div>
+                <div class="eb"><p>Yes. The 02:00 run overlaps with the 01:30 catalogue job since the update. It never overlapped on 2.3.</p></div></article>
+              <article class="entry note"><div class="eh"><span class="kind">INTERNAL NOTE</span><span class="who">Sam Okafor</span><span>▣ customer cannot see this</span><span class="when num">Tue 10:02</span></div>
+                <div class="eb"><p>Matches the 2.4.0 scheduler regression: the lock is not released when the catalogue job times out. Priya says hotfix 2.4.1 is in review. Hold the customer on a workaround until it ships.</p></div></article>
+              <div class="sys"><span>Status changed <code>Open → Pending</code> by Sam</span><span class="when num">10:04</span></div>
+              <div class="sys"><span>Tag <code>regression</code> added by Sam</span><span class="when num">10:04</span></div>
+              <div class="sys"><span>Assigned to Sam Okafor by Jon</span><span class="when num">10:21</span></div>
+            </div>
+            <form class="composer" id="composer" aria-label="Reply composer">
+              <div class="mode" role="group" aria-label="Reply type">
+                <button type="button" id="mPub" aria-pressed="true">Public reply <kbd>r</kbd></button>
+                <button type="button" id="mNote" class="note" aria-pressed="false">Internal note <kbd>n</kbd></button>
+              </div>
+              <div class="warn" id="warn" role="status">▣ INTERNAL NOTE: the customer will NOT see this. Visible to agents only.</div>
+              <label class="sr" for="body">Message</label>
+              <textarea id="body" placeholder="Write a public reply to Dana…"></textarea>
+              <div class="cfoot">
+                <span class="to" id="to">To: dana@northwind.example · via email + portal</span>
+                <button class="btn" type="button" id="macro">Macro <kbd>;</kbd></button>
+                <button class="btn primary" type="submit" id="send">Send reply <kbd>Ctrl ↵</kbd></button>
+              </div>
+            </form>
+          </div>
+          <aside class="side" aria-label="Ticket details">
+            <section><span class="label">Ticket</span>
+              <label><span>Status</span><select class="field" id="sStatus"><option>New</option><option>Open</option><option selected>Pending</option><option>Solved</option><option>Closed</option></select></label>
+              <div class="two">
+                <label><span>Assignee</span><select class="field" id="sAsg"><option>Unassigned</option><option>Jon Seeley</option><option selected>Sam Okafor</option><option>Priya Nair</option></select></label>
+                <label><span>Priority</span><select class="field" id="sPrio"><option selected>P1 urgent</option><option>P2 high</option><option>P3 normal</option><option>P4 low</option></select></label>
+              </div>
+              <label><span>Product</span><select class="field" id="sProd"><option selected>Acme Cloud Backup</option><option>Orbitly</option><option>Pixelforge</option></select></label>
+              <div><span class="label">Tags</span><div class="tags" style="margin-top:6px"><span class="tag">backup</span><span class="tag">regression</span><button class="tag" type="button" style="background:none">+ tag</button></div></div>
+            </section>
+            <section><span class="label">Requester</span>
+              <div class="card"><span class="ini">DW</span><div><b>Dana Whitfield</b><small>dana@northwind.example</small><small class="mono">Northwind Ltd · 6 tickets</small></div></div>
+            </section>
+            <section><span class="label">Linked article</span>
+              <a class="kb" href="#" onclick="return false">Resolving exit code 17 (lock file held)<small>KB-0031 · updated 12 Sep</small></a>
+            </section>
+            <section><span class="label">Viewing</span>
+              <div class="dline"><span class="ini">PN</span><span class="presence"><i class="led"></i>Priya is viewing</span></div>
+            </section>
+          </aside>
+        </div>
+      </div>
+
+      <!-- CAUGHT UP -->
+      <div class="view" id="v-empty" hidden>
+        <div class="empty">
+          <div class="crt">
+            <div class="frame"><img data-mark alt="TechStrap mascot, a winking beige CRT computer giving a thumbs up" width="112" height="112"></div>
+            <h2>queue.empty() <span class="cur" aria-hidden="true"></span></h2>
+            <p>All caught up. Go stretch, support is fully supported.</p>
+            <span class="status"><i class="led"></i>0 unassigned · 0 waiting on you</span>
+            <div class="acts"><button class="btn" type="button" data-go="queue">Back to all tickets <kbd>Esc</kbd></button></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <footer class="statusbar">
+    <span class="h"><kbd>j</kbd><kbd>k</kbd> move</span>
+    <span class="h"><kbd>↵</kbd> open</span>
+    <span class="h"><kbd>r</kbd> reply</span>
+    <span class="h"><kbd>n</kbd> note</span>
+    <span class="h"><kbd>e</kbd> assign</span>
+    <span class="h"><kbd>/</kbd> search</span>
+    <span class="h"><kbd>Ctrl</kbd><kbd>K</kbd> palette</span>
+    <span class="msg" id="msg" role="status" aria-live="polite"></span>
+  </footer>
+</div>
+
+<!-- PORTAL -->
+<div id="portalWrap" hidden>
+  <div class="mockbar">
+    <span class="label">Mock control: product accent</span>
+    <div class="seg" role="group" aria-label="Product theme">
+      <button type="button" data-prod="orb" aria-pressed="true">Orbitly #7C3AED</button><button type="button" data-prod="pix" aria-pressed="false">Pixelforge #F59E0B</button><button type="button" data-prod="acme" aria-pressed="false">Acme #0F3D2E</button>
+    </div>
+    <span class="note" id="contrast"></span>
+  </div>
+  <div class="portal" id="portal">
+    <header class="p-head"><div class="in">
+      <span class="p-logo" id="pLogo" aria-hidden="true">O</span>
+      <span class="p-name"><span id="pName">Orbitly</span><small id="pTag">Scheduling that stays out of your way</small></span>
+      <nav class="p-nav" aria-label="Portal"><a href="#" onclick="return false">Contact support</a><a href="#" onclick="return false">Check a ticket</a><a href="#" onclick="return false">Help articles</a></nav>
+    </div></header>
+    <div class="p-main">
+      <div id="pFormWrap">
+        <h1>Contact <span class="pn">Orbitly</span> support</h1>
+        <p class="lead">Tell us what is going on. We reply by email and you can follow progress through a private link, no account needed.</p>
+        <form class="pform" id="pForm" style="margin-top:16px" novalidate>
+          <div class="p-two">
+            <label class="l" for="pn">Your name<input class="pin" id="pn" name="name" type="text" autocomplete="name" value="Marcus Lee"></label>
+            <label class="l" for="pe">Email<input class="pin" id="pe" name="email" type="email" autocomplete="email" value="marcus@example.com"></label>
+          </div>
+          <label class="l" for="ps">Subject<input class="pin" id="ps" name="subject" type="text" placeholder="e.g. I can't reset my password" autocomplete="off" aria-describedby="sg"></label>
+          <div class="sugg" id="sg" hidden aria-live="polite">
+            <h2>Suggested articles. These may answer it already</h2>
+            <ul id="sgList"></ul>
+          </div>
+          <label class="l" for="pm">Message<textarea class="pin" id="pm" name="message" rows="5" placeholder="What happened, and what did you expect?"></textarea></label>
+          <label class="l" for="pa">Attachments <span class="opt">(optional, screenshots or logs)</span><input class="pin" id="pa" name="files" type="file" multiple></label>
+          <div><button class="pbtn" type="submit" id="pSubmit">Send to support</button></div>
+        </form>
+      </div>
+      <div class="pdone" id="pDone" hidden role="status">
+        <div class="ok">We've got it — ticket <span class="tid" id="tid">ORB-38</span></div>
+        <p style="margin:0">A confirmation is on its way to <b id="dmail">your email</b>. Keep this private link to follow your ticket. Anyone with it can view the conversation.</p>
+        <code id="plink">/t/ORB-38/k7Q2xv9mP4aR</code>
+        <div><button class="pbtn ghost" type="button" id="again">Send another request</button></div>
+      </div>
+    </div>
+    <footer class="p-foot"><img data-mark alt="" width="16" height="16"><a href="#" onclick="return false">Powered by TechStrap</a></footer>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" hidden>
+  <div class="pal" role="dialog" aria-modal="true" aria-label="Command palette">
+    <label class="sr" for="palIn">Command</label>
+    <input id="palIn" type="text" placeholder="Type a command…  (try: assign, reply, theme)" autocomplete="off" role="combobox" aria-expanded="true" aria-controls="palList">
+    <ul id="palList" role="listbox"></ul>
+    <div class="foot"><span><kbd>↑</kbd><kbd>↓</kbd> select</span><span><kbd>↵</kbd> run</span><span><kbd>Esc</kbd> close</span></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var MARK = "../../../assets/brand/mark-512.png";
+  document.querySelectorAll("img[data-mark]").forEach(function (i) { i.src = MARK; });
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var PEOPLE = { JS: "Jon", SS: "Sam", PK: "Priya" };
+
+  var rows = [
+    { id: "ACME-142", s: "Backup job fails with exit code 17 after 2.4 update", p: "Acme Cloud Backup", r: "Dana Whitfield", st: "open", pr: 1, a: "SS", t: ["backup", "regression"], tm: "4m", m: "Since upgrading to 2.4.0 our nightly job on three servers fails with exit code 17." },
+    { id: "ORB-37", s: "Can't reset password, link expired", p: "Orbitly", r: "Marcus Lee", st: "new", pr: 3, a: null, t: ["auth"], tm: "11m", m: "The reset link says it expired the moment I click it. I have tried three times." },
+    { id: "PIX-9", s: "Invoice PDF shows wrong VAT rate", p: "Pixelforge", r: "Elena Rossi", st: "open", pr: 2, a: "PK", t: ["billing", "pdf"], tm: "38m", m: "Our invoices show 20% VAT but our account is set to the reduced 5% rate." },
+    { id: "ACME-141", s: "Restore wizard hangs at 87% on Windows Server 2019", p: "Acme Cloud Backup", r: "Tomasz Kowal", st: "pending", pr: 2, a: "JS", t: ["restore"], tm: "1h", m: "Restore stalls at 87% every time. CPU idle, disk idle." },
+    { id: "ORB-36", s: "Webhook retries stop after third failure", p: "Orbitly", r: "Aiko Tanaka", st: "open", pr: 3, a: "SS", t: ["webhooks"], tm: "2h", m: "Docs say five retries but we only ever see three attempts." },
+    { id: "PIX-8", s: "Export to SVG drops layer opacity", p: "Pixelforge", r: "Leo Brandt", st: "new", pr: 4, a: null, t: ["export"], tm: "3h", m: "Layers set to 50% opacity export at 100% in the SVG." },
+    { id: "ORB-35", s: "WIN A FREE iPhone!!! claim your reward now", p: "Orbitly", r: "promo@mail-rewards.biz", st: "new", pr: 4, a: null, t: [], tm: "5h", spam: true, m: "Click here to claim http://rewards.example/claim now." },
+    { id: "ACME-140", s: "Request: S3-compatible storage target", p: "Acme Cloud Backup", r: "Grace Ho", st: "pending", pr: 3, a: "JS", t: ["feature-request"], tm: "1d", m: "Would love to point backups at our MinIO cluster." },
+    { id: "PIX-7", s: "Licence seat count not updating after upgrade", p: "Pixelforge", r: "Ravi Menon", st: "solved", pr: 3, a: "PK", t: ["licensing", "billing"], tm: "1d", m: "Upgraded to 10 seats, dashboard still says 5." },
+    { id: "ORB-34", s: "SSO login loops back to sign-in on Safari", p: "Orbitly", r: "Hannah Weiss", st: "open", pr: 2, a: "SS", t: ["auth", "sso"], tm: "2d", m: "Only on Safari 17. Chrome and Firefox are fine." },
+    { id: "ACME-139", s: "Retention policy docs link is broken", p: "Acme Cloud Backup", r: "Pedro Alves", st: "closed", pr: 4, a: "JS", t: ["docs"], tm: "4d", m: "The link in the settings page returns a 404." },
+    { id: "PIX-6", s: "Crash on opening files over 2 GB", p: "Pixelforge", r: "Chloe Martin", st: "solved", pr: 1, a: "PK", t: ["crash", "large-files"], tm: "5d", m: "App closes with no error when opening a 2.3 GB project." }
+  ];
+  var STL = { new: "New", open: "Open", pending: "Pending", solved: "Solved", closed: "Closed" };
+  var view = "all", sel = 0, shown = [];
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function ini(a) { return a ? '<span class="ini' + (a === "JS" ? " me" : "") + '" title="' + PEOPLE[a] + '">' + a + "</span>" : '<span class="ini none" title="Unassigned">--</span>'; }
+  function filtered() {
+    var fp = $("#fProd").value, fs = $("#fStatus").value, ft = $("#fTag").value, fr = $("#fPrio").value, q = $("#fText").value.toLowerCase();
+    return rows.filter(function (r) {
+      if (view === "unassigned" && r.a) return false;
+      if (view === "mine" && r.a !== "JS") return false;
+      if (view === "open" && r.st !== "open" && r.st !== "new") return false;
+      if (view === "pending" && r.st !== "pending") return false;
+      if (fp && r.p !== fp) return false;
+      if (fs && r.st !== fs) return false;
+      if (ft && r.t.indexOf(ft) < 0) return false;
+      if (fr && String(r.pr) !== fr) return false;
+      if (q && (r.id + " " + r.s + " " + r.r).toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+  }
+  function render() {
+    shown = filtered();
+    if (sel >= shown.length) sel = Math.max(0, shown.length - 1);
+    $("#rows").innerHTML = shown.map(function (r, i) {
+      return '<li class="row' + (r.spam ? " spam" : "") + (r.st === "new" ? " unread" : "") + '" role="option" tabindex="' + (i === sel ? 0 : -1) + '" aria-selected="' + (i === sel) + '" data-i="' + i + '">' +
+        '<span class="id">' + r.id + "</span>" +
+        '<span class="subj"><b>' + esc(r.s) + '</b><span class="meta"><span class="prod">' + esc(r.p) + "</span><span>" + esc(r.r) + "</span>" +
+        (r.spam ? '<span class="tag spamchip">SPAM?</span>' : "") + r.t.map(function (t) { return '<span class="tag">' + t + "</span>"; }).join("") + "</span></span>" +
+        '<span class="st st-' + r.st + '">' + STL[r.st] + "</span>" +
+        '<span class="pr p' + r.pr + '" title="Priority ' + r.pr + '">P' + r.pr + "</span>" +
+        '<span class="as">' + ini(r.a) + "</span>" +
+        '<span class="tm">' + r.tm + "</span></li>";
+    }).join("");
+    $("#count").textContent = shown.length + " of " + rows.length + " shown";
+    $("#rows").setAttribute("role", "listbox");
+    preview();
+  }
+  function preview() {
+    var r = shown[sel], el = $("#prev");
+    if (!r) { el.innerHTML = '<p class="label">No tickets match</p>'; return; }
+    el.innerHTML = '<span class="label">Preview · ' + r.id + "</span><h2>" + esc(r.s) + "</h2>" +
+      '<div class="dline"><span class="st st-' + r.st + '">' + STL[r.st] + '</span><span class="pr p' + r.pr + '">P' + r.pr + "</span>" + (r.spam ? '<span class="tag spamchip">SPAM-SUSPECTED</span>' : "") + "</div>" +
+      '<dl class="kv"><dt>Product</dt><dd>' + esc(r.p) + "</dd><dt>From</dt><dd>" + esc(r.r) + "</dd><dt>Assignee</dt><dd>" + (r.a ? PEOPLE[r.a] : "Unassigned") + "</dd><dt>Tags</dt><dd>" + (r.t.length ? r.t.join(", ") : "none") + "</dd><dt>Activity</dt><dd class=\"mono\">" + r.tm + " ago</dd></dl>" +
+      '<span class="label">Latest message</span><blockquote class="quote">' + esc(r.m) + "</blockquote>" +
+      '<div class="acts"><button class="btn primary" type="button" data-act="open">Open ticket <kbd>↵</kbd></button><button class="btn" type="button" data-act="reply">Reply <kbd>r</kbd></button><button class="btn" type="button" data-act="assign">Assign <kbd>e</kbd></button></div>';
+  }
+  function select(i, focus) {
+    if (!shown.length) return;
+    sel = Math.max(0, Math.min(shown.length - 1, i));
+    $$("#rows .row").forEach(function (li, n) { li.setAttribute("aria-selected", n === sel); li.tabIndex = n === sel ? 0 : -1; });
+    var li = $$("#rows .row")[sel]; if (li) { li.scrollIntoView({ block: "nearest" }); if (focus) li.focus(); }
+    preview();
+  }
+  function say(t) { var m = $("#msg"); m.textContent = t; clearTimeout(say.t); say.t = setTimeout(function () { m.textContent = ""; }, 3000); }
+  function assign(a) {
+    var r = shown[sel]; if (!r) return;
+    r.a = a; render(); say("Assigned " + r.id + " to " + (a ? PEOPLE[a] : "nobody"));
+  }
+
+  /* screens */
+  var cur = "queue";
+  function go(name) {
+    cur = name;
+    $("#admin").hidden = name === "portal";
+    $("#portalWrap").hidden = name !== "portal";
+    ["queue", "detail", "empty"].forEach(function (v) { $("#v-" + v).hidden = v !== name; });
+    $$(".tab").forEach(function (t) { if (t.dataset.go === name) t.setAttribute("aria-current", "page"); else t.removeAttribute("aria-current"); });
+    window.scrollTo(0, 0);
+  }
+  document.addEventListener("click", function (e) {
+    var g = e.target.closest("[data-go]"); if (g) go(g.dataset.go);
+    var a = e.target.closest("[data-act]");
+    if (a) { if (a.dataset.act === "open") go("detail"); if (a.dataset.act === "reply") { go("detail"); setMode(false, true); } if (a.dataset.act === "assign") openPal("assign "); }
+    var v = e.target.closest("[data-view]");
+    if (v) { view = v.dataset.view; $$(".vbtn[data-view]").forEach(function (b) { b.setAttribute("aria-current", b === v); }); go("queue"); render(); }
+    var row = e.target.closest(".row"); if (row) { select(+row.dataset.i); }
+  });
+  document.addEventListener("dblclick", function (e) { if (e.target.closest(".row")) go("detail"); });
+  ["fProd", "fStatus", "fTag", "fPrio", "fText"].forEach(function (id) { $("#" + id).addEventListener("input", render); });
+
+  /* theme */
+  var themes = ["auto", "light", "dark"], ti = 0;
+  function cycleTheme() {
+    ti = (ti + 1) % 3; var t = themes[ti];
+    if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t);
+    $("#themeLbl").textContent = t; say("Theme: " + t);
+  }
+  $("#themeBtn").addEventListener("click", cycleTheme);
+
+  /* composer */
+  var isNote = false;
+  function setMode(note, focus) {
+    isNote = note;
+    $("#composer").classList.toggle("is-note", note);
+    $("#mPub").setAttribute("aria-pressed", !note); $("#mNote").setAttribute("aria-pressed", note);
+    $("#body").placeholder = note ? "Write an internal note for the team…" : "Write a public reply to Dana…";
+    $("#send").firstChild.nodeValue = note ? "Save note " : "Send reply ";
+    $("#to").textContent = note ? "Visible to agents only · not emailed" : "To: dana@northwind.example · via email + portal";
+    if (focus) $("#body").focus();
+  }
+  $("#mPub").onclick = function () { setMode(false, true); };
+  $("#mNote").onclick = function () { setMode(true, true); };
+  $("#composer").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var t = $("#body").value.trim(); if (!t) { $("#body").focus(); return; }
+    var d = document.createElement("div");
+    d.innerHTML = isNote
+      ? '<article class="entry note"><div class="eh"><span class="kind">INTERNAL NOTE</span><span class="who">Jon Seeley</span><span>▣ customer cannot see this</span><span class="when num">now</span></div><div class="eb"><p></p></div></article>'
+      : '<article class="entry pub"><div class="eh"><span class="kind">PUBLIC REPLY</span><span class="who">Jon Seeley</span><span>→ customer sees this</span><span class="when num">now</span></div><div class="eb"><p></p></div></article>';
+    d.firstChild.querySelector("p").textContent = t;
+    $("#thread").appendChild(d.firstChild); $("#body").value = "";
+    $("#thread").scrollTop = $("#thread").scrollHeight; say(isNote ? "Note saved" : "Reply sent");
+  });
+  $("#body").addEventListener("keydown", function (e) { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $("#composer").requestSubmit(); } });
+  $("#macro").addEventListener("click", function () { $("#body").value += (isNote ? "" : "Thanks for your patience. ") ; $("#body").focus(); });
+
+  /* palette */
+  var items = [
+    { l: "Go to queue", h: "g q", f: function () { go("queue"); } },
+    { l: "Open ticket ACME-142", h: "↵", f: function () { go("detail"); } },
+    { l: "Reply publicly", h: "r", f: function () { go("detail"); setMode(false, true); } },
+    { l: "Add internal note", h: "n", f: function () { go("detail"); setMode(true, true); } },
+    { l: "Assign to me (Jon)", h: "e", f: function () { go("queue"); assign("JS"); } },
+    { l: "Assign to Sam", h: "", f: function () { go("queue"); assign("SS"); } },
+    { l: "Assign to Priya", h: "", f: function () { go("queue"); assign("PK"); } },
+    { l: "Unassign", h: "", f: function () { go("queue"); assign(null); } },
+    { l: "View: Unassigned", h: "", f: function () { var b = $('[data-view="unassigned"]'); b.click(); } },
+    { l: "View: Mine", h: "", f: function () { $('[data-view="mine"]').click(); } },
+    { l: "Show all-caught-up state", h: "", f: function () { go("empty"); } },
+    { l: "Open Orbitly portal", h: "", f: function () { go("portal"); } },
+    { l: "Cycle theme (auto / light / dark)", h: "", f: cycleTheme }
+  ], pi = 0, plist = [], lastFocus = null;
+  function drawPal() {
+    var q = $("#palIn").value.toLowerCase().trim();
+    plist = items.filter(function (i) { return i.l.toLowerCase().indexOf(q) >= 0; });
+    if (pi >= plist.length) pi = 0;
+    $("#palList").innerHTML = plist.map(function (i, n) { return '<li role="option" aria-selected="' + (n === pi) + '" data-n="' + n + '"><span>' + esc(i.l) + '</span><span class="hint">' + i.h + "</span></li>"; }).join("") || '<li aria-disabled="true"><span>No matching command</span></li>';
+  }
+  function openPal(v) { lastFocus = document.activeElement; $("#scrim").hidden = false; $("#palIn").value = v || ""; pi = 0; drawPal(); $("#palIn").focus(); }
+  function closePal() { $("#scrim").hidden = true; if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+  function runPal(n) { var it = plist[n]; closePal(); if (it) it.f(); }
+  $("#palBtn").onclick = $("#cmdkTop").onclick = function () { openPal(""); };
+  $("#palIn").addEventListener("input", function () { pi = 0; drawPal(); });
+  $("#palList").addEventListener("click", function (e) { var li = e.target.closest("li[data-n]"); if (li) runPal(+li.dataset.n); });
+  $("#scrim").addEventListener("mousedown", function (e) { if (e.target === this) closePal(); });
+  $("#palIn").addEventListener("keydown", function (e) {
+    if (e.key === "ArrowDown") { e.preventDefault(); pi = (pi + 1) % Math.max(1, plist.length); drawPal(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); pi = (pi - 1 + plist.length) % Math.max(1, plist.length); drawPal(); }
+    else if (e.key === "Enter") { e.preventDefault(); runPal(pi); }
+    else if (e.key === "Escape") { e.preventDefault(); closePal(); }
+    else if (e.key === "Tab") { e.preventDefault(); }
+  });
+
+  /* global keys */
+  document.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); if ($("#scrim").hidden) openPal(""); else closePal(); return; }
+    if (!$("#scrim").hidden) return;
+    var tg = e.target, typing = tg && (/^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName));
+    if (typing) { if (e.key === "Escape") tg.blur(); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (cur === "queue") {
+      if (e.key === "j" || e.key === "ArrowDown") { e.preventDefault(); select(sel + 1, true); }
+      else if (e.key === "k" || e.key === "ArrowUp") { e.preventDefault(); select(sel - 1, true); }
+      else if (e.key === "Enter" && !(tg && tg.closest && tg.closest("button,a"))) { go("detail"); }
+      else if (e.key === "/") { e.preventDefault(); $("#fText").focus(); }
+      else if (e.key === "e") { e.preventDefault(); openPal("assign "); }
+      else if (e.key === "r") { go("detail"); setMode(false, true); e.preventDefault(); }
+      else if (e.key === "n") { go("detail"); setMode(true, true); e.preventDefault(); }
+    } else if (cur === "detail") {
+      if (e.key === "r") { e.preventDefault(); setMode(false, true); }
+      else if (e.key === "n") { e.preventDefault(); setMode(true, true); }
+      else if (e.key === "e") { e.preventDefault(); $("#sAsg").focus(); }
+      else if (e.key === "Escape") go("queue");
+    } else if (cur === "empty" && e.key === "Escape") go("queue");
+  });
+
+  /* portal theming */
+  function hex2rgb(h) { h = h.replace("#", ""); return [0, 2, 4].map(function (i) { return parseInt(h.substr(i, 2), 16); }); }
+  function rgb2hex(c) { return "#" + c.map(function (v) { return ("0" + Math.round(v).toString(16)).slice(-2); }).join(""); }
+  function lum(c) { var a = c.map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]; }
+  function cr(a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+  function mix(a, b, t) { return a.map(function (v, i) { return v * (1 - t) + b[i] * t; }); }
+  var PRODUCTS = {
+    orb: { n: "Orbitly", c: "#7C3AED", g: "O", tag: "Scheduling that stays out of your way", pre: "ORB-38", arts: ["Reset your password", "Why does my reset link expire?", "Sign-in problems on a new device"] },
+    pix: { n: "Pixelforge", c: "#F59E0B", g: "P", tag: "Vector design for busy teams", pre: "PIX-10", arts: ["Fixing wrong VAT rates on invoices", "Change your billing country", "Download past invoices"] },
+    acme: { n: "Acme Cloud Backup", c: "#0F3D2E", g: "A", tag: "Backups you can forget about", pre: "ACME-143", arts: ["Resolving exit code 17", "Scheduling overlapping jobs", "Restoring to a new server"] }
+  };
+  var prod = "orb", WHITE = [255, 255, 255], BLACK = [17, 17, 17];
+  function setProd(k) {
+    prod = k; var P = PRODUCTS[k], acc = hex2rgb(P.c);
+    var on = cr(acc, WHITE) >= cr(acc, BLACK) ? WHITE : BLACK;
+    var ink = acc, n = 0; while (cr(ink, WHITE) < 4.5 && n++ < 40) ink = mix(ink, [0, 0, 0], 0.08);
+    var w = $("#portal"), s = w.style;
+    s.setProperty("--p-accent", P.c); s.setProperty("--p-on-accent", rgb2hex(on)); s.setProperty("--p-ink", rgb2hex(ink)); s.setProperty("--p-soft", rgb2hex(mix(acc, WHITE, 0.9)));
+    $("#pName").textContent = P.n; $("#pTag").textContent = P.tag; $("#pLogo").textContent = P.g;
+    $$(".pn").forEach(function (e) { e.textContent = P.n; });
+    $("#contrast").textContent = "On-accent text " + rgb2hex(on) + " · " + cr(acc, on).toFixed(1) + ":1 · accent ink " + rgb2hex(ink) + " (" + cr(ink, WHITE).toFixed(1) + ":1 on white)";
+    $$("[data-prod]").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.prod === k); });
+    $("#tid").textContent = P.pre; $("#plink").textContent = "/t/" + P.pre + "/k7Q2xv9mP4aR";
+    suggest();
+  }
+  function suggest() {
+    var v = $("#ps").value.trim(), box = $("#sg");
+    if (v.length < 3 || !$("#pDone").hidden) { box.hidden = true; return; }
+    $("#sgList").innerHTML = PRODUCTS[prod].arts.map(function (a) { return '<li><a href="#" onclick="return false">' + esc(a) + "</a></li>"; }).join("");
+    box.hidden = false;
+  }
+  $("#ps").addEventListener("input", suggest);
+  $$("[data-prod]").forEach(function (b) { b.addEventListener("click", function () { setProd(b.dataset.prod); }); });
+  $("#pForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var m = $("#pe"); if (!m.value.trim() || m.value.indexOf("@") < 0) { m.focus(); return; }
+    $("#dmail").textContent = m.value; $("#pFormWrap").hidden = true; $("#pDone").hidden = false; $("#sg").hidden = true; $("#pDone").setAttribute("tabindex", "-1"); $("#pDone").focus();
+  });
+  $("#again").addEventListener("click", function () { $("#pDone").hidden = true; $("#pFormWrap").hidden = false; $("#pForm").reset(); $("#sg").hidden = true; $("#ps").focus(); });
+
+  render(); setProd("orb");
+})();
+</script>

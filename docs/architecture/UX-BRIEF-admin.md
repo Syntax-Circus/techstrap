@@ -3,13 +3,18 @@
 **Handoff audience:** Claude Design, UX designer, and implementation team
 
 > This is a **designer handoff**, not an implementation ticket. It states what
-> the agent app must do and feel like; layout, visual language and component
-> design are the designer's to propose. **Prerequisite:** `docs/BRAND.md` is
-> produced in [PHASE-02 (brand and UX)](PHASE-02-brand-and-ux.md) following the
-> _template `DESIGN.md` process. No significant admin UI is built (PHASE-07)
-> until it exists. This brief does not define colour, type or geometry; it
-> constrains information, behaviour and accessibility. Where it says "Bootstrap
-> prefers" it is a starting point for the designer, not a style decision.
+> the agent app must do and feel like; layout and component design are the
+> designer's to propose within the chosen direction. **Visual direction is
+> decided:** Carbon Copy v2 (owner decision, 2026-10-02), produced in
+> [PHASE-02 (brand and UX)](PHASE-02-brand-and-ux.md).
+> [`docs/BRAND.md`](../BRAND.md) is the system of record for colour, type,
+> geometry, tokens and mascot usage; the reference mockup is
+> [`docs/design/mockups/direction-carbon-copy-v2.html`](../design/mockups/direction-carbon-copy-v2.html).
+> See [Visual Direction](#visual-direction). No significant admin UI is built
+> (PHASE-07) until BRAND.md is final. Where this brief and BRAND.md disagree on
+> a visual value, BRAND.md wins; on behaviour, content or accessibility, this
+> brief wins and BRAND.md is corrected. Where it says "Bootstrap prefers" it is
+> a starting point, not a style decision.
 
 ## Product Context
 
@@ -95,7 +100,9 @@
 - **Failure, loading, and empty states:** skeleton rows while loading; empty
   Unassigned = positive "Nothing waiting" message; empty filtered result = "No
   tickets match" with one-click clear-filters; API failure = inline error with
-  retry, previous list kept visible if stale data exists.
+  retry, previous list kept visible if stale data exists. A truly empty
+  Unassigned, Mine or Open view (no filters, no search) shows the **All caught
+  up** brand moment (see Brand moments); a filtered-empty result never does.
 
 ### Reply publicly to a customer
 
@@ -124,9 +131,10 @@
 - **Starting state:** ticket detail open.
 - **Trigger:** agent switches to the **Internal note** composer tab.
 - **Steps:**
-  1. [ ] Composer visibly changes identity (see Interaction rules: distinct
-     treatment, label "Internal note: only agents see this", different
-     submit label "Add note").
+  1. [ ] Composer visibly changes identity (see Interaction rules, "Composer
+     distinction": pink dashed notched container, the persistent warning
+     "INTERNAL: the customer will NOT see this note.", submit label "Add
+     internal note").
   2. [ ] Write and submit.
 - **Success state:** note on the timeline in the internal visual treatment; no
   email is sent; status does not change automatically.
@@ -194,8 +202,8 @@
 ### Write and publish a KB article
 
 - **Starting state:** admin or agent on KB.
-- **Trigger:** "New article", or "Create article from this ticket" (Assumption:
-  nice-to-have; open question).
+- **Trigger:** "New article". ("Create article from this ticket" is not in v1;
+  see Handoff Notes, question 8.)
 - **Steps:**
   1. [ ] Set product (or Shared), category, title, slug (auto, editable),
      summary.
@@ -247,7 +255,11 @@ inventory, not the URLs.
   - **Purpose:** find and prioritise work.
   - **Primary actions:** switch view (Unassigned, Mine, Open, Pending, All),
     filter (product, status, tag, priority), search (full-text over tickets),
-    page, open ticket, bulk actions are out of scope for v1 (open question).
+    page, open ticket. Bulk actions are out of scope for v1 (Handoff Notes,
+    question 9). The ledger anatomy follows the v2 mockup: selection marker,
+    ticket number, subject with tag chips, product, requester, status stamp
+    (straight, no animation), priority, assignee avatar, last activity; the
+    keyboard layer below applies.
   - **Data/state:** `ListTicketsRequestHandler` results (paged); view, filters,
     search term and page held in the query string so views are linkable and
     survive refresh; counts per view; live row updates.
@@ -284,11 +296,15 @@ inventory, not the URLs.
   - **Primary actions:** create, rename, recolour, delete (with usage count).
   - **Data/state:** tag list with ticket counts.
   - **Authorization:** Admin (Assumption: agents may apply but not manage tags).
-- **Screen/route:** KB list `/kb` and editor `/kb/{id}`
+- **Screen/route:** KB list `/kb`, editor `/kb/new` and `/kb/{id}`, and
+  categories `/kb/categories` (route for categories is an Assumption; PHASE-08
+  names `KbCategoriesPage` without a route)
   - **Purpose:** manage categories and articles.
-  - **Primary actions:** filter by product/category/status; create category;
-    create/edit/publish/archive article; Markdown editor with live preview; image
-    upload.
+  - **Primary actions:** filter by product/category/status/text; create
+    category (inline CRUD on the categories page; delete blocked with an
+    explanation when articles exist); create/edit/publish/archive article;
+    Markdown editor with live preview; image upload; the article picker used by
+    the reply composer lives on the ticket page (PHASE-08).
   - **Data/state:** article list (title, product or Shared, category, status,
     updated); editor state with dirty tracking; preview rendered server-side
     through `POST /api/kb/preview` (the same Markdown renderer as the portal, D-021).
@@ -307,18 +323,57 @@ inventory, not the URLs.
 - **Screen/route:** My settings `/account/notifications`
   - **Purpose:** notification preferences.
   - **Primary actions:** per product, opt in/out of new-ticket email alerts;
-    assignment alerts toggle (Assumption).
+    assignment alerts toggle (Assumption); a single "Keyboard shortcuts" toggle
+    (single-key shortcuts on/off) and the theme choice (auto, light, dark).
   - **Data/state:** `GetCurrentAgentRequestHandler` plus
     `UpdateNotificationPreferencesRequestHandler`; saves per toggle with inline
     confirmation.
   - **Authorization:** Agent.
-- **Screen/route:** Shell, sign-in and system pages
-  - **Purpose:** navigation frame, "no access", Blazor reconnect overlay, 404,
-    unexpected error.
-  - **Primary actions:** navigate; global search focus; sign out.
-  - **Data/state:** current agent, nav badges, connection state.
-  - **Authorization:** Authenticated; no-access page for signed-in users without
-    the group claim.
+- **Screen/route:** Shell (`MainLayout`, `NavMenu`, status bar, command palette)
+  - **Purpose:** navigation frame, keyboard layer and feedback surface.
+  - **Primary actions:** navigate; global search focus (`/`); open the command
+    palette (`Ctrl+K`); read shortcut hints and transient confirmations in the
+    status bar; theme choice (auto, light, dark); sign out.
+  - **Data/state:** current agent, nav badges, connection state, theme and
+    shortcut preferences (per user, in the browser).
+  - **Authorization:** Authenticated.
+- **Screen/route:** Agent sign-in (signed-out landing; OIDC challenge starts here)
+  - **Purpose:** brand moment; the only screen shown before authentication.
+  - **Primary actions:** "Sign in" (redirects to the OIDC provider; the mockup
+    labels it "Sign in with Authentik", provider name comes from configuration).
+  - **Data/state:** none; a signed-out or expired-session return shows the same
+    window with a plain one-line reason ("Your session ended. Sign in again.").
+    No password is ever entered in the app.
+  - **Authorization:** Anonymous. Frame: Beige Box window with mascot (see Brand
+    moments).
+- **Screen/route:** No access (`NoAccessPage`)
+  - **Purpose:** tell a signed-in user without the agent group claim why they
+    see nothing, and what to do.
+  - **Primary actions:** sign out / sign in as another user; copy the contact
+    for the administrator if configured.
+  - **Data/state:** current principal name and email.
+  - **Authorization:** Signed in without the agent group claim. Plain screen:
+    no mascot, no window frame, no humour (it blocks work).
+- **Screen/route:** All caught up (queue empty state, not a route)
+  - **Purpose:** positive empty state for a truly empty Unassigned, Mine or Open
+    view.
+  - **Primary actions:** "View open tickets" (or the next sensible view).
+  - **Data/state:** the view's count is 0 with no filters and no search.
+  - **Authorization:** Agent. Beige Box window with mascot (see Brand moments).
+    Other empty views (Pending, All, filtered results, dead letters, tags,
+    audit) use plain empty states without the window or mascot.
+- **Screen/route:** Not found (404, any unknown route or missing ticket number)
+  - **Purpose:** recover from a bad link.
+  - **Primary actions:** back to the queue; open the command palette.
+  - **Data/state:** none.
+  - **Authorization:** Any. Beige Box window with mascot; body copy stays
+    plain (see Brand moments).
+- **Screen/route:** Unexpected error, session expired and Blazor reconnect
+  overlay
+  - **Purpose:** recoverable failure states for the whole app.
+  - **Primary actions:** "Try again"; reload; sign in again.
+  - **Data/state:** correlation id on the error page.
+  - **Authorization:** Any. Plain: no mascot, no window frame, no humour.
 
 ## Razor Presentation Architecture
 
@@ -372,19 +427,43 @@ lifecycle work, state, callbacks or JS interop are paired `.razor` /
     ("Closed tickets are read-only; a customer reply starts a follow-up").
   - Composer: preserve drafts per ticket and tab while navigating within the
     session; warn before leaving with unsent text.
-  - **Composer distinction (hard requirement):** Public reply and Internal note
-    differ by more than colour: a text label, a different container treatment
-    (e.g. border style/pattern), a different icon, a different submit button
-    label, and a persistent line stating the audience ("Sent to the customer by
-    email" vs "Visible to agents only"). Timeline entries repeat the same
-    distinction. The same two-cue system must be reviewed in grayscale and
-    forced-colours mode.
+  - **Composer distinction (hard requirement):** the carbon tint code applies
+    to the timeline and to the composer. Customer message = white sheet;
+    public agent reply = canary; internal note = pink with a dashed border and
+    a notched corner. Colour is never the only cue. In the **composer**:
+    - A two-option segmented control, "Public reply `r`" and "Internal note
+      `n`" (pressed state exposed with `aria-pressed`). The control, not the
+      body text, decides the mode; switching never moves or converts typed text
+      (each mode keeps its own draft per ticket).
+    - **Public reply mode:** canary container with a solid edge; submit label
+      "Send reply" (`Ctrl+Enter`); audience line "To: {requester email}" and
+      the plain warning line "PUBLIC: this will be emailed to the customer."
+      Optional "Insert KB link" and status-on-send choice (default Pending;
+      "Send and solve").
+    - **Internal note mode:** pink container with dashed border and notched
+      corner; a warning bar directly above the text area reading exactly
+      **"INTERNAL: the customer will NOT see this note."** (`role="status"`, so
+      it is announced on switch, and it remains visible while the mode is
+      active); audience line "Visible to agents only"; submit label "Add
+      internal note"; placeholder "Note for the team only"; no status-on-send
+      and no KB link controls (they do nothing for a note).
+    - **Defaults and guards:** default mode is Public reply whenever the last
+      customer-visible message awaits an agent response; the composer never
+      silently changes mode after submit or after a conflict reload; the mode
+      is shown in the status bar message after every send ("Reply sent on
+      ACME-142" vs "Internal note added to ACME-142").
+    - **Timeline entries** repeat the system: a text label (agents see "agent
+      reply", "customer", and "INTERNAL NOTE" in the entry header), the tint,
+      the dashed notched edge for notes, and an indent for agent entries. A
+      small legend (Customer white, Public reply canary, Internal note pink)
+      sits under the timeline. The system must still read in grayscale and
+      forced-colours mode through label, border style and notch alone.
 - **Notifications and errors:**
   - Success toasts are brief and non-blocking (`role="status"`, polite); errors
     that need action are inline, persistent and `role="alert"`.
   - Never lose user input on any error. Network/circuit loss shows the Blazor
     reconnect UI plus a clear explanation; Blazor Server circuit state may be
-    lost, so unsent composer drafts need a plan (open question 6).
+    lost, so unsent composer drafts need a plan (Handoff Notes, question 6).
   - Conflict, connectivity and permission failures each have distinct,
     plain-language copy (what happened, what was kept, what to do).
   - Email alerts are separate from in-app: v1 has no in-app notification centre.
@@ -409,7 +488,9 @@ lifecycle work, state, callbacks or JS interop are paired `.razor` /
   - Skeletons for lists/timeline on first load; subtle inline spinners on actions;
     no full-page spinners after first render.
   - Every list has a designed empty state with the next sensible action; a
-    filtered-empty state is distinct from a truly-empty one.
+    filtered-empty state is distinct from a truly-empty one. Only the queue's
+    truly-empty Unassigned, Mine and Open views use the brand-moment window
+    (All caught up); every other empty state is plain text.
   - Error state per region (not whole-page) with retry; error boundaries catch
     component failures and show a recoverable fallback.
   - Offline or SignalR down: the app is read/write as long as the circuit lives;
@@ -423,14 +504,40 @@ lifecycle work, state, callbacks or JS interop are paired `.razor` /
   density for the queue (one line per ticket where possible) with a comfortable
   alternative (Assumption: a single user-level density toggle). Reading areas
   (timeline messages) keep comfortable line length and spacing regardless.
-- **Shortcuts (Assumption, final set is a design decision; open question 5):**
-  `g` then `q` go to queue; `j`/`k` next/previous row; `Enter` open; `/` focus
-  search; `?` shortcut help; on a ticket: `r` focus public reply, `n` focus
-  internal note, `a` assign to me, `s` status menu, `Ctrl+Enter` send, `Esc`
-  blur composer/close menu, `[` back to the queue. Single-key shortcuts are
-  disabled while typing in a field, are listed in an accessible help dialog, and
-  can be turned off (WCAG 2.1.4). Every shortcut has a visible, mouse-reachable
-  equivalent.
+- **Keyboard map (decided; the mockup is the reference).** Single-key shortcuts
+  are inactive while focus is in a text field, select or editable area.
+
+  | Key | Context | Action |
+  | :-- | :------ | :----- |
+  | `j` / `k` (also arrow down/up) | Queue | Move the row selection down/up (selection scrolls into view; never reorders rows) |
+  | `Enter` | Queue, focus on the page body | Open the selected ticket |
+  | `/` | Anywhere | Focus search (jumps to the queue search from other screens) |
+  | `r` | Ticket | Open the Public reply tab and focus the composer |
+  | `n` | Ticket | Open the Internal note tab and focus the composer |
+  | `e` | Ticket | Focus the Assignee control (the palette command "Assign ... to me" assigns immediately) |
+  | `Ctrl+Enter` | Composer focused | Send in the current mode (reply or note) |
+  | `Esc` | Text field focused | Blur the field (typed text is kept) |
+  | `Esc` | Ticket, not typing | Back to the queue |
+  | `Esc` | Palette or dialog open | Close it (the API-key secret dialog is the exception, see destructive actions) |
+  | `Ctrl+K` (`Cmd+K`) | Anywhere in Admin | Open or close the command palette |
+  | `?` | Anywhere | Open the shortcut help dialog |
+
+  - **Command palette (decided: yes):** a modal combobox (`role="dialog"`,
+    listbox of results, `aria-activedescendant`) filtered by typed words; arrow
+    keys select, `Enter` runs, `Esc` closes and returns focus to the previous
+    element. Initial commands: go to queue, open a ticket, reply, add internal
+    note, assign to me, switch view (Unassigned, Mine, ...), cycle theme.
+    Commands that have a shortcut display it. (The mockup's "Show the brand
+    moments" command is a review aid and is not shipped.)
+  - **Status bar:** a persistent footer line listing the current hints
+    (`j k` move, `Enter` open, `r` reply, `n` note, `e` assign, `/` search,
+    `Ctrl K` palette) plus a polite message slot (`role="status"`) for short
+    confirmations ("Assigned ACME-142 to Sam"). It supplements, and never
+    replaces, toasts for errors that need action.
+  - **Accessibility of the layer (WCAG 2.1.4):** single-key shortcuts can be
+    turned off in My settings; all shortcuts are listed in the help dialog;
+    every shortcut has a visible, mouse-reachable equivalent; the layer is
+    inactive on the portal and on the sign-in window.
 
 ## Accessibility and Responsive Behavior
 
@@ -460,8 +567,9 @@ Target: **WCAG 2.2 AA**.
     data already provided (3.3.7); authentication does not rely on a cognitive
     test (3.3.8; handled by the OIDC provider).
 - **Color contrast and non-color cues:**
-  - Text 4.5:1, large text and UI components 3:1 in light and dark themes (a dark
-    theme is a design question; open question 7). Status, priority, product and
+  - Text 4.5:1, large text and UI components 3:1 in **both** the light and the
+    dark theme (both ship in v1; carbon tints, stamps and ledger rules are
+    re-derived for dark and checked separately). Status, priority, product and
     tag chips combine text label plus shape/icon; colour never carries meaning
     alone. Product accent colours and tag colours are arbitrary admin input: the
     UI must compute a legible foreground and never put text directly on an
@@ -478,77 +586,176 @@ Target: **WCAG 2.2 AA**.
   - Respect browser zoom to 400% and text spacing overrides (1.4.4, 1.4.10,
     1.4.12).
 - **Reduced-motion or other preferences:** honour `prefers-reduced-motion`
-  (no animated row insertion, scroll animations or pulsing indicators; use
-  static highlights), `prefers-color-scheme`, forced-colors/high-contrast mode,
+  (no animated row insertion, scroll animations or pulsing indicators, and no
+  stamp "thud" animation on the ticket view: the stamp changes state instantly;
+  use static highlights), `prefers-color-scheme` (default theme is "auto";
+  the agent can override to light or dark), forced-colors/high-contrast mode,
   and user text-size settings. No auto-playing or flashing content. Live-update
   highlights fade by instant state change, not animation, when reduced motion
   is on.
 
 ## Visual Direction
 
-Direction comes from `docs/BRAND.md` (PHASE-02). The TechStrap brand is a
-**neutral, tool-like frame**; product accents appear only on product chips and
-previews. The designer should treat the admin as a dense working instrument, not
-a marketing surface.
+**System of record:** [`docs/BRAND.md`](../BRAND.md) (colour, type, geometry,
+tokens, mascot rules). **Reference mockup:**
+[`docs/design/mockups/direction-carbon-copy-v2.html`](../design/mockups/direction-carbon-copy-v2.html)
+(queue, ticket, caught-up, brand moments and portal views; light and dark).
+Direction: **Carbon Copy v2**, chosen by the owner on 2026-10-02. Personality:
+**cheeky frame, serious tools** (humour only in brand moments; see below).
+
+How it applies to Admin:
+
+- **Ruled ledger queue:** square-cornered ledger rows on ruled lines with a
+  margin rule, mono ticket numbers and tabular figures; dense, one line per
+  ticket (see Density).
+- **Status stamps:** the five statuses (and a `Spam?` stamp with a double
+  border) are stamp-shaped, text-labelled marks. **Straight and static in
+  lists. Tilted, with a one-off "thud" animation when the status changes, only
+  on the ticket view** (animation off under reduced motion).
+- **Carbon tint code:** white = customer, canary = public reply, pink + dashed
+  + notched = internal note (see Composer distinction). Tints are never the
+  only cue.
+- **Numbered paper-form ticket header:** the ticket header is a call-log form
+  with numbered field boxes (1 Ticket no., 2 Received, 3 Caller, 4 Channel,
+  5 Problem), mirroring the mockup. The numbering is decoration on the ticket
+  header only; it does not appear elsewhere. Header contents still obey the
+  Interaction rules (number copyable, subject, status, product chip, presence).
+- **Keyboard layer:** see the Keyboard map; status bar and `Ctrl+K` palette are
+  part of the shell.
+- **Themes:** light and dark both ship in v1 (paper-and-ink light; ruled-blue
+  night theme). Default follows `prefers-color-scheme`; the agent can override.
+- **Brand moments:** Beige Box retro window frames with the mascot, **only** on
+  the three Admin brand moments below. Everything else is working UI.
+- **Fonts:** the mockup loads fonts from a CDN for convenience only;
+  production self-hosts whatever BRAND.md selects (no third-party font hosts).
+
+### Brand moments and mascot rules (Admin)
+
+Personality rule: **cheeky frame, serious tools.** A brand moment is a screen
+where the agent is not mid-task. Working screens, customer-facing text, errors
+that block work, and legal or security copy stay plain.
+
+| Screen | Frame | Copy (mockup wording, provisional) | Notes |
+| :----- | :---- | :--------------------------------- | :---- |
+| **All caught up** (empty Unassigned, Mine or Open view, no filters) | Beige Box window, title bar `queue.exe - 0 items` | Heading "All caught up"; line "Zero tickets, fully supported."; action "View open tickets" | Never shown for filtered-empty or load failure (those are plain). Mascot is decorative: `alt=""`. |
+| **Agent sign-in** | Beige Box window, title bar `techstrap - sign in` | Heading "Agent sign-in"; plain security copy "Single sign-on through your company's identity provider. No passwords are entered here."; action "Sign in"; fine print "Agents only. Customers: use your product's support page." | The security and legal-style lines are plain by rule; humour, if any, is limited to the title bar and mascot. |
+| **404** | Beige Box window, title bar `ERROR 404 - not found` | Heading may be cheeky ("This page fell out of its strap."); body must be plain and useful: "The address you followed doesn't match any page here. It may have moved, or the link may have a typo."; action "Back to the queue" | A missing ticket number inside a known ticket route still says plainly that the ticket was not found. |
+
+**Where the mascot MAY appear:** inside the Beige Box window on the three
+screens above; the small TechStrap mark as the app logo in the navigation rail
+(a static logo, not a pose or illustration; BRAND.md confirms whether mark and
+mascot are the same artwork and sets the logo-size rule).
+
+**Where the mascot MUST NOT appear:** the queue with rows; the ticket view, its
+timeline, composer and side panel; settings (products, agents, tags,
+notifications); KB list, editor and categories; dead letters and audit log; the
+no-access page, unexpected-error page, session-expired and reconnect overlay
+(errors that block work); confirmation and destructive dialogs, the API-key
+secret dialog and all security copy; toasts and the status bar; any email; any
+Portal page. Window frames (title bar, LED, retro chrome) are also limited to
+the three brand moments and never wrap working content.
+
+### Bootstrap and SCSS guidance
 
 - **Bootstrap 5 components/utilities to prefer:** tables (with responsive
-  wrapper), list groups for the timeline and side panel, nav/offcanvas for the
-  responsive menu, modal for dialogs, toast for notifications, badges for
-  status/priority/kind, form controls and validation states, dropdown for
-  overflow actions, pagination, placeholders for skeletons, `visually-hidden`
-  helpers. Prefer composition of utilities over custom classes.
-- **SCSS variable overrides:** token overrides only, produced by PHASE-02:
-  colours, body/heading fonts and scale, border radius, spacing and table
-  density variables, focus ring, and the semantic status/priority palette
-  (checked for contrast). Dark mode via Bootstrap colour modes if adopted.
-- **Custom SCSS justified only for:** the distinct public/internal timeline
-  treatments, the composer distinction, the product chip with computed
-  contrast, presence and live-change indicators, the Markdown split-pane
-  editor, and the density toggle. Everything else stays stock Bootstrap.
-- **Typography, imagery, and content tone:** a legible, tabular-number-friendly
-  type scheme (ticket numbers, counts and times align); a monospaced or
-  otherwise distinct treatment for ticket numbers and API key prefixes. No
-  decorative imagery in the working screens; the product logo appears only in
-  the product chip and settings. Tone: calm, plain, brief; microcopy states
-  consequences ("This will email the customer") rather than jargon. Empty states
-  may carry light personality only if BRAND.md allows; clarity first.
+  wrapper), list groups for the side panel, nav/offcanvas for the responsive
+  menu, modal for dialogs and the palette, toast for notifications, badges
+  where a stamp is not wanted (kind, status in the side panel), form controls
+  and validation states, dropdown for overflow actions, pagination,
+  placeholders for skeletons, `visually-hidden` helpers. Prefer composition of
+  utilities over custom classes.
+- **SCSS variable overrides:** token overrides only, produced by PHASE-02 and
+  recorded in BRAND.md: colours for both themes (via Bootstrap colour modes),
+  fonts and scale, zero border radius, spacing and table-density variables,
+  focus ring, and the semantic status/priority palette (checked for contrast).
+- **Custom SCSS justified only for:** the ledger rows and rules, status stamps
+  (including the ticket-view tilt and animation), the carbon tint timeline and
+  composer treatments, the numbered form header, the Beige Box window, the
+  status bar and command palette, the product chip with computed contrast,
+  presence and live-change indicators, the Markdown split-pane editor, and the
+  density toggle. Everything else stays stock Bootstrap.
+- **Typography, imagery, and content tone:** tabular-number-friendly type; a
+  monospaced treatment for ticket numbers, API key prefixes, stamps and
+  keyboard hints. No decorative imagery in working screens; the product logo
+  appears only in the product chip and settings. Tone: calm, plain, brief;
+  microcopy states consequences ("This will email the customer") rather than
+  jargon. Light personality is allowed only on the three brand moments.
 
 ## Handoff Notes
 
-- **Open design questions:**
-  1. Layout of ticket detail: how the timeline, composer and side panel share
-     space at 1280 px and 1920 px, and whether the composer is docked or inline.
-  2. Queue row anatomy and density: which columns survive on narrow widths; are
-     saved filter presets in v1 (Assumption: no).
-  3. Dark theme in v1, or light only first?
+- **Open design questions** (all dispositioned; none is left unmarked):
+  1. Layout of ticket detail at 1280 px and 1920 px; docked or inline
+     composer. **Answered in part:** two regions as in the mockup (conversation
+     dominant; side panel for properties, requester and linked KB article) and
+     the composer **inline** beneath the timeline, not docked. **Deferred to
+     PHASE-07 (P07-T08):** exact column widths and the narrow-screen collapse
+     need rendered review at both widths.
+  2. Queue row anatomy and density, narrow-width columns, saved filter presets.
+     **Answered:** anatomy per the mockup (see Screen Inventory). Saved filter
+     presets are not in v1. **Deferred to PHASE-07 (P07-T07):** which columns
+     drop first on narrow widths (proposed order: Product, Requester, Priority);
+     requires rendered review.
+  3. Dark theme in v1. **Answered:** yes; light and dark both ship (owner
+     decision 2026-10-02).
   4. (Resolved, D-022: delete ticket and erase requester are Admin only.)
-  5. Final keyboard-shortcut set and whether a command palette is warranted.
-  6. Draft protection against Blazor Server circuit loss (session-storage draft
-     backup vs accepting loss with a warning).
-  7. Product chip design that works for any admin-chosen accent colour, and how
-     many products before the product filter needs a different control.
-  8. KB editor: split-pane vs tab preview; WYSIWYG toolbar scope; "create
-     article from ticket" in v1?
-  9. Bulk actions (assign/close many) in v1 or later?
-  10. Do agents see requester history (other tickets from the same requester) in
-      the side panel? (Assumption: a compact list; not in the original spec.)
-  11. How is a ticket's `Spam` flag shown and recovered (a Spam view, undo)?
-  12. Marking a message vs ticket as public/internal after the fact: out of scope
-      (Assumption: not editable).
-- **Prototype/wireframe references:** none yet. Expected from PHASE-02:
-  (a) `docs/BRAND.md`; (b) three divergent directions per _template
-  `DESIGN.md` §5, ideally as coded mockups at desktop and tablet widths, covering
-  queue, ticket detail with both composer states, a conflict state, the API-key
-  secret reveal, and the KB editor; (c) a token sheet for the SCSS overrides.
-  Comparable products to study, not copy: FreeScout (the stated "light
-  helpdesk" reference).
+  5. Keyboard set and command palette. **Answered:** the Keyboard map above,
+     with a `Ctrl+K` palette and status bar.
+  6. Draft protection against Blazor Server circuit loss. **Deferred to
+     PHASE-07 (`ReplyComposer` task):** it is a technical trade-off (session
+     storage backup vs a warning) that needs a spike. Default if no spike
+     happens: drafts live in the circuit and the leave-warning is shown; the UX
+     requirement (never silently lose typed text) is unchanged.
+  7. Product chip for arbitrary accents, and the product-filter breakpoint.
+     **Answered:** a chip with a text label (product name or key prefix) on a
+     background that uses the derived on-accent colour (same derivation as the
+     Portal brief: white or near-black, whichever contrasts more, at least
+     4.5:1), never colour alone. **Deferred to PHASE-07 (P07-T07):** the product
+     count at which the product filter becomes a searchable combobox (needs a
+     realistic product list to judge).
+  8. KB editor: split-pane vs tab; toolbar scope; "create article from
+     ticket". **Answered:** side-by-side preview on wide screens, tabbed on
+     narrow; a minimal Markdown toolbar (bold, italic, link, list, code,
+     image), no WYSIWYG. "Create article from this ticket" is **not in v1**
+     (not in PHASE-08's page list); **Deferred post-v1.** **Deferred to
+     PHASE-08 (P08-T17):** the exact toolbar button set.
+  9. Bulk actions. **Deferred post-v1:** not in PHASE-07's scope or success
+     criteria. The ledger's selection marker column is reserved but inert.
+  10. Requester history in the side panel. **Answered in part:** the requester
+      card shows the ticket count and first-seen date (as in the mockup).
+      **Deferred to PHASE-07 (P07-T08):** a compact list of other tickets needs
+      a requester-scoped ticket list on the API; include only if
+      `ListTicketsRequest` already supports it, otherwise post-v1.
+  11. How the `Spam` flag is shown and recovered. **Answered in part:** a
+      flagged row shows a double-bordered "Spam?" stamp in place of the status
+      stamp, and the ticket overflow menu offers "Not spam" to recover.
+      **Owner decision needed:** whether v1 ships a dedicated Spam view (the
+      five queue views are fixed in PHASE-07's success criteria; without it,
+      recovering spam relies on search and filters).
+  12. Editing a message's audience (public/internal) after the fact.
+      **Answered:** not editable in v1; the timeline is append-only.
+- **Prototype/wireframe references:**
+  - Chosen direction: `docs/design/mockups/direction-carbon-copy-v2.html`
+    (queue, ticket with both composer states, caught-up, brand moments,
+    portal sample; light and dark). The other mockups in
+    `docs/design/mockups/` are superseded explorations.
+  - Still expected from PHASE-02 (tracked there, not by this brief): the final
+    `docs/BRAND.md`, the token sheet for the SCSS overrides, and mockups for
+    states the v2 file does not cover (conflict banner, API-key secret reveal,
+    KB editor, dead letters, tablet width).
+  - Comparable products to study, not copy: FreeScout (the stated "light
+    helpdesk" reference).
 - **Acceptance criteria for design review:**
   - [ ] `docs/BRAND.md` exists and the design follows it; the logo-removal test
     was considered.
   - [ ] Public reply and internal note are unmistakable in the composer and the
-    timeline, in colour, grayscale and forced-colours modes.
+    timeline, in light, dark, grayscale and forced-colours modes, including the
+    exact "INTERNAL: the customer will NOT see this note." warning.
+  - [ ] Stamps are straight and static in lists and tilted and animated only on
+    the ticket view; the animation is off under reduced motion.
+  - [ ] The Beige Box frame and mascot appear on all-caught-up, agent sign-in
+    and 404 only; a screen audit finds none elsewhere.
   - [ ] Every screen in the inventory has designed default, loading, empty,
-    error and (where relevant) conflict/offline states.
+    error and (where relevant) conflict/offline states, in both themes.
   - [ ] The concurrency-conflict flow shows that no typed text is lost.
   - [ ] API-key creation clearly distinguishes Trusted vs Public and enforces
     show-once.
@@ -557,9 +764,10 @@ a marketing surface.
   - [ ] Presence and live-update patterns never move content under the
     pointer or steal focus.
   - [ ] Contrast checked (4.5:1 text, 3:1 UI) for all status, priority and tag
-    colours and for arbitrary product accents.
-  - [ ] Keyboard-only walkthrough of triage, reply, note, assign and key
-    creation passes; shortcut help and opt-out exist.
+    colours and for arbitrary product accents, in light and dark.
+  - [ ] Keyboard-only walkthrough of triage, reply, note, assign, palette and
+    key creation passes; shortcut help and opt-out exist; single-key shortcuts
+    are inactive while typing.
   - [ ] Desktop, tablet and phone widths reviewed on rendered screens
     (per _template `DESIGN.md` §10), not just from CSS.
   - [ ] No generic SaaS-dashboard patterns introduced without a reason recorded

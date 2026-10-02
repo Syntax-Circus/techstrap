@@ -7,6 +7,7 @@ Approval basis:
 - **Reviewed draft spec:** decisions carried over from `docs/superpowers/specs/2026-10-02-techstrap-core-design.md`, which the owner reviewed and used as the baseline. Approved on that basis.
 - **Owner confirmation (2026-10-02, after review):** D-014 and D-016 to D-022 were drafted by Claude (D-014 from plan section C; D-016 to D-022 while reconciling the artifact set) and then explicitly confirmed by the owner. D-018 also confirms the relay mechanism of D-007.
 - **Proposed:** none. D-008's default (N = 7 days) was confirmed by the owner on 2026-10-02.
+- **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 
 **Boundary deviations: none.** Every application entry point maps to a named `I...Handler`, and no decision in this log departs from the mandatory flow in _template `APPLICATION_ARCHITECTURE.md`. D-012 records why the worker shares Infrastructure with the API; it is not a deviation. This log therefore contains no "Boundary Deviation Details" sections.
 
@@ -36,6 +37,7 @@ Approval basis:
 | D-020 | Optional `Idempotency-Key` on intake so the SDK can retry submits safely | Approved (owner confirmation) | 2026-10-02 | PHASE-05, PHASE-11 |
 | D-021 | KB live preview through `POST /api/kb/preview`; KB images are exempt public-read static assets | Approved (owner confirmation) | 2026-10-02 | PHASE-08, 02-ARCHITECTURE |
 | D-022 | Destructive and system operations are Admin-only; mark-spam stays Agent | Approved (owner confirmation) | 2026-10-02 | 01-REQUIREMENTS, PHASE-04, PHASE-06, PHASE-07, UX-BRIEF-admin |
+| D-023 | Visual direction: Carbon Copy v2; mascot only in Admin brand moments; portal shows Powered-by only | Approved (owner) | 2026-10-02 | PHASE-02, PHASE-07, PHASE-09, BRAND.md |
 
 ---
 
@@ -649,4 +651,43 @@ These require the `Admin` policy: delete ticket (`DeleteTicketRequestHandler`), 
 
 ### Approval
 - **Approved by:** Jon Seeley (owner confirmation)
+- **Approved on:** 2026-10-02
+
+---
+
+## D-023: Visual direction: Carbon Copy v2; mascot only in Admin brand moments; portal shows Powered-by only
+
+- **Status:** Approved
+- **Date:** 2026-10-02
+- **Owner:** Jon Seeley
+- **Related artifacts:** `docs/BRAND.md`, `docs/design/directions.md`, `docs/design/mockups/direction-carbon-copy-v2.html`, PHASE-02, PHASE-07, PHASE-09, PHASE-05, UX-BRIEF-admin, UX-BRIEF-portal, D-002
+
+### Context
+PHASE-02 required an owner-selected visual direction before any UI work. Three directions were mocked up (Beige Box, Night Shift Console, Carbon Copy). The owner picked Carbon Copy as the base and requested revisions, producing v2.
+
+### Decision
+The visual direction is **Carbon Copy v2**, as defined in `docs/BRAND.md` (reference implementation: `docs/design/mockups/direction-carbon-copy-v2.html`):
+- Carbon Copy base: ruled-ledger queue, numbered form header on the ticket view only, and the white / canary / pink carbon tint code (customer / public reply / internal note), in light and dark themes.
+- The Night Shift keyboard layer re-skinned (keycaps, j/k, Ctrl/Cmd+K palette, status bar), with the rule that single-key shortcuts never fire while typing.
+- Calmer stamps: straight and single-border in queue rows; tilted with a stamp-down animation only on the ticket view.
+- Beige Box retro-window frames and the mascot palette (`--bm-*`) are used **only on Admin brand moments**: all-caught-up, agent sign-in and 404, plus the style guide and README/GitHub. The mascot never appears on working screens.
+- The portal stays plain and product-led and light-only in v1; TechStrap appears only as "Powered by TechStrap" with an optional 16px head mark. It uses no carbon tints, stamps or windows.
+- Product accents may set only `--accent`, `--on-accent` and `--accent-ink`, derived by one function enforced at product save (PHASE-04) and reused by email rendering (PHASE-05).
+- Fonts (IBM Plex Sans, IBM Plex Mono, Source Serif 4) are self-hosted; no CDN at runtime.
+
+### Alternatives Considered
+- Beige Box as the whole look: closest to the mascot, but boxy at density and prone to Windows 95 parody on working screens.
+- Night Shift Console: strongest keyboard model, but cold and mono-heavy; kept as the keyboard layer only.
+- Original Carbon Copy: kept as the base; tilted stamps in dense lists and the lack of a keyboard model led to v2.
+- Mascot or TechStrap styling in the portal: rejected; customers deal with the product, not with us.
+
+### Consequences
+- BRAND.md is complete and is the constraint for PHASE-07 and PHASE-09. The mockups are throwaway reference.
+- P02-T05 builds the token layer from BRAND.md section 12; P02-T08 delivers SVG mascot assets (PNG until then).
+- PHASE-04 must implement and test the accent derivation and contrast rejection; PHASE-05 reuses it.
+- Adding a brand moment or a new use of a carbon tint needs a new owner decision.
+- The published artifact links are private; the repo mockups are the durable record.
+
+### Approval
+- **Approved by:** Jon Seeley (owner)
 - **Approved on:** 2026-10-02

@@ -1,0 +1,502 @@
+<title>TechStrap — Beige Box</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/*
+DIRECTION: Beige Box
+CONCEPT: A refined late-90s office workstation: warm beige plastic panels, chunky navy outlines and a CRT-blue working accent, calm enough to live in all day.
+TYPOGRAPHY: IBM Plex Sans for UI text (sturdy, slightly mechanical grotesque with an office-machine pedigree, very legible at 13px) and IBM Plex Mono for ids, timestamps, tags and counters (data reads as "terminal output"). Both in one family so metrics match.
+GEOMETRY / MOTIFS: Square corners (2px max), 2px navy outlines on every panel, a single hard offset shadow under raised plates, sparing inset/outset bevels only on buttons and fields. Window-style title bars only on the ticket panel (shows the ticket number like a window title) and the composer. Power-LED dot for "online"/presence. Internal notes use dashed outline, hatched yellow ground and a "lock" label. Motion is limited to a 1-step "button press" translate.
+LOGO-REMOVAL TEST: Beige plate on a darker beige desk, 2px navy rectangular outlines with hard offset shadows, navy title bars with mono ticket ids and a green LED dot. In dark mode, charcoal-navy "monitor off" with beige accents.
+RISKS: Heavy outlines raise visual weight and can feel boxy at high density; bevels can tip into Win95 parody if overused; beige on beige needs careful contrast; hard shadows may look dated to some users.
+*/
+:root{
+  --desk:#CFC4A8; --plate:#EFE6D0; --plate-2:#E2D6B9; --field:#FBF8EE;
+  --ink:#0B1F4B; --ink-2:#434E6C; --line:#0B1F4B; --line-soft:#B7A98A;
+  --bevel-hi:#FFFDF4; --bevel-lo:#A89A79; --shadow:#0B1F4B;
+  --crt:#1F5FA8; --on-crt:#FFFFFF; --crt-soft:#D4E4F6; --crt-ink:#0B3A73;
+  --led:#22A447; --led-ink:#17692F;
+  --red:#B3141C; --red-soft:#F7DAD6;
+  --note:#F6E3A0; --note-ink:#5C4200; --note-line:#8A6400;
+  --st-new-bg:#1F5FA8; --st-new-fg:#FFFFFF;
+  --st-open-bg:#D8EDD9; --st-open-fg:#145A28;
+  --st-pending-bg:#F6E3A0; --st-pending-fg:#5C4200;
+  --st-solved-bg:#0B1F4B; --st-solved-fg:#EFE6D0;
+  --st-closed-bg:#D6CCB2; --st-closed-fg:#434E6C;
+  --focus:#C2410C;
+  --p-bg:#FFFFFF; --p-ink:#1B1B1F; --p-ink-2:#52525B; --p-line:#8A8A94; --p-soft:#F4F4F6; --p-white:#FFFFFF; --p-black:#111111;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,"Courier New",monospace;
+  --sans:"IBM Plex Sans",system-ui,"Segoe UI",Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --desk:#0C101C; --plate:#182036; --plate-2:#212B47; --field:#10172A;
+    --ink:#EADFC4; --ink-2:#A8B1C8; --line:#5E70A0; --line-soft:#33405F;
+    --bevel-hi:#2F3B5E; --bevel-lo:#080C16; --shadow:#05070E;
+    --crt:#5AA9F0; --on-crt:#06152E; --crt-soft:#1C3055; --crt-ink:#A9D2FA;
+    --led:#3DDC6B; --led-ink:#6BE48C;
+    --red:#FF8A8E; --red-soft:#3C1B20;
+    --note:#3A3215; --note-ink:#F2DC93; --note-line:#B8962E;
+    --st-new-bg:#5AA9F0; --st-new-fg:#06152E;
+    --st-open-bg:#18391F; --st-open-fg:#8BE6A5;
+    --st-pending-bg:#3A3215; --st-pending-fg:#F2DC93;
+    --st-solved-bg:#EADFC4; --st-solved-fg:#182036;
+    --st-closed-bg:#2A3350; --st-closed-fg:#A8B1C8;
+    --focus:#FFB562;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --desk:#0C101C; --plate:#182036; --plate-2:#212B47; --field:#10172A;
+  --ink:#EADFC4; --ink-2:#A8B1C8; --line:#5E70A0; --line-soft:#33405F;
+  --bevel-hi:#2F3B5E; --bevel-lo:#080C16; --shadow:#05070E;
+  --crt:#5AA9F0; --on-crt:#06152E; --crt-soft:#1C3055; --crt-ink:#A9D2FA;
+  --led:#3DDC6B; --led-ink:#6BE48C;
+  --red:#FF8A8E; --red-soft:#3C1B20;
+  --note:#3A3215; --note-ink:#F2DC93; --note-line:#B8962E;
+  --st-new-bg:#5AA9F0; --st-new-fg:#06152E;
+  --st-open-bg:#18391F; --st-open-fg:#8BE6A5;
+  --st-pending-bg:#3A3215; --st-pending-fg:#F2DC93;
+  --st-solved-bg:#EADFC4; --st-solved-fg:#182036;
+  --st-closed-bg:#2A3350; --st-closed-fg:#A8B1C8;
+  --focus:#FFB562;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--desk);color:var(--ink);font:400 13.5px/1.45 var(--sans);overflow-x:hidden}
+.mono,time,.id{font-family:var(--mono);font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:1px}
+h1,h2,h3,p{margin:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* switcher */
+.switcher{position:sticky;top:0;z-index:20;background:var(--ink);color:var(--plate);border-bottom:2px solid var(--line);display:flex;align-items:center;gap:8px;padding:6px 16px}
+:root[data-theme="dark"] .switcher{background:var(--plate-2)}
+.switcher .tabs{display:flex;gap:4px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:thin}
+.tab,.themebtn{flex:none;background:transparent;border:2px solid transparent;color:inherit;padding:4px 10px;cursor:pointer;font:500 12.5px var(--sans);white-space:nowrap}
+.tab:hover{border-color:var(--bevel-lo)}
+.tab[aria-selected="true"]{background:var(--plate);color:var(--ink);border-color:var(--plate)}
+.themebtn{border-color:var(--bevel-lo);font-family:var(--mono);font-size:12px}
+.view{display:none}.view.on{display:block}
+
+/* shared pieces */
+.plate{background:var(--plate);border:2px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+.titlebar{display:flex;align-items:center;gap:10px;background:var(--ink);color:var(--plate);padding:4px 10px;font:600 12.5px var(--mono);min-width:0}
+:root[data-theme="dark"] .titlebar{background:var(--plate-2);color:var(--ink)}
+.titlebar .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.led{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--led);border:1.5px solid var(--line);flex:none}
+.btn{background:var(--plate);border:2px solid var(--line);padding:4px 12px;cursor:pointer;font-weight:600;box-shadow:inset 1px 1px 0 var(--bevel-hi),inset -1px -1px 0 var(--bevel-lo)}
+.btn:active{transform:translate(1px,1px);box-shadow:inset 1px 1px 0 var(--bevel-lo)}
+.btn.pri{background:var(--crt);color:var(--on-crt)}
+.field{background:var(--field);border:2px solid var(--line);padding:5px 8px;min-width:0;box-shadow:inset 1px 1px 0 var(--bevel-lo)}
+.tag{font:500 11px var(--mono);border:1px solid var(--line-soft);padding:0 5px;background:var(--field);white-space:nowrap}
+.badge{display:inline-block;font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border:1.5px solid var(--line);white-space:nowrap}
+.s-new{background:var(--st-new-bg);color:var(--st-new-fg)}
+.s-open{background:var(--st-open-bg);color:var(--st-open-fg)}
+.s-pending{background:var(--st-pending-bg);color:var(--st-pending-fg)}
+.s-solved{background:var(--st-solved-bg);color:var(--st-solved-fg)}
+.s-closed{background:var(--st-closed-bg);color:var(--st-closed-fg);border-style:dashed}
+.av{display:inline-grid;place-items:center;width:24px;height:24px;border:2px solid var(--line);background:var(--crt-soft);color:var(--crt-ink);font:600 10.5px var(--mono);flex:none}
+.av.un{background:transparent;border-style:dashed;color:var(--ink-2)}
+.pri-p{font:600 11px var(--mono);white-space:nowrap}
+.pri-p.urgent{color:var(--red)}.pri-p.high{color:var(--note-ink)}.pri-p.low,.pri-p.normal{color:var(--ink-2)}
+
+/* admin shell */
+.app{display:grid;grid-template-columns:200px minmax(0,1fr);min-height:calc(100vh - 44px)}
+.nav{background:var(--plate-2);border-right:2px solid var(--line);padding:12px 0;display:flex;flex-direction:column;gap:2px;min-width:0}
+.brand{display:flex;align-items:center;gap:8px;padding:0 12px 12px;border-bottom:2px solid var(--line);margin-bottom:8px}
+.brand img{width:40px;height:40px;image-rendering:auto;flex:none}
+.brand b{display:block;font-size:15px;line-height:1.1}
+.brand span{font:500 10.5px var(--mono);color:var(--ink-2)}
+.nav a{display:flex;justify-content:space-between;align-items:center;padding:5px 12px;color:var(--ink);text-decoration:none;border-left:4px solid transparent;font-weight:500;cursor:pointer}
+.nav a:hover{background:var(--plate)}
+.nav a[aria-current="page"]{background:var(--plate);border-left-color:var(--crt);font-weight:700}
+.nav .n{font:600 11px var(--mono);border:1.5px solid var(--line);padding:0 5px;background:var(--field)}
+.nav .sep{font:600 10.5px var(--mono);letter-spacing:.08em;color:var(--ink-2);padding:12px 12px 2px;text-transform:uppercase}
+.sys{margin-top:auto;padding:12px;font:500 11px var(--mono);color:var(--ink-2);display:flex;gap:6px;align-items:center}
+.main{padding:14px 16px 24px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.head h1{font-size:18px;flex:1;min-width:0}
+.filters{display:flex;flex-wrap:wrap;gap:8px;padding:8px;background:var(--plate);border:2px solid var(--line)}
+.filters .field{height:30px}
+.filters .grow{flex:1 1 180px}
+
+/* queue */
+.q{background:var(--field);border:2px solid var(--line);box-shadow:3px 3px 0 var(--shadow);list-style:none;margin:0;padding:0}
+.qh,.qr{display:grid;grid-template-columns:86px minmax(0,1fr) 128px 76px 56px 52px 160px 74px;gap:10px;align-items:center;padding:5px 10px}
+.qh{background:var(--ink);color:var(--plate);font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.05em}
+:root[data-theme="dark"] .qh{background:var(--plate-2);color:var(--ink)}
+.qr{border-top:1px solid var(--line-soft);cursor:pointer;min-height:38px}
+.qr:hover{background:var(--crt-soft)}
+.qr .id{font-weight:600;color:var(--crt-ink)}
+.qr .subj{min-width:0}
+.qr .subj b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qr .subj small{color:var(--ink-2);font-size:11.5px}
+.qr .req{font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qr .tags{display:flex;gap:3px;overflow:hidden;min-width:0}
+.qr .when{font:500 11.5px var(--mono);color:var(--ink-2);text-align:right}
+.qr.spam{background:var(--red-soft);border-left:5px solid var(--red);padding-left:5px}
+.qr.spam .flag{font:600 10.5px var(--mono);color:var(--red);text-transform:uppercase}
+.qr.unread .subj b{font-weight:700}
+.qr.unread .id::before{content:"";display:inline-block;width:7px;height:7px;background:var(--crt);margin-right:5px}
+.stat{display:flex;gap:6px;flex-wrap:wrap;font:500 11.5px var(--mono);color:var(--ink-2)}
+.pcol{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* detail */
+.detail{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+.pane{min-width:0}
+.pane .body{padding:12px;display:flex;flex-direction:column;gap:10px}
+.tl-h{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;padding-bottom:8px;border-bottom:1px dashed var(--line-soft)}
+.tl-h h2{font-size:16px;flex:1 1 100%}
+.presence{display:flex;align-items:center;gap:6px;font:500 12px var(--mono);color:var(--led-ink)}
+.presence .dots::after{content:"...";animation:blink 1.2s steps(3,end) infinite;display:inline-block;width:1.2em;overflow:hidden;vertical-align:bottom}
+@keyframes blink{0%{width:0}100%{width:1.2em}}
+.msg{border:2px solid var(--line);background:var(--field);min-width:0}
+.msg header{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;padding:3px 8px;border-bottom:2px solid var(--line);font-size:12px;background:var(--plate-2)}
+.msg header .who{font-weight:700}
+.msg header .kind{font:600 10.5px var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-left:auto}
+.msg header time{color:var(--ink-2);font-size:11.5px}
+.msg .txt{padding:8px 10px;overflow-wrap:anywhere}
+.msg .txt p+p{margin-top:6px}
+.msg pre{margin:6px 0 0;padding:6px 8px;background:var(--plate);border:1px solid var(--line-soft);font:400 12px/1.4 var(--mono);overflow-x:auto}
+.msg.cust{margin-right:36px}
+.msg.agent{margin-left:36px;background:var(--crt-soft)}
+.msg.agent header{background:var(--crt);color:var(--on-crt)}
+.msg.agent header time{color:var(--on-crt)}
+.msg.note{margin-left:36px;border-style:dashed;border-color:var(--note-line);background:repeating-linear-gradient(135deg,var(--note) 0 10px,transparent 10px 20px),var(--note);color:var(--note-ink)}
+.msg.note header{background:var(--note);color:var(--note-ink);border-bottom:2px dashed var(--note-line)}
+.msg.note header time{color:var(--note-ink)}
+.msg.note .txt{background:var(--note)}
+.evt{display:flex;gap:8px;align-items:center;font:500 11.5px var(--mono);color:var(--ink-2);padding-left:10px;border-left:3px solid var(--line-soft);margin-left:6px}
+.evt code{background:var(--field);border:1px solid var(--line-soft);padding:0 4px}
+.composer{border:2px solid var(--line);background:var(--plate)}
+.composer.is-note{border-color:var(--note-line);border-style:dashed}
+.seg{display:flex}
+.seg button{flex:1;background:var(--plate-2);border:2px solid var(--line);padding:5px 8px;cursor:pointer;font-weight:600;margin:0 0 0 -2px}
+.seg button:first-child{margin:0}
+.seg button[aria-checked="true"]{background:var(--crt);color:var(--on-crt)}
+.is-note .seg button[aria-checked="true"]{background:var(--note);color:var(--note-ink);box-shadow:inset 0 -4px 0 var(--note-line)}
+.warn{display:none;padding:6px 10px;background:var(--note);color:var(--note-ink);border-bottom:2px dashed var(--note-line);font-weight:600;font-size:12.5px}
+.is-note .warn{display:block}
+.composer textarea{display:block;width:100%;min-height:96px;resize:vertical;border:0;border-bottom:2px solid var(--line);background:var(--field);padding:8px 10px}
+.is-note textarea{background:var(--note);color:var(--note-ink)}
+.crow{display:flex;gap:8px;align-items:center;padding:6px 8px;flex-wrap:wrap}
+.crow .hint{font:500 11.5px var(--mono);color:var(--ink-2);margin-right:auto}
+.side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.side .plate .body{padding:10px;display:flex;flex-direction:column;gap:8px}
+.kv{display:grid;grid-template-columns:78px minmax(0,1fr);gap:6px 8px;align-items:center;font-size:12.5px}
+.kv dt{font:600 10.5px var(--mono);text-transform:uppercase;color:var(--ink-2);letter-spacing:.04em}
+.kv dd{margin:0;min-width:0}
+.kv select{width:100%;height:28px;padding:2px 6px}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.card-art{border:2px solid var(--line);background:var(--field);padding:8px;display:block;text-decoration:none;color:inherit}
+.card-art:hover{background:var(--crt-soft)}
+.card-art b{display:block;color:var(--crt-ink)}
+.card-art small{color:var(--ink-2)}
+
+/* empty */
+.empty{display:grid;place-items:center;padding:40px 16px}
+.empty .plate{max-width:460px;width:100%}
+.empty .body{padding:24px 20px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.empty img{width:112px;height:112px}
+.empty h2{font-size:19px}
+.empty p{color:var(--ink-2);max-width:34ch}
+.empty .quip{font:500 12.5px var(--mono);border:2px dashed var(--line-soft);padding:6px 10px;color:var(--ink)}
+
+/* portal */
+.portal{--acc:#7C3AED;--on-acc:var(--p-white);background:var(--p-bg);color:var(--p-ink);min-height:calc(100vh - 44px);display:flex;flex-direction:column}
+.ptoggle{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 16px;background:var(--p-soft);border-bottom:1px solid var(--p-line);font-size:12px;color:var(--p-ink-2)}
+.ptoggle button{background:var(--p-bg);color:var(--p-ink);border:1px solid var(--p-line);padding:3px 10px;cursor:pointer;border-radius:3px}
+.ptoggle button[aria-pressed="true"]{outline:2px solid var(--p-ink);outline-offset:1px}
+.ptoggle .sw{display:inline-block;width:10px;height:10px;background:var(--acc);margin-right:5px;border:1px solid var(--p-ink)}
+.phead{background:var(--acc);color:var(--on-acc);padding:14px 16px}
+.phead .in{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.plogo{width:40px;height:40px;background:var(--on-acc);color:var(--acc);display:grid;place-items:center;font:700 20px var(--sans);border-radius:8px;flex:none}
+.phead h1{font-size:20px}
+.phead p{font-size:13px;opacity:.95}
+.pmain{flex:1;padding:24px 16px;width:100%;max-width:760px;margin:0 auto;min-width:0}
+.pmain h2{font-size:22px;margin-bottom:4px}
+.pmain .lead{color:var(--p-ink-2);margin-bottom:18px}
+.pf{display:flex;flex-direction:column;gap:14px}
+.pf label{display:block;font-weight:600;margin-bottom:4px}
+.pf .c2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pf input[type=text],.pf input[type=email],.pf textarea{width:100%;padding:9px 10px;border:1.5px solid var(--p-line);border-radius:4px;background:var(--p-bg);color:var(--p-ink);min-width:0}
+.pf input:focus-visible,.pf textarea:focus-visible,.pbtn:focus-visible{outline:3px solid var(--p-ink);outline-offset:2px}
+.sugg{display:none;border:1.5px solid var(--p-line);border-left:6px solid var(--acc);border-radius:4px;padding:10px 12px;background:var(--p-soft)}
+.sugg.on{display:block}
+.sugg h3{font-size:13px;margin-bottom:6px}
+.sugg ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
+.sugg a{color:var(--p-ink);font-weight:500}
+.drop{border:1.5px dashed var(--p-line);border-radius:4px;padding:12px;color:var(--p-ink-2);font-size:13px}
+.pbtn{align-self:flex-start;background:var(--acc);color:var(--on-acc);border:2px solid var(--p-ink);padding:10px 22px;font-weight:700;border-radius:4px;cursor:pointer}
+.confirm{display:none;border:1.5px solid var(--p-line);border-top:6px solid var(--acc);border-radius:4px;padding:22px;background:var(--p-bg)}
+.confirm.on{display:block}
+.confirm h2{margin-bottom:8px}
+.confirm .tid{font:600 15px var(--mono);background:var(--p-soft);border:1px solid var(--p-line);padding:2px 8px;display:inline-block;margin:6px 0}
+.pfoot{border-top:1px solid var(--p-line);padding:14px 16px;text-align:center;font-size:12px;color:var(--p-ink-2);display:flex;justify-content:center;align-items:center;gap:6px}
+.pfoot img{width:16px;height:16px}
+
+@media (max-width:900px){
+  .detail{grid-template-columns:minmax(0,1fr)}
+  .qh{display:none}
+  .qr{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"id subj when" "st st pr" "prod prod av" "tags tags tags";gap:4px 10px;padding:8px 10px}
+  .qr .id{grid-area:id}.qr .subj{grid-area:subj}.qr .when{grid-area:when}.qr .st{grid-area:st}.qr .pr{grid-area:pr;text-align:right}.qr .prod{grid-area:prod}.qr .avc{grid-area:av;justify-self:end}.qr .tags{grid-area:tags}.qr .req{display:none}
+  .qr .subj b{white-space:normal}
+}
+@media (max-width:700px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .nav{flex-direction:row;flex-wrap:wrap;gap:4px;padding:8px 16px;border-right:0;border-bottom:2px solid var(--line)}
+  .brand{width:100%;padding:0 0 8px;margin-bottom:4px}
+  .nav .sep,.sys{display:none}
+  .nav a{border:2px solid var(--line);border-left-width:2px;gap:8px;padding:3px 8px}
+  .nav a[aria-current="page"]{border-left-color:var(--line);background:var(--crt);color:var(--on-crt)}
+  .msg.cust{margin-right:0}.msg.agent,.msg.note{margin-left:0}
+  .pf .c2{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.btn:active{transform:none}}
+</style>
+
+<div class="switcher" role="banner">
+  <div class="tabs" role="tablist" aria-label="Mockup screens">
+    <button class="tab" role="tab" id="tab-queue" data-view="queue" aria-selected="true">Admin: Queue</button>
+    <button class="tab" role="tab" id="tab-detail" data-view="detail" aria-selected="false">Admin: Ticket</button>
+    <button class="tab" role="tab" id="tab-empty" data-view="empty" aria-selected="false">Admin: All caught up</button>
+    <button class="tab" role="tab" id="tab-portal" data-view="portal" aria-selected="false">Portal: Contact form</button>
+  </div>
+  <button class="themebtn" id="themebtn" type="button" aria-label="Toggle light and dark theme">theme: auto</button>
+</div>
+
+<!-- ADMIN SHELL REUSED VIA JS-FREE DUPLICATION -->
+<div class="view on" id="view-queue">
+<div class="app">
+  <nav class="nav" aria-label="Views">
+    <div class="brand"><img src="../../../assets/brand/mark-512.png" alt="TechStrap mascot: a winking beige CRT computer"><div><b>TechStrap</b><span>Admin</span></div></div>
+    <a aria-current="false">Unassigned <span class="n">7</span></a>
+    <a aria-current="page">Mine <span class="n">4</span></a>
+    <a aria-current="false">Open <span class="n">23</span></a>
+    <a aria-current="false">Pending <span class="n">9</span></a>
+    <a aria-current="false">All tickets</a>
+    <div class="sep">Manage</div>
+    <a aria-current="false">Knowledge base</a>
+    <a aria-current="false">Products</a>
+    <a aria-current="false">Settings</a>
+    <div class="sys"><span class="led"></span> online · Sam W.</div>
+  </nav>
+  <main class="main">
+    <div class="head"><h1>Mine</h1><div class="stat"><span>4 assigned</span><span>·</span><span>12 shown</span></div><button class="btn pri" type="button">New ticket</button></div>
+    <form class="filters" role="search" onsubmit="return false" aria-label="Filter tickets">
+      <label class="sr" for="f-prod">Product</label><select class="field" id="f-prod"><option>All products</option><option>Acme Cloud Backup</option><option>Orbitly</option><option>Pixelforge</option></select>
+      <label class="sr" for="f-status">Status</label><select class="field" id="f-status"><option>Any status</option><option>New</option><option>Open</option><option>Pending</option><option>Solved</option><option>Closed</option></select>
+      <label class="sr" for="f-tag">Tag</label><select class="field" id="f-tag"><option>Any tag</option><option>billing</option><option>bug</option><option>auth</option></select>
+      <label class="sr" for="f-pri">Priority</label><select class="field" id="f-pri"><option>Any priority</option><option>Urgent</option><option>High</option><option>Normal</option><option>Low</option></select>
+      <label class="sr" for="f-q">Search</label><input class="field grow" id="f-q" type="search" placeholder="Search subject, id, requester (press /)">
+    </form>
+    <div class="q" id="queue" role="list" aria-label="Ticket queue" style="padding:0"></div>
+  </main>
+</div>
+</div>
+
+<div class="view" id="view-detail">
+<div class="app">
+  <nav class="nav" aria-label="Views">
+    <div class="brand"><img src="../../../assets/brand/mark-512.png" alt="TechStrap mascot"><div><b>TechStrap</b><span>Admin</span></div></div>
+    <a>Unassigned <span class="n">7</span></a><a aria-current="page">Mine <span class="n">4</span></a><a>Open <span class="n">23</span></a><a>Pending <span class="n">9</span></a><a>All tickets</a>
+    <div class="sep">Manage</div><a>Knowledge base</a><a>Products</a><a>Settings</a>
+    <div class="sys"><span class="led"></span> online · Sam W.</div>
+  </nav>
+  <main class="main">
+    <div class="detail">
+      <section class="pane plate" aria-labelledby="t-title">
+        <div class="titlebar"><span class="led" aria-hidden="true"></span><span class="t">ACME-142 &mdash; Backup job fails with exit code 17 after 2.4 update</span><span>[Open]</span></div>
+        <div class="body">
+          <div class="tl-h">
+            <h2 id="t-title">Backup job fails with exit code 17 after 2.4 update</h2>
+            <span class="badge s-open">Open</span><span class="pri-p high">HIGH</span><span class="mono" style="font-size:11.5px;color:var(--ink-2)">opened 29 Sep 09:12 · 4 messages</span>
+            <span class="presence" role="status" style="margin-left:auto"><span class="led"></span>Priya is replying<span class="dots"></span></span>
+          </div>
+
+          <article class="msg cust"><header><span class="who">Marcus Hale</span><span>customer</span><time>29 Sep 09:12</time><span class="kind">Customer message</span></header>
+            <div class="txt"><p>Since updating the agent to 2.4.0 our nightly job on the NAS aborts after ~3 minutes with exit code 17. 2.3.8 worked fine. Log tail below.</p><pre>[02:00:41] snapshot ok (14.2 GB)
+[02:03:12] upload chunk 212/640 failed: EPIPE
+[02:03:12] fatal: exit code 17</pre></div></article>
+
+          <div class="evt"><span>09:14</span><span>Tag <code>bug</code> added by Sam</span></div>
+          <div class="evt"><span>09:14</span><span>Assigned to Sam W. by Sam</span></div>
+
+          <article class="msg agent"><header><span class="who">Sam Whitaker</span><span>agent</span><time>29 Sep 09:31</time><span class="kind">Public reply &rarr; customer</span></header>
+            <div class="txt"><p>Thanks Marcus, that log is helpful. Could you tell us whether the NAS sits behind a proxy? We are seeing similar EPIPE reports on 2.4.0 chunked uploads.</p></div></article>
+
+          <article class="msg note"><header><span class="who">Priya Nair</span><span>agent</span><time>29 Sep 10:02</time><span class="kind">Internal note &middot; agents only</span></header>
+            <div class="txt"><p>Same as BUG-88: 2.4.0 raised the default chunk size to 64 MB, and proxies with a 30 s idle timeout reset it. Workaround is <span class="mono">chunk_size=16</span>. Fix ships in 2.4.1 (Thursday).</p></div></article>
+
+          <div class="evt"><span>10:05</span><span>Status changed Open &rarr; Pending by Sam</span></div>
+          <div class="evt"><span>10:05</span><span>Tag <code>billing</code> removed by Sam</span></div>
+
+          <article class="msg cust"><header><span class="who">Marcus Hale</span><span>customer</span><time>30 Sep 08:47</time><span class="kind">Customer message</span></header>
+            <div class="txt"><p>Yes, there is a Squid proxy in front of it. I'll try the smaller chunk size and report back.</p></div></article>
+          <div class="evt"><span>08:47</span><span>Status changed Pending &rarr; Open (customer replied)</span></div>
+
+          <form class="composer" id="composer" onsubmit="return false">
+            <div class="titlebar" style="background:var(--plate-2);color:var(--ink);border-bottom:2px solid var(--line)"><span class="t">Reply to ACME-142</span></div>
+            <div class="seg" role="radiogroup" aria-label="Reply type">
+              <button type="button" role="radio" aria-checked="true" id="m-pub">Public reply</button>
+              <button type="button" role="radio" aria-checked="false" id="m-note">Internal note</button>
+            </div>
+            <div class="warn" role="status">Internal note: the customer will NOT see this. Only agents can read it.</div>
+            <label class="sr" for="reply-text">Message</label>
+            <textarea id="reply-text" placeholder="Write a reply to Marcus (emailed to marcus@hale-it.example)..."></textarea>
+            <div class="crow"><span class="hint" id="chint">Ctrl+Enter to send</span><button class="btn" type="button" id="b-solve">Send &amp; solve</button><button class="btn pri" type="submit" id="b-send">Send reply</button></div>
+          </form>
+        </div>
+      </section>
+
+      <aside class="side" aria-label="Ticket properties">
+        <div class="plate"><div class="titlebar"><span class="t">Properties</span></div><div class="body">
+          <dl class="kv" style="margin:0">
+            <dt><label for="p-status">Status</label></dt><dd><select class="field" id="p-status"><option>New</option><option selected>Open</option><option>Pending</option><option>Solved</option><option>Closed</option></select></dd>
+            <dt><label for="p-assign">Assignee</label></dt><dd><select class="field" id="p-assign"><option selected>Sam Whitaker</option><option>Priya Nair</option><option>Unassigned</option></select></dd>
+            <dt><label for="p-pri">Priority</label></dt><dd><select class="field" id="p-pri"><option>Low</option><option>Normal</option><option selected>High</option><option>Urgent</option></select></dd>
+            <dt>Product</dt><dd>Acme Cloud Backup</dd>
+            <dt>Tags</dt><dd><div class="chips"><span class="tag">bug</span><span class="tag">agent-2.4</span><span class="tag">+ add</span></div></dd>
+          </dl></div></div>
+        <div class="plate"><div class="titlebar"><span class="t">Requester</span></div><div class="body">
+          <div style="display:flex;gap:8px;align-items:center"><span class="av">MH</span><div style="min-width:0"><b>Marcus Hale</b><br><span class="mono" style="font-size:11.5px;overflow-wrap:anywhere">marcus@hale-it.example</span></div></div>
+          <div class="stat"><span>6 tickets</span><span>·</span><span>since Mar 2024</span></div></div></div>
+        <div class="plate"><div class="titlebar"><span class="t">Linked article</span></div><div class="body">
+          <a class="card-art" href="#" onclick="return false"><b>Tuning chunk size behind a proxy</b><small class="mono">KB-31 · Acme Cloud Backup · updated 12 Sep</small></a>
+          <button class="btn" type="button">Insert link in reply</button></div></div>
+        <div class="presence" role="status"><span class="led"></span>Priya is viewing</div>
+      </aside>
+    </div>
+  </main>
+</div>
+</div>
+
+<div class="view" id="view-empty">
+<div class="app">
+  <nav class="nav" aria-label="Views">
+    <div class="brand"><img src="../../../assets/brand/mark-512.png" alt="TechStrap mascot"><div><b>TechStrap</b><span>Admin</span></div></div>
+    <a aria-current="page">Unassigned <span class="n">0</span></a><a>Mine <span class="n">4</span></a><a>Open <span class="n">23</span></a><a>Pending <span class="n">9</span></a><a>All tickets</a>
+    <div class="sep">Manage</div><a>Knowledge base</a><a>Products</a><a>Settings</a>
+    <div class="sys"><span class="led"></span> online · Sam W.</div>
+  </nav>
+  <main class="main">
+    <div class="head"><h1>Unassigned</h1></div>
+    <div class="empty"><div class="plate"><div class="titlebar"><span class="led" aria-hidden="true"></span><span class="t">queue.exe &mdash; 0 items</span></div>
+      <div class="body"><img src="../../../assets/brand/mark-512.png" alt="TechStrap mascot winking with a thumbs up"><h2>All caught up</h2><p>Nobody is waiting on you. Go stretch.</p><div class="quip">Fully supported. Zero strain.</div><button class="btn" type="button">View open tickets</button></div></div></div>
+  </main>
+</div>
+</div>
+
+<div class="view" id="view-portal">
+<div class="portal" id="portal">
+  <div class="ptoggle" role="group" aria-label="Preview product accent"><span>Preview accent:</span>
+    <button type="button" data-acc="#7C3AED" data-name="Orbitly" aria-pressed="true"><span class="sw"></span>Orbitly #7C3AED</button>
+    <button type="button" data-acc="#F59E0B" data-name="Pixelforge" aria-pressed="false">Pixelforge #F59E0B</button>
+    <button type="button" data-acc="#0F3D2E" data-name="Acme Cloud Backup" aria-pressed="false">Acme #0F3D2E</button>
+  </div>
+  <header class="phead"><div class="in"><div class="plogo" aria-hidden="true" id="plogo">O</div><div><h1 id="pname">Orbitly</h1><p>Support</p></div></div></header>
+  <main class="pmain">
+    <form class="pf" id="pform" novalidate>
+      <div><h2>Contact support</h2><p class="lead">Tell us what is going on and we will get back to you by email.</p></div>
+      <div class="c2"><div><label for="pf-name">Your name</label><input type="text" id="pf-name" autocomplete="name" value="Dana Okafor"></div>
+      <div><label for="pf-email">Email</label><input type="email" id="pf-email" autocomplete="email" value="dana@northwind.example"></div></div>
+      <div><label for="pf-subj">Subject</label><input type="text" id="pf-subj" placeholder="e.g. Can't reset my password" autocomplete="off"></div>
+      <div class="sugg" id="sugg" role="region" aria-live="polite" aria-label="Suggested articles"><h3>Suggested articles</h3><ul>
+        <li><a href="#" onclick="return false">Resetting your password when the link has expired</a></li>
+        <li><a href="#" onclick="return false">Why am I not receiving Orbitly emails?</a></li>
+        <li><a href="#" onclick="return false">Changing the email address on your account</a></li></ul></div>
+      <div><label for="pf-msg">Message</label><textarea id="pf-msg" rows="6" placeholder="What happened, and what did you expect?"></textarea></div>
+      <div><label for="pf-file">Attachments</label><div class="drop"><input type="file" id="pf-file" multiple> <span>Screenshots or logs, up to 10 MB each.</span></div></div>
+      <button class="pbtn" type="submit" id="pf-submit">Send message</button>
+    </form>
+    <section class="confirm" id="pconfirm" role="status" tabindex="-1"><h2>We've got it &mdash; ticket <span class="id">ORB-38</span></h2><p>We emailed a private link to <b>dana@northwind.example</b>. Use it to follow this ticket and reply.</p><p><span class="tid">ORB-38</span></p><button class="pbtn" type="button" id="pagain" style="margin-top:10px">Send another message</button></section>
+  </main>
+  <footer class="pfoot"><img src="../../../assets/brand/mark-512.png" alt="">Powered by TechStrap</footer>
+</div>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  function $(s,c){return (c||document).querySelector(s)}
+  function $$(s,c){return Array.prototype.slice.call((c||document).querySelectorAll(s))}
+  // tabs
+  $$('.tab').forEach(function(t){t.addEventListener('click',function(){
+    $$('.tab').forEach(function(x){x.setAttribute('aria-selected',x===t)});
+    $$('.view').forEach(function(v){v.classList.toggle('on',v.id==='view-'+t.dataset.view)});
+  })});
+  // theme
+  var modes=['auto','light','dark'],mi=0,tb=$('#themebtn');
+  tb.addEventListener('click',function(){mi=(mi+1)%3;var m=modes[mi];
+    if(m==='auto')root.removeAttribute('data-theme');else root.setAttribute('data-theme',m);
+    tb.textContent='theme: '+m});
+  // queue
+  var rows=[
+    ['ACME-142','Backup job fails with exit code 17 after 2.4 update','Acme Cloud Backup','Marcus Hale','open','high','SW','bug,agent-2.4','8m',1],
+    ['ORB-37',"Can't reset password, link expired",'Orbitly','Dana Okafor','new','normal','','auth','14m',1],
+    ['PIX-9','Invoice PDF shows wrong VAT rate','Pixelforge','Elena Rossi','pending','urgent','PN','billing,pdf','41m',0],
+    ['ACME-141','Restore wizard hangs at 99% on Windows Server 2019','Acme Cloud Backup','Tom Brandt','open','high','SW','bug,restore','1h',0],
+    ['ORB-36','Add SSO for our Okta tenant?','Orbitly','Kiran Shah','pending','low','PN','feature,auth','3h',0],
+    ['PIX-8','Export to SVG drops gradient stops','Pixelforge','Lucia Vega','open','normal','SW','bug,export','5h',0],
+    ['ORB-35','CHEAP W4TCHES best prices click here now','Orbitly','promo@dealz-4u.example','new','low','','','6h',1,'spam'],
+    ['ACME-140','Retention policy not deleting old snapshots','Acme Cloud Backup','Ines Duarte','solved','normal','PN','config','Yesterday',0],
+    ['PIX-7','Where do I download my receipt?','Pixelforge','Owen Park','solved','low','SW','billing','Yesterday',0],
+    ['ACME-139','Cannot add second S3 bucket as target','Acme Cloud Backup','Rhea Menon','new','normal','','config','Yesterday',1],
+    ['ORB-34','Duplicate charge on March invoice','Orbitly','Sven Lindqvist','closed','high','PN','billing','28 Sep',0],
+    ['PIX-6','Plugin crashes on launch (macOS 15.1)','Pixelforge','Hana Ito','closed','urgent','SW','bug,macos','27 Sep',0]
+  ];
+  var label={new:'New',open:'Open',pending:'Pending',solved:'Solved',closed:'Closed'};
+  function esc(s){return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+  var q=$('#queue');
+  var h='<div class="qh" aria-hidden="true"><span>Ticket</span><span>Subject</span><span>Product</span><span>Status</span><span>Pri</span><span>Agent</span><span>Tags</span><span style="text-align:right">Activity</span></div>';
+  rows.forEach(function(r){
+    var spam=r[10]==='spam';
+    var tags=r[7]?r[7].split(',').map(function(t){return '<span class="tag">'+t+'</span>'}).join(''):'';
+    h+='<div class="qr'+(spam?' spam':'')+(r[9]?' unread':'')+'" role="listitem" tabindex="0">'
+     +'<span class="id">'+r[0]+'</span>'
+     +'<span class="subj"><b>'+esc(r[1])+'</b>'+(spam?'<small class="flag">Spam suspected &middot; </small>':'')+'<small class="req">'+esc(r[3])+'</small></span>'
+     +'<span class="pcol prod">'+r[2]+'</span>'
+     +'<span class="st"><span class="badge s-'+r[4]+'">'+label[r[4]]+'</span></span>'
+     +'<span class="pri-p pr '+r[5]+'">'+r[5].toUpperCase().slice(0,4)+'</span>'
+     +'<span class="avc">'+(r[6]?'<span class="av" title="Assigned">'+r[6]+'</span>':'<span class="av un" title="Unassigned" aria-label="Unassigned">&ndash;</span>')+'</span>'
+     +'<span class="tags">'+tags+'</span>'
+     +'<time class="when">'+r[8]+(r[8].length<4?' ago':'')+'</time></div>';
+  });
+  q.innerHTML=h;
+  // composer
+  var comp=$('#composer'),mp=$('#m-pub'),mn=$('#m-note'),sendb=$('#b-send'),hint=$('#chint'),ta=$('#reply-text');
+  function setMode(note){
+    comp.classList.toggle('is-note',note);
+    mn.setAttribute('aria-checked',note);mp.setAttribute('aria-checked',!note);
+    sendb.textContent=note?'Add internal note':'Send reply';
+    $('#b-solve').style.display=note?'none':'';
+    hint.textContent=note?'Visible to agents only':'Ctrl+Enter to send';
+    ta.placeholder=note?'Note for the team. The customer will not see this...':'Write a reply to Marcus (emailed to marcus@hale-it.example)...';
+  }
+  mp.addEventListener('click',function(){setMode(false)});
+  mn.addEventListener('click',function(){setMode(true)});
+  // portal
+  var portal=$('#portal'),logo=$('#plogo'),pname=$('#pname');
+  function lum(hex){var c=[1,3,5].map(function(i){var v=parseInt(hex.substr(i,2),16)/255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4)});return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2]}
+  function applyAcc(hex,name){
+    var L=lum(hex);
+    // white luminance 1, black (#111) ~0.0056; pick higher contrast
+    var cw=1.05/(L+0.05),cb=(L+0.05)/(0.0056+0.05);
+    portal.style.setProperty('--acc',hex);
+    portal.style.setProperty('--on-acc',cw>=cb?'var(--p-white)':'var(--p-black)');
+    pname.textContent=name;logo.textContent=name.charAt(0);
+  }
+  $$('.ptoggle button').forEach(function(b){b.addEventListener('click',function(){
+    $$('.ptoggle button').forEach(function(x){x.setAttribute('aria-pressed',x===b);var s=$('.sw',x);if(s)s.remove()});
+    var sw=document.createElement('span');sw.className='sw';b.insertBefore(sw,b.firstChild);
+    applyAcc(b.dataset.acc,b.dataset.name);
+  })});
+  $('#pf-subj').addEventListener('input',function(e){$('#sugg').classList.toggle('on',e.target.value.trim().length>2)});
+  var pf=$('#pform'),pc=$('#pconfirm');
+  pf.addEventListener('submit',function(e){e.preventDefault();pf.style.display='none';pc.classList.add('on');pc.focus()});
+  $('#pagain').addEventListener('click',function(){pc.classList.remove('on');pf.style.display='';$('#pf-subj').focus()});
+})();
+</script>
