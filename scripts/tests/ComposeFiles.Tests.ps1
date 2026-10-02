@@ -92,4 +92,29 @@ Describe 'docker-compose files' -Skip:(-not $script:DockerAvailable) {
         $result.ExitCode | Should -Not -Be 0
         $result.Output | Should -Match 'POSTGRES_PASSWORD'
     }
+
+    It 'UAT and production compose files stay identical apart from the project name and host ports' {
+        $envFile = Join-Path $TestDrive 'env-drift'
+        New-ProductionEnvFile -Path $envFile
+
+        # Legitimate differences, removed before comparing:
+        #   - top-level name (techstrap vs techstrap-uat)
+        #   - every service's ports (UAT defaults to 18080-18082)
+        #   - the project-derived prefix of network and volume names (techstrap_ vs techstrap-uat_)
+        # Everything else (trust rules, healthchecks, env keys, volumes, depends_on) must match.
+        function ConvertTo-NormalisedModel {
+            param([string]$File)
+
+            $result = Get-ComposeConfig -File $File -EnvFile $envFile
+            $result.ExitCode | Should -Be 0
+            $model = $result.Config
+            $model.PSObject.Properties.Remove('name')
+            foreach ($service in $model.services.PSObject.Properties.Value) {
+                $service.PSObject.Properties.Remove('ports')
+            }
+            return (($model | ConvertTo-Json -Depth 30) -replace "techstrap(-uat)?_", "techstrap_")
+        }
+
+        ConvertTo-NormalisedModel -File 'docker-compose.uat.yml' | Should -BeExactly (ConvertTo-NormalisedModel -File 'docker-compose.production.yml')
+    }
 }

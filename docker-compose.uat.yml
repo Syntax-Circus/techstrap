@@ -13,7 +13,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-techstrap}
       POSTGRES_USER: ${POSTGRES_USER:-techstrap}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.uat}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -31,8 +31,8 @@ services:
       # Trust the pinned compose subnet (the Portal hop) and, when the proxy runs outside it, the
       # proxy address. REVERSE_PROXY_CIDR is required, so entry 1 is always the proxy.
       TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${TECHSTRAP_SUBNET:-172.16.31.0/24}
-      TRUSTEDPROXY__TRUSTEDNETWORKS__1: ${REVERSE_PROXY_CIDR:?set REVERSE_PROXY_CIDR in .env.production}
-      TECHSTRAP_PORTAL_PUBLIC_URL: ${TECHSTRAP_PORTAL_PUBLIC_URL:?set TECHSTRAP_PORTAL_PUBLIC_URL in .env.production}
+      TRUSTEDPROXY__TRUSTEDNETWORKS__1: ${REVERSE_PROXY_CIDR:?set REVERSE_PROXY_CIDR in .env.uat}
+      TECHSTRAP_PORTAL_PUBLIC_URL: ${TECHSTRAP_PORTAL_PUBLIC_URL:?set TECHSTRAP_PORTAL_PUBLIC_URL in .env.uat}
       TECHSTRAP_AGENT_GROUP: ${TECHSTRAP_AGENT_GROUP:-techstrap-agents}
       TECHSTRAP_ADMIN_GROUP: ${TECHSTRAP_ADMIN_GROUP:-techstrap-admins}
       TECHSTRAP_BOOTSTRAP_ADMIN: ${TECHSTRAP_BOOTSTRAP_ADMIN:-}
@@ -61,7 +61,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       Api__BaseUrl: http://api/
       # Admin trusts only the reverse proxy.
-      TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${REVERSE_PROXY_CIDR:?set REVERSE_PROXY_CIDR in .env.production}
+      TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${REVERSE_PROXY_CIDR:?set REVERSE_PROXY_CIDR in .env.uat}
       DataProtection__KeyRingPath: /app/dataprotection-keys
       Auth__Authority: ${OIDC_AUTHORITY:-}
       Auth__ClientId: ${OIDC_ADMIN_CLIENT_ID:-}
@@ -88,8 +88,8 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       Api__BaseUrl: http://api/
       # Portal trusts only the reverse proxy.
-      TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${REVERSE_PROXY_CIDR:?set REVERSE_PROXY_CIDR in .env.production}
-      TECHSTRAP_PORTAL_PUBLIC_URL: ${TECHSTRAP_PORTAL_PUBLIC_URL:?set TECHSTRAP_PORTAL_PUBLIC_URL in .env.production}
+      TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${REVERSE_PROXY_CIDR:?set REVERSE_PROXY_CIDR in .env.uat}
+      TECHSTRAP_PORTAL_PUBLIC_URL: ${TECHSTRAP_PORTAL_PUBLIC_URL:?set TECHSTRAP_PORTAL_PUBLIC_URL in .env.uat}
       DataProtection__KeyRingPath: /app/dataprotection-keys
     depends_on:
       api:
@@ -111,7 +111,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__TechStrap: Host=postgres;Port=5432;Database=${POSTGRES_DB:-techstrap};Username=${POSTGRES_USER:-techstrap};Password=${POSTGRES_PASSWORD}
-      TECHSTRAP_PORTAL_PUBLIC_URL: ${TECHSTRAP_PORTAL_PUBLIC_URL:?set TECHSTRAP_PORTAL_PUBLIC_URL in .env.production}
+      TECHSTRAP_PORTAL_PUBLIC_URL: ${TECHSTRAP_PORTAL_PUBLIC_URL:?set TECHSTRAP_PORTAL_PUBLIC_URL in .env.uat}
       Storage__Provider: Local
       Storage__Local__RootPath: /app/storage
       Email__Smtp__Host: ${SMTP_HOST:-}
