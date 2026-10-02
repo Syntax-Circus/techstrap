@@ -1,0 +1,15 @@
+workflow: TrunkBased/preview1
+tag-prefix: '[vV]?'
+
+branches:
+  main:
+    increment: None
+    mode: ContinuousDelivery
+
+commit-message-incrementing: Disabled
+
+assembly-versioning-scheme: MajorMinorPatch
+assembly-file-versioning-format: '{Major}.{Minor}.{Patch}.{CommitsSinceVersionSource}'
+assembly-informational-format: '{InformationalVersion}'
+
+next-version: 0.1.0

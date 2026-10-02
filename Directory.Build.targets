@@ -1,0 +1,20 @@
+<Project>
+  <Target Name="Compile Sass"
+          BeforeTargets="Build;ResolveScopedCssInputs;ResolveProjectStaticWebAssets"
+          Condition="Exists('$(SassCompilerTasksAssembly)') And '$(DesignTimeBuild)' != 'true'">
+    <CompileSass AppsettingsFile="$(SassCompilerAppsettingsJson)"
+                 SassCompilerFile="$(SassCompilerSassCompilerJson)"
+                 Command="$(SassCompilerBuildCommand)"
+                 Snapshot="$(SassCompilerBuildSnapshot)"
+                 Configuration="$(SassCompilerConfiguration)"
+                 TargetFramework="$(TargetFramework)"
+                 TargetFrameworks="$(TargetFrameworks)">
+      <Output TaskParameter="GeneratedFiles" ItemName="CompiledCssFiles" />
+    </CompileSass>
+    <ItemGroup>
+      <None Remove="@(CompiledCssFiles)" />
+      <_NewCompiledCssFiles Include="@(CompiledCssFiles)" Exclude="@(Content)" />
+      <Content Include="@(_NewCompiledCssFiles)" />
+    </ItemGroup>
+  </Target>
+</Project>
