@@ -11,11 +11,13 @@
       "src/TechStrap.Infrastructure/TechStrap.Infrastructure.csproj",
       "src/TechStrap.Portal/TechStrap.Portal.csproj",
       "src/TechStrap.Worker/TechStrap.Worker.csproj",
+      "tests/TechStrap.Admin.Tests/TechStrap.Admin.Tests.csproj",
       "tests/TechStrap.Api.Tests/TechStrap.Api.Tests.csproj",
       "tests/TechStrap.Application.Tests/TechStrap.Application.Tests.csproj",
       "tests/TechStrap.Architecture.Tests/TechStrap.Architecture.Tests.csproj",
       "tests/TechStrap.Domain.Tests/TechStrap.Domain.Tests.csproj",
-      "tests/TechStrap.Infrastructure.IntegrationTests/TechStrap.Infrastructure.IntegrationTests.csproj"
+      "tests/TechStrap.Infrastructure.IntegrationTests/TechStrap.Infrastructure.IntegrationTests.csproj",
+      "tests/TechStrap.Portal.Tests/TechStrap.Portal.Tests.csproj"
     ]
   }
 }

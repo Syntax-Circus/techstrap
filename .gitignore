@@ -37,6 +37,9 @@ src/*/storage/
 src/*/wwwroot/css/app.css
 src/*/wwwroot/css/app.css.map
 
+# Bootstrap SCSS restored by libman at build (never committed)
+src/*/Styles/Vendor/
+
 # User-specific files (CodeRush)
 .cr/
 

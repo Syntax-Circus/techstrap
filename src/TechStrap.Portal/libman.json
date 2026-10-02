@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "defaultProvider": "jsdelivr",
+  "libraries": [
+    {
+      "library": "bootstrap@5.3.8",
+      "destination": "Styles/Vendor/bootstrap",
+      "files": [ "scss/**" ]
+    }
+  ]
+}

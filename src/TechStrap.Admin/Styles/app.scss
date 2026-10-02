@@ -1,9 +1,8 @@
-// PHASE-02 replaces this placeholder with the Bootstrap 5 build and the brand tokens.
-// The compiled file (wwwroot/css/app.css) is generated on every build and never committed.
-body {
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  margin: 0;
-}
+// Token overrides first, then Bootstrap. Compiled to wwwroot/css/app.css on every build (never committed).
+// Vendor/bootstrap is restored by libman at build time (libman.json) and is not committed either.
+@import "Vendor/bootstrap/scss/functions";
+@import "tokens";
+@import "Vendor/bootstrap/scss/bootstrap";
 
 .shell-placeholder {
   max-width: 40rem;
