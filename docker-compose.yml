@@ -1,0 +1,151 @@
+# Local stack: Postgres 17 plus the four TechStrap images built from this checkout.
+#   docker compose up -d --build
+# Optional per-host overrides go in src/TechStrap.<Host>/.env.local (gitignored, see .env.example).
+# The reverse proxy and TLS are not part of compose.
+name: techstrap
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: techstrap
+      POSTGRES_USER: techstrap
+      POSTGRES_PASSWORD: techstrap-local
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U techstrap -d techstrap"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: techstrap-api:local
+    env_file:
+      - path: ./src/TechStrap.Api/.env.local
+        required: false
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__TechStrap: Host=postgres;Port=5432;Database=techstrap;Username=techstrap;Password=techstrap-local
+      # The API trusts the pinned compose subnet (the Portal hop). Add the reverse proxy address as
+      # TRUSTEDPROXY__TRUSTEDNETWORKS__1 only when the proxy runs outside this subnet.
+      TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${TECHSTRAP_SUBNET:-172.16.31.0/24}
+      TECHSTRAP_PORTAL_PUBLIC_URL: http://localhost:8082
+      TECHSTRAP_SEED_DEV_DATA: ${TECHSTRAP_SEED_DEV_DATA:-false}
+      Storage__Provider: Local
+      Storage__Local__RootPath: /app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - techstrap-storage:/app/storage
+    ports:
+      - "127.0.0.1:8080:80"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.admin
+    image: techstrap-admin:local
+    env_file:
+      - path: ./src/TechStrap.Admin/.env.local
+        required: false
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Api__BaseUrl: http://api/
+      # Admin trusts only the reverse proxy. 192.0.2.0/24 is a placeholder; set REVERSE_PROXY_CIDR.
+      TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${REVERSE_PROXY_CIDR:-192.0.2.0/24}
+      DataProtection__KeyRingPath: /app/dataprotection-keys
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - admin-keys:/app/dataprotection-keys
+    ports:
+      - "127.0.0.1:8081:80"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  portal:
+    build:
+      context: .
+      dockerfile: Dockerfile.portal
+    image: techstrap-portal:local
+    env_file:
+      - path: ./src/TechStrap.Portal/.env.local
+        required: false
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Api__BaseUrl: http://api/
+      # Portal trusts only the reverse proxy. 192.0.2.0/24 is a placeholder; set REVERSE_PROXY_CIDR.
+      TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${REVERSE_PROXY_CIDR:-192.0.2.0/24}
+      TECHSTRAP_PORTAL_PUBLIC_URL: http://localhost:8082
+      DataProtection__KeyRingPath: /app/dataprotection-keys
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - portal-keys:/app/dataprotection-keys
+    ports:
+      - "127.0.0.1:8082:80"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    image: techstrap-worker:local
+    env_file:
+      - path: ./src/TechStrap.Worker/.env.local
+        required: false
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__TechStrap: Host=postgres;Port=5432;Database=techstrap;Username=techstrap;Password=techstrap-local
+      TECHSTRAP_PORTAL_PUBLIC_URL: http://localhost:8082
+      Storage__Provider: Local
+      Storage__Local__RootPath: /app/storage
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - techstrap-storage:/app/storage
+    ports:
+      - "127.0.0.1:8083:80"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+networks:
+  default:
+    ipam:
+      config:
+        # Product-unique pinned subnet (D-019), registered in _template CLIENT_IP_RATE_LIMITING.md.
+        # 172.16.31.0/24 is outside Docker's default auto-assign pool; override TECHSTRAP_SUBNET only if this host already uses it.
+        - subnet: ${TECHSTRAP_SUBNET:-172.16.31.0/24}
+
+volumes:
+  pgdata:
+  techstrap-storage:
+  admin-keys:
+  portal-keys:
