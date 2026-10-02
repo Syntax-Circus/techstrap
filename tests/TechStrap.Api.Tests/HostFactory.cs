@@ -1,0 +1,72 @@
+using System.Collections.Concurrent;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Serilog.Core;
+using Serilog.Events;
+
+namespace TechStrap.Api.Tests;
+
+/// <summary>Captures every Serilog event the host writes so tests can assert on log lines.</summary>
+public sealed class CollectingSink : ILogEventSink
+{
+    private readonly ConcurrentQueue<LogEvent> _events = new();
+
+    public IReadOnlyCollection<LogEvent> Events => _events.ToArray();
+
+    public void Emit(LogEvent logEvent) => _events.Enqueue(logEvent);
+}
+
+/// <summary>
+/// Starts one of the TechStrap hosts in-process. Settings are applied as lazily-bound in-memory
+/// configuration. TrustedProxy is NOT overridable this way: AddTrustedProxyForwardedHeaders binds it
+/// eagerly in Program.cs, before the factory's configuration is applied (see CLIENT_IP_RATE_LIMITING.md).
+/// </summary>
+public class HostFactory<TProgram>(
+    string environment = "Development",
+    IReadOnlyDictionary<string, string?>? settings = null,
+    Action<IServiceCollection>? configureServices = null) : WebApplicationFactory<TProgram>
+    where TProgram : class
+{
+    static HostFactory()
+    {
+        // A developer's gitignored .env.local must never leak into tests.
+        Environment.SetEnvironmentVariable("DotEnv__Enabled", "false");
+    }
+
+    public CollectingSink LogSink { get; } = new();
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseEnvironment(environment);
+        builder.ConfigureAppConfiguration((_, configuration) =>
+        {
+            // Tests opt in to migration explicitly; most do not need a database at startup.
+            configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["Database:MigrateOnStartup"] = "false" });
+            configuration.AddInMemoryCollection(settings ?? new Dictionary<string, string?>());
+        });
+        builder.ConfigureServices(services =>
+        {
+            services.AddSingleton<ILogEventSink>(LogSink);
+            configureServices?.Invoke(services);
+        });
+    }
+}
+
+public sealed class ApiFactory(
+    string environment = "Development",
+    IReadOnlyDictionary<string, string?>? settings = null,
+    Action<IServiceCollection>? configureServices = null)
+    : HostFactory<TechStrap.Api.Program>(environment, settings, configureServices);
+
+public sealed class WorkerFactory(
+    string environment = "Development",
+    IReadOnlyDictionary<string, string?>? settings = null)
+    : HostFactory<TechStrap.Worker.Program>(environment, settings);
+
+public sealed class AdminFactory(string environment = "Development")
+    : HostFactory<TechStrap.Admin.Program>(environment);
+
+public sealed class PortalFactory(string environment = "Development")
+    : HostFactory<TechStrap.Portal.Program>(environment);
