@@ -241,6 +241,7 @@
      anonymises the requester across **all** their tickets and deletes their
      attachments), including counts ("12 tickets, 31 attachments").
   3. [ ] Irreversible actions require typing the ticket number or requester email.
+  4. [ ] **Not spam** (D-024) is reversible and needs no dialog: choose it from the overflow menu or the Spam view row, or press `u`. The ticket leaves the Spam view, returns to its normal views with its status unchanged, and the status bar says "Restored ACME-142 from spam".
 - **Success state:** confirmation toast; the agent lands on the queue; an event or
   admin event records who did it (without retaining the erased PII).
 - **Failure, loading, and empty states:** failure leaves everything unchanged with
@@ -253,7 +254,7 @@ inventory, not the URLs.
 
 - **Screen/route:** Queue `/queue/{view?}` (`/` opens the queue)
   - **Purpose:** find and prioritise work.
-  - **Primary actions:** switch view (Unassigned, Mine, Open, Pending, All),
+  - **Primary actions:** switch view (Unassigned, Mine, Open, Pending, All, and a separate **Spam** view in the rail, D-024; the first five exclude spam),
     filter (product, status, tag, priority), search (full-text over tickets),
     page, open ticket. Bulk actions are out of scope for v1 (Handoff Notes,
     question 9). The ledger anatomy follows the v2 mockup: selection marker,
@@ -262,12 +263,12 @@ inventory, not the URLs.
     keyboard layer below applies.
   - **Data/state:** `ListTicketsRequestHandler` results (paged); view, filters,
     search term and page held in the query string so views are linkable and
-    survive refresh; counts per view; live row updates.
+    survive refresh; counts per view (the Spam count is muted, never an alert); live row updates. The Spam view lists tickets with `is_spam = true`, rows keep the double-bordered "Spam?" stamp, **Not spam** (`u`) restores the selected row, and an empty Spam view reads "No spam" in plain text (no brand moment).
   - **Authorization:** Agent.
 - **Screen/route:** Ticket detail `/tickets/{number}`
   - **Purpose:** full conversation and ticket control.
   - **Primary actions:** read timeline; public reply; internal note; link KB
-    article; change status, assignee, priority, product, tags; mark spam; delete and
+    article; change status, assignee, priority, product, tags; mark spam, or Not spam (`u`) on a flagged ticket; delete and
     erase requester (Admin only, D-022); follow link to parent/follow-up ticket.
   - **Data/state:** `GetTicketRequestHandler` (detail plus timeline from
     `TicketEvent`: messages, status/assignment/priority/product/tag changes, in
@@ -321,13 +322,15 @@ inventory, not the URLs.
     history lives on the ticket timeline, not here.
   - **Authorization:** Admin.
 - **Screen/route:** My settings `/account/notifications`
-  - **Purpose:** notification preferences.
+  - **Purpose:** notification, keyboard and theme preferences, and the name customers see.
   - **Primary actions:** per product, opt in/out of new-ticket email alerts;
     assignment alerts toggle (Assumption); a single "Keyboard shortcuts" toggle
-    (single-key shortcuts on/off) and the theme choice (auto, light, dark).
+    (single-key shortcuts on/off) and the theme choice (auto, light, dark); an optional **Public display name** text field (D-024) with a live preview line beneath it, "Customers see: Sam from Orbitly Support" (the first name of the agent's profile name by default; typing "Samantha" changes it to "Customers see: Samantha from Orbitly Support"; clearing the field restores the default). The preview uses an example product (the first active product; **Assumption**: a product picker when several exist). The field is optional, plain text, 60 characters at most, rejects `@`, saves on blur or Enter with inline confirmation. Helper text: "Customers never see your email address."
   - **Data/state:** `GetCurrentAgentRequestHandler` plus
     `UpdateNotificationPreferencesRequestHandler`; saves per toggle with inline
-    confirmation.
+    confirmation. The display name saves through the new
+    `UpdateMyProfileRequestHandler` (PHASE-04): the preferences handler is a
+    per-product alert opt-in and does not fit.
   - **Authorization:** Agent.
 - **Screen/route:** Shell (`MainLayout`, `NavMenu`, status bar, command palette)
   - **Purpose:** navigation frame, keyboard layer and feedback surface.
@@ -394,7 +397,7 @@ lifecycle work, state, callbacks or JS interop are paired `.razor` /
 | KB list and editor | `KbArticleList` pair; `KbArticleEditor` pair; `MarkdownPreview` pair; `ImageUploadButton` pair | `KbArticleEditorViewModel` | None initially (revisit if preview/upload assembly grows) | Editor owns dirty tracking, preview debounce, upload progress and leave-guard |
 | Dead letters | `DeadLetterList` pair | Direct `DeadLetterDto` | None | Row-level action state; list refresh after retry/discard |
 | Audit log | `AuditLog` pair | Direct `AdminEventDto` plus formatted summary | None | Paged read-only; filters in query string |
-| My settings | `NotificationPreferences` pair | `NotificationPreferencesViewModel` | None | Per-toggle save state |
+| My settings | `NotificationPreferences` pair | `NotificationPreferencesViewModel` and `MyProfileViewModel` (display-name draft and preview) | None | Per-toggle save state |
 | Shell | `MainLayout`, `NavMenu` pair (badge counts), `ConnectionStatus` pair, `ConfirmDialog` pair, `Toasts` pair | Direct | None | Layout owns toast host and connection state; error boundaries from `SyntaxCircus.Blazor.Components` wrap pages |
 
 ## Interaction and Content Rules
@@ -515,6 +518,7 @@ lifecycle work, state, callbacks or JS interop are paired `.razor` /
   | `r` | Ticket | Open the Public reply tab and focus the composer |
   | `n` | Ticket | Open the Internal note tab and focus the composer |
   | `e` | Ticket | Focus the Assignee control (the palette command "Assign ... to me" assigns immediately) |
+  | `u` | Spam view (row selected) or a flagged Ticket | **Not spam**: clear the spam flag now, no dialog (D-024). Ignored on a ticket that is not flagged |
   | `Ctrl+Enter` | Composer focused | Send in the current mode (reply or note) |
   | `Esc` | Text field focused | Blur the field (typed text is kept) |
   | `Esc` | Ticket, not typing | Back to the queue |
@@ -526,7 +530,7 @@ lifecycle work, state, callbacks or JS interop are paired `.razor` /
     listbox of results, `aria-activedescendant`) filtered by typed words; arrow
     keys select, `Enter` runs, `Esc` closes and returns focus to the previous
     element. Initial commands: go to queue, open a ticket, reply, add internal
-    note, assign to me, switch view (Unassigned, Mine, ...), cycle theme.
+    note, assign to me, not spam, switch view (Unassigned, Mine, ... Spam), cycle theme.
     Commands that have a shortcut display it. (The mockup's "Show the brand
     moments" command is a review aid and is not shipped.)
   - **Status bar:** a persistent footer line listing the current hints
@@ -725,12 +729,13 @@ the three brand moments and never wrap working content.
       **Deferred to PHASE-07 (P07-T08):** a compact list of other tickets needs
       a requester-scoped ticket list on the API; include only if
       `ListTicketsRequest` already supports it, otherwise post-v1.
-  11. How the `Spam` flag is shown and recovered. **Answered in part:** a
-      flagged row shows a double-bordered "Spam?" stamp in place of the status
-      stamp, and the ticket overflow menu offers "Not spam" to recover.
-      **Owner decision needed:** whether v1 ships a dedicated Spam view (the
-      five queue views are fixed in PHASE-07's success criteria; without it,
-      recovering spam relies on search and filters).
+  11. How the `Spam` flag is shown and recovered. **Answered (owner
+      2026-10-02, D-024):** v1 ships a dedicated **Spam** view in the rail,
+      listing tickets with `is_spam = true`; the five normal views exclude
+      them. A flagged row shows a double-bordered "Spam?" stamp in place of the
+      status stamp. The one-key **Not spam** action is `u` (chosen to avoid
+      `j`, `k`, `r`, `n`, `e` and `/`); the overflow menu and palette offer it
+      too. PHASE-07's views become six (P07-T22).
   12. Editing a message's audience (public/internal) after the fact.
       **Answered:** not editable in v1; the timeline is append-only.
 - **Prototype/wireframe references:**

@@ -35,6 +35,7 @@ Follow _template `APPLICATION_ARCHITECTURE.md` (not copied into this repo). All 
 | `GET /api/agents` | `ListAgentsRequestHandler` | `IAgentRepository`, `ICurrentUserService` | EF `AgentRepository` | 200 paged `AgentDto`; AgentPolicy sees active agents only (id, name) for assignment, Admin sees all with role and active flag (D-022) | Mandatory flow |
 | `PUT /api/agents/{id}` | `UpdateAgentRequestHandler` (role, active) | `IAgentRepository`, `IAdminEventRepository`, `IUnitOfWork`, `ICurrentUserService`, `TimeProvider` | EF repositories, `UnitOfWork` | 200 `AgentDto`; 404; 409 (last active admin cannot be removed) | Mandatory flow |
 | `PUT /api/agents/me/notification-preferences` | `UpdateNotificationPreferencesRequestHandler` | `IAgentRepository`, `IUnitOfWork`, `ICurrentUserService` | EF `AgentRepository`, `UnitOfWork` | 204; 400 for unknown product | Mandatory flow |
+| `PUT /api/agents/me/profile` | `UpdateMyProfileRequestHandler` (sets or clears `public_display_name`, D-024) | `IAgentRepository`, `IUnitOfWork`, `ICurrentUserService` | EF `AgentRepository`, `UnitOfWork` | 204; 400/422 invalid name | Mandatory flow |
 | `GET /api/products` | `ListProductsRequestHandler` | `IProductRepository` | EF `ProductRepository` | 200 `ProductDto[]` | Mandatory flow |
 | `GET /api/products/{id}` | `GetProductRequestHandler` | `IProductRepository` | EF `ProductRepository` | 200; 404 | Mandatory flow |
 | `POST /api/products` | `CreateProductRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `IUnitOfWork`, `ICurrentUserService`, `TimeProvider` | EF repositories, `UnitOfWork` | 201 `ProductDto`; 409 duplicate key; 400 | Mandatory flow |
@@ -76,7 +77,7 @@ Record the exact package version in the linked package map. In the foundation ph
 ## Deliverables
 
 - [ ] Contracts DTOs and requests for agents, products, keys, tags, admin events
-- [ ] 16 handlers with interfaces and application request models (`TechStrap.Application`)
+- [ ] 17 handlers with interfaces and application request models (`TechStrap.Application`)
 - [ ] Controllers `AgentsController`, `ProductsController`, `TagsController`, `AdminEventsController` using `[FromServices]`
 - [ ] JWT auth, group-claim policies, bootstrap-admin options (validated on start) in the API
 - [ ] `IApiKeyHasher` implementation and `IAdminEventRepository` implementation
@@ -130,14 +131,19 @@ Each handler task writes `{Handler}Tests` (substitutes for repositories, fake `T
 - [ ] **P04-T14** Update `.env.example` files, OpenAPI document and the dev seeder (an admin from the bootstrap setting); add a self-host auth note
   - **Depends on:** P04-T11
   - **Validation:** `EnvExampleCompletenessTests` pass; `/openapi/v1.json` lists all new routes (`OpenApiSurfaceTests` compares route list to controllers); `docker compose up` with a test JWT gets 200 on `/api/agents/me`
+- [ ] **P04-T15** (D-024) Add `UpdateMyProfileRequest` (`PublicDisplayName`, nullable) and `AgentDto.PublicDisplayName` to Contracts, a shared public-name format constant (`{0} from {1} Support`) for the Admin preview, and implement `UpdateMyProfileRequestHandler` with `AgentsController.UpdateMyProfile` (`PUT /api/agents/me/profile`, Agent policy). A new handler is needed because `UpdateNotificationPreferencesRequestHandler` is a per-product alert opt-in
+  - **Depends on:** P04-T04, P03-T17
+  - **Validation:** `UpdateMyProfileRequestHandlerTests` cover set, change, clear (null and blank), over-long and `@` names (422 with field error), deactivated agent forbidden, and that only the caller's own record changes; controller test shows delegation with the cancellation token; integration test persists the value and `GET /api/agents/me` returns it; `ContractNamingTests` and `OpenApiSurfaceTests` pass; a parity test shows the Contracts format constant and `AgentPublicIdentity.Resolve` produce the same string
+
 
 ## Success Criteria
 
-- [ ] All 16 handlers listed in the boundary table exist with interfaces, and every controller action delegates to exactly one of them.
+- [ ] All 17 handlers listed in the boundary table exist with interfaces, and every controller action delegates to exactly one of them.
 - [ ] A token without the configured group claim receives 403 on every agent endpoint; a token with it receives 200 on `GET /api/agents/me` and the agent row is created once.
 - [ ] Setting `TECHSTRAP_BOOTSTRAP_ADMIN` produces exactly one Admin on first sign-in and never promotes later callers.
 - [ ] Product, key, tag and agent changes each write an `AdminEvent` in the same transaction; no event or response after creation contains a plaintext API key.
 - [ ] `Trusted` and `Public` keys can be created and revoked per product; only hashes are stored.
+- [ ] An agent can set, change and clear their own public display name through `UpdateMyProfileRequestHandler`; invalid names are rejected with field errors (D-024).
 - [ ] Expected failures produce the specified ProblemDetails status codes (`ResultMappingTests`).
 - [ ] `dotnet test` is green including `ControllerBoundaryTests`, `HandlerConstructorDependencyTests` and `ContractNamingTests`; CI is green.
 

@@ -72,7 +72,7 @@
   - **Access/permissions:** anonymous. Can read published KB articles, submit a
     ticket for a product, and (with a valid token) read the public messages of
     their own ticket and reply to it. Cannot see internal notes, tags, assignee
-    identity beyond a first name or display name (Assumption), or other tickets.
+    identity beyond the resolved agent name (D-024), or other tickets.
 - **Persona: Self-servicer** (searches before asking, often via a search engine)
   - **Goals:** land on a KB article from a search engine, read it, decide if it
     solved the issue; browse by category.
@@ -80,8 +80,8 @@
   - **Access/permissions:** anonymous; read-only.
 - **Persona: In-app user** (arrives from a product's own "Contact support" button)
   - **Goals:** land on the right product's contact page, ideally pre-filled
-    (Assumption: link may carry a non-sensitive subject; no PII or secrets in
-    query strings).
+    (D-024: the link may prefill `subject`, `name` and `email`, all visible and
+    editable; app context goes through the SDK/API, not the URL).
   - **Pain points:** a generic page that does not look like the product they
     were just in.
   - **Access/permissions:** anonymous.
@@ -334,7 +334,7 @@ recorded in [02-ARCHITECTURE.md](02-ARCHITECTURE.md).
        **only** place the TechStrap name appears on the portal. TechStrap does
        not appear in the header, headings, button labels, page titles, Open
        Graph or SEO tags, or 404 copy; those use the product's name.
-    2. Text is exactly "Powered by TechStrap": one line, plain text, small
+    2. Text is exactly "Powered by TechStrap": one line, a text link, small
        (caption size), in the neutral secondary ink at 4.5:1 or better on the
        page background; never in the product accent, never bold, never animated.
     3. An optional TechStrap mark at **16 px** may sit immediately before the
@@ -345,9 +345,22 @@ recorded in [02-ARCHITECTURE.md](02-ARCHITECTURE.md).
     4. Placement: bottom of the page, in the footer region, inside the page
        container, with the same placement on every page. It never sticks to the
        viewport and never competes with the "Can't find your ticket link?" link.
-    5. The link target and whether an admin may hide the line (white-label) are
-       **Owner decision needed**; until decided it is rendered as plain text
-       with no link and cannot be hidden.
+    5. **Decided (owner 2026-10-02, D-024):** the text is a link to
+       https://github.com/Syntax-Circus/techstrap (neutral secondary ink,
+       underlined, same colour on hover; never the accent). It is shown by
+       default. An installation-level setting hides it everywhere on the
+       portal and in emails: `TECHSTRAP_PORTAL_SHOW_POWERED_BY=false`
+       (default `true`; not per product). When hidden, the whole line and the
+       optional mark are omitted and the footer keeps its other content.
+  - **Agent identity (decided, D-024):** wherever a customer sees an agent (ticket
+    view messages, and the agent-reply email), the name is the agent's **first
+    name plus the product's support name**: "Sam from Orbitly Support". If the
+    agent set a **public display name** it replaces the first name and is used
+    as-is: "Samantha from Orbitly Support". **Assumption:** the " from {Product}
+    Support" suffix is kept with an override. The product part is the product's
+    branding display name (falls back to its name). Surnames are never added,
+    and agent emails, ids and avatars never appear. The customer's own messages
+    read "You". The portal and emails render the string the API resolved.
   - Hierarchy: help-first. The contact form is prominent but the search box and
     categories come first on the product home; the contact page leads with the
     form and keeps suggestions adjacent to the subject.
@@ -366,6 +379,13 @@ recorded in [02-ARCHITECTURE.md](02-ARCHITECTURE.md).
     (`name`, `email`); correct mobile keyboards (`type=email`).
   - Keep the form short; do not ask for product (it is the page's context) or
     information the in-app link already supplies.
+  - **Prefill (decided, D-024):** `/p/{key}/contact?subject=...&name=...&email=...`
+    may prefill exactly these three fields. They stay visible, labelled and
+    editable; there are no hidden fields and nothing is auto-submitted. App
+    context such as version and device goes through the SDK/API, not the URL.
+    Prefilled values are validated and length-limited exactly like typed input
+    (same rules, same error summary). Unknown parameters are ignored and never
+    echoed; values are HTML-encoded; request logs redact `name` and `email`.
   - **Honeypot (invisible):** an extra field that real users never see or reach.
     It must not be visible, focusable (`tabindex=-1`), announced to assistive
     technology (`aria-hidden`, not just offscreen text), autofilled by browsers
@@ -427,13 +447,13 @@ Common rules:
   only as a single "Powered by TechStrap" line at the very bottom, in both the
   HTML and the plain-text part, with the same wording and plain-text,
   secondary-ink styling as the web footer (an optional 16 px mark in HTML only;
-  link target per the Owner decision on the web footer). Emails are light
+  the link and the hide setting follow the web footer rule: GitHub link in HTML, bare URL in the plain-text part, omitted entirely when `TECHSTRAP_PORTAL_SHOW_POWERED_BY` is false; D-024). Emails are light
   designs that must survive client dark-mode inversion.
 - **Common frame:** neutral structure with product header (logo or name),
   one primary call-to-action button plus the same URL as plain text, the ticket
   number and subject in a consistent position, and a short footer (who sent it
   and why; "Replying by email does not reach us yet; use the link above" until
-  inbound email ships; no marketing) followed by the "Powered by TechStrap" line.
+  inbound email ships; no marketing) followed by the "Powered by TechStrap" line (unless hidden by the installation setting).
 - **Subject lines:** consistent and threadable by humans, with the ticket number
   first, e.g. `[ACME-142] We received your request`, `[ACME-142] New reply from
   support`, `[ACME-142] Your ticket was closed` (copy is a design/content
@@ -464,9 +484,9 @@ Common rules:
      (truncated), the link to follow the conversation, the lost-link tip, and
      for a follow-up a sentence linking it to the original ticket number.
   2. **Agent reply**: the agent's public reply text (sanitised), linked KB
-     articles as titled links (when the agent linked any), the agent's display name
-     (Assumption: first name or a product-level "Support" identity, a design and
-     privacy decision), the CTA "View and reply", and the ticket number. Long
+     articles as titled links (when the agent linked any), the agent's resolved name
+     (D-024: "Sam from Orbitly Support", or the agent's public display name
+     plus the same suffix; never email or surname), the CTA "View and reply", and the ticket number. Long
      replies are shown in full (not truncated) because the email may be the only
      thing read.
   3. **Closed notice**: sent when a Solved ticket is auto-closed (or manually
@@ -533,9 +553,9 @@ Target: **WCAG 2.2 AA** (the audience is the general public).
     4. **Fallback:** if the input is invalid, or no safe pair can be derived, use
        the neutral theme accent and surface the failure in the admin contrast
        report. The portal never renders an unchecked accent.
-    The property names above are the contract; PHASE-09 currently names the
-    second token `--ts-accent-contrast` and must be aligned (Deferred to
-    PHASE-09). The mockup uses unprefixed `--accent`, `--on-accent`,
+    The property names above are the contract (`--ts-accent`, `--ts-on-accent`,
+    `--ts-accent-ink`); PHASE-09 now uses the same names (the earlier
+    `--ts-accent-contrast` is retired). BRAND.md and the mockup use unprefixed `--accent`, `--on-accent`,
     `--accent-ink`; the same values drive the email inline styles.
     The accent is never the only carrier of meaning: links are underlined,
     focus rings use a high-contrast neutral not the accent, status uses text and
@@ -667,9 +687,10 @@ How it applies to the Portal:
      provisional mapping New "Received", Open "In progress", Pending "Waiting
      for your reply", Solved "Solved", Closed "Closed", in plain copy; final
      wording is set in PHASE-09 (`CustomerTicketPresenter`) within the plain-copy
-     rule. **Owner decision needed:** whether customers see the agent's first
-     name or display name, or only a product-level "Support" identity (a privacy
-     and taste call; same decision applies to the agent-reply email).
+     rule. **Answered (owner 2026-10-02, D-024):** customers see the
+     agent's first name plus the product support name ("Sam from Orbitly
+     Support"), or the agent's optional public display name with the same
+     suffix (Assumption); the same string is used in the agent-reply email.
   3. Live deflection on an SSR site. **Answered:** a small interactive island
      (`KbDeflectionSuggestions`, PHASE-09) with a no-JS fallback "Browse help
      articles" link; suggestions never block the form.
@@ -709,10 +730,10 @@ How it applies to the Portal:
       and 25 MB limits stand).
   12. Dark theme for the portal. **Answered:** light-only in v1 (owner decision
       2026-10-02).
-  13. In-app launch prefill. **Owner decision needed:** which parameters an app
-      may pass (the working assumption is a non-sensitive `subject` only, no PII
-      or secrets in query strings); it is an integration contract that also
-      affects the client SDK (PHASE-11).
+  13. In-app launch prefill. **Answered (owner 2026-10-02, D-024):** the URL may
+      prefill `subject`, `name` and `email`, all visible and editable, no hidden
+      fields, validated and length-limited like typed input. App context (version,
+      device) goes through the SDK/API; PHASE-11 documents the URL contract.
 - **Prototype/wireframe references:**
   - Chosen direction and Portal sample: `docs/design/mockups/direction-carbon-copy-v2.html`
     (Portal view: contact form with suggestions, confirmation, three sample

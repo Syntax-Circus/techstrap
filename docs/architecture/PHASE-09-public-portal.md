@@ -19,7 +19,7 @@ sitemap, robots) through `SyntaxCircus.Blazor.Seo`.
 - **No new server entry points; the portal never touches the database or the Application layer.** It references `TechStrap.Contracts` only and calls the API through typed clients built on `SyntaxCircus.Http.Resilience`. The portal calls the API **anonymously** (public endpoints); customer calls carry the access token in the `X-Ticket-Token` header per the P06 contract (header-name constant from Contracts; never logged, never in API paths or query strings).
 - **Rendering model:** static SSR with enhanced forms (`[SupplyParameterFromForm]`, antiforgery). Everything works without a circuit. The single exception is the deflection list on the contact form: an **InteractiveServer island** (`KbDeflectionSuggestions`) debounces subject input and calls the public search; if the circuit is unavailable the form still submits normally (**Assumption**; alternative is progressive fetch to a portal-hosted endpoint, rejected because it adds an entry point).
 - **Routes (fixed in `02-ARCHITECTURE.md` section 8.2):** `/p/{key}` (product home + KB search box), `/p/{key}/contact`, `/p/{key}/contact/received` (confirmation: ticket number only, carried by a short-lived reference, never the access token), `/p/{key}/lost-link`, `/p/{key}/kb`, `/p/{key}/kb/{category}`, `/p/{key}/kb/{category}/{articleSlug}`, `/p/{key}/kb/search?q=` (the category slug `search` is reserved), `/t/{token}`. `/` shows a minimal "choose a product" or redirects to a configured default product (**Assumption**; `TECHSTRAP_PORTAL_DEFAULT_PRODUCT` optional). The portal base URL is `TECHSTRAP_PORTAL_PUBLIC_URL`.
-- **Per-product theming:** branding (name, logo URL, accent colour) comes from `GetPublicProductRequestHandler` and is applied as CSS custom properties on the page wrapper (`style="--ts-accent:…;--ts-accent-contrast:…"`), not as injected `<style>` blocks, so CSP stays strict. The accent value is re-validated against the `#RRGGBB` constant before use; contrast colour is computed by a feature-local `BrandingThemeFactory` (non-trivial mapping). Logo `<img>` URLs must be https (or relative) else omitted.
+- **Per-product theming:** branding (name, logo URL, accent colour) comes from `GetPublicProductRequestHandler` and is applied as CSS custom properties on the page wrapper (`style="--ts-accent:…;--ts-on-accent:…;--ts-accent-ink:…"`), not as injected `<style>` blocks, so CSP stays strict. The accent value is re-validated against the `#RRGGBB` constant before use; the on-accent and accent-ink colours are derived by a feature-local `BrandingThemeFactory` (canonical names: `--ts-accent`, `--ts-on-accent`, `--ts-accent-ink`; the unprefixed BRAND.md names get the `--ts-` prefix) (non-trivial mapping). Logo `<img>` URLs must be https (or relative) else omitted.
 - **Unknown/inactive product key** -> the same NotFound page as an unknown route (no enumeration).
 - **Token page security (`/t/{token}`):** `Referrer-Policy: no-referrer`, `Cache-Control: no-store`, `X-Robots-Tag: noindex`, `<meta name="robots" content="noindex">`, excluded in `robots.txt` and the sitemap. Invalid, expired or revoked tokens return the **uniform 404** page. Only public messages are shown; internal notes never reach the portal.
 - **Closed tickets:** read-only banner; the reply form submits normally and `AddCustomerReplyRequestHandler` creates a follow-up ticket; the page then shows the follow-up link/number (response contract per P06).
@@ -29,7 +29,7 @@ sitemap, robots) through `SyntaxCircus.Blazor.Seo`.
 - **Rendered HTML:** the KB article body arrives sanitized from the API (`PublishedKbArticleDto.Html`) and is rendered through `MarkupString` at exactly one site (`KbArticleBody`); message bodies likewise at `CustomerMessageBody`. Portal does not re-sanitize (single source of truth), but an architecture/lint test restricts `MarkupString` to those two components.
 - **SEO** via `SyntaxCircus.Blazor.Seo`: `AddSyntaxCircusSeo`, `UseCanonicalHost`, `MapRobotsTxt`, `MapSitemap` with entries provided by an `ISitemapEntryProvider` implementation that calls `GetSitemapEntriesRequestHandler` through the API (cached 15 minutes, **Assumption**). `SeoHead` per page; JSON-LD `BreadcrumbListSchema` on KB pages and an article schema (custom POCO) on article pages. Contact/ticket pages are `noindex`.
 - **Caching:** KB list/article/category pages use ASP.NET output caching with short TTL and vary by route (**Assumption**: 60 s); never cache `/t/*` or form pages.
-- **Accessibility/UX** follow `UX-BRIEF-portal.md` (mobile-first, no JS required, visible focus, error summaries, labels, 4.5:1 contrast with the computed accent contrast).
+- **Accessibility/UX** follow `UX-BRIEF-portal.md` (mobile-first, no JS required, visible focus, error summaries, labels, 4.5:1 contrast with the computed `--ts-on-accent` and `--ts-accent-ink`).
 - **Tests:** bUnit for component logic, `WebApplicationFactory<Portal>` with a fake API handler for page-level SSR output (token headers, noindex, canonical, sitemap). Playwright e2e optional (**Assumption**, P09-T20).
 
 ## Application Boundaries
@@ -113,7 +113,7 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
 
 ## Actionable Tasks
 
-- [ ] **P09-T01** Extend the `tests/TechStrap.Portal.Tests` project (skeleton created in PHASE-02; add bUnit and host tests), add portal options, `.env.example` (API base URL, `TECHSTRAP_PORTAL_PUBLIC_URL`, `TECHSTRAP_PORTAL_DEFAULT_PRODUCT`, forwarded-header settings) and constants for route templates and header names (Contracts header constants for `X-Ticket-Token`)
+- [ ] **P09-T01** Extend the `tests/TechStrap.Portal.Tests` project (skeleton created in PHASE-02; add bUnit and host tests), add portal options, `.env.example` (API base URL, `TECHSTRAP_PORTAL_PUBLIC_URL`, `TECHSTRAP_PORTAL_DEFAULT_PRODUCT`, `TECHSTRAP_PORTAL_SHOW_POWERED_BY` (D-024), forwarded-header settings) and constants for route templates and header names (Contracts header constants for `X-Ticket-Token`)
   - **Depends on:** P01 (host skeleton)
   - **Validation:** Options validation unit test fails fast on missing API URL; route constants used by every page (no inline route strings repeated).
 - [ ] **P09-T02** Implement typed clients (`IPublicProductClient`, `IPublicTicketClient`, `ICustomerTicketClient`, `IPublicKbClient`) with ProblemDetails -> `Result`, GET-only retry, multipart submit, and `.AddForwardedClientIp()` forwarding the original client IP (D-019)
@@ -121,7 +121,7 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
   - **Validation:** Stub-handler tests: success/400/404/429/503; POST not retried; `X-Forwarded-For` set from the trusted inbound header; token header never logged (log assertion).
 - [ ] **P09-T03** Implement `BrandingThemeFactory`, `PortalLayout`, header/footer and the product-scope resolution (unknown/inactive -> NotFound)
   - **Depends on:** P09-T02, P02 tokens
-  - **Validation:** Theory over accent colours (black, white, mid-gray, brand) asserts computed contrast colour meets 4.5:1; invalid colour falls back to the default; bUnit: unknown key renders NotFound.
+  - **Validation:** Theory over accent colours (black, white, mid-gray, brand) asserts the computed `--ts-on-accent` meets 4.5:1 on the accent and `--ts-accent-ink` meets 4.5:1 on white; invalid colour falls back to the default; bUnit: unknown key renders NotFound.
 - [ ] **P09-T04** Wire `Blazor.Seo` (`AddSyntaxCircusSeo`, `UseCanonicalHost`, `MapRobotsTxt`, `MapSitemap` with `ApiSitemapEntryProvider`) and security headers/CSP
   - **Depends on:** P09-T02
   - **Validation:** Host test: `/robots.txt` disallows `/t/`; `/sitemap.xml` contains published KB URLs only and is cached; response headers include CSP and `X-Content-Type-Options`.
@@ -173,6 +173,16 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
 - [ ] **P09-T20** (Optional, **Assumption**) Playwright e2e: submit ticket -> read email link (from test SMTP sink) -> view -> reply
   - **Depends on:** P09-T09, P09-T18
   - **Validation:** Passes in nightly CI against compose with MailPit/test sink.
+- [ ] **P09-T21** (D-024) Contact-page prefill: bind `subject`, `name` and `email` from the query string into `ContactFormViewModel` through the same validation attributes and length constants as posted input; all three stay visible and editable (inputs carry `maxlength` equal to the model limit), no hidden field carries prefill data, nothing auto-submits, unknown parameters are ignored and never echoed; add `name` and `email` query values to the request-log redaction (P09-T17). App context (version, device) is not a URL concern: it goes through the SDK/API
+  - **Depends on:** P09-T06, P09-T17
+  - **Validation:** host tests: `?subject=&name=&email=` render three visible editable inputs with the values, HTML-encoded (injected markup is escaped); an over-length subject and an invalid email fail on post exactly as typed input does; extra parameters such as `product` or `token` change nothing; a log-capture test shows no prefilled name or email
+- [ ] **P09-T22** (D-024) "Powered by TechStrap" link and setting: portal options `ShowPoweredBy` bound from `TECHSTRAP_PORTAL_SHOW_POWERED_BY` (default `true`); the footer renders the line as a link to https://github.com/Syntax-Circus/techstrap (constant, neutral secondary ink, underlined, 4.5:1) on every page including NotFound and error pages, and omits it entirely when false
+  - **Depends on:** P09-T03
+  - **Validation:** host tests: with the default every page type contains exactly one link with the exact href and no other TechStrap text; with the option false none contains the line; the option defaults to true when the variable is unset; an invalid value fails startup validation
+- [ ] **P09-T23** (D-024) Agent identity on the ticket view: `CustomerMessage` shows the API-resolved `AuthorDisplayName` as-is (HTML-encoded) for agent messages and "You" for the customer's own; no agent email, id or avatar is rendered
+  - **Depends on:** P09-T08, P06-T22
+  - **Validation:** bUnit: an agent message shows "Sam from Orbitly Support"; a fixture with override "Samantha from Orbitly Support" shows it unchanged; markup in the name is encoded; a DTO shape test shows the portal model has no agent email property
+
 
 ## Success Criteria
 
@@ -181,6 +191,7 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
 - [ ] Invalid, expired and revoked tokens are indistinguishable (identical 404); lost-link responses are identical for known and unknown emails.
 - [ ] Each product's portal pages use its name, logo and accent colour, including readable contrast; an unknown product key shows NotFound.
 - [ ] KB pages are browsable, searchable, SEO-tagged with sitemap/robots as specified; ticket pages are `noindex`/disallowed.
+- [ ] The contact URL prefills `subject`, `name` and `email` (visible, editable, validated like typed input); "Powered by TechStrap" links to the GitHub repo and disappears when `TECHSTRAP_PORTAL_SHOW_POWERED_BY=false`; agents appear as the resolved public name (D-024).
 - [ ] Portal request logs contain no access tokens; token pages send `no-store` and `no-referrer`.
 - [ ] Rate limits observe the real client IP through the portal.
 - [ ] `dotnet build`/`dotnet test` green; portal container healthy under compose.

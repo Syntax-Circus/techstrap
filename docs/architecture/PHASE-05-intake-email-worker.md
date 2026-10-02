@@ -129,6 +129,10 @@ Record the exact package version in the linked package map. In the foundation ph
 - [ ] **P05-T17** (D-020) Write `IntakeIdempotencyTests` and `IntakeIdempotencyIntegrationTests` first, then add `Idempotency-Key` support to `POST /api/intake/tickets`: `IIntakeIdempotencyStore` over the `intake_idempotency_keys` table (migration generated with `dotnet ef`, unique per API key and key hash, 24 h retention constant, expired rows pruned opportunistically), checked inside the creating transaction so a repeat returns the stored `SubmitTicketResponse` without creating a ticket, message, token or outbox row; an over-long key is a 400
   - **Depends on:** P05-T07, P05-T08
   - **Validation:** tests prove the same key twice returns an identical response and one ticket; the same key on a different API key creates a second ticket; an expired key (fake `TimeProvider`) creates a new ticket; two concurrent requests with one key create exactly one ticket; no header means no store access; the header name comes from the Contracts constant
+- [ ] **P05-T18** (D-024) Extend `IEmailTemplateRenderer`'s model with `AgentPublicName` (an already-resolved string; the renderer never receives agent email, id or full name) and bind an `EmailBrandingOptions.ShowPoweredBy` from `TECHSTRAP_PORTAL_SHOW_POWERED_BY` (default `true`). The "Powered by TechStrap" line links to https://github.com/Syntax-Circus/techstrap (one constant) in HTML, appears as the bare URL in text, and is omitted entirely when false. The key is already in the Worker `.env.example`; if rendering stays at enqueue time (the Assumption in this phase) add it to the API `.env.example` and `EnvExampleCompletenessTests` too. Outbox rows store the resolved name captured at enqueue
+  - **Depends on:** P05-T05, P03-T17
+  - **Validation:** snapshot tests for HTML and text with the flag true and false; the option defaults to true when unset; the link target is defined once; a model carrying only the resolved name cannot leak an agent email (shape test); `EnvExampleCompletenessTests` pass
+
 
 ## Success Criteria
 
@@ -139,6 +143,7 @@ Record the exact package version in the linked package map. In the foundation ph
 - [ ] Disallowed or oversize attachments, honeypot hits and rate-limited callers are handled exactly as specified in tests (400/422, silent 201, 429).
 - [ ] No response, log line or `PublicProductDto` exposes a token, key hash or other internal data (`SensitiveDataLeakTests`).
 - [ ] `GET /api/public/products/{key}` returns branding with correct `Cache-Control`.
+- [ ] Email templates render the resolved agent name and honour `TECHSTRAP_PORTAL_SHOW_POWERED_BY`: the GitHub-linked line when true, none when false (D-024).
 - [ ] A repeated `Idempotency-Key` on API-key intake returns the original response and creates no second ticket (D-020).
 - [ ] `docker compose up` produces a confirmation email in Mailpit from a real intake call; CI is green.
 

@@ -191,8 +191,8 @@ What is novelty to avoid:
 | Sign-in | Head mark, inside a retro window | Yes, one line | Yes (`--bm-*`) | Legal and consent text stays plain. |
 | 404 / not found (Admin) | Head mark, inside a retro window | Yes, one line | Yes (`--bm-*`) | Always offer a clear way back. |
 | Portal pages | **No** | **No** | **No**: product name, logo and accent lead | Plain and product-led (Decision, section 10). |
-| Portal footer | 16px head mark allowed (**Decision**) | No | Neutral | "Powered by TechStrap" small text, optional 16px head mark; the only TechStrap element. |
-| Emails (customer-facing) | **No** | **No** | **No**: product branding | Same footer rule as the portal. |
+| Portal footer | 16px head mark allowed (**Decision**) | No | Neutral | "Powered by TechStrap" small text linking to https://github.com/Syntax-Circus/techstrap, optional 16px head mark; the only TechStrap element. Shown by default; the installation setting `TECHSTRAP_PORTAL_SHOW_POWERED_BY=false` hides it (D-024). |
+| Emails (customer-facing) | **No** | **No** | **No**: product branding | Same footer rule as the portal: GitHub link in HTML, bare URL in text, same installation setting. |
 | README / GitHub | Yes | Yes | Yes | Social preview, badges, repository banner. |
 | Style guide / brand pages | Yes | Yes | Yes | Shows the system, including the mascot rules. |
 
@@ -456,7 +456,7 @@ Tone: one wink per window, in the heading or one line; the explanatory sentence 
 
 ## Portal (decision: plain and product-led)
 
-- Product name, logo and accent lead. TechStrap appears only as "Powered by TechStrap", optionally with the 16px head mark.
+- Product name, logo and accent lead. TechStrap appears only as "Powered by TechStrap" (a link to https://github.com/Syntax-Circus/techstrap), optionally with the 16px head mark; an installation setting can hide it (D-024).
 - **No** carbon tints, stamps, ledger rules, margin line, retro window, mascot, Mono labels, keyboard layer, status bar or hard shadows in the portal. Exception only if a portal screen needs one for its own clarity and the owner approves. Ticket status shown to customers is a plain text label.
 - Light only in v1 (`--p-*` tokens). Inputs 16px, 44px minimum touch target, focus ring 3px `--p-ink` plus a 5px accent halo.
 - Customer emails follow the portal: product branding, the same accent rule, the same footer line, no mascot.
@@ -514,6 +514,8 @@ A product (PHASE-04) stores one accent colour as `#RRGGBB`. From it exactly thre
 | `--accent` | Fills and borders: top bar, primary button, logo tile, suggestion edge | The product's colour, as entered |
 | `--on-accent` | Text on an accent fill | Whichever of `#FFFFFF` or `#000000` has the higher WCAG contrast against the accent. Pure black (not the `#1B1B22` body ink) is deliberate: with white/black the better of the two is always at least 4.58:1 for any colour, so every valid accent is usable |
 | `--accent-ink` | Accent used as **text** or an outline on white: links, ghost buttons, nav hover | If the accent already has at least 4.5:1 against `#FFFFFF`, use it unchanged. Otherwise darken it until it does: repeatedly scale R, G and B by (1 - 0.04 k), k = 1, 2, 3 and so on, until contrast is at least 4.5:1 |
+
+Naming: this table uses the unprefixed mockup names; the implementation prefixes them with `--ts-` (`--ts-accent`, `--ts-on-accent`, `--ts-accent-ink`).
 
 An accent may set **only** these three. It may not change `--p-*` neutrals, typography, radii, shadows, focus colour, or any Admin token. Focus stays `--p-ink` with an accent halo. Nothing may use `--accent` as text on white; use `--accent-ink`.
 
