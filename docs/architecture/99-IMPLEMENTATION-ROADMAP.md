@@ -325,7 +325,7 @@ Run from the repository root. PHASE-01 creates the files these commands need; be
 | EF drift | `dotnet ef migrations has-pending-model-changes --project src/TechStrap.Infrastructure --startup-project src/TechStrap.Api` | Exit 0 (project paths are an **Assumption**; adjust to the final layout) |
 | New migration (tool only) | `dotnet ef migrations add <Name> --project src/TechStrap.Infrastructure --startup-project src/TechStrap.Api` | Generated files only; never hand-edit |
 | Version stamp | `dotnet msbuild src/TechStrap.Api -target:GetVersion -getProperty:GitVersion_SemVer` | Prints a SemVer |
-| Compose config | `docker compose config` | Shows subnet `172.31.0.0/24` and `TRUSTEDPROXY__*` per host |
+| Compose config | `docker compose config` | Shows subnet `172.16.31.0/24` and `TRUSTEDPROXY__*` per host |
 | Stack up | `docker compose up -d` then `docker compose ps` | Postgres 17 and four app containers healthy |
 | Liveness | `curl -fsS http://localhost:$API_PORT/health/live` (repeat for Admin, Portal, Worker ports) | 200 |
 | Readiness | `curl -fsS http://localhost:$API_PORT/health/ready` (and the Worker port) | 200 |
@@ -388,7 +388,7 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 | 1 | ~~Confirm decisions~~ Done: D-001 to D-022 approved on 2026-10-02 | — |
 | 2 | Verify the installed NCrunch version for the `xunit.v3` pin: if it predates the fix, pin `xunit.v3` 3.2.2 and `xunit.runner.visualstudio` 3.1.5 with a comment in `Directory.Packages.props` (D-013) | P01-T03 |
 | 3 | ~~Create the GitHub repository with GHCR enabled~~ Done: `Syntax-Circus/techstrap` exists; enable GHCR package write permission for `GITHUB_TOKEN` | PHASE-01 |
-| 4 | Open the cross-repo PR registering subnet `172.31.0.0/24` in the `_template` `CLIENT_IP_RATE_LIMITING.md` registry, and confirm it is free on the UAT host (D-019) | P01-T16 |
+| 4 | Open the cross-repo PR registering subnet `172.16.31.0/24` in the `_template` `CLIENT_IP_RATE_LIMITING.md` registry, and confirm it is free on the UAT host (D-019) | P01-T16 |
 | 5 | Choose the `SECURITY.md` private reporting address | P01-T19 |
 | 6 | Choose the visual direction and approve `docs/BRAND.md` | P02-T01 to P02-T03 |
 | 7 | Set up the Authentik application and groups per the `syntax-circus-authentik` repo: a confidential OIDC client for Admin (code plus PKCE, `offline_access`, group claim in the id and access tokens), a provider for the API audience, and groups mapped to `TECHSTRAP_AGENT_GROUP` and `TECHSTRAP_ADMIN_GROUP`; set `TECHSTRAP_BOOTSTRAP_ADMIN` for the first sign-in | P04-T14, P07-T02, P12-T17 |

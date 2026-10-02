@@ -302,7 +302,7 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 | A-06 | English only for UI and email, with an i18n seam |
 | A-07 | Postgres FTS uses the `english` configuration |
 | A-08 | Default rate limits: public form 5 submits per 10 min per IP; Public key 10 creates per min per key+IP; token endpoints 60 per min per IP; lost-link 3 per hour per address; all configurable and validated at startup |
-| A-09 | Compose subnet `172.31.0.0/24` (needs a row added to the _template pattern registry) |
+| A-09 | Compose subnet `172.16.31.0/24` (needs a row added to the _template pattern registry) |
 | A-10 | Assignee notification on customer reply is an email through the outbox; in-app badges later |
 | A-11 | Priorities are `Low, Normal, High, Urgent`; default Normal |
 | A-12 | Spam-flagged tickets are hidden from default views and excluded from alerts; spam does not auto-close |
