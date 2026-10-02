@@ -402,3 +402,21 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 ## 8. Decisions still open
 
 None. All decisions (D-001 to D-022) were approved on 2026-10-02.
+
+## 9. Carried forward from PHASE-01
+
+Items found during PHASE-01 reviews that later phases own. Fold each into the named phase's plan.
+
+| Item | Owning phase |
+| --- | --- |
+| Replace the `PlaceholderTests` in `TechStrap.Domain.Tests` and `TechStrap.Application.Tests` with real tests | PHASE-03 / PHASE-04 |
+| Add a `HandlerConstructorDependencyTests` rule forbidding persistence entity types | PHASE-03 |
+| `PostgresIntegrationTestBase.DisposeAsync` null-deref when initialisation threw | PHASE-03 |
+| Handler rules: inspect abstract/base controllers and inherited actions; narrow `IsHandlerType` to Application types | PHASE-04 |
+| Replace `UnauthenticatedScheme` with JWT bearer and an explicit problem-details challenge | PHASE-04 |
+| Admin/Portal security headers with a Blazor-aware CSP; extract the shared Admin/Portal host wiring | PHASE-07 / PHASE-09 |
+| Admin/Portal client IP behind the reverse proxy: same-host proxy = compose gateway (`172.16.31.1/32`); revisit if `TECHSTRAP_SUBNET` changes or the proxy moves off-host; raise upstream in the `_template` CLIENT_IP_RATE_LIMITING pattern | PHASE-09 / first UAT deploy |
+| `SyntaxCircus.AspNetCore.Common` echoes inbound `X-Correlation-Id` with no length/charset cap (upstream fix) | PHASE-12 |
+| Release: CI gate before publishing; hotfix tags must not move `latest` backwards; SHA-pin actions / Dependabot | before first stable tag / PHASE-12 |
+| Runtime images: app binaries owned by uid 10001 (only mount points need it) | PHASE-12 |
+| Warn in `.env.production.example` that the Postgres password must be connection-string safe | first UAT deploy |
