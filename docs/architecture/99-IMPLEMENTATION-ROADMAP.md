@@ -17,7 +17,7 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 
 | # | Phase | Depends on | Unblocks | Parallelism | Key decisions | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| 01 | [Foundation](PHASE-01-foundation.md) | none | all | Must go first | D-003, D-006, D-013, D-019 | Not started |
+| 01 | [Foundation](PHASE-01-foundation.md) | none | all | Must go first | D-003, D-006, D-013, D-019 | Complete (CI/release verification pending) |
 | 02 | [Brand and UX](PHASE-02-brand-and-ux.md) | 01 | 07, 09 | Runs alongside 03 to 06 (no shared files); blocks the UI phases | D-002 | Not started |
 | 03 | [Domain and persistence](PHASE-03-domain-and-persistence.md) | 01 | 04 | Alongside 02 | D-009, D-010, D-011 | Not started |
 | 04 | [Agent auth and admin config](PHASE-04-agent-auth-and-admin-config.md) | 03 | 05 | Alongside 02 | D-001, D-004, D-016, D-022 | Not started |
@@ -325,7 +325,7 @@ Run from the repository root. PHASE-01 creates the files these commands need; be
 | EF drift | `dotnet ef migrations has-pending-model-changes --project src/TechStrap.Infrastructure --startup-project src/TechStrap.Api` | Exit 0 (project paths are an **Assumption**; adjust to the final layout) |
 | New migration (tool only) | `dotnet ef migrations add <Name> --project src/TechStrap.Infrastructure --startup-project src/TechStrap.Api` | Generated files only; never hand-edit |
 | Version stamp | `dotnet msbuild src/TechStrap.Api -target:GetVersion -getProperty:GitVersion_SemVer` | Prints a SemVer |
-| Compose config | `docker compose config` | Shows subnet `172.31.0.0/24` and `TRUSTEDPROXY__*` per host |
+| Compose config | `docker compose config` | Shows subnet `172.16.31.0/24` and `TRUSTEDPROXY__*` per host |
 | Stack up | `docker compose up -d` then `docker compose ps` | Postgres 17 and four app containers healthy |
 | Liveness | `curl -fsS http://localhost:$API_PORT/health/live` (repeat for Admin, Portal, Worker ports) | 200 |
 | Readiness | `curl -fsS http://localhost:$API_PORT/health/ready` (and the Worker port) | 200 |
@@ -388,7 +388,7 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 | 1 | ~~Confirm decisions~~ Done: D-001 to D-022 approved on 2026-10-02 | — |
 | 2 | Verify the installed NCrunch version for the `xunit.v3` pin: if it predates the fix, pin `xunit.v3` 3.2.2 and `xunit.runner.visualstudio` 3.1.5 with a comment in `Directory.Packages.props` (D-013) | P01-T03 |
 | 3 | ~~Create the GitHub repository with GHCR enabled~~ Done: `Syntax-Circus/techstrap` exists; enable GHCR package write permission for `GITHUB_TOKEN` | PHASE-01 |
-| 4 | Open the cross-repo PR registering subnet `172.31.0.0/24` in the `_template` `CLIENT_IP_RATE_LIMITING.md` registry, and confirm it is free on the UAT host (D-019) | P01-T16 |
+| 4 | Open the cross-repo PR registering subnet `172.16.31.0/24` in the `_template` `CLIENT_IP_RATE_LIMITING.md` registry, and confirm it is free on the UAT host (D-019) | P01-T16 |
 | 5 | Choose the `SECURITY.md` private reporting address | P01-T19 |
 | 6 | Choose the visual direction and approve `docs/BRAND.md` | P02-T01 to P02-T03 |
 | 7 | Set up the Authentik application and groups per the `syntax-circus-authentik` repo: a confidential OIDC client for Admin (code plus PKCE, `offline_access`, group claim in the id and access tokens), a provider for the API audience, and groups mapped to `TECHSTRAP_AGENT_GROUP` and `TECHSTRAP_ADMIN_GROUP`; set `TECHSTRAP_BOOTSTRAP_ADMIN` for the first sign-in | P04-T14, P07-T02, P12-T17 |
@@ -402,3 +402,21 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 ## 8. Decisions still open
 
 None. All decisions (D-001 to D-022) were approved on 2026-10-02.
+
+## 9. Carried forward from PHASE-01
+
+Items found during PHASE-01 reviews that later phases own. Fold each into the named phase's plan.
+
+| Item | Owning phase |
+| --- | --- |
+| Replace the `PlaceholderTests` in `TechStrap.Domain.Tests` and `TechStrap.Application.Tests` with real tests | PHASE-03 / PHASE-04 |
+| Add a `HandlerConstructorDependencyTests` rule forbidding persistence entity types | PHASE-03 |
+| `PostgresIntegrationTestBase.DisposeAsync` null-deref when initialisation threw | PHASE-03 |
+| Handler rules: inspect abstract/base controllers and inherited actions; narrow `IsHandlerType` to Application types | PHASE-04 |
+| Replace `UnauthenticatedScheme` with JWT bearer and an explicit problem-details challenge | PHASE-04 |
+| Admin/Portal security headers with a Blazor-aware CSP; extract the shared Admin/Portal host wiring | PHASE-07 / PHASE-09 |
+| Admin/Portal client IP behind the reverse proxy: same-host proxy = compose gateway (`172.16.31.1/32`); revisit if `TECHSTRAP_SUBNET` changes or the proxy moves off-host; raise upstream in the `_template` CLIENT_IP_RATE_LIMITING pattern | PHASE-09 / first UAT deploy |
+| `SyntaxCircus.AspNetCore.Common` echoes inbound `X-Correlation-Id` with no length/charset cap (upstream fix) | PHASE-12 |
+| Release: CI gate before publishing; hotfix tags must not move `latest` backwards; SHA-pin actions / Dependabot | before first stable tag / PHASE-12 |
+| Runtime images: app binaries owned by uid 10001 (only mount points need it) | PHASE-12 |
+| Warn in `.env.production.example` that the Postgres password must be connection-string safe | first UAT deploy |

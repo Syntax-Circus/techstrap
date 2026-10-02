@@ -1,0 +1,21 @@
+# Normalise line endings in the repo; checkouts use the platform default except where noted.
+* text=auto
+
+# Shell and container files must stay LF so they run inside Linux containers and CI.
+*.sh text eol=lf
+Dockerfile.* text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# PowerShell scripts and solution files.
+*.ps1 text eol=lf
+*.slnx text eol=lf
+
+# Generated EF migration snapshots stay as the tool wrote them.
+src/TechStrap.Infrastructure/Migrations/*.cs linguist-generated=true
+
+# Binary assets.
+*.png binary
+*.ico binary
+*.jpg binary
+*.woff2 binary

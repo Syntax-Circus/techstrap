@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <Company>Syntax Circus</Company>
+    <Authors>Syntax Circus</Authors>
+    <Product>TechStrap</Product>
+    <Copyright>Copyright (c) 2026 Syntax Circus</Copyright>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+</Project>

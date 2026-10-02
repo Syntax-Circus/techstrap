@@ -20,20 +20,20 @@
 
 ## Phase order
 
-| # | Phase | Depends on | Unblocks |
-| --- | --- | --- | --- |
-| 01 | [Foundation](PHASE-01-foundation.md) | — | all |
-| 02 | [Brand & UX](PHASE-02-brand-and-ux.md) | 01 | 07, 09 |
-| 03 | [Domain & persistence](PHASE-03-domain-and-persistence.md) | 01 | 04 |
-| 04 | [Agent auth & admin config](PHASE-04-agent-auth-and-admin-config.md) | 03 | 05 |
-| 05 | [Intake, email & worker](PHASE-05-intake-email-worker.md) | 04 | 06, 11 |
-| 06 | [Ticket operations](PHASE-06-ticket-operations.md) | 05 | 07, 08, 09 |
-| 07 | [Admin app](PHASE-07-admin-app.md) | 02, 06 | 08 (editor UI), 10 |
-| 08 | [Knowledge base](PHASE-08-knowledge-base.md) | 06 (07 for the editor UI) | 09 |
-| 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 |
-| 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 |
-| 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 |
-| 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 |
+| # | Phase | Depends on | Unblocks | Status |
+| --- | --- | --- | --- | --- |
+| 01 | [Foundation](PHASE-01-foundation.md) | — | all | Complete (CI/release verification pending) |
+| 02 | [Brand & UX](PHASE-02-brand-and-ux.md) | 01 | 07, 09 | Not started |
+| 03 | [Domain & persistence](PHASE-03-domain-and-persistence.md) | 01 | 04 | Not started |
+| 04 | [Agent auth & admin config](PHASE-04-agent-auth-and-admin-config.md) | 03 | 05 | Not started |
+| 05 | [Intake, email & worker](PHASE-05-intake-email-worker.md) | 04 | 06, 11 | Not started |
+| 06 | [Ticket operations](PHASE-06-ticket-operations.md) | 05 | 07, 08, 09 | Not started |
+| 07 | [Admin app](PHASE-07-admin-app.md) | 02, 06 | 08 (editor UI), 10 | Not started |
+| 08 | [Knowledge base](PHASE-08-knowledge-base.md) | 06 (07 for the editor UI) | 09 | Not started |
+| 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 | Not started |
+| 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | Not started |
+| 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | Not started |
+| 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 | Not started |
 
 Phases that can run in parallel: 02 alongside 03–06; 11 alongside 07–10.
 

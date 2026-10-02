@@ -1,0 +1,63 @@
+<Project>
+  <!--
+    Every version below is copied from docs/architecture/03-PACKAGE-MAP.md.
+    scripts/Check-PackageVersions.ps1 fails when this file and the map disagree, or when a project
+    states an inline Version. Change the map and this file in the same commit.
+
+    xunit.v3 / xunit.runner.visualstudio 4.0.0: pinned to the 4.0.x pair. The owner's NCrunch 5.23
+    runs the 4.0.x xunit.v3 adapter correctly (the 4.0.0 break affected older NCrunch releases, see
+    _template AGENT_GUIDE.md). Do not downgrade to 3.2.2 / 3.1.5 unless NCrunch is downgraded.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup Label="SyntaxCircus">
+    <PackageVersion Include="SyntaxCircus.AspNetCore.Authentication" Version="0.1.5" />
+    <PackageVersion Include="SyntaxCircus.AspNetCore.Common" Version="0.1.15" />
+    <PackageVersion Include="SyntaxCircus.AspNetCore.Serilog" Version="0.1.4" />
+    <PackageVersion Include="SyntaxCircus.Blazor.Auth" Version="0.1.7" />
+    <PackageVersion Include="SyntaxCircus.Blazor.Components" Version="0.1.3" />
+    <PackageVersion Include="SyntaxCircus.Blazor.Seo" Version="0.1.4" />
+    <PackageVersion Include="SyntaxCircus.Common" Version="0.1.3" />
+    <PackageVersion Include="SyntaxCircus.DotEnv" Version="0.1.3" />
+    <PackageVersion Include="SyntaxCircus.Email" Version="0.1.6" />
+    <PackageVersion Include="SyntaxCircus.EntityFrameworkCore.Postgres" Version="0.1.3" />
+    <PackageVersion Include="SyntaxCircus.Http.Resilience" Version="0.2.2" />
+    <PackageVersion Include="SyntaxCircus.Observability" Version="0.1.2" />
+    <PackageVersion Include="SyntaxCircus.Storage" Version="0.2.1" />
+  </ItemGroup>
+  <ItemGroup Label="Microsoft and EF">
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Maui.Controls" Version="10.0.110" />
+    <PackageVersion Include="Npgsql" Version="10.0.3" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+  </ItemGroup>
+  <ItemGroup Label="Third-party runtime and build">
+    <PackageVersion Include="AspNetCore.SassCompiler" Version="1.105.1" />
+    <PackageVersion Include="GitVersion.MsBuild" Version="6.8.2" />
+    <PackageVersion Include="HtmlSanitizer" Version="9.2.1039" />
+    <PackageVersion Include="Markdig" Version="1.4.0" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.401" />
+    <PackageVersion Include="Microsoft.Web.LibraryManager.Build" Version="3.0.114" />
+  </ItemGroup>
+  <ItemGroup Label="Testing">
+    <PackageVersion Include="bunit" Version="2.11.3" />
+    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.10.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageVersion Include="NSubstitute" Version="6.2.0" />
+    <PackageVersion Include="Shouldly" Version="4.3.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
+    <PackageVersion Include="xunit.v3" Version="4.0.0" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Dependency-free leaf (D-016): no MVC, EF or ASP.NET, no attributes. Shared by Api, Admin, Portal, Client. -->
+
+</Project>

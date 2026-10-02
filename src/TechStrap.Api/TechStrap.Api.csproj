@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="../TechStrap.Application/TechStrap.Application.csproj" />
+    <ProjectReference Include="../TechStrap.Infrastructure/TechStrap.Infrastructure.csproj" />
+    <ProjectReference Include="../TechStrap.Contracts/TechStrap.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="GitVersion.MsBuild" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <!-- Required in the startup project for the dotnet ef tool; never flows to consumers. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+    <PackageReference Include="SyntaxCircus.AspNetCore.Common" />
+    <PackageReference Include="SyntaxCircus.AspNetCore.Serilog" />
+    <PackageReference Include="SyntaxCircus.DotEnv" />
+    <PackageReference Include="SyntaxCircus.EntityFrameworkCore.Postgres" />
+    <PackageReference Include="SyntaxCircus.Observability" />
+  </ItemGroup>
+
+</Project>

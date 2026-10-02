@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <!-- Publishes _framework/blazor.web.js and the other framework static assets. -->
+    <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../TechStrap.Contracts/TechStrap.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AspNetCore.SassCompiler" />
+    <PackageReference Include="GitVersion.MsBuild" PrivateAssets="all" />
+    <PackageReference Include="SyntaxCircus.AspNetCore.Common" />
+    <PackageReference Include="SyntaxCircus.AspNetCore.Serilog" />
+    <PackageReference Include="SyntaxCircus.Blazor.Components" />
+    <PackageReference Include="SyntaxCircus.DotEnv" />
+    <PackageReference Include="SyntaxCircus.Observability" />
+  </ItemGroup>
+
+</Project>

@@ -392,8 +392,8 @@ Rules applied (_template RAZOR_COMPONENT_ARCHITECTURE.md): any injection, lifecy
 
 Per _template pattern CLIENT_IP_RATE_LIMITING.md (reverse proxy in front of Dockerized containers with an anonymous public API surface):
 
-- **Pinned subnet:** `docker-compose.yml` network `default` uses `ipam` subnet `172.31.0.0/24` (A-09). Registering this subnet in the pattern's subnet registry is a cross-repo owner action in the _template, recorded as a PHASE-01 compose task (D-019).
-- **API trusted proxies (D-019):** the API trusts the pinned subnet `172.31.0.0/24` (`TRUSTEDPROXY__TRUSTEDNETWORKS__0`, the Portal hop) and adds `TRUSTEDPROXY__TRUSTEDNETWORKS__1=<caddy-ip>/32` only when Caddy runs outside that subnet. **Admin and Portal trust only the proxy** (`...__0` only). Never trust `172.16.0.0/12` or `0.0.0.0/0`. The proxy address is deployment-specific (Q-08).
+- **Pinned subnet:** `docker-compose.yml` network `default` uses `ipam` subnet `172.16.31.0/24` (A-09). Registering this subnet in the pattern's subnet registry is a cross-repo owner action in the _template, recorded as a PHASE-01 compose task (D-019).
+- **API trusted proxies (D-019):** the API trusts the pinned subnet `172.16.31.0/24` (`TRUSTEDPROXY__TRUSTEDNETWORKS__0`, the Portal hop) and adds `TRUSTEDPROXY__TRUSTEDNETWORKS__1=<caddy-ip>/32` only when Caddy runs outside that subnet. **Admin and Portal trust only the proxy** (`...__0` only). Never trust `172.16.0.0/12` or `0.0.0.0/0`. The proxy address is deployment-specific (Q-08).
 - **Portal and Admin to API (D-019):** every typed `HttpClient` that calls the API uses `.AddForwardedClientIp()`; the Portal forwards the original client IP in `X-Forwarded-For` so the API rate-limits real visitors, not the Portal container.
 - **Policies** (named, bound under `RateLimiting:*`, validated with `ValidateOnStart` so bad values fail boot; defaults per A-08):
 
