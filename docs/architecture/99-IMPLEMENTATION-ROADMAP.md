@@ -17,7 +17,7 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 
 | # | Phase | Depends on | Unblocks | Parallelism | Key decisions | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| 01 | [Foundation](PHASE-01-foundation.md) | none | all | Must go first | D-003, D-006, D-013, D-019 | Not started |
+| 01 | [Foundation](PHASE-01-foundation.md) | none | all | Must go first | D-003, D-006, D-013, D-019 | Complete |
 | 02 | [Brand and UX](PHASE-02-brand-and-ux.md) | 01 | 07, 09 | Runs alongside 03 to 06 (no shared files); blocks the UI phases | D-002 | Not started |
 | 03 | [Domain and persistence](PHASE-03-domain-and-persistence.md) | 01 | 04 | Alongside 02 | D-009, D-010, D-011 | Not started |
 | 04 | [Agent auth and admin config](PHASE-04-agent-auth-and-admin-config.md) | 03 | 05 | Alongside 02 | D-001, D-004, D-016, D-022 | Not started |
