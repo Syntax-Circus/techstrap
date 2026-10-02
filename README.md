@@ -1,8 +1,12 @@
+<p align="center">
+  <img src="assets/brand/logo-512.png" alt="TechStrap logo" width="200">
+</p>
+
 # TechStrap
 
 **Support for Technical Support.** A lightweight, open-source, self-hosted helpdesk for one company that supports many products.
 
-> **Status:** planning. The architecture and phased implementation plan are written; no application code exists yet.
+> **Status:** early development. PHASE-01 (the foundation) is in place: the solution skeleton, health endpoints, database migrations, Docker images, the compose stack and CI. Product features arrive in later phases; see the [roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md).
 
 ## What it is
 
@@ -19,6 +23,46 @@ Out of scope for the core, and planned as later sub-projects: inbound email, cus
 
 .NET 10 · ASP.NET Core controllers · Blazor Server (admin) and Blazor SSR (portal) · EF Core with PostgreSQL (full-text search) · Bootstrap 5 SCSS · Serilog and OpenTelemetry · xUnit v3, Shouldly, NSubstitute, Testcontainers · [SyntaxCircus](https://www.nuget.org/profiles/syntaxcircus) NuGet packages.
 
+## Quick start
+
+You need Docker with Compose v2. The local stack builds the four images from this checkout and starts Postgres 17.
+
+```bash
+git clone https://github.com/Syntax-Circus/techstrap.git
+cd techstrap
+docker compose up -d --build
+docker compose ps
+```
+
+When every service shows `healthy`, the hosts answer on loopback:
+
+| Service | URL | Health checks |
+| --- | --- | --- |
+| API | <http://127.0.0.1:8080> | `/health/live`, `/health/ready` (needs Postgres), `/openapi/v1.json` |
+| Admin | <http://127.0.0.1:8081> | `/health/live` |
+| Portal | <http://127.0.0.1:8082> | `/health/live` |
+| Worker | <http://127.0.0.1:8083> | `/health/live`, `/health/ready` (needs Postgres) |
+
+```bash
+curl http://127.0.0.1:8080/health/ready
+```
+
+The API applies the database migrations on startup. Stop the stack with `docker compose down` (add `-v` to delete the data).
+
+Troubleshooting: if compose reports `Pool overlaps with other one on this address space`, another Docker network already uses
+the pinned subnet `172.16.31.0/24`. Pick a free one for this stack, for example `TECHSTRAP_SUBNET=10.245.31.0/24 docker compose up -d --build`.
+
+### Develop
+
+```bash
+dotnet tool restore
+dotnet build TechStrap.slnx
+dotnet test --solution TechStrap.slnx   # needs Docker running; Testcontainers starts Postgres 17
+```
+
+Per-host settings for `dotnet run` go in `src/TechStrap.<Host>/.env.local` (gitignored; copy the `.env.example` next to it).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [SECURITY.md](SECURITY.md) to report a vulnerability.
+
 ## Documentation
 
 Start at the [discovery index](docs/architecture/00-DISCOVERY-INDEX.md).
@@ -34,4 +78,4 @@ Start at the [discovery index](docs/architecture/00-DISCOVERY-INDEX.md).
 
 ## License
 
-MIT. A `LICENSE` file is added in [PHASE-01](docs/architecture/PHASE-01-foundation.md).
+[MIT](LICENSE).
