@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog.Core;
 using Serilog.Events;
+using TechStrap.Api.Startup;
 
 namespace TechStrap.Api.Tests;
 
@@ -43,7 +44,7 @@ public class HostFactory<TProgram>(
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
             // Tests opt in to migration explicitly; most do not need a database at startup.
-            configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["Database:MigrateOnStartup"] = "false" });
+            configuration.AddInMemoryCollection(new Dictionary<string, string?> { [ApiStartupTasks.MigrateOnStartupKey] = "false" });
             configuration.AddInMemoryCollection(settings ?? new Dictionary<string, string?>());
         });
         builder.ConfigureServices(services =>

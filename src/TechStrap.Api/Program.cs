@@ -4,7 +4,9 @@ using SyntaxCircus.AspNetCore.Common;
 using SyntaxCircus.AspNetCore.Serilog;
 using SyntaxCircus.DotEnv;
 using SyntaxCircus.Observability;
+using TechStrap.Api.Startup;
 using TechStrap.Infrastructure.Persistence;
+using TechStrap.Infrastructure.Seeding;
 
 const string ServiceName = "techstrap-api";
 
@@ -32,9 +34,12 @@ builder.Services.AddProblemDetailsExceptionHandling();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddTechStrapPersistence();
+builder.Services.AddTechStrapDevelopmentSeeding();
 
 var app = builder.Build();
 telemetry.LogStartupWarning(app.Logger);
+
+await ApiStartupTasks.RunAsync(app.Services, app.Environment, app.Configuration);
 
 app.UseCorrelationId();
 app.UseSecurityHeaders();
