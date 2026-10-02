@@ -18,6 +18,8 @@ public sealed class ApiStartupTasksTests(TestPostgres postgres)
 {
     private const string UnreachableDatabase = "Host=127.0.0.1;Port=1;Database=none;Username=none;Password=none;Timeout=2;Pooling=false";
 
+    private static readonly TimeSpan FailFastTimeout = TimeSpan.FromSeconds(30);
+
     private static IHostEnvironment Environment(string name)
     {
         var environment = Substitute.For<IHostEnvironment>();
@@ -102,7 +104,11 @@ public sealed class ApiStartupTasksTests(TestPostgres postgres)
 
         var attempt = ApiStartupTasks.RunAsync(services, Environment("Production"), configuration, TestContext.Current.CancellationToken);
 
-        await Should.ThrowAsync<Exception>(async () => await attempt.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken));
+        var finished = await Task.WhenAny(attempt, Task.Delay(FailFastTimeout, TestContext.Current.CancellationToken));
+
+        finished.ShouldBeSameAs(attempt, "startup hung instead of failing fast");
+        attempt.IsFaulted.ShouldBeTrue();
+        await Should.ThrowAsync<InvalidOperationException>(() => attempt);
     }
 
     [Fact]
