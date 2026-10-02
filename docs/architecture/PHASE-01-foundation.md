@@ -139,16 +139,16 @@ Test-first where a test applies: write the named test class, watch it fail, then
   - **Depends on:** P01-T14, P01-T08
   - **Owner action (cross-repo, D-019):** open a PR in `_template` adding the TechStrap `172.16.31.0/24` row to the `CLIENT_IP_RATE_LIMITING.md` subnet registry; confirm the subnet is free on the UAT host. The compose files mount the named volume `techstrap-storage` at `/app/storage` on both `api` and `worker`.
   - **Validation:** `docker compose config` shows the subnet and resolved `TRUSTEDPROXY__*` per host; `docker compose up -d` reaches all services healthy and the API `/health/ready` returns 200; the production file refuses to resolve without `POSTGRES_PASSWORD`
-- [x] **P01-T17** Add `.github/workflows/ci.yml`: restore, build, test (Testcontainers), then `docker build` of four images on PR
+- [ ] **P01-T17** Add `.github/workflows/ci.yml`: restore, build, test (Testcontainers), then `docker build` of four images on PR (pending first PR/tag run (owner))
   - **Depends on:** P01-T14, P01-T11
   - **Validation:** a throwaway PR shows a green run including integration tests; adding a failing architecture test turns it red
-- [x] **P01-T18** Add `.github/workflows/release.yml`: on tag `v*`, GHCR login with `GITHUB_TOKEN` then `Build-TechStrapDocker.ps1 -Push -Registry ghcr.io/syntax-circus`
+- [ ] **P01-T18** Add `.github/workflows/release.yml`: on tag `v*`, GHCR login with `GITHUB_TOKEN` then `Build-TechStrapDocker.ps1 -Push -Registry ghcr.io/syntax-circus` (pending first PR/tag run (owner))
   - **Depends on:** P01-T15, P01-T17
   - **Validation:** tag `v0.1.0-rc.1` publishes four images with the SemVer tag (`latest` moves only on stable tags); `docker buildx imagetools inspect` lists amd64 and arm64
 - [x] **P01-T19** Add `LICENSE` (MIT), `README.md` (what it is, compose quick start, link to `docs/architecture`), `CONTRIBUTING.md`, `SECURITY.md`
   - **Depends on:** P01-T01
   - **Validation:** GitHub detects the MIT licence; README quick-start commands run verbatim on a clean clone; `SECURITY.md` shows in the repo Security tab
-- [x] **P01-T20** Run a clean-clone verification (`dotnet build`, `dotnet test`, `docker compose up`, health checks) and mark PHASE-01 complete in `00-DISCOVERY-INDEX.md`
+- [ ] **P01-T20** Run a clean-clone verification (`dotnet build`, `dotnet test`, `docker compose up`, health checks) and mark PHASE-01 complete in `00-DISCOVERY-INDEX.md` (pending first PR/tag run (owner))
   - **Depends on:** P01-T16, P01-T17, P01-T19
   - **Validation:** every Success Criteria item below is ticked, with command output pasted in the PR description
 
