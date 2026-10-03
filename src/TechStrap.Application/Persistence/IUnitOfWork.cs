@@ -1,0 +1,34 @@
+using SyntaxCircus.Common;
+
+namespace TechStrap.Application.Persistence;
+
+/// <summary>
+/// Atomic multi-write. <see cref="BeginAsync"/> opens one database transaction; repositories and the outbox only stage changes;
+/// <see cref="IUnitOfWorkScope.CommitAsync"/> writes everything (ticket, messages, events, tokens, outbox rows) in that one
+/// transaction. Disposing a scope that was not committed rolls everything back, including a ticket number that was allocated.
+/// </summary>
+public interface IUnitOfWork
+{
+    /// <summary>Starts the transaction. Scopes do not nest: beginning a second one on the same unit of work is a programming error.</summary>
+    Task<IUnitOfWorkScope> BeginAsync(CancellationToken cancellationToken);
+}
+
+public interface IUnitOfWorkScope : IAsyncDisposable
+{
+    /// <summary>
+    /// Saves and commits. Failures that a caller can act on come back as a Conflict result and the transaction is rolled back:
+    /// a stale concurrency token ("concurrency-conflict"), a unique violation ("duplicate"), a foreign-key violation
+    /// ("reference-violation"). Any other exception propagates.
+    /// </summary>
+    Task<Result> CommitAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>Persistence error codes, named once for handlers and tests (commit conflicts and outbox outcomes).</summary>
+public static class PersistenceErrorCodes
+{
+    public const string ConcurrencyConflict = "concurrency-conflict";
+    public const string Duplicate = "duplicate";
+    public const string ReferenceViolation = "reference-violation";
+    public const string OutboxClaimLost = "outbox-claim-lost";
+    public const string OutboxNotFound = "outbox-not-found";
+}

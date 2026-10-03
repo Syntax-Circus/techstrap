@@ -102,6 +102,22 @@ public static class HandlerFixtures
         public IEnumerable<DbSet<FixtureEntity>> Entities { get; } = entities;
     }
 
+    /// <summary>Stands in for a persistence record such as TicketRecord (the real ones are internal to Infrastructure).</summary>
+    public sealed class TicketRecord
+    {
+        public int Id { get; set; }
+    }
+
+    public sealed class RecordHandler(TicketRecord record)
+    {
+        public TicketRecord Record { get; } = record;
+    }
+
+    public sealed class NestedRecordHandler(IReadOnlyList<TicketRecord> records)
+    {
+        public IReadOnlyList<TicketRecord> Records { get; } = records;
+    }
+
     // ---- controller fixtures ----
 
     public sealed class GoodController : ControllerBase
