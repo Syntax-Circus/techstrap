@@ -32,6 +32,7 @@ public static class ControllerActions
         ["AdminEventsController.List"] = 200,
         ["IntakeController.Submit"] = 201,
         ["PublicIntakeController.Submit"] = 201,
+        ["PublicProductsController.Get"] = 200,
     };
 
     /// <summary>Actions whose effective policy (action-level, else controller-level) is Agent or Admin.</summary>
