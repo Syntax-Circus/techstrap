@@ -33,7 +33,9 @@ public enum TicketView
 /// <see cref="SearchText"/> is set: then tickets are full-text matched (subject, message bodies, exact ticket number) and sorted by
 /// relevance, a subject match above a body match, ties by last activity (D-011, D-027). The text uses web-search syntax
 /// (quotes, <c>or</c>, <c>-exclude</c>); blank text means no search. Implementations normalize <see cref="Page"/> and
-/// <see cref="PageSize"/> through <see cref="Paging"/> before querying.
+/// <see cref="PageSize"/> through <see cref="Paging"/> before querying. Agent-only: the search text matches internal-note bodies as well
+/// as public ones, so a handler must never run a query with <see cref="SearchText"/> on behalf of a customer (D-024); equal sort keys
+/// are tied by ticket id so pages are stable.
 /// </summary>
 public sealed record TicketQuery(
     TicketView View,
