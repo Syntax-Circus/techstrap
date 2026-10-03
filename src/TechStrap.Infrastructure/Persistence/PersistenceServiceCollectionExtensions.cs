@@ -29,6 +29,9 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IAdminEventRepository, AdminEventRepository>();
+        services.AddScoped<IAgentRepository, AgentRepository>();
+        services.AddScoped<IRequesterRepository, RequesterRepository>();
+        services.AddScoped<ITagRepository, TagRepository>();
 
         return services;
     }
