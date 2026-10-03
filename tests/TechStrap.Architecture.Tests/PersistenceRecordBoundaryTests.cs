@@ -25,6 +25,7 @@ public sealed class PersistenceRecordBoundaryTests
     [Fact]
     public void Infrastructure_records_follow_the_naming_and_visibility_convention()
     {
+        // Task 7 adds the first records and a floor of at least one, so this scan cannot pass vacuously.
         PersistenceRecordRules.FindRecordDeclarationViolations(typeof(InfrastructureAssemblyMarker).Assembly).ShouldBeEmpty();
     }
 
@@ -50,5 +51,24 @@ public sealed class PersistenceRecordBoundaryTests
     {
         PersistenceRecordRules.FindReferencesFromDomainOrApplication([bad])
             .ShouldContain(violation => violation.Contains("must not reference persistence record", StringComparison.Ordinal));
+    }
+
+    private const string FixtureRecordNamespace = "TechStrap.Architecture.Tests.RecordDeclarationFixtures.Records";
+
+    [Fact]
+    public void A_well_formed_record_is_not_flagged()
+    {
+        PersistenceRecordRules.FindRecordDeclarationViolations([typeof(RecordDeclarationFixtures.Records.FooRecord)], FixtureRecordNamespace).ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(typeof(RecordDeclarationFixtures.Records.Widget), "must be named *Record")]
+    [InlineData(typeof(RecordDeclarationFixtures.Records.PublicRecord), "must not be public")]
+    [InlineData(typeof(RecordDeclarationFixtures.Records.UnsealedRecord), "must be sealed")]
+    [InlineData(typeof(RecordDeclarationFixtures.Elsewhere.StrayRecord), "must live in")]
+    public void A_badly_declared_record_is_flagged(Type bad, string expected)
+    {
+        PersistenceRecordRules.FindRecordDeclarationViolations([bad], FixtureRecordNamespace)
+            .ShouldContain(violation => violation.Contains(expected, StringComparison.Ordinal));
     }
 }

@@ -18,7 +18,8 @@ public interface IEmailOutboxStore
 {
     /// <summary>
     /// Claims up to <paramref name="batchSize"/> due rows (<c>FOR UPDATE SKIP LOCKED</c>) and returns them as claimed.
-    /// <see cref="EmailOutboxItem.Claim"/> can fail with "outbox-dead-lettered" after it has already moved the item to
+    /// Implementations normalize <paramref name="batchSize"/> through <see cref="Paging.NormalizeBatchSize"/> before querying.
+    /// <see cref="EmailOutboxItem.Claim"/> can fail with "outbox-dead-lettered" (<see cref="PersistenceErrorCodes.OutboxDeadLettered"/>) after it has already moved the item to
     /// <c>DeadLettered</c> (a worker lease that expired on the last allowed attempt). That failure still changed the item, so the
     /// implementation must persist it even though the claim failed, and must leave it out of the returned batch.
     /// </summary>
@@ -30,7 +31,10 @@ public interface IEmailOutboxStore
     /// <summary>Schedules the next attempt, or dead-letters the row after the last allowed attempt.</summary>
     Task<Result> MarkFailedAsync(Guid id, string workerId, string error, CancellationToken cancellationToken);
 
-    /// <summary>Newest first.</summary>
+    /// <summary>
+    /// Newest first. Implementations normalize <paramref name="page"/> and <paramref name="pageSize"/> through <see cref="Paging"/>
+    /// before querying.
+    /// </summary>
     Task<PagedResult<EmailOutboxItem>> ListDeadLettersAsync(int page, int pageSize, CancellationToken cancellationToken);
 
     Task<EmailOutboxItem?> GetAsync(Guid id, CancellationToken cancellationToken);

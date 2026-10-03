@@ -764,6 +764,7 @@ BRAND.md section 22 requires one pure function that turns a product accent (`#RR
 ### Approval
 - **Approved by:** Jon Seeley (owner, 2026-10-02 plan review)
 - **Approved on:** 2026-10-02
+
 ---
 
 ## D-026: Separate persistence entities (records); Domain stays pure
@@ -802,7 +803,6 @@ PHASE-03 assumed EF Core would map the Domain types directly through fluent conf
 ## D-027: Full-text search uses stored generated tsvector columns
 
 - **Status:** Approved (owner 2026-10-02)
-- **Mechanism note:** Npgsql's `HasGeneratedTsVectorColumn` takes only a configuration and a property list and cannot set a weight per column, so the vectors use `HasComputedColumnSql(setweight(...), stored: true)`: still a stored generated column with GIN indexes and no triggers.
 - **Date:** 2026-10-02
 - **Owner:** Jon Seeley
 - **Related artifacts:** PHASE-03 (vectors and indexes), PHASE-06 (ticket search), PHASE-08 (KB search), D-011

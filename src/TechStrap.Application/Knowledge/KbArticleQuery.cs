@@ -3,7 +3,10 @@ using TechStrap.Domain.Knowledge;
 
 namespace TechStrap.Application.Knowledge;
 
-/// <summary>Filters for a KB article list, newest update first. With a product, <see cref="IncludeShared"/> also returns shared articles.</summary>
+/// <summary>
+/// Filters for a KB article list, newest update first. With a product, <see cref="IncludeShared"/> also returns shared articles.
+/// Implementations normalize <see cref="Page"/> and <see cref="PageSize"/> through <see cref="Paging"/> before querying.
+/// </summary>
 public sealed record KbArticleQuery(
     Guid? ProductId = null,
     bool IncludeShared = true,

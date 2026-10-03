@@ -31,4 +31,7 @@ public static class PersistenceErrorCodes
     public const string ReferenceViolation = "reference-violation";
     public const string OutboxClaimLost = "outbox-claim-lost";
     public const string OutboxNotFound = "outbox-not-found";
+
+    /// <summary>Equals the Domain code returned by <c>EmailOutboxItem.Claim</c> when the last allowed attempt's lease expired.</summary>
+    public const string OutboxDeadLettered = "outbox-dead-lettered";
 }

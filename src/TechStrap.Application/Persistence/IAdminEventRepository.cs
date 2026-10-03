@@ -8,6 +8,9 @@ public interface IAdminEventRepository
 {
     void Add(AdminEvent adminEvent);
 
-    /// <summary>Newest first, optionally limited to one subject type.</summary>
+    /// <summary>
+    /// Newest first, optionally limited to one subject type. Implementations normalize <paramref name="page"/> and
+    /// <paramref name="pageSize"/> through <see cref="Paging"/> before querying.
+    /// </summary>
     Task<PagedResult<AdminEvent>> ListAsync(AdminSubjectType? subjectType, int page, int pageSize, CancellationToken cancellationToken);
 }

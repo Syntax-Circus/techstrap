@@ -1,4 +1,5 @@
 using SyntaxCircus.Common;
+using TechStrap.Application.Persistence;
 using TechStrap.Application.Results;
 using TechStrap.Domain;
 
@@ -39,6 +40,25 @@ public sealed class DomainResultExtensionsTests
         var result = failure.ToResult();
 
         result.IsSuccess.ShouldBeFalse();
-        result.Errors.ShouldHaveSingleItem().Kind.ShouldBe(ResultErrorKind.Conflict);
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Kind.ShouldBe(ResultErrorKind.Conflict);
+        error.Code.ShouldBe("c");
+        error.Message.ShouldBe("m");
+        error.Target.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Every_domain_error_kind_maps_without_throwing()
+    {
+        foreach (var kind in Enum.GetValues<DomainErrorKind>())
+        {
+            Should.NotThrow(() => new DomainError(kind, "code", "message").ToError());
+        }
+    }
+
+    [Fact]
+    public void The_outbox_dead_lettered_code_is_the_one_the_domain_returns()
+    {
+        PersistenceErrorCodes.OutboxDeadLettered.ShouldBe("outbox-dead-lettered");
     }
 }

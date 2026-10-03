@@ -21,6 +21,10 @@ public interface ITicketRepository
 
     void Update(Ticket ticket);
 
+    /// <summary>
+    /// Agent queue page. Implementations normalize the page and page size in <paramref name="query"/> through <see cref="Paging"/>
+    /// before querying.
+    /// </summary>
     Task<PagedResult<TicketSummary>> ListAsync(TicketQuery query, CancellationToken cancellationToken);
 
     /// <summary>Oldest first. <paramref name="publicOnly"/> hides internal notes (customer view).</summary>
@@ -29,12 +33,24 @@ public interface ITicketRepository
     /// <summary>Oldest first.</summary>
     Task<IReadOnlyList<TicketEvent>> GetEventsAsync(Guid ticketId, CancellationToken cancellationToken);
 
-    Task<Attachment?> GetAttachmentAsync(Guid id, CancellationToken cancellationToken);
+    /// <summary>
+    /// One attachment of the ticket. With <paramref name="publicOnly"/> only an attachment whose parent message is customer-visible
+    /// can be found: a lookup of an attachment on an internal note returns null (not found). Customer-facing callers must pass
+    /// <c>publicOnly: true</c> (D-024).
+    /// </summary>
+    Task<Attachment?> GetAttachmentAsync(Guid ticketId, Guid attachmentId, bool publicOnly, CancellationToken cancellationToken);
 
-    /// <summary>All attachments of the ticket, so a ticket view can list them under each message (match on message id).</summary>
-    Task<IReadOnlyList<Attachment>> GetAttachmentsAsync(Guid ticketId, CancellationToken cancellationToken);
+    /// <summary>
+    /// All attachments of the ticket, so a ticket view can list them under each message (match on message id). With
+    /// <paramref name="publicOnly"/> only attachments whose parent message is customer-visible are returned. Customer-facing
+    /// callers must pass <c>publicOnly: true</c> (D-024).
+    /// </summary>
+    Task<IReadOnlyList<Attachment>> GetAttachmentsAsync(Guid ticketId, bool publicOnly, CancellationToken cancellationToken);
 
-    /// <summary>Solved tickets whose <c>solved_at</c> is before the cutoff, oldest first (auto-close, D-008).</summary>
+    /// <summary>
+    /// Solved tickets whose <c>solved_at</c> is before the cutoff, oldest first (auto-close, D-008). Implementations normalize
+    /// <paramref name="limit"/> through <see cref="Paging.NormalizeBatchSize"/> before querying.
+    /// </summary>
     Task<IReadOnlyList<Ticket>> ListSolvedBeforeAsync(DateTimeOffset solvedBefore, int limit, CancellationToken cancellationToken);
 
     void AddAccessToken(TicketAccessToken token);

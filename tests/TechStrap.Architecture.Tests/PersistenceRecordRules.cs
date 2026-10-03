@@ -34,28 +34,45 @@ public static class PersistenceRecordRules
         return violations;
     }
 
-    public static IReadOnlyList<string> FindRecordDeclarationViolations(Assembly infrastructure)
+    public static IReadOnlyList<string> FindRecordDeclarationViolations(Assembly infrastructure) =>
+        FindRecordDeclarationViolations(infrastructure.GetTypes(), RecordNamespace);
+
+    /// <summary>Pure rule over the Infrastructure assembly's types, so fixtures can prove each case fails.</summary>
+    public static IReadOnlyList<string> FindRecordDeclarationViolations(IEnumerable<Type> infrastructureTypes, string recordNamespace)
     {
         var violations = new List<string>();
 
-        foreach (var type in infrastructure.GetTypes().Where(t => t.Namespace == RecordNamespace && !t.IsNested))
+        foreach (var type in infrastructureTypes.Where(t => !t.IsNested).OrderBy(t => t.FullName, StringComparer.Ordinal))
         {
-            if (!type.Name.EndsWith(AbstractionRules.RecordSuffix, StringComparison.Ordinal))
+            var isNamedRecord = type.Name.EndsWith(AbstractionRules.RecordSuffix, StringComparison.Ordinal);
+
+            if (type.Namespace == recordNamespace)
             {
-                violations.Add($"{type.Name} lives in the records namespace and must be named *Record.");
+                if (!isNamedRecord)
+                {
+                    violations.Add($"{type.Name} lives in the records namespace and must be named *Record.");
+                }
+            }
+            else if (isNamedRecord)
+            {
+                violations.Add($"{type.FullName} is named *Record and must live in {recordNamespace}.");
             }
 
-            if (type.IsPublic)
+            if (isNamedRecord)
+            {
+                if (type.IsPublic)
+                {
+                    violations.Add($"{type.Name} must not be public.");
+                }
+
+                if (!type.IsSealed)
+                {
+                    violations.Add($"{type.Name} must be sealed (internal sealed, D-026).");
+                }
+            }
+            else if (type.Namespace == recordNamespace && type.IsPublic)
             {
                 violations.Add($"{type.Name} must not be public.");
-            }
-        }
-
-        foreach (var type in infrastructure.GetTypes().Where(t => t.Name.EndsWith(AbstractionRules.RecordSuffix, StringComparison.Ordinal) && !t.IsNested))
-        {
-            if (type.Namespace != RecordNamespace)
-            {
-                violations.Add($"{type.FullName} is named *Record and must live in {RecordNamespace}.");
             }
         }
 

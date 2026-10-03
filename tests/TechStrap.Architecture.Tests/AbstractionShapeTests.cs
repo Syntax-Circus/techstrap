@@ -20,7 +20,18 @@ public sealed class AbstractionShapeTests
         names.ShouldContain("IUnitOfWork");
         names.ShouldContain("ITicketRepository");
         names.ShouldContain("IEmailOutboxStore");
-        names.Count.ShouldBeGreaterThanOrEqualTo(13);
+
+        string[] expected =
+        [
+            "IUnitOfWork", "IUnitOfWorkScope", "ITicketNumberAllocator", "ITicketRepository", "IRequesterRepository",
+            "IProductRepository", "IAgentRepository", "ITagRepository", "IKbRepository", "IAdminEventRepository",
+            "IEmailOutbox", "IEmailOutboxStore",
+        ];
+        foreach (var name in expected)
+        {
+            names.ShouldContain(name);
+        }
+
     }
 
     [Fact]

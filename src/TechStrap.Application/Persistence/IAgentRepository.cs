@@ -9,7 +9,10 @@ public interface IAgentRepository
 
     Task<Agent?> GetBySubjectAsync(string oidcSubject, CancellationToken cancellationToken);
 
-    /// <summary>Ordered by name then email.</summary>
+    /// <summary>
+    /// Ordered by name then email. Implementations normalize <paramref name="page"/> and <paramref name="pageSize"/> through
+    /// <see cref="Paging"/> before querying.
+    /// </summary>
     Task<PagedResult<Agent>> ListAsync(bool activeOnly, int page, int pageSize, CancellationToken cancellationToken);
 
     Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken);

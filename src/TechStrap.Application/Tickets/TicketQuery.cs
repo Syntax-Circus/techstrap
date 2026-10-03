@@ -32,7 +32,8 @@ public enum TicketView
 /// Filters for a ticket list. Optional filters narrow the view further. Sorted by last activity, newest first, unless
 /// <see cref="SearchText"/> is set: then tickets are full-text matched (subject, message bodies, exact ticket number) and sorted by
 /// relevance, a subject match above a body match, ties by last activity (D-011, D-027). The text uses web-search syntax
-/// (quotes, <c>or</c>, <c>-exclude</c>); blank text means no search.
+/// (quotes, <c>or</c>, <c>-exclude</c>); blank text means no search. Implementations normalize <see cref="Page"/> and
+/// <see cref="PageSize"/> through <see cref="Paging"/> before querying.
 /// </summary>
 public sealed record TicketQuery(
     TicketView View,
@@ -47,7 +48,10 @@ public sealed record TicketQuery(
     int Page = 1,
     int PageSize = Paging.DefaultPageSize);
 
-/// <summary>One row of a ticket list.</summary>
+/// <summary>
+/// One row of a ticket list. Agent-only: it carries the requester email and <see cref="LastActivityAt"/> (which includes internal
+/// activity), so it must never be returned to customers.
+/// </summary>
 public sealed record TicketSummary(
     Guid Id,
     string Number,
