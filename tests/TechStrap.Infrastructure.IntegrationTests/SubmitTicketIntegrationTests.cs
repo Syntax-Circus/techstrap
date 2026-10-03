@@ -8,6 +8,7 @@ using TechStrap.Application.Persistence;
 using TechStrap.Contracts.Intake;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
+using TechStrap.Domain.Requesters;
 using TechStrap.Infrastructure.Intake;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
@@ -25,6 +26,98 @@ public sealed class SubmitTicketIntegrationTests(PostgresFixture postgres) : Pos
     private sealed class ThrowingOutbox : IEmailOutbox
     {
         public void Enqueue(EmailOutboxItem item) => throw new InvalidOperationException("outbox unavailable");
+    }
+
+    /// <summary>Lets exactly two requests meet at a point. A timeout fails the test instead of hanging it.</summary>
+    private sealed class Rendezvous
+    {
+        private readonly TaskCompletionSource _both = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _arrived;
+
+        public async Task ArriveAsync()
+        {
+            if (Interlocked.Increment(ref _arrived) == 2)
+            {
+                _both.SetResult();
+            }
+
+            await _both.Task.WaitAsync(TimeSpan.FromSeconds(20), Ct);
+        }
+    }
+
+    private sealed class BeginCounter
+    {
+        private int _count;
+
+        public int Count => Volatile.Read(ref _count);
+
+        public void Increment() => Interlocked.Increment(ref _count);
+    }
+
+    /// <summary>Gates the first requester lookup of each request (one scope per request) until both requests have read.</summary>
+    private sealed class GatedRequesterRepository(IRequesterRepository inner, Rendezvous rendezvous) : IRequesterRepository
+    {
+        private bool _gated;
+
+        public Task<Requester?> GetByIdAsync(Guid id, CancellationToken cancellationToken) => inner.GetByIdAsync(id, cancellationToken);
+
+        public async Task<Requester?> GetByEmailAsync(string email, CancellationToken cancellationToken)
+        {
+            var found = await inner.GetByEmailAsync(email, cancellationToken);
+            if (!_gated)
+            {
+                _gated = true;
+                await rendezvous.ArriveAsync();
+            }
+
+            return found;
+        }
+
+        public void Add(Requester requester) => inner.Add(requester);
+
+        public void Update(Requester requester) => inner.Update(requester);
+    }
+
+    /// <summary>Gates the first idempotency lookup of each request until both requests have read.</summary>
+    private sealed class GatedIdempotencyStore(IIntakeIdempotencyStore inner, Rendezvous rendezvous) : IIntakeIdempotencyStore
+    {
+        private bool _gated;
+
+        public async Task<IntakeIdempotencyEntry?> FindAsync(Guid apiKeyId, string idempotencyKey, CancellationToken cancellationToken)
+        {
+            var found = await inner.FindAsync(apiKeyId, idempotencyKey, cancellationToken);
+            if (!_gated)
+            {
+                _gated = true;
+                await rendezvous.ArriveAsync();
+            }
+
+            return found;
+        }
+
+        public void Add(Guid apiKeyId, string idempotencyKey, Guid ticketId, string responseJson, DateTimeOffset createdAt) =>
+            inner.Add(apiKeyId, idempotencyKey, ticketId, responseJson, createdAt);
+
+        public void Remove(IntakeIdempotencyEntry entry) => inner.Remove(entry);
+
+        public Task<int> PruneAsync(DateTimeOffset olderThan, int limit, CancellationToken cancellationToken) => inner.PruneAsync(olderThan, limit, cancellationToken);
+    }
+
+    private sealed class CountingUnitOfWork(IUnitOfWork inner, BeginCounter counter) : IUnitOfWork
+    {
+        public Task<IUnitOfWorkScope> BeginAsync(CancellationToken cancellationToken)
+        {
+            counter.Increment();
+            return inner.BeginAsync(cancellationToken);
+        }
+    }
+
+    /// <summary>Replaces the registered <typeparamref name="TService"/> with a decorator built around the implementation it had.</summary>
+    private static void Decorate<TService>(IServiceCollection services, Func<TService, IServiceProvider, TService> decorate)
+        where TService : class
+    {
+        var original = services.Last(d => d.ServiceType == typeof(TService));
+        services.AddScoped(sp => decorate((TService)ActivatorUtilities.CreateInstance(sp, original.ImplementationType!), sp));
     }
 
     private PersistenceTestHost NewHost(Action<IServiceCollection>? extra = null) =>
@@ -87,7 +180,6 @@ public sealed class SubmitTicketIntegrationTests(PostgresFixture postgres) : Pos
             await gate.Task;
             return await work(i);
         }, Ct)).ToArray();
-        await Task.Delay(200, Ct);
         gate.SetResult();
         return await Task.WhenAll(tasks);
     }
@@ -149,6 +241,13 @@ public sealed class SubmitTicketIntegrationTests(PostgresFixture postgres) : Pos
         (await ScalarAsync("SELECT count(*) FROM requesters")).ShouldBe(0);
         (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(0);
         FilesUnderRoot().ShouldBeEmpty();
+        // The allocator's counter write is the one real statement made before the throw: it must have rolled back with the scope.
+        (await ScalarAsync("SELECT count(*) FROM product_ticket_sequences")).ShouldBe(0);
+
+        await using var healthy = NewHost();
+        var retry = await SubmitAsync(healthy, Request("pat@example.com"), WebContext());
+        retry.IsSuccess.ShouldBeTrue();
+        retry.Value.TicketNumber.ShouldBe("ORB-1");
     }
 
     [Fact]
@@ -167,8 +266,15 @@ public sealed class SubmitTicketIntegrationTests(PostgresFixture postgres) : Pos
     [Fact]
     public async Task Two_first_submissions_from_one_new_email_share_one_requester()
     {
-        await using var host = NewHost();
+        var rendezvous = new Rendezvous();
+        var begins = new BeginCounter();
+        await using var host = NewHost(services =>
+        {
+            Decorate<IRequesterRepository>(services, (inner, _) => new GatedRequesterRepository(inner, rendezvous));
+            Decorate<IUnitOfWork>(services, (inner, _) => new CountingUnitOfWork(inner, begins));
+        });
         await SeedAsync(host);
+        var seeded = begins.Count;
         var emails = new[] { "New@Example.com", "new@example.com" };
 
         var results = await RunTogetherAsync(2, i => SubmitAsync(host, Request(emails[i]), WebContext()));
@@ -176,13 +282,22 @@ public sealed class SubmitTicketIntegrationTests(PostgresFixture postgres) : Pos
         results.ShouldAllBe(r => r.IsSuccess);
         (await ScalarAsync("SELECT count(*) FROM requesters")).ShouldBe(1);
         (await ScalarAsync("SELECT count(*) FROM tickets")).ShouldBe(2);
+        // Both read "no requester" before either wrote: the loser hit the unique index and retried once (2 + 1 attempts).
+        (begins.Count - seeded).ShouldBe(3);
     }
 
     [Fact]
     public async Task Two_concurrent_requests_with_one_idempotency_key_create_one_ticket()
     {
-        await using var host = NewHost();
+        var rendezvous = new Rendezvous();
+        var begins = new BeginCounter();
+        await using var host = NewHost(services =>
+        {
+            Decorate<IIntakeIdempotencyStore>(services, (inner, _) => new GatedIdempotencyStore(inner, rendezvous));
+            Decorate<IUnitOfWork>(services, (inner, _) => new CountingUnitOfWork(inner, begins));
+        });
         var seed = await SeedAsync(host);
+        var seeded = begins.Count;
 
         var results = await RunTogetherAsync(2, _ => SubmitAsync(host, Request("pat@example.com"), ApiContext(seed, "order-42")));
 
@@ -191,6 +306,10 @@ public sealed class SubmitTicketIntegrationTests(PostgresFixture postgres) : Pos
         results.ShouldAllBe(r => r.Value.ViewUrl != null && r.Value.ViewUrl.StartsWith("https://help.test/t/"));
         (await ScalarAsync("SELECT count(*) FROM tickets")).ShouldBe(1);
         (await TextAsync("SELECT response::text FROM intake_idempotency_keys")).ShouldNotContain("/t/");
+        results[0].Value.ViewUrl.ShouldNotBe(results[1].Value.ViewUrl);
+        (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens")).ShouldBe(2);
+        // Both missed the key before either committed: the loser retried once and replayed the winner (2 + 1 attempts).
+        (begins.Count - seeded).ShouldBe(3);
     }
 
     [Fact]
