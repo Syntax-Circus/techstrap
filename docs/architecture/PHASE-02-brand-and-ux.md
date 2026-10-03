@@ -56,7 +56,7 @@ Record the exact package version in the linked package map. In the foundation ph
 
 ## Deliverables
 
-- [ ] `docs/BRAND.md`, complete and approved by the owner
+- [x] `docs/BRAND.md`, complete and approved by the owner (owner approved 2026-10-02)
 - [ ] Final `UX-BRIEF-admin.md` and `UX-BRIEF-portal.md` (open questions resolved or deferred explicitly)
 - [ ] Rendered design exploration (screenshots or mockups) kept under `docs/design/` (small, optimised images only)
 - [x] `libman.json` and `sasscompiler.json` in Admin and Portal; `Styles/app.scss`, `_tokens.scss`, per-app partials
@@ -66,16 +66,16 @@ Record the exact package version in the linked package map. In the foundation ph
 
 ## Actionable Tasks
 
-- [ ] **P02-T01** Audit existing identity inputs (college-project origin, the owner's other products, `_template/docs/BRAND.md`, dragon-poop `docs/BRAND.md` as a worked example) and write the identity, audience, personality and "feels like / does not feel like" sections of `BRAND.md`
+- [x] **P02-T01** Audit existing identity inputs (college-project origin, the owner's other products, `_template/docs/BRAND.md`, dragon-poop `docs/BRAND.md` as a worked example) and write the identity, audience, personality and "feels like / does not feel like" sections of `BRAND.md`
   - **Depends on:** none (inside this phase)
   - **Validation:** owner signs off the identity section in PR review; the section answers the DESIGN.md "Understand the Identity" prompts with no TODO left
-- [ ] **P02-T02** Produce 2 to 3 candidate visual directions with rendered mockups of one Admin queue screen and one Portal contact form, applying the DESIGN.md exploration step and logo-removal test
+- [x] **P02-T02** Produce 2 to 3 candidate visual directions with rendered mockups of one Admin queue screen and one Portal contact form, applying the DESIGN.md exploration step and logo-removal test
   - **Depends on:** P02-T01
   - **Validation:** screenshots committed under `docs/design/`; each direction has a one-paragraph rationale and a recorded logo-removal-test result
-- [ ] **P02-T03** Record the owner's chosen direction and finish `BRAND.md` (typography, colour, geometry, composition, imagery, iconography, motion, motifs, anti-patterns, token table including the product-accent override and contrast rule)
+- [x] **P02-T03** Record the owner's chosen direction and finish `BRAND.md` (typography, colour, geometry, composition, imagery, iconography, motion, motifs, anti-patterns, token table including the product-accent override and contrast rule)
   - **Depends on:** P02-T02
   - **Validation:** every DESIGN.md section 13 heading is present and filled; the token table lists each token with light and dark values; a contrast script or documented checker output shows AA for all text/background pairs
-- [ ] **P02-T04** Finalise `UX-BRIEF-admin.md` and `UX-BRIEF-portal.md` against the chosen direction: screen inventory, key flows, loading/error/empty states, accessibility needs, responsive rules
+- [x] **P02-T04** Finalise `UX-BRIEF-admin.md` and `UX-BRIEF-portal.md` against the chosen direction: screen inventory, key flows, loading/error/empty states, accessibility needs, responsive rules
   - **Depends on:** P02-T03
   - **Validation:** both briefs have no TODO or open question without an owner decision or an explicit "deferred to phase N" note; the screen inventories cover every page named in PHASE-07, PHASE-08 and PHASE-09
 - [x] **P02-T05** Add `libman.json` and `sasscompiler.json` to Admin and Portal (Bootstrap pinned to the map version, destination `Styles/Vendor/bootstrap`, `files: scss/**`), plus `.gitignore` entries
@@ -93,13 +93,13 @@ Record the exact package version in the linked package map. In the foundation ph
 - [x] **P02-T09** Prove the product-accent override: a Portal layout test fixture applies a sample accent via CSS custom properties and the derived on-accent colour meets AA for a set of sample accents (including a very light and a very dark one)
   - **Depends on:** P02-T06
   - **Validation:** `ProductAccentContrastTests` pass for the sample accents; the contrast function lives in a small, reusable class that PHASE-05 email rendering can call (**Assumption**: placed in Contracts or a Portal-local helper; PHASE-05 decides)
-- [ ] **P02-T10** Review the visual critique loop (DESIGN.md sections 10 and 14) and tick the Definition of Done
+- [x] **P02-T10** Review the visual critique loop (DESIGN.md sections 10 and 14) and tick the Definition of Done
   - **Depends on:** P02-T07, P02-T08, P02-T09
   - **Validation:** DESIGN.md section 14 checklist pasted into the PR with each item ticked or justified
 
 ## Success Criteria
 
-- [ ] `docs/BRAND.md` exists, is not the blank template, and is approved by the owner.
+- [x] `docs/BRAND.md` exists, is not the blank template, and is approved by the owner.
 - [ ] `UX-BRIEF-admin.md` and `UX-BRIEF-portal.md` are final and cover every UI page in PHASE-07 to PHASE-09.
 - [x] A clean-clone `dotnet build` produces `wwwroot/css/app.css` in Admin and Portal via libman and SassCompiler; no CSS or Bootstrap vendor files are tracked (`git ls-files` check).
 - [x] Style-guide pages render all five status badges, empty/loading/error states and the reconnect UI with brand tokens in light mode (and dark mode for Admin).
