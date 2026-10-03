@@ -1,0 +1,108 @@
+using System.Text.Json;
+using TechStrap.Domain.Rules;
+
+namespace TechStrap.Domain.Admin;
+
+public enum AdminEventType
+{
+    ProductCreated,
+    ProductUpdated,
+    ApiKeyCreated,
+    ApiKeyRevoked,
+    AgentUpdated,
+    TagCreated,
+    TagUpdated,
+    TagDeleted,
+    RequesterErased,
+    TicketDeleted,
+    DeadLetterRetried,
+    DeadLetterDiscarded,
+}
+
+public enum AdminSubjectType
+{
+    Product,
+    ApiKey,
+    Agent,
+    Tag,
+    Requester,
+    Ticket,
+    EmailOutbox,
+}
+
+/// <summary>
+/// An audit entry for administrative actions (D-006, D-022). Separate from <c>TicketEvent</c>: different audience and retention.
+/// The payload may hold ids and enum names but never erased values or secrets, so property names that suggest personal data or
+/// secrets are refused.
+/// </summary>
+public sealed class AdminEvent
+{
+    private static readonly HashSet<string> ForbiddenPayloadNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "email", "name", "body", "subject", "token", "secret", "key", "apikey", "hash", "password", "address",
+    };
+
+    private AdminEvent(Guid id, AdminEventType type, Guid actorId, AdminSubjectType subjectType, Guid subjectId, string payloadJson, DateTimeOffset occurredAt)
+    {
+        Id = id;
+        Type = type;
+        ActorId = actorId;
+        SubjectType = subjectType;
+        SubjectId = subjectId;
+        PayloadJson = payloadJson;
+        OccurredAt = occurredAt;
+    }
+
+    public Guid Id { get; }
+
+    public AdminEventType Type { get; }
+
+    public Guid ActorId { get; }
+
+    public AdminSubjectType SubjectType { get; }
+
+    public Guid SubjectId { get; }
+
+    public string PayloadJson { get; }
+
+    public DateTimeOffset OccurredAt { get; }
+
+    public static DomainResult<AdminEvent> Record(AdminEventType type, Guid actorId, AdminSubjectType subjectType, Guid subjectId, string? payloadJson, TimeProvider clock)
+    {
+        var payload = string.IsNullOrWhiteSpace(payloadJson) ? "{}" : payloadJson;
+        if (!IsSafePayload(payload))
+        {
+            return DomainErrors.Validation("admin-event-payload-invalid", "An admin event payload is a JSON object of ids and enum names with no personal data or secrets.", "payload");
+        }
+
+        return DomainResult<AdminEvent>.Ok(new AdminEvent(EntityId.New(clock), type, actorId, subjectType, subjectId, payload, clock.GetUtcNow()));
+    }
+
+    public static AdminEvent Restore(Guid id, AdminEventType type, Guid actorId, AdminSubjectType subjectType, Guid subjectId, string payloadJson, DateTimeOffset occurredAt) =>
+        new(id, type, actorId, subjectType, subjectId, payloadJson, occurredAt);
+
+    private static bool IsSafePayload(string payload)
+    {
+        if (payload.Length > DomainLimits.MetadataMaxLength)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(payload);
+            return document.RootElement.ValueKind == JsonValueKind.Object && !HasForbiddenName(document.RootElement);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool HasForbiddenName(JsonElement element) => element.ValueKind switch
+    {
+        JsonValueKind.Object => element.EnumerateObject().Any(p => ForbiddenPayloadNames.Contains(p.Name) || HasForbiddenName(p.Value)),
+        JsonValueKind.Array => element.EnumerateArray().Any(HasForbiddenName),
+        _ => false,
+    };
+}
