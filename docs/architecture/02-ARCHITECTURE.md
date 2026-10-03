@@ -163,9 +163,9 @@ All tables snake_case, UTC `timestamptz`, `uuid` primary keys unless noted (**As
 
 Full-text search (D-011):
 
-- `tickets.search_vector`: subject (weight A), requester name/email and ticket number text (B). `messages.search_vector`: body text (C), Public and Internal both indexed; internal hits only returned to agents (all ticket search is agent-only).
+- `tickets.search_vector`: subject (weight A); an exact ticket number is matched by equality, and the requester is not in the vector because a generated column reads only its own row (D-027). `messages.search_vector`: body text (B), Public and Internal both indexed; internal hits only returned to agents (all ticket search is agent-only).
 - `kb_articles.search_vector`: title (A), summary (B), body (C). Public search filters `status = Published`.
-- Config `english` (A-07); generated columns or trigger-maintained, decided in PHASE-03. Queries use `websearch_to_tsquery` and `ts_rank`.
+- Config `english` (A-07); stored generated columns with GIN indexes, no triggers (D-027). Queries use `websearch_to_tsquery` and `ts_rank`.
 - No external search engine.
 
 Ticket number: `ITicketNumberAllocator` runs `INSERT INTO product_ticket_sequences ... ON CONFLICT (product_id) DO UPDATE SET next_number = next_number + 1 ... RETURNING` (the counter row is created on the product's first ticket) inside the creating transaction; the stored `tickets.number` is `{products.number_prefix}-{sequence}`, immutable (D-009), and unique globally on that stored value (a product move keeps the original prefix).

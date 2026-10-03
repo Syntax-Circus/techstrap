@@ -1,3 +1,4 @@
+using NpgsqlTypes;
 using TechStrap.Domain.Tickets;
 
 namespace TechStrap.Infrastructure.Persistence.Records;
@@ -22,6 +23,9 @@ internal sealed class MessageRecord
     public string? InReplyTo { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
+
+    /// <summary>Generated column (D-027): the body, weight B. Never written by the application.</summary>
+    public NpgsqlTsVector SearchVector { get; set; } = null!;
 }
 
 internal sealed class AttachmentRecord

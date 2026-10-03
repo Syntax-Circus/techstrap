@@ -34,6 +34,11 @@ internal sealed class KbArticleRecordConfiguration : IEntityTypeConfiguration<Kb
         builder.Property(a => a.BodyMarkdown).IsRequired();
         builder.Property(a => a.Status).HasEnumAsString().IsRequired();
         builder.HasXminConcurrencyToken(a => a.Version);
+        builder.HasWeightedSearchVector(
+            a => a.SearchVector,
+            ("title", FullTextSearch.WeightA),
+            ("summary", FullTextSearch.WeightB),
+            ("body_markdown", FullTextSearch.WeightC));
         builder.HasOne<ProductRecord>().WithMany().HasForeignKey(a => a.ProductId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<KbCategoryRecord>().WithMany().HasForeignKey(a => a.CategoryId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<AgentRecord>().WithMany().HasForeignKey(a => a.AuthorId).OnDelete(DeleteBehavior.Restrict);

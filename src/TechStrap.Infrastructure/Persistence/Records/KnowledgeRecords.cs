@@ -1,3 +1,4 @@
+using NpgsqlTypes;
 using TechStrap.Domain.Knowledge;
 
 namespace TechStrap.Infrastructure.Persistence.Records;
@@ -44,6 +45,9 @@ internal sealed class KbArticleRecord
 
     /// <summary>Postgres <c>xmin</c>, the optimistic concurrency token.</summary>
     public uint Version { get; set; }
+
+    /// <summary>Generated column (D-027): title weight A, summary B, body C. Never written by the application.</summary>
+    public NpgsqlTsVector SearchVector { get; set; } = null!;
 }
 
 internal sealed class TicketArticleRecord

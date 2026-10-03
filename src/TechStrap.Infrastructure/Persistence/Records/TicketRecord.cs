@@ -1,3 +1,4 @@
+using NpgsqlTypes;
 using TechStrap.Domain.Tickets;
 
 namespace TechStrap.Infrastructure.Persistence.Records;
@@ -45,6 +46,9 @@ internal sealed class TicketRecord
 
     /// <summary>Postgres <c>xmin</c>, the optimistic concurrency token.</summary>
     public uint Version { get; set; }
+
+    /// <summary>Generated column (D-027): the subject, weight A. Never written by the application.</summary>
+    public NpgsqlTsVector SearchVector { get; set; } = null!;
 
     public List<TicketTagRecord> Tags { get; set; } = [];
 }

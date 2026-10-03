@@ -19,6 +19,7 @@ internal sealed class MessageRecordConfiguration : IEntityTypeConfiguration<Mess
         builder.Property(m => m.InReplyTo).HasMaxLength(DomainLimits.MessageIdMaxLength);
         builder.HasOne<TicketRecord>().WithMany().HasForeignKey(m => m.TicketId).OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(m => new { m.TicketId, m.CreatedAt });
+        builder.HasWeightedSearchVector(m => m.SearchVector, ("body", FullTextSearch.WeightB));
     }
 }
 

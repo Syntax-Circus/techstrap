@@ -20,6 +20,7 @@ internal sealed class TicketRecordConfiguration : IEntityTypeConfiguration<Ticke
         builder.Property(t => t.Metadata).HasColumnType("jsonb");
         builder.Property(t => t.CustomFields).HasColumnType("jsonb");
         builder.HasXminConcurrencyToken(t => t.Version);
+        builder.HasWeightedSearchVector(t => t.SearchVector, ("subject", FullTextSearch.WeightA));
 
         builder.HasOne<ProductRecord>().WithMany().HasForeignKey(t => t.ProductId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<RequesterRecord>().WithMany().HasForeignKey(t => t.RequesterId).OnDelete(DeleteBehavior.Restrict);
