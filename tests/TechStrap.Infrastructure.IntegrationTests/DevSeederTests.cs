@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
+using SyntaxCircus.Common;
 using TechStrap.Application.Knowledge;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Seeding;
@@ -16,17 +18,49 @@ public sealed class DevSeederTests(PostgresFixture postgres) : PostgresIntegrati
 {
     private static readonly CancellationToken Ct = TestContext.Current.CancellationToken;
 
-    private ServiceProvider BuildProvider()
+    private ServiceProvider BuildProvider(bool failTicketNumbering = false, bool pooled = false)
     {
+        var connectionString = pooled
+            ? new NpgsqlConnectionStringBuilder(Database.ConnectionString) { Pooling = true, MaxPoolSize = 20 }.ConnectionString
+            : Database.ConnectionString;
         var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { [$"ConnectionStrings:{TechStrapDatabase.ConnectionStringName}"] = Database.ConnectionString })
+            .AddInMemoryCollection(new Dictionary<string, string?> { [$"ConnectionStrings:{TechStrapDatabase.ConnectionStringName}"] = connectionString })
             .Build();
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging();
         services.AddTechStrapPersistence();
         services.AddTechStrapDevelopmentSeeding();
+        if (failTicketNumbering)
+        {
+            // Part 1 (the foundation) commits; part 2 needs ticket numbers and fails after the seed lock was taken.
+            services.AddScoped<ITicketNumberAllocator, FailingAllocator>();
+        }
+
         return services.BuildServiceProvider();
+    }
+
+    private sealed class FailingAllocator : ITicketNumberAllocator
+    {
+        public Task<Result<TicketNumber>> AllocateAsync(Guid productId, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("injected seed failure");
+    }
+
+    private async Task<bool> SeedLockIsFreeAsync()
+    {
+        await using var connection = new NpgsqlConnection(Database.ConnectionString);
+        await connection.OpenAsync(Ct);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT pg_try_advisory_lock(@key)";
+        command.Parameters.AddWithValue("key", TechStrapDatabase.SeedLockKey);
+        var acquired = (bool)(await command.ExecuteScalarAsync(Ct))!;
+        if (acquired)
+        {
+            command.CommandText = "SELECT pg_advisory_unlock(@key)";
+            await command.ExecuteNonQueryAsync(Ct);
+        }
+
+        return acquired;
     }
 
     private static async Task SeedAsync(ServiceProvider provider)
@@ -105,6 +139,53 @@ public sealed class DevSeederTests(PostgresFixture postgres) : PostgresIntegrati
         var spam = await ReadAsync(first, sp => sp.GetRequiredService<ITicketRepository>().ListAsync(new TicketQuery(TicketView.Spam), Ct));
         (all.TotalCount + spam.TotalCount).ShouldBe(7);
         (await ReadAsync(first, sp => sp.GetRequiredService<IKbRepository>().ListArticlesAsync(new KbArticleQuery(), Ct))).TotalCount.ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task A_seed_that_fails_after_taking_the_lock_releases_it_even_on_pooled_connections()
+    {
+        await using var provider = BuildProvider(failTicketNumbering: true, pooled: true);
+
+        await Should.ThrowAsync<InvalidOperationException>(() => SeedAsync(provider));
+
+        (await SeedLockIsFreeAsync()).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_duplicate_conflict_while_seeding_fails_the_run_naming_the_part_instead_of_being_skipped()
+    {
+        await using (var context = Database.CreateDbContext())
+        {
+            await RecordSeed.ProductAsync(context, "paperplane", "PPL");
+        }
+
+        await using var provider = BuildProvider();
+
+        var failure = await Should.ThrowAsync<InvalidOperationException>(() => SeedAsync(provider));
+
+        failure.Message.ShouldContain("foundation");
+        failure.Message.ShouldContain(PersistenceErrorCodes.Duplicate);
+        (await SeedLockIsFreeAsync()).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_run_that_stopped_after_part_one_is_finished_by_the_next_run()
+    {
+        await using (var failing = BuildProvider(failTicketNumbering: true))
+        {
+            await Should.ThrowAsync<InvalidOperationException>(() => SeedAsync(failing));
+        }
+
+        await using var provider = BuildProvider();
+        (await ReadAsync(provider, sp => sp.GetRequiredService<IProductRepository>().ListAsync(false, Ct))).Count.ShouldBe(2);
+        (await ReadAsync(provider, sp => sp.GetRequiredService<IKbRepository>().ListArticlesAsync(new KbArticleQuery(), Ct))).TotalCount.ShouldBe(0);
+
+        await SeedAsync(provider);
+
+        var all = await ReadAsync(provider, sp => sp.GetRequiredService<ITicketRepository>().ListAsync(new TicketQuery(TicketView.All, PageSize: 100), Ct));
+        var spam = await ReadAsync(provider, sp => sp.GetRequiredService<ITicketRepository>().ListAsync(new TicketQuery(TicketView.Spam), Ct));
+        (all.TotalCount + spam.TotalCount).ShouldBe(7);
+        (await ReadAsync(provider, sp => sp.GetRequiredService<IProductRepository>().ListAsync(false, Ct))).Count.ShouldBe(2);
     }
 
     [Fact]

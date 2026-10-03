@@ -221,6 +221,10 @@ Write the named handler test class first for every handler task (substitutes for
 - [x] Auto-close default of 7 days is confirmed (D-008); it is a per-installation option only (not per product) for the core.
 - [ ] Attachments on agent replies are an **Assumption** (not stated in the plan); drop `IAttachmentStore` from `AddAgentReplyRequestHandler` if the owner declines.
 - [ ] Live refresh of Worker-driven changes (auto-close) is deferred to PHASE-10.
+- [ ] Carried forward from the PHASE-03 final review: Customer DTOs (with PHASE-09) never carry `LastActivityAt`, the agent email or internal events; `ITicketRepository.GetEventsAsync` is agent-only (D-024).
+- [ ] Carried forward from the PHASE-03 final review: The full erase-requester cascade: messages, attachments, access tokens and the outbox `ToAddress` of that requester, not only the requester row; PHASE-03 only proved it is feasible.
+- [ ] Carried forward from the PHASE-03 final review: A ticket hard-delete repository method (D-006) is not in `ITicketRepository`; add it with the delete-ticket handler (the schema cascade already exists).
+- [ ] Carried forward from the PHASE-03 final review: Ticket search: confirm the plan and shape of the GIN-backed search query on realistic data (with PHASE-12).
 
 ## Handoff
 

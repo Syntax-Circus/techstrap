@@ -36,10 +36,14 @@ public interface IKbRepository
     /// nothing and the schema has no composite key for it). The create and edit handlers must load the category and require its ProductId to
     /// equal the article's ProductId, or be null (a shared category) when the article belongs to a product. A shared article may only use a
     /// shared category. Return a Validation error from the handler otherwise, before calling this.
+    /// <para>
+    /// Staging only. After a failed commit, reload the article and redo the change; do not retry the same object. After a successful
+    /// commit the Domain <c>Version</c> is stale: reload before updating again.
+    /// </para>
     /// </summary>
     void AddArticle(KbArticle article);
 
-    /// <summary>See the category and product TODO on <see cref="AddArticle"/>. Throws when the article was not loaded in this unit of work.</summary>
+    /// <summary>See the category and product TODO on <see cref="AddArticle"/>. Throws when the article was not loaded in this unit of work. After a failed commit reload the article rather than retrying the same object; after a successful commit its <c>Version</c> is stale, so reload before updating again.</summary>
     void UpdateArticle(KbArticle article);
 
     Task<KbCategory?> GetCategoryAsync(Guid id, CancellationToken cancellationToken);

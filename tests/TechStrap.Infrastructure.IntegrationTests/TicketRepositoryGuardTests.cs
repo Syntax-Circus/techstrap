@@ -187,10 +187,12 @@ public sealed class TicketRepositoryGuardTests(PostgresFixture postgres) : Postg
         var (scenario, parent) = await ClosedParentAsync(host);
         await using var scope = host.CreateScope();
         var loadedParent = (await Tickets(scope).GetByIdAsync(parent.Id, Ct))!;
+        var lastActivity = loadedParent.LastActivityAt;
 
         var result = await CreateFollowUpAsync(host, scenario, scope, loadedParent);
 
         result.IsSuccess.ShouldBeTrue();
+        (await scenario.LoadAsync(parent.Id))!.LastActivityAt.ShouldBe(lastActivity);
         (await CountAsync($"SELECT count(*) FROM tickets WHERE parent_ticket_id = '{parent.Id}'")).ShouldBe(1);
         (await CountAsync($"SELECT count(*) FROM messages m JOIN tickets t ON t.id = m.ticket_id WHERE t.parent_ticket_id = '{parent.Id}'")).ShouldBe(1);
     }

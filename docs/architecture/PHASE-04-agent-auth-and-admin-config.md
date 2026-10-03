@@ -182,6 +182,8 @@ Each handler task writes `{Handler}Tests` (substitutes for repositories, fake `T
 - [ ] Logo handling for products (URL versus uploaded file) is deferred to PHASE-05/PHASE-07.
 - [ ] `IAdminEventRepository` is now listed in `02-ARCHITECTURE.md` section 3.1 (resolved).
 - [ ] Admin-only versus Agent-readable product list: Agents need `ListProductsRequestHandler` for filters; this phase makes it AgentPolicy. **Assumption.**
+- [ ] Carried forward from the PHASE-03 final review: The last-admin race: two concurrent demotions or deactivations can leave no active Admin; guard it in the agent-management handlers (for example a locking read or a serializable check) and test it.
+- [ ] Carried forward from the PHASE-03 final review: `IApiKeyHasher` is declared and implemented here (it is not declared in PHASE-03), and the development seed keys (`tsk_dev1`, `tsp_dev1`, `tsk_dev2`) carry placeholder hashes, so re-seed them through the real hasher so they authenticate.
 
 ## Handoff
 

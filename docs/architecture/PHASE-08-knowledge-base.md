@@ -198,6 +198,8 @@ are third-party NuGet packages (not Syntax Circus) already listed there.
 - [ ] `ts_headline` on large bodies is costly; limit to summary field and cap result count (default 10 per page; **Assumption**).
 - [ ] Per-product vs shared slug collisions need a clear rule (shared wins on conflict at read time; creation blocks duplicates across both scopes) — confirm.
 - [ ] bUnit (in the package map) comes with `tests/TechStrap.Admin.Tests` from [PHASE-07](PHASE-07-admin-app.md); Markdig and HtmlSanitizer versions are pinned in the package map.
+- [ ] Carried forward from the PHASE-03 final review: The category and article product match (a product article may only use a shared category or one of its own product) is enforced in the create and edit handlers; the repository cannot check it.
+- [ ] Carried forward from the PHASE-03 final review: `KbCategory` has no concurrency version yet; add one with the category edit handlers (the model change needs a tool-generated migration).
 
 ## Handoff
 

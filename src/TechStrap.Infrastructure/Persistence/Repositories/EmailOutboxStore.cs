@@ -37,40 +37,57 @@ internal sealed class EmailOutboxStore(TechStrapDbContext context, TimeProvider 
 
     public async Task<IReadOnlyList<EmailOutboxItem>> ClaimBatchAsync(string workerId, int batchSize, TimeSpan lease, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(workerId))
+        {
+            throw new ArgumentException("A worker id is required.", nameof(workerId));
+        }
+
+        if (lease <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(lease), lease, "The lease must be positive.");
+        }
+
         var limit = Paging.NormalizeBatchSize(batchSize);
 
         // Whole microseconds, as the Domain stores them, so the comparison matches what the Domain decides.
         var utcNow = clock.GetUtcNow();
         var now = utcNow.AddTicks(-(utcNow.Ticks % 10));
 
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-        var due = await context.Set<EmailOutboxRecord>().FromSqlRaw(ClaimSql, now, limit).ToListAsync(cancellationToken);
-
-        var claimed = new List<EmailOutboxItem>(due.Count);
-        foreach (var record in due)
+        try
         {
-            var item = record.ToDomain();
-            var outcome = item.Claim(workerId, lease, clock);
-            if (outcome.IsSuccess)
-            {
-                item.CopyTo(record);
-                claimed.Add(item);
-            }
-            else if (outcome.Error!.Code == PersistenceErrorCodes.OutboxDeadLettered)
-            {
-                // The Domain already moved the item to DeadLettered: persist that, but it is not part of the batch.
-                item.CopyTo(record);
-            }
-            else if (outcome.Error.Kind == DomainErrorKind.Validation)
-            {
-                throw new ArgumentException($"The claim was refused: {outcome.Error.Code}.", nameof(workerId));
-            }
-        }
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+            var due = await context.Set<EmailOutboxRecord>().FromSqlRaw(ClaimSql, now, limit).ToListAsync(cancellationToken);
 
-        await context.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        context.ChangeTracker.Clear();
-        return claimed;
+            var claimed = new List<EmailOutboxItem>(due.Count);
+            foreach (var record in due)
+            {
+                var item = record.ToDomain();
+                var outcome = item.Claim(workerId, lease, clock);
+                if (outcome.IsSuccess)
+                {
+                    item.CopyTo(record);
+                    claimed.Add(item);
+                }
+                else if (outcome.Error!.Code == PersistenceErrorCodes.OutboxDeadLettered)
+                {
+                    // The Domain already moved the item to DeadLettered: persist that, but it is not part of the batch.
+                    item.CopyTo(record);
+                }
+                else if (outcome.Error.Kind == DomainErrorKind.Validation)
+                {
+                    throw new ArgumentException($"The claim was refused: {outcome.Error.Code}.", nameof(workerId));
+                }
+            }
+
+            await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return claimed;
+        }
+        finally
+        {
+            // Success or failure, never leave tracked records (possibly half-changed) behind in a long-lived worker scope.
+            context.ChangeTracker.Clear();
+        }
     }
 
     public Task<Result> MarkSentAsync(Guid id, string workerId, CancellationToken cancellationToken) =>
@@ -79,16 +96,23 @@ internal sealed class EmailOutboxStore(TechStrapDbContext context, TimeProvider 
     public Task<Result> MarkFailedAsync(Guid id, string workerId, string error, CancellationToken cancellationToken) =>
         ApplyAsync(id, item => item.MarkFailed(workerId, error, clock), cancellationToken);
 
+    /// <summary>
+    /// One page of dead letters, newest first with the id as a deterministic tie-break. Served by the partial index
+    /// <c>ix_email_outbox_created_at_when_dead_lettered</c>; a plan test reads this query's SQL.
+    /// </summary>
+    internal static IQueryable<EmailOutboxRecord> DeadLetterPage(TechStrapDbContext context, int page, int pageSize) =>
+        context.Set<EmailOutboxRecord>().AsNoTracking()
+            .Where(e => e.Status == OutboxStatus.DeadLettered)
+            .OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id)
+            .Skip(Paging.Offset(page, pageSize)).Take(pageSize);
+
     public async Task<PagedResult<EmailOutboxItem>> ListDeadLettersAsync(int page, int pageSize, CancellationToken cancellationToken)
     {
         page = Paging.NormalizePage(page);
         pageSize = Paging.NormalizePageSize(pageSize);
 
-        var deadLetters = context.Set<EmailOutboxRecord>().AsNoTracking().Where(e => e.Status == OutboxStatus.DeadLettered);
-        var total = await deadLetters.CountAsync(cancellationToken);
-        var records = await deadLetters.OrderByDescending(e => e.CreatedAt).ThenBy(e => e.Id)
-            .Skip(Paging.Offset(page, pageSize)).Take(pageSize)
-            .ToListAsync(cancellationToken);
+        var total = await context.Set<EmailOutboxRecord>().AsNoTracking().CountAsync(e => e.Status == OutboxStatus.DeadLettered, cancellationToken);
+        var records = await DeadLetterPage(context, page, pageSize).ToListAsync(cancellationToken);
         return new PagedResult<EmailOutboxItem>([.. records.Select(e => e.ToDomain())], page, pageSize, total);
     }
 
@@ -103,25 +127,30 @@ internal sealed class EmailOutboxStore(TechStrapDbContext context, TimeProvider 
     /// </summary>
     private async Task<Result> ApplyAsync(Guid id, Func<EmailOutboxItem, DomainResult> change, CancellationToken cancellationToken)
     {
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-        var record = (await context.Set<EmailOutboxRecord>().FromSqlRaw("SELECT * FROM email_outbox WHERE id = {0} FOR UPDATE", id).ToListAsync(cancellationToken)).SingleOrDefault();
-        if (record is null)
+        try
         {
-            return Result.Failure(new ResultError(PersistenceErrorCodes.OutboxNotFound, "The email does not exist.", ResultErrorKind.NotFound));
-        }
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+            var record = (await context.Set<EmailOutboxRecord>().FromSqlRaw("SELECT * FROM email_outbox WHERE id = {0} FOR UPDATE", id).ToListAsync(cancellationToken)).SingleOrDefault();
+            if (record is null)
+            {
+                return Result.Failure(new ResultError(PersistenceErrorCodes.OutboxNotFound, "The email does not exist.", ResultErrorKind.NotFound));
+            }
 
-        var item = record.ToDomain();
-        var outcome = change(item);
-        if (outcome.IsFailure)
+            var item = record.ToDomain();
+            var outcome = change(item);
+            if (outcome.IsFailure)
+            {
+                return outcome.ToResult();
+            }
+
+            item.CopyTo(record);
+            await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return Result.Success();
+        }
+        finally
         {
             context.ChangeTracker.Clear();
-            return outcome.ToResult();
         }
-
-        item.CopyTo(record);
-        await context.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        context.ChangeTracker.Clear();
-        return Result.Success();
     }
 }

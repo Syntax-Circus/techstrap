@@ -17,8 +17,17 @@ public interface ITicketRepository
     /// <summary>Looks up by the stored full number, e.g. "ACME-142" (case-insensitive).</summary>
     Task<Ticket?> GetByNumberAsync(string number, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Stages a new ticket. <c>AcceptChanges</c> runs while staging, so the ticket's pending messages and events are cleared at once, not at
+    /// commit. After a failed commit, reload the ticket and redo the change; do not retry the same object, because its pending changes are gone.
+    /// </summary>
     void Add(Ticket ticket);
 
+    /// <summary>
+    /// Stages the changes of a ticket loaded in this scope. <c>AcceptChanges</c> runs while staging (see <see cref="Add"/>), so after a
+    /// failed commit reload the ticket and redo the change; do not retry the same object. After a successful commit the Domain
+    /// <c>Version</c> is stale: reload before updating again.
+    /// </summary>
     void Update(Ticket ticket);
 
     /// <summary>
@@ -30,7 +39,10 @@ public interface ITicketRepository
     /// <summary>Oldest first. <paramref name="publicOnly"/> hides internal notes (customer view).</summary>
     Task<IReadOnlyList<Message>> GetMessagesAsync(Guid ticketId, bool publicOnly, CancellationToken cancellationToken);
 
-    /// <summary>Oldest first.</summary>
+    /// <summary>
+    /// Oldest first. Agent-only (D-024): the events include the ids of internal notes, so customer timelines are built from
+    /// <c>GetMessagesAsync(ticketId, publicOnly: true)</c>, never from events.
+    /// </summary>
     Task<IReadOnlyList<TicketEvent>> GetEventsAsync(Guid ticketId, CancellationToken cancellationToken);
 
     /// <summary>

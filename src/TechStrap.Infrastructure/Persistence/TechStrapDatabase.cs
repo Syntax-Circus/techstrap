@@ -22,5 +22,5 @@ public static class TechStrapDatabase
         builder
             .UseNpgsql(connectionString ?? string.Empty)
             .UseSyntaxCircusSnakeCaseNamingConvention()
-            .AddInterceptors(new AppendOnlyTicketEventInterceptor());
+            .AddInterceptors(new AppendOnlyEventInterceptor());
 }

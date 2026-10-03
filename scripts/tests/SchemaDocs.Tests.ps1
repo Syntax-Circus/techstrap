@@ -42,6 +42,13 @@ Describe 'migrations are tool-generated' {
         }
     }
 
+    It 'contains no hand-written SQL, so no migration can hide a change the model does not know about' {
+        $offenders = Get-ChildItem -LiteralPath $script:MigrationsDir -Filter '*.cs' |
+            Where-Object { (Get-Content -LiteralPath $_.FullName -Raw) -match 'migrationBuilder\.Sql\(' } |
+            ForEach-Object { $_.Name }
+        $offenders | Should -BeNullOrEmpty -Because 'migrations come only from dotnet ef migrations add (index filters and generated columns use model API)'
+    }
+
     It 'creates the search vectors as stored generated columns, not through triggers' {
         $search = Get-ChildItem -LiteralPath $script:MigrationsDir -Filter '*AddSearchVectors.cs' | Where-Object { $_.Name -notmatch 'Designer' }
         $text = Get-Content -LiteralPath $search.FullName -Raw

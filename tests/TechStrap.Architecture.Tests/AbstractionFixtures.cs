@@ -45,6 +45,28 @@ public static class AbstractionFixtures
         Task<List<IQueryable<string>>> LoadAsync(CancellationToken cancellationToken);
     }
 
+    public interface IExposesGenericDbContext<T>
+    {
+        DbContext Context { get; }
+
+        T Value { get; }
+    }
+
+    public interface IExposesHttpClient
+    {
+        void Use(System.Net.Http.HttpClient client);
+    }
+
+    public interface IStreamsWithoutCancellationToken
+    {
+        IAsyncEnumerable<string> StreamAsync(Guid id);
+    }
+
+    public interface IStreamsWithCancellationToken
+    {
+        IAsyncEnumerable<string> StreamAsync(Guid id, CancellationToken cancellationToken);
+    }
+
     public interface IExposesHttpContext
     {
         void Use(HttpContext context);

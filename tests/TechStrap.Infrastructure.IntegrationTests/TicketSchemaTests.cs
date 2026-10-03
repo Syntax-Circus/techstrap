@@ -35,6 +35,12 @@ public sealed class TicketSchemaTests(PostgresFixture postgres) : PostgresIntegr
         ModelInspector.Table("ticket_events").GetProperties().ShouldAllBe(p => !p.IsConcurrencyToken);
     }
 
+    [Fact]
+    public void The_ticket_number_column_is_as_long_as_the_domain_limit()
+    {
+        ModelInspector.Table("tickets").FindProperty("Number")!.GetMaxLength().ShouldBe(TechStrap.Domain.Rules.DomainLimits.TicketNumberMaxLength);
+    }
+
     private async Task<(ProductRecord Product, RequesterRecord Requester, TicketRecord Ticket)> SeedTicketAsync(TechStrapDbContext context, string number = "ACME-1")
     {
         var product = await RecordSeed.ProductAsync(context);
@@ -109,7 +115,7 @@ public sealed class TicketSchemaTests(PostgresFixture postgres) : PostgresIntegr
         ticketEvent.Payload = "{\"tampered\":true}";
         var save = async () => await context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        (await Should.ThrowAsync<InvalidOperationException>(save)).Message.ShouldBe(AppendOnlyTicketEventInterceptor.Message);
+        (await Should.ThrowAsync<InvalidOperationException>(save)).Message.ShouldBe(AppendOnlyEventInterceptor.Message);
     }
 
     [Fact]
@@ -122,7 +128,7 @@ public sealed class TicketSchemaTests(PostgresFixture postgres) : PostgresIntegr
         context.Set<TicketEventRecord>().Remove(ticketEvent);
         var save = async () => await context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        (await Should.ThrowAsync<InvalidOperationException>(save)).Message.ShouldBe(AppendOnlyTicketEventInterceptor.Message);
+        (await Should.ThrowAsync<InvalidOperationException>(save)).Message.ShouldBe(AppendOnlyEventInterceptor.Message);
         (await CountAsync("ticket_events")).ShouldBe(1);
     }
 

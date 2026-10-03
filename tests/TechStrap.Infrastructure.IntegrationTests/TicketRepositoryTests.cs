@@ -219,6 +219,7 @@ public sealed class TicketRepositoryTests(PostgresFixture postgres) : PostgresIn
         });
         var closed = (await scenario.LoadAsync(parent.Id))!;
         var closedAt = closed.ClosedAt;
+        var lastActivity = closed.LastActivityAt;
         host.Clock.Advance(TimeSpan.FromMinutes(5));
         Ticket? followUp = null;
 
@@ -240,6 +241,7 @@ public sealed class TicketRepositoryTests(PostgresFixture postgres) : PostgresIn
         var reloadedParent = (await scenario.LoadAsync(parent.Id))!;
         reloadedParent.Status.ShouldBe(TicketStatus.Closed);
         reloadedParent.ClosedAt.ShouldBe(closedAt);
+        reloadedParent.LastActivityAt.ShouldBe(lastActivity);
         (await EventsAsync(scenario, parent.Id)).Last().Type.ShouldBe(TicketEventType.FollowUpCreated);
     }
 

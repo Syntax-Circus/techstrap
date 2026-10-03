@@ -182,6 +182,10 @@ Record the exact package version in the linked package map. In the foundation ph
 - [ ] `IEmailSender` shape in the pinned `SyntaxCircus.Email` version must be verified against the package source before implementation.
 - [ ] New-ticket agent alerts depend on `ITicketNotificationPlanner` (PHASE-06); the planner call is added to `SubmitTicketRequestHandler` there.
 - [ ] Unsubscribe and bounce handling are out of scope until inbound email (sub-project 2).
+- [ ] Carried forward from the PHASE-03 final review: `IAccessTokenService` is declared and implemented here (not in PHASE-03), together with the dev-key re-seed through the real hasher shared with PHASE-04.
+- [ ] Carried forward from the PHASE-03 final review: Ticket access tokens slide 90 days with no absolute cap in the Domain: enforce an absolute expiry cap when tokens are issued and refreshed.
+- [ ] Carried forward from the PHASE-03 final review: Intake must check that a supplied ticket number belongs to the product of the API key before attaching a follow-up to it.
+- [ ] Carried forward from the PHASE-03 final review: D-024 at email render: customer emails use `AgentPublicIdentity` and never the agent's name or address; test the rendered output.
 
 ## Handoff
 

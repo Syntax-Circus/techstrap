@@ -371,7 +371,7 @@ public sealed class EmailOutboxStoreTests(PostgresFixture postgres) : PostgresIn
     }
 
     [Fact]
-    public async Task Dead_letters_with_the_same_creation_time_are_listed_in_Id_order_and_paging_is_normalized()
+    public async Task Dead_letters_with_the_same_creation_time_are_listed_by_descending_Id_and_paging_is_normalized()
     {
         await using var host = new PersistenceTestHost(Database);
         var items = Enumerable.Range(0, 3).Select(i => NewItem(host, $"same{i}@example.com")).ToArray();
@@ -388,7 +388,7 @@ public sealed class EmailOutboxStoreTests(PostgresFixture postgres) : PostgresIn
         var all = await host.ReadAsync(sp => sp.GetRequiredService<IEmailOutboxStore>().ListDeadLettersAsync(1, 10, Ct));
         var clamped = await host.ReadAsync(sp => sp.GetRequiredService<IEmailOutboxStore>().ListDeadLettersAsync(-3, 0, Ct));
 
-        all.Items.Select(i => i.Id).ShouldBe(items.Select(i => i.Id).Order());
+        all.Items.Select(i => i.Id).ShouldBe(items.Select(i => i.Id).OrderDescending());
         clamped.Page.ShouldBe(1);
         clamped.PageSize.ShouldBe(Paging.DefaultPageSize);
         clamped.Items.Count.ShouldBe(3);
@@ -443,13 +443,124 @@ public sealed class EmailOutboxStoreTests(PostgresFixture postgres) : PostgresIn
         plan.ShouldNotContain("Seq Scan");
     }
 
-    [Fact]
-    public async Task An_oversized_payload_is_refused_by_the_Domain_before_it_can_be_enqueued()
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task A_blank_worker_id_is_refused_before_any_query_even_when_the_queue_is_empty(string workerId)
     {
         await using var host = new PersistenceTestHost(Database);
-        var payload = "{\"p\":\"" + new string('x', DomainLimits.OutboxPayloadMaxLength) + "\"}";
 
-        EmailOutboxItem.Enqueue("K", "a@example.com", payload, null, null, host.Clock).Error!.Code.ShouldBe("payload-too-long");
+        await Should.ThrowAsync<ArgumentException>(() => ClaimAsync(host, workerId));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task A_lease_that_is_not_positive_is_refused_before_any_query_even_when_the_queue_is_empty(int seconds)
+    {
+        await using var host = new PersistenceTestHost(Database);
+
+        await Should.ThrowAsync<ArgumentException>(() =>
+            host.ReadAsync(sp => sp.GetRequiredService<IEmailOutboxStore>().ClaimBatchAsync("worker-1", 5, TimeSpan.FromSeconds(seconds), Ct)));
+    }
+
+    [Fact]
+    public async Task A_claim_skips_a_row_another_transaction_holds_locked_and_does_not_wait_for_it()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var held = NewItem(host, "held@example.com");
+        host.Clock.Advance(TimeSpan.FromSeconds(1));
+        var free = NewItem(host, "free@example.com");
+        await EnqueueAsync(host, held, free);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(20));
+
+        await using var holder = new NpgsqlConnection(Database.ConnectionString);
+        await holder.OpenAsync(Ct);
+        await using var lockTransaction = await holder.BeginTransactionAsync(Ct);
+        await using (var lockRow = holder.CreateCommand())
+        {
+            lockRow.Transaction = lockTransaction;
+            lockRow.CommandText = "SELECT id FROM email_outbox WHERE id = @id FOR UPDATE";
+            lockRow.Parameters.AddWithValue("id", held.Id);
+            await lockRow.ExecuteScalarAsync(Ct);
+        }
+
+        var claimed = await host.ReadAsync(sp => sp.GetRequiredService<IEmailOutboxStore>().ClaimBatchAsync("worker-1", 10, Lease, timeout.Token));
+        timeout.IsCancellationRequested.ShouldBeFalse("the claim must not block on a locked row");
+        await lockTransaction.RollbackAsync(Ct);
+
+        claimed.ShouldHaveSingleItem().Id.ShouldBe(free.Id);
+        (await host.ReadAsync(sp => sp.GetRequiredService<IEmailOutboxStore>().GetAsync(held.Id, Ct)))!.Status.ShouldBe(OutboxStatus.Pending);
+        (await ClaimAsync(host, "worker-2")).ShouldHaveSingleItem().Id.ShouldBe(held.Id);
+    }
+
+    [Fact]
+    public async Task The_dead_letter_list_query_uses_the_partial_created_at_index()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var now = host.Clock.GetUtcNow();
+        await using (var connection = new NpgsqlConnection(Database.ConnectionString))
+        {
+            await connection.OpenAsync(Ct);
+            await using var insert = connection.CreateCommand();
+            insert.CommandText = """
+                INSERT INTO email_outbox (id, kind, to_address, payload, status, attempts, next_attempt_at, created_at)
+                SELECT gen_random_uuid(), 'K', 'a' || g || '@example.com', '{}',
+                       CASE WHEN g % 100 = 1 THEN 'DeadLettered' ELSE 'Sent' END,
+                       5, @now, @now - make_interval(secs => g)
+                FROM generate_series(1, 20000) AS g
+                """;
+            insert.Parameters.AddWithValue("now", now);
+            await insert.ExecuteNonQueryAsync(Ct);
+        }
+
+        await using var context = Database.CreateDbContext();
+        var sql = EmailOutboxStore.DeadLetterPage(context, 1, 20).ToQueryString();
+        await context.Database.ExecuteSqlRawAsync("ANALYZE email_outbox", Ct);
+        await using var transaction = await context.Database.BeginTransactionAsync(Ct);
+        await context.Database.ExecuteSqlRawAsync("SET LOCAL enable_seqscan = off", Ct);
+        await using var command = context.Database.GetDbConnection().CreateCommand();
+        command.Transaction = transaction.GetDbTransaction();
+        command.CommandText = "EXPLAIN " + InlineParameters(sql);
+        var lines = new List<string>();
+        await using (var reader = await command.ExecuteReaderAsync(Ct))
+        {
+            while (await reader.ReadAsync(Ct))
+            {
+                lines.Add(reader.GetString(0));
+            }
+        }
+
+        var plan = string.Join('\n', lines);
+        plan.ShouldContain("ix_email_outbox_created_at_when_dead_lettered", customMessage: plan);
+        plan.ShouldNotContain("Seq Scan");
+    }
+
+    /// <summary>ToQueryString prints parameters as <c>-- @name='value'</c> comment lines; EXPLAIN needs them as literals.</summary>
+    private static string InlineParameters(string sql)
+    {
+        var body = new List<string>();
+        var values = new Dictionary<string, string>();
+        foreach (var line in sql.Split('\n').Select(l => l.TrimEnd('\r')))
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(line, @"^-- (@\w+)='(.*)'");
+            if (match.Success)
+            {
+                values[match.Groups[1].Value] = match.Groups[2].Value;
+            }
+            else
+            {
+                body.Add(line);
+            }
+        }
+
+        var text = string.Join('\n', body);
+        foreach (var (name, value) in values.OrderByDescending(v => v.Key.Length))
+        {
+            text = text.Replace(name, "'" + value + "'", StringComparison.Ordinal);
+        }
+
+        return text;
+    }
 }

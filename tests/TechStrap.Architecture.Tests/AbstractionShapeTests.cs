@@ -40,11 +40,25 @@ public sealed class AbstractionShapeTests
         AbstractionRules.FindShapeViolations([typeof(AbstractionFixtures.IGoodStore)]).ShouldBeEmpty();
     }
 
+    [Fact]
+    public void A_streaming_abstraction_with_a_trailing_cancellation_token_passes()
+    {
+        AbstractionRules.FindShapeViolations([typeof(AbstractionFixtures.IStreamsWithCancellationToken)]).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_generic_interface_definition_is_treated_as_an_abstraction()
+    {
+        AbstractionRules.IsAbstraction(typeof(AbstractionFixtures.IExposesGenericDbContext<>)).ShouldBeTrue();
+    }
+
     [Theory]
     [InlineData(typeof(AbstractionFixtures.IExposesDbContext), "Microsoft.EntityFrameworkCore.DbContext")]
     [InlineData(typeof(AbstractionFixtures.IExposesDbSet), "Microsoft.EntityFrameworkCore.DbSet")]
     [InlineData(typeof(AbstractionFixtures.IExposesQueryable), "System.Linq.IQueryable")]
     [InlineData(typeof(AbstractionFixtures.IExposesNestedQueryable), "System.Linq.IQueryable")]
+    [InlineData(typeof(AbstractionFixtures.IExposesGenericDbContext<>), "Microsoft.EntityFrameworkCore.DbContext")]
+    [InlineData(typeof(AbstractionFixtures.IExposesHttpClient), "System.Net.Http.HttpClient")]
     [InlineData(typeof(AbstractionFixtures.IExposesHttpContext), "Microsoft.AspNetCore.Http.HttpContext")]
     [InlineData(typeof(AbstractionFixtures.IExposesInfrastructure), "TechStrap.Infrastructure.InfrastructureAssemblyMarker")]
     [InlineData(typeof(AbstractionFixtures.IExposesRecord), "WidgetRecord")]
@@ -56,6 +70,7 @@ public sealed class AbstractionShapeTests
     [Theory]
     [InlineData(typeof(AbstractionFixtures.IMissingCancellationToken))]
     [InlineData(typeof(AbstractionFixtures.ICancellationTokenNotLast))]
+    [InlineData(typeof(AbstractionFixtures.IStreamsWithoutCancellationToken))]
     public void An_async_method_without_a_trailing_cancellation_token_is_flagged(Type bad)
     {
         AbstractionRules.FindShapeViolations([bad]).ShouldContain(violation => violation.Contains("must take a CancellationToken", StringComparison.Ordinal));

@@ -21,7 +21,8 @@ namespace TechStrap.Infrastructure.Seeding;
 /// tickets and knowledge base. Each part skips itself when its marker already exists, so running it again does nothing and a
 /// run that stopped between the two parts finishes on the next start. The whole run holds a Postgres advisory lock
 /// (<see cref="TechStrapDatabase.SeedLockKey"/>), so two API instances starting together seed one after the other: the second
-/// waits, finds the markers and skips, with no deadlock and no duplicate data.
+/// waits, finds the markers and skips, with no deadlock and no duplicate data. Because of the lock, a unique-violation (duplicate) result
+/// can only mean the data is inconsistent, so it fails the run with the part name like any other error code.
 /// </summary>
 public sealed class DevelopmentDataSeeder(
     TechStrapDbContext context,
@@ -71,10 +72,6 @@ public sealed class DevelopmentDataSeeder(
         if (result.IsSuccess)
         {
             logger.LogInformation("Development data seeded: {Part}.", part);
-        }
-        else if (result.Errors[0].Code == PersistenceErrorCodes.Duplicate)
-        {
-            logger.LogInformation("Another instance seeded the development data first ({Part}); skipped.", part);
         }
         else
         {

@@ -1,6 +1,5 @@
 namespace TechStrap.Infrastructure.Persistence.Records;
 
-
 /// <summary>Row of <c>products</c>. Persistence shape only (D-026); the domain type is <c>Product</c>.</summary>
 internal sealed class ProductRecord
 {

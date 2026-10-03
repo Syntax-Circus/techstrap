@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Npgsql;
 
 namespace TechStrap.Infrastructure.Persistence;
@@ -19,7 +20,9 @@ internal sealed class AdvisoryLock : IAsyncDisposable
 
     public static async Task<AdvisoryLock> AcquireAsync(string connectionString, long key, CancellationToken cancellationToken)
     {
-        var connection = new NpgsqlConnection(connectionString);
+        // Never pooled: closing an unpooled connection ends the session, which frees the lock even when the explicit unlock cannot run.
+        var unpooled = new NpgsqlConnectionStringBuilder(connectionString) { Pooling = false }.ConnectionString;
+        var connection = new NpgsqlConnection(unpooled);
         try
         {
             await connection.OpenAsync(cancellationToken);
@@ -40,11 +43,16 @@ internal sealed class AdvisoryLock : IAsyncDisposable
     {
         try
         {
-            // Pooled connections keep their session, so the lock must be released explicitly.
+            // An explicit unlock is the clean path; closing the unpooled connection below ends the session as the backstop.
             await using var command = _connection.CreateCommand();
             command.CommandText = "SELECT pg_advisory_unlock(@key)";
             command.Parameters.AddWithValue("key", _key);
             await command.ExecuteNonQueryAsync(CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is DbException or InvalidOperationException)
+        {
+            // The session is gone or broken, so the lock is already released with it. Swallowed on purpose: this runs from DisposeAsync,
+            // and throwing here would mask the error that is already unwinding the caller.
         }
         finally
         {

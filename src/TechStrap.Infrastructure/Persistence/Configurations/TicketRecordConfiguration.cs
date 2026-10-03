@@ -12,7 +12,7 @@ internal sealed class TicketRecordConfiguration : IEntityTypeConfiguration<Ticke
         builder.ToTable("tickets");
         builder.HasKey(t => t.Id);
         builder.Property(t => t.Id).ValueGeneratedNever();
-        builder.Property(t => t.Number).HasMaxLength(24).IsRequired();
+        builder.Property(t => t.Number).HasMaxLength(DomainLimits.TicketNumberMaxLength).IsRequired();
         builder.Property(t => t.Subject).HasMaxLength(DomainLimits.SubjectMaxLength).IsRequired();
         builder.Property(t => t.Status).HasEnumAsString().IsRequired();
         builder.Property(t => t.Priority).HasEnumAsString().IsRequired();

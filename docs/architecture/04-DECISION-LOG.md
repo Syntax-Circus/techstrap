@@ -853,7 +853,7 @@ Domain defines `DomainResult`, `DomainResult<T>` and `DomainError` (kinds Valida
 
 ### Consequences
 - Two small result types and one conversion extension, covered by `DomainResultExtensionsTests`.
-- If the owner prefers the first alternative, the change is local: delete `DomainResult.cs`, reference the package from Domain and relax the three rules named above.
+- If the owner prefers the first alternative, the change is local: delete `DomainResult.cs`, reference the package from Domain, relax the rule that Domain references nothing (`Domain_and_Contracts_reference_no_project_package_or_framework` and the matching statement in 02-ARCHITECTURE section 2), and drop the statement that only Application references `SyntaxCircus.Common`.
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, 2026-10-03 plan review)

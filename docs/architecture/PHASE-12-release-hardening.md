@@ -200,6 +200,8 @@ phase verifies configuration and upgrades only for security fixes.
 - [ ] Non-Authentik OIDC providers are untested beyond a generic test IdP.
 - [ ] `v1.0.0` locks the Contracts public API (see [PHASE-11](PHASE-11-client-sdk.md)); confirm nothing needs to change before tagging.
 - [ ] Trivy/Nistify tool availability and licensing on the owner's CI are not confirmed (**Assumption**: free/OSS usage).
+- [ ] Carried forward from the PHASE-03 final review: Ticket search GIN plan and shape on load-sized data (shared with PHASE-06).
+- [ ] Carried forward from the PHASE-03 final review: The search vectors are generated columns, so a write does not read the new vector back; revisit the tsvector read-back on writes if a handler needs it.
 
 ## Handoff
 

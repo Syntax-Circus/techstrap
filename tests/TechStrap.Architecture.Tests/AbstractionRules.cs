@@ -4,7 +4,7 @@ namespace TechStrap.Architecture.Tests;
 
 /// <summary>
 /// Rules for the Application abstractions that handlers depend on (P03-T07, D-026): no EF, HTTP or Infrastructure types,
-/// no IQueryable, no persistence records in any signature, and every asynchronous method ends with a CancellationToken.
+/// no IQueryable, no persistence records in any signature, and every asynchronous method (Task, ValueTask or IAsyncEnumerable) ends with a CancellationToken.
 /// Pure functions over types, so the tests can run them on deliberately bad fixtures.
 /// </summary>
 public static class AbstractionRules
@@ -16,11 +16,12 @@ public static class AbstractionRules
         "Microsoft.EntityFrameworkCore",
         "Microsoft.AspNetCore",
         "Npgsql",
+        "System.Net.Http",
         "TechStrap.Infrastructure",
     ];
 
     public static bool IsAbstraction(Type type) =>
-        type is { IsInterface: true } && (type.IsPublic || type.IsNestedPublic) && type.Name.StartsWith('I') && !type.IsGenericTypeDefinition;
+        type is { IsInterface: true } && (type.IsPublic || type.IsNestedPublic) && type.Name.StartsWith('I');
 
     public static IReadOnlyList<string> FindShapeViolations(IEnumerable<Type> types)
     {
@@ -52,7 +53,8 @@ public static class AbstractionRules
     {
         var returnType = method.ReturnType;
         return returnType == typeof(Task) || returnType == typeof(ValueTask)
-            || (returnType.IsGenericType && (returnType.GetGenericTypeDefinition() == typeof(Task<>) || returnType.GetGenericTypeDefinition() == typeof(ValueTask<>)));
+            || (returnType.IsGenericType && (returnType.GetGenericTypeDefinition() == typeof(Task<>) || returnType.GetGenericTypeDefinition() == typeof(ValueTask<>)
+                || returnType.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>)));
     }
 
     private static bool EndsWithCancellationToken(MethodInfo method)

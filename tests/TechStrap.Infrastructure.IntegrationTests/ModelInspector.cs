@@ -12,7 +12,12 @@ internal static partial class ModelInspector
     [GeneratedRegex("^[a-z][a-z0-9]*(_[a-z0-9]+)*$")]
     public static partial Regex SnakeCase();
 
-    public static IModel BuildModel()
+    private static readonly Lazy<IModel> CachedModel = new(CreateModel);
+
+    /// <summary>The model is immutable and costs a full build, so it is built once per test run.</summary>
+    public static IModel BuildModel() => CachedModel.Value;
+
+    private static IModel CreateModel()
     {
         var options = new DbContextOptionsBuilder<TechStrapDbContext>();
         TechStrapDatabase.Configure(options, "Host=localhost;Database=model_only");
