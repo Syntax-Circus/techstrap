@@ -38,4 +38,46 @@ public sealed class AgentsControllerTests
         result.ShouldBeOfType<OkObjectResult>();
         await handler.Received(1).HandleAsync(id, request, cancellation.Token);
     }
+
+    [Fact]
+    public async Task UpdateMyProfile_Delegates_returns_204()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var request = new UpdateMyProfileRequest("Ry");
+        var handler = Substitute.For<IUpdateMyProfileRequestHandler>();
+        handler.HandleAsync(request, cancellation.Token).Returns(Result.Success());
+
+        var result = await ControllerTestContext.For<AgentsController>().UpdateMyProfile(request, handler, cancellation.Token);
+
+        result.ShouldBeOfType<NoContentResult>();
+        await handler.Received(1).HandleAsync(request, cancellation.Token);
+    }
+
+    [Fact]
+    public async Task UpdateMyNotificationPreferences_Delegates_returns_204()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var request = new UpdateNotificationPreferencesRequest([new NotificationPreferenceUpdateDto(Guid.CreateVersion7(), true)]);
+        var handler = Substitute.For<IUpdateNotificationPreferencesRequestHandler>();
+        handler.HandleAsync(request, cancellation.Token).Returns(Result.Success());
+
+        var result = await ControllerTestContext.For<AgentsController>().UpdateMyNotificationPreferences(request, handler, cancellation.Token);
+
+        result.ShouldBeOfType<NoContentResult>();
+        await handler.Received(1).HandleAsync(request, cancellation.Token);
+    }
+
+    [Fact]
+    public async Task GetMyNotificationPreferences_Delegates_returns_200()
+    {
+        using var cancellation = new CancellationTokenSource();
+        IReadOnlyList<NotificationPreferenceDto> preferences = [new NotificationPreferenceDto(Guid.CreateVersion7(), "Orbitly", true)];
+        var handler = Substitute.For<IGetMyNotificationPreferencesRequestHandler>();
+        handler.HandleAsync(cancellation.Token).Returns(Result<IReadOnlyList<NotificationPreferenceDto>>.Success(preferences));
+
+        var result = await ControllerTestContext.For<AgentsController>().GetMyNotificationPreferences(handler, cancellation.Token);
+
+        result.ShouldBeOfType<OkObjectResult>().Value.ShouldBe(preferences);
+        await handler.Received(1).HandleAsync(cancellation.Token);
+    }
 }

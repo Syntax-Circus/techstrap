@@ -37,4 +37,25 @@ public sealed class AgentsController : ControllerBase
         [FromServices] IUpdateAgentRequestHandler updateAgent,
         CancellationToken cancellationToken) =>
         (await updateAgent.HandleAsync(id, request, cancellationToken)).ToActionResult(this, Ok);
+
+    [HttpGet("me/notification-preferences")]
+    public async Task<IActionResult> GetMyNotificationPreferences(
+        [FromServices] IGetMyNotificationPreferencesRequestHandler getPreferences,
+        CancellationToken cancellationToken) =>
+        (await getPreferences.HandleAsync(cancellationToken)).ToActionResult(this, Ok);
+
+    [HttpPut("me/notification-preferences")]
+    public async Task<IActionResult> UpdateMyNotificationPreferences(
+        UpdateNotificationPreferencesRequest request,
+        [FromServices] IUpdateNotificationPreferencesRequestHandler updatePreferences,
+        CancellationToken cancellationToken) =>
+        (await updatePreferences.HandleAsync(request, cancellationToken)).ToActionResult(this, NoContent);
+
+    /// <summary>Sets or clears the caller's customer-facing display name (D-024).</summary>
+    [HttpPut("me/profile")]
+    public async Task<IActionResult> UpdateMyProfile(
+        UpdateMyProfileRequest request,
+        [FromServices] IUpdateMyProfileRequestHandler updateProfile,
+        CancellationToken cancellationToken) =>
+        (await updateProfile.HandleAsync(request, cancellationToken)).ToActionResult(this, NoContent);
 }
