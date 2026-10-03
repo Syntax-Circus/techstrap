@@ -20,7 +20,4 @@
     <PackageReference Include="SyntaxCircus.Observability" />
   </ItemGroup>
 
-  <!-- app.scss imports Vendor/bootstrap, which exists only after libman restore; make the order explicit. -->
-  <Target Name="EnsureLibraryManagerRestoreBeforeSassCompile" BeforeTargets="Compile Sass" DependsOnTargets="LibraryManagerRestore" />
-
 </Project>
