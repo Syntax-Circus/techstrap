@@ -94,6 +94,14 @@ Versions of these are pinned by the owning phase when it starts; they were not v
 | k6 | Load tests (`tests/load/`) | P12 |
 | Trivy | Container image scan | P12 |
 
+## 4b. Front-end libraries restored at build by libman (npm via jsdelivr)
+
+These are npm packages, not NuGet packages, so `Directory.Packages.props` and `scripts/Check-PackageVersions.ps1` do not cover them (the table header deliberately has no `Package` or `Status` column). `scripts/tests/Libman.Tests.ps1` asserts that every `libman.json` library is pinned exactly, listed here with the same version, and restored only into a gitignored folder. Restored files are never committed.
+
+| Library | Used for | Exact version | Source/release verified | Owning phase |
+| --- | --- | --- | --- | --- |
+| `bootstrap` | SCSS base for Admin and Portal (`Styles/Vendor/bootstrap`, `scss/**` only) | 5.3.8 | [5.3.8](https://www.npmjs.com/package/bootstrap/v/5.3.8) via jsdelivr, restored in both apps by `Microsoft.Web.LibraryManager.Build` | P02 |
+
 ## 5. Published by TechStrap
 
 These are artifacts this repository produces, not dependencies.
