@@ -38,7 +38,7 @@ public static class DomainLimits
     /// <summary>The longest ticket number prefix a product can have (for example <c>ACME</c>).</summary>
     public const int NumberPrefixMaxLength = 10;
 
-    /// <summary>The longest formatted ticket number (for example <c>ACME-142</c>): a prefix of up to 10 characters, the hyphen and up to 13 digits.</summary>
+    /// <summary>The longest formatted ticket number (for example <c>ACME-142</c>): a prefix of up to 10 characters, the hyphen and up to 13 digits. <see cref="Tickets.TicketNumber"/> accepts any positive <see cref="long"/>, but a per-product counter cannot realistically pass 13 digits.</summary>
     public const int TicketNumberMaxLength = 24;
 
     /// <summary>The length of a hex colour such as <c>#1A2B3C</c>: the hash plus six digits.</summary>
