@@ -53,4 +53,24 @@ public sealed class AdminEventEndpointTests(TestPostgres postgres)
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
+
+    [Fact]
+    public async Task An_as_of_time_with_a_non_utc_offset_filters_without_error()
+    {
+        var (factory, admin, agent) = await StartAsync();
+        await using var _ = factory;
+        using var __ = admin;
+        using var ___ = agent;
+        using var created = await admin.PostAsJsonAsync("/api/tags", new CreateTagRequest("bug", "Bug", "#DC2626"), TestContext.Current.CancellationToken);
+        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var future = DateTimeOffset.UtcNow.AddHours(2).ToOffset(TimeSpan.FromHours(1)).ToString("yyyy-MM-ddTHH:mm:ssK").Replace("+", "%2B", StringComparison.Ordinal);
+
+        using var included = await admin.GetAsync($"/api/admin-events?subjectType=Tag&asOf={future}", TestContext.Current.CancellationToken);
+        using var excluded = await admin.GetAsync("/api/admin-events?subjectType=Tag&asOf=2020-01-01T00:00:00Z", TestContext.Current.CancellationToken);
+
+        included.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await included.Content.ReadFromJsonAsync<PagedResponse<AdminEventDto>>(TestContext.Current.CancellationToken))!.Items.ShouldHaveSingleItem();
+        excluded.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await excluded.Content.ReadFromJsonAsync<PagedResponse<AdminEventDto>>(TestContext.Current.CancellationToken))!.Items.ShouldBeEmpty();
+    }
 }

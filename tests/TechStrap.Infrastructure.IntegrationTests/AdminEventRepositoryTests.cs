@@ -115,6 +115,11 @@ public sealed class AdminEventRepositoryTests(PostgresFixture postgres) : Postgr
         var secondPage = await repository.ListAsync(filter, 2, 2, Ct);
 
         firstPage.Items.Concat(secondPage.Items).Select(e => e.Id).ShouldBe(ids, ignoreOrder: true);
+
+        var firstAgain = await repository.ListAsync(filter, 1, 2, Ct);
+        var secondAgain = await repository.ListAsync(filter, 2, 2, Ct);
+        firstAgain.Items.Select(e => e.Id).ShouldBe(firstPage.Items.Select(e => e.Id));
+        secondAgain.Items.Select(e => e.Id).ShouldBe(secondPage.Items.Select(e => e.Id));
     }
 
     [Fact]

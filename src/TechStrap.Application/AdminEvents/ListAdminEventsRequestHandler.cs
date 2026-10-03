@@ -37,7 +37,7 @@ public sealed class ListAdminEventsRequestHandler(IAdminEventRepository adminEve
             subject = parsed;
         }
 
-        var found = await adminEvents.ListAsync(new AdminEventFilter(subject, actorId, asOf), page, pageSize, cancellationToken);
+        var found = await adminEvents.ListAsync(new AdminEventFilter(subject, actorId, asOf?.ToUniversalTime()), page, pageSize, cancellationToken);
         var actorIds = found.Items.Select(e => e.ActorId).Distinct().ToList();
         var labels = (await agents.GetByIdsAsync(actorIds, cancellationToken)).ToDictionary(a => a.Id, a => a.Name ?? a.Email);
 
