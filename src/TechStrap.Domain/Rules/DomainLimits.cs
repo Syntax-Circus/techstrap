@@ -25,7 +25,6 @@ public static class DomainLimits
     public const int KbTitleMaxLength = 200;
     public const int KbSummaryMaxLength = 500;
     public const int KbBodyMaxLength = 200_000;
-    public const int SearchTextMaxLength = 200;
     public const int KeyPrefixMinLength = 4;
     public const int KeyPrefixMaxLength = 16;
     public const int HashMaxLength = 200;
@@ -38,4 +37,8 @@ public static class DomainLimits
 
     /// <summary>The length of a hex colour such as <c>#1A2B3C</c>: the hash plus six digits.</summary>
     public const int ColourHexLength = 7;
+
+    // A query limit, not a column length.
+    /// <summary>The maximum search text; longer text is truncated.</summary>
+    public const int SearchTextMaxLength = 200;
 }

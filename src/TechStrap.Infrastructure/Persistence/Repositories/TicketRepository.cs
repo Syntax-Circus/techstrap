@@ -99,7 +99,7 @@ internal sealed class TicketRepository(TechStrapDbContext context) : ITicketRepo
             tickets = tickets.Where(t => t.Tags.Any(link => link.TagId == tagId));
         }
 
-        var text = query.SearchText?.Trim();
+        var text = SearchText.Normalize(query.SearchText);
         var total = 0;
         List<TicketSummary> rows;
         if (string.IsNullOrEmpty(text))

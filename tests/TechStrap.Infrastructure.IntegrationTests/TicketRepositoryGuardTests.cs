@@ -4,6 +4,7 @@ using Npgsql;
 using SyntaxCircus.Common;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Tickets;
+using TechStrap.Domain.Rules;
 using TechStrap.Domain.Tickets;
 using TechStrap.Infrastructure.Persistence;
 using TechStrap.Infrastructure.Persistence.Records;
@@ -266,6 +267,32 @@ public sealed class TicketRepositoryGuardTests(PostgresFixture postgres) : Postg
         hugePage.Page.ShouldBe(Paging.MaxPage);
         searchClamped.Items.Count.ShouldBe(Paging.MaxPageSize);
         searchClamped.PageSize.ShouldBe(Paging.MaxPageSize);
+    }
+
+    [Fact]
+    public async Task Search_text_cut_through_an_emoji_does_not_throw()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var scenario = await TicketScenario.CreateAsync(host);
+        await scenario.CreateTicketAsync();
+        var text = "printer" + new string(' ', DomainLimits.SearchTextMaxLength - 8) + "\U0001F600";
+
+        var result = await host.ReadAsync(sp => sp.GetRequiredService<ITicketRepository>().ListAsync(new TicketQuery(TicketView.All, SearchText: text), Ct));
+
+        result.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Overlong_search_text_is_truncated_to_the_search_limit()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var scenario = await TicketScenario.CreateAsync(host);
+        var ticket = await scenario.CreateTicketAsync();
+        var text = "sign" + new string(' ', DomainLimits.SearchTextMaxLength + 100) + "zzzzqqq";
+
+        var result = await host.ReadAsync(sp => sp.GetRequiredService<ITicketRepository>().ListAsync(new TicketQuery(TicketView.All, SearchText: text), Ct));
+
+        result.Items.ShouldHaveSingleItem().Id.ShouldBe(ticket.Id);
     }
 
     [Fact]

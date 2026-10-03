@@ -79,7 +79,7 @@ public sealed class KbRepositoryGuardTests(PostgresFixture postgres) : PostgresI
     }
 
     [Fact]
-    public async Task Draft_and_archived_articles_never_reach_a_customer_by_list_slug_or_search()
+    public async Task Customer_methods_never_return_a_draft_an_archived_or_a_shared_draft_article_and_need_no_status()
     {
         await using var host = new PersistenceTestHost(Database);
         var scenario = await TicketScenario.CreateAsync(host);
@@ -91,8 +91,18 @@ public sealed class KbRepositoryGuardTests(PostgresFixture postgres) : PostgresI
         var sharedDraft = Article(scenario, "shared-draft", "Router reset shared draft", null);
         await AddAsync(scenario, published, draft, archived, sharedDraft);
 
-        var list = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().ListArticlesAsync(new KbArticleQuery(ProductId: scenario.Acme.Id, Status: KbArticleStatus.Published), Ct));
-        var search = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().SearchAsync(new KbSearchQuery("router", ProductId: scenario.Acme.Id, Status: KbArticleStatus.Published), Ct));
+        var list = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().ListPublishedArticlesAsync(new PublishedKbArticleQuery(ProductId: scenario.Acme.Id), Ct));
+        var search = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().SearchPublishedAsync(new PublishedKbSearchQuery("router", ProductId: scenario.Acme.Id), Ct));
+        var byId = await host.ReadAsync(async sp =>
+        {
+            var repository = sp.GetRequiredService<IKbRepository>();
+            return new[]
+            {
+                await repository.GetPublishedArticleAsync(draft.Id, Ct),
+                await repository.GetPublishedArticleAsync(archived.Id, Ct),
+                await repository.GetPublishedArticleAsync(sharedDraft.Id, Ct),
+            };
+        });
         var bySlug = await host.ReadAsync(async sp =>
         {
             var repository = sp.GetRequiredService<IKbRepository>();
@@ -103,14 +113,54 @@ public sealed class KbRepositoryGuardTests(PostgresFixture postgres) : PostgresI
                 await repository.GetPublishedArticleBySlugAsync(null, "shared-draft", Ct),
             };
         });
-        var visible = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().GetPublishedArticleBySlugAsync(scenario.Acme.Id, "pub", Ct));
-        var agentView = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().GetArticleBySlugAsync(scenario.Acme.Id, "draft", Ct));
+        var visibleBySlug = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().GetPublishedArticleBySlugAsync(scenario.Acme.Id, "pub", Ct));
+        var visibleById = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().GetPublishedArticleAsync(published.Id, Ct));
 
         list.Items.ShouldHaveSingleItem().Slug.ShouldBe("pub");
         search.Items.ShouldHaveSingleItem().Slug.ShouldBe("pub");
+        byId.ShouldAllBe(a => a == null);
         bySlug.ShouldAllBe(a => a == null);
-        visible!.Slug.ShouldBe("pub");
-        agentView.ShouldNotBeNull();
+        visibleBySlug!.Slug.ShouldBe("pub");
+        visibleById!.Slug.ShouldBe("pub");
+    }
+
+    [Fact]
+    public async Task Agent_methods_return_articles_of_any_status()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var scenario = await TicketScenario.CreateAsync(host);
+        var draft = Article(scenario, "draft", "Router reset draft", scenario.Acme.Id);
+        await AddAsync(scenario, draft);
+
+        var agentBySlug = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().GetArticleBySlugAsync(scenario.Acme.Id, "draft", Ct));
+        var agentById = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().GetArticleAsync(draft.Id, Ct));
+        var agentList = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().ListArticlesAsync(new KbArticleQuery(ProductId: scenario.Acme.Id), Ct));
+        var agentSearch = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().SearchAsync(new KbSearchQuery("router", ProductId: scenario.Acme.Id), Ct));
+
+        agentBySlug.ShouldNotBeNull();
+        agentById.ShouldNotBeNull();
+        agentList.Items.ShouldHaveSingleItem();
+        agentSearch.Items.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task An_article_added_and_updated_in_one_scope_is_inserted_once_with_the_update_applied()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var scenario = await TicketScenario.CreateAsync(host);
+        var article = Article(scenario, "faq", "FAQ", scenario.Acme.Id);
+
+        var result = await host.CommitAsync(sp =>
+        {
+            var kb = sp.GetRequiredService<IKbRepository>();
+            kb.AddArticle(article);
+            article.Update(null, "Edited", null, "body", host.Clock);
+            kb.UpdateArticle(article);
+            return Task.CompletedTask;
+        });
+
+        result.IsSuccess.ShouldBeTrue();
+        (await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().GetArticleAsync(article.Id, Ct)))!.Title.ShouldBe("Edited");
     }
 
     [Fact]
@@ -189,6 +239,21 @@ public sealed class KbRepositoryGuardTests(PostgresFixture postgres) : PostgresI
         injection.Items.ShouldBeEmpty();
         overlong.Items.ShouldHaveSingleItem().Slug.ShouldBe("faq");
         still.Items.ShouldHaveSingleItem().Slug.ShouldBe("faq");
+    }
+
+    [Fact]
+    public async Task Search_text_cut_through_an_emoji_does_not_throw_and_still_matches()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var scenario = await TicketScenario.CreateAsync(host);
+        var article = Article(scenario, "faq", "Printer guide", scenario.Acme.Id);
+        article.Publish(host.Clock);
+        await AddAsync(scenario, article);
+        var text = "printer" + new string(' ', DomainLimits.SearchTextMaxLength - 8) + "\U0001F600";
+
+        var result = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().SearchAsync(new KbSearchQuery(text), Ct));
+
+        result.Items.ShouldHaveSingleItem().Slug.ShouldBe("faq");
     }
 
     [Fact]

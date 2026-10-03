@@ -6,20 +6,30 @@ namespace TechStrap.Application.Persistence;
 
 public interface IKbRepository
 {
+    /// <summary>Agent-facing; returns any status; never call from customer handlers (use <see cref="GetPublishedArticleAsync"/>).</summary>
     Task<KbArticle?> GetArticleAsync(Guid id, CancellationToken cancellationToken);
 
-    /// <summary>Agent-facing: returns the article in any status. A null product looks in the shared slug space.</summary>
+    /// <summary>Customer and portal lookup by id: null unless the article is Published.</summary>
+    Task<KbArticle?> GetPublishedArticleAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>Agent-facing; returns any status; never call from customer handlers (use <see cref="GetPublishedArticleBySlugAsync"/>). A null product looks in the shared slug space.</summary>
     Task<KbArticle?> GetArticleBySlugAsync(Guid? productId, string slug, CancellationToken cancellationToken);
 
     /// <summary>Customer and portal lookup: null unless the article is Published, so a draft or archived article is never served. A null product looks in the shared slug space.</summary>
     Task<KbArticle?> GetPublishedArticleBySlugAsync(Guid? productId, string slug, CancellationToken cancellationToken);
 
-    /// <remarks>Any status unless <see cref="KbArticleQuery.Status"/> is set. A customer or portal handler MUST pass <c>Status = Published</c>.</remarks>
+    /// <summary>Agent-facing; returns any status unless <see cref="KbArticleQuery.Status"/> is set; never call from customer handlers (use <see cref="ListPublishedArticlesAsync"/>).</summary>
     Task<PagedResult<KbArticle>> ListArticlesAsync(KbArticleQuery query, CancellationToken cancellationToken);
 
-    /// <summary>Full-text search ranked by relevance; blank text returns an empty page.</summary>
-    /// <remarks>Any status unless <see cref="KbSearchQuery.Status"/> is set. A customer or portal handler MUST pass <c>Status = Published</c>. Text longer than <c>DomainLimits.SearchTextMaxLength</c> is truncated.</remarks>
+    /// <summary>Customer and portal list: only Published articles, whatever the caller passes (the query has no status).</summary>
+    Task<PagedResult<KbArticle>> ListPublishedArticlesAsync(PublishedKbArticleQuery query, CancellationToken cancellationToken);
+
+    /// <summary>Agent-facing full-text search ranked by relevance; blank text returns an empty page.</summary>
+    /// <remarks>Returns any status unless <see cref="KbSearchQuery.Status"/> is set; never call from customer handlers (use <see cref="SearchPublishedAsync"/>). Text longer than <c>DomainLimits.SearchTextMaxLength</c> is truncated.</remarks>
     Task<PagedResult<KbArticle>> SearchAsync(KbSearchQuery query, CancellationToken cancellationToken);
+
+    /// <summary>Customer and portal full-text search: only Published articles, whatever the caller passes. Blank text returns an empty page; long text is truncated.</summary>
+    Task<PagedResult<KbArticle>> SearchPublishedAsync(PublishedKbSearchQuery query, CancellationToken cancellationToken);
 
     /// <summary>
     /// TODO(Application handler): the repository cannot check that the article's category belongs to the article's product (the method returns
@@ -45,5 +55,6 @@ public interface IKbRepository
 
     void AddTicketArticle(TicketArticle link);
 
+    /// <summary>Agent-facing; returns linked articles in any status; never expose to customers.</summary>
     Task<IReadOnlyList<KbArticle>> ListLinkedArticlesAsync(Guid ticketId, CancellationToken cancellationToken);
 }

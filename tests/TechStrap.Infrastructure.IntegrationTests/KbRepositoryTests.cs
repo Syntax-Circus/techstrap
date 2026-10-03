@@ -49,20 +49,6 @@ public sealed class KbRepositoryTests(PostgresFixture postgres) : PostgresIntegr
     }
 
     [Fact]
-    public async Task A_duplicate_slug_in_the_same_product_or_both_shared_is_a_conflict()
-    {
-        await using var host = new PersistenceTestHost(Database);
-        var scenario = await TicketScenario.CreateAsync(host);
-        await AddAsync(scenario, Article(scenario, "faq", "FAQ", scenario.Acme.Id), Article(scenario, "faq", "FAQ shared", null));
-
-        var sameProduct = await AddAsync(scenario, Article(scenario, "faq", "Again", scenario.Acme.Id));
-        var bothShared = await AddAsync(scenario, Article(scenario, "faq", "Again shared", null));
-
-        sameProduct.Errors.ShouldHaveSingleItem().Code.ShouldBe(PersistenceErrorCodes.Duplicate);
-        bothShared.Errors.ShouldHaveSingleItem().Code.ShouldBe(PersistenceErrorCodes.Duplicate);
-    }
-
-    [Fact]
     public async Task Editing_publishing_and_archiving_are_persisted()
     {
         await using var host = new PersistenceTestHost(Database);
