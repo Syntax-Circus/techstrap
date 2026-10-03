@@ -85,4 +85,38 @@ public sealed class TicketAccessTokenTests
     {
         TicketAccessToken.Issue(Guid.NewGuid(), Guid.NewGuid(), " ", _clock).Error!.Code.ShouldBe("token-hash-required");
     }
+
+    [Fact]
+    public void A_new_token_records_when_it_was_issued()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 3, 9, 0, 0, TimeSpan.Zero));
+
+        var token = TicketAccessToken.Issue(Guid.CreateVersion7(), Guid.CreateVersion7(), "sha256:abc", clock).Value;
+
+        token.IssuedAt.ShouldBe(clock.GetUtcNow());
+        token.ExpiresAt.ShouldBe(clock.GetUtcNow() + TicketAccessToken.Lifetime);
+    }
+
+    [Fact]
+    public void Use_slides_the_expiry_but_never_past_the_absolute_cap()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        var token = TicketAccessToken.Issue(Guid.CreateVersion7(), Guid.CreateVersion7(), "sha256:abc", clock).Value;
+
+        for (var day = 0; day < 360; day += 30)
+        {
+            clock.Advance(TimeSpan.FromDays(30));
+            if (token.IsValid(clock))
+            {
+                token.RecordUse(clock).IsSuccess.ShouldBeTrue();
+            }
+        }
+
+        token.ExpiresAt.ShouldBeLessThanOrEqualTo(token.IssuedAt + TicketAccessToken.MaxLifetime);
+        clock.SetUtcNow(token.IssuedAt + TicketAccessToken.MaxLifetime);
+        token.IsValid(clock).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void The_cap_is_one_year() => TicketAccessToken.MaxLifetime.ShouldBe(TimeSpan.FromDays(365));
 }

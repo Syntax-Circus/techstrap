@@ -4,18 +4,22 @@ namespace TechStrap.Domain.Tickets;
 
 /// <summary>
 /// The customer's per-ticket access credential. Only a hash is stored (D-001 token scheme). Expiry slides: every valid use
-/// moves it to now plus <see cref="Lifetime"/> (90 days, Assumption from the spec).
+/// moves it to now plus <see cref="Lifetime"/> (90 days, Assumption from the spec), but never past <see cref="MaxLifetime"/> from issue (D-032).
 /// </summary>
 public sealed class TicketAccessToken
 {
     public static readonly TimeSpan Lifetime = TimeSpan.FromDays(90);
 
-    private TicketAccessToken(Guid id, Guid ticketId, Guid requesterId, string tokenHash, DateTimeOffset expiresAt, DateTimeOffset? revokedAt, DateTimeOffset? lastUsedAt)
+    /// <summary>Absolute lifetime from issue; sliding never passes it (D-032).</summary>
+    public static readonly TimeSpan MaxLifetime = TimeSpan.FromDays(365);
+
+    private TicketAccessToken(Guid id, Guid ticketId, Guid requesterId, string tokenHash, DateTimeOffset issuedAt, DateTimeOffset expiresAt, DateTimeOffset? revokedAt, DateTimeOffset? lastUsedAt)
     {
         Id = id;
         TicketId = ticketId;
         RequesterId = requesterId;
         TokenHash = tokenHash;
+        IssuedAt = issuedAt;
         ExpiresAt = expiresAt;
         RevokedAt = revokedAt;
         LastUsedAt = lastUsedAt;
@@ -29,6 +33,8 @@ public sealed class TicketAccessToken
 
     public string TokenHash { get; }
 
+    public DateTimeOffset IssuedAt { get; }
+
     public DateTimeOffset ExpiresAt { get; private set; }
 
     public DateTimeOffset? RevokedAt { get; private set; }
@@ -38,13 +44,14 @@ public sealed class TicketAccessToken
     public static DomainResult<TicketAccessToken> Issue(Guid ticketId, Guid requesterId, string? tokenHash, TimeProvider clock)
     {
         var hash = Guard.RequiredText(tokenHash, DomainLimits.HashMaxLength, "token-hash");
+        var now = DomainTime.Now(clock);
         return hash.IsFailure
             ? hash.Error!
-            : DomainResult<TicketAccessToken>.Ok(new TicketAccessToken(EntityId.New(clock), ticketId, requesterId, hash.Value, DomainTime.Now(clock) + Lifetime, null, null));
+            : DomainResult<TicketAccessToken>.Ok(new TicketAccessToken(EntityId.New(clock), ticketId, requesterId, hash.Value, now, now + Lifetime, null, null));
     }
 
-    public static TicketAccessToken Restore(Guid id, Guid ticketId, Guid requesterId, string tokenHash, DateTimeOffset expiresAt, DateTimeOffset? revokedAt, DateTimeOffset? lastUsedAt) =>
-        new(id, ticketId, requesterId, tokenHash, expiresAt, revokedAt, lastUsedAt);
+    public static TicketAccessToken Restore(Guid id, Guid ticketId, Guid requesterId, string tokenHash, DateTimeOffset issuedAt, DateTimeOffset expiresAt, DateTimeOffset? revokedAt, DateTimeOffset? lastUsedAt) =>
+        new(id, ticketId, requesterId, tokenHash, issuedAt, expiresAt, revokedAt, lastUsedAt);
 
     public bool IsRevoked => RevokedAt is not null;
 
@@ -64,7 +71,9 @@ public sealed class TicketAccessToken
 
         var now = DomainTime.Now(clock);
         LastUsedAt = now;
-        ExpiresAt = now + Lifetime;
+        var slid = now + Lifetime;
+        var cap = IssuedAt + MaxLifetime;
+        ExpiresAt = slid < cap ? slid : cap;
         return DomainResult.Ok();
     }
 }
