@@ -108,7 +108,7 @@ Interfaces live in `TechStrap.Application`; implementations in `TechStrap.Infras
 | `IUnitOfWork` | EF unit of work | Atomic multi-write; translates concurrency conflicts to `Result` |
 | `ITicketNumberAllocator` | EF allocator | Per-product atomic sequence |
 | `IEmailOutbox`, `IEmailOutboxStore` | EF outbox | Enqueue in the caller's transaction; worker claim, ack, retry, dead-letter |
-| `IEmailSender` | `SyntaxCircus.Email` SMTP sender (Null sender in Development, in-memory in tests) | Sends rendered messages; used only by `DrainEmailOutboxHandler` |
+| `IOutboundEmailSender` | `SmtpOutboundEmailSender` over `SyntaxCircus.Email.IEmailSender` (SMTP; in-memory sender in tests) | Sends a rendered message; used only by `DrainEmailOutboxHandler` (D-033) |
 | `IEmailTemplateRenderer` | Template renderer | Text and HTML templates with product branding |
 | `ITicketNotificationPlanner` | Planner over `IEmailOutbox` and the renderer | Recipient rules and outbox rows (PHASE-06) |
 | `IAttachmentStore` | Over `SyntaxCircus.Storage` | Ticket attachments: size and type checks, streams, deletion |
@@ -120,17 +120,17 @@ Interfaces live in `TechStrap.Application`; implementations in `TechStrap.Infras
 | `ITicketPresenceStore` | In-memory store (API, single instance) | Viewing and composing state with TTL for `UpdateTicketPresenceHandler`. Resolves OQ-3 |
 | `IDevelopmentDataSeeder` | `DevelopmentDataSeeder` | Dev-only startup step (section 7.6); not a use-case entry point |
 | `ICurrentAgentClaims`, `TimeProvider` | `ClaimsCurrentAgentClaims` (Api, over `IHttpContextAccessor`); framework clock | Agent identity (subject, name, email, group-derived role, D-029) and time. `SyntaxCircus.Common.ICurrentUserService` is not used because it carries no groups |
-| Options types | Bound in each host | `AgentAccessOptions`, `IntakeOptions`, `PortalLinkOptions`, `AutoCloseOptions`, outbox and rate-limit options; validated on start |
+| Options types | Bound in each host | `AgentAccessOptions`, `IntakeOptions`, `PortalLinkOptions`, `AutoCloseOptions`, `EmailBrandingOptions`, `EmailOutboxWorkerOptions`, rate-limit options; validated on start |
 
 ## 4. Authentication and authorization schemes
 
 | Caller | Scheme | Credential location | Power | Policy / limits |
 | --- | --- | --- | --- | --- |
 | Agent / Admin | OIDC JWT bearer; Admin app does the code flow and forwards the token (`Blazor.Auth`) | `Authorization: Bearer` | Agent surface; Admin-only operations (product, key, agent and tag management, erase, delete, dead letters, audit; D-022) | Policy `Agent` requires `TECHSTRAP_AGENT_GROUP` or `TECHSTRAP_ADMIN_GROUP`; policy `Admin` requires `TECHSTRAP_ADMIN_GROUP`; the claim type is `TECHSTRAP_GROUP_CLAIM_TYPE` (default `groups`); no claim means 403; deactivated agent rejected. Roles come from IdP groups only (D-004, D-029) |
-| Product app, Trusted key | `SyntaxCircus.AspNetCore.Authentication` API key scheme | `X-Api-Key` | Create a ticket for that product; may set external user ref and trusted metadata | Server-side use only; per-key limit (generous) (D-001); optional `Idempotency-Key` (D-020) |
-| Product app, Public key | Same scheme, key kind `Public` | `X-Api-Key` | Create-only; metadata flagged untrusted; cannot set external ref | Per key + client IP rate limit (D-001); optional `Idempotency-Key` (D-020) |
+| Product app, Trusted key | `SyntaxCircus.AspNetCore.Authentication` API key scheme | `X-Api-Key` | Create a ticket for that product; may set external user ref and trusted metadata | Server-side use only; per-key limit (generous) (D-001); optional `Idempotency-Key` (D-020) (`ApiKey` policy; JSON body in v1, D-034) |
+| Product app, Public key | Same scheme, key kind `Public` | `X-Api-Key` | Create-only; metadata flagged untrusted; cannot set external ref | Per key + client IP rate limit (D-001); optional `Idempotency-Key` (D-020) (`ApiKey` policy; JSON body in v1, D-034) |
 | Customer | Per-ticket access token (hashed, revocable, sliding expiry) | Portal sends in header `X-Ticket-Token` to API (A-16); `/t/{token}` in browser URL | Read public messages, post reply, download public attachments | Uniform 404 on invalid; per-IP limit; token redacted from logs |
-| Anonymous public | None; `[AllowAnonymous]` on explicit endpoints only | n/a | Submit via web form for a product key in the route, read public product branding, read published KB, lost-link request | Honeypot, per-IP limits, size limits; default-deny fallback elsewhere |
+| Anonymous public | None; `[AllowAnonymous]` on explicit endpoints only (controllers declare the `Public` policy, D-034) | n/a | Submit via web form for a product key in the route, read public product branding, read published KB, lost-link request | Honeypot, per-IP limits, size limits; default-deny fallback elsewhere |
 
 Authorization split: host policies at the controller; resource checks (key belongs to product, token belongs to ticket, attachment visibility) in handlers.
 
@@ -255,7 +255,7 @@ Conventions:
 | --- | --- | --- | --- | --- | --- | --- |
 | `POST /api/public/products/{key}/tickets` (anonymous web form, multipart, `public-submit` limit) | `SubmitTicketRequestHandler` (channel `Web`, untrusted) | `IProductRepository`, `IRequesterRepository`, `ITicketRepository`, `ITicketNumberAllocator`, `IAccessTokenService`, `IAttachmentStore`, `IHtmlSanitizer`, `IEmailTemplateRenderer`, `IEmailOutbox`, `IUnitOfWork`, options (`IntakeOptions`, `PortalLinkOptions`); `ITicketNotificationPlanner` is added in PHASE-06 | EF repos, UoW, allocator, token service, storage store, sanitizer, renderer, Outbox | 201 `SubmitTicketResponse` (ticket number only; the view link arrives by email); 400 limits/allowlist; 413 oversize; 404 unknown or inactive product; honeypot returns the same 201 shape to bots without creating a ticket (**Assumption**) | H, C, I | D-001, D-010, D-016 |
 | `POST /api/intake/tickets` (Trusted or Public API key) | `SubmitTicketRequestHandler` (same use case; channel `Api`; trust from key kind) | same as above, plus `ICurrentUserService` for key principal (product id, kind) and `IIntakeIdempotencyStore` (optional `Idempotency-Key`) | same as above, plus idempotency store | 201 `SubmitTicketResponse` (number, view URL; a repeated `Idempotency-Key` returns the original response); 400; 401 uniform for a bad key; external ref from a Public key is dropped with a warning and its metadata flagged untrusted (rule fixed in PHASE-05) | H, C, I | D-001, D-016, D-020 |
-| Worker outbox loop (`EmailOutboxWorker` hosted service, constructor-injected) | `DrainEmailOutboxHandler` (plain `Task` or `Result`; no caller branching other than loop delay) | `IEmailOutboxStore`, `IEmailTemplateRenderer`, `IProductRepository`, `IEmailSender` (`SyntaxCircus.Email`), `TimeProvider` | Outbox store (`SKIP LOCKED`), SMTP sender | Loop: batch processed means poll again; empty or failure means delay; unexpected exception logged and loop continues | H, I, W | D-010, D-012 |
+| Worker outbox loop (`EmailOutboxWorker` hosted service, constructor-injected) | `DrainEmailOutboxHandler` (plain `Task` or `Result`; no caller branching other than loop delay) | `IEmailOutboxStore`, `IEmailTemplateRenderer`, `IProductRepository`, `IOutboundEmailSender`, `IOptions<EmailOutboxWorkerOptions>` | Outbox store (`SKIP LOCKED`), SMTP sender | Loop: batch processed means poll again; empty or failure means delay; unexpected exception logged and loop continues | H, I, W | D-010, D-012 |
 | `GET /api/public/products/{key}` (anonymous, `public-read` limit, Cache-Control) | `GetPublicProductRequestHandler` | `IProductRepository` | EF repos | 200 `PublicProductDto` (name, logo, accent; no secrets) with `Cache-Control: public, max-age`; 404 `no-store` | H, C, I | D-002 |
 
 ### 7.3 Ticket operations (PHASE-06)

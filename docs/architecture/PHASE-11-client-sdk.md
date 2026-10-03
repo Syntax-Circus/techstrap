@@ -173,6 +173,7 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 - [ ] `net10.0`-only targeting excludes older consumers; revisit after 1.0.
 - [ ] Trusted Publishing needs `NUGET_USER` and a policy per package ID; the first publish of a new ID may require manual ownership steps.
 - [ ] `TechStrap.Client.Tests` is listed in the test layout in `02-ARCHITECTURE.md`; sample projects are not part of the test list.
+- [ ] Carried forward from PHASE-05 (D-034): API-key intake is JSON-only; add multipart attachments if the SDK or the MAUI helper needs screenshots.
 
 ## Handoff
 
