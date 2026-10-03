@@ -120,7 +120,7 @@ Interfaces live in `TechStrap.Application`; implementations in `TechStrap.Infras
 | `ITicketPresenceStore` | In-memory store (API, single instance) | Viewing and composing state with TTL for `UpdateTicketPresenceHandler`. Resolves OQ-3 |
 | `IDevelopmentDataSeeder` | `DevelopmentDataSeeder` | Dev-only startup step (section 7.6); not a use-case entry point |
 | `ICurrentAgentClaims`, `TimeProvider` | `ClaimsCurrentAgentClaims` (Api, over `IHttpContextAccessor`); framework clock | Agent identity (subject, name, email, group-derived role, D-029) and time. `SyntaxCircus.Common.ICurrentUserService` is not used because it carries no groups |
-| Options types | Bound in each host | `AgentAccessOptions`, `IntakeOptions`, `PortalLinkOptions`, `AutoCloseOptions`, `EmailBrandingOptions`, `EmailOutboxWorkerOptions`, rate-limit options; validated on start |
+| Options types | Bound in each host | `AgentAccessOptions`, `PortalLinkOptions`, `AutoCloseOptions`, `EmailBrandingOptions`, `EmailOutboxWorkerOptions`, rate-limit options; validated on start |
 
 ## 4. Authentication and authorization schemes
 
@@ -130,7 +130,7 @@ Interfaces live in `TechStrap.Application`; implementations in `TechStrap.Infras
 | Product app, Trusted key | `SyntaxCircus.AspNetCore.Authentication` API key scheme | `X-Api-Key` | Create a ticket for that product; may set external user ref and trusted metadata | Server-side use only; per-key limit (generous) (D-001); optional `Idempotency-Key` (D-020) (`ApiKey` policy; JSON body in v1, D-034) |
 | Product app, Public key | Same scheme, key kind `Public` | `X-Api-Key` | Create-only; metadata flagged untrusted; cannot set external ref | Per key + client IP rate limit (D-001); optional `Idempotency-Key` (D-020) (`ApiKey` policy; JSON body in v1, D-034) |
 | Customer | Per-ticket access token (hashed, revocable, sliding expiry) | Portal sends in header `X-Ticket-Token` to API (A-16); `/t/{token}` in browser URL | Read public messages, post reply, download public attachments | Uniform 404 on invalid; per-IP limit; token redacted from logs |
-| Anonymous public | None; `[AllowAnonymous]` on explicit endpoints only (controllers declare the `Public` policy, D-034) | n/a | Submit via web form for a product key in the route, read public product branding, read published KB, lost-link request | Honeypot, per-IP limits, size limits; default-deny fallback elsewhere |
+| Anonymous public | None; the explicit `Public` policy, declared by each public controller (D-034), on explicit endpoints only | n/a | Submit via web form for a product key in the route, read public product branding, read published KB, lost-link request | Honeypot, per-IP limits, size limits; default-deny fallback elsewhere |
 
 Authorization split: host policies at the controller; resource checks (key belongs to product, token belongs to ticket, attachment visibility) in handlers.
 
@@ -253,10 +253,10 @@ Conventions:
 
 | Entry point/use case | Named handler | Application dependencies | Infrastructure implementations | Outcome mapping | Tests | Decision |
 | --- | --- | --- | --- | --- | --- | --- |
-| `POST /api/public/products/{key}/tickets` (anonymous web form, multipart, `public-submit` limit) | `SubmitTicketRequestHandler` (channel `Web`, untrusted) | `IProductRepository`, `IRequesterRepository`, `ITicketRepository`, `ITicketNumberAllocator`, `IAccessTokenService`, `IAttachmentStore`, `IHtmlSanitizer`, `IEmailTemplateRenderer`, `IEmailOutbox`, `IUnitOfWork`, options (`IntakeOptions`, `PortalLinkOptions`); `ITicketNotificationPlanner` is added in PHASE-06 | EF repos, UoW, allocator, token service, storage store, sanitizer, renderer, Outbox | 201 `SubmitTicketResponse` (ticket number only; the view link arrives by email); 400 limits/allowlist; 413 oversize; 404 unknown or inactive product; honeypot returns the same 201 shape to bots without creating a ticket (**Assumption**) | H, C, I | D-001, D-010, D-016 |
+| `POST /api/public/products/{key}/tickets` (anonymous web form, multipart, `public-submit` limit) | `SubmitTicketRequestHandler` (channel `Web`, untrusted) | `IProductRepository`, `IRequesterRepository`, `ITicketRepository`, `ITicketNumberAllocator`, `IAccessTokenService`, `IAttachmentStore`, `IHtmlSanitizer`, `IEmailOutbox`, `IIntakeIdempotencyStore`, `IUnitOfWork`, `TimeProvider`, `IOptions<PortalLinkOptions>`, `ILogger`; `ITicketNotificationPlanner` is added in PHASE-06 | EF repos, UoW, allocator, token service, storage store, sanitizer, idempotency store, Outbox | 201 `SubmitTicketResponse` (ticket number only; the view link arrives by email); 400 limits/allowlist; 413 oversize; 404 unknown or inactive product; honeypot returns the same 201 shape to bots without creating a ticket (**Assumption**) | H, C, I | D-001, D-010, D-016 |
 | `POST /api/intake/tickets` (Trusted or Public API key) | `SubmitTicketRequestHandler` (same use case; channel `Api`; trust from key kind) | same as above, plus `ICurrentUserService` for key principal (product id, kind) and `IIntakeIdempotencyStore` (optional `Idempotency-Key`) | same as above, plus idempotency store | 201 `SubmitTicketResponse` (number, view URL; a repeated `Idempotency-Key` returns the original ticket number with a fresh link; the stored response never holds the link, D-033); 400; 401 uniform for a bad key; external ref from a Public key is dropped with a warning and its metadata flagged untrusted (rule fixed in PHASE-05) | H, C, I | D-001, D-016, D-020 |
 | Worker outbox loop (`EmailOutboxWorker` hosted service, resolves the scoped handler from a fresh DI scope per iteration via `IServiceScopeFactory`) | `DrainEmailOutboxHandler` (plain `Task` or `Result`; no caller branching other than loop delay) | `IEmailOutboxStore`, `IEmailTemplateRenderer`, `IProductRepository`, `IOutboundEmailSender`, `IOptions<EmailOutboxWorkerOptions>`, `ILogger` | Outbox store (`SKIP LOCKED`), SMTP sender | Loop: batch processed means poll again; empty or failure means delay; unexpected exception logged and loop continues | H, I, W | D-010, D-012 |
-| `GET /api/public/products/{key}` (anonymous, `public-read` limit, Cache-Control) | `GetPublicProductRequestHandler` | `IProductRepository` | EF repos | 200 `PublicProductDto` (name, logo, accent; no secrets) with `Cache-Control: public, max-age`; 404 `no-store` | H, C, I | D-002 |
+| `GET /api/public/products/{key}` (anonymous, `public` limit, Cache-Control) | `GetPublicProductRequestHandler` | `IProductRepository` | EF repos | 200 `PublicProductDto` (name, logo, accent; no secrets) with `Cache-Control: public, max-age`; 404 `no-store` | H, C, I | D-002 |
 
 ### 7.3 Ticket operations (PHASE-06)
 
@@ -301,9 +301,9 @@ Conventions:
 | `POST /api/kb/categories` (Agent) | `CreateKbCategoryRequestHandler` | `IKbRepository` | EF repos | 201 `KbCategoryDto`; 409 | H, C | none |
 | `PUT /api/kb/categories/{id}` (Agent) | `UpdateKbCategoryRequestHandler` | `IKbRepository` | EF repos | 200 `KbCategoryDto`; 404; 409 | H, C | none |
 | `DELETE /api/kb/categories/{id}` (Admin) | `DeleteKbCategoryRequestHandler` | `IKbRepository` | EF repos | 204; 404; 409 not empty | H, C | none |
-| `GET /api/public/kb/search?product={key}&q=&category=` (anonymous, `public-read`; also deflection) | `SearchPublicKbArticlesRequestHandler` | `IKbRepository`, `IProductRepository` | EF repos (FTS) | 200 `KbSearchResponse` with short `Cache-Control` | H, C, I | D-011 |
-| `GET /api/public/kb/articles/{product}/{slug}` (anonymous, `public-read`) | `GetPublishedKbArticleRequestHandler` | `IKbRepository`, `IMarkdownRenderer`, `IHtmlSanitizer` | EF repos, Markdig renderer, sanitizer | 200 `PublishedKbArticleDto` (sanitized HTML) with `Cache-Control: public`; 404 `no-store` | H, C, I | D-014 |
-| `GET /api/public/kb/categories?product={key}` (anonymous, `public-read`) | `ListPublicKbCategoriesRequestHandler` | `IKbRepository`, `IProductRepository` | EF repos | 200 `PublicKbCategoryDto[]` | H, C | none |
+| `GET /api/public/kb/search?product={key}&q=&category=` (anonymous, `public` limit; also deflection) | `SearchPublicKbArticlesRequestHandler` | `IKbRepository`, `IProductRepository` | EF repos (FTS) | 200 `KbSearchResponse` with short `Cache-Control` | H, C, I | D-011 |
+| `GET /api/public/kb/articles/{product}/{slug}` (anonymous, `public` limit) | `GetPublishedKbArticleRequestHandler` | `IKbRepository`, `IMarkdownRenderer`, `IHtmlSanitizer` | EF repos, Markdig renderer, sanitizer | 200 `PublishedKbArticleDto` (sanitized HTML) with `Cache-Control: public`; 404 `no-store` | H, C, I | D-014 |
+| `GET /api/public/kb/categories?product={key}` (anonymous, `public` limit) | `ListPublicKbCategoriesRequestHandler` | `IKbRepository`, `IProductRepository` | EF repos | 200 `PublicKbCategoryDto[]` | H, C | none |
 | `GET /api/public/sitemap` (anonymous) | `GetSitemapEntriesRequestHandler` | `IKbRepository`, `IProductRepository` | EF repos | 200 `SitemapEntryDto[]` | H, C | none |
 
 ### 7.5 Live updates (PHASE-10)
@@ -405,15 +405,15 @@ Per _template pattern CLIENT_IP_RATE_LIMITING.md (reverse proxy in front of Dock
 
 | Policy | Applies to | Partition | Default |
 | --- | --- | --- | --- |
-| `public-read` | `GET /api/public/products/{key}`, public KB endpoints, sitemap | client IP | 120 / min |
+| `public` | `GET /api/public/products/{key}`, public KB endpoints, sitemap | client IP | 120 / min |
 | `public-submit` | `POST /api/public/products/{key}/tickets` | client IP | 5 / 10 min |
-| `intake-public-key` | `POST /api/intake/tickets` with a Public key | API key id + client IP | 10 / min |
-| `intake-trusted-key` | `POST /api/intake/tickets` with a Trusted key | API key id | 120 / min |
+| `intake-key` (Public key) | `POST /api/intake/tickets` with a Public key | key prefix + client IP | 10 / min |
+| `intake-key` (Trusted key) | `POST /api/intake/tickets` with a Trusted key | key prefix + client IP (a key id is impossible before authentication; the limiter reads the raw `X-Api-Key` prefix, so a spoofer who knows a prefix exhausts only their own IP's partition) | 120 / min |
 | `token-access` | customer ticket read, reply, attachment | client IP | 60 / min |
 | `lost-link` | `POST /api/customer/access-link` | client IP and a second limiter by normalized address | 5 / hour per IP, 3 / hour per address |
 
 - Rate-limit rejections use `UseProblemDetailsRejection` (429). IP auto-ban (`AddIpBanTracking`) is optional and not in core (**Assumption**); if added, its allowlist stays separate from trusted-proxy config (pattern anti-pattern).
-- **Default-deny** fallback authorization policy requiring an authenticated user; explicit `[AllowAnonymous]` only on health, OpenAPI, the public product, public KB, sitemap, web-form submit, customer-token and lost-link endpoints (customer-token endpoints authenticate by token inside the handler path, not by default scheme).
+- **Default-deny** fallback authorization policy requiring an authenticated user; health and OpenAPI use `[AllowAnonymous]`; web-form submit, the public product, public KB, sitemap, customer-token and lost-link endpoints declare the explicit `Public` policy at class level instead (D-034) (customer-token endpoints authenticate by token inside the handler path, not by default scheme).
 - **Cache-Control:** `public, max-age=<n>` on public product and published KB hits; `no-store` on 404, token and customer responses.
 - **Portal short memory cache** for branding and category lists (configurable seconds, 0 disables), never caching failures.
 - **Verification:** `docker compose config` shows the pinned subnet and trusted-proxy values; API logs show the real visitor IP for direct and Portal-proxied calls; exceeding a limit from one IP returns 429 while another IP is unaffected; tests use the default checked-in trusted network and an `IStartupFilter` for `RemoteIpAddress` (pattern testing gotcha, since trusted-proxy options bind eagerly).

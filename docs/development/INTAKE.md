@@ -8,7 +8,7 @@ keys below are the fake dev keys, safe to paste.
 
 | Route | Auth | Rate limit (defaults) | Used by |
 | --- | --- | --- | --- |
-| `POST /api/intake/tickets` (JSON) | `X-Api-Key`, trusted or public key | Trusted key: 120 per minute per key prefix. Public key: 10 per minute per key prefix and client IP | Product backends and the SDK |
+| `POST /api/intake/tickets` (JSON) | `X-Api-Key`, trusted or public key | Trusted key: 120 per minute per key prefix and client IP. Public key: 10 per minute per key prefix and client IP | Product backends and the SDK |
 | `POST /api/public/products/{productKey}/tickets` (multipart) | None | 5 per 10 minutes per client IP | The portal contact form |
 | `GET /api/public/products/{productKey}` | None | 120 per minute per client IP | The portal, for product branding |
 
@@ -88,7 +88,7 @@ with the product's current branding and sends it over SMTP.
 
 - **Retries.** A failed send goes back to pending and waits 1, 2, 4, then 8 minutes. After 5 attempts the row is
   dead-lettered.
-- **Lease.** A claim lasts `EmailOutbox__LeaseSeconds` (default 120) and must cover sending one whole batch. If a Worker
+- **Lease.** A claim lasts `EmailOutbox__LeaseSeconds` (default 900) and must cover sending one whole batch. If a Worker
   crashes, its rows are reclaimed after the lease expires. A claim that keeps expiring counts toward the 5 attempts.
 - **At-least-once.** A crash between sending and recording can send an email twice. Every message carries
   `Message-ID: <outbox-id>@techstrap.local`, so a duplicate is recognisable.
@@ -102,6 +102,9 @@ with the product's current branding and sends it over SMTP.
 
 ## Known limits
 
-- **Rate-limit partitions.** Unauthenticated callers can create rate-limit partitions by inventing key prefixes. Each such
+- **Trusted-key prefixes are not secret.** The first 12 characters of a key are shown in the Admin UI and appear in audit
+  logs. Because the trusted-key limit is per prefix and client IP, someone who spoofs a known prefix only exhausts their
+  own IP's partition, never the real key holder's.
+- **Rate-limit partitions.** Unauthenticated callers can create rate-limit partitions by inventing key prefixes (each invented prefix gets its own partition per IP). Each such
   request still costs one indexed hash lookup and ends in a `401`, and idle fixed-window partitions are evicted. Put the
   reverse proxy's own limits in front of the API on a public deployment.

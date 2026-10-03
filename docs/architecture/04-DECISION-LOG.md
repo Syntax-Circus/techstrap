@@ -1054,6 +1054,7 @@ Every Api controller declares an authorization policy (PHASE-04 `ControllerBound
 ### Consequences
 - **Test scope.** `AgentAccessCoverageTests` covers only routes with the Agent or Admin policy. Public and ApiKey routes get their own coverage tests.
 - **SDK attachments.** PHASE-11 adds API attachments if the SDK needs them.
+- **Rate-limit partitions.** The key policy runs before authentication, so a key id is not available; it partitions on the raw key prefix. Trusted keys are partitioned per prefix and client IP, so spoofing a known prefix (prefixes appear in the Admin UI and audit logs) costs only the spoofer's own IP partition. Invented prefixes still each get a partition per IP.
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-05 plan review)
