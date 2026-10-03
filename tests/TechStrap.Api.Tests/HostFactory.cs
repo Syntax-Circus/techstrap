@@ -52,7 +52,13 @@ public class HostFactory<TProgram>(
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
             // Tests opt in to migration explicitly; most do not need a database at startup.
-            configuration.AddInMemoryCollection(new Dictionary<string, string?> { [ApiStartupTasks.MigrateOnStartupKey] = "false" });
+            // The intake settings are validated on start, so every host that registers intake needs a valid default.
+            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [ApiStartupTasks.MigrateOnStartupKey] = "false",
+                ["TECHSTRAP_PORTAL_PUBLIC_URL"] = "https://portal.test",
+                ["Storage:Local:RootPath"] = Path.Combine(Path.GetTempPath(), "techstrap-tests-default-storage"),
+            });
             configuration.AddInMemoryCollection(settings ?? new Dictionary<string, string?>());
         });
         builder.ConfigureServices(services =>
