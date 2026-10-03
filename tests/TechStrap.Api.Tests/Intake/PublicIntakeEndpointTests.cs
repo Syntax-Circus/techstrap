@@ -120,6 +120,7 @@ public sealed class PublicIntakeEndpointTests(TestPostgres postgres) : IAsyncLif
         await using var _f = factory;
         using var client = factory.CreateClient();
         using var form = Form("https://spam.example");
+        AddFile(form, _png, "pixel.png", "image/png");
 
         using var response = await PostAsync(client, "orbitly", form);
 
@@ -129,6 +130,7 @@ public sealed class PublicIntakeEndpointTests(TestPostgres postgres) : IAsyncLif
         (await database.ScalarAsync<long>("SELECT count(*) FROM tickets")).ShouldBe(0);
         (await database.ScalarAsync<long>("SELECT count(*) FROM requesters")).ShouldBe(0);
         (await database.ScalarAsync<long>("SELECT count(*) FROM email_outbox")).ShouldBe(0);
+        (Directory.Exists(_storage) ? Directory.GetFiles(_storage, "*", SearchOption.AllDirectories) : []).ShouldBeEmpty();
     }
 
     [Fact]
@@ -216,5 +218,17 @@ public sealed class PublicIntakeEndpointTests(TestPostgres postgres) : IAsyncLif
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         (await database.ScalarAsync<long>("SELECT count(*) FROM tickets WHERE channel = 'Web' AND metadata_trusted = false")).ShouldBe(1);
+    }
+
+    [Fact]
+    public void The_form_pre_read_filter_runs_after_the_size_and_form_limit_filters()
+    {
+        var filters = typeof(TechStrap.Api.Controllers.PublicIntakeController).GetMethod(nameof(TechStrap.Api.Controllers.PublicIntakeController.Submit))!
+            .GetCustomAttributes(inherit: true).OfType<Microsoft.AspNetCore.Mvc.Filters.IOrderedFilter>().ToList();
+        var preRead = filters.Single(filter => filter.GetType().Name == "ReadFormBeforeBindingAttribute");
+        var limits = filters.Where(filter => filter is Microsoft.AspNetCore.Mvc.RequestFormLimitsAttribute
+            or Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute).ToList();
+        limits.Count.ShouldBe(2);
+        limits.ShouldAllBe(limit => preRead.Order > limit.Order);
     }
 }

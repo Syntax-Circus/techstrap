@@ -54,8 +54,12 @@ internal sealed class RequestTooLargeMiddleware(RequestDelegate next)
 /// the 413 BadHttpRequestException reach <see cref="RequestTooLargeMiddleware"/>. The parsed form is cached, so binding reuses it.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
-internal sealed class ReadFormBeforeBindingAttribute : Attribute, IAsyncResourceFilter
+internal sealed class ReadFormBeforeBindingAttribute : Attribute, IAsyncResourceFilter, IOrderedFilter
 {
+    // RequestFormLimits (and RequestSizeLimit) filters default to Order 900 and lower Order runs first. This must run after them, or the
+    // form is parsed under Kestrel's 30 MB / 128 MB defaults instead of the endpoint limits.
+    public int Order => 1000;
+
     public async Task OnResourceExecutionAsync(ResourceExecutingContext context, ResourceExecutionDelegate next)
     {
         var request = context.HttpContext.Request;
