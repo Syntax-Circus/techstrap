@@ -53,7 +53,7 @@ adapter endpoints.
 | Ticket queue and search | `ListTicketsRequestHandler` (P06) | `ITicketsClient` | `TicketsClient` | `PagedResponse<TicketSummaryDto>` | Consumed; no new server entry point |
 | Ticket detail + timeline | `GetTicketRequestHandler` (P06) | `ITicketsClient` | `TicketsClient` | `TicketDetailDto`; 404 -> NotFound view | Consumed; no new server entry point |
 | Reply / internal note | `AddAgentReplyRequestHandler`, `AddInternalNoteRequestHandler` (P06) | `ITicketsClient` | `TicketsClient` | 409 -> concurrency banner; 400 -> composer errors | Consumed; no new server entry point |
-| Status / assign / priority / product move | `ChangeTicketStatusRequestHandler`, `AssignTicketRequestHandler`, `ChangeTicketPriorityRequestHandler`, `MoveTicketProductRequestHandler` (P06) | `ITicketsClient` | `TicketsClient` | 409 concurrency; 422 illegal transition (e.g. edits on Closed) -> inline error | Consumed; no new server entry point |
+| Status / assign / priority / product move | `ChangeTicketStatusRequestHandler`, `AssignTicketRequestHandler`, `ChangeTicketPriorityRequestHandler`, `MoveTicketProductRequestHandler` (P06) | `ITicketsClient` | `TicketsClient` | 409 concurrency; 409 illegal transition (e.g. edits on Closed) -> inline error | Consumed; no new server entry point |
 | Tags on ticket | `AddTicketTagRequestHandler`, `RemoveTicketTagRequestHandler` (P06) | `ITicketsClient` | `TicketsClient` | Idempotent success | Consumed; no new server entry point |
 | Spam / delete / erase requester | `MarkTicketSpamRequestHandler` (Agent), `DeleteTicketRequestHandler`, `EraseRequesterRequestHandler` (Admin only, D-022) (P06) | `ITicketsClient` | `TicketsClient` | 204; list refresh; delete and erase hidden from Agents | Consumed; no new server entry point |
 | Attachment view/download | `GetAttachmentRequestHandler` (P06) | `IAttachmentsClient` | `AttachmentsClient` | Stream + content-type; 404 uniform | Consumed. Admin-hosted `GET /attachments/{id}` is a pass-through adapter (no workflow, no persistence), exempt per D-017 ([04-DECISION-LOG.md](04-DECISION-LOG.md)) |
@@ -144,7 +144,7 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 - [ ] **P07-T05** Implement typed clients (`IAgentsClient`, `IProductsClient`, `ITagsClient`, `IAdminEventsClient`) over `ApiClientBase` with ProblemDetails -> `Result` mapping and per-client resilience config
   - **Depends on:** P07-T02
   - **Validation:** Unit tests with stub `HttpMessageHandler`: success, 400 field errors, 403, 409, 503 retry on GET only, cancellation token propagated.
-- [ ] **P07-T06** Implement `ITicketsClient`, `IAttachmentsClient`, `IDeadLettersClient` (including concurrency-token header/body handling and multipart-free reply submit)
+- [ ] **P07-T06** Implement `ITicketsClient`, `IAttachmentsClient`, `IDeadLettersClient` (including `RowVersion` in the request body; replace local state with the returned `TicketStateDto` (D-036) and multipart reply submit (D-036))
   - **Depends on:** P07-T05
   - **Validation:** Same stub-handler suite; 409 maps to a distinct `Result` error code constant used by components.
 - [ ] **P07-T07** Build `TicketQueuePage`, `QueueViewTabs`, `QueueFilterBar`, `TicketRow`, paging, with query-string state
