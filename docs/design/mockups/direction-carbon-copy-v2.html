@@ -1,0 +1,625 @@
+<title>TechStrap — Carbon Copy v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+/*
+DIRECTION: Carbon Copy v2 (owner-picked base, three revisions)
+CONCEPT: A triplicate call-log form brought to the screen: ruled ledger rows, rubber-stamped statuses and a white/canary/pink colour code that separates customer, public reply and internal note.
+TYPOGRAPHY: IBM Plex Mono for ticket numbers, field labels, stamps and timestamps (typewriter/form-field feel, tabular by nature); IBM Plex Sans for dense UI chrome; Source Serif 4 for message bodies, which are the long-form reading text and benefit from a legible serif. Portal uses Plex Sans only, with mono limited to the ticket id.
+GEOMETRY AND MOTIFS: Square-cornered sheets, 1px blue ledger rules on 42px rows, a red margin rule on the left of the queue, numbered form-field boxes (1-5) only on the ticket header where it mirrors a paper call-log, stamps with slightly irregular border radii (tilted -2deg on the ticket view only), perforation (dashed) edges and a notched corner on internal notes. Motion is minimal: a stamp-down on status change, a blinking presence dot, all disabled under reduced motion.
+LOGO-REMOVAL TEST: Ruled rows with a red margin line, tilted rectangular rubber-stamp badges, and the three-tint (white/canary/pink) timeline with perforated pink notes. No other helpdesk looks like a stack of carbon forms.
+V2 CHANGES: (1) Keyboard layer borrowed from Night Shift but drawn in Carbon Copy terms: ledger-ruled keycaps (kbd), j/k/arrow row selection with a margin-rule marker, Enter/r/n/e/Esc/slash on the ticket and queue, a Ctrl/Cmd+K command palette styled as a form sheet, and a slim bottom status bar with keycap hints and a transient message area. Shortcuts never fire while typing in an input, textarea or select. (2) Calmer stamps: queue-row stamps are straight, smaller, single 1.5px border (the spam stamp keeps its double border, straight); the ticket view keeps the tilted stamp and stamp-down animation. (3) Beige Box borrowings, brand moments only: a "Brand moments" tab with three self-contained retro windows (beige plate, 2px navy outline, hard 3px shadow, navy title bar with mono text and green LED) using --bm-* tokens; the Caught-up view reuses the same window. The windows and the mascot stay out of the queue, the ticket and the Portal, which keeps only Powered by TechStrap.
+RISKS: Tints and stamp tilt could feel gimmicky or noisy if overused; dark "blueprint" mode relies on tint tokens staying subtle; mono labels everywhere can reduce scan speed if label text gets long. Tilted stamps slightly misalign baselines in dense rows.
+*/
+:root{
+  --paper:#F7F5EE; --sheet:#FFFFFF; --canary:#FFF4B0; --canary-edge:#C9B23A; --pink:#FFE0E3; --pink-edge:#D26E7B;
+  --ink:#14213D; --ink-2:#44506B; --ink-3:#5B667E; --rule:#C5D0E6; --rule-strong:#8E9FC4; --margin:#D9262E;
+  --accent:#1D4FA8; --on-accent:#FFFFFF; --focus:#B3141C; --hover:#EAF0FB; --sel:#DDE8FA;
+  --st-new:#1D5FB8; --st-open:#14702F; --st-pending:#8A5300; --st-solved:#1E5A6B; --st-closed:#5B6475; --st-spam:#B3141C;
+  --note-ink:#7A1022; --shadow:rgba(20,33,61,.14); --rail:#EFEBDD; --head:#E8EDF8; --overlay:rgba(20,33,61,.06);
+  --p-bg:#FFFFFF; --p-soft:#F5F5F7; --p-ink:#1B1B22; --p-ink2:#4A4A57; --p-line:#D4D4DC;
+  --scrim:rgba(20,33,61,.45);
+  --bm-plate:#EFDDBB; --bm-edge:#0B1F4B; --bm-bar:#0B1F4B; --bm-on-bar:#EFDDBB; --bm-text:#0B1F4B; --bm-text2:#434E6C;
+  --bm-crt:#3B95E0; --bm-on-crt:#0B1F4B; --bm-led:#22A447; --bm-shadow:#0B1F4B;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0B1E40; --sheet:#10285A; --canary:#3A3A1B; --canary-edge:#8C8A3A; --pink:#4A1E33; --pink-edge:#C46A86;
+  --ink:#E8EFFF; --ink-2:#B7C6E6; --ink-3:#9DAECF; --rule:#274A87; --rule-strong:#4A71B8; --margin:#FF6B73;
+  --accent:#8FC0FF; --on-accent:#0B1E40; --focus:#FFD84A; --hover:#163670; --sel:#1C4286;
+  --st-new:#8FC0FF; --st-open:#6EE29A; --st-pending:#F6C12B; --st-solved:#86DCEB; --st-closed:#AAB6D0; --st-spam:#FF9AA0;
+  --note-ink:#FFC9D6; --shadow:rgba(0,0,0,.4); --rail:#08172F; --head:#0E2650; --overlay:rgba(255,255,255,.04);
+  --scrim:rgba(0,0,0,.6);
+  --bm-plate:#1A2548; --bm-edge:#6F84B8; --bm-bar:#0A1430; --bm-on-bar:#EFDDBB; --bm-text:#F1E6CC; --bm-text2:#B7C2DE;
+  --bm-crt:#6FB4F2; --bm-on-crt:#06152E; --bm-led:#3DDC6B; --bm-shadow:#05070E;
+  color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --paper:#0B1E40; --sheet:#10285A; --canary:#3A3A1B; --canary-edge:#8C8A3A; --pink:#4A1E33; --pink-edge:#C46A86;
+  --ink:#E8EFFF; --ink-2:#B7C6E6; --ink-3:#9DAECF; --rule:#274A87; --rule-strong:#4A71B8; --margin:#FF6B73;
+  --accent:#8FC0FF; --on-accent:#0B1E40; --focus:#FFD84A; --hover:#163670; --sel:#1C4286;
+  --st-new:#8FC0FF; --st-open:#6EE29A; --st-pending:#F6C12B; --st-solved:#86DCEB; --st-closed:#AAB6D0; --st-spam:#FF9AA0;
+  --note-ink:#FFC9D6; --shadow:rgba(0,0,0,.4); --rail:#08172F; --head:#0E2650; --overlay:rgba(255,255,255,.04);
+  --scrim:rgba(0,0,0,.6);
+  --bm-plate:#1A2548; --bm-edge:#6F84B8; --bm-bar:#0A1430; --bm-on-bar:#EFDDBB; --bm-text:#F1E6CC; --bm-text2:#B7C2DE;
+  --bm-crt:#6FB4F2; --bm-on-crt:#06152E; --bm-led:#3DDC6B; --bm-shadow:#05070E;
+  color-scheme:dark;}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.45 "IBM Plex Sans",system-ui,"Segoe UI",Arial,sans-serif;font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:1px}
+a{color:var(--accent)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* switcher */
+.switch{position:sticky;top:0;z-index:20;background:var(--ink);color:var(--paper);display:flex;gap:6px;align-items:center;padding:6px 16px;flex-wrap:wrap}
+.switch b{font:600 12px "IBM Plex Mono",ui-monospace,Consolas,monospace;letter-spacing:.06em;margin-right:6px;white-space:nowrap}
+.switch button{background:transparent;border:1px solid var(--paper);color:var(--paper);padding:3px 10px;font:500 12px "IBM Plex Mono",ui-monospace,Consolas,monospace;cursor:pointer}
+.switch button[aria-pressed="true"]{background:var(--paper);color:var(--ink)}
+.switch .sp{flex:1}
+.switch :focus-visible{outline-color:var(--canary)}
+.view{display:none}.view.on{display:block}
+
+/* admin shell */
+.shell{display:grid;grid-template-columns:208px minmax(0,1fr);min-height:calc(100vh - 40px)}
+.rail{background:var(--rail);border-right:1px solid var(--rule-strong);padding:12px 0;display:flex;flex-direction:column;gap:2px}
+.brand{display:flex;align-items:center;gap:8px;padding:0 14px 12px;border-bottom:1px dashed var(--rule-strong);margin-bottom:8px}
+.brand img{width:36px;height:36px}
+.brand span{font:600 14px/1.1 "IBM Plex Mono",ui-monospace,Consolas,monospace}
+.brand small{display:block;font:400 10px "IBM Plex Mono",ui-monospace,Consolas,monospace;color:var(--ink-3);letter-spacing:.04em}
+.rail h3{font:500 10px "IBM Plex Mono",ui-monospace,Consolas,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:10px 14px 4px}
+.rail a{display:flex;justify-content:space-between;gap:8px;padding:6px 14px;color:var(--ink);text-decoration:none;border-left:3px solid transparent}
+.rail a:hover{background:var(--hover)}
+.rail a[aria-current="page"]{background:var(--sel);border-left-color:var(--margin);font-weight:600}
+.rail a i{font:500 12px "IBM Plex Mono",ui-monospace,Consolas,monospace;font-style:normal;color:var(--ink-2)}
+.rail .me{margin-top:auto;padding:10px 14px 0;border-top:1px dashed var(--rule-strong);font-size:12px;color:var(--ink-2)}
+.main{min-width:0}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:10px 16px;background:var(--head);border-bottom:1px solid var(--rule-strong)}
+.bar label{display:flex;flex-direction:column;gap:1px;font:500 10px "IBM Plex Mono",ui-monospace,Consolas,monospace;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);min-width:0}
+.bar select,.bar input{background:var(--sheet);border:1px solid var(--rule-strong);padding:4px 6px;min-height:30px;border-radius:0;font:400 13px "IBM Plex Sans",sans-serif;color:var(--ink);min-width:0}
+.bar .grow{flex:1 1 180px}.bar .grow input{width:100%}
+.title{display:flex;align-items:baseline;gap:10px;padding:12px 16px 6px}
+.title h1{font:600 18px "IBM Plex Mono",ui-monospace,Consolas,monospace;margin:0}
+.title span{color:var(--ink-2);font-size:12px}
+kbd{display:inline-block;font:500 11px/1.5 "IBM Plex Mono",ui-monospace,Consolas,monospace;border:1px solid var(--rule-strong);border-bottom-width:2px;padding:0 4px;background:var(--sheet);color:var(--ink);border-radius:0;white-space:nowrap}
+kbd+kbd{margin-left:2px}
+.btn kbd,.seg button kbd{background:transparent;border-color:currentColor;color:inherit;margin-left:4px}
+.hint{font:400 11px "IBM Plex Mono",ui-monospace,Consolas,monospace;color:var(--ink-2)}
+
+/* ledger */
+.ledger{margin:0 16px 24px;background:var(--sheet);border:1px solid var(--rule-strong);position:relative;box-shadow:3px 3px 0 var(--shadow)}
+.ledger::before{content:"";position:absolute;top:0;bottom:0;left:30px;width:0;border-left:2px solid var(--margin);opacity:.7;pointer-events:none}
+.lh,.lr{display:grid;grid-template-columns:30px 84px minmax(0,1fr) 128px 140px 92px 72px 40px 52px;align-items:center;column-gap:8px;padding:0 10px 0 0}
+.lh{background:var(--head);border-bottom:2px solid var(--rule-strong);font:500 10px "IBM Plex Mono",ui-monospace,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);height:28px}
+.lr{min-height:42px;border-bottom:1px solid var(--rule);cursor:pointer;text-decoration:none;color:inherit;padding-top:3px;padding-bottom:3px}
+.lr:hover{background:var(--hover)}
+.lr[aria-selected="true"]{background:var(--sel);box-shadow:inset 0 0 0 2px var(--focus)}
+.lr .ck{font:600 13px/1 "IBM Plex Mono",ui-monospace,Consolas,monospace;color:var(--focus);text-align:center}
+.lr[aria-selected="true"] .ck::before{content:"\25B8"}
+.lr.spam{background:repeating-linear-gradient(135deg,var(--overlay) 0 6px,transparent 6px 12px)}
+.lr .no{font:500 13px "IBM Plex Mono",ui-monospace,Consolas,monospace}
+.lr .sub{min-width:0}
+.lr .sub b{font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tags{display:flex;gap:4px;flex-wrap:wrap}
+.tag{font:400 11px "IBM Plex Mono",ui-monospace,Consolas,monospace;color:var(--ink-2);border:1px solid var(--rule-strong);padding:0 5px;background:var(--paper)}
+.lr .prod,.lr .req{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+.lr .prod{color:var(--ink-2)}
+.pri{font:600 11px "IBM Plex Mono",ui-monospace,Consolas,monospace;text-transform:uppercase;letter-spacing:.04em}
+.pri::before{content:"";display:inline-block;width:8px;height:8px;margin-right:5px;border:2px solid var(--ink-2)}
+.pri.urgent{color:var(--st-spam)}.pri.urgent::before{background:var(--st-spam);border-color:var(--st-spam)}
+.pri.high{color:var(--st-pending)}.pri.high::before{background:var(--st-pending);border-color:var(--st-pending)}
+.pri.normal,.pri.low{color:var(--ink-2)}
+.pri.low::before{border-style:dashed}
+.av{width:26px;height:26px;border:1.5px solid var(--ink);display:inline-grid;place-items:center;font:600 11px "IBM Plex Mono",ui-monospace,Consolas,monospace;background:var(--canary);color:var(--ink)}
+.av.none{border-style:dashed;border-color:var(--ink-3);background:transparent;color:var(--ink-3)}
+.ago{font:400 12px "IBM Plex Mono",ui-monospace,Consolas,monospace;color:var(--ink-2);text-align:right}
+
+/* stamps */
+.stamp{display:inline-block;font:600 11px/1 "IBM Plex Mono",ui-monospace,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase;padding:3px 6px 2px;color:var(--c);border:2px solid var(--c);border-radius:3px 6px 3px 5px / 5px 3px 6px 3px;transform:rotate(-2deg);white-space:nowrap;box-shadow:inset 0 0 0 1px var(--sheet),inset 0 0 0 2px var(--c);background:transparent}
+.stamp.new{--c:var(--st-new)}.stamp.open{--c:var(--st-open)}.stamp.pending{--c:var(--st-pending)}.stamp.solved{--c:var(--st-solved)}.stamp.closed{--c:var(--st-closed)}
+.stamp.spam{--c:var(--st-spam);border-style:double;border-width:3px;transform:rotate(2deg)}
+.lr .stamp{font-size:10px;padding:2px 5px 1px;border-width:1.5px;transform:none;box-shadow:none;letter-spacing:.07em}
+.lr .stamp.spam{border-style:double;border-width:3px;transform:none}
+.stamp.pop{animation:thud .35s ease-out}
+@keyframes thud{0%{transform:rotate(-2deg) scale(1.6);opacity:0}70%{transform:rotate(-2deg) scale(.95);opacity:1}100%{transform:rotate(-2deg) scale(1)}}
+
+/* ticket */
+.tk{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;padding:12px 16px 24px;align-items:start}
+.crumb{padding:10px 16px 0;font:400 12px "IBM Plex Mono",ui-monospace,Consolas,monospace;color:var(--ink-2)}
+.crumb a{color:var(--ink-2)}
+.form6{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--rule-strong);border-right:0;border-bottom:0;background:var(--sheet);box-shadow:3px 3px 0 var(--shadow)}
+.fld{border-right:1px solid var(--rule-strong);border-bottom:1px solid var(--rule-strong);padding:3px 8px 6px;min-width:0;position:relative}
+.fld .n{position:absolute;top:3px;right:6px;font:500 10px "IBM Plex Mono",ui-monospace,Consolas,monospace;color:var(--ink-3)}
+.fld .l{font:500 10px "IBM Plex Mono",ui-monospace,Consolas,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2)}
+.fld .v{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fld.f1{grid-column:span 1}.fld.f2{grid-column:span 2}.fld.wide{grid-column:span 6}
+.fld .v.t{font:600 16px/1.3 "IBM Plex Sans",sans-serif;white-space:normal}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace}
+.pres{display:flex;gap:8px;align-items:center;margin:10px 0 0;font:400 12px "IBM Plex Mono",ui-monospace,Consolas,monospace;color:var(--ink-2)}
+.dot{width:9px;height:9px;background:var(--st-open);border-radius:50%;animation:blink 1.4s infinite;flex:none}
+@keyframes blink{50%{opacity:.25}}
+.tl{margin:12px 0;display:flex;flex-direction:column;gap:10px}
+.msg{border:1px solid var(--rule-strong);padding:8px 12px 10px;position:relative;box-shadow:2px 2px 0 var(--shadow)}
+.msg .hd{display:flex;gap:8px;flex-wrap:wrap;align-items:baseline;font:500 11px "IBM Plex Mono",ui-monospace,Consolas,monospace;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2);margin-bottom:4px}
+.msg .hd strong{color:var(--ink);font-weight:600}
+.msg .hd time{margin-left:auto;text-transform:none;letter-spacing:0}
+.msg p{margin:4px 0;font:400 15px/1.55 "Source Serif 4",Georgia,serif;max-width:68ch}
+.msg.cust{background:var(--sheet);border-left:6px solid var(--ink-3)}
+.msg.pub{background:var(--canary);border-left:6px solid var(--canary-edge);margin-left:28px}
+.msg.note{background:var(--pink);border:2px dashed var(--pink-edge);margin-left:28px;clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%);box-shadow:none}
+.msg.note .hd{color:var(--note-ink)}
+.msg.note .lab{display:inline-block;font:600 11px "IBM Plex Mono",ui-monospace,Consolas,monospace;color:var(--note-ink);border:2px solid var(--note-ink);padding:0 5px;border-radius:2px 5px 2px 4px/4px 2px 5px 2px;letter-spacing:.06em}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font:400 11px "IBM Plex Mono",ui-monospace,Consolas,monospace;color:var(--ink-2);margin:12px 0 0}
+.legend i{display:inline-block;width:12px;height:12px;border:1px solid var(--rule-strong);vertical-align:-2px;margin-right:4px}
+.legend .l1{background:var(--sheet)}.legend .l2{background:var(--canary)}.legend .l3{background:var(--pink);border-style:dashed}
+.sys{font:400 12px "IBM Plex Mono",ui-monospace,Consolas,monospace;color:var(--ink-2);padding:0 0 0 12px;border-left:2px dotted var(--rule-strong);margin-left:10px;display:flex;gap:8px;flex-wrap:wrap}
+.sys code{background:var(--sheet);border:1px solid var(--rule);padding:0 4px}
+.comp{border:2px solid var(--canary-edge);background:var(--canary);padding:10px;margin-top:8px;box-shadow:3px 3px 0 var(--shadow)}
+.comp.is-note{background:var(--pink);border:2px dashed var(--pink-edge)}
+.seg{display:inline-flex;border:2px solid var(--ink)}
+.seg button{background:var(--sheet);border:0;padding:5px 12px;font:600 12px "IBM Plex Mono",ui-monospace,Consolas,monospace;cursor:pointer;text-transform:uppercase;letter-spacing:.04em}
+.seg button+button{border-left:2px solid var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.warn{display:none;margin:8px 0 0;padding:6px 8px;border:2px solid var(--note-ink);color:var(--note-ink);font:600 12px "IBM Plex Mono",ui-monospace,Consolas,monospace;background:var(--sheet)}
+.comp.is-note .warn{display:block}
+.comp textarea{display:block;width:100%;min-height:96px;margin-top:8px;padding:8px;border:1px solid var(--rule-strong);background:var(--sheet);font:400 15px/1.5 "Source Serif 4",Georgia,serif;resize:vertical;border-radius:0}
+.comp .row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.btn{background:var(--ink);color:var(--paper);border:2px solid var(--ink);padding:6px 14px;font:600 12px "IBM Plex Mono",ui-monospace,Consolas,monospace;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;min-height:34px}
+.btn.alt{background:var(--sheet);color:var(--ink)}
+.comp.is-note .btn.send{background:var(--note-ink);border-color:var(--note-ink);color:var(--pink)}
+.side{display:flex;flex-direction:column;gap:10px;position:sticky;top:48px}
+.card{background:var(--sheet);border:1px solid var(--rule-strong);box-shadow:2px 2px 0 var(--shadow)}
+.card h4{margin:0;padding:4px 10px;background:var(--head);border-bottom:1px solid var(--rule-strong);font:500 10px "IBM Plex Mono",ui-monospace,Consolas,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.kv{display:grid;grid-template-columns:84px minmax(0,1fr);margin:0}
+.kv>*{padding:6px 10px;border-bottom:1px solid var(--rule);min-width:0}
+.kv>dt{font:500 10px "IBM Plex Mono",ui-monospace,Consolas,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);display:flex;align-items:center;margin:0}
+.kv>dd{margin:0}
+.kv select{width:100%;background:var(--sheet);border:1px solid var(--rule-strong);padding:3px;min-height:28px;border-radius:0}
+.pad{padding:10px}
+
+/* brand moments: retro window (Beige Box borrowing, brand moments only) */
+.empty{display:grid;place-items:center;padding:40px 16px 60px}
+.empty .win{max-width:400px;width:100%}
+.win{background:var(--bm-plate);color:var(--bm-text);border:2px solid var(--bm-edge);box-shadow:3px 3px 0 var(--bm-shadow);display:flex;flex-direction:column;min-width:0}
+.win .titlebar{display:flex;align-items:center;gap:10px;background:var(--bm-bar);color:var(--bm-on-bar);padding:4px 10px;font:600 12px "IBM Plex Mono",ui-monospace,Consolas,monospace;min-width:0}
+.win .titlebar .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.win .led{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--bm-led);border:1.5px solid var(--bm-on-bar);flex:none}
+.win .wb{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:22px 20px 24px;min-width:0}
+.win img{width:96px;height:96px}
+.win h2{font:600 19px/1.2 "IBM Plex Mono",ui-monospace,Consolas,monospace;margin:4px 0 0}
+.win p{margin:0;font:400 15px/1.5 "Source Serif 4",Georgia,serif;max-width:34ch;overflow-wrap:anywhere}
+.win .fine{font:400 12px/1.4 "IBM Plex Mono",ui-monospace,Consolas,monospace;color:var(--bm-text2)}
+.win .wact{margin-top:auto;padding-top:10px}
+.bm-btn{background:var(--bm-crt);color:var(--bm-on-crt);border:2px solid var(--bm-edge);box-shadow:2px 2px 0 var(--bm-shadow);padding:8px 14px;font:600 12px "IBM Plex Mono",ui-monospace,Consolas,monospace;text-transform:uppercase;letter-spacing:.05em;min-height:40px;cursor:pointer;max-width:100%}
+.bm-btn:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--bm-shadow)}
+.bm-link{color:var(--bm-text);font:600 13px "IBM Plex Mono",ui-monospace,Consolas,monospace;text-decoration:underline;text-underline-offset:3px;display:inline-block;padding:8px 2px}
+.bm-page{padding:16px 16px 40px;max-width:1200px;margin:0 auto}
+.bm-page h1{font:600 18px "IBM Plex Mono",ui-monospace,Consolas,monospace;margin:4px 0 8px}
+.bm-cap{max-width:72ch;margin:0 0 12px;font:400 15px/1.6 "Source Serif 4",Georgia,serif}
+.bm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin-top:20px;align-items:stretch}
+
+/* keyboard layer: status bar + command palette */
+.sbar{position:sticky;bottom:0;z-index:15;display:flex;gap:12px;align-items:center;background:var(--head);border-top:2px solid var(--rule-strong);padding:4px 16px;font:400 11px "IBM Plex Mono",ui-monospace,Consolas,monospace;color:var(--ink-2);min-height:30px;overflow:hidden}
+.sbar[hidden]{display:none}
+.sbar .hints{display:flex;gap:6px 14px;flex-wrap:wrap;min-width:0}
+.sbar .hints span{white-space:nowrap}
+.sbar .msg{margin-left:auto;color:var(--ink);background:var(--canary);border:1px solid var(--canary-edge);padding:0 8px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sbar .msg:empty{display:none}
+.pal-wrap{position:fixed;inset:0;z-index:40;background:var(--scrim);display:flex;justify-content:center;align-items:flex-start;padding:12vh 16px 16px}
+.pal-wrap[hidden]{display:none}
+.pal{width:100%;max-width:520px;background:var(--sheet);border:2px solid var(--ink);box-shadow:4px 4px 0 var(--shadow);min-width:0}
+.pal .ph{background:var(--head);border-bottom:1px solid var(--rule-strong);padding:4px 10px;font:500 10px "IBM Plex Mono",ui-monospace,Consolas,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.pal input{display:block;width:100%;border:0;border-bottom:1px solid var(--rule-strong);background:var(--sheet);padding:10px 12px;font:500 14px "IBM Plex Mono",ui-monospace,Consolas,monospace;border-radius:0;min-width:0}
+.pal ul{list-style:none;margin:0;padding:0;max-height:min(46vh,320px);overflow-y:auto}
+.pal li{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:7px 12px 7px 14px;border-bottom:1px solid var(--rule);border-left:3px solid transparent;font:500 13px "IBM Plex Mono",ui-monospace,Consolas,monospace;cursor:pointer}
+.pal li span{min-width:0;overflow-wrap:anywhere}
+.pal li[aria-selected="true"]{background:var(--sel);border-left-color:var(--margin)}
+.pal li.none{cursor:default;color:var(--ink-2)}
+.pal .pf2{display:flex;gap:12px;flex-wrap:wrap;padding:5px 12px;background:var(--head);border-top:1px solid var(--rule-strong);font:400 11px "IBM Plex Mono",ui-monospace,Consolas,monospace;color:var(--ink-2)}
+
+/* portal (accent tokens arrive as custom properties on the wrapper) */
+.portal{background:var(--p-bg);color:var(--p-ink);min-height:calc(100vh - 40px);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px}
+.pt-top{border-top:6px solid var(--accent);border-bottom:1px solid var(--p-line);padding:12px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pt-logo{width:36px;height:36px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font:600 18px "IBM Plex Sans",sans-serif;border-radius:6px}
+.pt-top b{font-size:18px}
+.pt-top nav{margin-left:auto;display:flex;gap:14px;font-size:14px;flex-wrap:wrap}
+.pt-top nav a{color:var(--p-ink2);text-decoration:none}
+.pt-top nav a:hover{color:var(--accent-ink);text-decoration:underline}
+.accsw{display:flex;gap:6px;align-items:center;padding:8px 16px;background:var(--p-soft);border-bottom:1px solid var(--p-line);flex-wrap:wrap;font-size:12px;color:var(--p-ink2)}
+.accsw button{border:1px solid var(--p-line);background:var(--p-bg);color:var(--p-ink);padding:3px 10px;cursor:pointer;border-radius:4px}
+.accsw button[aria-pressed="true"]{border:2px solid var(--p-ink);font-weight:600}
+.pt-main{max-width:640px;margin:0 auto;padding:24px 16px 32px}
+.pt-main h1{font-size:26px;margin:0 0 4px}
+.pt-main .lede{color:var(--p-ink2);margin:0 0 18px}
+.pf{display:flex;flex-direction:column;gap:14px}
+.pf label{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:14px}
+.pf .opt{font-weight:400;color:var(--p-ink2)}
+.pf input,.pf textarea{border:1px solid var(--p-ink2);padding:9px 10px;font-size:16px;background:var(--p-bg);color:var(--p-ink);border-radius:4px;width:100%;font-family:inherit}
+.pf input:focus-visible,.pf textarea:focus-visible,.pbtn:focus-visible{outline:3px solid var(--p-ink);outline-offset:2px;box-shadow:0 0 0 5px var(--accent)}
+.pf .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pf .two>*{min-width:0}
+.sugg{border:1px solid var(--p-line);border-left:4px solid var(--accent);background:var(--p-soft);padding:10px 12px;border-radius:4px;display:none}
+.sugg.on{display:block}
+.sugg h2{font-size:12px;margin:0 0 6px;color:var(--p-ink2);text-transform:uppercase;letter-spacing:.05em}
+.sugg ul{margin:0;padding-left:18px}
+.sugg a{color:var(--accent-ink)}
+.pbtn{background:var(--accent);color:var(--on-accent);border:2px solid var(--accent);padding:11px 20px;font:600 16px "IBM Plex Sans",sans-serif;border-radius:4px;cursor:pointer;align-self:flex-start;min-height:44px}
+.pbtn.ghost{background:var(--p-bg);color:var(--accent-ink);border-color:var(--accent-ink)}
+.ok{display:none;border:2px solid var(--accent);padding:20px;border-radius:6px}
+.ok.on{display:block}
+.ok h2{margin:0 0 6px;font-size:22px}
+.ok .id{font:600 15px "IBM Plex Mono",ui-monospace,Consolas,monospace;background:var(--p-soft);border:1px solid var(--p-line);padding:2px 8px}
+.pt-foot{border-top:1px solid var(--p-line);padding:14px 16px;text-align:center;font-size:12px;color:var(--p-ink2);display:flex;gap:6px;justify-content:center;align-items:center}
+.pt-foot img{width:16px;height:16px}
+
+/* responsive */
+@media (max-width:1100px){.lh,.lr{grid-template-columns:30px 80px minmax(0,1fr) 120px 88px 68px 40px 48px}.lh .c-prod,.lr .prod{display:none}.tk{grid-template-columns:minmax(0,1fr)}.side{position:static}}
+@media (max-width:820px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .rail{flex-direction:row;overflow-x:auto;padding:6px 8px;border-right:0;border-bottom:1px solid var(--rule-strong);align-items:center}
+  .rail h3,.rail .me,.brand small{display:none}
+  .brand{border:0;margin:0;padding:0 8px 0 0}.brand img{width:28px;height:28px}.brand span{display:none}
+  .rail a{border-left:0;border-bottom:3px solid transparent;white-space:nowrap;gap:6px;padding:6px 8px}
+  .rail a[aria-current="page"]{border-bottom-color:var(--margin)}
+  .lh{display:none}.ledger::before{display:none}
+  .lr{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"no sub st" "no meta ago";row-gap:2px;padding:8px 10px;column-gap:8px}
+  .lr .ck{display:none}.lr .no{grid-area:no;align-self:start}
+  .lr .sub{grid-area:sub}.lr .sub b{white-space:normal}
+  .lr .st{grid-area:st}.lr .ago{grid-area:ago}
+  .lr .pri,.lr .asg,.lr .prod{display:none}
+  .lr .req{grid-area:meta;font-size:12px;color:var(--ink-2)}
+  .form6{grid-template-columns:repeat(2,minmax(0,1fr))}.fld.f1,.fld.f2{grid-column:span 1}.fld.wide{grid-column:span 2}
+  .msg.pub,.msg.note{margin-left:8px}
+}
+@media (max-width:900px){.sbar .hints{display:none}}
+@media (max-width:760px){.bm-grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:480px){.pf .two{grid-template-columns:1fr}.bar label{flex:1 1 40%}.title{flex-wrap:wrap}.title .hint{display:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="switch" role="toolbar" aria-label="Mockup views">
+  <b>CARBON COPY v2</b>
+  <button type="button" data-v="queue" aria-pressed="true">Queue</button>
+  <button type="button" data-v="ticket" aria-pressed="false">Ticket</button>
+  <button type="button" data-v="caught" aria-pressed="false">Caught up</button>
+  <button type="button" data-v="brand" aria-pressed="false">Brand moments</button>
+  <button type="button" data-v="portal" aria-pressed="false">Portal</button>
+  <span class="sp"></span>
+  <button type="button" id="themeBtn">Theme: auto</button>
+</div>
+
+<!-- QUEUE -->
+<section class="view on" id="v-queue">
+ <div class="shell">
+  <nav class="rail" aria-label="Admin navigation">
+    <div class="brand"><img src="../../../assets/brand/mark-512.png" alt="TechStrap"><span>TechStrap<small>CALL LOG / ADMIN</small></span></div>
+    <h3>Views</h3>
+    <a href="#" aria-current="page">Unassigned <i>7</i></a>
+    <a href="#">Mine <i>4</i></a>
+    <a href="#">Open <i>23</i></a>
+    <a href="#">Pending <i>9</i></a>
+    <a href="#">All <i>&nbsp;</i></a>
+    <h3>Manage</h3>
+    <a href="#">Knowledge base <i></i></a>
+    <a href="#">Settings <i></i></a>
+    <div class="me">Signed in as<br><b>Sam Marsh</b> (agent)</div>
+  </nav>
+  <div class="main">
+    <form class="bar" role="search" onsubmit="return false">
+      <label for="fProd">Product<select id="fProd"><option value="">All</option><option>Acme Cloud Backup</option><option>Orbitly</option><option>Pixelforge</option></select></label>
+      <label for="fStat">Status<select id="fStat"><option value="">All</option><option>new</option><option>open</option><option>pending</option><option>solved</option><option>closed</option></select></label>
+      <label for="fTag">Tag<select id="fTag"><option value="">Any</option><option>billing</option><option>backup</option><option>password</option></select></label>
+      <label for="fPri">Priority<select id="fPri"><option value="">Any</option><option>urgent</option><option>high</option><option>normal</option><option>low</option></select></label>
+      <label class="grow" for="fQ">Search<input id="fQ" type="search" placeholder="Number, subject, requester"></label>
+    </form>
+    <div class="title"><h1 id="qTitle">Unassigned</h1><span id="cnt"></span><span style="margin-left:auto" class="hint"><kbd>j</kbd><kbd>k</kbd> move &nbsp;<kbd>Enter</kbd> open &nbsp;<kbd>/</kbd> search</span></div>
+    <div class="ledger" role="listbox" aria-label="Tickets" id="ledger">
+      <div class="lh" aria-hidden="true"><span></span><span>No.</span><span>Subject</span><span class="c-prod">Product</span><span>Requester</span><span>Status</span><span>Priority</span><span>Asg</span><span style="text-align:right">Last</span></div>
+      <div id="rows"></div>
+    </div>
+  </div>
+ </div>
+</section>
+
+<!-- TICKET -->
+<section class="view" id="v-ticket">
+ <div class="shell">
+  <nav class="rail" aria-label="Admin navigation">
+    <div class="brand"><img src="../../../assets/brand/mark-512.png" alt="TechStrap"><span>TechStrap<small>CALL LOG / ADMIN</small></span></div>
+    <h3>Views</h3>
+    <a href="#">Unassigned <i>7</i></a><a href="#">Mine <i>4</i></a><a href="#" aria-current="page">Open <i>23</i></a><a href="#">Pending <i>9</i></a><a href="#">All <i>&nbsp;</i></a>
+    <h3>Manage</h3><a href="#">Knowledge base <i></i></a><a href="#">Settings <i></i></a>
+    <div class="me">Signed in as<br><b>Sam Marsh</b> (agent)</div>
+  </nav>
+  <div class="main">
+   <div class="crumb"><a href="#">Open</a> / <span class="mono">ACME-142</span></div>
+   <div class="tk">
+    <div style="min-width:0">
+      <div class="form6" role="group" aria-label="Call log header">
+        <div class="fld f1"><span class="n">1</span><div class="l">Ticket no.</div><div class="v mono">ACME-142</div></div>
+        <div class="fld f2"><span class="n">2</span><div class="l">Received</div><div class="v mono">2026-10-02 08:41</div></div>
+        <div class="fld f2"><span class="n">3</span><div class="l">Caller</div><div class="v">Dana Whitfield</div></div>
+        <div class="fld f1"><span class="n">4</span><div class="l">Channel</div><div class="v">Portal</div></div>
+        <div class="fld wide"><span class="n">5</span><div class="l">Problem</div><div class="v t">Backup job fails with exit code 17 after 2.4 update</div></div>
+      </div>
+      <div class="pres"><span class="dot"></span><span><b>Priya</b> is replying…</span><span class="stamp pending" id="stampMain" style="margin-left:auto">pending</span></div>
+      <div class="tl" aria-label="Timeline">
+        <article class="msg cust"><div class="hd"><strong>Dana Whitfield</strong> customer<time>08:41</time></div>
+          <p>Since upgrading to 2.4 on Tuesday our nightly backup job exits with code 17 and no files are written. It was fine on 2.3.9. Log excerpt attached. We have 40 workstations affected.</p></article>
+        <div class="sys"><span>08:41</span><span>Ticket created via portal</span></div>
+        <div class="sys"><span>08:43</span><span>Tag <code>backup</code> added</span><span>by system</span></div>
+        <article class="msg note"><div class="hd"><span class="lab">INTERNAL NOTE</span><strong>Priya Rao</strong><time>09:02</time></div>
+          <p>Exit 17 is the new VSS snapshot failure. Looks like the 2.4 installer drops the old service account. Checking with dev before I promise a fix.</p></article>
+        <div class="sys"><span>09:05</span><span>Status changed Open → Pending by Sam</span></div>
+        <article class="msg pub"><div class="hd"><strong>Sam Marsh</strong> agent reply<time>09:08</time></div>
+          <p>Hi Dana, thanks for the log. We can reproduce this on 2.4 and are checking the fix. As a workaround, re-run the service account repair from the Settings page. I will update you by end of day.</p></article>
+        <div class="sys"><span>09:10</span><span>Tag <code>regression</code> added</span><span>by Sam</span></div>
+        <article class="msg cust"><div class="hd"><strong>Dana Whitfield</strong> customer<time>09:31</time></div>
+          <p>The repair worked on two machines, thank you. Will test the rest and report back.</p></article>
+      </div>
+      <div class="legend"><span><i class="l1"></i>Customer (white)</span><span><i class="l2"></i>Public reply (canary)</span><span><i class="l3"></i>Internal note (pink)</span></div>
+      <form class="comp" id="comp" onsubmit="return false">
+        <div class="seg" role="group" aria-label="Reply type">
+          <button type="button" id="bPub" aria-pressed="true">Public reply<kbd>r</kbd></button>
+          <button type="button" id="bNote" aria-pressed="false">Internal note<kbd>n</kbd></button>
+        </div>
+        <div class="warn" role="status" id="warn">INTERNAL: the customer will NOT see this note.</div>
+        <label class="sr" for="body">Message</label>
+        <textarea id="body" placeholder="Write a reply to Dana"></textarea>
+        <div class="row"><button class="btn send" id="send" type="submit"><span id="sendL">Send reply</span><kbd>Ctrl &#8629;</kbd></button><button class="btn alt" type="button">Insert KB link</button><span class="hint" id="to">To: dana@whitfieldlogistics.example</span></div>
+      </form>
+    </div>
+    <aside class="side" aria-label="Ticket properties">
+      <div class="card"><h4>Properties</h4>
+        <dl class="kv">
+          <dt>Status</dt><dd><select id="sStat" aria-label="Status"><option>New</option><option>Open</option><option selected>Pending</option><option>Solved</option><option>Closed</option></select></dd>
+          <dt>Assignee</dt><dd><select id="sAsg" aria-label="Assignee"><option>Sam Marsh</option><option>Priya Rao</option><option>Unassigned</option></select></dd>
+          <dt>Priority</dt><dd><select id="sPri" aria-label="Priority"><option>Urgent</option><option selected>High</option><option>Normal</option><option>Low</option></select></dd>
+          <dt>Product</dt><dd>Acme Cloud Backup</dd>
+          <dt>Tags</dt><dd class="tags"><span class="tag">backup</span><span class="tag">regression</span></dd>
+        </dl></div>
+      <div class="card"><h4>Requester</h4><div class="pad"><b>Dana Whitfield</b><br><span class="mono" style="font-size:12px;overflow-wrap:anywhere">dana@whitfieldlogistics.example</span><br><span class="hint">Whitfield Logistics · 6 tickets · first seen 2025-03</span></div></div>
+      <div class="card"><h4>Linked KB article</h4><div class="pad"><a href="#">Exit code 17: service account repair</a><br><span class="hint">Updated 3d ago · 41 views</span></div></div>
+    </aside>
+   </div>
+  </div>
+ </div>
+</section>
+
+<!-- CAUGHT UP -->
+<section class="view" id="v-caught">
+ <div class="shell">
+  <nav class="rail" aria-label="Admin navigation">
+    <div class="brand"><img src="../../../assets/brand/mark-512.png" alt="TechStrap"><span>TechStrap<small>CALL LOG / ADMIN</small></span></div>
+    <h3>Views</h3>
+    <a href="#" aria-current="page">Unassigned <i>0</i></a><a href="#">Mine <i>0</i></a><a href="#">Open <i>0</i></a><a href="#">Pending <i>9</i></a><a href="#">All <i>&nbsp;</i></a>
+    <h3>Manage</h3><a href="#">Knowledge base <i></i></a><a href="#">Settings <i></i></a>
+  </nav>
+  <div class="main">
+    <div class="title"><h1>Unassigned</h1><span>0 tickets</span></div>
+    <div class="empty"><article class="win" aria-label="All caught up"><div class="titlebar"><i class="led" aria-hidden="true"></i><span class="t">queue.exe — 0 items</span></div><div class="wb"><img src="../../../assets/brand/mark-512.png" alt=""><h2>All caught up</h2><p>Zero tickets, fully supported.</p><div class="wact"><button class="bm-btn" type="button" data-go="open">View open tickets</button></div></div></article></div>
+  </div>
+ </div>
+</section>
+
+<!-- BRAND MOMENTS -->
+<section class="view" id="v-brand">
+ <div class="bm-page">
+  <h1>Brand moments</h1>
+  <p class="bm-cap">These retro window frames, and the mascot inside them, appear only on brand moments in the Admin app: the all-caught-up state, agent sign-in and the 404 page. The working screens, the queue and the ticket, stay pure Carbon Copy, with ruled ledger rows, stamps and tinted carbon sheets, and no window chrome or mascot. The Portal never uses these frames at all; it carries the product's own branding and only a small "Powered by TechStrap" line in the footer.</p>
+  <div class="bm-grid">
+   <article class="win" aria-label="All caught up"><div class="titlebar"><i class="led" aria-hidden="true"></i><span class="t">queue.exe — 0 items</span></div><div class="wb"><img src="../../../assets/brand/mark-512.png" alt=""><h2>All caught up</h2><p>Zero tickets, fully supported.</p><div class="wact"><button class="bm-btn" type="button" data-go="open">View open tickets</button></div></div></article>
+   <article class="win" aria-label="Agent sign-in"><div class="titlebar"><i class="led" aria-hidden="true"></i><span class="t">techstrap — sign in</span></div><div class="wb"><img src="../../../assets/brand/mark-512.png" alt=""><h2>Agent sign-in</h2><p class="fine">Single sign-on through your company's Authentik. No passwords are entered here.</p><div class="wact"><button class="bm-btn" type="button" data-say="Sample only: this would redirect to Authentik (OIDC)">Sign in with Authentik</button></div><p class="fine">Agents only. Customers: use your product's support page.</p></div></article>
+   <article class="win" aria-label="404 not found"><div class="titlebar"><i class="led" aria-hidden="true"></i><span class="t">ERROR 404 — not found</span></div><div class="wb"><img src="../../../assets/brand/mark-512.png" alt=""><h2>This page fell out of its strap.</h2><p>The address you followed doesn't match any page here. It may have moved, or the link may have a typo.</p><div class="wact"><a class="bm-link" href="#" data-go="queue">Back to the queue</a></div></div></article>
+  </div>
+ </div>
+</section>
+
+<!-- PORTAL -->
+<section class="view" id="v-portal">
+ <div class="portal" id="portal" style="--accent:#7C3AED;--on-accent:#FFFFFF;--accent-ink:#5B21B6">
+  <div class="accsw" role="group" aria-label="Sample product accent">Accent:
+    <button type="button" data-a="#7C3AED" data-n="Orbitly" data-l="O" aria-pressed="true">Orbitly #7C3AED</button>
+    <button type="button" data-a="#F59E0B" data-n="Pixelforge" data-l="P" aria-pressed="false">Pixelforge #F59E0B</button>
+    <button type="button" data-a="#0F3D2E" data-n="Acme Cloud Backup" data-l="A" aria-pressed="false">Acme #0F3D2E</button>
+  </div>
+  <header class="pt-top"><div class="pt-logo" id="ptLogo" aria-hidden="true">O</div><b id="ptName">Orbitly</b><nav aria-label="Product"><a href="#">Contact</a><a href="#">Help articles</a><a href="#">Check a ticket</a></nav></header>
+  <main class="pt-main">
+   <div id="formWrap">
+    <h1 id="ptH">Contact Orbitly support</h1>
+    <p class="lede">Tell us what's going on. We reply by email and give you a private link to follow your ticket.</p>
+    <form class="pf" id="pForm">
+      <div class="two">
+        <label for="pName">Your name<input id="pName" autocomplete="name" required></label>
+        <label for="pEmail">Email<input id="pEmail" type="email" autocomplete="email" required></label>
+      </div>
+      <label for="pSub">Subject<input id="pSub" required placeholder="e.g. Can't reset my password"></label>
+      <div class="sugg" id="sugg" aria-live="polite"><h2>Suggested articles</h2><ul>
+        <li><a href="#">Resetting your password</a></li><li><a href="#">Why did my reset link expire?</a></li><li><a href="#">Change your account email</a></li></ul></div>
+      <label for="pMsg">Message<textarea id="pMsg" rows="5" required></textarea></label>
+      <label for="pFile">Attachments <span class="opt">(optional, up to 10 MB each)</span><input id="pFile" type="file" multiple></label>
+      <button class="pbtn" type="submit">Send ticket</button>
+    </form>
+   </div>
+   <div class="ok" id="ok" role="status" tabindex="-1">
+     <h2>We've got it — ticket <span class="id">ORB-38</span></h2>
+     <p>A confirmation is on its way to your inbox, with a private link to follow this ticket. No account needed.</p>
+     <button class="pbtn ghost" type="button" id="again">Send another</button>
+   </div>
+  </main>
+  <footer class="pt-foot"><img src="../../../assets/brand/mark-512.png" alt="">Powered by TechStrap</footer>
+ </div>
+</section>
+
+<footer class="sbar" id="sbar" aria-label="Keyboard shortcuts">
+  <span class="hints"><span><kbd>j</kbd><kbd>k</kbd> move</span><span><kbd>&#8629;</kbd> open</span><span><kbd>r</kbd> reply</span><span><kbd>n</kbd> note</span><span><kbd>e</kbd> assign</span><span><kbd>/</kbd> search</span><span><kbd>Ctrl K</kbd> palette</span></span>
+  <span class="msg" id="msg" role="status" aria-live="polite"></span>
+</footer>
+<div class="pal-wrap" id="palWrap" hidden>
+  <div class="pal" role="dialog" aria-modal="true" aria-label="Command palette">
+    <div class="ph">Command palette</div>
+    <label class="sr" for="palQ">Filter commands</label>
+    <input id="palQ" type="text" role="combobox" aria-expanded="true" aria-controls="palList" aria-autocomplete="list" autocomplete="off" spellcheck="false" placeholder="Type a command">
+    <ul id="palList" role="listbox" aria-label="Commands"></ul>
+    <div class="pf2"><span><kbd>&#8593;</kbd><kbd>&#8595;</kbd> select</span><span><kbd>&#8629;</kbd> run</span><span><kbd>Esc</kbd> close</span></div>
+  </div>
+</div>
+
+<script>
+(function(){
+var D=[
+["ACME-142","Backup job fails with exit code 17 after 2.4 update","Acme Cloud Backup","Dana Whitfield","new","high","","backup,regression","4m"],
+["ORB-37","Can't reset password, link expired","Orbitly","Marcus Lindqvist","open","normal","SM","password","12m"],
+["PIX-9","Invoice PDF shows wrong VAT rate","Pixelforge","Elena Kovacs","pending","normal","PR","billing,vat","1h"],
+["ACME-141","Restore stalls at 63% on NAS target","Acme Cloud Backup","Tom Okafor","open","urgent","SM","restore,nas","2h"],
+["ORB-36","Request: dark theme for dashboard","Orbitly","Hye-jin Park","new","low","","feature-request","3h"],
+["PIX-8","Export to SVG drops gradients","Pixelforge","Luca Ferrari","solved","normal","PR","export","5h"],
+["ORB-35","CHEAP SEO RANKINGS GUARANTEED reply now","Orbitly","seo-deals@mailer.example","new","low","","spam-suspected","6h"],
+["PIX-7","Plugin crashes on layers over 8k","Pixelforge","Anita Rao","open","high","PR","rendering,crash","1d"],
+["ORB-34","SSO login loops back to sign-in page","Orbitly","Fatima Al-Sayed","pending","normal","SM","sso","1d"],
+["ACME-139","Licence key rejected after renewal","Acme Cloud Backup","Greg Hollis","closed","low","SM","licence,billing","2d"],
+["ACME-138","Installer fails on Windows Server 2016","Acme Cloud Backup","Beth Nakamura","solved","normal","PR","install","2d"],
+["PIX-6","Charged twice for annual plan","Pixelforge","Ravi Menon","new","normal","","billing","2d"]];
+var sel=0,curView=null,cur='queue',$=function(id){return document.getElementById(id)};
+var rows=$('rows');
+function render(){
+  var q=$('fQ').value.toLowerCase(),out=[];
+  D.forEach(function(r,i){
+    if(curView==='unassigned'&&r[6])return;
+    if(curView==='mine'&&r[6]!=='SM')return;
+    if(curView==='open'&&r[4]!=='new'&&r[4]!=='open')return;
+    if(curView==='pending'&&r[4]!=='pending')return;
+    if($('fProd').value&&r[2]!==$('fProd').value)return;
+    if($('fStat').value&&r[4]!==$('fStat').value)return;
+    if($('fPri').value&&r[5]!==$('fPri').value)return;
+    if($('fTag').value&&r[7].split(',').indexOf($('fTag').value)<0)return;
+    if(q&&(r.slice(0,4).join(' ').toLowerCase().indexOf(q)<0))return;
+    out.push(i);
+  });
+  if(sel>=out.length)sel=0;
+  rows.innerHTML=out.map(function(i,n){var r=D[i],spam=r[7].indexOf('spam')>=0;
+    var tg=r[7].split(',').map(function(t){return '<span class="tag">'+t+'</span>'}).join('');
+    return '<a class="lr'+(spam?' spam':'')+'" role="option" href="#" data-i="'+i+'" aria-selected="'+(n===sel)+'">'
+     +'<span class="ck"></span><span class="no">'+r[0]+'</span>'
+     +'<span class="sub"><b>'+r[1]+'</b><span class="tags">'+tg+'</span></span>'
+     +'<span class="prod">'+r[2]+'</span><span class="req">'+r[3]+'</span>'
+     +'<span class="st">'+(spam?'<span class="stamp spam">Spam?</span>':'<span class="stamp '+r[4]+'">'+r[4]+'</span>')+'</span>'
+     +'<span class="pri '+r[5]+'">'+r[5]+'</span>'
+     +'<span class="asg">'+(r[6]?'<span class="av" title="'+r[6]+'">'+r[6]+'</span>':'<span class="av none" title="Unassigned">--</span>')+'</span>'
+     +'<span class="ago">'+r[8]+'</span></a>';}).join('');
+  $('cnt').textContent=out.length+' of 12 shown (sample)';
+}
+['fProd','fStat','fTag','fPri'].forEach(function(id){$(id).addEventListener('change',render)});
+$('fQ').addEventListener('input',render);
+rows.addEventListener('click',function(e){var a=e.target.closest('.lr');if(!a)return;e.preventDefault();sel=[].indexOf.call(rows.children,a);mark();show('ticket')});
+function mark(){[].forEach.call(rows.children,function(a,n){a.setAttribute('aria-selected',n===sel)});var c=rows.children[sel];if(c&&c.scrollIntoView)c.scrollIntoView({block:'nearest'})}
+var titles={unassigned:'Unassigned',mine:'Mine',open:'Open',pending:'Pending',all:'All tickets'};
+function setView(v){curView=v;sel=0;$('qTitle').textContent=titles[v];
+  [].forEach.call(document.querySelectorAll('#v-queue .rail a'),function(a){if(a.dataset.view===v)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});render()}
+var msgT;function say(t){var m=$('msg');m.textContent=t;clearTimeout(msgT);msgT=setTimeout(function(){m.textContent=''},3500)}
+function show(v){
+  cur=v;closePal(true);
+  document.querySelectorAll('.view').forEach(function(s){s.classList.toggle('on',s.id==='v-'+v)});
+  document.querySelectorAll('.switch [data-v]').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.v===v)});
+  $('sbar').hidden=(v==='portal');
+  window.scrollTo(0,0);
+}
+function typing(t){return !!t&&(/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)||t.isContentEditable)}
+function toTicket(){show('ticket')}
+function focusSearch(){if(cur!=='queue')show('queue');$('fQ').focus()}
+function composer(note){toTicket();mode(note);$('body').focus()}
+function assignMe(){toTicket();$('sAsg').value='Sam Marsh';say('Assigned ACME-142 to Sam')}
+var modes=['auto','light','dark'],mi=0,root=document.documentElement;
+function cycleTheme(){mi=(mi+1)%3;var m=modes[mi];
+  if(m==='auto')root.removeAttribute('data-theme');else root.setAttribute('data-theme',m);
+  $('themeBtn').textContent='Theme: '+m;return m}
+/* command palette */
+var cmds=[
+ {t:'Go to queue',f:function(){show('queue')}},
+ {t:'Open ACME-142',k:'\u21B5',f:toTicket},
+ {t:'Reply to ACME-142 (public)',k:'r',f:function(){composer(false)}},
+ {t:'Add internal note to ACME-142',k:'n',f:function(){composer(true)}},
+ {t:'Assign ACME-142 to me',k:'e',f:assignMe},
+ {t:'View Unassigned',f:function(){show('queue');setView('unassigned')}},
+ {t:'View Mine',f:function(){show('queue');setView('mine')}},
+ {t:'Show the brand moments',f:function(){show('brand')}},
+ {t:'Cycle theme',f:function(){say('Theme: '+cycleTheme())}}];
+var palOpen=false,palSel=0,palItems=[],palFrom=null;
+function palRender(){var q=$('palQ').value.toLowerCase().split(/\s+/).filter(Boolean);
+  palItems=cmds.filter(function(c){var t=c.t.toLowerCase();return q.every(function(w){return t.indexOf(w)>=0})});
+  if(palSel>=palItems.length)palSel=0;
+  $('palList').innerHTML=palItems.length?palItems.map(function(c,i){return '<li role="option" id="pal-'+i+'" data-i="'+i+'" aria-selected="'+(i===palSel)+'"><span>'+c.t+'</span>'+(c.k?'<kbd>'+c.k+'</kbd>':'')+'</li>'}).join(''):'<li class="none" role="option" aria-selected="false">No matching command</li>';
+  if(palItems.length)$('palQ').setAttribute('aria-activedescendant','pal-'+palSel);else $('palQ').removeAttribute('aria-activedescendant');
+  var li=$('pal-'+palSel);if(li&&li.scrollIntoView)li.scrollIntoView({block:'nearest'})}
+function openPal(){palFrom=document.activeElement;palOpen=true;palSel=0;$('palQ').value='';$('palWrap').hidden=false;palRender();$('palQ').focus()}
+function closePal(quiet){if(!palOpen)return;palOpen=false;$('palWrap').hidden=true;if(!quiet&&palFrom&&palFrom.focus&&document.contains(palFrom))palFrom.focus()}
+function runPal(i){var c=palItems[i];if(!c)return;closePal();c.f()}
+$('palQ').addEventListener('input',function(){palSel=0;palRender()});
+$('palList').addEventListener('click',function(e){var li=e.target.closest('li[data-i]');if(li)runPal(+li.dataset.i)});
+$('palWrap').addEventListener('mousedown',function(e){if(e.target===$('palWrap'))closePal()});
+function palKey(e){
+  if(e.key==='Escape'){e.preventDefault();closePal()}
+  else if(e.key==='ArrowDown'){e.preventDefault();if(palItems.length){palSel=(palSel+1)%palItems.length;palRender()}}
+  else if(e.key==='ArrowUp'){e.preventDefault();if(palItems.length){palSel=(palSel-1+palItems.length)%palItems.length;palRender()}}
+  else if(e.key==='Enter'){e.preventDefault();runPal(palSel)}
+  else if(e.key==='Tab'){e.preventDefault()}
+  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();closePal()}
+}
+function sendNow(){var b=$('body');if(!b.value.trim()){say('Nothing to send yet');return}
+  say($('comp').classList.contains('is-note')?'Internal note added to ACME-142':'Reply sent on ACME-142');b.value=''}
+document.addEventListener('keydown',function(e){
+  if(palOpen){palKey(e);return}
+  if((e.ctrlKey||e.metaKey)&&!e.altKey&&e.key.toLowerCase()==='k'){if(cur==='portal')return;e.preventDefault();openPal();return}
+  if(cur==='portal')return;
+  var t=e.target;
+  if(typing(t)){
+    if(e.key==='Escape'){t.blur()}
+    else if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)&&t.id==='body'){e.preventDefault();sendNow()}
+    return}
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  var k=e.key;
+  if(k==='/'){e.preventDefault();focusSearch();return}
+  if(cur==='queue'){
+    var n=rows.children.length;
+    if(k==='j'||k==='ArrowDown'){e.preventDefault();sel=Math.min(sel+1,n-1);mark()}
+    else if(k==='k'||k==='ArrowUp'){e.preventDefault();sel=Math.max(sel-1,0);mark()}
+    else if(k==='Enter'&&n&&t===document.body){e.preventDefault();toTicket()}
+  }else if(cur==='ticket'){
+    if(k==='r'){e.preventDefault();composer(false)}
+    else if(k==='n'){e.preventDefault();composer(true)}
+    else if(k==='e'){e.preventDefault();$('sAsg').focus()}
+    else if(k==='Escape'){e.preventDefault();show('queue')}
+  }
+});
+document.querySelectorAll('.switch [data-v]').forEach(function(b){b.addEventListener('click',function(){show(b.dataset.v)})});
+document.querySelectorAll('.rail a').forEach(function(a){var m=/^(Unassigned|Mine|Open|Pending|All)/.exec(a.textContent.trim());if(m)a.dataset.view=m[1].toLowerCase();
+  a.addEventListener('click',function(e){e.preventDefault();if(a.dataset.view){show('queue');setView(a.dataset.view)}})});
+document.addEventListener('click',function(e){var g=e.target.closest('[data-go]');if(g){e.preventDefault();var d=g.dataset.go;show('queue');if(d==='open')setView('open')}
+  var y=e.target.closest('[data-say]');if(y)say(y.dataset.say)});
+$('sAsg').addEventListener('change',function(){var v=$('sAsg').value;say(v==='Unassigned'?'Unassigned ACME-142':'Assigned ACME-142 to '+v.split(' ')[0])});
+$('comp').addEventListener('submit',function(e){e.preventDefault();sendNow()});
+render();
+
+$('themeBtn').addEventListener('click',cycleTheme);
+
+function mode(note){var c=$('comp');c.classList.toggle('is-note',note);$('bNote').setAttribute('aria-pressed',note);$('bPub').setAttribute('aria-pressed',!note);
+  $('sendL').textContent=note?'Add internal note':'Send reply';$('body').placeholder=note?'Note for the team only':'Write a reply to Dana';
+  $('to').textContent=note?'Visible to agents only':'To: dana@whitfieldlogistics.example';}
+$('bPub').onclick=function(){mode(false)};$('bNote').onclick=function(){mode(true)};
+$('sStat').addEventListener('change',function(){var s=$('sStat').value.toLowerCase(),m=$('stampMain');m.className='stamp pop '+s;m.textContent=s});
+
+function lum(h){var c=[1,3,5].map(function(i){var v=parseInt(h.substr(i,2),16)/255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});return .2126*c[0]+.7152*c[1]+.0722*c[2]}
+function ratio(a,b){var x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+function hex(r,g,b){return '#'+[r,g,b].map(function(v){return ('0'+Math.round(v).toString(16)).slice(-2)}).join('')}
+function darken(h){var r=parseInt(h.substr(1,2),16),g=parseInt(h.substr(3,2),16),b=parseInt(h.substr(5,2),16),k=1,c=h;
+  while(ratio(c,'#FFFFFF')<7&&k>0){k-=.04;c=hex(r*k,g*k,b*k)}return c}
+function accent(a){var p=$('portal'),on=ratio(a,'#FFFFFF')>=ratio(a,'#1B1B22')?'#FFFFFF':'#1B1B22';
+  p.style.setProperty('--accent',a);p.style.setProperty('--on-accent',on);p.style.setProperty('--accent-ink',ratio(a,'#FFFFFF')>=7?a:darken(a));}
+document.querySelectorAll('.accsw button').forEach(function(b){b.addEventListener('click',function(){
+  document.querySelectorAll('.accsw button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});
+  accent(b.dataset.a);$('ptLogo').textContent=b.dataset.l;$('ptName').textContent=b.dataset.n;$('ptH').textContent='Contact '+b.dataset.n+' support';});});
+$('pSub').addEventListener('input',function(){$('sugg').classList.toggle('on',$('pSub').value.trim().length>2)});
+$('pForm').addEventListener('submit',function(e){e.preventDefault();$('formWrap').style.display='none';$('ok').classList.add('on');$('ok').focus()});
+$('again').addEventListener('click',function(){$('ok').classList.remove('on');$('formWrap').style.display='';$('pForm').reset();$('sugg').classList.remove('on')});
+})();
+</script>

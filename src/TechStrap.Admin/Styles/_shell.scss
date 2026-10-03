@@ -1,0 +1,105 @@
+// Admin shell (BRAND.md section 14): a 208px left rail plus the main area. Under 820px the rail becomes a horizontal strip.
+
+.ts-shell {
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.ts-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 0;
+  background: var(--rail);
+  border-right: 1px solid var(--rule-strong);
+}
+
+.ts-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px 12px;
+  margin-bottom: 8px;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--rule-strong);
+
+  img {
+    width: 36px;
+    height: 36px;
+  }
+
+  span {
+    font: 600 .875rem/1.1 var(--ts-font-mono);
+  }
+
+  small {
+    display: block;
+    font: 400 .625rem var(--ts-font-mono);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+}
+
+.ts-rail-link {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 14px;
+  color: var(--ink);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+
+  &:hover {
+    background: var(--hover);
+  }
+
+  &[aria-current="page"] {
+    background: var(--sel);
+    border-left-color: var(--margin);
+    font-weight: 600;
+  }
+}
+
+.ts-main {
+  min-width: 0;
+}
+
+@media (max-width: 820px) {
+  .ts-shell {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  .ts-rail {
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    padding: 6px 8px;
+    border-right: 0;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+
+  .ts-brand {
+    padding: 0 8px 0 0;
+    margin: 0;
+    border: 0;
+
+    img {
+      width: 28px;
+      height: 28px;
+    }
+
+    span {
+      display: none;
+    }
+  }
+
+  .ts-rail-link {
+    white-space: nowrap;
+    border-left: 0;
+    border-bottom: 3px solid transparent;
+  }
+}

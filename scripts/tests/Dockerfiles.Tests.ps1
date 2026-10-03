@@ -58,13 +58,94 @@ Describe 'compiled CSS assertion' {
     }
 }
 
+Describe 'self-hosted font assertion' {
+    # Fonts are restored by libman (jsdelivr) during publish and never committed, so an image built without network
+    # access must fail the build instead of shipping without fonts. Admin: Sans 3 + Mono 3 + Serif 1 files, 3 licences.
+    It 'Dockerfile.<Name> fails the build unless <Fonts> WOFF2 files and <Licences> OFL licences are published' -ForEach @(
+        @{ Name = 'admin'; Fonts = 7; Licences = 3 }
+        @{ Name = 'portal'; Fonts = 6; Licences = 2 }
+    ) {
+        $text = Get-DockerfileText -Name $Name
+        $fontCheck = 'test "$(find /app/publish/wwwroot/fonts -name ''*.woff2'' | wc -l)" -eq ' + $Fonts
+        $licenceCheck = 'test "$(find /app/publish/wwwroot/fonts -name LICENSE | wc -l)" -eq ' + $Licences
+        $text.Contains($fontCheck) | Should -BeTrue -Because "Dockerfile.$Name must contain: $fontCheck"
+        $text.Contains($licenceCheck) | Should -BeTrue -Because "Dockerfile.$Name must contain: $licenceCheck"
+    }
+
+    It 'Dockerfile.api and Dockerfile.worker have no font assertion because they serve no static assets' -ForEach 'api', 'worker' {
+        (Get-DockerfileText -Name $_) | Should -Not -Match 'wwwroot/fonts'
+    }
+}
+
 Describe '.dockerignore' {
     It 'keeps secrets, git history and compiled CSS out of the build context' {
         $lines = Get-Content -LiteralPath (Join-Path $script:RepoRoot '.dockerignore')
         $lines | Should -Contain '.git/'
         $lines | Should -Contain '**/.env'
         $lines | Should -Contain '**/wwwroot/css/app.css'
+        $lines | Should -Contain '**/wwwroot/fonts/'
+        $lines | Should -Contain '**/Styles/Vendor/'
         $lines | Should -Contain '**/bin/'
         $lines | Should -Contain '**/obj/'
+    }
+}
+
+Describe '.dockerignore and the shared brand SCSS' {
+    It 'excludes assets/ but re-includes assets/brand/scss/, which Admin and Portal import at build' {
+        $lines = Get-Content -LiteralPath (Join-Path $script:RepoRoot '.dockerignore')
+        $lines | Should -Contain 'assets/'
+        $lines | Should -Contain '!assets/brand/scss/'
+        [array]::IndexOf($lines, '!assets/brand/scss/') | Should -BeGreaterThan ([array]::IndexOf($lines, 'assets/'))
+    }
+}
+
+Describe 'font endpoints manifest assertion' {
+    # MapStaticAssets serves only what the published endpoints manifest lists. Fonts restored by libman after static web
+    # asset discovery sit under wwwroot/fonts in the image yet answer 404, so the build must prove the manifest maps them.
+    It 'Dockerfile.<Name> fails the build unless the published endpoints manifest maps a .woff2 file' -ForEach @(
+        @{ Name = 'admin'; Project = 'TechStrap.Admin' }
+        @{ Name = 'portal'; Project = 'TechStrap.Portal' }
+    ) {
+        $text = Get-DockerfileText -Name $Name
+        $text | Should -Match "RUN grep -q '\\.woff2' /app/publish/$([regex]::Escape($Project))\.staticwebassets\.endpoints\.json \\r?\n\s+\|\| "
+    }
+}
+
+Describe 'clean publish serves the self-hosted fonts' -Tag 'Network' {
+    # Reproduces the image build in a throwaway copy of the tree (no bin, obj or restored fonts), so libman restores the
+    # fonts during publish itself and nothing under the real src/ is touched. Tagged Network because libman downloads
+    # from jsdelivr, like the Docker build; exclude with -ExcludeTagFilter Network when offline.
+    It '<Project> publishes an endpoints manifest that maps the restored .woff2 files' -ForEach @(
+        @{ Project = 'TechStrap.Admin' }
+        @{ Project = 'TechStrap.Portal' }
+    ) {
+        $copy = Join-Path ([IO.Path]::GetTempPath()) "techstrap-publish-$([guid]::NewGuid().ToString('N'))"
+        try {
+            $null = New-Item -ItemType Directory -Path $copy -Force
+            foreach ($file in 'Directory.Build.props', 'Directory.Build.targets', 'Directory.Packages.props', 'global.json', 'GitVersion.yml', 'NuGet.config', 'nuget.config') {
+                $source = Join-Path $script:RepoRoot $file
+                if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination (Join-Path $copy $file) -Force }
+            }
+            foreach ($dir in '.config', 'eng', 'assets/brand/scss', "src/$Project", 'src/TechStrap.Contracts') {
+                $source = Join-Path $script:RepoRoot $dir
+                if (-not (Test-Path -LiteralPath $source)) { continue }
+                $target = Join-Path $copy $dir
+                $null = New-Item -ItemType Directory -Path (Split-Path $target) -Force
+                Copy-Item -LiteralPath $source -Destination $target -Recurse -Force
+            }
+            foreach ($name in 'wwwroot/fonts', 'bin', 'obj') {
+                foreach ($dir in "src/$Project", 'src/TechStrap.Contracts') {
+                    Remove-Item -LiteralPath (Join-Path $copy $dir $name) -Recurse -Force -ErrorAction SilentlyContinue
+                }
+            }
+            $output = Join-Path $copy 'out'
+            $log = & dotnet publish (Join-Path $copy 'src' $Project "$Project.csproj") -c Release -o $output -p:DisableGitVersionTask=true 2>&1
+            $LASTEXITCODE | Should -Be 0 -Because ($log -join [Environment]::NewLine)
+            $manifest = Get-Content -LiteralPath (Join-Path $output "$Project.staticwebassets.endpoints.json") -Raw
+            $manifest | Should -Match '\.woff2' -Because 'MapStaticAssets serves only what this manifest lists'
+        }
+        finally {
+            Remove-Item -LiteralPath $copy -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
 }

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.DataProtection;
 using Sentry;
 using SyntaxCircus.AspNetCore.Common;
@@ -5,6 +6,7 @@ using SyntaxCircus.AspNetCore.Serilog;
 using SyntaxCircus.DotEnv;
 using SyntaxCircus.Observability;
 using TechStrap.Portal.Components;
+using TechStrap.Portal.Components.Ui;
 
 const string ServiceName = "techstrap-portal";
 
@@ -41,12 +43,33 @@ if (!string.IsNullOrWhiteSpace(keyRingPath))
 }
 
 builder.Services.AddRazorComponents();
+// Installation-wide switch for the "Powered by TechStrap" footer (D-024); shown unless set to false.
+// A value that is not true or false fails at startup rather than breaking every page.
+builder.Services.AddOptions<PoweredByOptions>()
+    .Configure<IConfiguration>((options, configuration) =>
+        options.Show = !bool.TryParse(configuration[PoweredByOptions.ConfigurationKey], out var show) || show)
+    .Validate<IConfiguration>(
+        (options, configuration) => string.IsNullOrWhiteSpace(configuration[PoweredByOptions.ConfigurationKey])
+            || bool.TryParse(configuration[PoweredByOptions.ConfigurationKey], out _),
+        $"{PoweredByOptions.ConfigurationKey} must be true or false.")
+    .ValidateOnStart();
 
 var app = builder.Build();
 telemetry.LogStartupWarning(app.Logger);
 
 app.UseForwardedHeaders();
 app.UseCorrelationId();
+// An address that matches no page gets the not-found page (re-executed, so the 404 status code is kept).
+app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+// BRAND.md section 3: humour never covers an error that blocks work, so only 404 is re-executed to the not-found page.
+app.Use(async (context, next) =>
+{
+    await next();
+    if (context.Response.StatusCode != StatusCodes.Status404NotFound)
+    {
+        context.Features.Get<IStatusCodePagesFeature>()?.Enabled = false;
+    }
+});
 app.UseAntiforgery();
 app.MapStandardHealthChecks();
 app.MapRazorComponentsWithStaticAssets<App>();

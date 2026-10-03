@@ -4,12 +4,16 @@
 
 > This is a **designer handoff**, not an implementation ticket. It describes what
 > customers must be able to do, what each page must contain and how it must
-> behave; layout and visual language are the designer's to propose.
-> **Prerequisite:** `docs/BRAND.md` is produced in
-> [PHASE-02 (brand and UX)](PHASE-02-brand-and-ux.md) following the _template
-> `DESIGN.md` process. No significant portal UI is built (PHASE-09) until it
-> exists. This brief covers the **web pages and the outbound emails**, because
-> both are the customer's experience of support.
+> behave; layout is the designer's to propose within the chosen direction.
+> **Visual direction is decided:** Carbon Copy v2 (owner decision, 2026-10-02),
+> produced in [PHASE-02 (brand and UX)](PHASE-02-brand-and-ux.md).
+> [`docs/BRAND.md`](../BRAND.md) is the system of record; the reference mockup is
+> [`docs/design/mockups/direction-carbon-copy-v2.html`](../design/mockups/direction-carbon-copy-v2.html)
+> (its Portal view). **For the Portal, the product's own branding leads and
+> TechStrap stays in the background** (see [Visual Direction](#visual-direction)).
+> No significant portal UI is built (PHASE-09) until BRAND.md is final. This
+> brief covers the **web pages and the outbound emails**, because both are the
+> customer's experience of support.
 
 ## Product Context
 
@@ -30,16 +34,21 @@
   [PHASE-08-knowledge-base.md](PHASE-08-knowledge-base.md). Sibling brief:
   [UX-BRIEF-admin.md](UX-BRIEF-admin.md).
 - **Design constraints:**
-  - **Brand layering:** one portal domain; the **TechStrap brand is the neutral
-    frame** (typography, layout, components, footer); **per-product theming is
-    layered on top**: product name, logo and an accent colour supplied by an admin
-    through `GetPublicProductRequestHandler` branding. The same theming applies to
-    outbound emails. The design must work with **arbitrary admin-chosen accent
-    colours** (see Contrast rules); it must also work with no logo (name only) and
-    with a very long product name.
+  - **Brand layering (amended 2026-10-02: product branding leads):** one portal
+    domain, many products. The **product's name, logo and accent colour lead**
+    on every `/p/{key}` page and in every customer email, supplied by an admin
+    through `GetPublicProductRequestHandler` branding. TechStrap is **not** the
+    visible brand: it supplies only the neutral structure underneath
+    (typography, layout, components, neutrals, semantic colours) and appears
+    only as a small "Powered by TechStrap" footer line (exact rule under
+    Interaction and Content Rules). The portal has **no mascot, no jokes, no
+    carbon tints, no Beige Box windows** and no TechStrap-led headings; those
+    are Admin-only. The portal is **light-only in v1**. The design must work
+    with **arbitrary admin-chosen accent colours** (see Contrast rules); it must
+    also work with no logo (name only) and with a very long product name.
   - Blazor **static server-side rendering**: pages are fast, indexable and work
     without JavaScript by default. Interactive behaviour (live deflection) is a
-    progressive enhancement and must degrade gracefully (open question 3).
+    progressive enhancement and must degrade gracefully (Handoff Notes, question 3).
   - The portal never touches the database; it calls the API's public and
     token-authorised endpoints through typed clients over `TechStrap.Contracts`.
   - No customer accounts, passwords or sessions. Identity is possession of the
@@ -48,7 +57,7 @@
     "contact support" link. Layouts are designed at phone width first.
   - English only in v1 (an i18n seam exists).
   - No third-party trackers, fonts from CDNs or CAPTCHAs in v1 (CAPTCHA, e.g.
-    Turnstile, is only added if spam appears; see open question 9).
+    Turnstile, is only added if spam appears; see Handoff Notes, question 9).
   - Public pages must never reveal whether an email address or ticket exists.
 
 ## Users and Personas
@@ -63,7 +72,7 @@
   - **Access/permissions:** anonymous. Can read published KB articles, submit a
     ticket for a product, and (with a valid token) read the public messages of
     their own ticket and reply to it. Cannot see internal notes, tags, assignee
-    identity beyond a first name or display name (Assumption), or other tickets.
+    identity beyond the resolved agent name (D-024), or other tickets.
 - **Persona: Self-servicer** (searches before asking, often via a search engine)
   - **Goals:** land on a KB article from a search engine, read it, decide if it
     solved the issue; browse by category.
@@ -71,8 +80,8 @@
   - **Access/permissions:** anonymous; read-only.
 - **Persona: In-app user** (arrives from a product's own "Contact support" button)
   - **Goals:** land on the right product's contact page, ideally pre-filled
-    (Assumption: link may carry a non-sensitive subject; no PII or secrets in
-    query strings).
+    (D-024: the link may prefill `subject`, `name` and `email`, all visible and
+    editable; app context goes through the SDK/API, not the URL).
   - **Pain points:** a generic page that does not look like the product they
     were just in.
   - **Access/permissions:** anonymous.
@@ -140,7 +149,7 @@
 - **Success state:** customer has the number and knows to expect an email.
 - **Failure, loading, and empty states:** the page works if reloaded (shows the
   same confirmation, ticket number only; Assumption: not the ticket link, so the
-  link is proved only by email ownership; open question 4). Direct visits with no
+  link is proved only by email ownership; Handoff Notes, question 4). Direct visits with no
   valid submission context get the uniform not-found page. If the email later fails
   it is handled by the admin dead-letter flow; the portal does not promise
   delivery times.
@@ -211,10 +220,13 @@ team should keep them stable for SEO.
 
 - **Screen/route:** Portal root `/`
   - **Purpose:** orient visitors who arrive without a product.
-  - **Primary actions:** choose a product (list of active products with logo and
-    name) or search all help.
-  - **Data/state:** active public products from the API; if exactly one product
-    exists, redirect to it (open question 6).
+  - **Primary actions:** choose a product (minimal chooser: active products with
+    logo and name). No cross-product search in v1 (Handoff Notes, question 6).
+  - **Data/state:** active public products from the API; redirects to
+    `TECHSTRAP_PORTAL_DEFAULT_PRODUCT` when that is set (02-ARCHITECTURE.md
+    section 8.2); inactive products are never listed. This is the one portal
+    page with no product context: it uses the neutral theme and the standard
+    "Powered by TechStrap" footer, and no TechStrap-led headline.
   - **Authorization:** Anonymous.
 - **Screen/route:** Product home `/p/{key}`
   - **Purpose:** the themed front door for a product.
@@ -253,6 +265,14 @@ team should keep them stable for SEO.
   - **Data/state:** `RequestNewAccessLinkRequestHandler`; always the same
     response.
   - **Authorization:** Anonymous, rate limited.
+- **Screen/route:** KB home `/p/{key}/kb`
+  - **Purpose:** browse all published categories for a product (plus shared
+    articles) and search.
+  - **Primary actions:** open a category, search (GET form to KB search),
+    contact support.
+  - **Data/state:** `ListPublicKbCategoriesRequestHandler`; empty KB shows the
+    friendly empty message plus the contact route.
+  - **Authorization:** Anonymous. Unknown/inactive key: uniform not-found.
 - **Screen/route:** KB category `/p/{key}/kb/{categorySlug}`
   - **Purpose:** list articles in a category.
   - **Primary actions:** open an article, search, back to home.
@@ -263,7 +283,7 @@ team should keep them stable for SEO.
   - **Primary actions:** read, search, contact support, share/copy link.
   - **Data/state:** `GetPublishedKbArticleRequestHandler` (rendered, sanitised
     HTML; shared articles reachable under any product they apply to, canonical
-    URL decision in open question 7).
+    URL decision in Handoff Notes, question 7).
   - **Authorization:** Anonymous.
 - **Screen/route:** KB search `/p/{key}/kb/search?q=`
   - **Purpose:** search published articles.
@@ -274,7 +294,8 @@ team should keep them stable for SEO.
 - **Screen/route:** System pages: uniform not-found/invalid link, rate-limited,
   server error, `sitemap.xml`, `robots.txt`
   - **Purpose:** safe, calm failure states; crawler support
-    (`GetSitemapEntriesRequestHandler`).
+    (`GetSitemapEntriesRequestHandler`). Product-branded where a product is
+    known, otherwise neutral. Plain copy: no mascot, no jokes, even on 404.
   - **Primary actions:** go home, search help, request a new link.
   - **Data/state:** none.
   - **Authorization:** Anonymous.
@@ -289,9 +310,9 @@ recorded in [02-ARCHITECTURE.md](02-ARCHITECTURE.md).
 
 | Feature/route | Component pair (`.razor` / `.razor.cs`) | ViewModel or direct model | Factory decision | State behavior |
 | :------------ | :-------------------------------------- | :----------------------- | :--------------- | :------------- |
-| Product theming (layout) | `ProductLayout` pair; `ProductThemeStyle` pair (emits CSS custom properties) | `ProductThemeViewModel` (name, logo URL, accent, derived accessible foreground and text-safe variant) | **Yes: `ProductThemeFactory`**, justified by non-trivial colour/contrast derivation shared across pages and email | Layout loads branding once per request; failure to load branding falls back to the neutral TechStrap theme, never a broken page |
+| Product theming (layout) | `ProductLayout` pair (PHASE-09 names it `PortalLayout`); `ProductHeader` and `ProductFooter` inline; custom properties emitted on the page wrapper (no injected `<style>`) | `ProductThemeViewModel` (name, logo URL, accent, derived on-accent and accent-ink) | **Yes: `BrandingThemeFactory`** (PHASE-09's name), justified by non-trivial colour/contrast derivation shared across pages and email | Layout loads branding once per request; failure to load branding falls back to the neutral TechStrap theme, never a broken page |
 | Product home | `ProductHome` pair; `CategoryList` inline | `ProductHomeViewModel` | None | Static SSR; loading not visible; error page on API failure |
-| Contact form | `ContactForm` pair; `SubjectSuggestions` pair (enhanced); `FileInput` pair; `HoneypotField` inline | `ContactFormModel` (direct form model with validation attributes mirroring server rules) | None; attachment-rule display strings come from shared constants | Form model owned by the page; enhanced form post preserves values on error; suggestions are an optional interactive island (open question 3) |
+| Contact form | `ContactForm` pair; `SubjectSuggestions` pair (enhanced); `FileInput` pair; `HoneypotField` inline | `ContactFormModel` (direct form model with validation attributes mirroring server rules) | None; attachment-rule display strings come from shared constants | Form model owned by the page; enhanced form post preserves values on error; suggestions are an optional interactive island (Handoff Notes, question 3) |
 | Confirmation | `ContactReceived` pair | `ContactReceivedViewModel` | None | Stateless; handles missing/expired reference with the uniform not-found page |
 | Customer ticket | `CustomerTicket` pair; `PublicMessageList` pair; `ReplyForm` pair; `ClosedNotice` inline | `CustomerTicketViewModel` (friendly status text, public messages) | **Maybe: `CustomerTicketViewModelFactory`** if status wording and attachment link shaping stay non-trivial; otherwise code-behind | Page owns token, reply form state and Closed behaviour; uniform error on any token failure |
 | Lost link | `LostLinkForm` pair | `LostLinkModel` | None | Always renders the same result state after post |
@@ -305,15 +326,50 @@ recorded in [02-ARCHITECTURE.md](02-ARCHITECTURE.md).
   - Header: product logo and name (links to product home), "Help articles",
     "Contact us". No login or account controls. Search box is available from the
     header on every product page.
-  - Footer: TechStrap neutral frame with a modest "Powered by TechStrap" link
-    (Assumption), plus "Can't find your ticket link?".
+  - Footer: the **"Powered by TechStrap" rule** below, plus "Can't find your
+    ticket link?".
+  - **"Powered by TechStrap" footer rule (exact):**
+    1. Every portal page carries the footer line, including KB, contact,
+       confirmation, ticket, lost-link, portal root and system pages. It is the
+       **only** place the TechStrap name appears on the portal. TechStrap does
+       not appear in the header, headings, button labels, page titles, Open
+       Graph or SEO tags, or 404 copy; those use the product's name.
+    2. Text is exactly "Powered by TechStrap": one line, a text link, small
+       (caption size), in the neutral secondary ink at 4.5:1 or better on the
+       page background; never in the product accent, never bold, never animated.
+    3. An optional TechStrap mark at **16 px** may sit immediately before the
+       text (the mockup does this). It is the static logo mark only: no mascot
+       pose, no window frame, and it is not used anywhere else (not in the
+       header, hero or ticket page body). It carries `alt=""` when the text is
+       present.
+    4. Placement: bottom of the page, in the footer region, inside the page
+       container, with the same placement on every page. It never sticks to the
+       viewport and never competes with the "Can't find your ticket link?" link.
+    5. **Decided (owner 2026-10-02, D-024):** the text is a link to
+       https://github.com/Syntax-Circus/techstrap (neutral secondary ink,
+       underlined, same colour on hover; never the accent). It is shown by
+       default. An installation-level setting hides it everywhere on the
+       portal and in emails: `TECHSTRAP_PORTAL_SHOW_POWERED_BY=false`
+       (default `true`; not per product). When hidden, the whole line and the
+       optional mark are omitted and the footer keeps its other content.
+  - **Agent identity (decided, D-024):** wherever a customer sees an agent (ticket
+    view messages, and the agent-reply email), the name is the agent's **first
+    name plus the product's support name**: "Sam from Orbitly Support". If the
+    agent set a **public display name** it replaces the first name and is used
+    as-is: "Samantha from Orbitly Support". **Assumption:** the " from {Product}
+    Support" suffix is kept with an override. The product part is the product's
+    branding display name (falls back to its name). Surnames are never added,
+    and agent emails, ids and avatars never appear. The customer's own messages
+    read "You". The portal and emails render the string the API resolved.
   - Hierarchy: help-first. The contact form is prominent but the search box and
     categories come first on the product home; the contact page leads with the
     form and keeps suggestions adjacent to the subject.
-  - Product accent shows in: header rule/mark, primary button, links within
-    content, focus-compatible highlights. The TechStrap frame supplies layout,
-    typography, spacing, neutrals and semantic colours (error/success/warning),
-    which are **never** replaced by the product accent.
+  - Product accent shows in: header rule and name/logo tile, primary button
+    fill (label in the derived on-accent colour), links and accent text (in the
+    derived accent-ink colour), and decorative highlights. The neutral
+    structure supplies layout, typography, spacing, neutrals and semantic
+    colours (error/success/warning), which are **never** replaced by the
+    product accent. The focus ring is a high-contrast neutral, not the accent.
   - The **ticket number** is always shown in a distinct, copyable treatment.
 - **Forms and validation:**
   - Contact fields: name (required), email (required, validated), subject
@@ -323,6 +379,13 @@ recorded in [02-ARCHITECTURE.md](02-ARCHITECTURE.md).
     (`name`, `email`); correct mobile keyboards (`type=email`).
   - Keep the form short; do not ask for product (it is the page's context) or
     information the in-app link already supplies.
+  - **Prefill (decided, D-024):** `/p/{key}/contact?subject=...&name=...&email=...`
+    may prefill exactly these three fields. They stay visible, labelled and
+    editable; there are no hidden fields and nothing is auto-submitted. App
+    context such as version and device goes through the SDK/API, not the URL.
+    Prefilled values are validated and length-limited exactly like typed input
+    (same rules, same error summary). Unknown parameters are ignored and never
+    echoed; values are HTML-encoded; request logs redact `name` and `email`.
   - **Honeypot (invisible):** an extra field that real users never see or reach.
     It must not be visible, focusable (`tabindex=-1`), announced to assistive
     technology (`aria-hidden`, not just offscreen text), autofilled by browsers
@@ -338,7 +401,7 @@ recorded in [02-ARCHITECTURE.md](02-ARCHITECTURE.md).
     name, size and remove button; violations are reported per file at selection
     (where script allows) and again on submit (server authority). Filenames shown
     are sanitised; attachments open as downloads, not inline execution. Maximum
-    file count is a design question.
+    file count: Handoff Notes, question 11.
   - Reply form on the ticket page follows the same attachment rules and error
     behaviour.
   - Do not autofocus the first field on mobile in ways that pop the keyboard and
@@ -378,11 +441,19 @@ display name, reply-to), English only (an i18n seam is kept). Email is the
 customer's door back into the portal, so the link is the most important element.
 Common rules:
 
-- **Common frame:** neutral TechStrap structure with product header (logo or name),
+- **Brand rule (customer emails):** the **product leads**: product header (logo
+  or name) and the product accent only. No TechStrap header, no mascot, no
+  jokes, no carbon tints, no window frames, no stamp motifs. TechStrap appears
+  only as a single "Powered by TechStrap" line at the very bottom, in both the
+  HTML and the plain-text part, with the same wording and plain-text,
+  secondary-ink styling as the web footer (an optional 16 px mark in HTML only;
+  the link and the hide setting follow the web footer rule: GitHub link in HTML, bare URL in the plain-text part, omitted entirely when `TECHSTRAP_PORTAL_SHOW_POWERED_BY` is false; D-024). Emails are light
+  designs that must survive client dark-mode inversion.
+- **Common frame:** neutral structure with product header (logo or name),
   one primary call-to-action button plus the same URL as plain text, the ticket
   number and subject in a consistent position, and a short footer (who sent it
   and why; "Replying by email does not reach us yet; use the link above" until
-  inbound email ships; no marketing).
+  inbound email ships; no marketing) followed by the "Powered by TechStrap" line (unless hidden by the installation setting).
 - **Subject lines:** consistent and threadable by humans, with the ticket number
   first, e.g. `[ACME-142] We received your request`, `[ACME-142] New reply from
   support`, `[ACME-142] Your ticket was closed` (copy is a design/content
@@ -391,10 +462,18 @@ Common rules:
   Outlook, Gmail and dark-mode inversion; images have alt text; the message is
   fully legible with images blocked and in plain text; width about 600 px, a
   single column; touch-sized CTA button; minimum font size ~16 px for body.
-- **Accent colour in email:** apply the same contrast derivation as the web
-  (accent only as button background/rule with a computed readable label colour;
-  never as small text on white). Dark-mode safe: no pure-white-only logos;
-  specify a logo fallback (open question 8).
+- **Accent colour in email:** the product accent only, using the same
+  derivation as the web, computed by `BrandingThemeFactory` and written as
+  **inline literal values** (email cannot use CSS custom properties): accent as
+  the CTA button background and a thin header rule, with the **on-accent**
+  colour as the label (at least 4.5:1); any accent-coloured text link uses the
+  **accent-ink** colour (at least 4.5:1 on the white email body); the raw accent
+  is never used for small text. Set button background both as a `bgcolor`
+  attribute and inline style, and the label colour explicitly, so inversion in
+  dark-mode clients cannot produce unreadable text. Logos: no white-only logos
+  (place the logo on a white or neutral backing cell); no logo means the product
+  name as text (Handoff Notes, question 8). A very light accent (Pixelforge) and
+  a very dark accent (Acme) must both pass without redesign.
 - **Security:** the link is `/t/{token}`; emails never include internal notes,
   tags or other tickets; never include attachments in the email (customers get
   them through the link; Assumption); avoid showing the full token as visible
@@ -405,9 +484,9 @@ Common rules:
      (truncated), the link to follow the conversation, the lost-link tip, and
      for a follow-up a sentence linking it to the original ticket number.
   2. **Agent reply**: the agent's public reply text (sanitised), linked KB
-     articles as titled links (when the agent linked any), the agent's display name
-     (Assumption: first name or a product-level "Support" identity, a design and
-     privacy decision), the CTA "View and reply", and the ticket number. Long
+     articles as titled links (when the agent linked any), the agent's resolved name
+     (D-024: "Sam from Orbitly Support", or the agent's public display name
+     plus the same suffix; never email or surname), the CTA "View and reply", and the ticket number. Long
      replies are shown in full (not truncated) because the email may be the only
      thing read.
   3. **Closed notice**: sent when a Solved ticket is auto-closed (or manually
@@ -416,12 +495,17 @@ Common rules:
      history. Tone: calm, no surprise.
   4. **New access link** (lost-link response): a minimal email with the link(s) to
      their tickets (Assumption: one email listing recent tickets; multiple
-     tickets per requester is a design question). Sent only to the address
+     tickets per requester: Handoff Notes, question 5). Sent only to the address
      entered; subject and body do not confirm anything on the web page, which
      stays uniform.
+  5. **Solved notice** and 6. **Follow-up created** (both listed in PHASE-06's
+     notification templates): same frame and rules; the Solved notice says that
+     replying through the link reopens the ticket; the Follow-up created notice
+     links the new ticket number to the original. Copy is a content decision
+     for PHASE-06.
   Agent-facing alert emails (new ticket, assignment, customer reply) are an
-  admin-side notification concern and are **not** in this brief; they may reuse
-  the same frame (open question 10).
+  admin-side notification concern and are **not** in this brief (Handoff Notes,
+  question 10).
 
 ## Accessibility and Responsive Behavior
 
@@ -448,22 +532,53 @@ Target: **WCAG 2.2 AA** (the audience is the general public).
     scroll within their region and are keyboard-reachable, descriptive link
     text, meaningful image alt text (required in the editor).
 - **Color contrast and non-color cues:**
-  - **Arbitrary accent rule (hard requirement):** the theming system takes one
-    admin-chosen accent colour and must derive, automatically and verifiably:
-    (a) a foreground (light or dark) that gives at least 4.5:1 on the accent when
-    it is used as a button/background; (b) a text-safe variant (the accent
-    darkened or lightened, per light/dark theme) that meets 4.5:1 against the page
-    background for link text and 3:1 for non-text UI; (c) a fallback to the
-    neutral TechStrap accent when no safe derivation is possible. The accent is
-    never the only carrier of meaning (links are underlined or otherwise marked,
-    focus rings use a high-contrast neutral not the accent, status uses text).
-    The admin branding screen shows a contrast report; the portal still protects
+  - **Accent-derivation rule (hard requirement).** Input: one admin-chosen
+    `#RRGGBB` accent (re-validated before use). The portal is **light-only in
+    v1**, so contrast is always measured against a white (`#FFFFFF`) page and
+    surface. `BrandingThemeFactory` derives, automatically and verifiably, from
+    that single input:
+    1. **`--ts-accent`**: the accent as entered. Used only for fills that
+       carry their own label or are decorative: primary button background,
+       header rule, logo tile, highlights.
+    2. **`--ts-on-accent`**: white or black (`#FFFFFF` / `#000000`, whichever contrasts more; see BRAND.md; exact value
+       in BRAND.md), **whichever contrasts more with the accent**. It is the
+       label colour on accent fills and must reach **at least 4.5:1**. (If
+       neither reaches 4.5:1, which can happen for mid-tones, use pure black; if
+       that still fails, apply rule 4.)
+    3. **`--ts-accent-ink`**: the accent itself if it already gives **at least
+       4.5:1 on white**; otherwise the accent **darkened** (same hue, lightness
+       reduced step by step) until it does. Used for every accent-coloured
+       text, link and meaningful non-text UI (also needs 3:1, which 4.5:1
+       satisfies). BRAND.md may require a stricter target; 4.5:1 is the floor.
+    4. **Fallback:** if the input is invalid, or no safe pair can be derived, use
+       the neutral theme accent and surface the failure in the admin contrast
+       report. The portal never renders an unchecked accent.
+    The property names above are the contract (`--ts-accent`, `--ts-on-accent`,
+    `--ts-accent-ink`); PHASE-09 now uses the same names (the earlier
+    `--ts-accent-contrast` is retired). BRAND.md and the mockup use unprefixed `--accent`, `--on-accent`,
+    `--accent-ink`; the same values drive the email inline styles.
+    The accent is never the only carrier of meaning: links are underlined,
+    focus rings use a high-contrast neutral not the accent, status uses text and
+    icon. Hover or pressed states must not rely on further darkening (a very
+    dark accent cannot darken); use an underline, outline or inset change. The
+    admin branding screen shows a contrast report; the portal still protects
     itself if bad values slip through.
-  - Test the design with at least: very light yellow, saturated red, mid-gray,
-    near-black, and a brand-like blue; all must pass without redesign.
-  - Product logos on unknown backgrounds: logo sits on a defined neutral
-    surface with safe padding; support dark-mode variants or a neutral
-    backing (open question 8).
+  - **Worked examples (ratios against white unless stated; derived values are
+    illustrative of the rule, the factory computes the exact values):**
+
+    | Product | Accent | On white | On-accent label | Accent-ink | Notes |
+    | :------ | :----- | :------- | :-------------- | :--------- | :---- |
+    | Pixelforge (very light) | `#F59E0B` | 2.15:1 (fails) | black `#000000` (about 9.8:1 on the accent; white would be 2.15:1) | darkened to about `#A26807` (about 4.65:1) | Raw accent must never be text or a meaningful border on white; button is amber with dark label. |
+    | Acme Cloud Backup (very dark) | `#0F3D2E` | 12.16:1 | white (about 12.2:1) | unchanged (the accent already passes) | Accent is close to body-text ink, so links need underlines and the accent cannot signal state on its own; button is dark green with white label. |
+    | Orbitly (mid, reference) | `#7C3AED` | 5.7:1 | white | unchanged | Passes as entered. |
+
+  - Test the design with at least: very light yellow (Pixelforge), a very dark
+    green (Acme), saturated red, mid-gray, near-black, and a brand-like blue;
+    all must pass without redesign.
+  - Product logos on unknown backgrounds: logo sits on a defined white/neutral
+    surface with safe padding. The portal is light-only, so no dark logo
+    variants are needed on the web; emails use a neutral backing cell
+    (Handoff Notes, question 8).
   - Error and success states combine text, icon and colour.
 - **Responsive layout behavior:**
   - Design at ~360 px first. Single column; comfortable reading measure on
@@ -477,9 +592,9 @@ Target: **WCAG 2.2 AA** (the audience is the general public).
     horizontal page scroll (tables and code blocks scroll within themselves).
   - Print: KB articles print cleanly (nice-to-have).
 - **Reduced-motion or other preferences:** honour `prefers-reduced-motion`
-  (no animated suggestion entry or scroll effects), `prefers-color-scheme`
-  (dark theme is a design question), forced-colors mode, and user font-size
-  settings. No autoplay media, no carousels.
+  (no animated suggestion entry or scroll effects), forced-colors mode, and
+  user font-size settings. The portal is light-only in v1 and does not switch on
+  `prefers-color-scheme`. No autoplay media, no carousels.
 
 ### SEO (public KB and product pages)
 
@@ -504,9 +619,36 @@ Target: **WCAG 2.2 AA** (the audience is the general public).
 
 ## Visual Direction
 
-Direction comes from `docs/BRAND.md` (PHASE-02). Two layers are needed:
-(1) the **TechStrap neutral frame** and (2) a **product theming layer**. The
-designer defines both and demonstrates them with several sample products.
+**System of record:** [`docs/BRAND.md`](../BRAND.md). **Reference mockup:**
+[`docs/design/mockups/direction-carbon-copy-v2.html`](../design/mockups/direction-carbon-copy-v2.html)
+(its **Portal** view, with the Orbitly, Pixelforge and Acme accent switcher).
+Overall direction is Carbon Copy v2, chosen by the owner on 2026-10-02, but the
+Portal uses **very little** of it. The Admin app carries the personality; the
+Portal is the product's own front door.
+
+How it applies to the Portal:
+
+- **Product branding leads.** Product name, logo and accent colour are the
+  visible brand on every page and email. TechStrap appears only as the small
+  "Powered by TechStrap" footer line (and an optional 16 px mark), per the
+  footer rule. Branding is data-driven (admin supplies name, logo, accent); the
+  accent flows through the derivation rule (accent, on-accent, accent-ink).
+- **Plain and neutral everywhere else:** friendly, plain, concrete copy. **No
+  mascot, no jokes, no carbon tints (canary/pink), no dashed notched notes, no
+  status stamps, no numbered paper-form header, no Beige Box windows, no
+  keyboard layer or palette** on portal pages or in customer emails. The
+  ticket page's "you" and "support" messages are distinguished by label,
+  alignment and neutral surfaces, not by the Admin carbon tint code. 404 and
+  error pages are plain too.
+- **Light-only in v1:** one light theme; no dark theme, no
+  `prefers-color-scheme` switching, no dark logo variants for the web.
+- **Fonts:** the mockup loads fonts from a CDN for convenience only; the
+  portal must self-host its fonts (no third-party font hosts, a stated
+  constraint).
+- **Mockup note:** the mockup's accent-ink uses a stricter 7:1 target; this
+  brief sets 4.5:1 as the floor and BRAND.md may choose a stricter target.
+
+### Bootstrap and SCSS guidance
 
 - **Bootstrap 5 components/utilities to prefer:** container/grid with a narrow
   reading column, form controls with validation states, buttons, list groups for
@@ -514,16 +656,16 @@ designer defines both and demonstrates them with several sample products.
   breadcrumbs, pagination, alerts for notices (with text and icons), badges
   for the ticket status, input groups for the search box, `visually-hidden`
   helpers, responsive utilities.
-- **SCSS variable overrides:** neutral-frame tokens (fonts, scale, radius,
-  spacing, neutrals, semantic colours, focus ring) are compile-time SCSS.
-  Product theming is **runtime CSS custom properties** set from branding
-  (accent, accent foreground, text-safe accent), consumed by a small set of
-  themed utilities; do not generate per-product stylesheets. The same token
-  names should drive the email templates' inline styles.
+- **SCSS variable overrides:** neutral-structure tokens (fonts, scale, radius,
+  spacing, neutrals, semantic colours, focus ring) are compile-time SCSS, from
+  BRAND.md. Product theming is **runtime CSS custom properties** set from
+  branding (`--ts-accent`, `--ts-on-accent`, `--ts-accent-ink`), consumed by a
+  small set of themed utilities; do not generate per-product stylesheets. The
+  same derived values drive the email templates' inline styles.
 - **Custom SCSS justified only for:** the product theming layer, the ticket
   conversation treatment (you vs support), the ticket-number treatment, the
-  suggestions region, the honeypot hiding rule, and KB article typography
-  (prose, code, tables, callouts).
+  suggestions region, the honeypot hiding rule, the footer line, and KB
+  article typography (prose, code, tables, callouts).
 - **Typography, imagery, and content tone:** highly readable typography tuned for
   long-form reading and for non-native English speakers; consistent monospaced
   or distinct ticket number style shared with the admin; imagery limited to the
@@ -536,47 +678,85 @@ designer defines both and demonstrates them with several sample products.
 
 ## Handoff Notes
 
-- **Open design questions:**
-  1. How far can product theming go: accent and logo only (current plan), or also
-     a hero image, tagline or favicon per product?
-  2. Customer-facing status wording and the mapping from New/Open/Pending/
-     Solved/Closed; whether to show agent names.
-  3. Live deflection requires interactivity on an SSR site: acceptable to add a
-     small interactive island (or enhanced navigation plus a tiny script), with
-     a no-JS fallback of a "Browse help articles" link?
-  4. Should the confirmation page expose the access link directly (convenient) or
-     only the number plus "check your email" (stronger proof of email
-     ownership)? Current assumption: number only.
-  5. How should a requester with several tickets be handled by the lost-link
-     email (one link per ticket, or a list)?
-  6. Portal root with several products: a product picker, a cross-product search,
-     or redirect when there is only one product?
-  7. Shared KB articles: canonical URL (a neutral `/kb/...` vs per-product path)
-     and how an article is presented when it belongs to more than one product.
-  8. Logo handling for dark mode and email: required variants, minimum
-     dimensions, fallback when no logo is supplied.
-  9. Is the honeypot plus rate limiting enough for launch, or should the design
-     reserve space for an optional CAPTCHA challenge (Turnstile)?
-  10. Do agent-alert emails share the customer email frame?
-  11. Attachment UI limits: number of files, preview thumbnails for images,
-      and virus-scan messaging (none planned in v1).
-  12. Dark theme for the portal in v1, or light only?
-  13. In-app launch: which parameters may an app pass to prefill the form
-      (subject, product area) without leaking PII?
-- **Prototype/wireframe references:** none yet. Expected from PHASE-02:
-  (a) `docs/BRAND.md`; (b) coded mockups at 360, 768 and 1280 px of product
-  home, contact form with suggestions, confirmation, ticket view (open, Solved,
-  Closed), lost link, a KB article and the uniform error page, each shown with
-  at least four sample products and accents (including the hostile accents
-  listed above, with and without a logo); (c) email mockups in light and dark
-  clients for the confirmation, agent reply and closed notice; (d) the token
-  sheet for the SCSS neutral frame and the CSS custom-property contract for the
-  product theme.
+- **Open design questions** (all dispositioned; none is left unmarked):
+  1. How far product theming goes. **Answered:** name, logo and accent only in
+     v1 (the three fields the admin supplies). Hero image, tagline and
+     per-product favicon are **Deferred post-v1** (they need new product
+     fields and admin UI not in PHASE-07 or PHASE-09).
+  2. Customer-facing status wording and agent names. **Answered in part:**
+     provisional mapping New "Received", Open "In progress", Pending "Waiting
+     for your reply", Solved "Solved", Closed "Closed", in plain copy; final
+     wording is set in PHASE-09 (`CustomerTicketPresenter`) within the plain-copy
+     rule. **Answered (owner 2026-10-02, D-024):** customers see the
+     agent's first name plus the product support name ("Sam from Orbitly
+     Support"), or the agent's optional public display name with the same
+     suffix (Assumption); the same string is used in the agent-reply email.
+  3. Live deflection on an SSR site. **Answered:** a small interactive island
+     (`KbDeflectionSuggestions`, PHASE-09) with a no-JS fallback "Browse help
+     articles" link; suggestions never block the form.
+  4. Confirmation page and the access link. **Answered:** the confirmation shows
+     the ticket number and "check your email" only; the link is delivered by
+     email alone (proves email ownership; matches PHASE-09).
+  5. Requester with several tickets in the lost-link email. **Deferred to
+     PHASE-06** (`RequestNewAccessLinkRequestHandler` and the new-access-link
+     template): it depends on how tokens are issued per ticket. UX constraint
+     that stands: one email, sent only to the entered address, and the web
+     response stays identical.
+  6. Portal root with several products. **Answered:** a minimal product chooser;
+     redirect to `TECHSTRAP_PORTAL_DEFAULT_PRODUCT` when set (02-ARCHITECTURE.md
+     section 8.2). No cross-product search in v1 (**Deferred post-v1**).
+  7. Shared KB articles: canonical URL and multi-product presentation.
+     **Deferred to PHASE-08/PHASE-09 (P09-T14):** the canonical choice depends
+     on the KB model's slug rules and affects sitemap output; until settled, the
+     per-product path under the visited product is canonical, and the article
+     takes that product's branding.
+  8. Logo handling for email and dark mode. **Answered:** the portal is
+     light-only, so no dark logo variants for the web; emails place the logo on
+     a neutral/white backing cell and never rely on a white-only logo; no logo
+     means the product name as text (an initial tile in the accent is
+     acceptable on web). **Deferred to PHASE-07 (P07-T14):** minimum
+     dimensions, file types and size limits for the logo upload.
+  9. Honeypot plus rate limiting vs CAPTCHA. **Answered:** enough for launch; no
+     CAPTCHA space is reserved. A challenge (for example Turnstile) is added
+     only if spam appears.
+  10. Agent-alert emails and the customer email frame. **Answered:** they do not
+      share it. Alerts go to agents, are plain working text and use no
+      mascot or humour; they are not product-led customer mail. **Deferred to
+      PHASE-06** (notification templates) for their layout.
+  11. Attachment UI limits (file count, thumbnails, virus-scan messaging).
+      **Answered in part:** a plain file list with name, size and remove; no
+      image thumbnails; no virus-scan messaging in v1. **Deferred to PHASE-06:**
+      the maximum file count, which is an attachment-rule constant (the 10 MB
+      and 25 MB limits stand).
+  12. Dark theme for the portal. **Answered:** light-only in v1 (owner decision
+      2026-10-02).
+  13. In-app launch prefill. **Answered (owner 2026-10-02, D-024):** the URL may
+      prefill `subject`, `name` and `email`, all visible and editable, no hidden
+      fields, validated and length-limited like typed input. App context (version,
+      device) goes through the SDK/API; PHASE-11 documents the URL contract.
+- **Prototype/wireframe references:**
+  - Chosen direction and Portal sample: `docs/design/mockups/direction-carbon-copy-v2.html`
+    (Portal view: contact form with suggestions, confirmation, three sample
+    accents including the very light Pixelforge `#F59E0B` and the very dark
+    Acme `#0F3D2E`). The other mockups are superseded explorations.
+  - Still expected from PHASE-02 (tracked there): the final `docs/BRAND.md`;
+    mockups at 360, 768 and 1280 px of product home, ticket view (open, Solved,
+    Closed), lost link, a KB article and the uniform error page, each with at
+    least four sample products (including the hostile accents above, with and
+    without a logo); email mockups in light and dark clients for the
+    confirmation, agent reply and closed notice; and the CSS custom-property
+    contract for the product theme.
 - **Acceptance criteria for design review:**
-  - [ ] `docs/BRAND.md` exists and the neutral-frame plus theme-layer design
-    follows it; the logo-removal test was considered for the frame.
-  - [ ] Each hostile accent colour produces a passing, legible result for buttons,
-    links, headers, status and emails without manual tweaking.
+  - [ ] `docs/BRAND.md` exists and the design follows it; product branding
+    leads on every page and email.
+  - [ ] "Powered by TechStrap" appears once, as a small footer line on every
+    page and email, with no other TechStrap presence; no mascot, joke, carbon
+    tint, stamp or window appears anywhere on the portal or in customer email.
+  - [ ] Each hostile accent colour (very light Pixelforge `#F59E0B`, very dark
+    Acme `#0F3D2E`, saturated red, mid-gray, near-black, blue) produces a
+    passing, legible result for buttons (on-accent at least 4.5:1), links and
+    accent text (accent-ink at least 4.5:1 on white), headers, status and
+    emails, without manual tweaking.
   - [ ] The contact form works end to end at 360 px with suggestions, errors,
     attachment rules and success; the honeypot is invisible and does not affect
     assistive technology or layout.
@@ -586,9 +766,10 @@ designer defines both and demonstrates them with several sample products.
   - [ ] The invalid-token, unknown-product, and unpublished-article pages are
     visually and verbally identical, and the lost-link response is identical for
     matched and unmatched addresses.
-  - [ ] The three emails (confirmation, agent reply, closed notice) plus the new
-    access link render acceptably in plain text, with images blocked, and in a
-    dark-mode client.
+  - [ ] The customer emails (confirmation, agent reply, closed notice, new
+    access link) render acceptably in plain text, with images blocked, and in a
+    dark-mode client, carry only the product accent and a "Powered by
+    TechStrap" line.
   - [ ] SEO checklist applied: unique titles and descriptions, canonical,
     sitemap, noindex on ticket/confirmation/error pages.
   - [ ] Keyboard-only and screen-reader walkthrough of submit, reply and KB

@@ -1,0 +1,68 @@
+// Admin: maps the brand tokens (docs/BRAND.md section 12) onto Bootstrap's Sass variables.
+// Imported by app.scss after Bootstrap's functions and before its variables, so every !default is overridden here.
+@import "../../../assets/brand/scss/brand-tokens";
+
+// Semantic colours. TechStrap's primary is the Admin accent; statuses reuse the Bootstrap semantic names.
+$primary: ts-color("accent");
+$secondary: ts-color("st-closed");
+$success: ts-color("st-open");
+$info: ts-color("st-new");
+$warning: ts-color("st-pending");
+$danger: ts-color("st-spam");
+$light: ts-color("head");
+$dark: ts-color("ink");
+
+// Body and text, light then dark. Bootstrap emits its own [data-bs-theme=dark] block from the -dark variables.
+$body-bg: ts-color("paper");
+$body-color: ts-color("ink");
+$body-emphasis-color: ts-color("ink");
+$body-secondary-color: ts-color("ink-2");
+$body-tertiary-color: ts-color("ink-3");
+$body-secondary-bg: ts-color("head");
+$body-tertiary-bg: ts-color("rail");
+$border-color: ts-color("rule");
+$link-color: ts-color("accent");
+
+$body-bg-dark: ts-color("paper", "dark");
+$body-color-dark: ts-color("ink", "dark");
+$body-emphasis-color-dark: ts-color("ink", "dark");
+$body-secondary-color-dark: ts-color("ink-2", "dark");
+$body-tertiary-color-dark: ts-color("ink-3", "dark");
+$body-secondary-bg-dark: ts-color("head", "dark");
+$body-tertiary-bg-dark: ts-color("rail", "dark");
+$border-color-dark: ts-color("rule", "dark");
+$link-color-dark: ts-color("accent", "dark");
+$form-invalid-color-dark: ts-color("st-spam", "dark");
+$form-valid-color-dark: ts-color("st-open", "dark");
+
+// Surfaces that must follow the theme at runtime point at the brand custom properties instead of a compiled colour.
+$card-bg: var(--sheet);
+$card-cap-bg: var(--head);
+$card-border-color: var(--rule-strong);
+$input-bg: var(--sheet);
+$input-border-color: var(--rule-strong);
+$table-hover-bg: var(--hover);
+$table-active-bg: var(--sel);
+$modal-backdrop-bg: var(--scrim);
+$modal-backdrop-opacity: 1;
+$focus-ring-width: 3px;
+$focus-ring-color: var(--focus);
+
+// Geometry (BRAND.md section 13): square corners, hard offset shadows, never blurred.
+$border-radius: 0;
+$border-radius-sm: 0;
+$border-radius-lg: 0;
+$border-radius-xl: 0;
+$border-radius-xxl: 0;
+$box-shadow: 3px 3px 0 var(--shadow);
+$box-shadow-sm: 2px 2px 0 var(--shadow);
+$box-shadow-lg: 4px 4px 0 var(--shadow);
+
+// Typography (BRAND.md section 11): Sans for chrome, Mono for buttons and labels, 14px dense base.
+$font-family-sans-serif: $ts-font-sans;
+$font-family-monospace: $ts-font-mono;
+$font-size-base: .875rem;
+$line-height-base: 1.45;
+$btn-font-family: $ts-font-mono;
+$btn-font-size: .75rem;
+$btn-font-weight: 600;

@@ -1,0 +1,72 @@
+// Status stamps (BRAND.md section 18). Straight and single-bordered in lists; tilted with an inner ring on the ticket view.
+// The stamp-down animation ends at the tilt, so with prefers-reduced-motion the static state is already correct.
+
+.ts-stamp {
+  --ts-stamp-color: var(--ink);
+  --ts-tilt: 0deg;
+  display: inline-block;
+  padding: 3px 6px 2px;
+  font: 600 .6875rem/1 var(--ts-font-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ts-stamp-color);
+  background: transparent;
+  border: 2px solid var(--ts-stamp-color);
+  border-radius: 3px 6px 3px 5px / 5px 3px 6px 3px;
+}
+
+.ts-stamp--new { --ts-stamp-color: var(--st-new); }
+.ts-stamp--open { --ts-stamp-color: var(--st-open); }
+.ts-stamp--pending { --ts-stamp-color: var(--st-pending); }
+.ts-stamp--solved { --ts-stamp-color: var(--st-solved); }
+.ts-stamp--closed { --ts-stamp-color: var(--st-closed); }
+
+.ts-stamp--spam {
+  --ts-stamp-color: var(--st-spam);
+  border-style: double;
+  border-width: 3px;
+}
+
+// Queue: 10px, one 1.5px border, no inner ring, no tilt.
+.ts-stamp--queue {
+  padding: 2px 5px 1px;
+  font-size: .625rem;
+  letter-spacing: .07em;
+  border-width: 1.5px;
+}
+
+.ts-stamp--queue.ts-stamp--spam {
+  border-width: 3px;
+}
+
+// Ticket view: 11px, 2px border plus an inner hairline ring, tilted -2deg (spam +2deg).
+.ts-stamp--ticket {
+  --ts-tilt: -2deg;
+  transform: rotate(var(--ts-tilt));
+  box-shadow: inset 0 0 0 1px var(--sheet), inset 0 0 0 2px var(--ts-stamp-color);
+}
+
+.ts-stamp--ticket.ts-stamp--spam {
+  --ts-tilt: 2deg;
+}
+
+.ts-stamp--pop {
+  animation: ts-thud .35s ease-out;
+}
+
+@keyframes ts-thud {
+  0% {
+    transform: rotate(var(--ts-tilt)) scale(1.6);
+    opacity: 0;
+  }
+
+  70% {
+    transform: rotate(var(--ts-tilt)) scale(.95);
+    opacity: 1;
+  }
+
+  100% {
+    transform: rotate(var(--ts-tilt)) scale(1);
+  }
+}

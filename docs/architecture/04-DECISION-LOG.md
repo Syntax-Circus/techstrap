@@ -7,6 +7,8 @@ Approval basis:
 - **Reviewed draft spec:** decisions carried over from `docs/superpowers/specs/2026-10-02-techstrap-core-design.md`, which the owner reviewed and used as the baseline. Approved on that basis.
 - **Owner confirmation (2026-10-02, after review):** D-014 and D-016 to D-022 were drafted by Claude (D-014 from plan section C; D-016 to D-022 while reconciling the artifact set) and then explicitly confirmed by the owner. D-018 also confirms the relay mechanism of D-007.
 - **Proposed:** none. D-008's default (N = 7 days) was confirmed by the owner on 2026-10-02.
+- **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
+- **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
 **Boundary deviations: none.** Every application entry point maps to a named `I...Handler`, and no decision in this log departs from the mandatory flow in _template `APPLICATION_ARCHITECTURE.md`. D-012 records why the worker shares Infrastructure with the API; it is not a deviation. This log therefore contains no "Boundary Deviation Details" sections.
 
@@ -36,6 +38,9 @@ Approval basis:
 | D-020 | Optional `Idempotency-Key` on intake so the SDK can retry submits safely | Approved (owner confirmation) | 2026-10-02 | PHASE-05, PHASE-11 |
 | D-021 | KB live preview through `POST /api/kb/preview`; KB images are exempt public-read static assets | Approved (owner confirmation) | 2026-10-02 | PHASE-08, 02-ARCHITECTURE |
 | D-022 | Destructive and system operations are Admin-only; mark-spam stays Agent | Approved (owner confirmation) | 2026-10-02 | 01-REQUIREMENTS, PHASE-04, PHASE-06, PHASE-07, UX-BRIEF-admin |
+| D-023 | Visual direction: Carbon Copy v2; mascot only in Admin brand moments; portal shows Powered-by only | Approved (owner) | 2026-10-02 | PHASE-02, PHASE-07, PHASE-09, BRAND.md |
+| D-024 | Customer-facing identity, spam recovery and portal prefill | Approved (owner 2026-10-02) | 2026-10-02 | 01-REQUIREMENTS, 02-ARCHITECTURE, PHASE-03 to PHASE-07, PHASE-09, UX-BRIEF-admin, UX-BRIEF-portal, BRAND.md |
+| D-025 | The product-accent derivation helper lives in `TechStrap.Contracts` | Approved (owner 2026-10-02) | 2026-10-02 | PHASE-02, PHASE-04, PHASE-05, PHASE-09, BRAND.md |
 
 ---
 
@@ -649,4 +654,109 @@ These require the `Admin` policy: delete ticket (`DeleteTicketRequestHandler`), 
 
 ### Approval
 - **Approved by:** Jon Seeley (owner confirmation)
+- **Approved on:** 2026-10-02
+
+---
+
+## D-023: Visual direction: Carbon Copy v2; mascot only in Admin brand moments; portal shows Powered-by only
+
+- **Status:** Approved
+- **Date:** 2026-10-02
+- **Owner:** Jon Seeley
+- **Related artifacts:** `docs/BRAND.md`, `docs/design/directions.md`, `docs/design/mockups/direction-carbon-copy-v2.html`, PHASE-02, PHASE-07, PHASE-09, PHASE-05, UX-BRIEF-admin, UX-BRIEF-portal, D-002
+
+### Context
+PHASE-02 required an owner-selected visual direction before any UI work. Three directions were mocked up (Beige Box, Night Shift Console, Carbon Copy). The owner picked Carbon Copy as the base and requested revisions, producing v2.
+
+### Decision
+The visual direction is **Carbon Copy v2**, as defined in `docs/BRAND.md` (reference implementation: `docs/design/mockups/direction-carbon-copy-v2.html`):
+- Carbon Copy base: ruled-ledger queue, numbered form header on the ticket view only, and the white / canary / pink carbon tint code (customer / public reply / internal note), in light and dark themes.
+- The Night Shift keyboard layer re-skinned (keycaps, j/k, Ctrl/Cmd+K palette, status bar), with the rule that single-key shortcuts never fire while typing.
+- Calmer stamps: straight and single-border in queue rows; tilted with a stamp-down animation only on the ticket view.
+- Beige Box retro-window frames and the mascot palette (`--bm-*`) are used **only on Admin brand moments**: all-caught-up, agent sign-in and 404, plus the style guide and README/GitHub. The mascot never appears on working screens.
+- The portal stays plain and product-led and light-only in v1; TechStrap appears only as "Powered by TechStrap" with an optional 16px head mark. It uses no carbon tints, stamps or windows.
+- Product accents may set only `--accent`, `--on-accent` and `--accent-ink`, derived by one function enforced at product save (PHASE-04) and reused by email rendering (PHASE-05).
+- Fonts (IBM Plex Sans, IBM Plex Mono, Source Serif 4) are self-hosted; no CDN at runtime.
+
+### Alternatives Considered
+- Beige Box as the whole look: closest to the mascot, but boxy at density and prone to Windows 95 parody on working screens.
+- Night Shift Console: strongest keyboard model, but cold and mono-heavy; kept as the keyboard layer only.
+- Original Carbon Copy: kept as the base; tilted stamps in dense lists and the lack of a keyboard model led to v2.
+- Mascot or TechStrap styling in the portal: rejected; customers deal with the product, not with us.
+
+### Consequences
+- BRAND.md is complete and is the constraint for PHASE-07 and PHASE-09. The mockups are throwaway reference.
+- P02-T05 builds the token layer from BRAND.md section 12; P02-T08 delivers SVG mascot assets (PNG until then).
+- PHASE-04 must implement and test the accent derivation and contrast rejection; PHASE-05 reuses it.
+- Adding a brand moment or a new use of a carbon tint needs a new owner decision.
+- The published artifact links are private; the repo mockups are the durable record.
+
+### Approval
+- **Approved by:** Jon Seeley (owner)
+- **Approved on:** 2026-10-02
+
+---
+
+## D-024: Customer-facing identity, spam recovery and portal prefill
+
+- **Status:** Approved
+- **Date:** 2026-10-02
+- **Owner:** Jon Seeley
+- **Related artifacts:** 01-REQUIREMENTS (FR-TKT-18, FR-TKT-19, FR-CUST-07 to FR-CUST-09, FR-ADMIN-07, FR-EMAIL-09), 02-ARCHITECTURE (sections 5, 7.1, 7.3, 8.2, 11.1), PHASE-03, PHASE-04, PHASE-05, PHASE-06, PHASE-07, PHASE-09, UX-BRIEF-admin (Q11), UX-BRIEF-portal, BRAND.md, D-006, D-022, D-023
+
+### Context
+Four open UX questions blocked PHASE-07 and PHASE-09: whether v1 ships a Spam view (Admin Q11), how agents are named to customers, what the "Powered by TechStrap" mark links to and whether it can be hidden, and which parameters an in-app link may prefill on the portal contact form.
+
+### Decision
+1. **Spam view.** The Admin rail has a dedicated **Spam** view listing tickets with `is_spam = true` (all statuses). Normal views (Unassigned, Mine, Open, Pending, All) exclude spam. A one-key **Not spam** action restores a ticket; the key is `u` (no clash with `j`, `k`, `r`, `n`, `e`, `/`, `?`; layout-independent, no Shift). Restoring is available to any Agent, like marking spam (D-022).
+2. **Agent identity shown to customers** (portal ticket view and emails). Default: the agent's first name plus the product's support name, "Sam from Orbitly Support" (`{first name} from {Product display name} Support`). An agent may set an optional **public display name**; when set it replaces the first name and is used as-is ("Samantha"; "Sam W. from Orbitly Support" is never generated). **Assumption:** the " from {Product} Support" suffix is still appended to the override ("Samantha from Orbitly Support"). Agent email addresses and surnames are never shown to customers unless the agent typed a surname into their own override. The agent edits the override in "My settings". Stored as nullable `agents.public_display_name` (PHASE-03).
+3. **"Powered by TechStrap"** links to https://github.com/Syntax-Circus/techstrap and is shown by default on every portal page and in customer emails. An installation-level setting hides it: env var `TECHSTRAP_PORTAL_SHOW_POWERED_BY` (default `true`), read by the Portal host and by email rendering in the Worker. It is not per product.
+4. **Portal contact-form prefill.** The contact URL may prefill `subject`, `name` and `email` (query string). All three stay visible and editable; there are no hidden fields. App context (version, device, user reference) travels through the SDK and API, never the query string. Prefilled values are validated and length-limited exactly like typed input (same model attributes, same server rules).
+
+### Alternatives Considered
+- Spam recovery by search and filters only: rejected; spam false positives would be hard to find.
+- Key `!` for Not spam: needs Shift and varies by keyboard layout; `u` chosen.
+- Always showing the full agent name, or a product-level "Support" only: rejected; first name is friendly and the override gives agents control.
+- Dropping the suffix when an override is set: viable, but keeping it keeps every sender recognisably from the product (Assumption, reversible in one constant).
+- Powered-by as plain text, always on: not chosen; a link and an installation-level hide switch were chosen. A per-product switch was not requested.
+- Hidden prefill fields for app context: rejected; they invite PII in URLs and cannot be seen or corrected by the customer.
+
+### Consequences
+- Contracts: `TicketView.Spam`, `AgentDto.PublicDisplayName`, `UpdateMyProfileRequest`, and a shared format constant for the public name. A pure resolver in Domain produces the customer-facing name; handlers pass the resolved string (never the agent's email or full name) to customer DTOs and email payloads.
+- `UpdateNotificationPreferencesRequestHandler` is per-product alert opt-in, so it does not fit; a new `UpdateMyProfileRequestHandler` (`PUT /api/agents/me/profile`) is added in PHASE-04 (PHASE-04 then has 17 handlers).
+- Email rendering takes the resolved name and the Powered-by flag. Per 02-ARCHITECTURE 6.4 the Worker renders at drain, so the Worker reads the variable. If PHASE-05 keeps its enqueue-time rendering Assumption, the API host must read it too and its `.env.example` gains the key (decided in P05-T18).
+- Changing an agent's override affects emails queued afterwards; already queued rows keep the name captured at enqueue.
+- Portal contact page needs prefill binding with the same validation as posts; the SDK contract carries any extra context.
+
+### Approval
+- **Approved by:** Jon Seeley (owner)
+- **Approved on:** 2026-10-02
+
+---
+
+## D-025: The product-accent derivation helper lives in `TechStrap.Contracts`
+
+- **Status:** Approved
+- **Date:** 2026-10-02
+- **Owner:** Jon Seeley
+- **Related artifacts:** `docs/BRAND.md` section 22, PHASE-02 (P02-T09), PHASE-04 (product save validation), PHASE-05 (email rendering), PHASE-09 (portal theming), D-016
+
+### Context
+BRAND.md section 22 requires one pure function that turns a product accent (`#RRGGBB`) into `--ts-accent`, `--ts-on-accent` and `--ts-accent-ink`. Three hosts need it: the Portal (runtime properties), the API (reject a malformed accent at save, PHASE-04) and email rendering (PHASE-05, in the Worker or Api). The architecture tests fix the reference direction: Application references only Domain, Contracts and `SyntaxCircus.Common`; Api and Worker reference Application, Infrastructure and Contracts; Admin and Portal reference Contracts only.
+
+### Decision
+`TechStrap.Contracts.Branding.ProductAccent` (a static class with `TryDerive` and `ContrastRatio`, plus the `ProductAccentColors` record) lives in `TechStrap.Contracts`. Contracts is the only project every consumer already references, it stays dependency-free (the helper uses only the BCL), and the rule is part of the wire contract: the stored accent and the values derived from it must agree in every host.
+
+### Alternatives Considered
+- Domain: Portal and Admin may not reference Domain (architecture tests), so the Portal would need its own copy.
+- A new `TechStrap.Branding` project: needs an `AllowedProjectReferences` entry for every consumer and a change to the "ten source projects" test, for roughly 100 lines of code.
+- A Portal-local helper plus a second copy in Application: two implementations of one rule, which BRAND.md forbids.
+
+### Consequences
+- `TechStrap.Contracts` is published as a NuGet package (PHASE-11), so `ProductAccent` becomes public surface of that package and is covered by its semver promise. It is small and stable; revisit if the surface grows.
+- The architecture tests need no change: Contracts still has no project, package or framework reference.
+- PHASE-04 calls `ProductAccent.TryDerive` in `UpdateProductRequestHandler`; PHASE-05 calls it in the email renderer; PHASE-09 calls it in the portal product theme.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, 2026-10-02 plan review)
 - **Approved on:** 2026-10-02

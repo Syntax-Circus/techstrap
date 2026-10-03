@@ -1,0 +1,66 @@
+// Portal theme: portal custom properties, the product-accent hooks and base focus. Imported after Bootstrap.
+
+:root,
+[data-bs-theme="light"] {
+  @include ts-emit($ts-portal);
+  // Fallbacks. A product's accent is set on .ts-accent-scope (inline style) and overrides these for everything inside it.
+  @include ts-emit($ts-accent-fallback);
+  --ts-font-sans: #{inspect($ts-font-sans)};
+  --ts-font-mono: #{inspect($ts-font-mono)};
+}
+
+// Only --ts-accent, --ts-on-accent and --ts-accent-ink may vary per product (BRAND.md section 22). Accent is for fills
+// and borders; text and outlines on white use --ts-accent-ink; text on an accent fill uses --ts-on-accent.
+a {
+  color: var(--ts-accent-ink);
+}
+
+.btn-primary {
+  --bs-btn-color: var(--ts-on-accent);
+  --bs-btn-bg: var(--ts-accent);
+  --bs-btn-border-color: var(--ts-accent);
+  --bs-btn-hover-color: var(--ts-on-accent);
+  --bs-btn-hover-bg: var(--ts-accent);
+  --bs-btn-hover-border-color: var(--ts-accent);
+  --bs-btn-active-color: var(--ts-on-accent);
+  --bs-btn-active-bg: var(--ts-accent);
+  --bs-btn-active-border-color: var(--ts-accent);
+  --bs-btn-disabled-color: var(--ts-on-accent);
+  --bs-btn-disabled-bg: var(--ts-accent);
+  --bs-btn-disabled-border-color: var(--ts-accent);
+}
+
+.btn-outline-primary {
+  --bs-btn-color: var(--ts-accent-ink);
+  --bs-btn-border-color: var(--ts-accent-ink);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--ts-accent-ink);
+  --bs-btn-hover-border-color: var(--ts-accent-ink);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--ts-accent-ink);
+  --bs-btn-active-border-color: var(--ts-accent-ink);
+}
+
+.btn {
+  min-height: 44px;
+}
+
+// Focus: 3px ink ring plus a 5px accent halo (BRAND.md section 18, Portal). One ring only.
+:focus-visible,
+.btn:focus-visible,
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  outline: 3px solid var(--p-ink) !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--ts-accent) !important;
+}
+
+.form-control,
+.form-select {
+  min-height: 44px;
+}
+
+.ts-accent-scope {
+  display: block;
+}

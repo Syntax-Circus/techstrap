@@ -45,6 +45,7 @@ adapter endpoints.
 | :------------------- | :------------ | :------------------- | :---------------------------- | :------------------------ | :------- |
 | `GET /api/agents/me` (on sign-in, role/active check) | `GetCurrentAgentRequestHandler` (P04) | Admin: `IAgentsClient` | `AgentsClient : ApiClientBase` (HTTP) | `AgentDto`; 403 -> "no access" page | Consumed; no new server entry point |
 | `GET /api/agents`, `PUT /api/agents/{id}`, `PUT /api/agents/me/notification-preferences` | `ListAgentsRequestHandler`, `UpdateAgentRequestHandler`, `UpdateNotificationPreferencesRequestHandler` (P04) | `IAgentsClient` | `AgentsClient` | `Result<T>` from ProblemDetails; 403 hides Admin-only UI | Consumed; no new server entry point |
+| `PUT /api/agents/me/profile` | `UpdateMyProfileRequestHandler` (P04, D-024) | `IAgentsClient` | `AgentsClient` | `Result` from ProblemDetails; 422 shown as a field error | Consumed; no new server entry point |
 | Products: list/get/create/update (incl. branding) | `ListProductsRequestHandler`, `GetProductRequestHandler`, `CreateProductRequestHandler`, `UpdateProductRequestHandler` (P04) | `IProductsClient` | `ProductsClient` | 400 validation errors mapped to field messages | Consumed; no new server entry point |
 | Product API keys: list/create/revoke | `ListProductApiKeysRequestHandler`, `CreateProductApiKeyRequestHandler`, `RevokeProductApiKeyRequestHandler` (P04) | `IProductsClient` | `ProductsClient` | Secret shown once from create response | Consumed; no new server entry point |
 | Tags: list/create/update/delete | `ListTagsRequestHandler`, `CreateTagRequestHandler`, `UpdateTagRequestHandler`, `DeleteTagRequestHandler` (P04) | `ITagsClient` | `TagsClient` | 409 on duplicate slug -> field error | Consumed; no new server entry point |
@@ -94,6 +95,7 @@ feature-local; ViewModels are `internal` records in the same folder.
 | `AgentsPage` | Paired | `AgentRowViewModel` | Role/active edit inline; Admin-only | `AgentDto`, `UpdateAgentRequest` |
 | `TagsPage` | Paired | `TagRowViewModel` | Inline edit; delete confirm | `TagDto`, `CreateTagRequest`/`UpdateTagRequest` |
 | `NotificationPreferencesPage` | Paired | `NotificationPreferencesViewModel` (product x opt-in toggles) | Dirty tracking; save | `NotificationPreferencesDto` |
+| `PublicDisplayNameField` (in My settings) | Paired | `MyProfileViewModel` (draft name, preview text, save state) | Live preview from the Contracts format constant; dirty tracking; save on blur or Enter | `UpdateMyProfileRequest`, `AgentDto` |
 | `DeadLettersPage` | Paired | `DeadLetterRowViewModel` (last error truncated) | Retry/discard per row with confirm | `DeadLetterDto` |
 | `AdminEventsPage` | Paired | `AdminEventRowViewModel` built by `AdminEventSummaryFactory` (payload -> sentence) | Paged | `AdminEventDto` |
 
@@ -184,19 +186,29 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 - [ ] **P07-T19** Apply BRAND.md tokens/SCSS, responsive layout and accessibility pass per `UX-BRIEF-admin.md` (focus order, ARIA on dialogs/badges, contrast)
   - **Depends on:** P07-T07, P07-T08, P07-T14
   - **Validation:** Manual checklist from UX-BRIEF-admin completed; keyboard-only run through queue -> reply -> solve; axe (browser extension) run has no critical findings (record in PR).
+  - **Validation (PHASE-02 carry-over):** Admin must not use semantic `.text-{color}` or `.link-{color}` utilities in dark mode (they fail contrast there); use brand tokens or `.text-*-emphasis`. Add a `BrandWindow` heading-level parameter so standalone brand pages (404, sign-in) render an `h1`. The keyboard walk-through deferred from PHASE-02 happens here.
 - [ ] **P07-T20** Add Admin to compose and verify Dockerfile run; add admin architecture rules (no reference to Application/Infrastructure/EF; no `HttpClient` use in `.razor` files)
   - **Depends on:** P07-T02
   - **Validation:** `docker compose up` -> `/health/ready` 200; Architecture.Tests fail when a forbidden reference or `[Inject] HttpClient` in a component is introduced (verified by a deliberate failing sample).
 - [ ] **P07-T21** (Optional, **Assumption**) Add Playwright smoke tests for sign-in-free paths via a test auth handler: queue loads, open ticket, send reply
   - **Depends on:** P07-T11, P07-T20
   - **Validation:** Smoke run passes against compose with seed data in CI nightly (not blocking PRs).
+- [ ] **P07-T22** (D-024) Add the **Spam** view to the rail and `QueueViewTabs` (requests `TicketView.Spam`; plain "No spam" empty state; muted count) and the **Not spam** action: key `u` on the selected Spam-view row or an open flagged ticket, plus the overflow menu and palette command; status-bar hint, status message "Restored ACME-142 from spam" and shortcut help entry. `u` follows the typing guard and the My settings shortcut toggle
+  - **Depends on:** P07-T07, P07-T13, P06-T21
+  - **Validation:** bUnit with fake `ITicketsClient`: the Spam tab requests the Spam view and the five normal tabs never request it; `u` sends `IsSpam = false` once, removes the row and shows the status message; `u` does nothing while typing, with shortcuts off, or on a ticket that is not flagged; Not spam is present for an Agent principal; the help dialog lists `u`; no clash with `j`, `k`, `r`, `n`, `e`, `/`
+- [ ] **P07-T23** (D-024) Add the optional **Public display name** field to My settings (`PublicDisplayNameField`, `MyProfileViewModel`, `IAgentsClient.UpdateMyProfile`) with the live preview line "Customers see: Sam from Orbitly Support", helper text that email is never shown, and inline save confirmation
+  - **Depends on:** P07-T16, P04-T15
+  - **Validation:** bUnit: the preview shows "Sam from Orbitly Support" by default, "Samantha from Orbitly Support" while typing "Samantha", and returns to the default when cleared; save calls `UpdateMyProfile` once and shows confirmation; an over-long name or one containing `@` shows the field error from a 422; the field is optional
+
 
 ## Success Criteria
 
-- [ ] An agent in the configured group signs in, sees the queue with all five views, filters and searches, pages results, and opens a ticket.
+- [ ] An agent in the configured group signs in, sees the queue with all five views plus the Spam view, filters and searches, pages results, and opens a ticket.
 - [ ] From ticket detail an agent can reply publicly, add an internal note, change status/assignee/priority/product, tag, mark spam, delete, and erase the requester; every action is reflected in the timeline after reload.
 - [ ] A non-agent user is rejected by the API and sees the no-access page; an expired session prompts re-sign-in instead of a blank error.
 - [ ] Admin can create/edit products with branding, create (show-once) and revoke Trusted/Public keys, manage agents/tags/notification preferences, and retry/discard dead letters.
+- [ ] The Spam view lists flagged tickets and `u` restores one (Not spam) without a dialog; normal views never show spam (D-024).
+- [ ] An agent can set a public display name in My settings and sees the live preview "Customers see: ..." (D-024).
 - [ ] A 409 concurrency conflict never loses a typed reply draft.
 - [ ] `dotnet build`, `dotnet test` (including bUnit and architecture tests) are green; admin container is healthy under compose.
 - [ ] Admin project references only Contracts (plus packages), verified by the architecture test.

@@ -1,7 +1,10 @@
 @page "/not-found"
+@layout MainLayout
 
 <PageTitle>Not found</PageTitle>
-<main class="shell-placeholder">
-    <h1>Page not found</h1>
-    <p><a href="/">Back to the start</a></p>
-</main>
+<div class="ts-window-page">
+    <BrandWindow Title="ERROR 404 — not found" Heading="This page fell out of its strap.">
+        <p>@BrandMomentCopy.NotFoundBody</p>
+        <div class="ts-window-action"><a class="ts-window-link" href="/">@BrandMomentCopy.NotFoundLinkText</a></div>
+    </BrandWindow>
+</div>

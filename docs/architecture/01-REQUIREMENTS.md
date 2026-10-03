@@ -147,12 +147,13 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 | FR-EMAIL-06 | Email kinds: intake confirmation, agent public reply, new access link, new-ticket alert to opted-in agents, assignment alert, customer-reply alert to assignee, solved notice and closed notice to the requester. PHASE-05 sends only the intake confirmation; PHASE-06 adds the rest through `ITicketNotificationPlanner` | M |
 | FR-EMAIL-07 | Agents can opt in per product to new-ticket alerts via notification preferences | M |
 | FR-EMAIL-08 | Alerts are queued by ticket handlers through `ITicketNotificationPlanner`; there is no separate alert entry point | M |
+| FR-EMAIL-09 | Customer emails render the resolved agent name (FR-CUST-07) and honour the Powered-by setting (FR-CUST-08): link in HTML, bare URL in text, omitted when hidden (D-024) | M |
 
 ### 5.3 Ticket operations (FR-TKT)
 
 | ID | Requirement | Pri |
 | --- | --- | --- |
-| FR-TKT-01 | Agents see queue views: Unassigned, Mine, Open, Pending, All | M |
+| FR-TKT-01 | Agents see queue views: Unassigned, Mine, Open, Pending, All (all exclude spam) and a separate Spam view (FR-TKT-18) | M |
 | FR-TKT-02 | Queue supports filters (product, status, priority, assignee, tag, spam), sorting and paging | M |
 | FR-TKT-03 | Full-text ticket search over subject, requester and message bodies (Postgres FTS, D-011) | M |
 | FR-TKT-04 | Ticket detail shows the timeline built from messages and `TicketEvent` | M |
@@ -169,6 +170,8 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 | FR-TKT-15 | Admin (only, D-022) can list, retry and discard dead-lettered outbox rows; retry and discard write an `AdminEvent` | M |
 | FR-TKT-16 | Attachment download is authorized for agents and for the ticket's customer token; internal-note attachments never reach customers | M |
 | FR-TKT-17 | Every ticket mutation writes a `TicketEvent` in the same transaction | M |
+| FR-TKT-18 | A dedicated Spam view lists tickets with `is_spam = true` in all statuses; the five normal views exclude them. Any Agent can open it (D-024) | M |
+| FR-TKT-19 | A one-key "Not spam" action (`u`, also menu and palette) clears `is_spam` and restores the ticket to its normal views with its status unchanged; it writes a `TicketEvent` and sends no notification (D-024) | M |
 
 ### 5.4 Customer access (FR-CUST)
 
@@ -180,6 +183,9 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 | FR-CUST-04 | Lost-link form always returns the same response regardless of match, and only emails the requester's own address; rate limited per IP and per address | M |
 | FR-CUST-05 | Customer ticket view shows ticket status and number, attachments they or agents attached to public messages | M |
 | FR-CUST-06 | Tokens never appear in logs (redacted in path and query) | M |
+| FR-CUST-07 | Customers see an agent as the agent's first name plus the product support name ("Sam from Orbitly Support"), or the agent's optional public display name in place of the first name ("Samantha from Orbitly Support"; suffix kept, **Assumption**), in the ticket view and emails. Agent emails and ids are never exposed to customers (D-024) | M |
+| FR-CUST-08 | "Powered by TechStrap" links to https://github.com/Syntax-Circus/techstrap and shows by default on every portal page and customer email; `TECHSTRAP_PORTAL_SHOW_POWERED_BY=false` hides it installation-wide on the Portal and in Worker-rendered emails (D-024) | M |
+| FR-CUST-09 | The portal contact URL may prefill `subject`, `name` and `email`; all three stay visible and editable, no hidden fields, and prefilled values get the same validation and length limits as typed input. App context travels through the SDK/API (D-024) | M |
 
 ### 5.5 Knowledge base (FR-KB)
 
@@ -211,6 +217,7 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 | FR-ADMIN-04 | Admin changes agent role and active flag | M |
 | FR-ADMIN-05 | Every product, key, agent and tag change, and every erase-requester, delete-ticket and dead-letter retry/discard action, writes an `AdminEvent` (audit trail, D-006), viewable by admins | M |
 | FR-ADMIN-06 | Each agent edits their own notification preferences | M |
+| FR-ADMIN-07 | Each agent can set or clear an optional public display name (max 60 characters, plain text, no `@`) in "My settings" with a live preview of what customers see (D-024) | M |
 
 ### 5.7 Live updates (FR-LIVE)
 

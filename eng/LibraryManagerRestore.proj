@@ -1,0 +1,27 @@
+<Project>
+  <!--
+    Restores the libman libraries of every restored project that has a libman.json, one project at a time.
+
+    Microsoft.Web.LibraryManager.Build downloads into one machine-wide cache (~/.local/share/.librarymanager/cache,
+    %LOCALAPPDATA%\.librarymanager\cache on Windows) and copies out of it with no cross-process locking. Admin and
+    Portal restore the same libraries, so in a parallel solution build the two restores read and write the same cache
+    files at once and fail with "The process cannot access the file ... because it is being used by another process"
+    (LIB003). MSBuild builds a given project file with a given set of global properties once per build and makes every
+    other request wait for that result, so routing each project's restore through this one file serializes them
+    without a lock. Directory.Build.targets calls this file from the SerializedLibraryManagerRestore target.
+
+    Only projects with an obj/project.assets.json are restored, so a build of a single project (the Dockerfiles, the
+    clean-publish Pester test) restores just that project and never needs a sibling's NuGet restore.
+  -->
+  <Target Name="RestoreLibraries">
+    <ItemGroup>
+      <_Candidate Include="$(MSBuildThisFileDirectory)../src/*/*.csproj" />
+      <_LibmanProject Include="@(_Candidate)"
+                      Condition="Exists('%(RootDir)%(Directory)libman.json') And Exists('%(RootDir)%(Directory)obj/project.assets.json')" />
+    </ItemGroup>
+    <MSBuild Projects="@(_LibmanProject)"
+             Targets="LibraryManagerRestore"
+             Properties="LibmanSerialized=true"
+             BuildInParallel="false" />
+  </Target>
+</Project>

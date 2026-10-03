@@ -1,0 +1,83 @@
+// Portal layout, footer and style guide. Plain and product-led: no Admin tokens, no hard shadows, no Mono labels.
+
+.ts-portal {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--p-bg);
+  color: var(--p-ink);
+}
+
+.ts-portal-main {
+  flex: 1;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px 32px;
+}
+
+.ts-powered {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 16px;
+  font-size: .75rem;
+  color: var(--p-ink2);
+  border-top: 1px solid var(--p-line);
+
+  img {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.ts-sg-section {
+  margin-top: 24px;
+  padding-top: 8px;
+  border-top: 1px solid var(--p-line);
+}
+
+.ts-sg-note {
+  color: var(--p-ink2);
+}
+
+.ts-sg-h1 {
+  font-size: 1.625rem;
+  font-weight: 600;
+}
+
+.ts-sg-id {
+  font: 600 .9375rem var(--ts-font-mono);
+}
+
+.ts-sg-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 6px 12px;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+}
+
+.ts-sg-swatch {
+  width: 28px;
+  height: 20px;
+  border: 1px solid var(--p-line);
+}
+
+.ts-sg-accent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--p-line);
+  border-top: 6px solid var(--ts-accent);
+}

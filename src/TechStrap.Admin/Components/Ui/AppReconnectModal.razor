@@ -1,0 +1,23 @@
+<ReconnectModal CssClass="ts-reconnect">
+    <FirstAttemptContent>
+        <p>@UiCopy.ReconnectFirst</p>
+    </FirstAttemptContent>
+    <RetryingContent>
+        <p>@UiCopy.ReconnectRetryingBefore<span id="components-seconds-to-next-attempt"></span>@UiCopy.ReconnectRetryingAfter</p>
+    </RetryingContent>
+    <FailedContent>
+        <p>@UiCopy.ReconnectFailed</p>
+    </FailedContent>
+    <PausedContent>
+        <p>@UiCopy.ReconnectPaused</p>
+    </PausedContent>
+    <ResumeFailedContent>
+        <p>@UiCopy.ReconnectResumeFailed</p>
+    </ResumeFailedContent>
+    <RetryActionContent>
+        <button type="button" data-reconnect-action="retry">@UiCopy.RetryLabel</button>
+    </RetryActionContent>
+    <ResumeActionContent>
+        <button type="button" data-reconnect-action="resume">@UiCopy.ResumeLabel</button>
+    </ResumeActionContent>
+</ReconnectModal>

@@ -23,7 +23,7 @@
 | # | Phase | Depends on | Unblocks | Status |
 | --- | --- | --- | --- | --- |
 | 01 | [Foundation](PHASE-01-foundation.md) | — | all | Complete (CI/release verification pending) |
-| 02 | [Brand & UX](PHASE-02-brand-and-ux.md) | 01 | 07, 09 | Not started |
+| 02 | [Brand & UX](PHASE-02-brand-and-ux.md) | 01 | 07, 09 | Complete |
 | 03 | [Domain & persistence](PHASE-03-domain-and-persistence.md) | 01 | 04 | Not started |
 | 04 | [Agent auth & admin config](PHASE-04-agent-auth-and-admin-config.md) | 03 | 05 | Not started |
 | 05 | [Intake, email & worker](PHASE-05-intake-email-worker.md) | 04 | 06, 11 | Not started |

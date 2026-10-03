@@ -115,9 +115,14 @@ Record the exact package version in the linked package map. In the foundation ph
 - [ ] **P03-T16** Add an ER diagram and schema notes to `docs/architecture` and link them from `02-ARCHITECTURE.md`
   - **Depends on:** P03-T09
   - **Validation:** every table in the migration appears in the diagram (checked by a short script listing tables against diagram entities)
+- [ ] **P03-T17** (D-024) Write `AgentPublicIdentityTests` first, then add the nullable `PublicDisplayName` to `Agent` (trimmed, max 60, blank becomes null, rejects `@` and control characters), the pure Domain resolver `AgentPublicIdentity.Resolve(agent, productDisplayName)` (override, else the first word of the agent's name; formatted `{name} from {Product} Support`, or `{Product} Support` when the agent has no name; **Assumption:** the suffix is kept with an override), the EF mapping `public_display_name` (nullable, max 60) and a tool-generated migration (a follow-up migration if P03-T09 has already landed)
+  - **Depends on:** P03-T02, P03-T08, P03-T09
+  - **Validation:** tests: "Sam W." with no override gives "Sam from Orbitly Support", override "Samantha" gives "Samantha from Orbitly Support", whitespace override falls back to the default, an email-like or over-long override is rejected, an agent with no name gives "Orbitly Support"; `SchemaConventionTests` sees the nullable snake_case column; `dotnet ef migrations has-pending-model-changes` exits 0 and the migration applies on a fresh Postgres 17 container
+
 
 ## Success Criteria
 
+- [ ] `AgentPublicIdentityTests` pass (default, override, edge cases) and the nullable `agents.public_display_name` column is in the migrations (D-024).
 - [ ] `dotnet test tests/TechStrap.Domain.Tests tests/TechStrap.Application.Tests tests/TechStrap.Infrastructure.IntegrationTests tests/TechStrap.Architecture.Tests` passes.
 - [ ] A fresh Postgres 17 database migrates to the full schema; `dotnet ef migrations has-pending-model-changes` exits 0.
 - [ ] Ticket numbers are gap-free and unique under 50-way concurrency per product and keep their prefix after a product move.

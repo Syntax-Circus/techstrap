@@ -1,0 +1,6 @@
+{
+  "Source": "Styles/app.scss",
+  "Target": "wwwroot/css/app.css",
+  "Arguments": "--style=compressed --no-source-map --quiet-deps --silence-deprecation=import,global-builtin,color-functions,if-function",
+  "GenerateScopedCss": false
+}

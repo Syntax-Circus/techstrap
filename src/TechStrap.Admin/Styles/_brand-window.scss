@@ -1,0 +1,117 @@
+// The retro window (BRAND.md section 18). Allowed only on Admin all-caught-up, sign-in, 404 and the style guide. The --bm-* tokens are
+// valid inside this window and nowhere else (TintStyleTests scans the styles for that). No close, minimise or maximise buttons,
+// no bevels, no other fake OS chrome.
+
+.ts-window {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  max-width: 400px;
+  color: var(--bm-text);
+  background: var(--bm-plate);
+  border: 2px solid var(--bm-edge);
+  box-shadow: 3px 3px 0 var(--bm-shadow);
+}
+
+.ts-window-titlebar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 4px 10px;
+  font: 600 .75rem var(--ts-font-mono);
+  color: var(--bm-on-bar);
+  background: var(--bm-bar);
+}
+
+.ts-window-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ts-window-led {
+  display: inline-block;
+  flex: none;
+  width: 9px;
+  height: 9px;
+  background: var(--bm-led);
+  border: 1.5px solid var(--bm-on-bar);
+  border-radius: 50%;
+}
+
+.ts-window-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 22px 20px 24px;
+  text-align: center;
+
+  img {
+    width: 96px;
+    height: 96px;
+  }
+
+  h2 {
+    margin: 4px 0 0;
+    font: 600 1.1875rem/1.2 var(--ts-font-mono);
+  }
+
+  p {
+    max-width: 34ch;
+    margin: 0;
+    font: 400 .9375rem/1.5 var(--ts-font-serif);
+    overflow-wrap: anywhere;
+  }
+
+  .ts-window-fine {
+    font: 400 .75rem/1.4 var(--ts-font-mono);
+    color: var(--bm-text2);
+  }
+}
+
+.ts-window-action {
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+.ts-window-button {
+  max-width: 100%;
+  min-height: 40px;
+  padding: 8px 14px;
+  font: 600 .75rem var(--ts-font-mono);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--bm-on-crt);
+  background: var(--bm-crt);
+  border: 2px solid var(--bm-edge);
+  box-shadow: 2px 2px 0 var(--bm-shadow);
+  cursor: pointer;
+
+  &:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--bm-shadow);
+  }
+}
+
+.ts-window-link {
+  display: inline-block;
+  padding: 8px 2px;
+  font: 600 .8125rem var(--ts-font-mono);
+  color: var(--bm-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+// The page that centres one window on the plain background (404, all caught up).
+.ts-window-page {
+  display: grid;
+  place-items: center;
+  padding: 40px 16px 60px;
+}

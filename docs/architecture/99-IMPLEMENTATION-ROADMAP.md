@@ -18,7 +18,7 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 | # | Phase | Depends on | Unblocks | Parallelism | Key decisions | Status |
 | --- | --- | --- | --- | --- | --- | --- |
 | 01 | [Foundation](PHASE-01-foundation.md) | none | all | Must go first | D-003, D-006, D-013, D-019 | Complete (CI/release verification pending) |
-| 02 | [Brand and UX](PHASE-02-brand-and-ux.md) | 01 | 07, 09 | Runs alongside 03 to 06 (no shared files); blocks the UI phases | D-002 | Not started |
+| 02 | [Brand and UX](PHASE-02-brand-and-ux.md) | 01 | 07, 09 | Runs alongside 03 to 06 (no shared files); blocks the UI phases | D-002, D-023, D-024, D-025 | Complete |
 | 03 | [Domain and persistence](PHASE-03-domain-and-persistence.md) | 01 | 04 | Alongside 02 | D-009, D-010, D-011 | Not started |
 | 04 | [Agent auth and admin config](PHASE-04-agent-auth-and-admin-config.md) | 03 | 05 | Alongside 02 | D-001, D-004, D-016, D-022 | Not started |
 | 05 | [Intake, email and worker](PHASE-05-intake-email-worker.md) | 04 | 06, 11 | Alongside 02 | D-001, D-010, D-012, D-014, D-019, D-020 | Not started |
@@ -98,6 +98,7 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P03-T14 | `IEmailOutbox` and `EmailOutboxStore` (`SKIP LOCKED` claiming) |
 | P03-T15 | Extend the dev seeder with demo data |
 | P03-T16 | ER diagram and schema notes |
+| P03-T17 | `public_display_name` on Agent, `AgentPublicIdentity` resolver and migration (D-024) |
 
 ### PHASE-04 Agent auth and admin config
 
@@ -117,6 +118,8 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P04-T12 | `ResultMappingTests` and `CancellationPropagationTests` for all controllers |
 | P04-T13 | Extend architecture tests with controller and handler rules |
 | P04-T14 | Update `.env.example`, OpenAPI and the dev seeder; self-host auth note |
+| P04-T15 | `UpdateMyProfileRequestHandler` and public display name contracts (D-024) |
+| P04-T16 | Production exception handler with a plain error page in Admin and Portal |
 
 ### PHASE-05 Intake, email and worker
 
@@ -139,6 +142,7 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P05-T15 | Extend architecture tests for the new handlers and controllers |
 | P05-T16 | Dev seeder keys and the intake smoke script |
 | P05-T17 | `Idempotency-Key` support on API-key intake (D-020) |
+| P05-T18 | Email renderer: resolved agent name and Powered-by link/setting (D-024) |
 
 ### PHASE-06 Ticket operations
 
@@ -164,6 +168,8 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P06-T18 | Wire `ITicketNotificationPlanner` into `SubmitTicketRequestHandler` |
 | P06-T19 | Serilog PII redaction and customer-route rate limits |
 | P06-T20 | Architecture tests, `TicketLifecycleEndToEndTests`, OpenAPI and env updates |
+| P06-T21 | Spam view in `ListTickets` and idempotent Not spam (D-024) |
+| P06-T22 | Resolved agent name in customer DTO and agent-reply email (D-024) |
 
 ### PHASE-07 Admin app
 
@@ -190,6 +196,8 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P07-T19 | Brand tokens, responsive layout and accessibility pass |
 | P07-T20 | Compose service, Dockerfile verification and Admin architecture rules |
 | P07-T21 | Optional Playwright smoke tests |
+| P07-T22 | Spam view, Not spam key `u` (D-024) |
+| P07-T23 | My settings public display name field with live preview (D-024) |
 
 ### PHASE-08 Knowledge base
 
@@ -240,6 +248,9 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P09-T18 | Compose service and end-to-end rate-limit check |
 | P09-T19 | Portal architecture rules |
 | P09-T20 | Optional Playwright end-to-end test |
+| P09-T21 | Contact-page prefill of subject, name and email (D-024) |
+| P09-T22 | Powered-by link and `TECHSTRAP_PORTAL_SHOW_POWERED_BY` setting (D-024) |
+| P09-T23 | Resolved agent name on the customer ticket view (D-024) |
 
 ### PHASE-10 Live updates
 
@@ -401,7 +412,7 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 
 ## 8. Decisions still open
 
-None. All decisions (D-001 to D-022) were approved on 2026-10-02.
+None. All decisions (D-001 to D-025) were approved on 2026-10-02 (D-023 visual direction and D-024 customer-facing identity, spam recovery and portal prefill were settled by the owner after the first plan).
 
 ## 9. Carried forward from PHASE-01
 

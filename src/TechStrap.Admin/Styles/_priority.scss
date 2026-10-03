@@ -1,0 +1,39 @@
+// Priority marker (BRAND.md section 12): a square marker plus the word. Urgent = spam red, High = pending amber,
+// Normal and Low = secondary ink; Low has a dashed marker.
+.ts-priority {
+  font: 600 .6875rem var(--ts-font-mono);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+
+  &::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 5px;
+    border: 2px solid var(--ink-2);
+  }
+}
+
+.ts-priority--urgent {
+  color: var(--st-spam);
+
+  &::before {
+    background: var(--st-spam);
+    border-color: var(--st-spam);
+  }
+}
+
+.ts-priority--high {
+  color: var(--st-pending);
+
+  &::before {
+    background: var(--st-pending);
+    border-color: var(--st-pending);
+  }
+}
+
+.ts-priority--low::before {
+  border-style: dashed;
+}

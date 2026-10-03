@@ -1,0 +1,94 @@
+// Admin theme: brand custom properties for both themes, base typography and focus. Imported after Bootstrap.
+
+:root,
+[data-bs-theme="light"] {
+  color-scheme: light;
+  @include ts-emit($ts-light);
+  @include ts-emit($ts-portal);
+  @include ts-emit($ts-accent-fallback);
+  --ts-font-sans: #{inspect($ts-font-sans)};
+  --ts-font-mono: #{inspect($ts-font-mono)};
+  --ts-font-serif: #{inspect($ts-font-serif)};
+}
+
+// Explicit Dark, and Auto when the OS prefers dark (see _color-mode.scss).
+@include color-mode(dark, true) {
+  color-scheme: dark;
+  @include ts-emit($ts-dark);
+}
+
+body {
+  font-variant-numeric: tabular-nums;
+}
+
+// BRAND.md section 13: a 3px focus ring on every interactive element, never removed. Bootstrap's own focus shadows
+// are switched off so there is exactly one ring.
+:focus-visible,
+.btn:focus-visible,
+.btn-check:focus-visible + .btn,
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  outline: 3px solid var(--focus) !important;
+  outline-offset: 1px;
+  box-shadow: none !important;
+}
+
+// Buttons: Mono 12px 600 uppercase, 2px ink border, ink fill; the secondary button is the sheet-filled alternate.
+.btn {
+  --bs-btn-border-width: 2px;
+  min-height: 34px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.btn-primary {
+  --bs-btn-color: var(--paper);
+  --bs-btn-bg: var(--ink);
+  --bs-btn-border-color: var(--ink);
+  --bs-btn-hover-color: var(--paper);
+  --bs-btn-hover-bg: var(--ink-2);
+  --bs-btn-hover-border-color: var(--ink-2);
+  --bs-btn-active-color: var(--paper);
+  --bs-btn-active-bg: var(--ink-2);
+  --bs-btn-active-border-color: var(--ink-2);
+  --bs-btn-disabled-color: var(--paper);
+  --bs-btn-disabled-bg: var(--ink-3);
+  --bs-btn-disabled-border-color: var(--ink-3);
+}
+
+.btn-secondary {
+  --bs-btn-color: var(--ink);
+  --bs-btn-bg: var(--sheet);
+  --bs-btn-border-color: var(--ink);
+  --bs-btn-hover-color: var(--ink);
+  --bs-btn-hover-bg: var(--hover);
+  --bs-btn-hover-border-color: var(--ink);
+  --bs-btn-active-color: var(--ink);
+  --bs-btn-active-bg: var(--sel);
+  --bs-btn-active-border-color: var(--ink);
+  --bs-btn-disabled-color: var(--ink-3);
+  --bs-btn-disabled-bg: var(--sheet);
+  --bs-btn-disabled-border-color: var(--ink-3);
+}
+
+// Admin's own display classes, kept to the type scale of BRAND.md section 11.
+.ts-page-title {
+  margin: 0;
+  font: 600 1.125rem/1.3 var(--ts-font-mono);
+}
+
+.ts-label {
+  font: 500 .625rem/1.3 var(--ts-font-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.ts-mono {
+  font-family: var(--ts-font-mono);
+}
+
+.ts-serif {
+  font-family: var(--ts-font-serif);
+}

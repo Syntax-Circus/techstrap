@@ -1,0 +1,30 @@
+// Ledger-ruled keycaps (BRAND.md section 18): Mono 11px 500, square, 1px rule-strong border with a 2px bottom edge, sheet fill.
+.ts-kbd {
+  display: inline-block;
+  padding: 0 4px;
+  font: 500 .6875rem/1.5 var(--ts-font-mono);
+  white-space: nowrap;
+  color: var(--ink);
+  background: var(--sheet);
+  border: 1px solid var(--rule-strong);
+  border-bottom-width: 2px;
+  border-radius: 0;
+}
+
+// Keys in a chord sit 2px apart.
+.ts-kbd + .ts-kbd {
+  margin-left: 2px;
+}
+
+// Inside a button the keycap is transparent and borrows the button's colour.
+.btn .ts-kbd {
+  margin-left: 4px;
+  color: inherit;
+  background: transparent;
+  border-color: currentcolor;
+}
+
+// A chord inside a button keeps the 2px gap (the rule above would otherwise reset it to 4px).
+.btn .ts-kbd + .ts-kbd {
+  margin-left: 2px;
+}

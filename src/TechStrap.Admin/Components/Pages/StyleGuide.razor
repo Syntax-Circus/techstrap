@@ -1,0 +1,237 @@
+@page "/_styleguide"
+@using TechStrap.Admin.Components.Showcase
+
+<DevelopmentOnly>
+    <PageTitle>TechStrap style guide</PageTitle>
+    <div class="ts-sg">
+        <header class="ts-sg-header">
+            <h1 class="ts-page-title">TechStrap style guide</h1>
+            <p class="ts-sg-note">Development only. Tokens, components and states of docs/BRAND.md in the active theme. Set <code>data-bs-theme</code> on the html element to <code>light</code> or <code>dark</code>, or remove it for Auto.</p>
+        </header>
+
+        <section class="ts-sg-section" aria-labelledby="sg-type">
+            <h2 id="sg-type" class="ts-label">Type scale</h2>
+            <table class="table ts-sg-table">
+                <thead><tr><th scope="col">Role</th><th scope="col">Sample</th></tr></thead>
+                <tbody>
+                    <tr><td>Page title (Mono 18 / 600)</td><td><span class="ts-page-title">Unassigned</span></td></tr>
+                    <tr><td>Ticket problem line (Sans 16 / 600)</td><td><span class="ts-sg-problem">Backup job fails with exit code 17 after 2.4 update</span></td></tr>
+                    <tr><td>Admin base text (Sans 14 / 400)</td><td>Tickets are logged, triaged and answered here.</td></tr>
+                    <tr><td>Field value (Sans 13 / 500)</td><td><span class="ts-sg-field">Dana Whitfield</span></td></tr>
+                    <tr><td>Message body (Serif 15 / 400)</td><td><span class="ts-serif ts-sg-message">Since upgrading on Tuesday our nightly backup exits with code 17.</span></td></tr>
+                    <tr><td>Ticket id (Mono 13 / 500)</td><td><span class="ts-mono ts-sg-id">ACME-142</span></td></tr>
+                    <tr><td>Timestamp, hint, tag (Mono 11 to 12)</td><td><span class="ts-mono ts-sg-hint">2026-10-02 08:41</span></td></tr>
+                    <tr><td>Label (Mono 10, uppercase)</td><td><span class="ts-label">Requester</span></td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-palette">
+            <h2 id="sg-palette" class="ts-label">Palette</h2>
+            <h3 class="ts-sg-sub">Surface, ink and structure</h3>
+            <PaletteSwatches Group="PaletteGroup.Surface" />
+            <h3 class="ts-sg-sub">Carbon tints</h3>
+            <PaletteSwatches Group="PaletteGroup.Tints" />
+            <h3 class="ts-sg-sub">Status and priority</h3>
+            <PaletteSwatches Group="PaletteGroup.Status" />
+            <h3 class="ts-sg-sub">Brand moments</h3>
+            <PaletteSwatches Group="PaletteGroup.BrandMoment" />
+            <h3 class="ts-sg-sub">Portal</h3>
+            <PaletteSwatches Group="PaletteGroup.Portal" />
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-stamps">
+            <h2 id="sg-stamps" class="ts-label">Status stamps and priority</h2>
+            <p class="ts-sg-note">Queue stamps are straight with one border. Ticket stamps are tilted with an inner ring; the stamp-down animation plays only when the status changes. Spam has a double border. Status is always the word plus the shape, never colour alone.</p>
+            <table class="table ts-sg-table">
+                <thead><tr><th scope="col">Status</th><th scope="col">Queue</th><th scope="col">Ticket</th></tr></thead>
+                <tbody>
+                    <tr><td>New</td><td><StatusStamp Status="StampStatus.New" /></td><td><StatusStamp Status="StampStatus.New" Variant="StampVariant.Ticket" /></td></tr>
+                    <tr><td>Open</td><td><StatusStamp Status="StampStatus.Open" /></td><td><StatusStamp Status="StampStatus.Open" Variant="StampVariant.Ticket" /></td></tr>
+                    <tr><td>Pending</td><td><StatusStamp Status="StampStatus.Pending" /></td><td><StatusStamp Status="StampStatus.Pending" Variant="StampVariant.Ticket" /></td></tr>
+                    <tr><td>Solved</td><td><StatusStamp Status="StampStatus.Solved" /></td><td><StatusStamp Status="StampStatus.Solved" Variant="StampVariant.Ticket" /></td></tr>
+                    <tr><td>Closed</td><td><StatusStamp Status="StampStatus.Closed" /></td><td><StatusStamp Status="StampStatus.Closed" Variant="StampVariant.Ticket" /></td></tr>
+                    <tr><td>Spam</td><td><StatusStamp Status="StampStatus.Spam" /></td><td><StatusStamp Status="StampStatus.Spam" Variant="StampVariant.Ticket" /></td></tr>
+                </tbody>
+            </table>
+            <div class="ts-sg-row">
+                <PriorityMark Level="PriorityLevel.Urgent" />
+                <PriorityMark Level="PriorityLevel.High" />
+                <PriorityMark Level="PriorityLevel.Normal" />
+                <PriorityMark Level="PriorityLevel.Low" />
+            </div>
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-tints">
+            <h2 id="sg-tints" class="ts-label">Carbon tint code</h2>
+            <p class="ts-sg-note">White is the customer, canary is a public reply (the customer sees it), pink with a dashed edge and a notched corner is an internal note (the customer never sees it). The code is never reused for anything else.</p>
+            <div class="ts-sg-timeline">
+                <TintedEntry Kind="EntryKind.Customer" Author="Dana Whitfield" Time="08:41">
+                    <p>Since upgrading to 2.4 on Tuesday our nightly backup job exits with code 17 and no files are written. We have 40 workstations affected.</p>
+                </TintedEntry>
+                <TintedEntry Kind="EntryKind.InternalNote" Author="Priya Rao" Time="09:02">
+                    <p>Exit 17 is the new VSS snapshot failure. The 2.4 installer drops the old service account. Checking with dev before I promise a fix.</p>
+                </TintedEntry>
+                <TintedEntry Kind="EntryKind.PublicReply" Author="Sam Marsh" Time="09:08">
+                    <p>Hi Dana, thanks for the log. We can reproduce this on 2.4 and are checking the fix. As a workaround, re-run the service account repair from the Settings page.</p>
+                </TintedEntry>
+            </div>
+            <TintLegend />
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-keys">
+            <h2 id="sg-keys" class="ts-label">Keyboard</h2>
+            <p class="ts-sg-note">Single-key shortcuts never fire while typing. Every shortcut also has a command palette entry (PHASE-07).</p>
+            <table class="table ts-sg-table">
+                <thead><tr><th scope="col">Key</th><th scope="col">Context</th><th scope="col">Action</th></tr></thead>
+                <tbody>
+                    <tr><td><Kbd>j</Kbd> / <Kbd>ArrowDown</Kbd></td><td>Queue</td><td>Select next row</td></tr>
+                    <tr><td><Kbd>k</Kbd> / <Kbd>ArrowUp</Kbd></td><td>Queue</td><td>Select previous row</td></tr>
+                    <tr><td><Kbd>Enter</Kbd></td><td>Queue</td><td>Open the selected ticket</td></tr>
+                    <tr><td><Kbd>/</Kbd></td><td>Queue, ticket</td><td>Focus the queue search</td></tr>
+                    <tr><td><Kbd>r</Kbd></td><td>Ticket</td><td>Reply to the customer</td></tr>
+                    <tr><td><Kbd>n</Kbd></td><td>Ticket</td><td>Add an internal note</td></tr>
+                    <tr><td><Kbd>e</Kbd></td><td>Ticket</td><td>Focus the assignee control</td></tr>
+                    <tr><td><Kbd>Esc</Kbd></td><td>Ticket, in a field</td><td>Back to the queue, or leave the field</td></tr>
+                    <tr><td><Kbd>Ctrl</Kbd><Kbd>Enter</Kbd></td><td>In the composer</td><td>Send reply or add note</td></tr>
+                    <tr><td><Kbd>Ctrl</Kbd><Kbd>K</Kbd> / <Kbd>Cmd</Kbd><Kbd>K</Kbd></td><td>Anywhere</td><td>Open or close the command palette</td></tr>
+                </tbody>
+            </table>
+            <div class="ts-sg-row">
+                <button type="button" class="btn btn-primary">Send reply <Kbd>Ctrl</Kbd><Kbd>Enter</Kbd></button>
+                <button type="button" class="btn btn-secondary">Cancel <Kbd>Esc</Kbd></button>
+            </div>
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-windows">
+            <h2 id="sg-windows" class="ts-label">Brand moments</h2>
+            <p class="ts-sg-note">The retro window and the mascot appear only on all caught up, sign-in and 404, and here. One wink per window; the explanation is plain; there is always a way back.</p>
+            <div class="ts-sg-windows">
+                <BrandWindow Title="queue.exe — 0 items" Heading="All caught up">
+                    <p>Zero tickets, fully supported.</p>
+                    <div class="ts-window-action"><button type="button" class="ts-window-button">View open tickets</button></div>
+                </BrandWindow>
+                <BrandWindow Title="techstrap — sign in" Heading="Agent sign-in">
+                    <p class="ts-window-fine">Single sign-on through your company's Authentik. No passwords are entered here.</p>
+                    <div class="ts-window-action"><button type="button" class="ts-window-button">Sign in with Authentik</button></div>
+                    <p class="ts-window-fine">Agents only. Customers: use your product's support page.</p>
+                </BrandWindow>
+                <BrandWindow Title="ERROR 404 — not found" Heading="This page fell out of its strap.">
+                    <p>@BrandMomentCopy.NotFoundBody</p>
+                    <div class="ts-window-action"><a class="ts-window-link" href="/">@BrandMomentCopy.NotFoundLinkText</a></div>
+                </BrandWindow>
+            </div>
+            <h3 class="ts-sg-sub">Logo and wordmark (provisional SVGs)</h3>
+            <div class="ts-sg-row ts-sg-logos">
+                <img src="brand/logo.svg" alt="TechStrap mascot, full figure" height="160" />
+                <img src="brand/mark.svg" alt="TechStrap mascot head mark" height="72" />
+                <img class="ts-sg-wordmark" src="brand/wordmark.svg" alt="TechStrap wordmark" height="28" />
+            </div>
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-reconnect">
+            <h2 id="sg-reconnect" class="ts-label">Reconnect and error UI</h2>
+            <p class="ts-sg-note">The real reconnect dialog (SyntaxCircus.Blazor.Components) is mounted once in App.razor and shows when the circuit drops; here each state is previewed as static markup with the same copy. Blocking failures are plain: a cause and a next step.</p>
+            <div class="ts-sg-states">
+                <div class="ts-reconnect ts-reconnect--preview">
+                    <div data-reconnect-state="first"><p>@UiCopy.ReconnectFirst</p></div>
+                    <div data-reconnect-state="retrying"><p>@UiCopy.ReconnectRetryingBefore<span>5</span>@UiCopy.ReconnectRetryingAfter</p></div>
+                    <div data-reconnect-state="failed"><p>@UiCopy.ReconnectFailed</p><button type="button" data-reconnect-action="retry">@UiCopy.RetryLabel</button></div>
+                    <div data-reconnect-state="paused"><p>@UiCopy.ReconnectPaused</p><button type="button" data-reconnect-action="resume">@UiCopy.ResumeLabel</button></div>
+                    <div data-reconnect-state="resume-failed"><p>@UiCopy.ReconnectResumeFailed</p><button type="button" data-reconnect-action="resume">@UiCopy.ResumeLabel</button></div>
+                </div>
+                <GlobalErrorView CssClass="ts-error"
+                                 Title="@UiCopy.ErrorTitle"
+                                 Description="@UiCopy.ErrorDescription"
+                                 HomeLabel="@UiCopy.ErrorHomeLabel" />
+            </div>
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-buttons">
+            <h2 id="sg-buttons" class="ts-label">Buttons</h2>
+            <div class="ts-sg-row">
+                <button type="button" class="btn btn-primary">Send reply</button>
+                <button type="button" class="btn btn-secondary">Cancel</button>
+                <button type="button" class="btn btn-primary" disabled>Disabled</button>
+                <button type="button" class="btn btn-danger">Delete</button>
+                <a class="btn btn-secondary" href="/_styleguide">Link button</a>
+            </div>
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-forms">
+            <h2 id="sg-forms" class="ts-label">Forms</h2>
+            <form class="ts-sg-form" onsubmit="return false">
+                <div class="mb-3">
+                    <label class="form-label ts-label" for="sg-subject">Subject</label>
+                    <input id="sg-subject" class="form-control" type="text" placeholder="Short summary" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label ts-label" for="sg-status">Status</label>
+                    <select id="sg-status" class="form-select">
+                        <option>New</option>
+                        <option>Open</option>
+                        <option>Pending</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label ts-label" for="sg-body">Reply</label>
+                    <textarea id="sg-body" class="form-control ts-serif" rows="3"></textarea>
+                </div>
+                <div class="form-check mb-3">
+                    <input id="sg-check" class="form-check-input" type="checkbox" />
+                    <label class="form-check-label" for="sg-check">Email me when this changes</label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label ts-label" for="sg-invalid">Email (invalid)</label>
+                    <input id="sg-invalid" class="form-control is-invalid" type="email" value="not-an-email" aria-describedby="sg-invalid-msg" />
+                    <div id="sg-invalid-msg" class="invalid-feedback">Enter an email address like name@example.com.</div>
+                </div>
+            </form>
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-tables">
+            <h2 id="sg-tables" class="ts-label">Tables</h2>
+            <table class="table table-hover ts-sg-table">
+                <thead><tr><th scope="col">No.</th><th scope="col">Subject</th><th scope="col">Requester</th><th scope="col" class="text-end">Last</th></tr></thead>
+                <tbody>
+                    <tr><td class="ts-mono">ACME-142</td><td>Backup job fails with exit code 17</td><td>Dana Whitfield</td><td class="ts-mono text-end">12m</td></tr>
+                    <tr class="table-active"><td class="ts-mono">ORB-38</td><td>Cannot reset my password</td><td>Lee Park</td><td class="ts-mono text-end">1h</td></tr>
+                    <tr><td class="ts-mono">PXF-9</td><td>Export is missing the last row</td><td>Mo Adeyemi</td><td class="ts-mono text-end">3h</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-alerts">
+            <h2 id="sg-alerts" class="ts-label">Alerts</h2>
+            <div class="alert alert-info" role="status">Ticket ACME-142 was assigned to Sam.</div>
+            <div class="alert alert-success" role="status">Reply sent.</div>
+            <div class="alert alert-warning" role="alert">3 emails failed to send. Review them.</div>
+            <div class="alert alert-danger" role="alert">Could not save. The server did not respond. Your changes are still here; try again.</div>
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-states">
+            <h2 id="sg-states" class="ts-label">Loading, empty and error states</h2>
+            <div class="ts-sg-states">
+                <div class="card">
+                    <div class="card-header ts-label">Loading</div>
+                    <div class="card-body" aria-busy="true">
+                        <p class="placeholder-glow mb-1"><span class="placeholder col-8"></span></p>
+                        <p class="placeholder-glow mb-1"><span class="placeholder col-12"></span></p>
+                        <p class="placeholder-glow mb-0"><span class="placeholder col-5"></span></p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header ts-label">Empty</div>
+                    <div class="card-body ts-empty">No tickets match these filters. Clear a filter to see more.</div>
+                </div>
+                <div class="card">
+                    <div class="card-header ts-label">Error</div>
+                    <div class="card-body">
+                        <div class="alert alert-danger mb-2" role="alert">Could not load tickets. The server did not respond.</div>
+                        <button type="button" class="btn btn-secondary">Try again</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</DevelopmentOnly>
