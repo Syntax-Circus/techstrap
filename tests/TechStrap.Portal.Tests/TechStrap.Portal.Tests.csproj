@@ -9,4 +9,8 @@
     <PackageReference Include="bunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="../Shared/*.cs" LinkBase="Shared" />
+  </ItemGroup>
+
 </Project>

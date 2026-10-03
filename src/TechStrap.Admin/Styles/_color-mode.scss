@@ -1,0 +1,17 @@
+// Bootstrap's color-mode mixin emits only [data-bs-theme=dark] (color-mode-type "data") or only the media query
+// ("media-query"). Admin needs both: an explicit Light/Dark choice through data-bs-theme, and Auto (no attribute, or
+// "auto") following prefers-color-scheme. Redefining the mixin after Bootstrap's own makes every Bootstrap dark rule,
+// and the brand dark tokens in _theme.scss, work in both ways from one definition.
+@mixin color-mode($mode: light, $root: false) {
+  [data-bs-theme="#{$mode}"] {
+    @content;
+  }
+
+  @if $mode == dark {
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-bs-theme="light"], [data-bs-theme="dark"]) {
+        @content;
+      }
+    }
+  }
+}

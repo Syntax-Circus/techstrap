@@ -1,0 +1,129 @@
+// docs/BRAND.md section 12 is the system of record; this file is its Sass form. A test (StyleBuildTests) compares the
+// compiled CSS with the tables in BRAND.md, so a value changed in only one place fails the build.
+// Shared by Admin and Portal through a relative @import, so there is one copy and no MSBuild link.
+
+// Admin, light theme (also the :root default).
+$ts-light: (
+  "paper": #F7F5EE,
+  "sheet": #FFFFFF,
+  "rail": #EFEBDD,
+  "head": #E8EDF8,
+  "ink": #14213D,
+  "ink-2": #44506B,
+  "ink-3": #5B667E,
+  "rule": #C5D0E6,
+  "rule-strong": #8E9FC4,
+  "margin": #D9262E,
+  "hover": #EAF0FB,
+  "sel": #DDE8FA,
+  "overlay": rgba(20,33,61,.06),
+  "shadow": rgba(20,33,61,.14),
+  "scrim": rgba(20,33,61,.45),
+  "accent": #1D4FA8,
+  "on-accent": #FFFFFF,
+  "focus": #B3141C,
+  "canary": #FFF4B0,
+  "canary-edge": #C9B23A,
+  "pink": #FFE0E3,
+  "pink-edge": #D26E7B,
+  "note-ink": #7A1022,
+  "st-new": #1D5FB8,
+  "st-open": #14702F,
+  "st-pending": #8A5300,
+  "st-solved": #1E5A6B,
+  "st-closed": #5B6475,
+  "st-spam": #B3141C,
+  "bm-plate": #EFDDBB,
+  "bm-edge": #0B1F4B,
+  "bm-bar": #0B1F4B,
+  "bm-on-bar": #EFDDBB,
+  "bm-text": #0B1F4B,
+  "bm-text2": #434E6C,
+  "bm-crt": #3B95E0,
+  "bm-on-crt": #0B1F4B,
+  "bm-led": #22A447,
+  "bm-shadow": #0B1F4B
+);
+
+// Admin, dark theme. Same keys as $ts-light.
+$ts-dark: (
+  "paper": #0B1E40,
+  "sheet": #10285A,
+  "rail": #08172F,
+  "head": #0E2650,
+  "ink": #E8EFFF,
+  "ink-2": #B7C6E6,
+  "ink-3": #9DAECF,
+  "rule": #274A87,
+  "rule-strong": #4A71B8,
+  "margin": #FF6B73,
+  "hover": #163670,
+  "sel": #1C4286,
+  "overlay": rgba(255,255,255,.04),
+  "shadow": rgba(0,0,0,.4),
+  "scrim": rgba(0,0,0,.6),
+  "accent": #8FC0FF,
+  "on-accent": #0B1E40,
+  "focus": #FFD84A,
+  "canary": #3A3A1B,
+  "canary-edge": #8C8A3A,
+  "pink": #4A1E33,
+  "pink-edge": #C46A86,
+  "note-ink": #FFC9D6,
+  "st-new": #8FC0FF,
+  "st-open": #6EE29A,
+  "st-pending": #F6C12B,
+  "st-solved": #86DCEB,
+  "st-closed": #AAB6D0,
+  "st-spam": #FF9AA0,
+  "bm-plate": #1A2548,
+  "bm-edge": #6F84B8,
+  "bm-bar": #0A1430,
+  "bm-on-bar": #EFDDBB,
+  "bm-text": #F1E6CC,
+  "bm-text2": #B7C2DE,
+  "bm-crt": #6FB4F2,
+  "bm-on-crt": #06152E,
+  "bm-led": #3DDC6B,
+  "bm-shadow": #05070E
+);
+
+// Portal tokens (light only in v1). Admin loads them too, for the product-branding preview.
+$ts-portal: (
+  "p-bg": #FFFFFF,
+  "p-soft": #F5F5F7,
+  "p-ink": #1B1B22,
+  "p-ink2": #4A4A57,
+  "p-line": #D4D4DC
+);
+
+// Fallback values for the three product-accent properties. The Portal sets the real ones at runtime on its root
+// element from ProductAccent.TryDerive (never by recompiling SCSS); these keep every page legible without them.
+$ts-accent-fallback: (
+  "ts-accent": #1D4FA8,
+  "ts-on-accent": #FFFFFF,
+  "ts-accent-ink": #1D4FA8
+);
+
+@function ts-color($key, $theme: "light") {
+  @if $theme == "dark" {
+    @return map-get($ts-dark, $key);
+  }
+  @return map-get($ts-light, $key);
+}
+
+@function ts-portal-color($key) {
+  @return map-get($ts-portal, $key);
+}
+
+@mixin ts-emit($tokens) {
+  @each $name, $value in $tokens {
+    --#{$name}: #{$value};
+  }
+}
+
+// Font stacks (docs/BRAND.md section 11). The families are self-hosted (see _brand-fonts.scss); the system fallbacks
+// keep text readable if a font file fails to load.
+$ts-font-sans: "IBM Plex Sans", system-ui, "Segoe UI", Arial, sans-serif;
+$ts-font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+$ts-font-serif: "Source Serif 4", Georgia, serif;

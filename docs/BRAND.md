@@ -297,6 +297,8 @@ Source of truth: the `:root` block of the v2 mockup. Dark values apply under `pr
 
 Mapping column is **Assumption**-level (the mockup is plain CSS; P02-T05 confirms the Bootstrap variables). In the mockup, Admin buttons are ink-filled, not accent-filled; `--accent` is for links and portal controls (**Assumption**: Admin primary action is ink fill; confirm in the UX brief).
 
+**Contrast exception (found in P02-T06, pinned by `TokenContrastTests`):** `--ink-3` on `--sel` in the dark theme is 4.32:1, below AA. Never place tertiary text (placeholders, "unassigned") on a selected row; use `--ink-2` there. Every other text pair in this section reaches 4.5:1 in both themes.
+
 ## Carbon tint tokens
 
 | Token | Role | Light | Dark | Bootstrap |

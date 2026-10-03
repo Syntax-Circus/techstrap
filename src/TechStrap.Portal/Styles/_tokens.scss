@@ -1,4 +1,33 @@
-// PLACEHOLDER: neutral Bootstrap variable overrides only.
-// P02-T06 replaces this file with the real brand tokens from docs/BRAND.md.
-// Imported by app.scss BEFORE Bootstrap so overrides take effect.
-$font-family-sans-serif: system-ui, -apple-system, "Segoe UI", sans-serif;
+// Portal: maps the portal tokens (docs/BRAND.md section 12, "Portal tokens") onto Bootstrap's Sass variables.
+// Imported by app.scss after Bootstrap's functions and before its variables, so every !default is overridden here.
+// The portal is light only in v1 and plain: it takes none of the Admin carbon, stamp or brand-moment tokens.
+@import "../../../assets/brand/scss/brand-tokens";
+
+$enable-dark-mode: false;
+
+// Compile-time fallback for the product accent. At runtime the product's own accent arrives as --ts-accent,
+// --ts-on-accent and --ts-accent-ink (see _theme.scss) and replaces this everywhere it matters.
+$primary: map-get($ts-accent-fallback, "ts-accent");
+
+$body-bg: ts-portal-color("p-bg");
+$body-color: ts-portal-color("p-ink");
+$body-emphasis-color: ts-portal-color("p-ink");
+$body-secondary-color: ts-portal-color("p-ink2");
+$border-color: ts-portal-color("p-line");
+$light: ts-portal-color("p-soft");
+$link-color: map-get($ts-accent-fallback, "ts-accent-ink");
+
+// Geometry: small radii, neutral product UI (BRAND.md section 13).
+$border-radius: .25rem;
+$border-radius-sm: .25rem;
+$border-radius-lg: .375rem;
+
+// Typography: Plex Sans only, 15px body, 16px inputs and buttons so mobile browsers never zoom.
+$font-family-sans-serif: $ts-font-sans;
+$font-family-monospace: $ts-font-mono;
+$font-size-base: .9375rem;
+$input-font-size: 1rem;
+$btn-font-size: 1rem;
+$btn-font-weight: 600;
+$btn-padding-x: 1.25rem;
+$btn-padding-y: .6875rem;

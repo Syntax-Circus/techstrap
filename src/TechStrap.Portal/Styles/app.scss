@@ -1,8 +1,9 @@
-// Token overrides first, then Bootstrap. Compiled to wwwroot/css/app.css on every build (never committed).
+// Token overrides first, then Bootstrap, then the theme. Compiled to wwwroot/css/app.css on every build (never committed).
 // Vendor/bootstrap is restored by libman at build time (libman.json) and is not committed either.
 @import "Vendor/bootstrap/scss/functions";
 @import "tokens";
 @import "Vendor/bootstrap/scss/bootstrap";
+@import "theme";
 
 .shell-placeholder {
   max-width: 40rem;
