@@ -57,10 +57,10 @@ Record the exact package version in the linked package map. In the foundation ph
 ## Deliverables
 
 - [x] `docs/BRAND.md`, complete and approved by the owner (owner approved 2026-10-02)
-- [ ] Final `UX-BRIEF-admin.md` and `UX-BRIEF-portal.md` (open questions resolved or deferred explicitly)
-- [ ] Rendered design exploration (screenshots or mockups) kept under `docs/design/` (small, optimised images only)
+- [x] Final `UX-BRIEF-admin.md` and `UX-BRIEF-portal.md` (open questions resolved or deferred explicitly)
+- [x] Rendered design exploration (screenshots or mockups) kept under `docs/design/` (small, optimised images only)
 - [x] `libman.json` and `sasscompiler.json` in Admin and Portal; `Styles/app.scss`, `_tokens.scss`, per-app partials
-- [ ] Logo/wordmark and favicon assets (SVG source, no raster-only logos)
+- [x] Logo/wordmark and favicon assets (SVG source, no raster-only logos)
 - [x] Development-only style-guide page in each app
 - [x] `.gitignore` entries for `Styles/Vendor/` and `wwwroot/css/app.css` and `wwwroot/fonts/`
 
@@ -100,7 +100,7 @@ Record the exact package version in the linked package map. In the foundation ph
 ## Success Criteria
 
 - [x] `docs/BRAND.md` exists, is not the blank template, and is approved by the owner.
-- [ ] `UX-BRIEF-admin.md` and `UX-BRIEF-portal.md` are final and cover every UI page in PHASE-07 to PHASE-09.
+- [x] `UX-BRIEF-admin.md` and `UX-BRIEF-portal.md` are final and cover every UI page in PHASE-07 to PHASE-09.
 - [x] A clean-clone `dotnet build` produces `wwwroot/css/app.css` in Admin and Portal via libman and SassCompiler; no CSS or Bootstrap vendor files are tracked (`git ls-files` check).
 - [x] Style-guide pages render all five status badges, empty/loading/error states and the reconnect UI with brand tokens in light mode (and dark mode for Admin).
 - [x] `ProductAccentContrastTests` and `StyleBuildTests` pass.
@@ -108,35 +108,35 @@ Record the exact package version in the linked package map. In the foundation ph
 
 ## Boundary Validation
 
-- [ ] Application use-case entry points delegate to the named handlers listed above. (None added.)
-- [ ] Framework-owned operational or static exemptions execute no application workflow.
-- [ ] Handler constructor dependencies contain only approved abstractions. (N/A.)
-- [ ] Persistence and integration entities do not cross infrastructure boundaries. (N/A.)
-- [ ] Cancellation reaches asynchronous handler dependencies. (N/A.)
-- [ ] Expected outcomes and transport mapping have focused tests. (N/A.)
-- [ ] Infrastructure implementations have integration coverage where applicable. (N/A.)
-- [ ] Inline Razor components contain only simple parameters and, at most, one
+- [x] Application use-case entry points delegate to the named handlers listed above. (None added.)
+- [x] Framework-owned operational or static exemptions execute no application workflow.
+- [x] Handler constructor dependencies contain only approved abstractions. (N/A.)
+- [x] Persistence and integration entities do not cross infrastructure boundaries. (N/A.)
+- [x] Cancellation reaches asynchronous handler dependencies. (N/A.)
+- [x] Expected outcomes and transport mapping have focused tests. (N/A.)
+- [x] Infrastructure implementations have integration coverage where applicable. (N/A.)
+- [x] Inline Razor components contain only simple parameters and, at most, one
       trivial synchronous `EventCallback`-forwarding callback (layouts and the style-guide page).
-- [ ] Every component beyond the inline ceiling uses paired `.razor` and
+- [x] Every component beyond the inline ceiling uses paired `.razor` and
       `.razor.cs` files, with all C# in code-behind.
-- [ ] Each Razor ViewModel is feature-local and presentation-only; the recorded
+- [x] Each Razor ViewModel is feature-local and presentation-only; the recorded
       direct-model decision does not expose an API ViewModel. (No ViewModels in this phase.)
-- [ ] A factory or presentation service is used only for non-trivial mapping,
+- [x] A factory or presentation service is used only for non-trivial mapping,
       asynchronous assembly, or multiple dependencies. (None.)
-- [ ] API request and response contracts use DTO names and contracts, never
+- [x] API request and response contracts use DTO names and contracts, never
       Razor ViewModels. (N/A.)
-- [ ] Repeated or business-meaningful literals are named constants at the
+- [x] Repeated or business-meaningful literals are named constants at the
       right scope, not bare magic values (design values live in SCSS tokens, not repeated literals in components).
-- [ ] Duplicated-looking logic across flows was evaluated for genuine
+- [x] Duplicated-looking logic across flows was evaluated for genuine
       divergence before extracting (or intentionally not extracting) a shared
       abstraction (Admin and Portal SCSS are deliberately separate beyond the shared brand tokens).
 
 ## Risks and Open Questions
 
-- [ ] Visual direction depends on owner taste and iteration; budget at least one revision round (schedule risk for PHASE-07 and PHASE-09).
-- [ ] Per-product accent colours can break contrast; the derived on-accent rule must be enforced at product save time (feeds PHASE-04 validation of `UpdateProductRequestHandler`).
+- [x] Visual direction depends on owner taste and iteration; budget at least one revision round (schedule risk for PHASE-07 and PHASE-09).
+- [x] Per-product accent colours can break contrast; the derived on-accent rule must be enforced at product save time (feeds PHASE-04 validation of `UpdateProductRequestHandler`).
 - [x] Sharing brand tokens between two projects (link vs copy) is an **Assumption**; revisit if drift appears. Closed: link by relative import chosen.
-- [ ] Dark mode for Portal is deferred; confirm in the UX brief.
+- [x] Dark mode for Portal is deferred; confirm in the UX brief.
 - [ ] Keyboard-only walk-through (tab order, focus ring, shortcuts) is deferred to PHASE-07 (P07-T19) and PHASE-09: no interactive flows exist in PHASE-02, only static style-guide pages. Reduced motion is covered at CSS level by `StampStyleTests`.
 - [x] Font licensing and hosting: self-host fonts, no third-party CDN calls from the public Portal (privacy). **Assumption.** Closed: self-hosted through libman.
 - [x] jsdelivr availability at build time: confirm the CI cache and Docker build tolerate it, or vendor Bootstrap SCSS through the libman cache. Closed: the Docker font and CSS assertions fail loudly.
