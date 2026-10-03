@@ -41,6 +41,18 @@ internal sealed class TicketFactory
         return ticket;
     }
 
+    /// <summary>A Closed ticket that still carries a tag, with its events persisted.</summary>
+    public Ticket ClosedWithTag(out Guid tagId)
+    {
+        tagId = Guid.CreateVersion7();
+        var ticket = Saved();
+        ticket.AddTag(tagId, Agent, Clock).IsSuccess.ShouldBeTrue();
+        ticket.ChangeStatus(TicketStatus.Solved, Actor.System, Clock).IsSuccess.ShouldBeTrue();
+        ticket.ChangeStatus(TicketStatus.Closed, Actor.System, Clock).IsSuccess.ShouldBeTrue();
+        ticket.AcceptChanges();
+        return ticket;
+    }
+
     private static TicketStatus[] PathTo(TicketStatus status) => status switch
     {
         TicketStatus.New => [],

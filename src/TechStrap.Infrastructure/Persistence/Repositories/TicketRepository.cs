@@ -205,6 +205,13 @@ internal sealed class TicketRepository(TechStrapDbContext context) : ITicketRepo
         return [.. records.Select(t => t.ToDomain())];
     }
 
+    public async Task<IReadOnlyList<Guid>> ListTicketIdsWithTagAsync(Guid tagId, CancellationToken cancellationToken) =>
+        await context.Set<TicketTagRecord>().AsNoTracking()
+            .Where(link => link.TagId == tagId)
+            .Select(link => link.TicketId)
+            .OrderBy(id => id)
+            .ToListAsync(cancellationToken);
+
     public void AddAccessToken(TicketAccessToken token) => context.Set<TicketAccessTokenRecord>().Add(token.ToRecord());
 
     public void UpdateAccessToken(TicketAccessToken token) => token.CopyTo(context.FindLoaded<TicketAccessTokenRecord>(token.Id));

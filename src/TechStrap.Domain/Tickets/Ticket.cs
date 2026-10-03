@@ -327,6 +327,25 @@ public sealed class Ticket
         return DomainResult.Ok();
     }
 
+    /// <summary>
+    /// Removes a tag that is being deleted (D-030). Unlike RemoveTag it is allowed on a Closed ticket, because the tag itself is going
+    /// away; it records TagRemoved with reason "tag-deleted" and leaves the status and last activity alone (housekeeping, not activity).
+    /// </summary>
+    public DomainResult DetachDeletedTag(Guid tagId, Actor actor, TimeProvider clock)
+    {
+        if (ValidateActor(actor) is { } invalid)
+        {
+            return invalid;
+        }
+
+        if (_tagIds.Remove(tagId))
+        {
+            Raise(TicketEventType.TagRemoved, actor, Payload(("tagId", tagId), ("reason", "tag-deleted")), clock);
+        }
+
+        return DomainResult.Ok();
+    }
+
     /// <summary>Sets or clears the spam flag (D-024). The status is untouched.</summary>
     public DomainResult MarkSpam(bool isSpam, Actor actor, TimeProvider clock)
     {
