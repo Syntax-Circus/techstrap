@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using SyntaxCircus.AspNetCore.Common;
 using TechStrap.Api.Security;
 using TechStrap.Application.Agents;
+using TechStrap.Application.Persistence;
+using TechStrap.Contracts.Agents;
 
 namespace TechStrap.Api.Controllers;
 
@@ -16,4 +18,23 @@ public sealed class AgentsController : ControllerBase
     [HttpGet("me")]
     public async Task<IActionResult> GetMe([FromServices] IGetCurrentAgentRequestHandler getCurrentAgent, CancellationToken cancellationToken) =>
         (await getCurrentAgent.HandleAsync(cancellationToken)).ToActionResult(this, Ok);
+
+    /// <summary>Agents: active agents for assignment. Admins: everyone, with role and status.</summary>
+    [HttpGet]
+    public async Task<IActionResult> List(
+        [FromServices] IListAgentsRequestHandler listAgents,
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = Paging.DefaultPageSize) =>
+        (await listAgents.HandleAsync(page, pageSize, cancellationToken)).ToActionResult(this, Ok);
+
+    /// <summary>Activates or deactivates an agent (Admin). Roles come from IdP groups (D-029).</summary>
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Admin)]
+    public async Task<IActionResult> Update(
+        Guid id,
+        UpdateAgentRequest request,
+        [FromServices] IUpdateAgentRequestHandler updateAgent,
+        CancellationToken cancellationToken) =>
+        (await updateAgent.HandleAsync(id, request, cancellationToken)).ToActionResult(this, Ok);
 }

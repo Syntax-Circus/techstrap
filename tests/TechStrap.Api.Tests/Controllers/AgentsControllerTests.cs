@@ -23,4 +23,19 @@ public sealed class AgentsControllerTests
         result.ShouldBeOfType<OkObjectResult>().Value.ShouldBe(Me);
         await handler.Received(1).HandleAsync(cancellation.Token);
     }
+
+    [Fact]
+    public async Task Update_DelegatesTheIdAndBodyAndPassesCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var id = Guid.CreateVersion7();
+        var request = new UpdateAgentRequest(false);
+        var handler = Substitute.For<IUpdateAgentRequestHandler>();
+        handler.HandleAsync(id, request, cancellation.Token).Returns(Result<AgentDto>.Success(Me));
+
+        var result = await ControllerTestContext.For<AgentsController>().Update(id, request, handler, cancellation.Token);
+
+        result.ShouldBeOfType<OkObjectResult>();
+        await handler.Received(1).HandleAsync(id, request, cancellation.Token);
+    }
 }

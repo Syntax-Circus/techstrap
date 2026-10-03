@@ -17,6 +17,12 @@ public interface IAgentRepository
 
     Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Counts active admins and locks their rows until the current unit of work ends, so two concurrent deactivations cannot both
+    /// see "another admin is still active" (D-029). Must run inside an IUnitOfWork scope.
+    /// </summary>
+    Task<int> CountActiveAdminsLockedAsync(CancellationToken cancellationToken);
+
     void Add(Agent agent);
 
     void Update(Agent agent);
