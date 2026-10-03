@@ -402,7 +402,7 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 | 4 | Open the cross-repo PR registering subnet `172.16.31.0/24` in the `_template` `CLIENT_IP_RATE_LIMITING.md` registry, and confirm it is free on the UAT host (D-019) | P01-T16 |
 | 5 | Choose the `SECURITY.md` private reporting address | P01-T19 |
 | 6 | Choose the visual direction and approve `docs/BRAND.md` | P02-T01 to P02-T03 |
-| 7 | Set up the Authentik application and groups per the `syntax-circus-authentik` repo: a confidential OIDC client for Admin (code plus PKCE, `offline_access`, group claim in the id and access tokens), a provider for the API audience, and groups mapped to `TECHSTRAP_AGENT_GROUP` and `TECHSTRAP_ADMIN_GROUP`; set `TECHSTRAP_BOOTSTRAP_ADMIN` for the first sign-in | P04-T14, P07-T02, P12-T17 |
+| 7 | Set up the Authentik application and groups per the `syntax-circus-authentik` repo: a confidential OIDC client for Admin (code plus PKCE, `offline_access`, group claim in the id and access tokens), a provider for the API audience, and groups mapped to `TECHSTRAP_AGENT_GROUP` and `TECHSTRAP_ADMIN_GROUP`; the first admin is whoever is in the admin group (D-029) | P04-T14, P07-T02, P12-T17 |
 | 8 | Supply the reverse-proxy address and trusted network values for UAT and production (Q-08) and an SMTP relay for UAT | P01-T16, P12-T14 |
 | 9 | Create the nuget.org publishing setup: reserve the `TechStrap.*` package IDs, create a Trusted Publishing policy per package, add the repository secret `NUGET_USER` (fallback `NUGET_API_KEY`) and a GitHub environment `release` with required reviewers | P11-T15 |
 | 10 | Provide a macOS runner (or approve the macOS CI cost) for the MAUI workload build | P11-T07 |

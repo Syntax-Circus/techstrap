@@ -87,7 +87,7 @@ TechStrap is deliberately **not multi-tenant**: one installation serves one comp
 | Persona | Description | Main needs | Surface |
 | --- | --- | --- | --- |
 | Agent | Company staff member answering tickets (fewer than 50) | Fast queue, search, reply, internal notes, live updates, alerts for new tickets and assignments | Admin app (agent group claim) |
-| Admin | Agent with configuration rights; first one bootstrapped by env var | Manage products, branding, API keys, agents, tags, KB categories, dead letters; see admin audit trail; erase requesters, delete tickets | Admin app (admin group claim) |
+| Admin | Agent with configuration rights; first one is whoever is in the IdP admin group (D-029) | Manage products, branding, API keys, agents, tags, KB categories, dead letters; see admin audit trail; erase requesters, delete tickets | Admin app (admin group claim) |
 | Customer / requester | End user of a product; no account | Submit a problem easily, find answers first, get confirmation, follow and reply by link, recover a lost link | Portal; email |
 | Product-app developer | Company developer embedding support in a product | Simple SDK, key per product, safe client-embedded key, device/app metadata capture | `TechStrap.Client`, `TechStrap.Client.Maui`, OpenAPI |
 | Self-hoster | Another company running its own copy | Clear compose setup, any OIDC IdP, backup/restore guidance, env-var configuration, upgradable images | GHCR images, docs, `.env.example` files |
@@ -209,7 +209,7 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 | FR-AUTH-01 | Agents authenticate with OIDC JWT; policies require the configured group claims `TECHSTRAP_AGENT_GROUP` and `TECHSTRAP_ADMIN_GROUP` (D-004) | M |
 | FR-AUTH-02 | Callers without the claim are rejected (403) even with a valid token | M |
 | FR-AUTH-03 | The agent record is provisioned on first `GET /api/agents/me`; role follows the claim | M |
-| FR-AUTH-04 | The first admin is set by `TECHSTRAP_BOOTSTRAP_ADMIN` (email or subject), applied at first sign-in | M |
+| FR-AUTH-04 | Roles come from IdP groups only; the first admin is whoever is in `TECHSTRAP_ADMIN_GROUP` (D-029) | M |
 | FR-AUTH-05 | Admin can deactivate an agent; a deactivated agent is rejected on the next request | M |
 | FR-ADMIN-01 | Admin manages products: key, name, branding (display name, logo, accent colour, from-address, reply-to), active flag | M |
 | FR-ADMIN-02 | Admin creates and revokes Trusted and Public API keys per product; the plain key is shown once; only a hash is stored | M |

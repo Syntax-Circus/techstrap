@@ -8,6 +8,7 @@ Approval basis:
 - **Owner confirmation (2026-10-02, after review):** D-014 and D-016 to D-022 were drafted by Claude (D-014 from plan section C; D-016 to D-022 while reconciling the artifact set) and then explicitly confirmed by the owner. D-018 also confirms the relay mechanism of D-007.
 - **Proposed:** none. D-008's default (N = 7 days) was confirmed by the owner on 2026-10-02.
 - **Owner decision (2026-10-02, PHASE-03 planning):** D-026 (separate persistence entities) and D-027 (stored generated search vectors); D-028 (Domain result type) approved 2026-10-03.
+- **Owner decision (2026-10-03, PHASE-04 planning):** D-029 (roles from IdP groups only; amends D-004), D-030 (deleting a tag in use), D-031 (product accent validation is format only).
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -20,7 +21,7 @@ Approval basis:
 | D-001 | Two API key kinds: trusted and public | Approved (owner Q&A) | 2026-10-02 | PHASE-04, PHASE-05, PHASE-11 |
 | D-002 | Single portal domain with per-product theming | Approved (owner Q&A) | 2026-10-02 | PHASE-02, PHASE-09 |
 | D-003 | MIT public OSS, GHCR images, GitHub Actions | Approved (owner Q&A) | 2026-10-02 | PHASE-01, PHASE-12 |
-| D-004 | Claim-gated agents with bootstrap admin | Approved (owner Q&A) | 2026-10-02 | PHASE-04 |
+| D-004 | Claim-gated agents with bootstrap admin | Approved (owner Q&A); amended by D-029 | 2026-10-02 | PHASE-04 |
 | D-005 | Client SDK and MAUI helper live in the core repo | Approved (owner Q&A) | 2026-10-02 | PHASE-11, 03-PACKAGE-MAP |
 | D-006 | Privacy basics: erase requester, spam/delete, PII log redaction; retention deferred | Approved (owner Q&A) | 2026-10-02 | PHASE-01, PHASE-06 |
 | D-007 | SignalR hub on the API with Postgres LISTEN/NOTIFY relay from the worker | Approved (live updates: owner Q&A; relay via D-018 confirmation) | 2026-10-02 | PHASE-10 |
@@ -45,6 +46,9 @@ Approval basis:
 | D-026 | Separate persistence entities (records); Domain stays pure | Approved (owner 2026-10-02) | 2026-10-02 | PHASE-03, 02-ARCHITECTURE |
 | D-027 | Full-text search uses stored generated tsvector columns | Approved (owner 2026-10-02) | 2026-10-02 | PHASE-03, PHASE-06, PHASE-08 |
 | D-028 | Domain returns its own result type; Application converts it | Approved (owner 2026-10-03) | 2026-10-02 | PHASE-03, 02-ARCHITECTURE |
+| D-029 | Agent roles come from IdP groups only; no bootstrap admin | Approved (owner 2026-10-03) | 2026-10-03 | PHASE-04, PHASE-07, 02-ARCHITECTURE, D-004 |
+| D-030 | Deleting a tag in use: reject unless forced; forced delete detaches with events | Approved (owner 2026-10-03) | 2026-10-03 | PHASE-04, PHASE-06 |
+| D-031 | Product accent validation is format only | Approved (owner 2026-10-03) | 2026-10-03 | PHASE-02, PHASE-04, D-025 |
 
 ---
 
@@ -137,7 +141,7 @@ Public repository from day one under the MIT license, with README, CONTRIBUTING 
 
 ## D-004: Claim-gated agents with bootstrap admin
 
-- **Status:** Approved
+- **Status:** Approved; amended by D-029 (2026-10-03)
 - **Date:** 2026-10-02
 - **Owner:** Jon Seeley
 - **Related artifacts:** PHASE-04, 03-PACKAGE-MAP (`AspNetCore.Authentication`)
@@ -147,6 +151,8 @@ Agents sign in via any OIDC provider. Authenticating to the IdP must not be enou
 
 ### Decision
 The API validates the OIDC JWT and an authorization policy requires a configured group claim: `TECHSTRAP_AGENT_GROUP` maps to `Agent`, `TECHSTRAP_ADMIN_GROUP` to `Admin`; others are rejected. The agent row is provisioned on first call to `GET /api/agents/me` (`GetCurrentAgentRequestHandler`). `TECHSTRAP_BOOTSTRAP_ADMIN` (email or subject) grants Admin to that user on provisioning.
+
+**Amended by D-029 (2026-10-03):** the bootstrap admin is removed. Admin access comes from `TECHSTRAP_ADMIN_GROUP` alone, so the first admin is whoever is in that IdP group; no database edit is needed.
 
 ### Alternatives Considered
 - Open sign-up with admin approval: more UI, and exposes an approval queue to anyone with an IdP account.
@@ -857,4 +863,97 @@ Domain defines `DomainResult`, `DomainResult<T>` and `DomainError` (kinds Valida
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, 2026-10-03 plan review)
+- **Approved on:** 2026-10-03
+
+---
+
+## D-029: Agent roles come from IdP groups only; no bootstrap admin
+
+- **Status:** Approved (owner 2026-10-03)
+- **Date:** 2026-10-03
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-004, PHASE-04, PHASE-07, 02-ARCHITECTURE section 4
+
+### Context
+D-004 gated agents by group claim and added `TECHSTRAP_BOOTSTRAP_ADMIN` so the first admin could get in. PHASE-04 then assumed the stored role could also be edited through the API. Two sources of truth for the Admin role (claim and database) make access hard to reason about. A group claim already gives the first admin a path in without a database edit.
+
+### Decision
+- The `Agent` policy requires `TECHSTRAP_AGENT_GROUP` or `TECHSTRAP_ADMIN_GROUP`. The `Admin` policy requires `TECHSTRAP_ADMIN_GROUP`.
+- The group claim type is configurable (`TECHSTRAP_GROUP_CLAIM_TYPE`, default `groups`).
+- The stored `Agent.Role` mirrors the claim at each `GET /api/agents/me`: Admin when the caller is in the admin group, otherwise Agent. It is informational (lists, audit).
+- `TECHSTRAP_BOOTSTRAP_ADMIN` is removed.
+- `UpdateAgentRequest` changes only `IsActive`. The API cannot change a role.
+- A deactivated agent is refused on every agent endpoint, whatever their claims.
+- Deactivating the last active stored Admin is refused (`409 last-active-admin`). The check holds a row lock on the active admins, so two concurrent deactivations cannot both pass.
+
+### Alternatives Considered
+- **Claim as a floor plus stored roles** (bootstrap and API promotion): keeps D-004 as written, but Admin access then has two sources.
+- **Stored role wins:** IdP group changes stop demoting anyone, so revoking access needs two systems.
+
+### Consequences
+- Setup docs explain the agent and admin groups and the claim type (`docs/self-hosting/AGENT-AUTHENTICATION.md`).
+- Removing someone from the admin group demotes them at their next token. Their stored role catches up at their next `/me` call.
+- The bootstrap env var disappears from `.env.example`, the compose files and the docs.
+- PHASE-07's agent screen offers activate and deactivate only.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, 2026-10-03 PHASE-04 planning)
+- **Approved on:** 2026-10-03
+
+---
+
+## D-030: Deleting a tag in use: reject unless forced; forced delete detaches with events
+
+- **Status:** Approved (owner 2026-10-03)
+- **Date:** 2026-10-03
+- **Owner:** Jon Seeley
+- **Related artifacts:** PHASE-04 (`DeleteTagRequestHandler`), PHASE-06 (ticket timeline), `Ticket.DetachDeletedTag`
+
+### Context
+Tags are global. A tag that tickets still carry cannot simply disappear: the database refuses (foreign key), and the ticket timeline should explain why a tag vanished.
+
+### Decision
+- `DELETE /api/tags/{id}` returns `409 tag-in-use` with the number of tickets that carry the tag.
+- `DELETE /api/tags/{id}?force=true` detaches the tag from every ticket that carries it, then deletes it, all in one transaction. Each detach records a `TagRemoved` ticket event with `reason` `tag-deleted`.
+- Closed tickets are read-only for agents, but they are detached through `Ticket.DetachDeletedTag`. That method still records the event and leaves the status and last-activity time alone.
+- The admin audit records `TagDeleted` with `slug` and `detachedTicketCount`.
+
+### Alternatives Considered
+- **Always detach:** one click silently rewrites many tickets.
+- **Always reject:** agents must untag every ticket by hand first.
+
+### Consequences
+- A forced delete of a widely used tag loads and saves each ticket in one transaction. A concurrent edit to one of those tickets fails the delete with `409 concurrency-conflict`, and the admin retries.
+- PHASE-06's timeline must render `TagRemoved` with reason `tag-deleted`.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, 2026-10-03 PHASE-04 planning)
+- **Approved on:** 2026-10-03
+
+---
+
+## D-031: Product accent validation is format only
+
+- **Status:** Approved (owner 2026-10-03)
+- **Date:** 2026-10-03
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-025, PHASE-02, PHASE-04 (`CreateProductRequestHandler`, `UpdateProductRequestHandler`), `ProductAccent`
+
+### Context
+PHASE-04 asked for a 400 on a "low-contrast" product accent. The PHASE-02 `ProductAccent` helper (D-025) already derives an on-accent colour (white or black, at least 4.58:1) and an ink colour darkened to 4.5:1 for any accent, so no accent produces unreadable text.
+
+### Decision
+- A product accent must be `#RRGGBB`. A malformed value is `400 accent-colour-invalid` from `ProductBranding.Create`.
+- Contrast is not validated.
+- `ProductBrandingDto` returns the derived `OnAccentColour` and `AccentInkColour`, so the Admin preview shows exactly what customers see.
+
+### Alternatives Considered
+- **Reject accents below 3:1 against the white portal page:** stops near-white accents, but refuses brand colours some products really use. The derived ink keeps links and text readable regardless.
+
+### Consequences
+- The PHASE-04 "400 low-contrast accent" test is dropped.
+- The PHASE-07 branding form shows a live preview built from the derived colours.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, 2026-10-03 PHASE-04 planning)
 - **Approved on:** 2026-10-03
