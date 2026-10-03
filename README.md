@@ -58,7 +58,7 @@ published ports and a proxy on the same host, that is the compose gateway (`172.
 ### Submit a test ticket
 
 With `TECHSTRAP_SEED_DEV_DATA=true` set when you start the stack, `pwsh -File scripts/Send-TestTicket.ps1` submits a ticket
-through the API-key intake endpoint. The confirmation email appears in Mailpit at <http://localhost:8025>. The routes,
+through the API-key intake endpoint. The confirmation email appears in Mailpit at <http://localhost:8025> (set `TECHSTRAP_MAILPIT_PORT` if that port is taken). The routes,
 idempotency, attachments and the email outbox are described in [INTAKE.md](docs/development/INTAKE.md).
 
 ### Develop

@@ -141,7 +141,7 @@ Record the exact package version in the linked package map. In the foundation ph
 - [x] Concurrent submissions never produce duplicate ticket numbers.
 - [x] The Worker delivers queued emails, retries with backoff and dead-letters after the configured attempts; two Workers never double-claim a row (`EmailDrainIntegrationTests`).
 - [x] Disallowed or oversize attachments, honeypot hits and rate-limited callers are handled exactly as specified in tests (400/422, silent 201, 429).
-- [x] No response, log line or `PublicProductDto` exposes a token, key hash or other internal data (`SensitiveDataLeakTests`).
+- [x] No response, log line or `PublicProductDto` exposes a token, key hash or other internal data (`SensitiveDataLeakTests` and `PublicProductEndpointTests`). Deliberate carve-outs: the API-key submission response carries `viewUrl`, and `email_outbox.payload` holds the first link (D-033).
 - [x] `GET /api/public/products/{key}` returns branding with correct `Cache-Control`.
 - [x] Email templates render the resolved agent name and honour `TECHSTRAP_PORTAL_SHOW_POWERED_BY`: the GitHub-linked line when true, none when false (D-024).
 - [x] A repeated `Idempotency-Key` on API-key intake returns the original ticket number with a fresh link and creates no second ticket (D-020).

@@ -58,6 +58,7 @@ Describe 'docker-compose files' -Skip:(-not $script:DockerAvailable) {
         $ports.Count | Should -Be 1
         [int]$ports[0].target | Should -Be 8025
         $ports[0].host_ip | Should -Be '127.0.0.1'
+        [int]$ports[0].published | Should -Be 8025
         @($ports | Where-Object { [int]$_.target -eq 1025 }).Count | Should -Be 0
     }
 

@@ -94,7 +94,7 @@ public sealed class SensitiveDataLeakTests(TestPostgres postgres) : IAsyncLifeti
         await using (var catalogue = new NpgsqlCommand(
             "SELECT c.table_name, c.column_name FROM information_schema.columns c " +
             "JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND t.table_type = 'BASE TABLE' " +
-            "WHERE c.table_schema = 'public' AND (c.data_type IN ('text', 'character varying', 'jsonb', 'json') OR c.udt_name = 'citext')",
+            "WHERE c.table_schema = 'public' AND (c.data_type IN ('text', 'character varying', 'jsonb', 'json', 'ARRAY') OR c.udt_name = 'citext')",
             connection))
         await using (var reader = await catalogue.ExecuteReaderAsync(TestContext.Current.CancellationToken))
         {
@@ -105,6 +105,12 @@ public sealed class SensitiveDataLeakTests(TestPostgres postgres) : IAsyncLifeti
         }
 
         columns.ShouldContain(("email_outbox", "payload"));
+
+        // The text cast cannot scan bytea, so the schema must not hold any.
+        await using (var binary = new NpgsqlCommand("SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND data_type = 'bytea'", connection))
+        {
+            ((long)(await binary.ExecuteScalarAsync(TestContext.Current.CancellationToken))!).ShouldBe(0L, "bytea columns would escape the leak scan");
+        }
         foreach (var (table, column) in columns)
         {
             foreach (var needle in needles)

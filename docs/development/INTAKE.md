@@ -68,7 +68,7 @@ bytes; the stored content type is the canonical one for the matched kind. A disa
 ## Mailpit and the smoke script
 
 The local stack runs [Mailpit](https://mailpit.axllent.org/) as a mail catcher. The web UI is at <http://localhost:8025>
-(loopback only; the SMTP port stays on the compose network). The Worker sends through it without TLS.
+(loopback only; the SMTP port stays on the compose network). If port 8025 is taken, set `TECHSTRAP_MAILPIT_PORT` before `docker compose up` and use that port instead. The Worker sends through it without TLS.
 
 ```powershell
 pwsh -File scripts/Send-TestTicket.ps1            # submits one ticket with the dev Orbitly trusted key

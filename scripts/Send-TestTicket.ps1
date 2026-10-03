@@ -3,7 +3,7 @@
 Submits one test ticket to a running TechStrap API through the API-key intake endpoint.
 .DESCRIPTION
 Defaults target the local compose stack and the development Orbitly trusted key (seeded when TECHSTRAP_SEED_DEV_DATA=true;
-not a secret, see docs/development/DEV-DATA.md). The confirmation email lands in Mailpit at http://localhost:8025.
+not a secret, see docs/development/DEV-DATA.md). The confirmation email lands in Mailpit at http://localhost:8025 (or the port in TECHSTRAP_MAILPIT_PORT).
 #>
 [CmdletBinding()]
 param(
