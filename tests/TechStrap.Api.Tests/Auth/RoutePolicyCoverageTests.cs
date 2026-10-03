@@ -41,7 +41,7 @@ public sealed class RoutePolicyCoverageTests
         }
     }
 
-    [Fact(Skip = "Rate limits arrive in Task 13")]
+    [Fact]
     public void Every_public_and_api_key_route_is_rate_limited()
     {
         using var factory = new ApiFactory();

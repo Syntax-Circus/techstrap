@@ -52,11 +52,24 @@ builder.Services.AddOptions<PublicRateLimitOptions>()
     .Validate(o => o.WindowSeconds >= 1, "RateLimiting:Public:WindowSeconds must be >= 1.")
     .ValidateOnStart();
 
+builder.Services.AddOptions<IntakeRateLimitOptions>()
+    .Bind(builder.Configuration.GetSection(IntakeRateLimitOptions.SectionName))
+    .Validate(o => o.WebFormPermitLimit >= 1, "RateLimiting:Intake:WebFormPermitLimit must be >= 1.")
+    .Validate(o => o.WebFormWindowSeconds >= 1, "RateLimiting:Intake:WebFormWindowSeconds must be >= 1.")
+    .Validate(o => o.PublicKeyPermitLimit >= 1, "RateLimiting:Intake:PublicKeyPermitLimit must be >= 1.")
+    .Validate(o => o.PublicKeyWindowSeconds >= 1, "RateLimiting:Intake:PublicKeyWindowSeconds must be >= 1.")
+    .Validate(o => o.TrustedKeyPermitLimit >= 1, "RateLimiting:Intake:TrustedKeyPermitLimit must be >= 1.")
+    .Validate(o => o.TrustedKeyWindowSeconds >= 1, "RateLimiting:Intake:TrustedKeyWindowSeconds must be >= 1.")
+    .ValidateOnStart();
+
 builder.Services.AddRateLimiter(options =>
 {
     var limits = builder.Configuration.GetSection(PublicRateLimitOptions.SectionName).Get<PublicRateLimitOptions>()
         ?? new PublicRateLimitOptions();
     options.AddPerIpFixedWindow(PublicRateLimitOptions.PolicyName, limits.PermitLimit, TimeSpan.FromSeconds(limits.WindowSeconds));
+    var intake = builder.Configuration.GetSection(IntakeRateLimitOptions.SectionName).Get<IntakeRateLimitOptions>()
+        ?? new IntakeRateLimitOptions();
+    options.AddIntakePolicies(intake);
     options.UseProblemDetailsRejection();
 });
 

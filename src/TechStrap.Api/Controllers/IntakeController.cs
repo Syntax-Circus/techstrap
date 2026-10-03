@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SyntaxCircus.AspNetCore.Common;
+using TechStrap.Api.Options;
 using TechStrap.Api.Security;
 using TechStrap.Api.Startup;
 using TechStrap.Application.Intake;
@@ -12,6 +14,7 @@ namespace TechStrap.Api.Controllers;
 /// <summary>Ticket intake for product backends and the SDK, authenticated by a product API key (D-034).</summary>
 [ApiController]
 [Route("api/intake/tickets")]
+[EnableRateLimiting(IntakeRateLimitOptions.KeyPolicyName)]
 [Authorize(Policy = AuthorizationPolicies.ApiKey)]
 public sealed class IntakeController : ControllerBase
 {

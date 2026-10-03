@@ -62,6 +62,7 @@ public sealed partial class EnvExampleCompletenessTests
                 .. ObservabilityKeys(),
                 .. TrustedProxyKeys(),
                 .. OptionKeys(typeof(PublicRateLimitOptions), PublicRateLimitOptions.SectionName),
+                .. OptionKeys(typeof(IntakeRateLimitOptions), IntakeRateLimitOptions.SectionName),
                 ToEnvName(ApiStartupTasks.MigrateOnStartupKey),
                 ApiStartupTasks.SeedDevelopmentDataKey,
                 "CONNECTIONSTRINGS__TECHSTRAP",
