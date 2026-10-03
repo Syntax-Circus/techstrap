@@ -40,6 +40,7 @@ Approval basis:
 | D-022 | Destructive and system operations are Admin-only; mark-spam stays Agent | Approved (owner confirmation) | 2026-10-02 | 01-REQUIREMENTS, PHASE-04, PHASE-06, PHASE-07, UX-BRIEF-admin |
 | D-023 | Visual direction: Carbon Copy v2; mascot only in Admin brand moments; portal shows Powered-by only | Approved (owner) | 2026-10-02 | PHASE-02, PHASE-07, PHASE-09, BRAND.md |
 | D-024 | Customer-facing identity, spam recovery and portal prefill | Approved (owner 2026-10-02) | 2026-10-02 | 01-REQUIREMENTS, 02-ARCHITECTURE, PHASE-03 to PHASE-07, PHASE-09, UX-BRIEF-admin, UX-BRIEF-portal, BRAND.md |
+| D-025 | The product-accent derivation helper lives in `TechStrap.Contracts` | Approved (owner 2026-10-02) | 2026-10-02 | PHASE-02, PHASE-04, PHASE-05, PHASE-09, BRAND.md |
 
 ---
 
@@ -729,4 +730,33 @@ Four open UX questions blocked PHASE-07 and PHASE-09: whether v1 ships a Spam vi
 
 ### Approval
 - **Approved by:** Jon Seeley (owner)
+- **Approved on:** 2026-10-02
+
+---
+
+## D-025: The product-accent derivation helper lives in `TechStrap.Contracts`
+
+- **Status:** Approved
+- **Date:** 2026-10-02
+- **Owner:** Jon Seeley
+- **Related artifacts:** `docs/BRAND.md` section 22, PHASE-02 (P02-T09), PHASE-04 (product save validation), PHASE-05 (email rendering), PHASE-09 (portal theming), D-016
+
+### Context
+BRAND.md section 22 requires one pure function that turns a product accent (`#RRGGBB`) into `--ts-accent`, `--ts-on-accent` and `--ts-accent-ink`. Three hosts need it: the Portal (runtime properties), the API (reject a malformed accent at save, PHASE-04) and email rendering (PHASE-05, in the Worker or Api). The architecture tests fix the reference direction: Application references only Domain, Contracts and `SyntaxCircus.Common`; Api and Worker reference Application, Infrastructure and Contracts; Admin and Portal reference Contracts only.
+
+### Decision
+`TechStrap.Contracts.Branding.ProductAccent` (a static class with `TryDerive` and `ContrastRatio`, plus the `ProductAccentColors` record) lives in `TechStrap.Contracts`. Contracts is the only project every consumer already references, it stays dependency-free (the helper uses only the BCL), and the rule is part of the wire contract: the stored accent and the values derived from it must agree in every host.
+
+### Alternatives Considered
+- Domain: Portal and Admin may not reference Domain (architecture tests), so the Portal would need its own copy.
+- A new `TechStrap.Branding` project: needs an `AllowedProjectReferences` entry for every consumer and a change to the "ten source projects" test, for roughly 100 lines of code.
+- A Portal-local helper plus a second copy in Application: two implementations of one rule, which BRAND.md forbids.
+
+### Consequences
+- `TechStrap.Contracts` is published as a NuGet package (PHASE-11), so `ProductAccent` becomes public surface of that package and is covered by its semver promise. It is small and stable; revisit if the surface grows.
+- The architecture tests need no change: Contracts still has no project, package or framework reference.
+- PHASE-04 calls `ProductAccent.TryDerive` in `UpdateProductRequestHandler`; PHASE-05 calls it in the email renderer; PHASE-09 calls it in the portal product theme.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, 2026-10-02 plan review)
 - **Approved on:** 2026-10-02
