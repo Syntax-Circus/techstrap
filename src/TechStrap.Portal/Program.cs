@@ -5,6 +5,7 @@ using SyntaxCircus.AspNetCore.Serilog;
 using SyntaxCircus.DotEnv;
 using SyntaxCircus.Observability;
 using TechStrap.Portal.Components;
+using TechStrap.Portal.Components.Ui;
 
 const string ServiceName = "techstrap-portal";
 
@@ -41,12 +42,18 @@ if (!string.IsNullOrWhiteSpace(keyRingPath))
 }
 
 builder.Services.AddRazorComponents();
+// Installation-wide switch for the "Powered by TechStrap" footer (D-024); shown unless set to false.
+builder.Services.AddOptions<PoweredByOptions>()
+    .Configure<IConfiguration>((options, configuration) =>
+        options.Show = configuration.GetValue(PoweredByOptions.ConfigurationKey, true));
 
 var app = builder.Build();
 telemetry.LogStartupWarning(app.Logger);
 
 app.UseForwardedHeaders();
 app.UseCorrelationId();
+// An address that matches no page gets the not-found page (re-executed, so the 404 status code is kept).
+app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseAntiforgery();
 app.MapStandardHealthChecks();
 app.MapRazorComponentsWithStaticAssets<App>();

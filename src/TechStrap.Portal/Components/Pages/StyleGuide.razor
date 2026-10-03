@@ -1,0 +1,60 @@
+@page "/_styleguide"
+
+<PageTitle>TechStrap portal style guide</PageTitle>
+<DevelopmentOnly>
+    <div class="ts-sg">
+        <h1>TechStrap portal style guide</h1>
+        <p class="ts-sg-note">Development only. The portal is plain, light and product-led: Plex Sans, small radii, the product's accent and nothing else of ours except the footer line. No stamps, tints, windows or mascot.</p>
+
+        <section class="ts-sg-section" aria-labelledby="sg-type">
+            <h2 id="sg-type">Type scale</h2>
+            <p class="ts-sg-h1">Heading 1 (Sans 26 / 600)</p>
+            <p>Body (Sans 15 / 400). We reply by email and give you a private link to follow your ticket.</p>
+            <p>Ticket id (Mono 15 / 600): <span class="ts-sg-id">ORB-38</span></p>
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-palette">
+            <h2 id="sg-palette">Palette</h2>
+            <ul class="ts-sg-swatches">
+                <li><span class="ts-sg-swatch" style="background: var(--p-bg)"></span><code>--p-bg</code></li>
+                <li><span class="ts-sg-swatch" style="background: var(--p-soft)"></span><code>--p-soft</code></li>
+                <li><span class="ts-sg-swatch" style="background: var(--p-ink)"></span><code>--p-ink</code></li>
+                <li><span class="ts-sg-swatch" style="background: var(--p-ink2)"></span><code>--p-ink2</code></li>
+                <li><span class="ts-sg-swatch" style="background: var(--p-line)"></span><code>--p-line</code></li>
+            </ul>
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-accents">
+            <h2 id="sg-accents">Product accents</h2>
+            <p class="ts-sg-note">Each sample is wrapped in AccentScope, which derives on-accent and accent-ink from the accent with the single shared rule (TechStrap.Contracts). #4B7D87 is the worst case for white-or-black text (4.58:1).</p>
+            <AccentScope Accent="#7C3AED"><div class="ts-sg-accent"><span class="ts-sg-bar"></span><button type="button" class="btn btn-primary">Send ticket</button> <button type="button" class="btn btn-outline-primary">Cancel</button> <a href="/_styleguide">Help articles</a> <code>#7C3AED</code></div></AccentScope>
+            <AccentScope Accent="#F59E0B"><div class="ts-sg-accent"><span class="ts-sg-bar"></span><button type="button" class="btn btn-primary">Send ticket</button> <button type="button" class="btn btn-outline-primary">Cancel</button> <a href="/_styleguide">Help articles</a> <code>#F59E0B</code></div></AccentScope>
+            <AccentScope Accent="#0F3D2E"><div class="ts-sg-accent"><span class="ts-sg-bar"></span><button type="button" class="btn btn-primary">Send ticket</button> <button type="button" class="btn btn-outline-primary">Cancel</button> <a href="/_styleguide">Help articles</a> <code>#0F3D2E</code></div></AccentScope>
+            <AccentScope Accent="#2E9AFF"><div class="ts-sg-accent"><span class="ts-sg-bar"></span><button type="button" class="btn btn-primary">Send ticket</button> <button type="button" class="btn btn-outline-primary">Cancel</button> <a href="/_styleguide">Help articles</a> <code>#2E9AFF</code></div></AccentScope>
+            <AccentScope Accent="#4B7D87"><div class="ts-sg-accent"><span class="ts-sg-bar"></span><button type="button" class="btn btn-primary">Send ticket</button> <button type="button" class="btn btn-outline-primary">Cancel</button> <a href="/_styleguide">Help articles</a> <code>#4B7D87</code></div></AccentScope>
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-forms">
+            <h2 id="sg-forms">Forms</h2>
+            <form class="ts-sg-form" onsubmit="return false">
+                <div class="mb-3"><label class="form-label" for="sg-name">Your name</label><input id="sg-name" class="form-control" autocomplete="name" /></div>
+                <div class="mb-3"><label class="form-label" for="sg-email">Email</label><input id="sg-email" class="form-control is-invalid" type="email" value="not-an-email" aria-describedby="sg-email-msg" /><div id="sg-email-msg" class="invalid-feedback">Enter an email address like name@example.com.</div></div>
+                <div class="mb-3"><label class="form-label" for="sg-msg">Message</label><textarea id="sg-msg" class="form-control" rows="4"></textarea></div>
+                <button type="submit" class="btn btn-primary">Send ticket</button>
+            </form>
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-states">
+            <h2 id="sg-states">Alerts and states</h2>
+            <div class="alert alert-success" role="status">We have it. Your ticket is ORB-38. We have emailed you a link to follow it.</div>
+            <div class="alert alert-danger" role="alert">This link has expired. Enter your email and we will send a new one.</div>
+            <p class="placeholder-glow" aria-busy="true"><span class="placeholder col-6"></span></p>
+            <p class="ts-sg-note">No tickets yet for this email address.</p>
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-footer">
+            <h2 id="sg-footer">Powered-by footer</h2>
+            <p class="ts-sg-note">Shown by default on every page below. Set TECHSTRAP_PORTAL_SHOW_POWERED_BY=false to hide it on this installation.</p>
+        </section>
+    </div>
+</DevelopmentOnly>
