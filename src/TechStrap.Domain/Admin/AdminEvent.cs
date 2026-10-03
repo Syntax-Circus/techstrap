@@ -43,6 +43,12 @@ public sealed class AdminEvent
         "token", "secret", "password", "passwd", "hash", "plaintext", "authorization", "credential", "apikey", "privatekey", "email",
     ];
 
+    /// <summary>Exact (case-insensitive) property names that are never allowed, whole words the substring list would be too broad for.</summary>
+    private static readonly HashSet<string> ForbiddenExactNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "email", "name", "body", "subject", "token", "secret", "key", "apikey", "hash", "password", "address",
+    };
+
     private AdminEvent(Guid id, AdminEventType type, Guid actorId, AdminSubjectType subjectType, Guid subjectId, string payloadJson, DateTimeOffset occurredAt)
     {
         Id = id;
@@ -111,7 +117,7 @@ public sealed class AdminEvent
     }
 
     private static bool IsForbiddenName(string name) =>
-        ForbiddenNameParts.Any(part => name.Contains(part, StringComparison.OrdinalIgnoreCase));
+        ForbiddenExactNames.Contains(name) || ForbiddenNameParts.Any(part => name.Contains(part, StringComparison.OrdinalIgnoreCase));
 
     private static bool HasForbiddenName(JsonElement element) => element.ValueKind switch
     {

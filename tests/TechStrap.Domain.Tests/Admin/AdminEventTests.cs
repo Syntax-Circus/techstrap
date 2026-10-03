@@ -29,6 +29,11 @@ public sealed class AdminEventTests
     }
 
     [Theory]
+    [InlineData("{\"Name\":\"x\"}")]
+    [InlineData("{\"key\":\"x\"}")]
+    [InlineData("{\"body\":\"x\"}")]
+    [InlineData("{\"subject\":\"x\"}")]
+    [InlineData("{\"address\":\"x\"}")]
     [InlineData("{\"apiKeyValue\":\"x\"}")]
     [InlineData("{\"rawToken\":\"x\"}")]
     [InlineData("{\"accessToken\":\"x\"}")]
@@ -43,10 +48,14 @@ public sealed class AdminEventTests
             .Error!.Code.ShouldBe("admin-event-payload-invalid");
     }
 
-    [Fact]
-    public void Id_kind_and_prefix_fields_are_accepted()
+    [Theory]
+    [InlineData("{\"productId\":\"1\",\"kind\":\"Public\",\"keyPrefix\":\"tsk_ab\"}")]
+    [InlineData("{\"productKey\":\"1\"}")]
+    [InlineData("{\"displayName\":\"x\"}")]
+    [InlineData("{\"keyPrefix\":\"tsk_ab\"}")]
+    public void Id_kind_and_prefix_fields_are_accepted(string payload)
     {
-        AdminEvent.Record(AdminEventType.ApiKeyCreated, Guid.NewGuid(), AdminSubjectType.ApiKey, Guid.NewGuid(), "{\"productId\":\"1\",\"kind\":\"Public\",\"keyPrefix\":\"tsk_ab\"}", _clock)
+        AdminEvent.Record(AdminEventType.ApiKeyCreated, Guid.NewGuid(), AdminSubjectType.ApiKey, Guid.NewGuid(), payload, _clock)
             .IsSuccess.ShouldBeTrue();
     }
 
