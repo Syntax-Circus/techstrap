@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Sentry;
 using Serilog;
@@ -59,12 +57,9 @@ builder.Services.AddRateLimiter(options =>
     options.UseProblemDetailsRejection();
 });
 
-// Default-deny: every request needs an authenticated user unless its endpoint opts out with AllowAnonymous.
-// The placeholder scheme only supplies a 401 challenge until PHASE-04 adds JWT bearer authentication.
-builder.Services.AddAuthentication(UnauthenticatedScheme.Name)
-    .AddScheme<AuthenticationSchemeOptions, UnauthenticatedSchemeHandler>(UnauthenticatedScheme.Name, _ => { });
-builder.Services.AddAuthorizationBuilder()
-    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+builder.Services.AddAgentAuthentication(builder.Configuration, builder.Environment);
+builder.Services.AddResultProblemDetails();
+builder.Services.AddApplicationHandlers();
 
 var app = builder.Build();
 telemetry.LogStartupWarning(app.Logger);
