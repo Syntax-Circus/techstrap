@@ -142,7 +142,8 @@ All tables snake_case, UTC `timestamptz`, `uuid` primary keys unless noted (**As
 
 | Entity (table) | Key columns | Indexes and constraints |
 | --- | --- | --- |
-| `products` | `id`, `key` (unique slug), `name`, `number_prefix` (unique), `next_ticket_number`, branding (`display_name`, `logo`, `accent_colour`, `from_address`, `reply_to`), `is_active`, `row_version` | unique `key`, unique `number_prefix` |
+| `products` | `id`, `key` (unique slug), `name`, `number_prefix` (unique), branding (`display_name`, `logo`, `accent_colour`, `from_address`, `reply_to`), `is_active`, `row_version` | unique `key`, unique `number_prefix` |
+| `product_ticket_sequences` | `product_id` (PK, FK to `products`), `next_number` | the per-product ticket counter, separate from `products` so taking a number never changes the product row's `xmin` (D-009) |
 | `product_api_keys` | `id`, `product_id`, `kind` (`Trusted`/`Public`), `key_hash`, `key_prefix`, `label`, `created_at`, `revoked_at`, `last_used_at` | unique `key_hash`; index `product_id` |
 | `agents` | `id`, `oidc_subject` (unique), `name`, `email`, `role` (`Agent`/`Admin`), `is_active`, `last_seen_at`, `public_display_name` (nullable, max 60; customer-facing name override, D-024) | unique `oidc_subject`; index `email` |
 | `agent_notification_preferences` | `agent_id`, `product_id`, `notify_new_ticket` | PK (`agent_id`, `product_id`) |
@@ -167,7 +168,7 @@ Full-text search (D-011):
 - Config `english` (A-07); generated columns or trigger-maintained, decided in PHASE-03. Queries use `websearch_to_tsquery` and `ts_rank`.
 - No external search engine.
 
-Ticket number: `ITicketNumberAllocator` runs `UPDATE products SET next_ticket_number = next_ticket_number + 1 ... RETURNING` inside the creating transaction; the stored `tickets.number` is `{products.number_prefix}-{sequence}`, immutable (D-009), and unique globally on that stored value (a product move keeps the original prefix).
+Ticket number: `ITicketNumberAllocator` runs `INSERT INTO product_ticket_sequences ... ON CONFLICT (product_id) DO UPDATE SET next_number = next_number + 1 ... RETURNING` (the counter row is created on the product's first ticket) inside the creating transaction; the stored `tickets.number` is `{products.number_prefix}-{sequence}`, immutable (D-009), and unique globally on that stored value (a product move keeps the original prefix).
 
 Status machine (Domain): `New -> Open | Pending | Solved`, `Open <-> Pending`, `Open | Pending -> Solved`, `Solved -> Open` (customer reply or agent), `Solved -> Closed` (auto-close or agent), `Closed` terminal. `is_spam` is orthogonal to status.
 

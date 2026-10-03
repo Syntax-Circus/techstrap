@@ -7,7 +7,7 @@ namespace TechStrap.Api.Tests;
 public sealed class ApiMigrationOnStartupTests(TestPostgres postgres)
 {
     [Fact]
-    public async Task Starting_the_api_migrates_an_empty_database_to_the_Initial_migration()
+    public async Task Starting_the_api_migrates_an_empty_database_to_every_migration()
     {
         var connectionString = await postgres.CreateDatabaseAsync();
         await using var factory = new ApiFactory(settings: new Dictionary<string, string?>
@@ -32,7 +32,6 @@ public sealed class ApiMigrationOnStartupTests(TestPostgres postgres)
             applied.Add(reader.GetString(0));
         }
 
-        applied.Count.ShouldBe(1);
-        applied[0].ShouldEndWith("_Initial");
+        applied.Order().ShouldBe(ExpectedMigrations.Ids());
     }
 }
