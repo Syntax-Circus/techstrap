@@ -51,7 +51,7 @@ public sealed class Agent
 
     public static DomainResult<Agent> Create(string? oidcSubject, string? name, string? email, AgentRole role, TimeProvider clock)
     {
-        var subject = Guard.RequiredText(oidcSubject, DomainLimits.NameMaxLength * 2, "oidc-subject");
+        var subject = Guard.RequiredText(oidcSubject, DomainLimits.OidcSubjectMaxLength, "oidc-subject");
         var agentName = Guard.OptionalText(name, DomainLimits.NameMaxLength, "name");
         var agentEmail = Guard.Email(email, "email");
 

@@ -82,4 +82,12 @@ public sealed class AgentPublicIdentityTests
 
         AgentPublicIdentity.Resolve(agent, "Orbitly").ShouldNotContain("@");
     }
+
+    [Theory]
+    [InlineData("sam@example.com")]
+    [InlineData("sam@example.com Smith")]
+    public void An_email_like_idp_name_is_never_used_as_the_public_name(string name)
+    {
+        AgentPublicIdentity.Resolve(AgentNamed(name), "Orbitly").ShouldBe("Orbitly Support");
+    }
 }

@@ -19,6 +19,11 @@ public static class AgentPublicIdentity
         return given is null ? supportName : $"{given} from {supportName}";
     }
 
-    private static string? FirstWord(string? fullName) =>
-        fullName?.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
+    private static string? FirstWord(string? fullName)
+    {
+        var word = fullName?.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
+
+        // The identity provider may send an email address as the name; it is never shown to a customer.
+        return word is not null && word.Contains('@') ? null : word;
+    }
 }

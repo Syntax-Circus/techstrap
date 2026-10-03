@@ -89,6 +89,6 @@ internal static partial class Guard
     [GeneratedRegex(ColourPattern, RegexOptions.CultureInvariant)]
     private static partial Regex ColourRegex();
 
-    [GeneratedRegex(EmailPattern, RegexOptions.CultureInvariant)]
+    [GeneratedRegex(EmailPattern, RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex EmailRegex();
 }

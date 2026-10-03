@@ -12,6 +12,10 @@ public static class DomainLimits
     public const int TagNameMaxLength = 50;
     public const int PublicDisplayNameMaxLength = 60;
     public const int SubjectMaxLength = 200;
+
+    /// <summary>The longest OIDC subject (<c>sub</c> claim) stored for an agent.</summary>
+    public const int OidcSubjectMaxLength = 200;
+
     public const int MessageBodyMaxLength = 100_000;
     public const int MessageIdMaxLength = 998;
     public const int FileNameMaxLength = 255;
