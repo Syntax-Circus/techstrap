@@ -99,12 +99,12 @@ internal sealed class TicketNotificationPlanner(
             return;
         }
 
-        tickets.AddAccessToken(issued.Value.Token);
+        // The token is staged only once the email row is known to be valid, so a failed enqueue never leaves an orphan token.
         var link = portalOptions.Value.TicketLink(issued.Value.PlaintextToken);
-        Stage(kind, requester.Email, build(requester, product, link), ticket);
+        Stage(kind, requester.Email, build(requester, product, link), ticket, issued.Value.Token);
     }
 
-    private void Stage<TPayload>(string kind, string toAddress, TPayload payload, Ticket ticket)
+    private void Stage<TPayload>(string kind, string toAddress, TPayload payload, Ticket ticket, TicketAccessToken? token = null)
     {
         var json = JsonSerializer.Serialize(payload, PayloadJson);
         var item = EmailOutboxItem.Enqueue(kind, toAddress, json, ticket.ProductId, ticket.Id, clock);
@@ -112,6 +112,11 @@ internal sealed class TicketNotificationPlanner(
         {
             logger.LogInformation("Skipped {Kind} for ticket {TicketId}: not queued ({Code})", kind, ticket.Id, item.Error!.Code);
             return;
+        }
+
+        if (token is not null)
+        {
+            tickets.AddAccessToken(token);
         }
 
         outbox.Enqueue(item.Value);

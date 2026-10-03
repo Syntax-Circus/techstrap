@@ -13,9 +13,8 @@ public static class TicketOperationsServiceCollectionExtensions
         services.AddOptions<AdminLinkOptions>()
             .Configure(options => options.PublicUrl = configuration[AdminLinkOptions.PublicUrlKey]?.Trim())
             .Validate(
-                options => string.IsNullOrWhiteSpace(options.PublicUrl)
-                    || (Uri.TryCreate(options.PublicUrl, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp)),
-                $"{AdminLinkOptions.PublicUrlKey} must be an absolute http or https URL when set.")
+                options => AdminLinkOptions.IsValidBase(options.PublicUrl),
+                $"{AdminLinkOptions.PublicUrlKey} must be an absolute http or https URL without a query or fragment when set.")
             .ValidateOnStart();
         services.TryAddScoped<ITicketNotificationPlanner, TicketNotificationPlanner>();
         return services;

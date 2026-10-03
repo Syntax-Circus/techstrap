@@ -1,14 +1,19 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using TechStrap.Application.Intake;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Tickets.Notifications;
 using TechStrap.Domain.Agents;
+using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
 using TechStrap.Domain.Requesters;
 using TechStrap.Domain.Tickets;
 using TechStrap.Infrastructure.Intake;
+using TechStrap.Infrastructure.Persistence;
+using TechStrap.Infrastructure.Persistence.Records;
 using TechStrap.Infrastructure.Tickets;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
@@ -20,14 +25,14 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
 
     private sealed record Seed(Guid ProductId, Guid OtherProductId, Guid RequesterId, Guid TicketId, Guid SamId, Guid AlexId, Guid InactiveId);
 
-    private PersistenceTestHost NewHost() =>
+    private PersistenceTestHost NewHost(string? adminUrl = "https://admin.test") =>
         new(Database, configure: services =>
         {
             var configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     [PortalLinkOptions.PublicUrlKey] = "https://help.test",
-                    [AdminLinkOptions.PublicUrlKey] = "https://admin.test",
+                    [AdminLinkOptions.PublicUrlKey] = adminUrl,
                     ["Storage:Local:RootPath"] = Path.Combine(Path.GetTempPath(), "techstrap-planner-" + Guid.NewGuid().ToString("N")),
                 })
                 .Build();
@@ -131,6 +136,11 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
         await using (await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(Ct))
         {
             await PlanAsync(scope.ServiceProvider, seed, (planner, ticket, sam, _) => planner.PlanAgentReplyAsync(ticket, AgentMessage(host, seed, sam), sam, false, Ct));
+
+            // Positive control: the planner really staged both rows before the scope is dropped.
+            var tracker = scope.ServiceProvider.GetRequiredService<TechStrapDbContext>().ChangeTracker;
+            tracker.Entries<TicketAccessTokenRecord>().Count(e => e.State == EntityState.Added).ShouldBe(1);
+            tracker.Entries<EmailOutboxRecord>().Count(e => e.State == EntityState.Added).ShouldBe(1);
         }
 
         (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(0);
@@ -214,5 +224,83 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
 
         (await TextAsync("SELECT product_id::text FROM email_outbox")).ShouldBe(seed.OtherProductId.ToString());
         (await TextAsync("SELECT payload::text FROM email_outbox")).ShouldContain("Sam from Nimbus Support");
+    }
+
+    [Fact]
+    public async Task A_failed_enqueue_stages_neither_a_token_nor_a_row_and_the_callers_action_still_commits()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        // Stored data the outbox's address check rejects (the domain cannot create it, so write it directly).
+        (await ExecuteScalarAsync("UPDATE requesters SET email = 'not-an-address' WHERE id = '" + seed.RequesterId + "'; SELECT 1")).ShouldNotBeNull();
+
+        var result = await host.CommitAsync(sp => PlanAsync(sp, seed, async (planner, ticket, sam, _) =>
+        {
+            ticket.MoveToProduct(seed.OtherProductId, Actor.ForAgent(sam.Id), host.Clock).IsSuccess.ShouldBeTrue();
+            sp.GetRequiredService<ITicketRepository>().Update(ticket);
+            await planner.PlanAgentReplyAsync(ticket, AgentMessage(host, seed, sam), sam, false, Ct);
+            await planner.PlanSolvedAsync(ticket, Ct);
+        }));
+
+        result.IsSuccess.ShouldBeTrue();
+        (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(0);
+        (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens")).ShouldBe(0);
+        (await TextAsync("SELECT product_id::text FROM tickets")).ShouldBe(seed.OtherProductId.ToString());
+    }
+
+    [Fact]
+    public async Task A_missing_product_skips_the_customer_notice_and_the_assignment_alert()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+
+        (await host.CommitAsync(async sp =>
+        {
+            var agents = sp.GetRequiredService<IAgentRepository>();
+            var sam = (await agents.GetByIdAsync(seed.SamId, Ct))!;
+            var alex = (await agents.GetByIdAsync(seed.AlexId, Ct))!;
+            // Never saved: only planned against, so its product does not exist.
+            var ticket = Ticket.Create(TicketNumber.Create("ORB", 2).Value, Guid.NewGuid(), seed.RequesterId, "Lost", TicketChannel.Web, null, false, host.Clock).Value;
+            var planner = sp.GetRequiredService<ITicketNotificationPlanner>();
+            await planner.PlanSolvedAsync(ticket, Ct);
+            await planner.PlanAgentReplyAsync(ticket, AgentMessage(host, seed, sam), sam, false, Ct);
+            await planner.PlanAssignedAsync(ticket, alex, sam, Ct);
+        })).IsSuccess.ShouldBeTrue();
+
+        (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(0);
+        (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens")).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task An_absent_admin_url_leaves_the_admin_link_null()
+    {
+        await using var host = NewHost(adminUrl: null);
+        var seed = await SeedAsync(host);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, (planner, ticket, sam, alex) => planner.PlanAssignedAsync(ticket, alex, sam, Ct)))).IsSuccess.ShouldBeTrue();
+
+        (await TextAsync("SELECT payload::text FROM email_outbox")).ShouldContain("\"adminLink\": null");
+    }
+
+    [Theory]
+    [InlineData("ftp://admin.test")]
+    [InlineData("/admin")]
+    [InlineData("admin.test")]
+    [InlineData("https://admin.test/?x=1")]
+    [InlineData("https://admin.test/#top")]
+    public async Task An_invalid_admin_url_fails_options_validation(string url)
+    {
+        await using var host = NewHost(adminUrl: url);
+        await using var scope = host.CreateScope();
+
+        Should.Throw<OptionsValidationException>(() => scope.ServiceProvider.GetRequiredService<IOptions<AdminLinkOptions>>().Value);
+    }
+
+    [Fact]
+    public void An_admin_url_with_a_path_or_trailing_slash_is_accepted()
+    {
+        AdminLinkOptions.IsValidBase("https://admin.test/app/").ShouldBeTrue();
+        AdminLinkOptions.IsValidBase("   ").ShouldBeTrue();
+        new AdminLinkOptions { PublicUrl = "https://admin.test/app/" }.TicketLink("ORB-1").ShouldBe("https://admin.test/app/tickets/ORB-1");
     }
 }
