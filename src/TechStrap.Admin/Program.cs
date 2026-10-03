@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.DataProtection;
 using Sentry;
 using SyntaxCircus.AspNetCore.Common;
@@ -50,6 +51,15 @@ app.UseForwardedHeaders();
 app.UseCorrelationId();
 // An address that matches no page gets the branded 404 (re-executed, so the 404 status code is kept).
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+// BRAND.md section 3: humour never covers an error that blocks work, so only 404 is re-executed to the not-found page.
+app.Use(async (context, next) =>
+{
+    await next();
+    if (context.Response.StatusCode != StatusCodes.Status404NotFound)
+    {
+        context.Features.Get<IStatusCodePagesFeature>()?.Enabled = false;
+    }
+});
 app.UseAntiforgery();
 app.MapStandardHealthChecks();
 app.MapRazorComponentsWithStaticAssets<App>()
