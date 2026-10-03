@@ -34,6 +34,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<ITicketNumberAllocator, TicketNumberAllocator>();
         services.AddScoped<ITicketRepository, TicketRepository>();
+        services.AddScoped<IKbRepository, KbRepository>();
 
         return services;
     }
