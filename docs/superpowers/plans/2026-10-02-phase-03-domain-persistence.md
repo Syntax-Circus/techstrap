@@ -4384,7 +4384,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
   - `Paging` (`DefaultPageSize` 25, `MaxPageSize` 100); `TicketView { Unassigned, Mine, Open, Pending, All, Spam }`; `TicketQuery`; `TicketSummary`; `KbArticleQuery`; `KbSearchQuery`.
   - Architecture helpers: `AbstractionRules.FindShapeViolations(types)`, `PersistenceRecordRules.FindReferencesFromDomainOrApplication(types)` and `FindRecordDeclarationViolations(assembly)`.
 
-This task also records the three new decisions in the decision log: **D-026** separate persistence records (naming convention: a `Record` suffix, namespace `TechStrap.Infrastructure.Persistence.Records`, `internal sealed`), **D-027** stored generated tsvector columns (approved by the owner on 2026-10-02) and **D-028** the Domain result type (proposed, owner to confirm).
+This task also records the three new decisions in the decision log: **D-026** separate persistence records (naming convention: a `Record` suffix, namespace `TechStrap.Infrastructure.Persistence.Records`, `internal sealed`), **D-027** stored generated tsvector columns (approved by the owner on 2026-10-02) and **D-028** the Domain result type (approved by the owner on 2026-10-03).
 
 - [ ] **Step 1: Write the failing Application tests**
 
