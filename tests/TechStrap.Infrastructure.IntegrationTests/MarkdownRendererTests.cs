@@ -1,9 +1,12 @@
+using AngleSharp.Html.Parser;
 using TechStrap.Infrastructure.Content;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
 
 public sealed class MarkdownRendererTests
 {
+    private static readonly string[] _forbiddenTags = ["script", "img", "iframe", "style", "object", "embed"];
+
     private readonly MarkdigMarkdownRenderer _markdown = new();
     private readonly HtmlSanitizerAdapter _sanitizer = new();
 
@@ -43,15 +46,28 @@ public sealed class MarkdownRendererTests
     [InlineData("<style>body{display:none}</style>")]
     public void Raw_html_and_script_links_in_markdown_never_survive_render_and_sanitize(string markdown)
     {
-        var html = Render(markdown);
-        html.ShouldNotContain("<script", Case.Insensitive);
-        html.ShouldNotContain("javascript:", Case.Insensitive);
-        html.ShouldNotContain("onerror", Case.Insensitive);
-        html.ShouldNotContain("onclick", Case.Insensitive);
-        html.ShouldNotContain("<img", Case.Insensitive);
-        html.ShouldNotContain("<iframe", Case.Insensitive);
-        html.ShouldNotContain("<style", Case.Insensitive);
-        html.ShouldNotContain("data:text/html", Case.Insensitive);
+        var doc = new HtmlParser().ParseDocument("<body>" + Render(markdown) + "</body>");
+        var elements = doc.Body!.QuerySelectorAll("*").ToList();
+
+        elements.Where(e => _forbiddenTags.Contains(e.LocalName)).ShouldBeEmpty();
+        elements.SelectMany(e => e.Attributes).Where(a => a.Name.StartsWith("on", StringComparison.OrdinalIgnoreCase)).ShouldBeEmpty();
+        foreach (var attr in elements.SelectMany(e => e.Attributes).Where(a => a.Name is "href" or "src"))
+        {
+            attr.Value.TrimStart().StartsWith("javascript:", StringComparison.OrdinalIgnoreCase).ShouldBeFalse();
+            attr.Value.TrimStart().StartsWith("data:", StringComparison.OrdinalIgnoreCase).ShouldBeFalse();
+        }
+
+        foreach (var a in doc.Body.QuerySelectorAll("a[href]"))
+        {
+            new[] { "http:", "https:", "mailto:" }.Any(x => a.GetAttribute("href")!.StartsWith(x, StringComparison.OrdinalIgnoreCase)).ShouldBeTrue();
+        }
+    }
+
+    [Fact]
+    public void Escaped_html_keeps_the_agents_text()
+    {
+        var doc = new HtmlParser().ParseDocument("<body>" + Render("<img src=x onerror=alert(1)>") + "</body>");
+        doc.Body!.TextContent.ShouldContain("onerror");
     }
 
     [Fact]
