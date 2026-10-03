@@ -17,6 +17,7 @@ internal sealed class RequesterRecordConfiguration : IEntityTypeConfiguration<Re
         builder.Property(r => r.Email).HasColumnType("citext").IsRequired();
         builder.Property(r => r.Name).HasMaxLength(DomainLimits.NameMaxLength);
         builder.Property(r => r.ExternalUserRef).HasMaxLength(DomainLimits.OidcSubjectMaxLength);
+        builder.HasXminConcurrencyToken(r => r.Version);
         builder.HasIndex(r => r.Email).IsUnique();
         builder.HasIndex(r => r.ExternalUserRef);
     }

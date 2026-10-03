@@ -93,6 +93,32 @@ public sealed class AgentRepositoryTests(PostgresFixture postgres) : PostgresInt
         all.TotalCount.ShouldBe(3);
         all.Items.Select(a => a.Name).ShouldBe(["Ann", "Bob"]);
         active.Items.Select(a => a.Name).ShouldBe(["Ann", "Cat"]);
+        active.TotalCount.ShouldBe(2);
+
+        var secondPage = await host.ReadAsync(sp => sp.GetRequiredService<IAgentRepository>().ListAsync(false, 2, 2, Ct));
+        secondPage.TotalCount.ShouldBe(3);
+        secondPage.Items.Select(a => a.Name).ShouldBe(["Cat"]);
+    }
+
+    [Fact]
+    public async Task Agents_with_the_same_name_are_ordered_by_email_then_id()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var byEmailLast = NewAgent(host, "s1", "Sam", "z@example.com");
+        var byEmailFirst = NewAgent(host, "s2", "Sam", "a@example.com");
+        var other = NewAgent(host, "s3", "Alex", "m@example.com");
+        await host.CommitAsync(sp =>
+        {
+            var repository = sp.GetRequiredService<IAgentRepository>();
+            repository.Add(byEmailLast);
+            repository.Add(byEmailFirst);
+            repository.Add(other);
+            return Task.CompletedTask;
+        });
+
+        var page = await host.ReadAsync(sp => sp.GetRequiredService<IAgentRepository>().ListAsync(false, 1, 10, Ct));
+
+        page.Items.Select(a => a.Id).ShouldBe([other.Id, byEmailFirst.Id, byEmailLast.Id]);
     }
 
     [Fact]

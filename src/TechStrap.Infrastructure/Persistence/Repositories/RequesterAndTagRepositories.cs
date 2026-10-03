@@ -22,7 +22,12 @@ internal sealed class RequesterRepository(TechStrapDbContext context) : IRequest
 
     public void Add(Requester requester) => context.Set<RequesterRecord>().Add(requester.ToRecord());
 
-    public void Update(Requester requester) => requester.CopyTo(context.FindLoaded<RequesterRecord>(requester.Id));
+    public void Update(Requester requester)
+    {
+        var record = context.FindLoaded<RequesterRecord>(requester.Id);
+        requester.CopyTo(record);
+        context.ApplyOriginalVersion(record, requester.Version);
+    }
 }
 
 internal sealed class TagRepository(TechStrapDbContext context) : ITagRepository

@@ -32,7 +32,7 @@ internal static class PeopleMappings
         new(record.AgentId, record.ProductId, record.NotifyNewTicket);
 
     public static Requester ToDomain(this RequesterRecord record) =>
-        Requester.Restore(record.Id, record.Email, record.Name, record.ExternalUserRef, record.ErasedAt);
+        Requester.Restore(record.Id, record.Email, record.Name, record.ExternalUserRef, record.ErasedAt, record.Version);
 
     public static RequesterRecord ToRecord(this Requester requester)
     {

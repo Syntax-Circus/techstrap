@@ -11,4 +11,7 @@ internal sealed class RequesterRecord
     public string? ExternalUserRef { get; set; }
 
     public DateTimeOffset? ErasedAt { get; set; }
+
+    /// <summary>Postgres <c>xmin</c>, the optimistic concurrency token.</summary>
+    public uint Version { get; set; }
 }
