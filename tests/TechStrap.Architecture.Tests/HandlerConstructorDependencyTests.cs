@@ -40,4 +40,24 @@ public sealed class HandlerConstructorDependencyTests
 
         violations.ShouldContain(violation => violation.Contains(forbiddenTypeFragment, StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void Application_handlers_take_only_approved_abstractions()
+    {
+        var handlers = typeof(ApplicationAssemblyMarker).Assembly.GetTypes()
+            .Where(type => type is { IsClass: true, IsAbstract: false } && type.Name.EndsWith("Handler", StringComparison.Ordinal))
+            .ToList();
+
+        handlers.Count.ShouldBeGreaterThanOrEqualTo(18);
+        HandlerRules.FindUnapprovedDependencies(handlers, typeof(ApplicationAssemblyMarker).Assembly).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_handler_taking_an_http_client_is_flagged() =>
+        HandlerRules.FindUnapprovedDependencies([typeof(HandlerFixtures.HttpClientSampleHandler)], typeof(HandlerConstructorDependencyTests).Assembly)
+            .ShouldHaveSingleItem().ShouldContain("HttpClient");
+
+    [Fact]
+    public void A_handler_taking_an_application_interface_and_a_clock_passes() =>
+        HandlerRules.FindUnapprovedDependencies([typeof(HandlerFixtures.GoodSampleHandler)], typeof(HandlerFixtures.GoodSampleHandler).Assembly).ShouldBeEmpty();
 }

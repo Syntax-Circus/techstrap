@@ -1,5 +1,7 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace TechStrap.Architecture.Tests;
 
@@ -132,6 +134,33 @@ public static class HandlerRules
         }
 
         return violations;
+    }
+
+    /// <summary>
+    /// Handler constructors take only approved abstractions (02-ARCHITECTURE section 3.1): Application interfaces, TimeProvider,
+    /// options and loggers. Anything else (HttpClient, concrete classes, framework services) is a violation.
+    /// </summary>
+    public static IReadOnlyList<string> FindUnapprovedDependencies(IEnumerable<Type> handlers, Assembly applicationAssembly) =>
+        handlers
+            .SelectMany(handler => handler.GetConstructors().SelectMany(constructor => constructor.GetParameters())
+                .Where(parameter => !IsApproved(parameter.ParameterType, applicationAssembly))
+                .Select(parameter => $"{handler.Name} takes unapproved dependency {parameter.ParameterType.Name}"))
+            .ToList();
+
+    private static bool IsApproved(Type type, Assembly applicationAssembly)
+    {
+        if (type == typeof(TimeProvider) || type == typeof(ILogger) || (type.IsInterface && type.Assembly == applicationAssembly))
+        {
+            return true;
+        }
+
+        if (!type.IsGenericType)
+        {
+            return false;
+        }
+
+        var definition = type.GetGenericTypeDefinition();
+        return definition == typeof(IOptions<>) || definition == typeof(IOptionsSnapshot<>) || definition == typeof(IOptionsMonitor<>) || definition == typeof(ILogger<>);
     }
 
     private static bool IsHandlerType(Type type) =>

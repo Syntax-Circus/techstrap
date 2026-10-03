@@ -35,6 +35,16 @@ public static class HandlerFixtures
         public Task HandleAsync(SampleRequest request, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
+    public interface IHttpClientSampleHandler
+    {
+        Task HandleAsync(CancellationToken cancellationToken);
+    }
+
+    public sealed class HttpClientSampleHandler(HttpClient client) : IHttpClientSampleHandler
+    {
+        public Task HandleAsync(CancellationToken cancellationToken) => client.GetAsync("/", cancellationToken);
+    }
+
     public interface IUnsealedHandler
     {
         Task HandleAsync(SampleRequest request, CancellationToken cancellationToken);
