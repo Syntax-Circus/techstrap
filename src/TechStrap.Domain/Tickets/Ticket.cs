@@ -25,8 +25,6 @@ public enum TicketChannel
 /// </summary>
 public sealed class Ticket
 {
-    private const long MicrosecondTicks = 10;
-
     private readonly HashSet<Guid> _tagIds;
     private readonly List<TicketEvent> _pendingEvents = [];
     private readonly List<Message> _pendingMessages = [];
@@ -171,6 +169,8 @@ public sealed class Ticket
             id, number, productId, requesterId, subject, status, priority, assigneeId, channel, isSpam, parentTicketId, metadataJson, metadataTrusted,
             customFieldsJson, createdAt, firstResponseAt, solvedAt, closedAt, lastActivityAt, tagIds, version);
 
+        // FollowUpCreated stamps may sit past lastActivityAt (see CreateFollowUp); that is safe because a Closed ticket only ever gains
+        // more FollowUpCreated events.
         // New events and messages must sort after everything already stored, even when the clock reads the same instant.
         ticket._lastStamp = lastActivityAt;
         return ticket;
@@ -188,7 +188,7 @@ public sealed class Ticket
             return DomainErrors.Conflict("invalid-status-transition", $"A {Status} ticket cannot become {to}.");
         }
 
-        ApplyStatus(to, actor, clock.GetUtcNow(), clock);
+        ApplyStatus(to, actor, DomainTime.Now(clock), clock);
         return DomainResult.Ok();
     }
 
@@ -201,7 +201,7 @@ public sealed class Ticket
             return added;
         }
 
-        var now = clock.GetUtcNow();
+        var now = DomainTime.Now(clock);
         FirstResponseAt ??= now;
         if (Status is TicketStatus.New or TicketStatus.Open && TicketStatusRules.CanTransition(Status, TicketStatus.Pending))
         {
@@ -226,7 +226,7 @@ public sealed class Ticket
 
         if (Status is TicketStatus.Pending or TicketStatus.Solved && TicketStatusRules.CanTransition(Status, TicketStatus.Open))
         {
-            ApplyStatus(TicketStatus.Open, Actor.ForRequester(requesterId), clock.GetUtcNow(), clock);
+            ApplyStatus(TicketStatus.Open, Actor.ForRequester(requesterId), DomainTime.Now(clock), clock);
         }
 
         return added;
@@ -358,6 +358,9 @@ public sealed class Ticket
             return followUp;
         }
 
+        // A FollowUpCreated stamp may sit past LastActivityAt: Raise stamps it without calling Touch. That is safe because a Closed
+        // ticket only ever gains more FollowUpCreated events, so no later stamp can sort before it, and Restore seeds _lastStamp from
+        // LastActivityAt only (a reload may therefore re-issue a stamp equal to an earlier follow-up stamp, which is harmless).
         Raise(TicketEventType.FollowUpCreated, Actor.ForRequester(RequesterId), Payload(("followUpTicketId", followUp.Value.Id)), clock);
         return followUp;
     }
@@ -396,7 +399,7 @@ public sealed class Ticket
             return DomainErrors.Validation("metadata-invalid", "Metadata must be a JSON object of at most 16000 characters.", "metadata");
         }
 
-        var now = clock.GetUtcNow();
+        var now = DomainTime.Now(clock);
         var ticket = new Ticket(
             EntityId.New(clock), number, productId, requesterId, title.Value, TicketStatus.New, TicketPriority.Normal, null, channel, false,
             parentTicketId, string.IsNullOrWhiteSpace(metadataJson) ? null : metadataJson, metadataTrusted, null, now, null, null, null, now, [], 0);
@@ -487,11 +490,9 @@ public sealed class Ticket
     /// <summary>Last activity is the read time at microsecond resolution, never earlier than a stamp already issued (so Restore can seed from it).</summary>
     private void Touch(TimeProvider clock)
     {
-        var now = Truncate(clock.GetUtcNow());
+        var now = DomainTime.Now(clock);
         LastActivityAt = now > _lastStamp ? now : _lastStamp;
     }
-
-    private static DateTimeOffset Truncate(DateTimeOffset value) => value.AddTicks(-(value.Ticks % MicrosecondTicks));
 
     private void Raise(TicketEventType type, Actor actor, string payloadJson, TimeProvider clock) =>
         _pendingEvents.Add(TicketEvent.Raise(Id, type, actor, payloadJson, Stamp(clock), clock));
@@ -509,8 +510,8 @@ public sealed class Ticket
     /// <summary>The next stamp without consuming it: the clock truncated to whole microseconds, or one microsecond after the last stamp.</summary>
     private DateTimeOffset NextStamp(TimeProvider clock)
     {
-        var now = Truncate(clock.GetUtcNow());
-        var earliest = _lastStamp.AddTicks(MicrosecondTicks);
+        var now = DomainTime.Now(clock);
+        var earliest = _lastStamp.AddTicks(DomainTime.MicrosecondTicks);
         return now > earliest ? now : earliest;
     }
 }

@@ -29,11 +29,48 @@ public sealed class AdminEventTests
     }
 
     [Theory]
+    [InlineData("{\"apiKeyValue\":\"x\"}")]
+    [InlineData("{\"rawToken\":\"x\"}")]
+    [InlineData("{\"accessToken\":\"x\"}")]
+    [InlineData("{\"tokenHash\":\"x\"}")]
+    [InlineData("{\"keyHash\":\"x\"}")]
+    [InlineData("{\"Authorization\":\"x\"}")]
+    [InlineData("{\"requesterEmail\":\"x\"}")]
+    [InlineData("{\"items\":[{\"a\":{\"clientSecret\":\"x\"}}]}")]
+    public void A_property_name_containing_a_sensitive_word_is_rejected_at_any_depth(string payload)
+    {
+        AdminEvent.Record(AdminEventType.ProductUpdated, Guid.NewGuid(), AdminSubjectType.Product, Guid.NewGuid(), payload, _clock)
+            .Error!.Code.ShouldBe("admin-event-payload-invalid");
+    }
+
+    [Fact]
+    public void Id_kind_and_prefix_fields_are_accepted()
+    {
+        AdminEvent.Record(AdminEventType.ApiKeyCreated, Guid.NewGuid(), AdminSubjectType.ApiKey, Guid.NewGuid(), "{\"productId\":\"1\",\"kind\":\"Public\",\"keyPrefix\":\"tsk_ab\"}", _clock)
+            .IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void An_empty_actor_or_subject_id_is_rejected()
+    {
+        AdminEvent.Record(AdminEventType.ProductUpdated, Guid.Empty, AdminSubjectType.Product, Guid.NewGuid(), null, _clock).Error!.Code.ShouldBe("actor-id-required");
+        AdminEvent.Record(AdminEventType.ProductUpdated, Guid.NewGuid(), AdminSubjectType.Product, Guid.Empty, null, _clock).Error!.Code.ShouldBe("subject-id-required");
+    }
+
+    [Fact]
+    public void The_occurrence_time_is_whole_microseconds()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 2, 9, 0, 0, TimeSpan.Zero).AddTicks(3));
+
+        var admin = AdminEvent.Record(AdminEventType.ProductUpdated, Guid.NewGuid(), AdminSubjectType.Product, Guid.NewGuid(), null, clock).Value;
+
+        (admin.OccurredAt.Ticks % 10).ShouldBe(0);
+    }
+
+    [Theory]
     [InlineData("{\"email\":\"ann@example.com\"}")]
-    [InlineData("{\"Name\":\"Ann\"}")]
     [InlineData("{\"nested\":{\"token\":\"abc\"}}")]
     [InlineData("{\"items\":[{\"secret\":\"x\"}]}")]
-    [InlineData("{\"key\":\"tsk_live\"}")]
     [InlineData("[1]")]
     [InlineData("not json")]
     public void A_payload_with_personal_data_secrets_or_a_wrong_shape_is_rejected(string payload)

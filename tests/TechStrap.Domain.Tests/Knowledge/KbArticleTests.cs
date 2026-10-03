@@ -131,4 +131,36 @@ public sealed class KbArticleTests
 
         link.ShouldBe(link with { });
     }
+
+    [Fact]
+    public void Republishing_an_archived_article_keeps_the_first_publish_time()
+    {
+        var article = Draft();
+        article.Publish(_clock).IsSuccess.ShouldBeTrue();
+        var firstPublished = article.PublishedAt;
+        _clock.Advance(TimeSpan.FromDays(1));
+        article.Archive(_clock).IsSuccess.ShouldBeTrue();
+        _clock.Advance(TimeSpan.FromDays(1));
+
+        article.Publish(_clock).IsSuccess.ShouldBeTrue();
+
+        article.PublishedAt.ShouldBe(firstPublished);
+        article.UpdatedAt.ShouldBe(_clock.GetUtcNow());
+    }
+
+    [Fact]
+    public void Stored_times_are_whole_microseconds()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 2, 9, 0, 0, TimeSpan.Zero).AddTicks(3));
+        var article = KbArticle.Create(null, null, "a-slug", "T", null, "b", _author, clock).Value;
+        (article.CreatedAt.Ticks % 10).ShouldBe(0);
+        (article.UpdatedAt.Ticks % 10).ShouldBe(0);
+
+        article.Publish(clock).IsSuccess.ShouldBeTrue();
+        (article.PublishedAt!.Value.Ticks % 10).ShouldBe(0);
+        (article.UpdatedAt.Ticks % 10).ShouldBe(0);
+
+        article.Archive(clock).IsSuccess.ShouldBeTrue();
+        (article.UpdatedAt.Ticks % 10).ShouldBe(0);
+    }
 }

@@ -23,8 +23,7 @@ public static class OutboxRetryPolicy
     public static TimeSpan DelayAfter(int attempts)
     {
         var factor = Math.Pow(2, Math.Max(attempts, 1) - 1);
-        var delay = TimeSpan.FromTicks((long)Math.Min(BaseDelay.Ticks * factor, MaxDelay.Ticks));
-        return delay > MaxDelay ? MaxDelay : delay;
+        return TimeSpan.FromTicks((long)Math.Min(BaseDelay.Ticks * factor, MaxDelay.Ticks));
     }
 }
 
@@ -109,7 +108,7 @@ public sealed class EmailOutboxItem
             return DomainErrors.Validation("payload-invalid", "The payload must be a JSON object.", "payload");
         }
 
-        var now = clock.GetUtcNow();
+        var now = DomainTime.Now(clock);
         return DomainResult<EmailOutboxItem>.Ok(new EmailOutboxItem(
             EntityId.New(clock), itemKind.Value, address.Value, payload, productId, ticketId, OutboxStatus.Pending, 0, now, null, null, null, now, null));
     }
@@ -131,14 +130,18 @@ public sealed class EmailOutboxItem
         DateTimeOffset? sentAt) =>
         new(id, kind, toAddress, payloadJson, productId, ticketId, status, attempts, nextAttemptAt, claimedBy, lockedUntil, lastError, createdAt, sentAt);
 
-    /// <summary>Pending and due, or Sending with an expired claim.</summary>
+    /// <summary>Pending and due, or Sending with an expired (or missing) lease.</summary>
     public bool IsClaimable(TimeProvider clock)
     {
-        var now = clock.GetUtcNow();
+        var now = DomainTime.Now(clock);
         return (Status == OutboxStatus.Pending && NextAttemptAt <= now)
-            || (Status == OutboxStatus.Sending && LockedUntil <= now);
+            || (Status == OutboxStatus.Sending && LeaseExpired(now));
     }
 
+    /// <summary>
+    /// Takes the email for delivery. A Sending item whose lease expired after <see cref="OutboxRetryPolicy.MaxAttempts"/> attempts
+    /// (a worker that keeps crashing) is dead-lettered instead of claimed.
+    /// </summary>
     public DomainResult Claim(string? workerId, TimeSpan lease, TimeProvider clock)
     {
         var worker = Guard.RequiredText(workerId, DomainLimits.NameMaxLength, "worker-id");
@@ -147,37 +150,51 @@ public sealed class EmailOutboxItem
             return worker.Error!;
         }
 
+        if (lease <= TimeSpan.Zero)
+        {
+            return DomainErrors.Validation("lease-invalid", "The lease must be longer than zero.", "lease");
+        }
+
         if (!IsClaimable(clock))
         {
             return DomainErrors.Conflict("outbox-not-claimable", "The email is not due or is claimed by another worker.");
         }
 
+        var now = DomainTime.Now(clock);
+        if (Status == OutboxStatus.Sending && Attempts >= OutboxRetryPolicy.MaxAttempts)
+        {
+            Status = OutboxStatus.DeadLettered;
+            LastError = "worker lease expired";
+            ReleaseClaim();
+            return DomainErrors.Conflict("outbox-dead-lettered", "The email exhausted its attempts and was dead-lettered.");
+        }
+
         Status = OutboxStatus.Sending;
         Attempts++;
         ClaimedBy = worker.Value;
-        LockedUntil = clock.GetUtcNow() + lease;
+        LockedUntil = DomainTime.Truncate(now + lease);
         return DomainResult.Ok();
     }
 
-    public DomainResult MarkSent(TimeProvider clock)
+    public DomainResult MarkSent(string? workerId, TimeProvider clock)
     {
-        if (Status != OutboxStatus.Sending)
+        if (EnsureClaimOwner(workerId, "Only a claimed email can be marked sent.") is { } refused)
         {
-            return DomainErrors.Conflict("outbox-not-sending", "Only a claimed email can be marked sent.");
+            return refused;
         }
 
         Status = OutboxStatus.Sent;
-        SentAt = clock.GetUtcNow();
+        SentAt = DomainTime.Now(clock);
         ReleaseClaim();
         return DomainResult.Ok();
     }
 
     /// <summary>Back to Pending with the next backoff delay, or DeadLettered once <see cref="OutboxRetryPolicy.MaxAttempts"/> is reached.</summary>
-    public DomainResult MarkFailed(string? error, TimeProvider clock)
+    public DomainResult MarkFailed(string? workerId, string? error, TimeProvider clock)
     {
-        if (Status != OutboxStatus.Sending)
+        if (EnsureClaimOwner(workerId, "Only a claimed email can fail.") is { } refused)
         {
-            return DomainErrors.Conflict("outbox-not-sending", "Only a claimed email can fail.");
+            return refused;
         }
 
         var text = error?.Trim() ?? string.Empty;
@@ -190,7 +207,7 @@ public sealed class EmailOutboxItem
         else
         {
             Status = OutboxStatus.Pending;
-            NextAttemptAt = clock.GetUtcNow() + OutboxRetryPolicy.DelayAfter(Attempts);
+            NextAttemptAt = DomainTime.Truncate(DomainTime.Now(clock) + OutboxRetryPolicy.DelayAfter(Attempts));
         }
 
         return DomainResult.Ok();
@@ -206,7 +223,7 @@ public sealed class EmailOutboxItem
 
         Status = OutboxStatus.Pending;
         Attempts = 0;
-        NextAttemptAt = clock.GetUtcNow();
+        NextAttemptAt = DomainTime.Now(clock);
         return DomainResult.Ok();
     }
 
@@ -232,6 +249,20 @@ public sealed class EmailOutboxItem
         {
             return false;
         }
+    }
+
+    private bool LeaseExpired(DateTimeOffset now) => LockedUntil is not { } until || until <= now;
+
+    private DomainError? EnsureClaimOwner(string? workerId, string notSendingMessage)
+    {
+        if (Status != OutboxStatus.Sending)
+        {
+            return DomainErrors.Conflict("outbox-not-sending", notSendingMessage);
+        }
+
+        return string.Equals(ClaimedBy, workerId, StringComparison.Ordinal)
+            ? null
+            : DomainErrors.Conflict("outbox-not-claim-owner", "The email is claimed by another worker.");
     }
 
     private void ReleaseClaim()

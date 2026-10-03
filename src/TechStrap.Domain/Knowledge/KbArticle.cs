@@ -95,7 +95,7 @@ public sealed class KbArticle
             return error;
         }
 
-        var now = clock.GetUtcNow();
+        var now = DomainTime.Now(clock);
         return DomainResult<KbArticle>.Ok(new KbArticle(
             EntityId.New(clock), productId, categoryId, articleSlug.Value, articleTitle.Value, articleSummary.Value, body.Value,
             KbArticleStatus.Draft, authorId, now, now, null, 0));
@@ -136,7 +136,7 @@ public sealed class KbArticle
         Title = articleTitle.Value;
         Summary = articleSummary.Value;
         BodyMarkdown = body.Value;
-        UpdatedAt = clock.GetUtcNow();
+        UpdatedAt = DomainTime.Now(clock);
         return DomainResult.Ok();
     }
 
@@ -147,9 +147,9 @@ public sealed class KbArticle
             return DomainErrors.Conflict("article-already-published", "The article is already published.");
         }
 
-        var now = clock.GetUtcNow();
+        var now = DomainTime.Now(clock);
         Status = KbArticleStatus.Published;
-        PublishedAt = now;
+        PublishedAt ??= now;
         UpdatedAt = now;
         return DomainResult.Ok();
     }
@@ -162,7 +162,7 @@ public sealed class KbArticle
         }
 
         Status = KbArticleStatus.Archived;
-        UpdatedAt = clock.GetUtcNow();
+        UpdatedAt = DomainTime.Now(clock);
         return DomainResult.Ok();
     }
 }

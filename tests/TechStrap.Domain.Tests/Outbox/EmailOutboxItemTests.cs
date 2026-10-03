@@ -66,7 +66,7 @@ public sealed class EmailOutboxItemTests
     public void A_future_next_attempt_is_not_claimable()
     {
         var item = Claimed();
-        item.MarkFailed("smtp down", _clock);
+        item.MarkFailed("worker-1", "smtp down", _clock);
 
         item.IsClaimable(_clock).ShouldBeFalse();
         _clock.Advance(OutboxRetryPolicy.BaseDelay);
@@ -79,7 +79,7 @@ public sealed class EmailOutboxItemTests
         var item = Claimed();
         _clock.Advance(TimeSpan.FromSeconds(2));
 
-        item.MarkSent(_clock).IsSuccess.ShouldBeTrue();
+        item.MarkSent("worker-1", _clock).IsSuccess.ShouldBeTrue();
 
         item.Status.ShouldBe(OutboxStatus.Sent);
         item.SentAt.ShouldBe(_clock.GetUtcNow());
@@ -90,8 +90,8 @@ public sealed class EmailOutboxItemTests
     [Fact]
     public void Only_a_claimed_email_can_be_marked_sent_or_failed()
     {
-        Queued().MarkSent(_clock).Error!.Code.ShouldBe("outbox-not-sending");
-        Queued().MarkFailed("x", _clock).Error!.Code.ShouldBe("outbox-not-sending");
+        Queued().MarkSent("worker-1", _clock).Error!.Code.ShouldBe("outbox-not-sending");
+        Queued().MarkFailed("worker-1", "x", _clock).Error!.Code.ShouldBe("outbox-not-sending");
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public sealed class EmailOutboxItemTests
         {
             item.Claim("w", Lease, _clock).IsSuccess.ShouldBeTrue();
             var failedAt = _clock.GetUtcNow();
-            item.MarkFailed("boom", _clock);
+            item.MarkFailed("w", "boom", _clock);
 
             item.Status.ShouldBe(OutboxStatus.Pending);
             item.NextAttemptAt.ShouldBe(failedAt.AddMinutes(minutes));
@@ -112,7 +112,7 @@ public sealed class EmailOutboxItemTests
         }
 
         item.Claim("w", Lease, _clock);
-        item.MarkFailed("final failure", _clock);
+        item.MarkFailed("w", "final failure", _clock);
 
         item.Attempts.ShouldBe(OutboxRetryPolicy.MaxAttempts);
         item.Status.ShouldBe(OutboxStatus.DeadLettered);
@@ -134,7 +134,7 @@ public sealed class EmailOutboxItemTests
     {
         var item = Claimed();
 
-        item.MarkFailed(new string('x', 5000), _clock);
+        item.MarkFailed("worker-1", new string('x', 5000), _clock);
 
         item.LastError!.Length.ShouldBe(2000);
     }
@@ -163,6 +163,111 @@ public sealed class EmailOutboxItemTests
         Queued().Retry(_clock).Error!.Code.ShouldBe("outbox-not-dead-lettered");
     }
 
+    [Fact]
+    public void Repeated_crashed_claims_dead_letter_the_email_once_MaxAttempts_is_reached()
+    {
+        var item = Queued();
+        for (var attempt = 0; attempt < OutboxRetryPolicy.MaxAttempts; attempt++)
+        {
+            item.Claim("crashy", Lease, _clock).IsSuccess.ShouldBeTrue();
+            _clock.Advance(Lease);
+        }
+
+        var result = item.Claim("crashy", Lease, _clock);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("outbox-dead-lettered");
+        item.Status.ShouldBe(OutboxStatus.DeadLettered);
+        item.Attempts.ShouldBe(OutboxRetryPolicy.MaxAttempts);
+        item.LastError.ShouldBe("worker lease expired");
+        item.ClaimedBy.ShouldBeNull();
+        item.LockedUntil.ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_restored_Sending_item_without_a_lock_time_is_claimable()
+    {
+        var item = EmailOutboxItem.Restore(
+            Guid.NewGuid(), "K", "a@example.com", "{}", null, null, OutboxStatus.Sending, 1, _clock.GetUtcNow(), "w", null, null, _clock.GetUtcNow(), null);
+
+        item.IsClaimable(_clock).ShouldBeTrue();
+        item.Claim("w2", Lease, _clock).IsSuccess.ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void A_lease_of_zero_or_less_is_rejected(int seconds)
+    {
+        var item = Queued();
+
+        item.Claim("w", TimeSpan.FromSeconds(seconds), _clock).Error!.Code.ShouldBe("lease-invalid");
+        item.Status.ShouldBe(OutboxStatus.Pending);
+    }
+
+    [Fact]
+    public void Claim_with_a_blank_worker_id_is_rejected()
+    {
+        Queued().Claim("  ", Lease, _clock).IsFailure.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Sent_and_dead_lettered_items_cannot_be_claimed()
+    {
+        var sent = Claimed();
+        sent.MarkSent("worker-1", _clock).IsSuccess.ShouldBeTrue();
+        var dead = DeadLetter();
+
+        _clock.Advance(OutboxRetryPolicy.MaxDelay);
+        sent.Claim("w", Lease, _clock).Error!.Code.ShouldBe("outbox-not-claimable");
+        dead.Claim("w", Lease, _clock).Error!.Code.ShouldBe("outbox-not-claimable");
+    }
+
+    [Fact]
+    public void A_worker_whose_lease_expired_cannot_complete_or_fail_the_item_another_worker_reclaimed()
+    {
+        var item = Claimed();
+        _clock.Advance(Lease);
+        item.Claim("worker-2", Lease, _clock).IsSuccess.ShouldBeTrue();
+        var lockedUntil = item.LockedUntil;
+
+        item.MarkFailed("worker-1", "late", _clock).Error!.Code.ShouldBe("outbox-not-claim-owner");
+        item.MarkSent("worker-1", _clock).Error!.Code.ShouldBe("outbox-not-claim-owner");
+
+        item.Status.ShouldBe(OutboxStatus.Sending);
+        item.ClaimedBy.ShouldBe("worker-2");
+        item.LockedUntil.ShouldBe(lockedUntil);
+        item.Attempts.ShouldBe(2);
+        item.LastError.ShouldBeNull();
+        item.SentAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_sent_item_cannot_be_marked_sent_or_failed_again()
+    {
+        var item = Claimed();
+        item.MarkSent("worker-1", _clock).IsSuccess.ShouldBeTrue();
+
+        item.MarkSent("worker-1", _clock).IsFailure.ShouldBeTrue();
+        item.MarkFailed("worker-1", "x", _clock).IsFailure.ShouldBeTrue();
+        item.Status.ShouldBe(OutboxStatus.Sent);
+    }
+
+    [Fact]
+    public void Stored_times_are_whole_microseconds()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 2, 9, 0, 0, TimeSpan.Zero).AddTicks(3));
+        var item = EmailOutboxItem.Enqueue("K", "a@example.com", null, null, null, clock).Value;
+        (item.CreatedAt.Ticks % 10).ShouldBe(0);
+        (item.NextAttemptAt.Ticks % 10).ShouldBe(0);
+
+        item.Claim("w", Lease, clock).IsSuccess.ShouldBeTrue();
+        (item.LockedUntil!.Value.Ticks % 10).ShouldBe(0);
+
+        item.MarkSent("w", clock).IsSuccess.ShouldBeTrue();
+        (item.SentAt!.Value.Ticks % 10).ShouldBe(0);
+    }
+
     private EmailOutboxItem DeadLetter()
     {
         var item = Queued();
@@ -170,7 +275,7 @@ public sealed class EmailOutboxItemTests
         {
             _clock.Advance(OutboxRetryPolicy.MaxDelay);
             item.Claim("w", Lease, _clock).IsSuccess.ShouldBeTrue();
-            item.MarkFailed("boom", _clock);
+            item.MarkFailed("w", "boom", _clock);
         }
 
         item.Status.ShouldBe(OutboxStatus.DeadLettered);

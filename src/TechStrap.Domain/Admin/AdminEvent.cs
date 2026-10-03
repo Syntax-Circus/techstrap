@@ -37,10 +37,11 @@ public enum AdminSubjectType
 /// </summary>
 public sealed class AdminEvent
 {
-    private static readonly HashSet<string> ForbiddenPayloadNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "email", "name", "body", "subject", "token", "secret", "key", "apikey", "hash", "password", "address",
-    };
+    /// <summary>Case-insensitive substrings that mark a property name as personal data or a secret.</summary>
+    private static readonly string[] ForbiddenNameParts =
+    [
+        "token", "secret", "password", "passwd", "hash", "plaintext", "authorization", "credential", "apikey", "privatekey", "email",
+    ];
 
     private AdminEvent(Guid id, AdminEventType type, Guid actorId, AdminSubjectType subjectType, Guid subjectId, string payloadJson, DateTimeOffset occurredAt)
     {
@@ -69,13 +70,23 @@ public sealed class AdminEvent
 
     public static DomainResult<AdminEvent> Record(AdminEventType type, Guid actorId, AdminSubjectType subjectType, Guid subjectId, string? payloadJson, TimeProvider clock)
     {
+        if (actorId == Guid.Empty)
+        {
+            return DomainErrors.Validation("actor-id-required", "An admin event needs the actor that performed it.", "actorId");
+        }
+
+        if (subjectId == Guid.Empty)
+        {
+            return DomainErrors.Validation("subject-id-required", "An admin event needs the subject it concerns.", "subjectId");
+        }
+
         var payload = string.IsNullOrWhiteSpace(payloadJson) ? "{}" : payloadJson;
         if (!IsSafePayload(payload))
         {
             return DomainErrors.Validation("admin-event-payload-invalid", "An admin event payload is a JSON object of ids and enum names with no personal data or secrets.", "payload");
         }
 
-        return DomainResult<AdminEvent>.Ok(new AdminEvent(EntityId.New(clock), type, actorId, subjectType, subjectId, payload, clock.GetUtcNow()));
+        return DomainResult<AdminEvent>.Ok(new AdminEvent(EntityId.New(clock), type, actorId, subjectType, subjectId, payload, DomainTime.Now(clock)));
     }
 
     public static AdminEvent Restore(Guid id, AdminEventType type, Guid actorId, AdminSubjectType subjectType, Guid subjectId, string payloadJson, DateTimeOffset occurredAt) =>
@@ -99,9 +110,12 @@ public sealed class AdminEvent
         }
     }
 
+    private static bool IsForbiddenName(string name) =>
+        ForbiddenNameParts.Any(part => name.Contains(part, StringComparison.OrdinalIgnoreCase));
+
     private static bool HasForbiddenName(JsonElement element) => element.ValueKind switch
     {
-        JsonValueKind.Object => element.EnumerateObject().Any(p => ForbiddenPayloadNames.Contains(p.Name) || HasForbiddenName(p.Value)),
+        JsonValueKind.Object => element.EnumerateObject().Any(p => IsForbiddenName(p.Name) || HasForbiddenName(p.Value)),
         JsonValueKind.Array => element.EnumerateArray().Any(HasForbiddenName),
         _ => false,
     };
