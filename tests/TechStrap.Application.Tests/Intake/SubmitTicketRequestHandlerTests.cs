@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
@@ -61,9 +62,24 @@ public sealed class SubmitTicketRequestHandlerTests
 
     public static TheoryData<string> BadIdempotencyKeys => new() { "", " ", new string('k', 201) };
 
+    private sealed class CapturingLogger : ILogger<SubmitTicketRequestHandler>
+    {
+        public List<string> Messages { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Messages.Add($"{logLevel}: {formatter(state, exception)}");
+    }
+
+    private ILogger<SubmitTicketRequestHandler> _logger = NullLogger<SubmitTicketRequestHandler>.Instance;
+
     private SubmitTicketRequestHandler Handler() =>
         new(_products, _requesters, _tickets, _allocator, _tokens, _attachments, _sanitizer, _outbox, _idempotency, _unitOfWork, _clock,
-            Options.Create(_portal), NullLogger<SubmitTicketRequestHandler>.Instance);
+            Options.Create(_portal), _logger);
 
     private static SubmitTicketRequest Request(string? email = "ann@example.com", string? name = "Ann", string? body = "The printer is on fire.", string? externalRef = null, IReadOnlyDictionary<string, string>? metadata = null) =>
         new(email, name, "Printer", body, externalRef, metadata);
@@ -298,6 +314,36 @@ public sealed class SubmitTicketRequestHandlerTests
         await _attachments.Received(1).DeleteAsync("attachments/x/a.png", Arg.Any<CancellationToken>());
         await _attachments.Received(1).DeleteAsync("attachments/x/b.png", Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).BeginAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_failing_attachment_cleanup_is_logged_and_the_original_failure_is_returned()
+    {
+        var logger = new CapturingLogger();
+        _logger = logger;
+        _unitOfWork = UnitOfWorkSubstitute.Create(UnitOfWorkSubstitute.Conflict("concurrency-conflict"));
+        _attachments.DeleteAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).ThrowsAsync(new IOException("disk"));
+
+        var result = await Handler().HandleAsync(Request(), WebContext([File("a.png")]), TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Errors[0].Code.ShouldBe("concurrency-conflict");
+        logger.Messages.ShouldContain(m => m.StartsWith("Warning: Attachment cleanup failed for attachments/x/a.png (IOException)"));
+    }
+
+    [Fact]
+    public async Task A_disposal_failure_after_a_successful_commit_does_not_delete_the_committed_files()
+    {
+        var scope = Substitute.For<IUnitOfWorkScope>();
+        scope.CommitAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(Result.Success()));
+        scope.DisposeAsync().Returns(_ => ValueTask.FromException(new InvalidOperationException("dispose")));
+        _unitOfWork = Substitute.For<IUnitOfWork>();
+        _unitOfWork.BeginAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(scope));
+
+        await Should.ThrowAsync<InvalidOperationException>(() =>
+            Handler().HandleAsync(Request(), WebContext([File("a.png")]), TestContext.Current.CancellationToken));
+
+        await _attachments.DidNotReceive().DeleteAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

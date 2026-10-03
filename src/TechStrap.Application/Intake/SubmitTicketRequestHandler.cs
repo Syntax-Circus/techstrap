@@ -267,6 +267,8 @@ public sealed class SubmitTicketRequestHandler(
         var committed = await scope.CommitAsync(cancellationToken);
         if (committed.IsSuccess)
         {
+            // Committed rows now reference these files: an exception from scope disposal must not delete them.
+            stored.Clear();
             return new Attempt(Result<SubmitTicketResponse>.Success(response), false, idempotencyKey is not null);
         }
 
@@ -365,9 +367,10 @@ public sealed class SubmitTicketRequestHandler(
             {
                 await attachments.DeleteAsync(key, CancellationToken.None);
             }
-            catch
+            catch (Exception ex)
             {
-                // Best effort: an orphaned file must not mask the original outcome.
+                // Best effort: an orphaned file must not mask the original outcome, but it must be visible.
+                logger.LogWarning("Attachment cleanup failed for {StorageKey} ({ExceptionType}).", key, ex.GetType().Name);
             }
         }
 
