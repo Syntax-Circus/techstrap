@@ -1,9 +1,15 @@
+using Microsoft.AspNetCore.Mvc.Filters;
+using TechStrap.Contracts.Intake;
+
 namespace TechStrap.Api.Startup;
 
 /// <summary>Request size limits for the intake endpoints.</summary>
 public static class IntakeRequestLimits
 {
     public const long JsonBodyBytes = 256 * 1024; // text fields and metadata only (D-034: no API attachments in v1)
+
+    // 25 MiB of files plus room for the text fields and multipart framing; the handler enforces the exact file limits.
+    public const long FormBodyBytes = IntakeLimits.MaxMessageBytes + (1024 * 1024);
 }
 
 /// <summary>Maps an over-limit request body (a 413 BadHttpRequestException) to a problem+json 413 instead of a 500.</summary>
@@ -40,6 +46,32 @@ internal sealed class RequestTooLargeMiddleware(RequestDelegate next)
         }
 
         return false;
+    }
+}
+
+/// <summary>
+/// Reads the form before model binding. MVC's form value provider swallows an over-limit read into a 400 model error; reading it here lets
+/// the 413 BadHttpRequestException reach <see cref="RequestTooLargeMiddleware"/>. The parsed form is cached, so binding reuses it.
+/// </summary>
+[AttributeUsage(AttributeTargets.Method)]
+internal sealed class ReadFormBeforeBindingAttribute : Attribute, IAsyncResourceFilter
+{
+    public async Task OnResourceExecutionAsync(ResourceExecutingContext context, ResourceExecutionDelegate next)
+    {
+        var request = context.HttpContext.Request;
+        if (request.HasFormContentType)
+        {
+            try
+            {
+                await request.ReadFormAsync(context.HttpContext.RequestAborted);
+            }
+            catch (InvalidDataException)
+            {
+                // Malformed multipart: model binding reports it as a 400.
+            }
+        }
+
+        await next();
     }
 }
 

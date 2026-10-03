@@ -31,6 +31,7 @@ public static class ControllerActions
         ["TagsController.Delete"] = 204,
         ["AdminEventsController.List"] = 200,
         ["IntakeController.Submit"] = 201,
+        ["PublicIntakeController.Submit"] = 201,
     };
 
     /// <summary>Actions whose effective policy (action-level, else controller-level) is Agent or Admin.</summary>
