@@ -178,4 +178,24 @@ public sealed class EmailTemplateRendererTests
         lines.ShouldContain(line => line.Contains('b') && !line.Contains('a'));
         lines.ShouldContain("x (https://x.test) & y");
     }
+
+    [Fact]
+    public void Reply_and_solved_emails_carry_the_plain_link_fallback_in_the_accent_ink()
+    {
+        var reply = Renderer().RenderAgentReply(Reply(), "<p>x</p>", Amber).Html;
+        var solved = Renderer().RenderTicketSolved(new("ORB-42", "Printer jam", "Ann", "https://help.test/t/abc", 7), Amber).Html;
+
+        foreach (var html in new[] { reply, solved })
+        {
+            html.ShouldContain("Or open this link: <a href=\"https://help.test/t/abc\" style=\"color:#9D6507;\">https://help.test/t/abc</a>");
+        }
+    }
+
+    [Fact]
+    public void Html_to_text_survives_extreme_nesting()
+    {
+        var html = new string('x', 0) + string.Concat(Enumerable.Repeat("<div>", 10_000)) + "innermost" + string.Concat(Enumerable.Repeat("</div>", 10_000));
+
+        HtmlText.ToPlainText(html).ShouldContain("innermost");
+    }
 }

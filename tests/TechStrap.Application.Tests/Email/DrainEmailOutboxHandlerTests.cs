@@ -253,6 +253,12 @@ public sealed class DrainEmailOutboxHandlerTests
     public async Task Each_kind_with_a_payload_missing_required_fields_fails_as_payload_invalid(string kind) =>
         await AssertFailedWithoutSending(Item(kind, "{}"), DrainFailures.PayloadInvalid);
 
+    [Fact]
+    public async Task An_agent_reply_with_a_blank_public_name_fails_as_payload_invalid() =>
+        await AssertFailedWithoutSending(
+            Item(EmailTemplates.AgentReply, JsonSerializer.Serialize(ReplyModel with { AgentPublicName = " " }, JsonSerializerOptions.Web)),
+            DrainFailures.PayloadInvalid);
+
     private async Task AssertFailedWithoutSending(EmailOutboxItem item, string category)
     {
         Claims(item);

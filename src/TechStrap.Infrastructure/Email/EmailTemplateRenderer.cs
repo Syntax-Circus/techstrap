@@ -21,8 +21,7 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
     {
         var showPoweredBy = options.Value.ShowPoweredBy;
         var subject = $"[{model.TicketNumber}] We've got your request: {model.Subject}";
-        var from = string.IsNullOrWhiteSpace(branding.FromAddress) ? null : $"{branding.DisplayName} <{branding.FromAddress}>";
-        return new RenderedEmail(subject, BuildText(model, branding, showPoweredBy), BuildHtml(model, branding, showPoweredBy), from, branding.ReplyTo);
+        return Build(subject, BuildText(model, branding, showPoweredBy), BuildHtml(model, branding, showPoweredBy), branding);
     }
 
     private static string BuildText(TicketConfirmationEmail model, EmailBranding branding, bool showPoweredBy)
@@ -52,17 +51,8 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
         var name = Encode(branding.DisplayName);
         var link = Encode(model.PortalLink);
         var greeting = string.IsNullOrWhiteSpace(model.RequesterName) ? "Hi," : $"Hi {Encode(model.RequesterName)},";
-        var logo = branding.LogoPath is { } path && path.StartsWith("https://", StringComparison.Ordinal)
-            ? $"<img src=\"{Encode(path)}\" alt=\"{name}\" height=\"32\" style=\"display:block;border:0;height:32px;margin:0 0 8px 0;\">"
-            : string.Empty;
 
         var html = new StringBuilder();
-        html.Append("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head>");
-        html.Append("<body style=\"margin:0;padding:0;background:#F4F4F5;\">");
-        html.Append("<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#F4F4F5;\"><tr><td align=\"center\" style=\"padding:24px 12px;\">");
-        html.Append("<table role=\"presentation\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" style=\"width:100%;max-width:600px;background:#FFFFFF;font-family:Arial,Helvetica,sans-serif;color:#18181B;\">");
-        html.Append($"<tr><td style=\"background:{colors.Accent};color:{colors.OnAccent};padding:20px 24px;font-size:20px;font-weight:bold;\">{logo}{name}</td></tr>");
-        html.Append("<tr><td style=\"padding:24px;font-size:16px;line-height:24px;\">");
         html.Append($"<p style=\"margin:0 0 16px 0;\">{greeting}</p>");
         html.Append($"<p style=\"margin:0 0 16px 0;\">We've got your request and created ticket <strong>{Encode(model.TicketNumber)}</strong>: {Encode(model.Subject)}</p>");
         if (!string.IsNullOrWhiteSpace(model.AgentPublicName))
@@ -73,14 +63,7 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
         html.Append($"<p style=\"margin:0 0 16px 0;\"><a href=\"{link}\" style=\"display:inline-block;background:{colors.Accent};color:{colors.OnAccent};padding:12px 20px;text-decoration:none;font-weight:bold;border-radius:4px;\">Follow your request</a></p>");
         html.Append($"<p style=\"margin:0 0 16px 0;font-size:14px;\">Or open this link: <a href=\"{link}\" style=\"color:{colors.AccentInk};\">{link}</a></p>");
         html.Append($"<p style=\"margin:0;\">The {name} team</p>");
-        html.Append("</td></tr>");
-        if (showPoweredBy)
-        {
-            html.Append($"<tr><td style=\"padding:16px 24px;font-size:12px;color:#52525B;border-top:1px solid #E4E4E7;\"><a href=\"{EmailBrandingOptions.PoweredByUrl}\" style=\"color:#52525B;\">{PoweredByText}</a></td></tr>");
-        }
-
-        html.Append("</table></td></tr></table></body></html>");
-        return html.ToString();
+        return Layout(branding, colors, html.ToString(), showPoweredBy);
     }
 
     public RenderedEmail RenderAgentReply(AgentReplyEmail model, string messageHtml, EmailBranding branding)
@@ -114,6 +97,7 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
         }
 
         body.Append(Button(link, "View your request", colors));
+        body.Append(FallbackLink(link, colors));
         body.Append($"<p style=\"margin:0;\">The {Encode(branding.DisplayName)} team</p>");
         return Build(subject, text.ToString(), Layout(branding, colors, body.ToString(), showPoweredBy), branding);
     }
@@ -137,6 +121,7 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
         body.Append($"<p style=\"{ParagraphStyle}\">{HtmlGreeting(model.RequesterName)}</p>");
         body.Append($"<p style=\"{ParagraphStyle}\">{Encode(line)}</p>");
         body.Append(Button(link, "View your request", colors));
+        body.Append(FallbackLink(link, colors));
         body.Append($"<p style=\"margin:0;\">The {Encode(branding.DisplayName)} team</p>");
         return Build(subject, text.ToString(), Layout(branding, colors, body.ToString(), showPoweredBy), branding);
     }
@@ -197,6 +182,9 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
 
     private static string Button(string encodedLink, string label, ProductAccentColors colors) =>
         $"<p style=\"{ParagraphStyle}\"><a href=\"{encodedLink}\" style=\"display:inline-block;background:{colors.Accent};color:{colors.OnAccent};padding:12px 20px;text-decoration:none;font-weight:bold;border-radius:4px;\">{label}</a></p>";
+
+    private static string FallbackLink(string encodedLink, ProductAccentColors colors) =>
+        $"<p style=\"{ParagraphStyle}font-size:14px;\">Or open this link: <a href=\"{encodedLink}\" style=\"color:{colors.AccentInk};\">{encodedLink}</a></p>";
 
     private static string Layout(EmailBranding branding, ProductAccentColors colors, string body, bool showPoweredBy)
     {

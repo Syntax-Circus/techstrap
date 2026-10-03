@@ -74,28 +74,10 @@ public sealed class DrainEmailOutboxHandler(
 
     private async Task<string?> SendOneAsync(EmailOutboxItem item, Dictionary<Guid, Product?> productCache, CancellationToken cancellationToken)
     {
-        object? model;
-        try
-        {
-            model = item.Kind switch
-            {
-                EmailTemplates.TicketConfirmation => Valid(Deserialize<TicketConfirmationEmail>(item), m => m.TicketNumber, m => m.PortalLink),
-                EmailTemplates.AgentReply => Valid(Deserialize<AgentReplyEmail>(item), m => m.TicketNumber, m => m.PortalLink, m => m.MessageId == Guid.Empty ? null : "x"),
-                EmailTemplates.TicketSolved => Valid(Deserialize<TicketSolvedEmail>(item), m => m.TicketNumber, m => m.PortalLink),
-                EmailTemplates.TicketAssigned => Valid(Deserialize<TicketAssignedEmail>(item), m => m.TicketNumber),
-                _ => null,
-            };
-        }
-        catch (JsonException)
-        {
-            return DrainFailures.PayloadInvalid;
-        }
-
+        var (model, failure) = Parse(item);
         if (model is null)
         {
-            return item.Kind is EmailTemplates.TicketConfirmation or EmailTemplates.AgentReply or EmailTemplates.TicketSolved or EmailTemplates.TicketAssigned
-                ? DrainFailures.PayloadInvalid
-                : DrainFailures.UnknownKind;
+            return failure;
         }
 
         if (item.ProductId is not { } productId)
@@ -152,10 +134,31 @@ public sealed class DrainEmailOutboxHandler(
         return result.IsFailure ? result.Errors[0].Code : null;
     }
 
-    private static T? Deserialize<T>(EmailOutboxItem item) where T : class =>
-        JsonSerializer.Deserialize<T>(item.PayloadJson, _payloadOptions);
+    /// <summary>The one place that knows the kinds: deserialises and validates a payload, or names why it cannot be sent.</summary>
+    private static (object? Model, string? Failure) Parse(EmailOutboxItem item)
+    {
+        try
+        {
+            return item.Kind switch
+            {
+                EmailTemplates.TicketConfirmation => Check(item, (TicketConfirmationEmail m) => Present(m.TicketNumber, m.PortalLink)),
+                EmailTemplates.AgentReply => Check(item, (AgentReplyEmail m) => Present(m.TicketNumber, m.PortalLink, m.AgentPublicName) && m.MessageId != Guid.Empty),
+                EmailTemplates.TicketSolved => Check(item, (TicketSolvedEmail m) => Present(m.TicketNumber, m.PortalLink)),
+                EmailTemplates.TicketAssigned => Check(item, (TicketAssignedEmail m) => Present(m.TicketNumber)),
+                _ => (null, DrainFailures.UnknownKind),
+            };
+        }
+        catch (JsonException)
+        {
+            return (null, DrainFailures.PayloadInvalid);
+        }
+    }
 
-    /// <summary>Returns the model when it deserialised and every required selector yields non-blank text; otherwise null.</summary>
-    private static T? Valid<T>(T? model, params Func<T, string?>[] required) where T : class =>
-        model is not null && required.All(selector => !string.IsNullOrWhiteSpace(selector(model))) ? model : null;
+    private static (object? Model, string? Failure) Check<T>(EmailOutboxItem item, Func<T, bool> isValid) where T : class
+    {
+        var model = JsonSerializer.Deserialize<T>(item.PayloadJson, _payloadOptions);
+        return model is not null && isValid(model) ? (model, null) : (null, DrainFailures.PayloadInvalid);
+    }
+
+    private static bool Present(params string?[] values) => values.All(value => !string.IsNullOrWhiteSpace(value));
 }

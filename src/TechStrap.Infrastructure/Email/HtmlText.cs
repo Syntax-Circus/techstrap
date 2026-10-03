@@ -14,15 +14,18 @@ internal static partial class HtmlText
         "p", "div", "ul", "ol", "li", "blockquote", "pre", "table", "tr", "h1", "h2", "h3", "h4", "h5", "h6", "hr",
     };
 
+    // Deeper nesting is flattened to its text content so a hostile body cannot overflow the stack.
+    private const int MaxDepth = 128;
+
     public static string ToPlainText(string html)
     {
         var document = new HtmlParser().ParseDocument($"<body>{html}</body>");
         var text = new StringBuilder();
-        Walk(document.Body!, text);
+        Walk(document.Body!, text, 0);
         return text.ToString().Trim();
     }
 
-    private static void Walk(INode node, StringBuilder text)
+    private static void Walk(INode node, StringBuilder text, int depth)
     {
         foreach (var child in node.ChildNodes)
         {
@@ -35,17 +38,23 @@ internal static partial class HtmlText
                     text.Append('\n');
                     break;
                 case IElement element:
-                    WalkElement(element, text);
+                    WalkElement(element, text, depth);
                     break;
             }
         }
     }
 
-    private static void WalkElement(IElement element, StringBuilder text)
+    private static void WalkElement(IElement element, StringBuilder text, int depth)
     {
         var tag = element.LocalName;
         if (tag is "script" or "style")
         {
+            return;
+        }
+
+        if (depth >= MaxDepth)
+        {
+            AppendFlatText(element, text);
             return;
         }
 
@@ -60,7 +69,7 @@ internal static partial class HtmlText
         }
 
         var start = text.Length;
-        Walk(element, text);
+        Walk(element, text, depth + 1);
         if (tag == "a" && element.GetAttribute("href") is { } href && IsLinkable(href))
         {
             var label = text.ToString(start, text.Length - start).Trim();
@@ -73,6 +82,28 @@ internal static partial class HtmlText
         if (block)
         {
             EnsureBreak(text, tag == "li" ? 1 : 2);
+        }
+    }
+
+    /// <summary>Appends the descendant text of <paramref name="root"/> using an explicit stack, so depth cannot exhaust the call stack.</summary>
+    private static void AppendFlatText(INode root, StringBuilder text)
+    {
+        var pending = new Stack<INode>();
+        pending.Push(root);
+        while (pending.Count > 0)
+        {
+            var node = pending.Pop();
+            if (node is IText run)
+            {
+                text.Append(Whitespace().Replace(run.Data, " "));
+            }
+            else if (node is not (IHtmlScriptElement or IHtmlStyleElement))
+            {
+                for (var i = node.ChildNodes.Length - 1; i >= 0; i--)
+                {
+                    pending.Push(node.ChildNodes[i]);
+                }
+            }
         }
     }
 
