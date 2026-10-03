@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using TechStrap.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using TechStrap.Infrastructure.Persistence;
 namespace TechStrap.Infrastructure.Migrations
 {
     [DbContext(typeof(TechStrapDbContext))]
-    partial class TechStrapDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261003125723_AddTicketSchema")]
+    partial class AddTicketSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,53 +25,6 @@ namespace TechStrap.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "citext");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.AdminEventRecord", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("ActorId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("actor_id");
-
-                    b.Property<DateTimeOffset>("OccurredAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("occurred_at");
-
-                    b.Property<string>("Payload")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("payload");
-
-                    b.Property<Guid>("SubjectId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("subject_id");
-
-                    b.Property<string>("SubjectType")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)")
-                        .HasColumnName("subject_type");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)")
-                        .HasColumnName("type");
-
-                    b.HasKey("Id")
-                        .HasName("pk_admin_events");
-
-                    b.HasIndex("OccurredAt")
-                        .HasDatabaseName("ix_admin_events_occurred_at");
-
-                    b.HasIndex("SubjectType", "SubjectId")
-                        .HasDatabaseName("ix_admin_events_subject_type_subject_id");
-
-                    b.ToTable("admin_events", (string)null);
-                });
 
             modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.AgentNotificationPreferenceRecord", b =>
                 {
@@ -198,257 +154,6 @@ namespace TechStrap.Infrastructure.Migrations
                         .HasDatabaseName("ix_attachments_ticket_id");
 
                     b.ToTable("attachments", (string)null);
-                });
-
-            modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.EmailOutboxRecord", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<int>("Attempts")
-                        .HasColumnType("integer")
-                        .HasColumnName("attempts");
-
-                    b.Property<string>("ClaimedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("claimed_by");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("kind");
-
-                    b.Property<string>("LastError")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("last_error");
-
-                    b.Property<DateTimeOffset?>("LockedUntil")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("locked_until");
-
-                    b.Property<DateTimeOffset>("NextAttemptAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("next_attempt_at");
-
-                    b.Property<string>("Payload")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("payload");
-
-                    b.Property<Guid?>("ProductId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("product_id");
-
-                    b.Property<DateTimeOffset?>("SentAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("sent_at");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)")
-                        .HasColumnName("status");
-
-                    b.Property<Guid?>("TicketId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("ticket_id");
-
-                    b.Property<string>("ToAddress")
-                        .IsRequired()
-                        .HasMaxLength(320)
-                        .HasColumnType("character varying(320)")
-                        .HasColumnName("to_address");
-
-                    b.HasKey("Id")
-                        .HasName("pk_email_outbox");
-
-                    b.HasIndex("NextAttemptAt")
-                        .HasDatabaseName("ix_email_outbox_next_attempt_at_when_pending")
-                        .HasFilter("status = 'Pending'");
-
-                    b.HasIndex("Status")
-                        .HasDatabaseName("ix_email_outbox_status");
-
-                    b.HasIndex("TicketId")
-                        .HasDatabaseName("ix_email_outbox_ticket_id");
-
-                    b.ToTable("email_outbox", (string)null);
-                });
-
-            modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.IntakeIdempotencyKeyRecord", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("ApiKeyId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("api_key_id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("KeyHash")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("key_hash");
-
-                    b.Property<string>("Response")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("response");
-
-                    b.Property<Guid>("TicketId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("ticket_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_intake_idempotency_keys");
-
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("ix_intake_idempotency_keys_created_at");
-
-                    b.HasIndex("TicketId")
-                        .HasDatabaseName("ix_intake_idempotency_keys_ticket_id");
-
-                    b.HasIndex("ApiKeyId", "KeyHash")
-                        .IsUnique()
-                        .HasDatabaseName("ix_intake_idempotency_keys_api_key_id_key_hash");
-
-                    b.ToTable("intake_idempotency_keys", (string)null);
-                });
-
-            modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.KbArticleRecord", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("AuthorId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("author_id");
-
-                    b.Property<string>("BodyMarkdown")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("body_markdown");
-
-                    b.Property<Guid?>("CategoryId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("category_id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("ProductId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("product_id");
-
-                    b.Property<DateTimeOffset?>("PublishedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("published_at");
-
-                    b.Property<string>("Slug")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)")
-                        .HasColumnName("slug");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)")
-                        .HasColumnName("status");
-
-                    b.Property<string>("Summary")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("summary");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("title");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<uint>("Version")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id")
-                        .HasName("pk_kb_articles");
-
-                    b.HasIndex("AuthorId")
-                        .HasDatabaseName("ix_kb_articles_author_id");
-
-                    b.HasIndex("CategoryId")
-                        .HasDatabaseName("ix_kb_articles_category_id");
-
-                    b.HasIndex("ProductId", "Slug")
-                        .IsUnique()
-                        .HasDatabaseName("ix_kb_articles_product_id_slug");
-
-                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("ProductId", "Slug"), false);
-
-                    b.HasIndex("Status", "PublishedAt")
-                        .HasDatabaseName("ix_kb_articles_status_published_at");
-
-                    b.ToTable("kb_articles", (string)null);
-                });
-
-            modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.KbCategoryRecord", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("name");
-
-                    b.Property<Guid?>("ProductId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("product_id");
-
-                    b.Property<string>("Slug")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)")
-                        .HasColumnName("slug");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
-                    b.HasKey("Id")
-                        .HasName("pk_kb_categories");
-
-                    b.HasIndex("ProductId", "Slug")
-                        .IsUnique()
-                        .HasDatabaseName("ix_kb_categories_product_id_slug");
-
-                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("ProductId", "Slug"), false);
-
-                    b.ToTable("kb_categories", (string)null);
                 });
 
             modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.MessageRecord", b =>
@@ -774,32 +479,6 @@ namespace TechStrap.Infrastructure.Migrations
                     b.ToTable("ticket_access_tokens", (string)null);
                 });
 
-            modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.TicketArticleRecord", b =>
-                {
-                    b.Property<Guid>("MessageId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("message_id");
-
-                    b.Property<Guid>("ArticleId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("article_id");
-
-                    b.Property<Guid>("TicketId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("ticket_id");
-
-                    b.HasKey("MessageId", "ArticleId")
-                        .HasName("pk_ticket_articles");
-
-                    b.HasIndex("ArticleId")
-                        .HasDatabaseName("ix_ticket_articles_article_id");
-
-                    b.HasIndex("TicketId")
-                        .HasDatabaseName("ix_ticket_articles_ticket_id");
-
-                    b.ToTable("ticket_articles", (string)null);
-                });
-
             modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.TicketEventRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1021,54 +700,6 @@ namespace TechStrap.Infrastructure.Migrations
                         .HasConstraintName("fk_attachments_tickets_ticket_id");
                 });
 
-            modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.IntakeIdempotencyKeyRecord", b =>
-                {
-                    b.HasOne("TechStrap.Infrastructure.Persistence.Records.ProductApiKeyRecord", null)
-                        .WithMany()
-                        .HasForeignKey("ApiKeyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_intake_idempotency_keys_product_api_keys_api_key_id");
-
-                    b.HasOne("TechStrap.Infrastructure.Persistence.Records.TicketRecord", null)
-                        .WithMany()
-                        .HasForeignKey("TicketId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_intake_idempotency_keys_tickets_ticket_id");
-                });
-
-            modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.KbArticleRecord", b =>
-                {
-                    b.HasOne("TechStrap.Infrastructure.Persistence.Records.AgentRecord", null)
-                        .WithMany()
-                        .HasForeignKey("AuthorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_kb_articles_agents_author_id");
-
-                    b.HasOne("TechStrap.Infrastructure.Persistence.Records.KbCategoryRecord", null)
-                        .WithMany()
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_kb_articles_kb_categories_category_id");
-
-                    b.HasOne("TechStrap.Infrastructure.Persistence.Records.ProductRecord", null)
-                        .WithMany()
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_kb_articles_products_product_id");
-                });
-
-            modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.KbCategoryRecord", b =>
-                {
-                    b.HasOne("TechStrap.Infrastructure.Persistence.Records.ProductRecord", null)
-                        .WithMany()
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_kb_categories_products_product_id");
-                });
-
             modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.MessageRecord", b =>
                 {
                     b.HasOne("TechStrap.Infrastructure.Persistence.Records.TicketRecord", null)
@@ -1114,30 +745,6 @@ namespace TechStrap.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_ticket_access_tokens_tickets_ticket_id");
-                });
-
-            modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.TicketArticleRecord", b =>
-                {
-                    b.HasOne("TechStrap.Infrastructure.Persistence.Records.KbArticleRecord", null)
-                        .WithMany()
-                        .HasForeignKey("ArticleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_ticket_articles_kb_articles_article_id");
-
-                    b.HasOne("TechStrap.Infrastructure.Persistence.Records.MessageRecord", null)
-                        .WithMany()
-                        .HasForeignKey("MessageId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_ticket_articles_messages_message_id");
-
-                    b.HasOne("TechStrap.Infrastructure.Persistence.Records.TicketRecord", null)
-                        .WithMany()
-                        .HasForeignKey("TicketId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_ticket_articles_tickets_ticket_id");
                 });
 
             modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.TicketEventRecord", b =>

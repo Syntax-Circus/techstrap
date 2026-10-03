@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using TechStrap.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using TechStrap.Infrastructure.Persistence;
 namespace TechStrap.Infrastructure.Migrations
 {
     [DbContext(typeof(TechStrapDbContext))]
-    partial class TechStrapDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261003125752_AddKnowledgeAdminAndOutboxSchema")]
+    partial class AddKnowledgeAdminAndOutboxSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

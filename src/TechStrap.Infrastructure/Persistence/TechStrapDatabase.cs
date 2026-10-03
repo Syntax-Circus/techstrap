@@ -18,5 +18,6 @@ public static class TechStrapDatabase
     public static DbContextOptionsBuilder Configure(DbContextOptionsBuilder builder, string? connectionString) =>
         builder
             .UseNpgsql(connectionString ?? string.Empty)
-            .UseSyntaxCircusSnakeCaseNamingConvention();
+            .UseSyntaxCircusSnakeCaseNamingConvention()
+            .AddInterceptors(new AppendOnlyTicketEventInterceptor());
 }
