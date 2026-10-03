@@ -16,6 +16,16 @@ internal static class FileSignatures
     private static readonly byte[] _zipLocal = [0x50, 0x4B, 0x03, 0x04];
     private static readonly byte[] _zipEmpty = [0x50, 0x4B, 0x05, 0x06];
 
+    // Browser and OS aliases seen in the wild; content sniffing is the real control.
+    private static readonly Dictionary<string, string[]> _aliases = new()
+    {
+        [".zip"] = ["application/x-zip-compressed", "application/zip-compressed"],
+        [".csv"] = ["application/vnd.ms-excel", "text/plain"],
+        [".jpg"] = ["image/jpg", "image/pjpeg"],
+        [".jpeg"] = ["image/jpg", "image/pjpeg"],
+        [".log"] = ["text/x-log"],
+    };
+
     public static bool TryMatch(string extension, ReadOnlySpan<byte> head, out string contentType)
     {
         contentType = string.Empty;
@@ -51,7 +61,7 @@ internal static class FileSignatures
     }
 
     /// <summary>True when a declared content type is acceptable for the matched kind.</summary>
-    public static bool IsDeclaredTypeAcceptable(string? declared, string canonical)
+    public static bool IsDeclaredTypeAcceptable(string extension, string? declared, string canonical)
     {
         if (string.IsNullOrWhiteSpace(declared))
         {
@@ -63,6 +73,11 @@ internal static class FileSignatures
         if (type.Length == 0
             || type.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase)
             || type.Equals(canonical, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (_aliases.TryGetValue(extension.ToLowerInvariant(), out var aliases) && aliases.Contains(type, StringComparer.OrdinalIgnoreCase))
         {
             return true;
         }

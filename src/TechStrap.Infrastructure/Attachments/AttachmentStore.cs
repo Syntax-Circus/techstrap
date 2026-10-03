@@ -64,7 +64,7 @@ internal sealed class AttachmentStore(IStorageProvider storage) : IAttachmentSto
 
         var head = content.GetBuffer().AsSpan(0, (int)Math.Min(content.Length, FileSignatures.HeadLength));
         if (!FileSignatures.TryMatch(extension, head, out var contentType)
-            || !FileSignatures.IsDeclaredTypeAcceptable(file.DeclaredContentType, contentType))
+            || !FileSignatures.IsDeclaredTypeAcceptable(extension, file.DeclaredContentType, contentType))
         {
             return NotAllowed();
         }

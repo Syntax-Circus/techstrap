@@ -1,4 +1,6 @@
 using System.Text;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using SyntaxCircus.Storage;
 using TechStrap.Application.Attachments;
@@ -99,5 +101,51 @@ public sealed class AttachmentStoreTests : IDisposable
         await _store.DeleteAsync(stored.StorageKey, TestContext.Current.CancellationToken);
 
         System.IO.File.Exists(Path.Combine(_root, stored.StorageKey)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task A_zip_declared_with_a_browser_alias_is_accepted_and_stored_with_the_canonical_type()
+    {
+        var zip = new byte[] { 0x50, 0x4B, 0x03, 0x04, 0, 0 };
+
+        var stored = (await _store.SaveAsync(Guid.CreateVersion7(), Upload("a.zip", "application/x-zip-compressed", zip), TestContext.Current.CancellationToken)).Value;
+
+        stored.ContentType.ShouldBe("application/zip");
+    }
+
+    [Fact]
+    public async Task A_csv_declared_as_excel_is_accepted() =>
+        (await _store.SaveAsync(Guid.CreateVersion7(), Upload("a.csv", "application/vnd.ms-excel", "a,b 1,2"u8.ToArray()), TestContext.Current.CancellationToken))
+            .Value.ContentType.ShouldBe("text/csv");
+
+    [Fact]
+    public async Task A_log_declared_as_octet_stream_is_accepted() =>
+        (await _store.SaveAsync(Guid.CreateVersion7(), Upload("a.log", "application/octet-stream", "line"u8.ToArray()), TestContext.Current.CancellationToken))
+            .Value.ContentType.ShouldBe("text/plain");
+
+    [Fact]
+    public void An_empty_root_path_fails_startup_validation()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Storage:Local:RootPath"] = "" }).Build();
+        var services = new ServiceCollection().AddTechStrapAttachments(config);
+
+        var ex = Should.Throw<OptionsValidationException>(() =>
+        {
+            using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
+            provider.GetRequiredService<IOptions<LocalStorageOptions>>().Value.ToString();
+        });
+
+        ex.Message.ShouldContain("Storage:Local:RootPath");
+    }
+
+    [Fact]
+    public void The_store_resolves_with_a_valid_root_under_strict_validation()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Storage:Local:RootPath"] = _root }).Build();
+        using var provider = new ServiceCollection().AddTechStrapAttachments(config)
+            .BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
+        using var scope = provider.CreateScope();
+
+        scope.ServiceProvider.GetRequiredService<IAttachmentStore>().ShouldNotBeNull();
     }
 }
