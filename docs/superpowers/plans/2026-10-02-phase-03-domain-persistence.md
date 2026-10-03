@@ -5532,7 +5532,7 @@ Ticket search must cover the subject and the message bodies, which live in two t
 
 ## D-028: Domain returns its own result type; Application converts it
 
-- **Status:** Proposed (controller ruling; owner to confirm)
+- **Status:** Approved (owner 2026-10-03)
 - **Date:** 2026-10-02
 - **Owner:** Jon Seeley
 - **Related artifacts:** PHASE-03, 02-ARCHITECTURE section 2, `ProjectReferenceDirectionTests`
@@ -5552,8 +5552,8 @@ Domain defines `DomainResult`, `DomainResult<T>` and `DomainError` (kinds Valida
 - If the owner prefers the first alternative, the change is local: delete `DomainResult.cs`, reference the package from Domain and relax the three rules named above.
 
 ### Approval
-- **Approved by:** pending (controller ruling 2026-10-02; Jon Seeley to confirm)
-- **Approved on:** n/a
+- **Approved by:** Jon Seeley (owner, 2026-10-03 plan review)
+- **Approved on:** 2026-10-03
 ````
 
 Then run these commands (they add the index rows and the approval-basis lines to the decision log and update the phase document where it carried the old assumptions):
@@ -5561,8 +5561,8 @@ Then run these commands (they add the index rows and the approval-basis lines to
 ```bash
 cd docs/architecture
 log=04-DECISION-LOG.md
-sed -i 's#^| D-025 | The product-accent derivation helper lives in `TechStrap.Contracts` | Approved (owner 2026-10-02) | 2026-10-02 | PHASE-02, PHASE-04, PHASE-05, PHASE-09, BRAND.md |#&\n| D-026 | Separate persistence entities (records); Domain stays pure | Approved (owner 2026-10-02) | 2026-10-02 | PHASE-03, 02-ARCHITECTURE |\n| D-027 | Full-text search uses stored generated tsvector columns | Approved (owner 2026-10-02) | 2026-10-02 | PHASE-03, PHASE-06, PHASE-08 |\n| D-028 | Domain returns its own result type; Application converts it | Proposed (controller ruling; owner to confirm) | 2026-10-02 | PHASE-03, 02-ARCHITECTURE |#' $log
-sed -i 's#^- \*\*Proposed:\*\* none. D-008.s default (N = 7 days) was confirmed by the owner on 2026-10-02.#- **Proposed:** D-028 (Domain result type), awaiting owner confirmation. D-008 default (N = 7 days) was confirmed by the owner on 2026-10-02.\n- **Owner decision (2026-10-02, PHASE-03 planning):** D-026 (separate persistence entities) and D-027 (stored generated search vectors).#' $log
+sed -i 's#^| D-025 | The product-accent derivation helper lives in `TechStrap.Contracts` | Approved (owner 2026-10-02) | 2026-10-02 | PHASE-02, PHASE-04, PHASE-05, PHASE-09, BRAND.md |#&\n| D-026 | Separate persistence entities (records); Domain stays pure | Approved (owner 2026-10-02) | 2026-10-02 | PHASE-03, 02-ARCHITECTURE |\n| D-027 | Full-text search uses stored generated tsvector columns | Approved (owner 2026-10-02) | 2026-10-02 | PHASE-03, PHASE-06, PHASE-08 |\n| D-028 | Domain returns its own result type; Application converts it | Approved (owner 2026-10-03) | 2026-10-02 | PHASE-03, 02-ARCHITECTURE |#' $log
+sed -i 's#^- \*\*Proposed:\*\* none. D-008.s default (N = 7 days) was confirmed by the owner on 2026-10-02.#- **Proposed:** none. D-008 default (N = 7 days) was confirmed by the owner on 2026-10-02.\n- **Owner decision (2026-10-02, PHASE-03 planning):** D-026 (separate persistence entities) and D-027 (stored generated search vectors); D-028 (Domain result type) approved 2026-10-03.#' $log
 f=PHASE-03-domain-and-persistence.md
 sed -i 's/returning `Result` from `SyntaxCircus.Common`\./returning `DomainResult` (BCL-only, D-028; Application converts it to the `Result` from `SyntaxCircus.Common`)./' $f
 sed -i 's/Ticket vector covers subject, number and message bodies (messages update the ticket vector through a trigger or a maintained column; decision in P03-T11)/The ticket vector covers the subject (weight A) and the message vector the body (weight B); the search query joins them and matches an exact ticket number by equality (D-027: stored generated vectors, no trigger and no maintained column)/' $f
@@ -13161,7 +13161,7 @@ How this plan was checked, and what it does not prove. The plan was written from
 
 **Open points for the owner**
 
-- D-028 (Domain returns `DomainResult`, Application converts) is **Proposed**. The phase document said Domain returns the `SyntaxCircus.Common` result, which the "Domain references nothing" rule forbids; the alternative is to let Domain reference the package and relax three rules.
+- D-028 (Domain returns `DomainResult`, Application converts) is **Approved (owner 2026-10-03)**. The phase document said Domain returns the `SyntaxCircus.Common` result, which the "Domain references nothing" rule forbids; the alternative is to let Domain reference the package and relax three rules.
 - D-027 is recorded as approved, with the implementation finding above.
 - The ticket counter is a separate row (`product_ticket_sequences`), so a product edit in flight is no longer disturbed by ticket creation (this replaces the earlier trade-off where the counter lived on `products`); 02-ARCHITECTURE section 5 and the phase document are edited accordingly in Task 7.
 - `ProductBranding` checks the `#RRGGBB` format itself because Domain cannot call the Contracts accent helper (D-025); PHASE-04 should still call `ProductAccent.TryDerive` when a product is saved.
