@@ -40,8 +40,11 @@ public sealed class AdminEvent
     /// <summary>Case-insensitive substrings that mark a property name as personal data or a secret.</summary>
     private static readonly string[] ForbiddenNameParts =
     [
-        "token", "secret", "password", "passwd", "hash", "plaintext", "authorization", "credential", "apikey", "privatekey", "email",
+        "token", "secret", "password", "passwd", "pwd", "hash", "plaintext", "authorization", "credential", "bearer", "apikey", "privatekey", "email", "ipaddress",
     ];
+
+    /// <summary>Normalised names that end with one of these are always allowed: identifiers and algorithm names, and the documented key shapes.</summary>
+    private static readonly string[] AllowedNameSuffixes = ["id", "algorithm", "productkey", "keyprefix"];
 
     /// <summary>Exact (case-insensitive) property names that are never allowed, whole words the substring list would be too broad for.</summary>
     private static readonly HashSet<string> ForbiddenExactNames = new(StringComparer.OrdinalIgnoreCase)
@@ -116,8 +119,22 @@ public sealed class AdminEvent
         }
     }
 
-    private static bool IsForbiddenName(string name) =>
-        ForbiddenExactNames.Contains(name) || ForbiddenNameParts.Any(part => name.Contains(part, StringComparison.OrdinalIgnoreCase));
+    /// <summary>Names are normalised (lower-case, no underscores or hyphens) so <c>api_key</c> and <c>access-key</c> match <c>apikey</c>.</summary>
+    private static bool IsForbiddenName(string rawName)
+    {
+        var name = Normalise(rawName);
+        if (AllowedNameSuffixes.Any(suffix => name.EndsWith(suffix, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        return ForbiddenExactNames.Contains(name)
+            || name.EndsWith("key", StringComparison.Ordinal)
+            || ForbiddenNameParts.Any(part => name.Contains(part, StringComparison.Ordinal));
+    }
+
+    private static string Normalise(string name) =>
+        name.Replace("_", string.Empty, StringComparison.Ordinal).Replace("-", string.Empty, StringComparison.Ordinal).ToLowerInvariant();
 
     private static bool HasForbiddenName(JsonElement element) => element.ValueKind switch
     {

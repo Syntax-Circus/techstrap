@@ -75,7 +75,7 @@ public sealed class Message
         MessageVisibility visibility,
         string? body,
         TimeProvider clock) =>
-        CreateAt(ticketId, authorType, authorId, visibility, body, clock.GetUtcNow(), clock);
+        CreateAt(ticketId, authorType, authorId, visibility, body, DomainTime.Now(clock), clock);
 
     /// <summary>Like <see cref="Create"/> with an explicit creation time; the ticket uses it to keep message times strictly increasing.</summary>
     internal static DomainResult<Message> CreateAt(
@@ -87,6 +87,16 @@ public sealed class Message
         DateTimeOffset createdAt,
         TimeProvider clock)
     {
+        if (!Enum.IsDefined(authorType))
+        {
+            return DomainErrors.Validation("author-type-invalid", "The author type is not valid.", "author-type");
+        }
+
+        if (!Enum.IsDefined(visibility))
+        {
+            return DomainErrors.Validation("visibility-invalid", "The visibility is not valid.", "visibility");
+        }
+
         var text = Guard.RequiredText(body, DomainLimits.MessageBodyMaxLength, "body");
         if (text.IsFailure)
         {
@@ -98,7 +108,7 @@ public sealed class Message
             return DomainErrors.Validation("internal-message-by-requester", "A requester cannot write an internal message.", "visibility");
         }
 
-        if (authorType != AuthorType.System && authorId is null)
+        if (authorType != AuthorType.System && (authorId is null || authorId == Guid.Empty))
         {
             return DomainErrors.Validation("author-required", "An agent or requester message needs an author id.", "author-id");
         }

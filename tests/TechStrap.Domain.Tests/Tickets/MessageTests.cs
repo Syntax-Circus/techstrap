@@ -97,4 +97,17 @@ public sealed class MessageTests
 
         message.NewAttachments.ShouldBeEmpty();
     }
+
+    [Fact]
+    public void An_undefined_author_type_or_visibility_is_rejected()
+    {
+        Message.Create(_ticketId, (AuthorType)99, _authorId, MessageVisibility.Public, "x", _clock).Error!.Code.ShouldBe("author-type-invalid");
+        Message.Create(_ticketId, AuthorType.Agent, _authorId, (MessageVisibility)99, "x", _clock).Error!.Code.ShouldBe("visibility-invalid");
+    }
+
+    [Fact]
+    public void An_empty_author_id_is_rejected_for_agent_and_requester_messages()
+    {
+        Message.Create(_ticketId, AuthorType.Agent, Guid.Empty, MessageVisibility.Public, "x", _clock).Error!.Code.ShouldBe("author-required");
+    }
 }

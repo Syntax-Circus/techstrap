@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace TechStrap.Domain.Tickets;
@@ -8,7 +9,7 @@ namespace TechStrap.Domain.Tickets;
 /// </summary>
 public readonly partial record struct TicketNumber
 {
-    public const string PrefixPattern = "^[A-Z][A-Z0-9]{1,9}$";
+    public const string PrefixPattern = @"^[A-Z][A-Z0-9]{1,9}\z";
     private const char Separator = '-';
 
     private TicketNumber(string prefix, long sequence)
@@ -49,7 +50,7 @@ public readonly partial record struct TicketNumber
 
         var text = value.Trim();
         var split = text.LastIndexOf(Separator);
-        if (split <= 0 || !long.TryParse(text.AsSpan(split + 1), out var sequence))
+        if (split <= 0 || !long.TryParse(text.AsSpan(split + 1), NumberStyles.None, CultureInfo.InvariantCulture, out var sequence))
         {
             return false;
         }
@@ -64,7 +65,8 @@ public readonly partial record struct TicketNumber
         return true;
     }
 
-    public override string ToString() => $"{Prefix}{Separator}{Sequence}";
+    /// <summary>The formatted number, or an empty string for <c>default(TicketNumber)</c>, which is not a real number.</summary>
+    public override string ToString() => Prefix is null ? string.Empty : $"{Prefix}{Separator}{Sequence}";
 
     [GeneratedRegex(PrefixPattern, RegexOptions.CultureInvariant)]
     private static partial Regex PrefixRegex();

@@ -1,10 +1,15 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using TechStrap.Domain.Rules;
 
 namespace TechStrap.Domain.Tickets;
 
 /// <summary>Metadata of a stored file on a message. The bytes live behind <c>IAttachmentStore</c> under <see cref="StorageKey"/>.</summary>
-public sealed class Attachment
+public sealed partial class Attachment
 {
+    // RFC 6838 restricted-name on both sides of a single slash; no parameters, whitespace or control characters.
+    private const string ContentTypePattern = @"\A[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}\z";
+
     private Attachment(Guid id, Guid ticketId, Guid messageId, string fileName, string contentType, long size, string storageKey, DateTimeOffset createdAt)
     {
         Id = id;
@@ -50,12 +55,12 @@ public sealed class Attachment
             return error;
         }
 
-        if (name.Value.IndexOfAny(['/', '\\']) >= 0 || name.Value.Any(char.IsControl))
+        if (name.Value.IndexOfAny(['/', '\\']) >= 0 || name.Value is "." or ".." || name.Value.Any(IsControlOrFormat))
         {
             return DomainErrors.Validation("file-name-invalid", "A file name has no path separators or control characters.", "file-name");
         }
 
-        if (!type.Value.Contains('/'))
+        if (!ContentTypeRegex().IsMatch(contentType ?? string.Empty))
         {
             return DomainErrors.Validation("content-type-invalid", "A content type looks like type/subtype.", "content-type");
         }
@@ -65,8 +70,14 @@ public sealed class Attachment
             return DomainErrors.Validation("size-invalid", $"An attachment is 1 byte to {DomainLimits.AttachmentMaxBytes} bytes.", "size");
         }
 
-        return DomainResult<Attachment>.Ok(new Attachment(EntityId.New(clock), ticketId, messageId, name.Value, type.Value, size, key.Value, clock.GetUtcNow()));
+        return DomainResult<Attachment>.Ok(new Attachment(EntityId.New(clock), ticketId, messageId, name.Value, type.Value, size, key.Value, DomainTime.Now(clock)));
     }
+
+    [GeneratedRegex(ContentTypePattern, RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+    private static partial Regex ContentTypeRegex();
+
+    private static bool IsControlOrFormat(char c) =>
+        char.IsControl(c) || char.GetUnicodeCategory(c) == UnicodeCategory.Format;
 
     public static Attachment Restore(Guid id, Guid ticketId, Guid messageId, string fileName, string contentType, long size, string storageKey, DateTimeOffset createdAt) =>
         new(id, ticketId, messageId, fileName, contentType, size, storageKey, createdAt);

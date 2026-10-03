@@ -178,9 +178,9 @@ public sealed class Ticket
 
     public DomainResult ChangeStatus(TicketStatus to, Actor actor, TimeProvider clock)
     {
-        if (EnsureWritable() is { } closed)
+        if (Refusal(actor) is { } refused)
         {
-            return closed;
+            return refused;
         }
 
         if (!TicketStatusRules.CanTransition(Status, to))
@@ -234,9 +234,9 @@ public sealed class Ticket
 
     public DomainResult Assign(Guid? agentId, Actor actor, TimeProvider clock)
     {
-        if (EnsureWritable() is { } closed)
+        if (Refusal(actor) is { } refused)
         {
-            return closed;
+            return refused;
         }
 
         if (AssigneeId == agentId)
@@ -246,16 +246,21 @@ public sealed class Ticket
 
         var from = AssigneeId;
         AssigneeId = agentId;
-        Raise(TicketEventType.Assigned, actor, Payload(("from", from), ("to", agentId)), clock);
+        Raise(TicketEventType.Assigned, actor, PayloadWithNulls(("from", from), ("to", agentId)), clock);
         Touch(clock);
         return DomainResult.Ok();
     }
 
     public DomainResult ChangePriority(TicketPriority priority, Actor actor, TimeProvider clock)
     {
-        if (EnsureWritable() is { } closed)
+        if (Refusal(actor) is { } refused)
         {
-            return closed;
+            return refused;
+        }
+
+        if (!Enum.IsDefined(priority))
+        {
+            return DomainErrors.Validation("priority-invalid", "The priority is not valid.", "priority");
         }
 
         if (Priority == priority)
@@ -273,9 +278,9 @@ public sealed class Ticket
     /// <summary>Moves the ticket to another product. The number is unchanged (D-009).</summary>
     public DomainResult MoveToProduct(Guid productId, Actor actor, TimeProvider clock)
     {
-        if (EnsureWritable() is { } closed)
+        if (Refusal(actor) is { } refused)
         {
-            return closed;
+            return refused;
         }
 
         if (ProductId == productId)
@@ -292,9 +297,9 @@ public sealed class Ticket
 
     public DomainResult AddTag(Guid tagId, Actor actor, TimeProvider clock)
     {
-        if (EnsureWritable() is { } closed)
+        if (Refusal(actor) is { } refused)
         {
-            return closed;
+            return refused;
         }
 
         if (_tagIds.Add(tagId))
@@ -308,9 +313,9 @@ public sealed class Ticket
 
     public DomainResult RemoveTag(Guid tagId, Actor actor, TimeProvider clock)
     {
-        if (EnsureWritable() is { } closed)
+        if (Refusal(actor) is { } refused)
         {
-            return closed;
+            return refused;
         }
 
         if (_tagIds.Remove(tagId))
@@ -325,9 +330,9 @@ public sealed class Ticket
     /// <summary>Sets or clears the spam flag (D-024). The status is untouched.</summary>
     public DomainResult MarkSpam(bool isSpam, Actor actor, TimeProvider clock)
     {
-        if (EnsureWritable() is { } closed)
+        if (Refusal(actor) is { } refused)
         {
-            return closed;
+            return refused;
         }
 
         if (IsSpam == isSpam)
@@ -388,6 +393,11 @@ public sealed class Ticket
         Guid? parentTicketId,
         TimeProvider clock)
     {
+        if (requesterId == Guid.Empty)
+        {
+            return DomainErrors.Validation("requester-id-required", "A ticket needs the requester that raised it.", "requester-id");
+        }
+
         var title = Guard.RequiredText(subject, DomainLimits.SubjectMaxLength, "subject");
         if (title.IsFailure)
         {
@@ -438,6 +448,17 @@ public sealed class Ticket
 
     private static string Payload(params (string Key, object? Value)[] items) =>
         JsonSerializer.Serialize(items.Where(item => item.Value is not null).ToDictionary(item => item.Key, item => item.Value));
+
+    /// <summary>An agent or requester actor needs a real id; <c>default(Actor)</c> (an Agent without an id) is refused too. A System actor has no id.</summary>
+    private static DomainError? ValidateActor(Actor actor) =>
+        Enum.IsDefined(actor.Type) && (actor.Type == ActorType.System || (actor.Id is { } id && id != Guid.Empty))
+            ? null
+            : DomainErrors.Validation("actor-invalid", "An agent or requester actor needs an id.", "actor");
+
+    private static string PayloadWithNulls(params (string Key, object? Value)[] items) =>
+        JsonSerializer.Serialize(items.ToDictionary(item => item.Key, item => item.Value));
+
+    private DomainError? Refusal(Actor actor) => ValidateActor(actor) ?? EnsureWritable();
 
     private DomainError? EnsureWritable() =>
         TicketStatusRules.IsReadOnly(Status)

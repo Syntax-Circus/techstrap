@@ -51,4 +51,16 @@ public sealed class TicketStatusTransitionTests
     {
         Enum.GetNames<TicketStatus>().ShouldBe(["New", "Open", "Pending", "Solved", "Closed"]);
     }
+
+    [Fact]
+    public void AllowedFrom_returns_a_read_only_view_that_cannot_change_the_rules()
+    {
+        var allowed = TicketStatusRules.AllowedFrom(TicketStatus.New);
+
+        allowed.ShouldNotBeOfType<TicketStatus[]>();
+        allowed.ShouldBe([TicketStatus.Open, TicketStatus.Pending, TicketStatus.Solved]);
+        ((ICollection<TicketStatus>)allowed).IsReadOnly.ShouldBeTrue();
+        TicketStatusRules.AllowedFrom(TicketStatus.Closed).ShouldBeEmpty();
+        TicketStatusRules.CanTransition(TicketStatus.New, TicketStatus.Closed).ShouldBeFalse();
+    }
 }

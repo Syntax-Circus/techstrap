@@ -295,4 +295,68 @@ public sealed class EmailOutboxItemTests
         item.Status.ShouldBe(OutboxStatus.DeadLettered);
         return item;
     }
+
+    [Fact]
+    public void Marking_sent_or_failed_without_a_worker_id_is_not_owner_even_when_nobody_claimed_the_item()
+    {
+        var unowned = EmailOutboxItem.Restore(
+            Guid.NewGuid(), "K", "a@example.com", "{}", null, null, OutboxStatus.Sending, 1, _clock.GetUtcNow(), null, _clock.GetUtcNow().AddMinutes(5), null, _clock.GetUtcNow(), null);
+
+        unowned.MarkSent(null, _clock).Error!.Code.ShouldBe("outbox-not-claim-owner");
+        unowned.MarkFailed(null, "x", _clock).Error!.Code.ShouldBe("outbox-not-claim-owner");
+        unowned.Status.ShouldBe(OutboxStatus.Sending);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void A_blank_worker_id_is_never_the_claim_owner(string? workerId)
+    {
+        var item = Claimed();
+
+        item.MarkSent(workerId, _clock).Error!.Code.ShouldBe("outbox-not-claim-owner");
+        item.MarkFailed(workerId, "x", _clock).Error!.Code.ShouldBe("outbox-not-claim-owner");
+        item.Status.ShouldBe(OutboxStatus.Sending);
+        item.ClaimedBy.ShouldBe("worker-1");
+    }
+
+    private EmailOutboxItem ExpiredFifthAttempt(string? lastError) =>
+        EmailOutboxItem.Restore(
+            Guid.NewGuid(), "K", "a@example.com", "{}", null, null, OutboxStatus.Sending, OutboxRetryPolicy.MaxAttempts, _clock.GetUtcNow(), "crashy",
+            _clock.GetUtcNow().AddMinutes(-1), lastError, _clock.GetUtcNow(), null);
+
+    [Fact]
+    public void Dead_lettering_on_lease_expiry_keeps_the_earlier_error()
+    {
+        var item = ExpiredFifthAttempt("smtp 550 mailbox full");
+
+        item.Claim("w", Lease, _clock).Error!.Code.ShouldBe("outbox-dead-lettered");
+
+        item.Status.ShouldBe(OutboxStatus.DeadLettered);
+        item.LastError.ShouldBe("smtp 550 mailbox full; worker lease expired");
+    }
+
+    [Fact]
+    public void Dead_lettering_on_lease_expiry_caps_the_combined_error_and_keeps_the_new_reason()
+    {
+        var item = ExpiredFifthAttempt(new string('e', DomainLimits.ErrorMaxLength));
+
+        item.Claim("w", Lease, _clock);
+
+        item.LastError!.Length.ShouldBe(DomainLimits.ErrorMaxLength);
+        item.LastError.ShouldEndWith("; worker lease expired");
+    }
+
+    [Fact]
+    public void A_discarded_item_cannot_be_claimed_even_when_it_is_old_and_due()
+    {
+        var item = DeadLetter();
+        item.Discard().IsSuccess.ShouldBeTrue();
+        _clock.Advance(OutboxRetryPolicy.MaxDelay * 24);
+
+        item.IsClaimable(_clock).ShouldBeFalse();
+        item.Claim("w", Lease, _clock).Error!.Code.ShouldBe("outbox-not-claimable");
+        item.Status.ShouldBe(OutboxStatus.Discarded);
+    }
 }

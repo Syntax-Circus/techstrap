@@ -124,4 +124,20 @@ public sealed class TicketCreationTests
         result.Error!.Code.ShouldBe("ticket-not-closed");
         result.Error.Kind.ShouldBe(DomainErrorKind.Conflict);
     }
+
+    [Fact]
+    public void A_second_follow_up_of_the_same_closed_ticket_succeeds_and_raises_a_second_event()
+    {
+        var closed = _factory.InStatus(TicketStatus.Closed);
+
+        var first = closed.CreateFollowUp(_factory.Number(143), _factory.Clock).Value;
+        var second = closed.CreateFollowUp(_factory.Number(144), _factory.Clock).Value;
+
+        second.Id.ShouldNotBe(first.Id);
+        second.ParentTicketId.ShouldBe(closed.Id);
+        closed.Status.ShouldBe(TicketStatus.Closed);
+        closed.PendingEvents.Select(e => e.Type).ShouldBe([TicketEventType.FollowUpCreated, TicketEventType.FollowUpCreated]);
+        closed.PendingEvents[1].OccurredAt.ShouldBeGreaterThan(closed.PendingEvents[0].OccurredAt);
+        closed.PendingEvents[1].PayloadJson.ShouldContain(second.Id.ToString());
+    }
 }

@@ -12,7 +12,7 @@ internal static class ProductMappings
             record.Key,
             record.Name,
             record.NumberPrefix,
-            new ProductBranding(record.DisplayName, record.Logo, record.AccentColour, record.FromAddress, record.ReplyTo),
+            ProductBranding.Restore(record.DisplayName, record.Logo, record.AccentColour, record.FromAddress, record.ReplyTo),
             record.IsActive,
             record.Version);
 

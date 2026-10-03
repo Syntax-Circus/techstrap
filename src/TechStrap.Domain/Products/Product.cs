@@ -4,9 +4,33 @@ using TechStrap.Domain.Tickets;
 namespace TechStrap.Domain.Products;
 
 /// <summary>Customer-facing branding of a product (D-002). The accent is a stored <c>#RRGGBB</c>; derivation is in Contracts (D-025).</summary>
-public sealed record ProductBranding(string DisplayName, string? LogoPath, string AccentColour, string? FromAddress, string? ReplyTo)
+public sealed record ProductBranding
 {
     public const string DefaultAccentColour = "#1F6FEB";
+
+    // Private constructor and get-only properties: neither `new` nor `with` can build a branding that skipped validation.
+    private ProductBranding(string displayName, string? logoPath, string accentColour, string? fromAddress, string? replyTo)
+    {
+        DisplayName = displayName;
+        LogoPath = logoPath;
+        AccentColour = accentColour;
+        FromAddress = fromAddress;
+        ReplyTo = replyTo;
+    }
+
+    public string DisplayName { get; }
+
+    public string? LogoPath { get; }
+
+    public string AccentColour { get; }
+
+    public string? FromAddress { get; }
+
+    public string? ReplyTo { get; }
+
+    /// <summary>Rebuilds branding that was validated when it was stored; persistence mappings use it, callers use <see cref="Create"/>.</summary>
+    public static ProductBranding Restore(string displayName, string? logoPath, string accentColour, string? fromAddress, string? replyTo) =>
+        new(displayName, logoPath, accentColour, fromAddress, replyTo);
 
     public static DomainResult<ProductBranding> Create(
         string? displayName,

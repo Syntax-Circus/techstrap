@@ -40,7 +40,7 @@ public sealed class TicketAccessToken
         var hash = Guard.RequiredText(tokenHash, DomainLimits.HashMaxLength, "token-hash");
         return hash.IsFailure
             ? hash.Error!
-            : DomainResult<TicketAccessToken>.Ok(new TicketAccessToken(EntityId.New(clock), ticketId, requesterId, hash.Value, clock.GetUtcNow() + Lifetime, null, null));
+            : DomainResult<TicketAccessToken>.Ok(new TicketAccessToken(EntityId.New(clock), ticketId, requesterId, hash.Value, DomainTime.Now(clock) + Lifetime, null, null));
     }
 
     public static TicketAccessToken Restore(Guid id, Guid ticketId, Guid requesterId, string tokenHash, DateTimeOffset expiresAt, DateTimeOffset? revokedAt, DateTimeOffset? lastUsedAt) =>
@@ -48,11 +48,11 @@ public sealed class TicketAccessToken
 
     public bool IsRevoked => RevokedAt is not null;
 
-    public bool IsExpired(TimeProvider clock) => clock.GetUtcNow() >= ExpiresAt;
+    public bool IsExpired(TimeProvider clock) => DomainTime.Now(clock) >= ExpiresAt;
 
     public bool IsValid(TimeProvider clock) => !IsRevoked && !IsExpired(clock);
 
-    public void Revoke(TimeProvider clock) => RevokedAt ??= clock.GetUtcNow();
+    public void Revoke(TimeProvider clock) => RevokedAt ??= DomainTime.Now(clock);
 
     /// <summary>A valid use slides the expiry; a revoked or expired token cannot be used (callers answer with a uniform not-found).</summary>
     public DomainResult RecordUse(TimeProvider clock)
@@ -62,7 +62,7 @@ public sealed class TicketAccessToken
             return DomainErrors.NotFound("access-token-invalid", "The access token is not valid.");
         }
 
-        var now = clock.GetUtcNow();
+        var now = DomainTime.Now(clock);
         LastUsedAt = now;
         ExpiresAt = now + Lifetime;
         return DomainResult.Ok();

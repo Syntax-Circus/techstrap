@@ -75,7 +75,7 @@ public sealed class Agent
 
     public void SetActive(bool isActive) => IsActive = isActive;
 
-    public void RecordSeen(TimeProvider clock) => LastSeenAt = clock.GetUtcNow();
+    public void RecordSeen(TimeProvider clock) => LastSeenAt = DomainTime.Now(clock);
 
     /// <summary>Refreshes name and email from the identity provider's claims.</summary>
     public DomainResult UpdateIdentity(string? name, string? email)

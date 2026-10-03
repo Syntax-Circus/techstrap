@@ -79,7 +79,7 @@ public sealed class ProductApiKey
         }
 
         return DomainResult<ProductApiKey>.Ok(new ProductApiKey(
-            EntityId.New(clock), productId, kind, prefix.Value, hash.Value, keyLabel.Value, clock.GetUtcNow(), null, null));
+            EntityId.New(clock), productId, kind, prefix.Value, hash.Value, keyLabel.Value, DomainTime.Now(clock), null, null));
     }
 
     public static ProductApiKey Restore(
@@ -95,7 +95,7 @@ public sealed class ProductApiKey
         new(id, productId, kind, keyPrefix, keyHash, label, createdAt, revokedAt, lastUsedAt);
 
     /// <summary>Revoking twice keeps the first revocation time.</summary>
-    public void Revoke(TimeProvider clock) => RevokedAt ??= clock.GetUtcNow();
+    public void Revoke(TimeProvider clock) => RevokedAt ??= DomainTime.Now(clock);
 
     /// <summary>A revoked key can never authenticate again, so recording its use is a conflict.</summary>
     public DomainResult RecordUse(TimeProvider clock)
@@ -105,7 +105,7 @@ public sealed class ProductApiKey
             return DomainErrors.Conflict("api-key-revoked", "The API key has been revoked.");
         }
 
-        LastUsedAt = clock.GetUtcNow();
+        LastUsedAt = DomainTime.Now(clock);
         return DomainResult.Ok();
     }
 }

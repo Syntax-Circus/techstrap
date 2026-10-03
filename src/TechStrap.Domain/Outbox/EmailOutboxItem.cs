@@ -169,7 +169,7 @@ public sealed class EmailOutboxItem
         if (Status == OutboxStatus.Sending && Attempts >= OutboxRetryPolicy.MaxAttempts)
         {
             Status = OutboxStatus.DeadLettered;
-            LastError = "worker lease expired";
+            LastError = AppendLeaseExpiry(LastError);
             ReleaseClaim();
             return DomainErrors.Conflict("outbox-dead-lettered", "The email exhausted its attempts and was dead-lettered.");
         }
@@ -256,6 +256,19 @@ public sealed class EmailOutboxItem
         }
     }
 
+    private static string AppendLeaseExpiry(string? previous)
+    {
+        const string Reason = "worker lease expired";
+        if (string.IsNullOrWhiteSpace(previous))
+        {
+            return Reason;
+        }
+
+        var suffix = "; " + Reason;
+        var kept = Math.Min(previous.Length, DomainLimits.ErrorMaxLength - suffix.Length);
+        return previous[..kept] + suffix;
+    }
+
     private bool LeaseExpired(DateTimeOffset now) => LockedUntil is not { } until || until <= now;
 
     private DomainError? EnsureClaimOwner(string? workerId, string notSendingMessage)
@@ -265,7 +278,7 @@ public sealed class EmailOutboxItem
             return DomainErrors.Conflict("outbox-not-sending", notSendingMessage);
         }
 
-        return string.Equals(ClaimedBy, workerId, StringComparison.Ordinal)
+        return !string.IsNullOrWhiteSpace(workerId) && ClaimedBy is not null && string.Equals(ClaimedBy, workerId, StringComparison.Ordinal)
             ? null
             : DomainErrors.Conflict("outbox-not-claim-owner", "The email is claimed by another worker.");
     }

@@ -105,4 +105,25 @@ public sealed class ProductTests
         product.SetActive(true);
         product.IsActive.ShouldBeTrue();
     }
+
+    [Fact]
+    public void Branding_can_only_be_built_through_Create_so_new_and_with_cannot_bypass_validation()
+    {
+        typeof(ProductBranding).GetConstructors(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance).ShouldBeEmpty();
+        typeof(ProductBranding).GetProperties().ShouldAllBe(property => property.SetMethod == null);
+
+        var branding = ProductBranding.Create("Orbitly", null, "#112233", null, null).Value;
+        branding.ShouldBe(ProductBranding.Create("Orbitly", null, "#112233", null, null).Value);
+        branding.ShouldNotBe(ProductBranding.Create("Orbitly", null, "#112234", null, null).Value);
+    }
+
+    [Fact]
+    public void Restore_rebuilds_stored_branding_unchanged()
+    {
+        var branding = ProductBranding.Restore("Orbitly", "/l.svg", "#112233", "a@example.com", null);
+
+        branding.DisplayName.ShouldBe("Orbitly");
+        branding.AccentColour.ShouldBe("#112233");
+        branding.FromAddress.ShouldBe("a@example.com");
+    }
 }

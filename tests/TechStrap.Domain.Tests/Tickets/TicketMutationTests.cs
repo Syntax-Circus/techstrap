@@ -366,4 +366,32 @@ public sealed class TicketMutationTests
             return _now;
         }
     }
+
+    [Fact]
+    public void An_undefined_priority_is_rejected_and_changes_nothing()
+    {
+        var ticket = _factory.Saved();
+
+        var result = ticket.ChangePriority((TicketPriority)99, _factory.Agent, _factory.Clock);
+
+        result.Error!.Code.ShouldBe("priority-invalid");
+        ticket.Priority.ShouldBe(TicketPriority.Normal);
+        ticket.PendingEvents.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void The_Assigned_payload_has_explicit_nulls_for_a_first_assignment_and_for_an_unassign()
+    {
+        var ticket = _factory.Saved();
+        var first = _factory.AgentId;
+
+        ticket.Assign(first, _factory.Agent, _factory.Clock);
+        ticket.Assign(null, _factory.Agent, _factory.Clock);
+
+        var assigned = ticket.PendingEvents.Select(e => System.Text.Json.JsonDocument.Parse(e.PayloadJson).RootElement).ToArray();
+        assigned[0].GetProperty("from").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+        assigned[0].GetProperty("to").GetGuid().ShouldBe(first);
+        assigned[1].GetProperty("from").GetGuid().ShouldBe(first);
+        assigned[1].GetProperty("to").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+    }
 }

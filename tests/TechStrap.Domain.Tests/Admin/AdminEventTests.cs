@@ -42,6 +42,14 @@ public sealed class AdminEventTests
     [InlineData("{\"Authorization\":\"x\"}")]
     [InlineData("{\"requesterEmail\":\"x\"}")]
     [InlineData("{\"items\":[{\"a\":{\"clientSecret\":\"x\"}}]}")]
+    [InlineData("{\"api_key\":\"x\"}")]
+    [InlineData("{\"private_key\":\"x\"}")]
+    [InlineData("{\"access-key\":\"x\"}")]
+    [InlineData("{\"licenseKey\":\"x\"}")]
+    [InlineData("{\"pwd\":\"x\"}")]
+    [InlineData("{\"bearer\":\"x\"}")]
+    [InlineData("{\"ipAddress\":\"x\"}")]
+    [InlineData("{\"ip_address\":\"x\"}")]
     public void A_property_name_containing_a_sensitive_word_is_rejected_at_any_depth(string payload)
     {
         AdminEvent.Record(AdminEventType.ProductUpdated, Guid.NewGuid(), AdminSubjectType.Product, Guid.NewGuid(), payload, _clock)
@@ -53,6 +61,10 @@ public sealed class AdminEventTests
     [InlineData("{\"productKey\":\"1\"}")]
     [InlineData("{\"displayName\":\"x\"}")]
     [InlineData("{\"keyPrefix\":\"tsk_ab\"}")]
+    [InlineData("{\"emailOutboxId\":\"1\"}")]
+    [InlineData("{\"hashAlgorithm\":\"sha256\"}")]
+    [InlineData("{\"productId\":\"1\"}")]
+    [InlineData("{\"kind\":\"Public\"}")]
     public void Id_kind_and_prefix_fields_are_accepted(string payload)
     {
         AdminEvent.Record(AdminEventType.ApiKeyCreated, Guid.NewGuid(), AdminSubjectType.ApiKey, Guid.NewGuid(), payload, _clock)

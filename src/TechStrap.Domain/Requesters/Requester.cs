@@ -73,6 +73,6 @@ public sealed class Requester
         Email = $"erased-{Id}@{ErasedEmailDomain}";
         Name = null;
         ExternalUserRef = null;
-        ErasedAt ??= clock.GetUtcNow();
+        ErasedAt ??= DomainTime.Now(clock);
     }
 }
