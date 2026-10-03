@@ -1,5 +1,5 @@
-using TechStrap.Application.Email;
 using TechStrap.Application;
+using TechStrap.Application.Email;
 
 namespace TechStrap.Api.Startup;
 

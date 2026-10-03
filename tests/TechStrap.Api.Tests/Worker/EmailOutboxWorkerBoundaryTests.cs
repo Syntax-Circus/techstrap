@@ -8,7 +8,7 @@ namespace TechStrap.Api.Tests.Worker;
 
 /// <summary>
 /// The P05-T12 boundary rule: the Worker loop class reaches data only through the handler it resolves from a fresh scope.
-/// Lives in Api.Tests because TechStrap.Architecture.Tests does not reference the Worker assembly (ReferenceRules keeps that graph fixed).
+/// Lives in Api.Tests because Api.Tests already references the Worker host (ReferenceRules only checks src projects).
 /// </summary>
 public sealed class EmailOutboxWorkerBoundaryTests
 {

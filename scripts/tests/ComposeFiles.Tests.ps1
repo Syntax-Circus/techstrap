@@ -29,9 +29,8 @@ BeforeAll {
         if ($WithoutPostgresPassword) {
             $lines = $lines | ForEach-Object { if ($_ -like 'POSTGRES_PASSWORD=*') { 'POSTGRES_PASSWORD=' } else { $_ } }
         }
-        if ($WithoutSmtpHost) {
-            $lines = $lines | ForEach-Object { if ($_ -like 'SMTP_HOST=*') { 'SMTP_HOST=' } else { $_ } }
-        }
+        $smtpHost = if ($WithoutSmtpHost) { '' } else { 'smtp.test' }
+        $lines = $lines | ForEach-Object { if ($_ -like 'SMTP_HOST=*') { "SMTP_HOST=$smtpHost" } else { $_ } }
         Set-Content -LiteralPath $Path -Value $lines
     }
 
