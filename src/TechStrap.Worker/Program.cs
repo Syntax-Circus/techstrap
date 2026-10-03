@@ -3,12 +3,14 @@ using SyntaxCircus.AspNetCore.Common;
 using SyntaxCircus.AspNetCore.Serilog;
 using SyntaxCircus.DotEnv;
 using SyntaxCircus.Observability;
+using TechStrap.Infrastructure.Email;
 using TechStrap.Infrastructure.Persistence;
+using TechStrap.Worker.Outbox;
 
 const string ServiceName = "techstrap-worker";
 
 // The Worker is a web host only so it can expose /health/*. It never migrates the database: the
-// API owns migrations. Background loops arrive in PHASE-05.
+// API owns migrations. Its one background loop drains the email outbox (PHASE-05).
 var builder = WebApplication.CreateBuilder(args);
 if (builder.Configuration.ShouldLoadDotEnv(builder.Environment))
 {
@@ -29,6 +31,8 @@ if (telemetry.Options.Sentry.IsEnabled)
 
 builder.Services.AddCorrelationId();
 builder.Services.AddTechStrapPersistence();
+builder.Services.AddTechStrapEmail(builder.Configuration);
+builder.Services.AddHostedService<EmailOutboxWorker>();
 
 var app = builder.Build();
 telemetry.LogStartupWarning(app.Logger);

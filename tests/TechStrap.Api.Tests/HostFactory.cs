@@ -85,10 +85,18 @@ public sealed class ApiFactory(
             configureServices?.Invoke(services);
         });
 
+/// <summary>The Worker host. The email outbox loop is off by default so smoke tests never start it against an unmigrated database; a test turns it on through <c>settings</c>.</summary>
 public sealed class WorkerFactory(
     string environment = "Development",
-    IReadOnlyDictionary<string, string?>? settings = null)
-    : HostFactory<TechStrap.Worker.Program>(environment, settings);
+    IReadOnlyDictionary<string, string?>? settings = null,
+    Action<IServiceCollection>? configureServices = null)
+    : HostFactory<TechStrap.Worker.Program>(
+        environment,
+        new Dictionary<string, string?> { ["EmailOutbox:Enabled"] = "false" }
+            .Concat(settings ?? new Dictionary<string, string?>())
+            .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Last().Value, StringComparer.OrdinalIgnoreCase),
+        configureServices);
 
 public sealed class AdminFactory(string environment = "Development")
     : HostFactory<TechStrap.Admin.Program>(environment);
