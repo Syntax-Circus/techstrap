@@ -98,3 +98,39 @@ Describe '.dockerignore and the shared brand SCSS' {
         [array]::IndexOf($lines, '!assets/brand/scss/') | Should -BeGreaterThan ([array]::IndexOf($lines, 'assets/'))
     }
 }
+
+Describe 'font endpoints manifest assertion' {
+    # MapStaticAssets serves only what the published endpoints manifest lists. Fonts restored by libman after static web
+    # asset discovery sit under wwwroot/fonts in the image yet answer 404, so the build must prove the manifest maps them.
+    It 'Dockerfile.<Name> fails the build unless the published endpoints manifest maps a .woff2 file' -ForEach @(
+        @{ Name = 'admin'; Project = 'TechStrap.Admin' }
+        @{ Name = 'portal'; Project = 'TechStrap.Portal' }
+    ) {
+        $text = Get-DockerfileText -Name $Name
+        $text | Should -Match "RUN grep -q '\\.woff2' /app/publish/$([regex]::Escape($Project))\.staticwebassets\.endpoints\.json \\r?\n\s+\|\| "
+    }
+}
+
+Describe 'clean publish serves the self-hosted fonts' {
+    # Reproduces the image build: fonts, bin and obj are removed so libman restores the fonts during publish itself.
+    # Needs network access to jsdelivr, like the Docker build. Fonts, bin and obj are git-ignored and regenerated.
+    It '<Project> publishes an endpoints manifest that maps the restored .woff2 files' -ForEach @(
+        @{ Project = 'TechStrap.Admin' }
+        @{ Project = 'TechStrap.Portal' }
+    ) {
+        $projectDir = Join-Path $script:RepoRoot 'src' $Project
+        $output = Join-Path ([IO.Path]::GetTempPath()) "techstrap-publish-$Project-$([guid]::NewGuid().ToString('N'))"
+        try {
+            foreach ($name in 'wwwroot/fonts', 'bin', 'obj') {
+                Remove-Item -LiteralPath (Join-Path $projectDir $name) -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            $log = & dotnet publish (Join-Path $projectDir "$Project.csproj") -c Release -o $output -p:DisableGitVersionTask=true 2>&1
+            $LASTEXITCODE | Should -Be 0 -Because ($log -join [Environment]::NewLine)
+            $manifest = Get-Content -LiteralPath (Join-Path $output "$Project.staticwebassets.endpoints.json") -Raw
+            $manifest | Should -Match '\.woff2' -Because 'MapStaticAssets serves only what this manifest lists'
+        }
+        finally {
+            Remove-Item -LiteralPath $output -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}

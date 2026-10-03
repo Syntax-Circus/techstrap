@@ -17,4 +17,21 @@
       <Content Include="@(_NewCompiledCssFiles)" />
     </ItemGroup>
   </Target>
+
+  <!--
+    Static web assets are discovered from Content items, whose wwwroot globs are expanded when the project is
+    evaluated, before libman restores wwwroot/fonts on a clean checkout. Files restored later are then absent from
+    the static web assets manifest and endpoints manifest, so MapStaticAssets answers 404 for them in a published
+    image. Add what libman wrote to Content right after the restore, with project-relative paths (DefineStaticWebAssets
+    rejects absolute ones against its wwwroot/** pattern), so every later static web assets target sees it.
+  -->
+  <Target Name="IncludeLibraryManagerWwwrootAssets"
+          AfterTargets="LibraryManagerRestore"
+          Condition="Exists('$(MSBuildProjectDirectory)/libman.json') And '$(DesignTimeBuild)' != 'true'">
+    <ItemGroup>
+      <_LibmanWwwrootFiles Include="wwwroot/**" Exclude="@(Content)" />
+      <None Remove="@(_LibmanWwwrootFiles)" />
+      <Content Include="@(_LibmanWwwrootFiles)" />
+    </ItemGroup>
+  </Target>
 </Project>
