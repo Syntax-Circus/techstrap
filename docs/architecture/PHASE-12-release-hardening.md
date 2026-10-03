@@ -202,6 +202,11 @@ phase verifies configuration and upgrades only for security fixes.
 - [ ] Trivy/Nistify tool availability and licensing on the owner's CI are not confirmed (**Assumption**: free/OSS usage).
 - [ ] Carried forward from the PHASE-03 final review: Ticket search GIN plan and shape on load-sized data (shared with PHASE-06).
 - [ ] Carried forward from the PHASE-03 final review: The search vectors are generated columns, so a write does not read the new vector back; revisit the tsvector read-back on writes if a handler needs it.
+- [ ] Carried forward from the PHASE-04 final review: Add a deterministic lock-path test for the last-admin guard.
+- [ ] Carried forward from the PHASE-04 final review: The actor is read before the last-admin lock is taken; move the read after the lock or re-check.
+- [ ] Carried forward from the PHASE-04 final review: Add a double-revoke end-to-end test, or an xmin concurrency token on `ProductApiKey`.
+- [ ] Carried forward from the PHASE-04 final review: Forced tag delete loads each ticket one at a time (N+1); batch the loads.
+- [ ] Carried forward from the PHASE-04 final review: Notification-preference validation looks up each product one at a time (N+1) and has no cap on the list size; batch the lookup and cap the list.
 
 ## Handoff
 

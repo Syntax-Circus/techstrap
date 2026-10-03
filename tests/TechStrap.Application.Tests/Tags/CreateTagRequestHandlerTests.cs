@@ -72,4 +72,18 @@ public sealed class CreateTagRequestHandlerTests
             error => error.Kind.ShouldBe(ResultErrorKind.Conflict),
             error => error.Code.ShouldBe("tag-slug-taken"));
     }
+
+    [Fact]
+    public async Task A_deactivated_actor_is_refused_before_the_request_is_validated_and_nothing_is_staged()
+    {
+        var inactive = Agent.Create("admin", "Sam", "sam@example.com", AgentRole.Admin, _clock).Value;
+        inactive.SetActive(false);
+        _agents.GetBySubjectAsync("admin", Arg.Any<CancellationToken>()).Returns(inactive);
+
+        var result = await Handler().HandleAsync(new CreateTagRequest("bug", "Bug", "purple"), TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("agent-inactive");
+        _tags.DidNotReceive().Add(Arg.Any<Tag>());
+        _events.DidNotReceive().Add(Arg.Any<AdminEvent>());
+    }
 }

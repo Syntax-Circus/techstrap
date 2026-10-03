@@ -96,4 +96,30 @@ public sealed class DeleteTagRequestHandlerTests
         _tags.Received(1).Remove(_tag);
         _events.Received(1).Add(Arg.Is<AdminEvent>(e => e.Type == AdminEventType.TagDeleted && e.PayloadJson == "{\"slug\":\"bug\",\"detachedTicketCount\":2}"));
     }
+
+    [Fact]
+    public async Task A_deactivated_actor_is_refused_before_any_lookup_or_staging()
+    {
+        var inactive = Agent.Create("admin", "Sam", "sam@example.com", AgentRole.Admin, _clock).Value;
+        inactive.SetActive(false);
+        _agents.GetBySubjectAsync("admin", Arg.Any<CancellationToken>()).Returns(inactive);
+
+        var result = await Handler().HandleAsync(_tag.Id, force: true, TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("agent-inactive");
+        _ = _tags.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        _ = _tickets.DidNotReceive().ListTicketIdsWithTagAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        _tags.DidNotReceive().Remove(Arg.Any<Tag>());
+        _events.DidNotReceive().Add(Arg.Any<AdminEvent>());
+    }
+
+    [Fact]
+    public async Task The_in_use_message_is_singular_for_one_ticket()
+    {
+        _tickets.ListTicketIdsWithTagAsync(_tag.Id, Arg.Any<CancellationToken>()).Returns([Guid.CreateVersion7()]);
+
+        var result = await Handler().HandleAsync(_tag.Id, force: false, TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("on 1 ticket.");
+    }
 }

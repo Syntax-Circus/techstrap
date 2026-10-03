@@ -39,7 +39,7 @@ public sealed class CreateProductApiKeyRequestHandlerTests
     [Theory]
     [InlineData("Trusted", ApiKeyKind.Trusted)]
     [InlineData("public", ApiKeyKind.Public)]
-    public async Task The_plaintext_appears_only_in_the_create_response(string kind, ApiKeyKind expected)
+    public async Task The_create_response_carries_the_plaintext_and_the_store_gets_the_hash(string kind, ApiKeyKind expected)
     {
         var result = await Handler().HandleAsync(_product.Id, new CreateProductApiKeyRequest(kind, "Server"), TestContext.Current.CancellationToken);
 
@@ -79,5 +79,21 @@ public sealed class CreateProductApiKeyRequestHandlerTests
     {
         (await Handler().HandleAsync(Guid.CreateVersion7(), new CreateProductApiKeyRequest("Public", null), TestContext.Current.CancellationToken))
             .Errors.ShouldHaveSingleItem().Kind.ShouldBe(ResultErrorKind.NotFound);
+    }
+
+    [Fact]
+    public async Task A_deactivated_actor_is_refused_before_the_kind_check_and_nothing_is_staged()
+    {
+        var inactive = Agent.Create("admin", "Sam", "sam@example.com", AgentRole.Admin, _clock).Value;
+        inactive.SetActive(false);
+        _agents.GetBySubjectAsync("admin", Arg.Any<CancellationToken>()).Returns(inactive);
+
+        var result = await Handler().HandleAsync(_product.Id, new CreateProductApiKeyRequest("Secret", null), TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("agent-inactive");
+        _ = _products.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        _products.DidNotReceive().AddApiKey(Arg.Any<ProductApiKey>());
+        _events.DidNotReceive().Add(Arg.Any<AdminEvent>());
+        _hasher.DidNotReceive().Generate(Arg.Any<ApiKeyKind>());
     }
 }

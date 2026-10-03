@@ -41,8 +41,8 @@ public sealed record AgentListItemDto(
     bool? IsActive,
     DateTimeOffset? LastSeenAt);
 
-/// <summary>Admin-only. The API cannot change a role (D-029); it only activates or deactivates.</summary>
-public sealed record UpdateAgentRequest(bool IsActive);
+/// <summary>Admin-only. The API cannot change a role (D-029); it only activates or deactivates. IsActive is nullable so an empty body is rejected instead of binding to false.</summary>
+public sealed record UpdateAgentRequest(bool? IsActive);
 
 /// <summary>Sets or clears (null or blank) the customer-facing display name override (D-024).</summary>
 public sealed record UpdateMyProfileRequest(string? PublicDisplayName);

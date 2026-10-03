@@ -74,4 +74,21 @@ public sealed class AgentManagementEndpointTests(TestPostgres postgres)
 
         (await database.ScalarAsync<long>("SELECT count(*) FROM agents WHERE role = 'Admin' AND is_active")).ShouldBe(1);
     }
+
+    [Fact]
+    public async Task An_empty_update_body_is_a_400_and_leaves_the_agent_active()
+    {
+        var database = await ApiTestDatabase.CreateAsync(postgres);
+        await using var factory = new ApiFactory(settings: database.Settings);
+        using var admin = factory.CreateClient().Bearer(TestJwt.Token("admin", [TestJwt.AdminGroup], email: "admin@example.com"));
+        using var other = factory.CreateClient().Bearer(TestJwt.Token("other", [TestJwt.AgentGroup], email: "other@example.com"));
+        await SignInAsync(admin);
+        var otherMe = await SignInAsync(other);
+        using var body = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+
+        using var response = await admin.PutAsync($"/api/agents/{otherMe.Id}", body, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await database.ScalarAsync<long>("SELECT count(*) FROM agents WHERE oidc_subject = 'other' AND is_active")).ShouldBe(1);
+    }
 }

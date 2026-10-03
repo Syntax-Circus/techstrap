@@ -61,6 +61,24 @@ public sealed class ApiKeyEndpointTests(TestPostgres postgres)
         listJson.ShouldNotContain("sha256");
         (await database.ScalarAsync<long>($"SELECT count(*) FROM admin_events WHERE payload::text LIKE '%{secretPart}%'")).ShouldBe(0);
         (await database.ScalarAsync<long>("SELECT count(*) FROM admin_events WHERE type = 'ApiKeyCreated'")).ShouldBe(1);
+        factory.LogSink.Events.ShouldNotBeEmpty();
+        factory.LogSink.Events.ShouldAllBe(e => !e.RenderMessage().Contains(plaintext) && !e.Properties.Values.Any(v => v.ToString().Contains(plaintext)));
+        factory.LogSink.Events.ShouldAllBe(e => !e.RenderMessage().Contains(secretPart));
+    }
+
+    [Fact]
+    public async Task The_create_response_is_not_cacheable()
+    {
+        var (factory, _, admin, agent) = await StartAsync();
+        await using var _ = factory;
+        using var __ = admin;
+        using var ___ = agent;
+        var product = await CreateProductAsync(admin, "orbitly", "ORB");
+
+        using var response = await admin.PostAsJsonAsync($"/api/products/{product.Id}/api-keys", new CreateProductApiKeyRequest("Trusted", "Server"), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        response.Headers.CacheControl.ShouldNotBeNull().NoStore.ShouldBeTrue();
     }
 
     [Fact]

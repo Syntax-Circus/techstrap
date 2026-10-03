@@ -1,6 +1,6 @@
 # TechStrap Architecture
 
-Status: Draft for review (2026-10-02). Requirements: [01-REQUIREMENTS.md](01-REQUIREMENTS.md). Decision log: `04-DECISION-LOG.md` (D-001 to D-022, referenced below). Follows the _template APPLICATION_ARCHITECTURE.md and RAZOR_COMPONENT_ARCHITECTURE.md (named by file; guides are not copied into this repo).
+Status: Draft for review (2026-10-02). Requirements: [01-REQUIREMENTS.md](01-REQUIREMENTS.md). Decision log: `04-DECISION-LOG.md` (D-001 to D-031, referenced below). Follows the _template APPLICATION_ARCHITECTURE.md and RAZOR_COMPONENT_ARCHITECTURE.md (named by file; guides are not copied into this repo).
 
 ## 1. Topology
 
@@ -90,7 +90,7 @@ Other conventions: handlers sealed with `I…Handler` interfaces; constants and 
 | `IHtmlSanitizer` / `IMarkdownRenderer` | HtmlSanitizer for message bodies; Markdig plus sanitizer for KB (D-014) |
 | `IEmailTemplateRenderer` | Text and HTML templates with product branding |
 | `ITicketChangeBroadcaster` | Application interface with two implementations: SignalR groups (API) and Postgres `NOTIFY` (Worker). Called by the Infrastructure post-commit interceptor `TicketChangePublishingInterceptor` and by `RelayTicketChangeHandler`; ticket handlers never call it and never see the hub (D-018) |
-| `ICurrentUserService` | Identity (agent id, role, subject, customer or key principal) from `SyntaxCircus.Common`; ASP.NET implementation owns claims |
+| `ICurrentUserService` | Identity for the API-key and customer principals (PHASE-05), from `SyntaxCircus.Common`; ASP.NET implementation owns claims. Agent identity is `ICurrentAgentClaims` (see its row below) |
 | `TicketHub` (Api) | Agent-JWT SignalR hub; `JoinTicket`/`LeaveTicket`/`SetComposing` delegate to `UpdateTicketPresenceHandler` |
 | Postgres listener (Api hosted service) | Dedicated connection `LISTEN techstrap_ticket_changes`, passes payloads to `RelayTicketChangeHandler`, reconnects with backoff |
 | Worker loops | Poll outbox (`EmailOutboxWorker` to `DrainEmailOutboxHandler`), scheduled auto-close (`AutoCloseWorker` to `AutoCloseSolvedTicketsHandler`); own cadence, cancellation, error logging; map handler outcome to loop behavior |
@@ -223,7 +223,7 @@ Conventions:
 - Outcome mapping: handlers return `Result`/`Result<T>`; controllers call `ToActionResult` (`SyntaxCircus.AspNetCore.Common`) and pick the success response. Error kinds map: Validation 400, Unauthenticated 401, Forbidden 403, NotFound 404, Conflict 409 (includes concurrency conflicts), unexpected exceptions 500 via centralized ProblemDetails. Only the success shape and any non-default mapping are listed per row.
 - Tests legend: **H** handler unit tests (`TechStrap.Application.Tests`, substitutes, no DB); **C** entry-point tests (`TechStrap.Api.Tests`: delegation, cancellation, policy, mapping); **I** integration with real Postgres (`TechStrap.Infrastructure.IntegrationTests`, Testcontainers); **W** worker host test.
 - Infrastructure column abbreviations: **EF repos** = EF-backed implementations of the named repository interfaces; **UoW** = EF `IUnitOfWork`; **Outbox** = EF outbox enqueue and store.
-- All rows also depend on `TimeProvider`; rows needing identity also use `ICurrentUserService`. Admin events are written through `IAdminEventRepository` in the same transaction by the config handlers and by the erase, delete and dead-letter handlers (D-006, D-022). Ticket handlers do not depend on `ITicketChangeBroadcaster`; the Infrastructure post-commit interceptor broadcasts (D-018). Request records come from `TechStrap.Contracts` (D-016).
+- All rows also depend on `TimeProvider`; rows needing agent identity use `ICurrentAgentClaims` (PHASE-04 rows built that way), and rows needing the API-key or customer principal use `ICurrentUserService`. Admin events are written through `IAdminEventRepository` in the same transaction by the config handlers and by the erase, delete and dead-letter handlers (D-006, D-022). Ticket handlers do not depend on `ITicketChangeBroadcaster`; the Infrastructure post-commit interceptor broadcasts (D-018). Request records come from `TechStrap.Contracts` (D-016).
 - Decision column: D-004 for agent-claim authorization, D-001 for key kinds, etc. "none" means no deviation from the template flow.
 
 ### 7.1 Agent auth and admin config (PHASE-04)
@@ -233,21 +233,21 @@ Conventions:
 | `GET /api/agents/me` (Agent policy) | `GetCurrentAgentRequestHandler` (provisions agent on first call; mirrors the group-derived role) | `IAgentRepository`, `ICurrentAgentClaims` | EF repos | 200 `AgentDto`; 403 deactivated agent | H, C, I | D-004, D-029 |
 | `GET /api/agents` (Agent: active agents only, for assignment; Admin: all) | `ListAgentsRequestHandler` | `IAgentRepository`, `ICurrentAgentClaims` | EF repos | 200 paged `AgentDto` | H, C, I | D-004, D-022 |
 | `PUT /api/agents/{id}` (Admin) active only | `UpdateAgentRequestHandler` | `IAgentRepository`, `IAdminEventRepository`, `ICurrentAgentClaims` | EF repos, UoW (agent + admin event) | 200 `AgentDto`; 409 on last-active-admin deactivation or concurrency | H, C, I | D-029, D-022 |
-| `PUT /api/agents/me/notification-preferences` (Agent) | `UpdateNotificationPreferencesRequestHandler` | `IAgentRepository`, `ICurrentAgentClaims` | EF repos | 204 | H, C, I | none |
+| `PUT /api/agents/me/notification-preferences` (Agent) | `UpdateNotificationPreferencesRequestHandler` | `IAgentRepository`, `IProductRepository`, `ICurrentAgentClaims` | EF repos | 204 | H, C, I | none |
 | `GET /api/agents/me/notification-preferences` (Agent) | `GetMyNotificationPreferencesRequestHandler` | `IAgentRepository`, `IProductRepository`, `ICurrentAgentClaims` | EF repos | 200 `NotificationPreferenceDto[]` (every active product, default off) | H, C, I | none |
-| `PUT /api/agents/me/profile` (Agent; sets or clears `public_display_name`) | `UpdateMyProfileRequestHandler` | `IAgentRepository`, `ICurrentAgentClaims` | EF repos | 204; 400/422 invalid name | H, C, I | D-024 |
-| `GET /api/products` (Agent) | `ListProductsRequestHandler` | `IProductRepository` | EF repos | 200 `ProductDto[]` | H, C | none |
-| `GET /api/products/{id}` (Agent) | `GetProductRequestHandler` | `IProductRepository` | EF repos | 200 `ProductDto`; 404 | H, C | none |
-| `POST /api/products` (Admin) | `CreateProductRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `ICurrentAgentClaims` | EF repos, UoW | 201 `ProductDto`; 409 duplicate key or prefix | H, C, I | D-009 |
-| `PUT /api/products/{id}` (Admin; incl. branding) | `UpdateProductRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `ICurrentAgentClaims` | EF repos, UoW | 200 `ProductDto`; 404; 409 | H, C, I | D-002 |
+| `PUT /api/agents/me/profile` (Agent; sets or clears `public_display_name`) | `UpdateMyProfileRequestHandler` | `IAgentRepository`, `ICurrentAgentClaims` | EF repos | 204; 400 invalid name | H, C, I | D-024 |
+| `GET /api/products` (Agent) | `ListProductsRequestHandler` | `IProductRepository`, `ICurrentAgentClaims` | EF repos | 200 `ProductDto[]` | H, C | none |
+| `GET /api/products/{id}` (Agent) | `GetProductRequestHandler` | `IProductRepository`, `ICurrentAgentClaims` | EF repos | 200 `ProductDto`; 404 | H, C | none |
+| `POST /api/products` (Admin) | `CreateProductRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 201 `ProductDto`; 409 duplicate key or prefix | H, C, I | D-009 |
+| `PUT /api/products/{id}` (Admin; incl. branding) | `UpdateProductRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 200 `ProductDto`; 404; 409 | H, C, I | D-002 |
 | `GET /api/products/{id}/api-keys` (Admin) | `ListProductApiKeysRequestHandler` | `IProductRepository` | EF repos | 200 `ProductApiKeyDto[]` (no secrets) | H, C | D-001 |
-| `POST /api/products/{id}/api-keys` (Admin) | `CreateProductApiKeyRequestHandler` | `IProductRepository`, `IApiKeyHasher`, `IAdminEventRepository`, `ICurrentAgentClaims` | EF repos, UoW, hasher | 201 `CreateProductApiKeyResponse` (plain key shown once); 404; 400 invalid kind | H, C, I | D-001 |
-| `DELETE /api/products/{id}/api-keys/{keyId}` (Admin) | `RevokeProductApiKeyRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `ICurrentAgentClaims` | EF repos, UoW | 204; 404 | H, C, I | D-001 |
+| `POST /api/products/{id}/api-keys` (Admin) | `CreateProductApiKeyRequestHandler` | `IProductRepository`, `IApiKeyHasher`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW, hasher | 201 `CreateProductApiKeyResponse` (plain key shown once); 404; 400 invalid kind | H, C, I | D-001 |
+| `DELETE /api/products/{id}/api-keys/{keyId}` (Admin) | `RevokeProductApiKeyRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 204; 404 | H, C, I | D-001 |
 | `GET /api/tags` (Agent) | `ListTagsRequestHandler` | `ITagRepository` | EF repos | 200 `TagDto[]` | H, C | none |
-| `POST /api/tags` (Admin) | `CreateTagRequestHandler` | `ITagRepository`, `IAdminEventRepository`, `ICurrentAgentClaims` | EF repos, UoW | 201 `TagDto`; 409 duplicate slug | H, C, I | none |
-| `PUT /api/tags/{id}` (Admin) | `UpdateTagRequestHandler` | `ITagRepository`, `IAdminEventRepository`, `ICurrentAgentClaims` | EF repos, UoW | 200 `TagDto`; 404; 409 | H, C | none |
-| `DELETE /api/tags/{id}` (Admin) | `DeleteTagRequestHandler` | `ITagRepository`, `IAdminEventRepository`, `ICurrentAgentClaims` | EF repos, UoW | 204; 404; 409 in use | H, C, I | none |
-| `GET /api/admin-events` (Admin) | `ListAdminEventsRequestHandler` | `IAdminEventRepository` | EF repos | 200 paged `AdminEventDto` | H, C, I | none |
+| `POST /api/tags` (Admin) | `CreateTagRequestHandler` | `ITagRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 201 `TagDto`; 409 duplicate slug | H, C, I | none |
+| `PUT /api/tags/{id}` (Admin) | `UpdateTagRequestHandler` | `ITagRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 200 `TagDto`; 404; 409 | H, C | none |
+| `DELETE /api/tags/{id}` (Admin) | `DeleteTagRequestHandler` | `ITagRepository`, `ITicketRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 204; 404; 409 in use | H, C, I | none |
+| `GET /api/admin-events` (Admin) | `ListAdminEventsRequestHandler` | `IAdminEventRepository`, `IAgentRepository` | EF repos | 200 paged `AdminEventDto` | H, C, I | none |
 
 ### 7.2 Intake, email and worker (PHASE-05)
 
@@ -426,7 +426,7 @@ Per _template pattern CLIENT_IP_RATE_LIMITING.md (reverse proxy in front of Dock
 
 ## 12. Decision references
 
-Full text in `04-DECISION-LOG.md` (D-001 to D-024).
+Full text in `04-DECISION-LOG.md` (D-001 to D-031).
 
 | ID | Decision (short) | Used in |
 | --- | --- | --- |
@@ -454,6 +454,9 @@ Full text in `04-DECISION-LOG.md` (D-001 to D-024).
 | D-022 | Destructive and system operations are Admin-only | 4, 7.1, 7.3 |
 | D-023 | Visual direction Carbon Copy v2; portal shows Powered-by only | 8.2 |
 | D-024 | Customer-facing agent identity, Spam view and Not spam, Powered-by link and setting, portal prefill | 5, 7.1, 7.3, 8.2, 11.1 |
+| D-029 | Agent roles come from IdP groups only; no bootstrap admin | 4, 7.1 |
+| D-030 | Deleting a tag in use: reject unless forced; forced delete detaches with events | 7.1 |
+| D-031 | Product accent validation is format only | 7.1 |
 
 No boundary deviations are proposed. The two places that look like deviations are within the rules: the worker constructor-injects handlers into hosted services (allowed for hosts without per-method DI) and the SignalR hub is a transport adapter calling one handler. The Admin and Portal attachment downloads are exempt pass-through adapters (D-017), not use-case entry points.
 

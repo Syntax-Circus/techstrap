@@ -30,16 +30,16 @@ public sealed class CreateProductApiKeyRequestHandler(
 {
     public async Task<Result<CreateProductApiKeyResponse>> HandleAsync(Guid productId, CreateProductApiKeyRequest request, CancellationToken cancellationToken)
     {
-        if (!ApiKeyMapping.TryParseKind(request.Kind, out var kind))
-        {
-            return Result<CreateProductApiKeyResponse>.Failure(ApiKeyMapping.KindInvalid());
-        }
-
         await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var actor = await CurrentAgent.RequireActiveAsync(currentAgent, agents, cancellationToken);
         if (actor.IsFailure)
         {
             return Result<CreateProductApiKeyResponse>.Failure(actor.Errors[0]);
+        }
+
+        if (!ApiKeyMapping.TryParseKind(request.Kind, out var kind))
+        {
+            return Result<CreateProductApiKeyResponse>.Failure(ApiKeyMapping.KindInvalid());
         }
 
         if (await products.GetByIdAsync(productId, cancellationToken) is null)

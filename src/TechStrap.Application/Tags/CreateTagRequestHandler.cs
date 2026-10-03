@@ -25,17 +25,17 @@ public sealed class CreateTagRequestHandler(
 {
     public async Task<Result<TagDto>> HandleAsync(CreateTagRequest request, CancellationToken cancellationToken)
     {
-        var created = Tag.Create(request.Slug, request.Name, request.Colour, clock);
-        if (created.IsFailure)
-        {
-            return Result<TagDto>.Failure(created.Error!.ToError());
-        }
-
         await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var actor = await CurrentAgent.RequireActiveAsync(currentAgent, agents, cancellationToken);
         if (actor.IsFailure)
         {
             return Result<TagDto>.Failure(actor.Errors[0]);
+        }
+
+        var created = Tag.Create(request.Slug, request.Name, request.Colour, clock);
+        if (created.IsFailure)
+        {
+            return Result<TagDto>.Failure(created.Error!.ToError());
         }
 
         var tag = created.Value;

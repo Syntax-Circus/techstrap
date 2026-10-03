@@ -85,4 +85,23 @@ public sealed class RevokeProductApiKeyRequestHandlerTests
 
         result.Errors.ShouldHaveSingleItem().Code.ShouldBe("api-key-not-found");
     }
+
+    [Fact]
+    public async Task A_deactivated_actor_is_refused_before_any_lookup_or_staging()
+    {
+        var inactive = Agent.Create("admin", "Sam", "sam@example.com", AgentRole.Admin, _clock).Value;
+        inactive.SetActive(false);
+        _agents.GetBySubjectAsync("admin", Arg.Any<CancellationToken>()).Returns(inactive);
+
+        var key = StoredKey(_productId);
+        _products.ClearReceivedCalls();
+
+        var result = await Handler().HandleAsync(_productId, key.Id, TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("agent-inactive");
+        _ = _products.DidNotReceive().GetApiKeyAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        _products.DidNotReceive().UpdateApiKey(Arg.Any<ProductApiKey>());
+        _events.DidNotReceive().Add(Arg.Any<AdminEvent>());
+        key.IsRevoked.ShouldBeFalse();
+    }
 }

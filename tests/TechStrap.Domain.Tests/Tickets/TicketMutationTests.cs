@@ -418,11 +418,15 @@ public sealed class TicketMutationTests
     public void A_closed_ticket_can_still_lose_a_deleted_tag_and_stays_closed()
     {
         var ticket = _factory.ClosedWithTag(out var tagId);
+        var lastActivity = ticket.LastActivityAt;
+        _factory.Clock.Advance(TimeSpan.FromHours(1));
 
         ticket.DetachDeletedTag(tagId, _factory.Agent, _factory.Clock).IsSuccess.ShouldBeTrue();
 
         ticket.Status.ShouldBe(TicketStatus.Closed);
         ticket.TagIds.ShouldNotContain(tagId);
+        ticket.PendingEvents.ShouldHaveSingleItem().Type.ShouldBe(TicketEventType.TagRemoved);
+        ticket.LastActivityAt.ShouldBe(lastActivity);
     }
 
     [Fact]

@@ -113,4 +113,20 @@ public sealed class UpdateAgentRequestHandlerTests
 
         result.Errors.ShouldHaveSingleItem().Code.ShouldBe("agent-not-provisioned");
     }
+
+    [Fact]
+    public async Task A_missing_active_flag_is_a_field_error_and_changes_nothing()
+    {
+        var target = Target(AgentRole.Agent);
+
+        var result = await Handler().HandleAsync(target.Id, new UpdateAgentRequest(null), TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            error => error.Kind.ShouldBe(ResultErrorKind.Validation),
+            error => error.Code.ShouldBe("is-active-required"),
+            error => error.Target.ShouldBe("isActive"));
+        target.IsActive.ShouldBeTrue();
+        _agents.DidNotReceive().Update(Arg.Any<Agent>());
+        _events.DidNotReceive().Add(Arg.Any<AdminEvent>());
+    }
 }

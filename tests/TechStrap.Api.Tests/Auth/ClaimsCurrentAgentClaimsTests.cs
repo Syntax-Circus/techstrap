@@ -41,6 +41,24 @@ public sealed class ClaimsCurrentAgentClaimsTests
     }
 
     [Fact]
+    public void A_group_name_with_a_space_matches_as_a_repeated_claim()
+    {
+        var options = new AgentAccessOptions { AdminGroup = "TechStrap Admins" };
+
+        ClaimsCurrentAgentClaims.FromPrincipal(Principal(("sub", "abc"), ("groups", "other"), ("groups", "techstrap admins")), options)!
+            .Role.ShouldBe(AgentRole.Admin);
+    }
+
+    [Fact]
+    public void A_group_name_with_a_space_matches_inside_a_json_array()
+    {
+        var options = new AgentAccessOptions { AdminGroup = "TechStrap Admins" };
+
+        ClaimsCurrentAgentClaims.FromPrincipal(Principal(("sub", "abc"), ("groups", "[\"TechStrap Admins\",\"x\"]")), options)!
+            .Role.ShouldBe(AgentRole.Admin);
+    }
+
+    [Fact]
     public void A_configured_claim_type_is_used_instead_of_groups()
     {
         var options = new AgentAccessOptions { GroupClaimType = "roles" };

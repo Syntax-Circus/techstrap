@@ -42,7 +42,7 @@ public static class ControllerActions
     public static Type HandlerType(MethodInfo action) =>
         action.GetParameters().Single(parameter => parameter.GetCustomAttribute<FromServicesAttribute>() is not null).ParameterType;
 
-    /// <summary>Invokes the action with sample arguments, the given handler and token; returns the action result or the thrown exception.</summary>
+    /// <summary>Invokes the action with sample arguments, the given handler and token; returns the action result. Exceptions propagate to the caller.</summary>
     public static async Task<IActionResult> InvokeAsync(MethodInfo action, object handler, CancellationToken cancellationToken)
     {
         var controller = (ControllerBase)typeof(ControllerTestContext).GetMethod(nameof(ControllerTestContext.For))!

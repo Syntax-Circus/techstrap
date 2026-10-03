@@ -105,4 +105,21 @@ public sealed class UpdateProductRequestHandlerTests
         _events.DidNotReceive().Add(Arg.Any<AdminEvent>());
         _products.DidNotReceive().Update(Arg.Any<Product>());
     }
+
+    [Fact]
+    public async Task A_deactivated_actor_is_refused_before_any_lookup_or_staging()
+    {
+        var inactive = Agent.Create("admin", "Sam", "sam@example.com", AgentRole.Admin, _clock).Value;
+        inactive.SetActive(false);
+        _agents.GetBySubjectAsync("admin", Arg.Any<CancellationToken>()).Returns(inactive);
+
+        var request = new UpdateProductRequest("Orbitly Cloud", new ProductBrandingRequest("Orbitly Cloud", null, "purple", null, null), false, 7);
+
+        var result = await Handler().HandleAsync(_product.Id, request, TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("agent-inactive");
+        _ = _products.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        _products.DidNotReceive().Update(Arg.Any<Product>());
+        _events.DidNotReceive().Add(Arg.Any<AdminEvent>());
+    }
 }

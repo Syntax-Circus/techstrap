@@ -28,18 +28,18 @@ public sealed class UpdateProductRequestHandler(
 {
     public async Task<Result<ProductDto>> HandleAsync(Guid productId, UpdateProductRequest request, CancellationToken cancellationToken)
     {
-        var input = request.Branding;
-        var branding = ProductBranding.Create(input?.DisplayName, input?.LogoPath, input?.AccentColour, input?.FromAddress, input?.ReplyTo);
-        if (branding.IsFailure)
-        {
-            return Result<ProductDto>.Failure(branding.Error!.ToError());
-        }
-
         await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var actor = await CurrentAgent.RequireActiveAsync(currentAgent, agents, cancellationToken);
         if (actor.IsFailure)
         {
             return Result<ProductDto>.Failure(actor.Errors[0]);
+        }
+
+        var input = request.Branding;
+        var branding = ProductBranding.Create(input?.DisplayName, input?.LogoPath, input?.AccentColour, input?.FromAddress, input?.ReplyTo);
+        if (branding.IsFailure)
+        {
+            return Result<ProductDto>.Failure(branding.Error!.ToError());
         }
 
         var product = await products.GetByIdAsync(productId, cancellationToken);

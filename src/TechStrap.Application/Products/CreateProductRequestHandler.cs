@@ -25,6 +25,13 @@ public sealed class CreateProductRequestHandler(
 {
     public async Task<Result<ProductDto>> HandleAsync(CreateProductRequest request, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
+        var actor = await CurrentAgent.RequireActiveAsync(currentAgent, agents, cancellationToken);
+        if (actor.IsFailure)
+        {
+            return Result<ProductDto>.Failure(actor.Errors[0]);
+        }
+
         ProductBranding? branding = null;
         if (request.Branding is { } input)
         {
@@ -41,13 +48,6 @@ public sealed class CreateProductRequestHandler(
         if (created.IsFailure)
         {
             return Result<ProductDto>.Failure(created.Error!.ToError());
-        }
-
-        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
-        var actor = await CurrentAgent.RequireActiveAsync(currentAgent, agents, cancellationToken);
-        if (actor.IsFailure)
-        {
-            return Result<ProductDto>.Failure(actor.Errors[0]);
         }
 
         var product = created.Value;

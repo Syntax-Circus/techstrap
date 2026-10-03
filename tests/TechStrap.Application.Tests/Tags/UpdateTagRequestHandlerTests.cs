@@ -71,4 +71,19 @@ public sealed class UpdateTagRequestHandlerTests
             error => error.Kind.ShouldBe(ResultErrorKind.Validation),
             error => error.Target.ShouldBe("colour"));
     }
+
+    [Fact]
+    public async Task A_deactivated_actor_is_refused_before_any_lookup_or_staging()
+    {
+        var inactive = Agent.Create("admin", "Sam", "sam@example.com", AgentRole.Admin, _clock).Value;
+        inactive.SetActive(false);
+        _agents.GetBySubjectAsync("admin", Arg.Any<CancellationToken>()).Returns(inactive);
+
+        var result = await Handler().HandleAsync(_tag.Id, new UpdateTagRequest("Defect", "#2563eb"), TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("agent-inactive");
+        _ = _tags.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        _tags.DidNotReceive().Update(Arg.Any<Tag>());
+        _events.DidNotReceive().Add(Arg.Any<AdminEvent>());
+    }
 }

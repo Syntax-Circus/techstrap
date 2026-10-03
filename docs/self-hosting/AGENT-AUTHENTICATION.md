@@ -17,6 +17,12 @@ admin group to sign in.
 
 The token must also carry `sub` and `email`; TechStrap refuses sign-in without an email (`agent-email-required`).
 
+- Group names may contain spaces (for example `TechStrap Admins`). The setting must match the group name exactly as your identity provider emits it, apart from letter case.
+- The agent group and the admin group must be different, otherwise the API will not start.
+- The access token, not only the ID token, must carry `email` and the groups claim. Some providers, such as Entra ID and Keycloak, need configuration to put them there.
+- The group settings must hold the value your provider emits in the claim. Entra ID emits group object IDs, not names, so set the settings to those IDs.
+- Recovery: if every admin is deactivated, add a fresh account to the admin group in your identity provider and sign in with it.
+
 ## Authentik example
 
 1. Create an OAuth2/OpenID provider for TechStrap. Use the scopes `openid`, `email` and `profile`.

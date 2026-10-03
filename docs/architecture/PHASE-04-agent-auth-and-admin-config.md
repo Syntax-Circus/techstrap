@@ -20,7 +20,7 @@ Agents can sign in with an OIDC JWT, are gated by a configured group claim, are 
 - API keys: generated server-side with a recognisable prefix and 256-bit random secret; only prefix and hash stored via `IApiKeyHasher`; plaintext shown once at creation. Kinds: `Trusted` (server-side; later may set external user ref and trusted metadata) and `Public` (client-embedded; create-only; per key+IP rate-limited; metadata flagged untrusted). Kind is immutable after creation; revoke rather than edit. A product may have several keys of each kind.
 - Product branding (name, logo reference, accent colour, from-name/reply-to) is updated through `UpdateProductRequestHandler`; accent validated for format only (D-031); the derived on-accent and ink colours are returned in `ProductBrandingDto`. Logo upload uses `SyntaxCircus.Storage` in PHASE-05; this phase accepts a logo URL or storage key string only. **Assumption.**
 - `AdminEvent` is written in the same transaction as the change (via `IUnitOfWork`). The audit event payload never contains plaintext keys. Reads through `GET /api/admin-events` (paged, filter by entity type and actor), Admin-only. PHASE-06 writes the same event type for erase-requester, delete-ticket and dead-letter retry/discard (D-006, D-022), so the type constants and payload shape defined here must allow those subjects.
-- Tags are global with unique slug; deleting a tag in use detaches it from tickets (emitting `TagRemoved` ticket events in PHASE-06 semantics) or is rejected; Delete is rejected with `409 tag-in-use` unless `force=true`, which detaches the tag from every ticket with `TagRemoved` events (D-030).
+- Tags are global with unique slug; deleting a tag in use is rejected with `409 tag-in-use` unless `force=true`, which detaches the tag from every ticket with `TagRemoved` events (D-030).
 - Errors: validation to 400 problem details with field errors, not-found to 404, conflict to 409, forbidden to 403. Exact mapping is the standard `SyntaxCircus.AspNetCore.Common` mapping; tests assert it per handler.
 - Abstractions introduced in this phase: `ICurrentAgentClaims` (Application-owned identity: subject, name, email, group-derived role) and `IApiKeyHasher`, plus the Api options type `AgentAccessOptions` (group names and claim type).
 
@@ -83,7 +83,7 @@ Record the exact package version in the linked package map. In the foundation ph
 - [x] `IApiKeyHasher` implementation and `IAdminEventRepository` implementation
 - [x] OpenAPI document includes the new endpoints
 - [x] Handler unit tests, controller tests, integration tests, `.env.example` updated
-- [ ] Self-host auth note (Authentik example) drafted for the release guide in PHASE-12 (drafted in `docs/self-hosting/AGENT-AUTHENTICATION.md`; the release-guide polish stays with PHASE-12)
+- [x] Self-host auth note (Authentik example) drafted in `docs/self-hosting/AGENT-AUTHENTICATION.md`; the release-guide polish stays with [PHASE-12](PHASE-12-release-hardening.md)
 
 ## Actionable Tasks
 
@@ -97,7 +97,7 @@ Each handler task writes `{Handler}Tests` (substitutes for repositories, fake `T
   - **Validation:** `AgentAuthTests` cover missing token (401), token without group (403), agent group (200), admin-only route with agent token (403), misconfigured options fail startup, group claims delivered as repeated claims, a JSON array string or a delimited list
 - [x] **P04-T03** Implement `ICurrentAgentClaims` for ASP.NET (subject, email, name, group-derived role) and `ClaimsCurrentAgentClaimsTests`
   - **Depends on:** P04-T02
-  - **Validation:** tests with a built `ClaimsPrincipal` return expected subject, email and verified flag; Application has no reference to `HttpContext` (architecture test green)
+  - **Validation:** tests with a built `ClaimsPrincipal` return expected subject, email, name and group-derived role; Application has no reference to `HttpContext` (architecture test green)
 - [x] **P04-T04** Implement `GetCurrentAgentRequestHandler` (`GetCurrentAgentRequestHandlerTests`: first call provisions with the group-derived role, second call updates name, email and role, a token without an email is refused (`agent-email-required`), an inactive agent is forbidden) and `AgentsController.GetMe`
   - **Depends on:** P04-T01, P04-T03
   - **Validation:** handler tests pass; `AgentsControllerTests.GetMe_DelegatesAndPassesCancellation` and a Testcontainers integration test provisions the row once under two concurrent first calls
@@ -181,10 +181,10 @@ Each handler task writes `{Handler}Tests` (substitutes for repositories, fake `T
 - [x] Deleting an in-use tag: reject versus detach (**Assumption**: reject unless forced). Resolved: D-030.
 - [ ] Follow-up: the OpenAPI document has no bearer security scheme, so generated clients (PHASE-07, PHASE-11) do not know the endpoints need a token. Adding one is out of scope for this phase.
 - [ ] Logo handling for products (URL versus uploaded file) is deferred to PHASE-05/PHASE-07.
-- [ ] `IAdminEventRepository` is now listed in `02-ARCHITECTURE.md` section 3.1 (resolved).
+- [x] `IAdminEventRepository` is now listed in `02-ARCHITECTURE.md` section 3.1 (resolved).
 - [x] Admin-only versus Agent-readable product list: Agents need `ListProductsRequestHandler` for filters; this phase makes it Agent policy. **Assumption.** Resolved: D-022, agents see active products only.
-- [ ] Carried forward from the PHASE-03 final review: The last-admin race: two concurrent demotions or deactivations can leave no active Admin; guard it in the agent-management handlers (for example a locking read or a serializable check) and test it.
-- [ ] Carried forward from the PHASE-03 final review: `IApiKeyHasher` is declared and implemented here (it is not declared in PHASE-03), and the development seed keys (`tsk_dev1`, `tsp_dev1`, `tsk_dev2`) carry placeholder hashes, so re-seed them through the real hasher so they authenticate (Task 9 of the PHASE-04 plan).
+- [x] Carried forward from the PHASE-03 final review (delivered in Task 6, last-admin lock): The last-admin race: two concurrent demotions or deactivations can leave no active Admin; guard it in the agent-management handlers (for example a locking read or a serializable check) and test it.
+- [x] Carried forward from the PHASE-03 final review (delivered in Task 9, dev keys hashed): `IApiKeyHasher` is declared and implemented here (it is not declared in PHASE-03), and the development seed keys (`tsk_dev1`, `tsp_dev1`, `tsk_dev2`) carry placeholder hashes, so re-seed them through the real hasher so they authenticate (Task 9 of the PHASE-04 plan).
 
 ## Handoff
 

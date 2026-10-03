@@ -32,26 +32,31 @@ public sealed class UpdateAgentRequestHandler(
             return Result<AgentDto>.Failure(actor.Errors[0]);
         }
 
-        var activeAdmins = request.IsActive ? 0 : await agents.CountActiveAdminsLockedAsync(cancellationToken);
+        if (request.IsActive is not { } isActive)
+        {
+            return Result<AgentDto>.Failure(new ResultError("is-active-required", "Send isActive as true or false.", ResultErrorKind.Validation, "isActive"));
+        }
+
+        var activeAdmins = isActive ? 0 : await agents.CountActiveAdminsLockedAsync(cancellationToken);
         var agent = await agents.GetByIdAsync(agentId, cancellationToken);
         if (agent is null)
         {
             return Result<AgentDto>.Failure(AgentErrors.NotFound());
         }
 
-        if (agent.IsActive == request.IsActive)
+        if (agent.IsActive == isActive)
         {
             return Result<AgentDto>.Success(AgentMapping.ToDto(agent));
         }
 
-        if (!request.IsActive && agent.Role == AgentRole.Admin && activeAdmins <= 1)
+        if (!isActive && agent.Role == AgentRole.Admin && activeAdmins <= 1)
         {
             return Result<AgentDto>.Failure(AgentErrors.LastActiveAdmin());
         }
 
-        agent.SetActive(request.IsActive);
+        agent.SetActive(isActive);
         agents.Update(agent);
-        AdminAudit.Record(adminEvents, AdminEventType.AgentUpdated, actor.Value, AdminSubjectType.Agent, agent.Id, new { isActive = request.IsActive }, clock);
+        AdminAudit.Record(adminEvents, AdminEventType.AgentUpdated, actor.Value, AdminSubjectType.Agent, agent.Id, new { isActive }, clock);
 
         var committed = await scope.CommitAsync(cancellationToken);
         return committed.IsSuccess ? Result<AgentDto>.Success(AgentMapping.ToDto(agent)) : Result<AgentDto>.Failure(committed.Errors[0]);

@@ -94,4 +94,16 @@ public sealed class UpdateNotificationPreferencesRequestHandlerTests
         result.Errors.ShouldHaveSingleItem().Code.ShouldBe("agent-inactive");
         await _agents.DidNotReceive().SetNotificationPreferenceAsync(Arg.Any<AgentNotificationPreference>(), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Applying_the_same_request_twice_succeeds_both_times()
+    {
+        var request = new UpdateNotificationPreferencesRequest([new NotificationPreferenceUpdateDto(_orbitly.Id, true)]);
+        var handler = Handler();
+
+        (await handler.HandleAsync(request, TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        (await handler.HandleAsync(request, TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+
+        await _agents.Received(2).SetNotificationPreferenceAsync(new AgentNotificationPreference(_me.Id, _orbitly.Id, true), Arg.Any<CancellationToken>());
+    }
 }

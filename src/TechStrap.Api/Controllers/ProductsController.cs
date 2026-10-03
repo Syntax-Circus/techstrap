@@ -41,8 +41,12 @@ public sealed class ProductsController : ControllerBase
     /// <summary>Creates a key. The response carries the plaintext key once; it cannot be shown again.</summary>
     [HttpPost("{id:guid}/api-keys")]
     [Authorize(Policy = AuthorizationPolicies.Admin)]
-    public async Task<IActionResult> CreateApiKey(Guid id, CreateProductApiKeyRequest request, [FromServices] ICreateProductApiKeyRequestHandler createApiKey, CancellationToken cancellationToken) =>
-        (await createApiKey.HandleAsync(id, request, cancellationToken)).ToActionResult(this, created => StatusCode(StatusCodes.Status201Created, created));
+    public async Task<IActionResult> CreateApiKey(Guid id, CreateProductApiKeyRequest request, [FromServices] ICreateProductApiKeyRequestHandler createApiKey, CancellationToken cancellationToken)
+    {
+        // The body carries the plaintext key once, so no cache or proxy may keep it.
+        Response.Headers.CacheControl = "no-store";
+        return (await createApiKey.HandleAsync(id, request, cancellationToken)).ToActionResult(this, created => StatusCode(StatusCodes.Status201Created, created));
+    }
 
     [HttpDelete("{id:guid}/api-keys/{keyId:guid}")]
     [Authorize(Policy = AuthorizationPolicies.Admin)]

@@ -186,6 +186,8 @@ Record the exact package version in the linked package map. In the foundation ph
 - [ ] Carried forward from the PHASE-03 final review: Ticket access tokens slide 90 days with no absolute cap in the Domain: enforce an absolute expiry cap when tokens are issued and refreshed.
 - [ ] Carried forward from the PHASE-03 final review: Intake must check that a supplied ticket number belongs to the product of the API key before attaching a follow-up to it.
 - [ ] Carried forward from the PHASE-03 final review: D-024 at email render: customer emails use `AgentPublicIdentity` and never the agent's name or address; test the rendered output.
+- [ ] Carried forward from the PHASE-04 final review: Callers of `IApiKeyHasher.Verify` must guard against a null or missing `X-Api-Key`, because `Verify` throws on null.
+- [ ] Carried forward from the PHASE-04 final review: Intake endpoints need an explicit API-key policy. Decide whether the fallback policy becomes the Agent policy.
 
 ## Handoff
 

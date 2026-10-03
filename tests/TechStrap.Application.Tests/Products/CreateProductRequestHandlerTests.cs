@@ -82,4 +82,21 @@ public sealed class CreateProductRequestHandlerTests
             error => error.Kind.ShouldBe(ResultErrorKind.Conflict),
             error => error.Code.ShouldBe("product-key-taken"));
     }
+
+    [Fact]
+    public async Task A_deactivated_actor_is_refused_before_the_request_is_validated_and_nothing_is_staged()
+    {
+        var inactive = Agent.Create("admin", "Sam", "sam@example.com", AgentRole.Admin, _clock).Value;
+        inactive.SetActive(false);
+        _agents.GetBySubjectAsync("admin", Arg.Any<CancellationToken>()).Returns(inactive);
+
+        var result = await Handler().HandleAsync(
+            new CreateProductRequest("orbitly", "Orbitly", "ORB", new ProductBrandingRequest("Orbitly", null, "purple", null, null)),
+            TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("agent-inactive");
+        _products.DidNotReceive().Add(Arg.Any<Product>());
+        _events.DidNotReceive().Add(Arg.Any<AdminEvent>());
+        _ = _products.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
 }

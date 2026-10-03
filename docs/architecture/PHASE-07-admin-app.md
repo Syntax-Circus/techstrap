@@ -237,6 +237,10 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 - [ ] `HubConnection` and live refresh are deliberately out of scope until P10; queue is manual-refresh until then.
 - [ ] Blazor Server circuit memory with many open tabs; keep component state small and dispose subscriptions.
 - [ ] Agent token lifetime vs. long-lived circuits: relies on Blazor.Auth refresh; verify behavior with Authentik's access-token lifetime in UAT.
+- [ ] Carried forward from the PHASE-04 final review: Mark the Admin `/error` page `[AllowAnonymous]` when Admin auth lands.
+- [ ] Carried forward from the PHASE-04 final review: Return the `tag-in-use` count as a structured field, not only in the message text.
+- [ ] Carried forward from the PHASE-04 final review: Add an endpoint test for the admin agent-list fields (`Email`, `Role`, `IsActive`, `LastSeenAt`).
+- [ ] Carried forward from the PHASE-04 final review: Add an OpenAPI bearer security scheme so generated clients know the endpoints need a token (also needed by PHASE-11).
 
 ## Handoff
 

@@ -11,17 +11,28 @@ public static class AgentGroups
 {
     private static readonly char[] _separators = [',', ' ', '\t', '\n', '\r'];
 
-    public static bool Has(ClaimsPrincipal principal, string claimType, string group) =>
-        principal.FindAll(claimType).SelectMany(claim => Split(claim.Value)).Any(value => string.Equals(value, group, StringComparison.OrdinalIgnoreCase));
+    public static bool Has(ClaimsPrincipal principal, string claimType, string group)
+    {
+        var wanted = group.Trim();
+        return principal.FindAll(claimType).Any(claim => Matches(claim.Value, wanted));
+    }
 
-    private static IEnumerable<string> Split(string value)
+    // Order matters: a group name may itself contain spaces or commas, so the whole value is compared first, then JSON
+    // array elements, and only then the delimited split.
+    private static bool Matches(string value, string wanted)
     {
         var text = value.Trim();
+        if (string.Equals(text, wanted, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         if (text.StartsWith('['))
         {
             try
             {
-                return JsonSerializer.Deserialize<string[]>(text)?.Where(item => item is not null).Select(item => item.Trim()) ?? [];
+                var items = JsonSerializer.Deserialize<string[]>(text) ?? [];
+                return items.Any(item => item is not null && string.Equals(item.Trim(), wanted, StringComparison.OrdinalIgnoreCase));
             }
             catch (JsonException)
             {
@@ -29,6 +40,7 @@ public static class AgentGroups
             }
         }
 
-        return text.Split(_separators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return text.Split(_separators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(item => string.Equals(item, wanted, StringComparison.OrdinalIgnoreCase));
     }
 }

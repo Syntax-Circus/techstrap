@@ -223,6 +223,7 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
 - [ ] Sitemap size/volume for many products: paginate or sitemap index if >50k URLs (unlikely; **Assumption**).
 - [ ] bUnit (version in [03-PACKAGE-MAP.md](03-PACKAGE-MAP.md)) is required; Portal tests live in `tests/TechStrap.Portal.Tests`, skeleton created in PHASE-02, extended in P09-T01 (listed in `02-ARCHITECTURE.md`).
 - [ ] Carried forward from the PHASE-03 final review: Customer DTOs never carry `LastActivityAt`, the agent email or internal events (shared with PHASE-06); the portal reads messages with `publicOnly: true`.
+- [ ] Carried forward from the PHASE-04 final review: Add a no-brand guard test on the Portal error page, so it never shows product branding for an unhandled exception.
 
 ## Handoff
 

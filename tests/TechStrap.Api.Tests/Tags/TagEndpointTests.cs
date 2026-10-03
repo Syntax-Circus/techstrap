@@ -1,3 +1,9 @@
+using TechStrap.Domain.Tickets;
+using TechStrap.Domain.Requesters;
+using TechStrap.Contracts.Products;
+using TechStrap.Contracts.Agents;
+using TechStrap.Application.Persistence;
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
 using TechStrap.Api.Tests.Auth;
@@ -96,5 +102,55 @@ public sealed class TagEndpointTests(TestPostgres postgres)
         create.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
         update.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
         delete.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    /// <summary>Puts a tag on a ticket through the DI container (the Api has no ticket endpoints yet): a requester, a numbered ticket and its tag.</summary>
+    private static async Task AttachTagToNewTicketAsync(ApiFactory factory, Guid agentId, Guid productId, Guid tagId)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var scope = factory.Services.CreateAsyncScope();
+        var services = scope.ServiceProvider;
+        var clock = services.GetRequiredService<TimeProvider>();
+        await using var work = await services.GetRequiredService<IUnitOfWork>().BeginAsync(cancellationToken);
+        var requester = Requester.Create("ann@example.com", "Ann", null, clock).Value;
+        services.GetRequiredService<IRequesterRepository>().Add(requester);
+        var number = (await services.GetRequiredService<ITicketNumberAllocator>().AllocateAsync(productId, cancellationToken)).Value;
+        var ticket = Ticket.Create(number, productId, requester.Id, "Cannot sign in", TicketChannel.Web, null, false, clock).Value;
+        ticket.AddCustomerReply(requester.Id, "<p>I cannot sign in</p>", clock).IsSuccess.ShouldBeTrue();
+        ticket.AddTag(tagId, Actor.ForAgent(agentId), clock).IsSuccess.ShouldBeTrue();
+        services.GetRequiredService<ITicketRepository>().Add(ticket);
+        (await work.CommitAsync(cancellationToken)).IsSuccess.ShouldBeTrue();
+    }
+
+    private static async Task<(Guid ProductId, Guid AgentId)> ProductAndAdminAsync(HttpClient admin)
+    {
+        using var response = await admin.PostAsJsonAsync("/api/products", new CreateProductRequest("acme", "Acme", "ACME", null), TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var product = (await response.Content.ReadFromJsonAsync<ProductDto>(TestContext.Current.CancellationToken))!;
+        var me = (await admin.GetFromJsonAsync<AgentDto>("/api/agents/me", TestContext.Current.CancellationToken))!;
+        return (product.Id, me.Id);
+    }
+
+    [Fact]
+    public async Task Deleting_a_tag_on_a_ticket_is_409_tag_in_use_without_force_and_204_with_force()
+    {
+        var (factory, admin, agent) = await StartAsync();
+        await using var _ = factory;
+        using var __ = admin;
+        using var ___ = agent;
+        var (productId, agentId) = await ProductAndAdminAsync(admin);
+        var tag = await CreateAsync(admin, "bug");
+        await AttachTagToNewTicketAsync(factory, agentId, productId, tag.Id);
+
+        using var refused = await admin.DeleteAsync($"/api/tags/{tag.Id}", TestContext.Current.CancellationToken);
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldContain("tag-in-use");
+        (await admin.GetFromJsonAsync<List<TagDto>>("/api/tags", TestContext.Current.CancellationToken))!.Select(t => t.Id).ShouldContain(tag.Id);
+
+        using var forced = await admin.DeleteAsync($"/api/tags/{tag.Id}?force=true", TestContext.Current.CancellationToken);
+
+        forced.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await admin.GetFromJsonAsync<List<TagDto>>("/api/tags", TestContext.Current.CancellationToken))!.Select(t => t.Id).ShouldNotContain(tag.Id);
     }
 }
