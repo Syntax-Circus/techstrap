@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using Microsoft.Extensions.Options;
 using TechStrap.Application.Email;
+using TechStrap.Application.Tickets.Notifications;
 using TechStrap.Contracts.Branding;
 using TechStrap.Domain.Products;
 
@@ -12,8 +13,7 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
 {
     private const string PoweredByText = "Powered by TechStrap";
 
-    // Task 7 points this at TicketNotices.ReopenDays.
-    private const int ReopenDays = 7;
+    private const int ReopenDays = TicketNotices.ReopenDays;
 
     private const string ParagraphStyle = "margin:0 0 16px 0;";
 
