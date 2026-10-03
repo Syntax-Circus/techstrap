@@ -32,6 +32,9 @@ public static class DomainLimits
     public const int ErrorMaxLength = 2_000;
     public const int KindMaxLength = 64;
 
+    /// <summary>The longest email outbox payload (JSON text); the payload is template data, never a body or an attachment.</summary>
+    public const int OutboxPayloadMaxLength = 16_000;
+
     /// <summary>The longest ticket number prefix a product can have (for example <c>ACME</c>).</summary>
     public const int NumberPrefixMaxLength = 10;
 

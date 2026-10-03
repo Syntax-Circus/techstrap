@@ -6,6 +6,7 @@ namespace TechStrap.Application.Persistence;
 /// <summary>Handlers enqueue email here. The row is staged and written by the caller's <see cref="IUnitOfWorkScope"/> (D-010).</summary>
 public interface IEmailOutbox
 {
+    /// <summary>Stages the row only. D-024 (no agent email in From or Reply-To) is enforced by the renderer and sender (PHASE-05), not here.</summary>
     void Enqueue(EmailOutboxItem item);
 }
 
@@ -25,10 +26,10 @@ public interface IEmailOutboxStore
     /// </summary>
     Task<IReadOnlyList<EmailOutboxItem>> ClaimBatchAsync(string workerId, int batchSize, TimeSpan lease, CancellationToken cancellationToken);
 
-    /// <summary>Conflict "outbox-claim-lost" when another worker has taken the row since.</summary>
+    /// <summary>Conflict "outbox-not-claim-owner" (<see cref="PersistenceErrorCodes.OutboxNotClaimOwner"/>) when another worker has taken the row since; the row is left unchanged.</summary>
     Task<Result> MarkSentAsync(Guid id, string workerId, CancellationToken cancellationToken);
 
-    /// <summary>Schedules the next attempt, or dead-letters the row after the last allowed attempt.</summary>
+    /// <summary>Schedules the next attempt, or dead-letters the row after the last allowed attempt. Same ownership conflict as <see cref="MarkSentAsync"/>.</summary>
     Task<Result> MarkFailedAsync(Guid id, string workerId, string error, CancellationToken cancellationToken);
 
     /// <summary>

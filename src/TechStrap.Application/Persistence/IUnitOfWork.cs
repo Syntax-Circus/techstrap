@@ -30,7 +30,9 @@ public static class PersistenceErrorCodes
     public const string ConcurrencyConflict = "concurrency-conflict";
     public const string Duplicate = "duplicate";
     public const string ReferenceViolation = "reference-violation";
-    public const string OutboxClaimLost = "outbox-claim-lost";
+    /// <summary>Equals the Domain code returned by <c>MarkSent</c> and <c>MarkFailed</c> for a worker that does not own the claim.</summary>
+    public const string OutboxNotClaimOwner = "outbox-not-claim-owner";
+
     public const string OutboxNotFound = "outbox-not-found";
 
     /// <summary>Equals the Domain code returned by <c>EmailOutboxItem.Claim</c> when the last allowed attempt's lease expired.</summary>

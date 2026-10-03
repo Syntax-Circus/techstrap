@@ -103,6 +103,11 @@ public sealed class EmailOutboxItem
         }
 
         var payload = string.IsNullOrWhiteSpace(payloadJson) ? "{}" : payloadJson;
+        if (payload.Length > DomainLimits.OutboxPayloadMaxLength)
+        {
+            return DomainErrors.Validation("payload-too-long", $"The payload must be at most {DomainLimits.OutboxPayloadMaxLength} characters.", "payload");
+        }
+
         if (!IsJsonObject(payload))
         {
             return DomainErrors.Validation("payload-invalid", "The payload must be a JSON object.", "payload");

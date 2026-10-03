@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Time.Testing;
 using TechStrap.Domain.Outbox;
+using TechStrap.Domain.Rules;
 
 namespace TechStrap.Domain.Tests.Outbox;
 
@@ -36,6 +37,19 @@ public sealed class EmailOutboxItemTests
         EmailOutboxItem.Enqueue("K", "nope", null, null, null, _clock).Error!.Code.ShouldBe("to-address-invalid");
         EmailOutboxItem.Enqueue("K", "a@example.com", "[1]", null, null, _clock).Error!.Code.ShouldBe("payload-invalid");
         EmailOutboxItem.Enqueue("K", "a@example.com", null, null, null, _clock).Value.PayloadJson.ShouldBe("{}");
+    }
+
+    [Fact]
+    public void A_payload_over_the_maximum_length_is_rejected_and_one_at_the_maximum_is_accepted()
+    {
+        var atLimit = "{\"p\":\"" + new string('x', DomainLimits.OutboxPayloadMaxLength - 8) + "\"}";
+        atLimit.Length.ShouldBe(DomainLimits.OutboxPayloadMaxLength);
+
+        EmailOutboxItem.Enqueue("K", "a@example.com", atLimit, null, null, _clock).IsSuccess.ShouldBeTrue();
+        var rejected = EmailOutboxItem.Enqueue("K", "a@example.com", atLimit.Insert(atLimit.Length - 2, "x"), null, null, _clock);
+
+        rejected.Error!.Code.ShouldBe("payload-too-long");
+        rejected.Error.Kind.ShouldBe(DomainErrorKind.Validation);
     }
 
     [Fact]

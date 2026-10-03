@@ -36,7 +36,10 @@ internal sealed class EmailOutboxRecordConfiguration : IEntityTypeConfiguration<
 
         // The worker polls only due Pending rows, so the partial index keeps that scan small.
         builder.HasIndex(e => e.NextAttemptAt).HasDatabaseName("ix_email_outbox_next_attempt_at_when_pending").HasFilter("status = 'Pending'");
-        builder.HasIndex(e => e.Status);
+        // The other claim branch: a Sending row whose lease expired (a crashed worker), or has none.
+        builder.HasIndex(e => e.LockedUntil).HasDatabaseName("ix_email_outbox_locked_until_when_sending").HasFilter("status = 'Sending'");
+        // Dead letters are rare and listed newest first. A plain status index is not selective enough for the claim query (the planner prefers it over the two partial indexes above).
+        builder.HasIndex(e => e.CreatedAt).HasDatabaseName("ix_email_outbox_created_at_when_dead_lettered").HasFilter("status = 'DeadLettered'");
         builder.HasIndex(e => e.TicketId);
     }
 }
