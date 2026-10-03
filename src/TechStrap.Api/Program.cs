@@ -9,6 +9,7 @@ using TechStrap.Api.Options;
 using TechStrap.Api.Security;
 using TechStrap.Api.Startup;
 using TechStrap.Infrastructure.Persistence;
+using TechStrap.Infrastructure.Security;
 using TechStrap.Infrastructure.Seeding;
 
 const string ServiceName = "techstrap-api";
@@ -37,6 +38,7 @@ builder.Services.AddProblemDetailsExceptionHandling();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddTechStrapPersistence();
+builder.Services.AddTechStrapSecurity();
 builder.Services.AddTechStrapDevelopmentSeeding();
 
 // Forwarded headers: trust X-Forwarded-* only from the configured proxies and networks, and fail

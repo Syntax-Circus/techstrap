@@ -10,6 +10,7 @@ using TechStrap.Domain.Knowledge;
 using TechStrap.Domain.Products;
 using TechStrap.Domain.Tickets;
 using TechStrap.Infrastructure.Persistence;
+using TechStrap.Infrastructure.Security;
 using TechStrap.Infrastructure.Seeding;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
