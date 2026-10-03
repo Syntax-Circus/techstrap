@@ -12,4 +12,13 @@ internal static class TrackedRecords
         where TRecord : class =>
         context.Set<TRecord>().Local.FindEntry(key)?.Entity
         ?? throw new InvalidOperationException($"{typeof(TRecord).Name} {key} was not loaded in this unit of work; load it through the repository before updating it.");
+
+    /// <summary>
+    /// Makes the UPDATE run <c>WHERE xmin = version</c> with the token the caller's Domain object carries (D-026), not the one loaded in this
+    /// scope. Call it after copying the domain changes onto the tracked record. <paramref name="record"/> must be tracked and have a
+    /// <c>Version</c> concurrency property.
+    /// </summary>
+    public static void ApplyOriginalVersion<TRecord>(this DbContext context, TRecord record, uint version)
+        where TRecord : class =>
+        context.Entry(record).Property("Version").OriginalValue = version;
 }

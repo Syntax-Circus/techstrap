@@ -791,7 +791,7 @@ PHASE-03 assumed EF Core would map the Domain types directly through fluent conf
 
 ### Consequences
 - A new field touches four places: the Domain type, the record, its configuration and the mapper. Integration tests that must seed or inspect rows directly see the records through `InternalsVisibleTo`.
-- The concurrency token travels with the loaded Domain object (`Version`) and the repository enforces it by updating the record it loaded in the same scope.
+- The concurrency token travels with the loaded Domain object (`Version`). On update the repository copies the changes onto the record loaded in the current scope and applies the Domain object's `Version` as that record's original `xmin`, so the UPDATE checks the token the caller saw, not the one read in the current request.
 - The PHASE-03 risk "Assumption: directly" is resolved by this decision.
 
 ### Approval

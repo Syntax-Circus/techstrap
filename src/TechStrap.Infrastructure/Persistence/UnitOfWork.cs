@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
@@ -60,12 +61,22 @@ internal sealed class UnitOfWork(TechStrapDbContext context) : IUnitOfWork
 
         public async ValueTask DisposeAsync()
         {
-            if (!_finished)
+            try
             {
-                await RollBackAsync();
+                if (!_finished)
+                {
+                    await RollBackAsync();
+                }
             }
-
-            await transaction.DisposeAsync();
+            catch (Exception exception) when (exception is DbException or InvalidOperationException)
+            {
+                // A failed rollback (for example a dead connection) must not replace the exception that is already unwinding; the server
+                // discards an unfinished transaction when the connection goes away.
+            }
+            finally
+            {
+                await transaction.DisposeAsync();
+            }
         }
 
         private static Result Conflict(string code, string message) =>
@@ -74,10 +85,15 @@ internal sealed class UnitOfWork(TechStrapDbContext context) : IUnitOfWork
         private async Task RollBackAsync()
         {
             _finished = true;
-            await transaction.RollbackAsync(CancellationToken.None);
-
-            // Staged changes belong to the rolled-back transaction; do not let them leak into the next scope on this context.
-            context.ChangeTracker.Clear();
+            try
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+            }
+            finally
+            {
+                // Staged changes belong to the rolled-back transaction; do not let them leak into the next scope on this context.
+                context.ChangeTracker.Clear();
+            }
         }
     }
 }

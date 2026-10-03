@@ -2,7 +2,11 @@ using TechStrap.Domain.Products;
 
 namespace TechStrap.Application.Persistence;
 
-/// <summary>Products and their API keys. <c>Update</c> methods require the item to have been loaded in the same scope.</summary>
+/// <summary>
+/// Products and their API keys. <c>Update</c> methods require the record to have been loaded in the current scope. <c>Update(Product)</c>
+/// checks the version the Domain object carries (the one the caller originally saw), so a copy loaded in an earlier request conflicts if the
+/// row changed since. <see cref="ListAsync"/> results are untracked and cannot be passed to <c>Update</c>; reload with <c>GetByIdAsync</c> first.
+/// </summary>
 public interface IProductRepository
 {
     Task<Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken);

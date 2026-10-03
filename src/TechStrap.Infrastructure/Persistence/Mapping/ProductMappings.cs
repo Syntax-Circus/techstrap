@@ -13,7 +13,8 @@ internal static class ProductMappings
             record.Name,
             record.NumberPrefix,
             new ProductBranding(record.DisplayName, record.Logo, record.AccentColour, record.FromAddress, record.ReplyTo),
-            record.IsActive);
+            record.IsActive,
+            record.Version);
 
     public static ProductRecord ToRecord(this Product product)
     {

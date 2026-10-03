@@ -30,7 +30,7 @@ public sealed record ProductBranding(string DisplayName, string? LogoPath, strin
 /// <summary>A product (a customer application) that receives tickets. The number prefix is fixed at creation (D-009).</summary>
 public sealed class Product
 {
-    private Product(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive)
+    private Product(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive, uint version)
     {
         Id = id;
         Key = key;
@@ -38,6 +38,7 @@ public sealed class Product
         NumberPrefix = numberPrefix;
         Branding = branding;
         IsActive = isActive;
+        Version = version;
     }
 
     public Guid Id { get; }
@@ -53,6 +54,12 @@ public sealed class Product
     public ProductBranding Branding { get; private set; }
 
     public bool IsActive { get; private set; }
+
+    /// <summary>
+    /// Opaque optimistic-concurrency token as loaded (Postgres <c>xmin</c>); 0 for a product that was never stored. The persistence layer
+    /// applies it as the original token when the product is updated, so a stale copy is rejected on save.
+    /// </summary>
+    public uint Version { get; }
 
     public static DomainResult<Product> Create(string? key, string? name, string? numberPrefix, ProductBranding? branding, TimeProvider clock)
     {
@@ -70,11 +77,11 @@ public sealed class Product
         }
 
         var defaultBranding = ProductBranding.Create(productName.Value, null, null, null, null).Value;
-        return DomainResult<Product>.Ok(new Product(EntityId.New(clock), slug.Value, productName.Value, prefix!, branding ?? defaultBranding, isActive: true));
+        return DomainResult<Product>.Ok(new Product(EntityId.New(clock), slug.Value, productName.Value, prefix!, branding ?? defaultBranding, isActive: true, version: 0));
     }
 
-    public static Product Restore(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive) =>
-        new(id, key, name, numberPrefix, branding, isActive);
+    public static Product Restore(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive, uint version) =>
+        new(id, key, name, numberPrefix, branding, isActive, version);
 
     public DomainResult UpdateDetails(string? name, ProductBranding branding)
     {

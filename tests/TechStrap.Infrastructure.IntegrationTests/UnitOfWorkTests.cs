@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using TechStrap.Infrastructure.Persistence;
 using SyntaxCircus.Common;
 using TechStrap.Application.Persistence;
 using TechStrap.Domain.Admin;
@@ -93,6 +95,8 @@ public sealed class UnitOfWorkTests(PostgresFixture postgres) : PostgresIntegrat
 
         await using var secondWork = await second.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(Ct);
         secondProducts.Update(loadedBySecond);
+        second.ServiceProvider.GetRequiredService<IAdminEventRepository>().Add(
+            AdminEvent.Record(AdminEventType.ProductUpdated, Guid.NewGuid(), AdminSubjectType.Product, loadedBySecond.Id, null, host.Clock).Value);
         var secondResult = await secondWork.CommitAsync(Ct);
 
         firstResult.IsSuccess.ShouldBeTrue();
@@ -103,6 +107,84 @@ public sealed class UnitOfWorkTests(PostgresFixture postgres) : PostgresIntegrat
 
         await using var verify = host.CreateScope();
         (await verify.ServiceProvider.GetRequiredService<IProductRepository>().GetByKeyAsync("acme", Ct))!.Name.ShouldBe("Renamed by first");
+        (await verify.ServiceProvider.GetRequiredService<IAdminEventRepository>().ListAsync(null, 1, 10, Ct)).TotalCount.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_domain_object_loaded_in_an_earlier_scope_conflicts_when_the_row_changed_in_between()
+    {
+        await using var host = Host();
+        await SeedAsync(host, NewProduct(host));
+        Product stale;
+        await using (var a = host.CreateScope())
+        {
+            stale = (await a.ServiceProvider.GetRequiredService<IProductRepository>().GetByKeyAsync("acme", Ct))!;
+        }
+
+        await using (var b = host.CreateScope())
+        {
+            var products = b.ServiceProvider.GetRequiredService<IProductRepository>();
+            var loaded = (await products.GetByKeyAsync("acme", Ct))!;
+            loaded.UpdateDetails("Changed in B", loaded.Branding);
+            await using var work = await b.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(Ct);
+            products.Update(loaded);
+            (await work.CommitAsync(Ct)).IsSuccess.ShouldBeTrue();
+        }
+
+        await using var c = host.CreateScope();
+        var cProducts = c.ServiceProvider.GetRequiredService<IProductRepository>();
+        await cProducts.GetByKeyAsync("acme", Ct);
+        stale.UpdateDetails("Changed from stale", stale.Branding);
+        await using var cWork = await c.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(Ct);
+        cProducts.Update(stale);
+        var result = await cWork.CommitAsync(Ct);
+
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Kind.ShouldBe(ResultErrorKind.Conflict);
+        error.Code.ShouldBe(PersistenceErrorCodes.ConcurrencyConflict);
+        await using var verify = host.CreateScope();
+        (await verify.ServiceProvider.GetRequiredService<IProductRepository>().GetByKeyAsync("acme", Ct))!.Name.ShouldBe("Changed in B");
+    }
+
+    [Fact]
+    public async Task A_domain_object_loaded_in_an_earlier_scope_saves_when_the_row_did_not_change()
+    {
+        await using var host = Host();
+        await SeedAsync(host, NewProduct(host));
+        Product held;
+        await using (var a = host.CreateScope())
+        {
+            held = (await a.ServiceProvider.GetRequiredService<IProductRepository>().GetByKeyAsync("acme", Ct))!;
+        }
+
+        await using (var c = host.CreateScope())
+        {
+            var products = c.ServiceProvider.GetRequiredService<IProductRepository>();
+            await products.GetByKeyAsync("acme", Ct);
+            held.UpdateDetails("Saved later", held.Branding);
+            await using var work = await c.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(Ct);
+            products.Update(held);
+            (await work.CommitAsync(Ct)).IsSuccess.ShouldBeTrue();
+        }
+
+        await using var verify = host.CreateScope();
+        (await verify.ServiceProvider.GetRequiredService<IProductRepository>().GetByKeyAsync("acme", Ct))!.Name.ShouldBe("Saved later");
+    }
+
+    [Fact]
+    public async Task A_row_that_references_a_missing_product_is_a_reference_violation_conflict()
+    {
+        await using var host = Host();
+        await using var scope = host.CreateScope();
+        await using var work = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(Ct);
+        scope.ServiceProvider.GetRequiredService<IProductRepository>().AddApiKey(
+            ProductApiKey.Create(Guid.NewGuid(), ApiKeyKind.Trusted, "tsk_orph", "hash-orphan", "Orphan", host.Clock).Value);
+
+        var result = await work.CommitAsync(Ct);
+
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Kind.ShouldBe(ResultErrorKind.Conflict);
+        error.Code.ShouldBe(PersistenceErrorCodes.ReferenceViolation);
     }
 
     [Fact]
@@ -164,6 +246,28 @@ public sealed class UnitOfWorkTests(PostgresFixture postgres) : PostgresIntegrat
         await work.CommitAsync(Ct);
 
         await Should.ThrowAsync<InvalidOperationException>(() => work.CommitAsync(Ct));
+    }
+
+    [Fact]
+    public async Task A_failing_rollback_on_dispose_does_not_mask_the_original_exception()
+    {
+        await using var host = Host();
+        var failure = async () =>
+        {
+            await using var scope = host.CreateScope();
+            await using var work = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(Ct);
+            var context = scope.ServiceProvider.GetRequiredService<TechStrapDbContext>();
+            var pid = await context.Database.SqlQueryRaw<int>("select pg_backend_pid() as \"Value\"").SingleAsync(Ct);
+            await using (var other = host.CreateScope())
+            {
+                await other.ServiceProvider.GetRequiredService<TechStrapDbContext>().Database
+                    .ExecuteSqlAsync($"select pg_terminate_backend({pid})", Ct);
+            }
+
+            throw new InvalidOperationException("original failure");
+        };
+
+        (await Should.ThrowAsync<InvalidOperationException>(failure)).Message.ShouldBe("original failure");
     }
 
     private static async Task SeedAsync(PersistenceTestHost host, Product product)

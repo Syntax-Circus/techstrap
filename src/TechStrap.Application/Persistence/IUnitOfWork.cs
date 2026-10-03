@@ -5,7 +5,8 @@ namespace TechStrap.Application.Persistence;
 /// <summary>
 /// Atomic multi-write. <see cref="BeginAsync"/> opens one database transaction; repositories and the outbox only stage changes;
 /// <see cref="IUnitOfWorkScope.CommitAsync"/> writes everything (ticket, messages, events, tokens, outbox rows) in that one
-/// transaction. Disposing a scope that was not committed rolls everything back, including a ticket number that was allocated.
+/// transaction. The concurrency token travels with the Domain object (<c>Version</c>); repositories apply it as the original token on update.
+/// Disposing a scope that was not committed rolls everything back, including a ticket number that was allocated.
 /// </summary>
 public interface IUnitOfWork
 {

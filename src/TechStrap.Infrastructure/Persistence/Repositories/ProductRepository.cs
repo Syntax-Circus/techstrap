@@ -28,7 +28,12 @@ internal sealed class ProductRepository(TechStrapDbContext context) : IProductRe
 
     public void Add(Product product) => context.Set<ProductRecord>().Add(product.ToRecord());
 
-    public void Update(Product product) => product.CopyTo(context.FindLoaded<ProductRecord>(product.Id));
+    public void Update(Product product)
+    {
+        var record = context.FindLoaded<ProductRecord>(product.Id);
+        product.CopyTo(record);
+        context.ApplyOriginalVersion(record, product.Version);
+    }
 
     public async Task<ProductApiKey?> GetApiKeyAsync(Guid id, CancellationToken cancellationToken) =>
         (await context.Set<ProductApiKeyRecord>().FirstOrDefaultAsync(k => k.Id == id, cancellationToken))?.ToDomain();
