@@ -5,6 +5,7 @@ using SyntaxCircus.Common;
 using TechStrap.Application.Persistence;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
+using TechStrap.Domain.Tickets;
 
 namespace TechStrap.Application.Email;
 
@@ -21,12 +22,14 @@ internal static class DrainFailures
     public const string PayloadInvalid = "payload-invalid";
     public const string ProductMissing = "product-missing";
     public const string RenderFailed = "render-failed";
+    public const string MessageMissing = "message-missing";
 }
 
 /// <summary>Claims a batch of due outbox rows, renders and sends each one, and marks it. Backoff and dead-lettering live in the Domain.</summary>
 public sealed class DrainEmailOutboxHandler(
     IEmailOutboxStore store,
     IProductRepository products,
+    ITicketRepository tickets,
     IEmailTemplateRenderer renderer,
     IOutboundEmailSender sender,
     IOptions<EmailOutboxWorkerOptions> options,
@@ -71,24 +74,28 @@ public sealed class DrainEmailOutboxHandler(
 
     private async Task<string?> SendOneAsync(EmailOutboxItem item, Dictionary<Guid, Product?> productCache, CancellationToken cancellationToken)
     {
-        if (item.Kind != EmailTemplates.TicketConfirmation)
-        {
-            return DrainFailures.UnknownKind;
-        }
-
-        TicketConfirmationEmail? model;
+        object? model;
         try
         {
-            model = JsonSerializer.Deserialize<TicketConfirmationEmail>(item.PayloadJson, _payloadOptions);
+            model = item.Kind switch
+            {
+                EmailTemplates.TicketConfirmation => Valid(Deserialize<TicketConfirmationEmail>(item), m => m.TicketNumber, m => m.PortalLink),
+                EmailTemplates.AgentReply => Valid(Deserialize<AgentReplyEmail>(item), m => m.TicketNumber, m => m.PortalLink, m => m.MessageId == Guid.Empty ? null : "x"),
+                EmailTemplates.TicketSolved => Valid(Deserialize<TicketSolvedEmail>(item), m => m.TicketNumber, m => m.PortalLink),
+                EmailTemplates.TicketAssigned => Valid(Deserialize<TicketAssignedEmail>(item), m => m.TicketNumber),
+                _ => null,
+            };
         }
         catch (JsonException)
         {
             return DrainFailures.PayloadInvalid;
         }
 
-        if (model is null || string.IsNullOrWhiteSpace(model.TicketNumber) || string.IsNullOrWhiteSpace(model.PortalLink))
+        if (model is null)
         {
-            return DrainFailures.PayloadInvalid;
+            return item.Kind is EmailTemplates.TicketConfirmation or EmailTemplates.AgentReply or EmailTemplates.TicketSolved or EmailTemplates.TicketAssigned
+                ? DrainFailures.PayloadInvalid
+                : DrainFailures.UnknownKind;
         }
 
         if (item.ProductId is not { } productId)
@@ -107,13 +114,31 @@ public sealed class DrainEmailOutboxHandler(
             return DrainFailures.ProductMissing;
         }
 
+        string? messageHtml = null;
+        if (model is AgentReplyEmail reply)
+        {
+            var message = await tickets.GetMessageAsync(reply.MessageId, cancellationToken);
+            if (message is null || message.Visibility != MessageVisibility.Public)
+            {
+                return DrainFailures.MessageMissing;
+            }
+
+            messageHtml = message.Body;
+        }
+
         RenderedEmail rendered;
         try
         {
             var branding = product.Branding;
-            rendered = renderer.RenderTicketConfirmation(
-                model,
-                new EmailBranding(branding.DisplayName, branding.LogoPath, branding.AccentColour, branding.FromAddress, branding.ReplyTo));
+            var emailBranding = new EmailBranding(branding.DisplayName, branding.LogoPath, branding.AccentColour, branding.FromAddress, branding.ReplyTo);
+            rendered = model switch
+            {
+                TicketConfirmationEmail confirmation => renderer.RenderTicketConfirmation(confirmation, emailBranding),
+                AgentReplyEmail agentReply => renderer.RenderAgentReply(agentReply, messageHtml!, emailBranding),
+                TicketSolvedEmail solved => renderer.RenderTicketSolved(solved, emailBranding),
+                TicketAssignedEmail assigned => renderer.RenderTicketAssigned(assigned, emailBranding),
+                _ => throw new InvalidOperationException("Unreachable outbox kind."),
+            };
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -126,4 +151,11 @@ public sealed class DrainEmailOutboxHandler(
             cancellationToken);
         return result.IsFailure ? result.Errors[0].Code : null;
     }
+
+    private static T? Deserialize<T>(EmailOutboxItem item) where T : class =>
+        JsonSerializer.Deserialize<T>(item.PayloadJson, _payloadOptions);
+
+    /// <summary>Returns the model when it deserialised and every required selector yields non-blank text; otherwise null.</summary>
+    private static T? Valid<T>(T? model, params Func<T, string?>[] required) where T : class =>
+        model is not null && required.All(selector => !string.IsNullOrWhiteSpace(selector(model))) ? model : null;
 }

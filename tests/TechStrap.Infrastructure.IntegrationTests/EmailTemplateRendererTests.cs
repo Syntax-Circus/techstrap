@@ -97,4 +97,85 @@ public sealed class EmailTemplateRendererTests
         paperplane.ShouldNotContain("Orbitly");
         paperplane.ShouldNotContain("<img");
     }
+
+    private static AgentReplyEmail Reply(bool solved = false, string? requester = "Ann") =>
+        new("ORB-42", "Printer jam", requester, "https://help.test/t/abc", "Sam from Orbitly Support", Guid.NewGuid(), solved);
+
+    [Fact]
+    public void An_agent_reply_shows_the_public_name_the_body_and_the_link()
+    {
+        var email = Renderer().RenderAgentReply(Reply(), "<p>Try <strong>this</strong></p>", Orbitly);
+
+        email.Subject.ShouldBe("[ORB-42] Re: Printer jam");
+        email.Html.ShouldContain("Sam from Orbitly Support");
+        email.Html.ShouldContain("<strong>this</strong>");
+        email.Html.ShouldContain("https://help.test/t/abc");
+        email.Text.ShouldContain("Try this");
+        email.Text.ShouldContain("https://help.test/t/abc");
+        email.Html.ShouldNotContain("solved");
+        email.Text.ShouldNotContain("solved");
+    }
+
+    [Fact]
+    public void A_send_and_solve_reply_says_it_is_solved()
+    {
+        var email = Renderer().RenderAgentReply(Reply(solved: true), "<p>Done</p>", Orbitly);
+
+        email.Html.ShouldContain("marked this request as solved. Reply within 7 days if you need anything else.");
+        email.Text.ShouldContain("We've marked this request as solved. Reply within 7 days if you need anything else.");
+    }
+
+    [Fact]
+    public void The_reply_body_is_inserted_as_given_but_model_fields_are_encoded()
+    {
+        var email = Renderer().RenderAgentReply(Reply(requester: "<b>Ann</b>"), "<p>Try <em>this</em> &amp; that</p>", Orbitly);
+
+        email.Html.ShouldNotContain("<b>Ann</b>");
+        email.Html.ShouldContain("&lt;b&gt;Ann&lt;/b&gt;");
+        email.Html.ShouldContain("<p>Try <em>this</em> &amp; that</p>");
+    }
+
+    [Fact]
+    public void A_solved_notice_has_the_reopen_window_and_link()
+    {
+        var email = Renderer().RenderTicketSolved(new("ORB-42", "Printer jam", "Ann", "https://help.test/t/abc", 7), Orbitly);
+
+        email.Subject.ShouldBe("[ORB-42] Solved: Printer jam");
+        email.Html.ShouldContain("reply within 7 days");
+        email.Html.ShouldContain("href=\"https://help.test/t/abc\"");
+        email.Text.ShouldContain("reply within 7 days");
+        email.Text.ShouldContain("https://help.test/t/abc");
+        email.From.ShouldBe("Orbitly <support@orbitly.example>");
+    }
+
+    [Fact]
+    public void An_assignment_alert_links_into_admin_only_when_configured()
+    {
+        var withLink = Renderer().RenderTicketAssigned(new("ORB-42", "Printer jam", "Orbitly", "Mia", "https://admin.test/tickets/ORB-42"), Orbitly);
+        var without = Renderer().RenderTicketAssigned(new("ORB-42", "Printer jam", "Orbitly", null, null), Orbitly);
+
+        withLink.Subject.ShouldBe("[ORB-42] Assigned to you: Printer jam");
+        withLink.Html.ShouldContain("href=\"https://admin.test/tickets/ORB-42\"");
+        withLink.Html.ShouldContain("Open in TechStrap");
+        withLink.Html.ShouldContain("Assigned by Mia");
+        withLink.Text.ShouldContain("https://admin.test/tickets/ORB-42");
+        without.Html.ShouldNotContain("<a ");
+        without.Html.ShouldContain("Open TechStrap to work on it.");
+        without.Text.ShouldContain("Open TechStrap to work on it.");
+        without.Html.ShouldNotContain("Assigned by");
+        withLink.Html.ShouldNotContain("Powered by");
+        without.Html.ShouldNotContain("Powered by");
+        withLink.Text.ShouldNotContain("Powered by");
+    }
+
+    [Fact]
+    public void Html_to_text_keeps_paragraphs_lists_and_link_targets()
+    {
+        var text = HtmlText.ToPlainText("<p>a</p><ul><li>b</li></ul><p><a href=\"https://x.test\">x</a> &amp; y</p>");
+        var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        lines.ShouldContain("a");
+        lines.ShouldContain(line => line.Contains('b') && !line.Contains('a'));
+        lines.ShouldContain("x (https://x.test) & y");
+    }
 }
