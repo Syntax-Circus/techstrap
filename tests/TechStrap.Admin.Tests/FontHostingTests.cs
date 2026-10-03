@@ -26,6 +26,6 @@ public sealed class FontHostingTests
         var response = await client.GetAsync("/fonts/" + relativePath, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK, relativePath);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("font/woff2");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("font/woff2");
     }
 }

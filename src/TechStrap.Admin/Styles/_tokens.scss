@@ -32,6 +32,8 @@ $body-secondary-bg-dark: ts-color("head", "dark");
 $body-tertiary-bg-dark: ts-color("rail", "dark");
 $border-color-dark: ts-color("rule", "dark");
 $link-color-dark: ts-color("accent", "dark");
+$form-invalid-color-dark: ts-color("st-spam", "dark");
+$form-valid-color-dark: ts-color("st-open", "dark");
 
 // Surfaces that must follow the theme at runtime point at the brand custom properties instead of a compiled colour.
 $card-bg: var(--sheet);

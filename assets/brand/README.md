@@ -12,7 +12,7 @@ python scripts/brand/generate-brand-assets.py
 
 | File | Use |
 | --- | --- |
-| `logo.png`, `logo-512.png` | Full mascot, transparent background (README, portal header, emails) |
+| `logo.png`, `logo-512.png` | Full mascot, transparent background (README, emails; the portal shows only the Powered-by mark, D-023) |
 | `mark.png`, `mark-512.png` | Monitor-head mark, transparent (compact spaces, avatars) |
 | `favicon.ico` | Browser favicon, 16/32/48/64 px |
 | `favicon-16.png`, `favicon-32.png` | PNG favicons |

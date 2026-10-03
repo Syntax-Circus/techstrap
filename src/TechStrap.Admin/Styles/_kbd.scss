@@ -23,3 +23,8 @@
   background: transparent;
   border-color: currentcolor;
 }
+
+// A chord inside a button keeps the 2px gap (the rule above would otherwise reset it to 4px).
+.btn .ts-kbd + .ts-kbd {
+  margin-left: 2px;
+}

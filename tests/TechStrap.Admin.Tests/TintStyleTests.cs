@@ -82,6 +82,7 @@ public sealed class TintStyleTests
         kbd["border"].ShouldBe("1px solid var(--rule-strong)");
         kbd["border-bottom-width"].ShouldBe("2px");
         Css.Declarations(".ts-kbd+.ts-kbd")["margin-left"].ShouldBe("2px");
+        Css.Declarations(".btn .ts-kbd+.ts-kbd")["margin-left"].ShouldBe("2px");
     }
 
     [Fact]

@@ -51,6 +51,12 @@ public sealed class StampStyleTests
     }
 
     [Fact]
+    public void Spam_keeps_its_three_pixel_border_in_the_queue_too()
+    {
+        Css.Declarations(".ts-stamp--queue.ts-stamp--spam")["border-width"].ShouldBe("3px");
+    }
+
+    [Fact]
     public void Stamp_down_runs_for_0_35s_and_ends_at_the_tilt()
     {
         Css.Declarations(".ts-stamp--pop")["animation"].ShouldBe("ts-thud .35s ease-out");

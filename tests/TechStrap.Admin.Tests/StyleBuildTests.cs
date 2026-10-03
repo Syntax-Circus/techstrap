@@ -85,6 +85,15 @@ public sealed class StyleBuildTests
     }
 
     [Fact]
+    public void Dark_form_validation_colours_are_the_dark_status_tokens()
+    {
+        var dark = Css.Declarations(DarkScope);
+
+        dark["--bs-form-invalid-color"].ShouldBe("#FF9AA0");
+        dark["--bs-form-valid-color"].ShouldBe("#6EE29A");
+    }
+
+    [Fact]
     public void The_portal_accent_properties_have_fallbacks_for_the_style_guide()
     {
         var root = Css.Declarations(LightScope);
