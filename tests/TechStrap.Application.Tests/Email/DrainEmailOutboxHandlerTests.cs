@@ -69,7 +69,7 @@ public sealed class DrainEmailOutboxHandlerTests
         await _sender.Received(1).SendAsync(
             new OutboundEmail("ann@example.com", "subj", "text", "<p>html</p>", "Orbitly <help@orbitly.test>", "reply@orbitly.test", OutboundMessageIds.For(item.Id)),
             source.Token);
-        await _store.Received(1).MarkSentAsync(item.Id, "w1", source.Token);
+        await _store.Received(1).MarkSentAsync(item.Id, "w1", CancellationToken.None);
         result.Value.ShouldBe(new DrainResult(1, 1, 0));
     }
 
@@ -168,6 +168,26 @@ public sealed class DrainEmailOutboxHandlerTests
 
         await _store.Received(1).ClaimBatchAsync("w1", 20, TimeSpan.FromSeconds(120), source.Token);
         await _sender.Received(1).SendAsync(Arg.Any<OutboundEmail>(), source.Token);
+        await _store.DidNotReceive().MarkFailedAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _store.DidNotReceive().MarkSentAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_cancellation_during_a_successful_send_still_marks_the_row_sent()
+    {
+        var item = Item();
+        Claims(item);
+        using var source = new CancellationTokenSource();
+        _sender.SendAsync(Arg.Any<OutboundEmail>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            source.Cancel();
+            return Result.Success();
+        });
+
+        var result = await _handler.HandleAsync("w1", source.Token);
+
+        await _store.Received(1).MarkSentAsync(item.Id, "w1", CancellationToken.None);
+        result.Value.ShouldBe(new DrainResult(1, 1, 0));
     }
 
     private async Task AssertFailedWithoutSending(EmailOutboxItem item, string category)

@@ -77,6 +77,17 @@ public sealed class EmailServiceRegistrationTests
     }
 
     [Fact]
+    public void An_enabled_worker_with_smtp_host_and_default_from_resolves_the_configured_options()
+    {
+        using var provider = Build(Smtp());
+
+        var options = provider.GetRequiredService<IOptions<SmtpOptions>>().Value;
+
+        options.Host.ShouldBe("localhost");
+        options.DefaultFrom.ShouldBe("noreply@techstrap.test");
+    }
+
+    [Fact]
     public void A_disabled_worker_needs_no_smtp_settings()
     {
         using var provider = Build(new Dictionary<string, string?> { ["EmailOutbox:Enabled"] = "false" });

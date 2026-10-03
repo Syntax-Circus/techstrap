@@ -45,7 +45,8 @@ public sealed class DrainEmailOutboxHandler(
             var outcome = await SendOneAsync(item, productCache, cancellationToken);
             if (outcome is null)
             {
-                var marked = await store.MarkSentAsync(item.Id, workerId, cancellationToken);
+                // The email is already accepted by SMTP: a shutdown-time cancellation must not leave the row to be re-sent after the lease.
+                var marked = await store.MarkSentAsync(item.Id, workerId, CancellationToken.None);
                 if (marked.IsFailure)
                 {
                     logger.LogWarning("Outbox row {OutboxId} was sent but could not be marked sent: {Code}.", item.Id, marked.Errors[0].Code);
