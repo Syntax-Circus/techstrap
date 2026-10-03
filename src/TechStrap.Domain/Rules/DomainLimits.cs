@@ -31,4 +31,10 @@ public static class DomainLimits
     public const int MetadataMaxLength = 16_000;
     public const int ErrorMaxLength = 2_000;
     public const int KindMaxLength = 64;
+
+    /// <summary>The longest ticket number prefix a product can have (for example <c>ACME</c>).</summary>
+    public const int NumberPrefixMaxLength = 10;
+
+    /// <summary>The length of a hex colour such as <c>#1A2B3C</c>: the hash plus six digits.</summary>
+    public const int ColourHexLength = 7;
 }

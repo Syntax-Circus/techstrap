@@ -94,13 +94,13 @@ namespace TechStrap.Infrastructure.Migrations
                 {
                     table.PrimaryKey("pk_agent_notification_preferences", x => new { x.agent_id, x.product_id });
                     table.ForeignKey(
-                        name: "fk_agent_notification_preferences_agent_record_agent_id",
+                        name: "fk_agent_notification_preferences_agents_agent_id",
                         column: x => x.agent_id,
                         principalTable: "agents",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "fk_agent_notification_preferences_product_record_product_id",
+                        name: "fk_agent_notification_preferences_products_product_id",
                         column: x => x.product_id,
                         principalTable: "products",
                         principalColumn: "id",
@@ -125,7 +125,7 @@ namespace TechStrap.Infrastructure.Migrations
                 {
                     table.PrimaryKey("pk_product_api_keys", x => x.id);
                     table.ForeignKey(
-                        name: "fk_product_api_keys_product_record_product_id",
+                        name: "fk_product_api_keys_products_product_id",
                         column: x => x.product_id,
                         principalTable: "products",
                         principalColumn: "id",

@@ -14,10 +14,10 @@ internal sealed class ProductRecordConfiguration : IEntityTypeConfiguration<Prod
         builder.Property(p => p.Id).ValueGeneratedNever();
         builder.Property(p => p.Key).HasMaxLength(DomainLimits.SlugMaxLength).IsRequired();
         builder.Property(p => p.Name).HasMaxLength(DomainLimits.NameMaxLength).IsRequired();
-        builder.Property(p => p.NumberPrefix).HasMaxLength(10).IsRequired();
+        builder.Property(p => p.NumberPrefix).HasMaxLength(DomainLimits.NumberPrefixMaxLength).IsRequired();
         builder.Property(p => p.DisplayName).HasMaxLength(DomainLimits.NameMaxLength).IsRequired();
         builder.Property(p => p.Logo).HasMaxLength(DomainLimits.UrlMaxLength);
-        builder.Property(p => p.AccentColour).HasMaxLength(7).IsRequired();
+        builder.Property(p => p.AccentColour).HasMaxLength(DomainLimits.ColourHexLength).IsRequired();
         builder.Property(p => p.FromAddress).HasMaxLength(DomainLimits.EmailMaxLength);
         builder.Property(p => p.ReplyTo).HasMaxLength(DomainLimits.EmailMaxLength);
         builder.HasXminConcurrencyToken(p => p.Version);

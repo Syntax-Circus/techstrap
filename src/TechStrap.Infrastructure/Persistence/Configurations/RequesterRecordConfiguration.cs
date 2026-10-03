@@ -16,7 +16,7 @@ internal sealed class RequesterRecordConfiguration : IEntityTypeConfiguration<Re
         // citext: the database itself compares email addresses case-insensitively.
         builder.Property(r => r.Email).HasColumnType("citext").IsRequired();
         builder.Property(r => r.Name).HasMaxLength(DomainLimits.NameMaxLength);
-        builder.Property(r => r.ExternalUserRef).HasMaxLength(DomainLimits.NameMaxLength * 2);
+        builder.Property(r => r.ExternalUserRef).HasMaxLength(DomainLimits.OidcSubjectMaxLength);
         builder.HasIndex(r => r.Email).IsUnique();
         builder.HasIndex(r => r.ExternalUserRef);
     }

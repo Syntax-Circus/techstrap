@@ -329,14 +329,14 @@ namespace TechStrap.Infrastructure.Migrations
                         .HasForeignKey("AgentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_agent_notification_preferences_agent_record_agent_id");
+                        .HasConstraintName("fk_agent_notification_preferences_agents_agent_id");
 
                     b.HasOne("TechStrap.Infrastructure.Persistence.Records.ProductRecord", null)
                         .WithMany()
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_agent_notification_preferences_product_record_product_id");
+                        .HasConstraintName("fk_agent_notification_preferences_products_product_id");
                 });
 
             modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.ProductApiKeyRecord", b =>
@@ -346,7 +346,7 @@ namespace TechStrap.Infrastructure.Migrations
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
-                        .HasConstraintName("fk_product_api_keys_product_record_product_id");
+                        .HasConstraintName("fk_product_api_keys_products_product_id");
                 });
 
             modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.ProductTicketSequenceRecord", b =>

@@ -14,7 +14,7 @@ internal sealed class TagRecordConfiguration : IEntityTypeConfiguration<TagRecor
         builder.Property(t => t.Id).ValueGeneratedNever();
         builder.Property(t => t.Slug).HasMaxLength(DomainLimits.SlugMaxLength).IsRequired();
         builder.Property(t => t.Name).HasMaxLength(DomainLimits.TagNameMaxLength).IsRequired();
-        builder.Property(t => t.Colour).HasMaxLength(7).IsRequired();
+        builder.Property(t => t.Colour).HasMaxLength(DomainLimits.ColourHexLength).IsRequired();
         builder.HasIndex(t => t.Slug).IsUnique();
     }
 }

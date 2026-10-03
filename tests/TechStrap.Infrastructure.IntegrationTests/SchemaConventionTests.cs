@@ -57,6 +57,32 @@ public sealed class SchemaConventionTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public void Every_foreign_key_is_named_after_its_tables_and_columns_and_never_after_a_record_class()
+    {
+        var offenders = new List<string>();
+        var entities = ModelInspector.Entities().ToList();
+        foreach (var entity in entities)
+        {
+            var table = entity.GetTableName()!;
+            var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
+            foreach (var foreignKey in entity.GetForeignKeys())
+            {
+                var principal = foreignKey.PrincipalEntityType.GetTableName()!;
+                var columns = string.Join('_', foreignKey.Properties.Select(p => p.GetColumnName(store)!));
+                var expected = $"fk_{table}_{principal}_{columns}";
+                var actual = foreignKey.GetConstraintName()!;
+                if (actual != expected || actual.Contains("_record", StringComparison.Ordinal))
+                {
+                    offenders.Add($"{actual} (expected {expected})");
+                }
+            }
+        }
+
+        entities.SelectMany(e => e.GetForeignKeys()).ShouldNotBeEmpty();
+        offenders.ShouldBeEmpty();
+    }
+
+    [Fact]
     public void Every_enum_property_is_stored_as_text()
     {
         var offenders = ModelInspector.Entities()

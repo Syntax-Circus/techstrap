@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TechStrap.Infrastructure.Persistence.Configurations;
 
 namespace TechStrap.Infrastructure.Persistence;
 
@@ -13,5 +14,6 @@ public sealed class TechStrapDbContext(DbContextOptions<TechStrapDbContext> opti
     {
         modelBuilder.HasPostgresExtension("citext");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(TechStrapDbContext).Assembly);
+        ForeignKeyNaming.ApplyTableBasedNames(modelBuilder);
     }
 }
