@@ -445,6 +445,18 @@ public sealed class SubmitTicketRequestHandlerTests
     }
 
     [Fact]
+    public async Task A_body_over_the_domain_limit_is_rejected_before_it_reaches_the_sanitizer()
+    {
+        var result = await Handler().HandleAsync(Request(body: new string('x', 100_001)), ApiContext(), TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Errors[0].Code.ShouldBe("body-too-long");
+        result.Errors[0].Kind.ShouldBe(ResultErrorKind.Validation);
+        result.Errors[0].Target.ShouldBe("body");
+        _sanitizer.DidNotReceive().Sanitize(Arg.Any<string>());
+    }
+
+    [Fact]
     public async Task An_api_submission_without_a_key_principal_is_unauthenticated()
     {
         var context = new SubmitTicketContext(IntakeChannel.Api, null, null, null, false, false, [], null);

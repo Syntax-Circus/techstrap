@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using SyntaxCircus.Storage;
 using TechStrap.Application.Attachments;
+using TechStrap.Domain.Tickets;
 using TechStrap.Infrastructure.Attachments;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
@@ -76,6 +77,21 @@ public sealed class AttachmentStoreTests : IDisposable
 
         result.Errors.ShouldHaveSingleItem().Code.ShouldBe("attachment-too-large");
         (Directory.Exists(_root) ? Directory.GetFiles(_root, "*", SearchOption.AllDirectories) : []).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_long_name_cut_inside_an_emoji_never_leaves_a_lone_surrogate()
+    {
+        // 250 letters, an emoji (two UTF-16 chars) straddling the 251-char cut, more text, then the extension.
+        var name = new string('a', 250) + "😀" + new string('b', 10) + ".png";
+
+        var stored = (await _store.SaveAsync(Guid.CreateVersion7(), Upload(name, "image/png", Png), TestContext.Current.CancellationToken)).Value;
+
+        stored.FileName.Length.ShouldBeLessThanOrEqualTo(255);
+        stored.FileName.ShouldEndWith(".png");
+        Should.NotThrow(() => new UTF8Encoding(false, throwOnInvalidBytes: true).GetBytes(stored.FileName));
+        var attachment = Attachment.Create(Guid.CreateVersion7(), Guid.CreateVersion7(), stored.FileName, stored.ContentType, stored.Size, stored.StorageKey, TimeProvider.System);
+        attachment.IsSuccess.ShouldBeTrue();
     }
 
     [Fact]

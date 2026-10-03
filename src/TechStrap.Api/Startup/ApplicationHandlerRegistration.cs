@@ -1,3 +1,4 @@
+using TechStrap.Application.Email;
 using TechStrap.Application;
 
 namespace TechStrap.Api.Startup;
@@ -16,7 +17,7 @@ public static class ApplicationHandlerRegistration
     }
 
     // Worker-only handlers: registered by the Worker host, never by the Api (their dependencies live there).
-    private static readonly HashSet<string> _workerOnly = ["IDrainEmailOutboxHandler"];
+    private static readonly HashSet<string> _workerOnly = [nameof(IDrainEmailOutboxHandler)];
 
     internal static IReadOnlyCollection<string> WorkerOnly => _workerOnly;
 

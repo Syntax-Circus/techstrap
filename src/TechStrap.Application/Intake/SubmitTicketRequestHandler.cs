@@ -12,6 +12,7 @@ using TechStrap.Contracts.Intake;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
 using TechStrap.Domain.Requesters;
+using TechStrap.Domain.Rules;
 using TechStrap.Domain.Tickets;
 
 namespace TechStrap.Application.Intake;
@@ -107,6 +108,12 @@ public sealed class SubmitTicketRequestHandler(
 
     private static ResultError? Validate(SubmitTicketRequest request, SubmitTicketContext context)
     {
+        // Before CustomerText and the sanitizer expand the body, so a huge body never reaches them.
+        if (request.Body is { } rawBody && rawBody.Length > DomainLimits.MessageBodyMaxLength)
+        {
+            return IntakeErrors.BodyTooLong();
+        }
+
         if (context.Attachments.Count > IntakeLimits.MaxFiles)
         {
             return IntakeErrors.TooManyFiles();

@@ -3,11 +3,15 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using TechStrap.Application.Email;
+using TechStrap.Application.Intake;
 using TechStrap.Application.Persistence;
+using TechStrap.Contracts.Intake;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
 using TechStrap.Infrastructure.Email;
+using TechStrap.Infrastructure.Intake;
 using TechStrap.Infrastructure.IntegrationTests.Support;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
@@ -19,7 +23,7 @@ public sealed class EmailDrainIntegrationTests(PostgresFixture postgres, Mailpit
     private const string PortalLink = "https://portal.test/t/abc123";
     private readonly CapturingLoggerProvider _logs = new();
 
-    private PersistenceTestHost CreateHost(string? host = null, int? port = null, IDictionary<string, string?>? extra = null)
+    private PersistenceTestHost CreateHost(string? host = null, int? port = null, IDictionary<string, string?>? extra = null, Action<IServiceCollection, IConfiguration>? configureServices = null)
     {
         var settings = new Dictionary<string, string?>
         {
@@ -41,6 +45,7 @@ public sealed class EmailDrainIntegrationTests(PostgresFixture postgres, Mailpit
         {
             services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Trace).AddProvider(_logs));
             services.AddTechStrapEmail(configuration);
+            configureServices?.Invoke(services, configuration);
         });
     }
 
@@ -137,6 +142,68 @@ public sealed class EmailDrainIntegrationTests(PostgresFixture postgres, Mailpit
         message.FromAddress.ShouldBe("help@orbitly.test");
         message.Subject.ShouldStartWith("[ORB-");
         (await mailpit.HtmlAsync(message.Id, TestContext.Current.CancellationToken)).ShouldContain(PortalLink);
+    }
+
+    [Fact]
+    public async Task A_submitted_ticket_drains_into_one_mailpit_message_with_the_stored_link_and_message_id()
+    {
+        await mailpit.ClearAsync(TestContext.Current.CancellationToken);
+        var storage = Path.Combine(Path.GetTempPath(), "techstrap-seam-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            await using var host = CreateHost(
+                extra: new Dictionary<string, string?>
+                {
+                    [PortalLinkOptions.PublicUrlKey] = "https://help.test",
+                    ["Storage:Local:RootPath"] = storage,
+                },
+                configureServices: (services, configuration) =>
+                {
+                    services.AddTechStrapIntake(configuration);
+                    services.AddScoped<ISubmitTicketRequestHandler, SubmitTicketRequestHandler>();
+                });
+            await SeedProductAsync(host);
+
+            SubmitTicketResponse response;
+            await using (var scope = host.CreateScope())
+            {
+                var submit = await scope.ServiceProvider.GetRequiredService<ISubmitTicketRequestHandler>().HandleAsync(
+                    new SubmitTicketRequest("pat@example.test", "Pat", "Cannot log in", "It fails with an error.", null, null),
+                    new SubmitTicketContext(IntakeChannel.Web, "orbitly", null, null, false, false, [], null),
+                    TestContext.Current.CancellationToken);
+                submit.IsSuccess.ShouldBeTrue();
+                response = submit.Value;
+            }
+
+            (await DrainAsync(host, "w1")).Sent.ShouldBe(1);
+
+            Guid outboxId;
+            string payload;
+            await using (var connection = new NpgsqlConnection(Database.ConnectionString))
+            {
+                await connection.OpenAsync(TestContext.Current.CancellationToken);
+                await using var command = connection.CreateCommand();
+                command.CommandText = "SELECT id, payload::text FROM email_outbox";
+                await using var reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+                (await reader.ReadAsync(TestContext.Current.CancellationToken)).ShouldBeTrue();
+                (outboxId, payload) = (reader.GetGuid(0), reader.GetString(1));
+                (await reader.ReadAsync(TestContext.Current.CancellationToken)).ShouldBeFalse();
+            }
+
+            var link = JsonDocument.Parse(payload).RootElement.GetProperty("portalLink").GetString()!;
+            link.ShouldContain("/t/");
+            var message = (await mailpit.MessagesAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+            message.Subject.ShouldStartWith($"[{response.TicketNumber}]");
+            message.MessageId.ShouldBe(OutboundMessageIds.For(outboxId));
+            (await mailpit.HtmlAsync(message.Id, TestContext.Current.CancellationToken)).ShouldContain(link);
+        }
+        finally
+        {
+            if (Directory.Exists(storage))
+            {
+                Directory.Delete(storage, recursive: true);
+            }
+        }
     }
 
     [Fact]

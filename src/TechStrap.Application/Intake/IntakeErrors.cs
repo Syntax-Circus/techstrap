@@ -1,4 +1,5 @@
 using SyntaxCircus.Common;
+using TechStrap.Domain.Rules;
 
 namespace TechStrap.Application.Intake;
 
@@ -9,6 +10,10 @@ internal static class IntakeErrors
 
     public static ResultError ApiKeyRequired() =>
         new("api-key-required", "Send a valid product API key to submit a ticket.", ResultErrorKind.Unauthenticated);
+
+    /// <summary>Same code and target as the Domain's <c>Guard.RequiredText</c> failure for the message body.</summary>
+    public static ResultError BodyTooLong() =>
+        new("body-too-long", $"body must be at most {DomainLimits.MessageBodyMaxLength} characters.", ResultErrorKind.Validation, "body");
 
     public static ResultError TooManyFiles() =>
         new("attachments-too-many", $"Attach at most {Contracts.Intake.IntakeLimits.MaxFiles} files.", ResultErrorKind.Validation, "attachments");

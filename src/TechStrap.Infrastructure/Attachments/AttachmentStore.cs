@@ -121,12 +121,16 @@ internal sealed class AttachmentStore(IStorageProvider storage) : IAttachmentSto
         {
             var extension = Path.GetExtension(name);
             name = extension.Length < DomainLimits.FileNameMaxLength / 2
-                ? string.Concat(name.AsSpan(0, DomainLimits.FileNameMaxLength - extension.Length), extension)
-                : name[..DomainLimits.FileNameMaxLength];
+                ? string.Concat(name.AsSpan(0, SafeCut(name, DomainLimits.FileNameMaxLength - extension.Length)), extension)
+                : name[..SafeCut(name, DomainLimits.FileNameMaxLength)];
         }
 
         return name;
     }
+
+    /// <summary>The cut length, backed off by one when it would split a surrogate pair.</summary>
+    private static int SafeCut(string name, int length) =>
+        length > 0 && char.IsHighSurrogate(name[length - 1]) ? length - 1 : length;
 
     private static Result<StoredAttachment> TooLarge() =>
         Failure("attachment-too-large", $"This file is too large. Each file can be up to {IntakeLimits.MaxFileBytes / (1024 * 1024)} MB.");
