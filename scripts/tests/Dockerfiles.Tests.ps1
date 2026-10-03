@@ -126,7 +126,7 @@ Describe 'clean publish serves the self-hosted fonts' -Tag 'Network' {
                 $source = Join-Path $script:RepoRoot $file
                 if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination (Join-Path $copy $file) -Force }
             }
-            foreach ($dir in '.config', 'assets/brand/scss', "src/$Project", 'src/TechStrap.Contracts') {
+            foreach ($dir in '.config', 'eng', 'assets/brand/scss', "src/$Project", 'src/TechStrap.Contracts') {
                 $source = Join-Path $script:RepoRoot $dir
                 if (-not (Test-Path -LiteralPath $source)) { continue }
                 $target = Join-Path $copy $dir

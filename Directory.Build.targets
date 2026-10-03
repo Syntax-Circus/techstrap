@@ -18,10 +18,27 @@
     </ItemGroup>
   </Target>
 
+  <!--
+    Microsoft.Web.LibraryManager.Build restores in every project's own Build, but its shared download cache has no
+    cross-process locking, so concurrent restores in a parallel solution build collide (IOException / LIB003). Turn
+    the package's own restore off in the real build and run it through eng/LibraryManagerRestore.proj instead, which
+    MSBuild builds once and every project waits on, serializing the restores. The one instance that runs it
+    (LibmanSerialized=true) keeps the package's restore on. Opt out entirely with -p:LibraryRestore=False.
+  -->
+  <PropertyGroup>
+    <_LibmanRestoreRequested Condition="'$(LibraryRestore)' != 'False'">true</_LibmanRestoreRequested>
+    <LibraryRestore Condition="'$(LibmanSerialized)' != 'true'">False</LibraryRestore>
+  </PropertyGroup>
+
+  <Target Name="SerializedLibraryManagerRestore"
+          Condition="'$(LibmanSerialized)' != 'true' And '$(_LibmanRestoreRequested)' == 'true' And '$(BuildingForLiveUnitTesting)' != 'true' And Exists('$(MSBuildProjectDirectory)/libman.json')">
+    <MSBuild Projects="$(MSBuildThisFileDirectory)eng/LibraryManagerRestore.proj" Targets="RestoreLibraries" />
+  </Target>
+
   <!-- app.scss imports Vendor/bootstrap, which exists only after libman restore; make the order explicit. -->
   <Target Name="EnsureLibraryManagerRestoreBeforeSassCompile"
           BeforeTargets="Compile Sass"
-          DependsOnTargets="LibraryManagerRestore"
+          DependsOnTargets="SerializedLibraryManagerRestore"
           Condition="Exists('$(MSBuildProjectDirectory)/libman.json')" />
 
   <!--
@@ -32,8 +49,8 @@
     rejects absolute ones against its wwwroot/** pattern), so every later static web assets target sees it.
   -->
   <Target Name="IncludeLibraryManagerWwwrootAssets"
-          AfterTargets="LibraryManagerRestore"
-          Condition="Exists('$(MSBuildProjectDirectory)/libman.json') And '$(DesignTimeBuild)' != 'true'">
+          AfterTargets="SerializedLibraryManagerRestore"
+          Condition="Exists('$(MSBuildProjectDirectory)/libman.json') And '$(DesignTimeBuild)' != 'true' And '$(LibmanSerialized)' != 'true'">
     <ItemGroup>
       <_LibmanWwwrootFiles Include="wwwroot/fonts/**" Exclude="@(Content)" />
       <None Remove="@(_LibmanWwwrootFiles)" />
