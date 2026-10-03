@@ -40,6 +40,28 @@
             <PaletteSwatches Group="PaletteGroup.Portal" />
         </section>
 
+        <section class="ts-sg-section" aria-labelledby="sg-stamps">
+            <h2 id="sg-stamps" class="ts-label">Status stamps and priority</h2>
+            <p class="ts-sg-note">Queue stamps are straight with one border. Ticket stamps are tilted with an inner ring; the stamp-down animation plays only when the status changes. Spam has a double border. Status is always the word plus the shape, never colour alone.</p>
+            <table class="table ts-sg-table">
+                <thead><tr><th scope="col">Status</th><th scope="col">Queue</th><th scope="col">Ticket</th></tr></thead>
+                <tbody>
+                    <tr><td>New</td><td><StatusStamp Status="StampStatus.New" /></td><td><StatusStamp Status="StampStatus.New" Variant="StampVariant.Ticket" /></td></tr>
+                    <tr><td>Open</td><td><StatusStamp Status="StampStatus.Open" /></td><td><StatusStamp Status="StampStatus.Open" Variant="StampVariant.Ticket" /></td></tr>
+                    <tr><td>Pending</td><td><StatusStamp Status="StampStatus.Pending" /></td><td><StatusStamp Status="StampStatus.Pending" Variant="StampVariant.Ticket" /></td></tr>
+                    <tr><td>Solved</td><td><StatusStamp Status="StampStatus.Solved" /></td><td><StatusStamp Status="StampStatus.Solved" Variant="StampVariant.Ticket" /></td></tr>
+                    <tr><td>Closed</td><td><StatusStamp Status="StampStatus.Closed" /></td><td><StatusStamp Status="StampStatus.Closed" Variant="StampVariant.Ticket" /></td></tr>
+                    <tr><td>Spam</td><td><StatusStamp Status="StampStatus.Spam" /></td><td><StatusStamp Status="StampStatus.Spam" Variant="StampVariant.Ticket" /></td></tr>
+                </tbody>
+            </table>
+            <div class="ts-sg-row">
+                <PriorityMark Level="PriorityLevel.Urgent" />
+                <PriorityMark Level="PriorityLevel.High" />
+                <PriorityMark Level="PriorityLevel.Normal" />
+                <PriorityMark Level="PriorityLevel.Low" />
+            </div>
+        </section>
+
         <section class="ts-sg-section" aria-labelledby="sg-buttons">
             <h2 id="sg-buttons" class="ts-label">Buttons</h2>
             <div class="ts-sg-row">
