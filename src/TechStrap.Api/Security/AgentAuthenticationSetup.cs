@@ -58,6 +58,7 @@ public static class AgentAuthenticationSetup
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentAgentClaims, ClaimsCurrentAgentClaims>();
         services.AddScoped<IAuthorizationHandler, AgentAccessAuthorizationHandler>();
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, ProblemDetailsAuthorizationResultHandler>();
 
         services.AddAuthorizationBuilder()
             .AddPolicy(AuthorizationPolicies.Agent, policy => policy.RequireAuthenticatedUser().AddRequirements(new AgentAccessRequirement(adminOnly: false)))
