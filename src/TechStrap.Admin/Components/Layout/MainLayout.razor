@@ -1,0 +1,20 @@
+@inherits LayoutComponentBase
+
+<div class="ts-shell">
+    <nav class="ts-rail" aria-label="Admin navigation">
+        <a class="ts-brand" href="/">
+            <img src="brand/mark.svg" alt="" width="36" height="36" />
+            <span>TechStrap<small>Call log / admin</small></span>
+        </a>
+        <a class="ts-rail-link" href="/">Home</a>
+    </nav>
+    <main class="ts-main">
+        <GlobalErrorBoundary BoundaryName="admin UI"
+                             CssClass="ts-error"
+                             Title="Couldn't load this screen."
+                             Description="Something went wrong while drawing it. Try again, and tell an admin if it keeps happening."
+                             HomeLabel="Back to the start">
+            @Body
+        </GlobalErrorBoundary>
+    </main>
+</div>

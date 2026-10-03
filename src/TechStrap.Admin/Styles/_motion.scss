@@ -1,0 +1,10 @@
+// BRAND.md section 17: motion is minimal and always optional. prefers-reduced-motion disables every animation and
+// transition. State is never conveyed by motion alone, and each animated element has a correct static end state.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

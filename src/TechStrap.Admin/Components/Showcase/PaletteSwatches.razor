@@ -1,0 +1,9 @@
+<ul class="ts-sg-swatches">
+    @foreach (var token in Tokens)
+    {
+        <li>
+            <span class="ts-sg-swatch" style="background: var(--@token)" aria-hidden="true"></span>
+            <code>--@token</code>
+        </li>
+    }
+</ul>
