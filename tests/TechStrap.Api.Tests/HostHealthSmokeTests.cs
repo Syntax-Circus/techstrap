@@ -87,7 +87,8 @@ public sealed class HostHealthSmokeTests(TestPostgres postgres)
         };
         await using var factory = new WorkerFactory(settings: settings);
 
-        Should.Throw<OptionsValidationException>(() => factory.CreateClient());
+        var error = Should.Throw<OptionsValidationException>(() => factory.CreateClient());
+        error.Message.ShouldContain("Email:Smtp:Host");
     }
 
     [Fact]

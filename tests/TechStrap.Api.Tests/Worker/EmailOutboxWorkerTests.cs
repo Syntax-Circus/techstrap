@@ -16,9 +16,36 @@ public sealed class EmailOutboxWorkerTests
     private static readonly TimeSpan _poll = TimeSpan.FromSeconds(5);
 
     private readonly FakeTimeProvider _clock = new();
+    private readonly SignallingTimeProvider _timeProvider;
     private readonly IDrainEmailOutboxHandler _handler = Substitute.For<IDrainEmailOutboxHandler>();
     private readonly CollectingLogger _logger = new();
     private int _scopesCreated;
+
+    public EmailOutboxWorkerTests() => _timeProvider = new SignallingTimeProvider(_clock);
+
+    private async Task WaitForTimerAsync() =>
+        (await _timeProvider.Timers.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)).ShouldBeTrue("The worker never started its poll wait.");
+
+    /// <summary>Delegates to a FakeTimeProvider and signals every timer the worker creates, so tests advance time only once the wait exists.</summary>
+    private sealed class SignallingTimeProvider(FakeTimeProvider inner) : TimeProvider
+    {
+        public SemaphoreSlim Timers { get; } = new(0);
+
+        public override DateTimeOffset GetUtcNow() => inner.GetUtcNow();
+
+        public override long GetTimestamp() => inner.GetTimestamp();
+
+        public override long TimestampFrequency => inner.TimestampFrequency;
+
+        public override TimeZoneInfo LocalTimeZone => inner.LocalTimeZone;
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            var timer = inner.CreateTimer(callback, state, dueTime, period);
+            Timers.Release();
+            return timer;
+        }
+    }
 
     private EmailOutboxWorker CreateWorker(bool enabled = true, string? workerId = null)
     {
@@ -29,7 +56,7 @@ public sealed class EmailOutboxWorkerTests
             return _handler;
         });
         var options = Microsoft.Extensions.Options.Options.Create(new EmailOutboxWorkerOptions { Enabled = enabled, PollIntervalSeconds = 5, WorkerId = workerId });
-        return new EmailOutboxWorker(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), options, _clock, _logger);
+        return new EmailOutboxWorker(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), options, _timeProvider, _logger);
     }
 
     private void Returns(params int[] claimedThenZero)
@@ -63,7 +90,7 @@ public sealed class EmailOutboxWorkerTests
         await worker.StartAsync(TestContext.Current.CancellationToken);
 
         await WaitForAsync(() => Calls == 3);
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await WaitForTimerAsync();
         Calls.ShouldBe(3);
 
         _clock.Advance(_poll);
@@ -96,7 +123,7 @@ public sealed class EmailOutboxWorkerTests
 
         await WaitForAsync(() => Calls == 1);
         await WaitForAsync(() => _logger.Entries.Any(e => e.Level == LogLevel.Error && e.Exception is InvalidOperationException));
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await WaitForTimerAsync();
         Calls.ShouldBe(1);
 
         _clock.Advance(_poll);
@@ -115,7 +142,7 @@ public sealed class EmailOutboxWorkerTests
         await worker.StartAsync(TestContext.Current.CancellationToken);
 
         await WaitForAsync(() => Calls == 1);
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await WaitForTimerAsync();
         Calls.ShouldBe(1);
 
         _clock.Advance(_poll);

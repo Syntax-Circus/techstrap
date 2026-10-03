@@ -39,7 +39,7 @@ public sealed class EmailDrainIntegrationTests(PostgresFixture postgres, Mailpit
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
         return new PersistenceTestHost(Database, configure: services =>
         {
-            services.AddLogging(builder => builder.AddProvider(_logs));
+            services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Trace).AddProvider(_logs));
             services.AddTechStrapEmail(configuration);
         });
     }
