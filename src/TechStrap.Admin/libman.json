@@ -5,7 +5,37 @@
     {
       "library": "bootstrap@5.3.8",
       "destination": "Styles/Vendor/bootstrap",
-      "files": [ "scss/**" ]
+      "files": [
+        "scss/**"
+      ]
+    },
+    {
+      "library": "@fontsource/ibm-plex-sans@5.3.0",
+      "destination": "wwwroot/fonts/ibm-plex-sans",
+      "files": [
+        "files/ibm-plex-sans-latin-400-normal.woff2",
+        "files/ibm-plex-sans-latin-500-normal.woff2",
+        "files/ibm-plex-sans-latin-600-normal.woff2",
+        "LICENSE"
+      ]
+    },
+    {
+      "library": "@fontsource/ibm-plex-mono@5.3.0",
+      "destination": "wwwroot/fonts/ibm-plex-mono",
+      "files": [
+        "files/ibm-plex-mono-latin-400-normal.woff2",
+        "files/ibm-plex-mono-latin-500-normal.woff2",
+        "files/ibm-plex-mono-latin-600-normal.woff2",
+        "LICENSE"
+      ]
+    },
+    {
+      "library": "@fontsource-variable/source-serif-4@5.3.0",
+      "destination": "wwwroot/fonts/source-serif-4",
+      "files": [
+        "files/source-serif-4-latin-opsz-normal.woff2",
+        "LICENSE"
+      ]
     }
   ]
 }

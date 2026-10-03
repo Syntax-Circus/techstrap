@@ -96,11 +96,14 @@ Versions of these are pinned by the owning phase when it starts; they were not v
 
 ## 4b. Front-end libraries restored at build by libman (npm via jsdelivr)
 
-These are npm packages, not NuGet packages, so `Directory.Packages.props` and `scripts/Check-PackageVersions.ps1` do not cover them (the table header deliberately has no `Package` or `Status` column). `scripts/tests/Libman.Tests.ps1` asserts that every `libman.json` library is pinned exactly, listed here with the same version, and restored only into a gitignored folder. Restored files are never committed.
+These are npm packages, not NuGet packages, so `Directory.Packages.props` and `scripts/Check-PackageVersions.ps1` do not cover them (the table header deliberately has no `Package` or `Status` column). `scripts/tests/Libman.Tests.ps1` asserts that every `libman.json` library is pinned exactly, listed here with the same version, and restored only into a gitignored folder. Restored files are never committed, and the Docker build restores them again from jsdelivr (a build without network access fails loudly at the font assertion in `Dockerfile.admin` and `Dockerfile.portal`, never silently without fonts).
 
 | Library | Used for | Exact version | Source/release verified | Owning phase |
 | --- | --- | --- | --- | --- |
 | `bootstrap` | SCSS base for Admin and Portal (`Styles/Vendor/bootstrap`, `scss/**` only) | 5.3.8 | [5.3.8](https://www.npmjs.com/package/bootstrap/v/5.3.8) via jsdelivr, restored in both apps by `Microsoft.Web.LibraryManager.Build` | P02 |
+| `@fontsource/ibm-plex-sans` | IBM Plex Sans, weights 400, 500, 600, Latin subset, WOFF2 (`wwwroot/fonts/ibm-plex-sans`), self-hosted in Admin and Portal. SIL OFL 1.1; the package `LICENSE` is restored beside the files | 5.3.0 | [5.3.0](https://www.npmjs.com/package/@fontsource/ibm-plex-sans/v/5.3.0) via jsdelivr | P02 |
+| `@fontsource/ibm-plex-mono` | IBM Plex Mono, weights 400, 500, 600, Latin subset, WOFF2 (`wwwroot/fonts/ibm-plex-mono`), Admin and Portal (ticket id). SIL OFL 1.1; `LICENSE` restored beside the files | 5.3.0 | [5.3.0](https://www.npmjs.com/package/@fontsource/ibm-plex-mono/v/5.3.0) via jsdelivr | P02 |
+| `@fontsource-variable/source-serif-4` | Source Serif 4, variable weight and optical size (`opsz`), Latin subset, one WOFF2 (`wwwroot/fonts/source-serif-4`), Admin only (message bodies, brand-moment copy). SIL OFL 1.1; `LICENSE` restored beside the file | 5.3.0 | [5.3.0](https://www.npmjs.com/package/@fontsource-variable/source-serif-4/v/5.3.0) via jsdelivr | P02 |
 
 ## 5. Published by TechStrap
 

@@ -7,6 +7,7 @@
 .superpowers/
 docs/
 assets/
+!assets/brand/scss/
 scripts/
 local/
 backups/
@@ -24,3 +25,4 @@ publish/
 **/logs/
 tests/
 **/Styles/Vendor/
+**/wwwroot/fonts/

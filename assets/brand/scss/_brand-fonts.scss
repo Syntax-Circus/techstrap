@@ -1,0 +1,13 @@
+// Self-hosted @font-face (docs/BRAND.md section 11). The WOFF2 files are restored by libman from the @fontsource npm
+// packages into wwwroot/fonts (see each app's libman.json) and are never committed; the url() is relative to
+// wwwroot/css/app.css. font-display: swap shows the system fallback of the stack immediately, so a missing or slow file
+// never leaves text invisible.
+@mixin ts-font-face($family, $directory, $file, $weight) {
+  @font-face {
+    font-family: $family;
+    font-style: normal;
+    font-weight: $weight;
+    font-display: swap;
+    src: url("../fonts/#{$directory}/files/#{$file}.woff2") format("woff2");
+  }
+}

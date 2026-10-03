@@ -40,6 +40,9 @@ src/*/wwwroot/css/app.css.map
 # Bootstrap SCSS restored by libman at build (never committed)
 src/*/Styles/Vendor/
 
+# Self-hosted fonts (IBM Plex, Source Serif 4) restored by libman at build (never committed)
+src/*/wwwroot/fonts/
+
 # User-specific files (CodeRush)
 .cr/
 

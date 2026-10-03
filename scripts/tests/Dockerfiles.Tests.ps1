@@ -58,13 +58,43 @@ Describe 'compiled CSS assertion' {
     }
 }
 
+Describe 'self-hosted font assertion' {
+    # Fonts are restored by libman (jsdelivr) during publish and never committed, so an image built without network
+    # access must fail the build instead of shipping without fonts. Admin: Sans 3 + Mono 3 + Serif 1 files, 3 licences.
+    It 'Dockerfile.<Name> fails the build unless <Fonts> WOFF2 files and <Licences> OFL licences are published' -ForEach @(
+        @{ Name = 'admin'; Fonts = 7; Licences = 3 }
+        @{ Name = 'portal'; Fonts = 6; Licences = 2 }
+    ) {
+        $text = Get-DockerfileText -Name $Name
+        $fontCheck = 'test "$(find /app/publish/wwwroot/fonts -name ''*.woff2'' | wc -l)" -eq ' + $Fonts
+        $licenceCheck = 'test "$(find /app/publish/wwwroot/fonts -name LICENSE | wc -l)" -eq ' + $Licences
+        $text.Contains($fontCheck) | Should -BeTrue -Because "Dockerfile.$Name must contain: $fontCheck"
+        $text.Contains($licenceCheck) | Should -BeTrue -Because "Dockerfile.$Name must contain: $licenceCheck"
+    }
+
+    It 'Dockerfile.api and Dockerfile.worker have no font assertion because they serve no static assets' -ForEach 'api', 'worker' {
+        (Get-DockerfileText -Name $_) | Should -Not -Match 'wwwroot/fonts'
+    }
+}
+
 Describe '.dockerignore' {
     It 'keeps secrets, git history and compiled CSS out of the build context' {
         $lines = Get-Content -LiteralPath (Join-Path $script:RepoRoot '.dockerignore')
         $lines | Should -Contain '.git/'
         $lines | Should -Contain '**/.env'
         $lines | Should -Contain '**/wwwroot/css/app.css'
+        $lines | Should -Contain '**/wwwroot/fonts/'
+        $lines | Should -Contain '**/Styles/Vendor/'
         $lines | Should -Contain '**/bin/'
         $lines | Should -Contain '**/obj/'
+    }
+}
+
+Describe '.dockerignore and the shared brand SCSS' {
+    It 'excludes assets/ but re-includes assets/brand/scss/, which Admin and Portal import at build' {
+        $lines = Get-Content -LiteralPath (Join-Path $script:RepoRoot '.dockerignore')
+        $lines | Should -Contain 'assets/'
+        $lines | Should -Contain '!assets/brand/scss/'
+        [array]::IndexOf($lines, '!assets/brand/scss/') | Should -BeGreaterThan ([array]::IndexOf($lines, 'assets/'))
     }
 }
