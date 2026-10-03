@@ -126,22 +126,28 @@ public sealed class IntakeRateLimitTests(TestPostgres postgres) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task A_trusted_key_is_limited_per_key_regardless_of_ip()
+    public async Task A_trusted_key_is_limited_per_key_and_ip()
     {
         var (factory, seed) = await StartAsync();
         await using var _f = factory;
         using var client = factory.CreateClient();
 
         (await StatusAsync(PostKeyAsync(client, seed.OrbitlyTrusted, "203.0.113.10"))).ShouldBe(HttpStatusCode.Created);
-        (await StatusAsync(PostKeyAsync(client, seed.OrbitlyTrusted, "203.0.113.20"))).ShouldBe(HttpStatusCode.Created);
         (await StatusAsync(PostKeyAsync(client, seed.OrbitlyTrusted, "203.0.113.10"))).ShouldBe(HttpStatusCode.Created);
-        using var fourth = await PostKeyAsync(client, seed.OrbitlyTrusted, "203.0.113.20");
+        (await StatusAsync(PostKeyAsync(client, seed.OrbitlyTrusted, "203.0.113.10"))).ShouldBe(HttpStatusCode.Created);
+        using var fourthFromA = await PostKeyAsync(client, seed.OrbitlyTrusted, "203.0.113.10");
 
-        await ShouldBeRateLimitedProblemAsync(fourth);
+        await ShouldBeRateLimitedProblemAsync(fourthFromA);
+
+        // The same key from another IP has its own allowance, so a spoofer who knows the prefix cannot exhaust it.
+        (await StatusAsync(PostKeyAsync(client, seed.OrbitlyTrusted, "203.0.113.20"))).ShouldBe(HttpStatusCode.Created);
+        (await StatusAsync(PostKeyAsync(client, seed.OrbitlyTrusted, "203.0.113.20"))).ShouldBe(HttpStatusCode.Created);
+        (await StatusAsync(PostKeyAsync(client, seed.OrbitlyTrusted, "203.0.113.20"))).ShouldBe(HttpStatusCode.Created);
+        (await StatusAsync(PostKeyAsync(client, seed.OrbitlyTrusted, "203.0.113.20"))).ShouldBe(HttpStatusCode.TooManyRequests);
     }
 
     [Fact]
-    public async Task Junk_keys_are_limited_per_ip()
+    public async Task The_same_junk_key_is_limited_per_ip()
     {
         var (factory, _) = await StartAsync();
         await using var _f = factory;
@@ -150,5 +156,19 @@ public sealed class IntakeRateLimitTests(TestPostgres postgres) : IAsyncLifetime
         (await StatusAsync(PostKeyAsync(client, "tsp_unknown_key_one_aaaaaaaa", "203.0.113.10"))).ShouldBe(HttpStatusCode.Unauthorized);
         (await StatusAsync(PostKeyAsync(client, "tsp_unknown_key_one_aaaaaaaa", "203.0.113.10"))).ShouldBe(HttpStatusCode.Unauthorized);
         (await StatusAsync(PostKeyAsync(client, "tsp_unknown_key_one_aaaaaaaa", "203.0.113.10"))).ShouldBe(HttpStatusCode.TooManyRequests);
+    }
+
+    [Fact]
+    public async Task Invented_prefixes_each_get_their_own_partition_per_ip_which_is_a_known_limit()
+    {
+        var (factory, _) = await StartAsync();
+        await using var _f = factory;
+        using var client = factory.CreateClient();
+
+        // Twelve-character prefixes differ, so none of these share a partition (documented in INTAKE.md, Known limits).
+        for (var i = 0; i < 6; i++)
+        {
+            (await StatusAsync(PostKeyAsync(client, $"tsp_invent{i:D2}_zzzzzzzz", "203.0.113.10"))).ShouldBe(HttpStatusCode.Unauthorized);
+        }
     }
 }

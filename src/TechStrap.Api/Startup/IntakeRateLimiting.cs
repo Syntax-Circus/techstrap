@@ -41,12 +41,14 @@ public static class IntakeRateLimiting
         var prefix = string.IsNullOrEmpty(raw)
             ? null
             : raw[..Math.Min(raw.Length, ApiKeyFormat.StoredPrefixLength)];
+        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         if (prefix is not null && raw!.StartsWith(ApiKeyFormat.TrustedPrefix, StringComparison.Ordinal))
         {
-            return ($"trusted:{prefix}", true);
+            // Per key prefix AND client IP: the prefix is visible in the Admin UI and audit logs, so a party who knows it
+            // can only exhaust its own IP's partition, never the real key holder's.
+            return ($"trusted:{prefix}:{ip}", true);
         }
 
-        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         return ($"key:{prefix ?? "none"}:{ip}", false);
     }
 }
