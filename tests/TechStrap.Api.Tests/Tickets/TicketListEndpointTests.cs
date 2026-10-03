@@ -75,6 +75,8 @@ public sealed class TicketListEndpointTests(TestPostgres postgres)
         using var response = await sam.GetAsync("/api/tickets?view=later", Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        (await response.Content.ReadAsStringAsync(Ct)).ShouldContain("view");
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        System.Text.Json.JsonSerializer.Deserialize<Microsoft.AspNetCore.Mvc.ValidationProblemDetails>(json)!.Errors.ShouldContainKey("view");
+        json.ShouldContain("view-invalid");
     }
 }

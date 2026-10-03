@@ -79,5 +79,10 @@ internal static class TicketTestData
 
     /// <summary>A client signed in as "sam" or "kim" (agent group). Call GET /api/agents/me once before acting; <see cref="SeedAsync"/> does.</summary>
     public static HttpClient AgentClient(ApiFactory factory, string subject) =>
-        factory.CreateClient().Bearer(TestJwt.Token(subject, [TestJwt.AgentGroup], email: $"{subject}@example.com", name: subject == "sam" ? "Sam" : "Kim"));
+        factory.CreateClient().Bearer(TestJwt.Token(subject, [TestJwt.AgentGroup], email: $"{subject}@example.com", name: subject switch
+        {
+            "sam" => "Sam",
+            "kim" => "Kim",
+            _ => throw new ArgumentException($"Unknown test agent \"{subject}\"; use \"sam\" or \"kim\".", nameof(subject)),
+        }));
 }

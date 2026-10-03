@@ -199,6 +199,15 @@ public sealed class ListTicketsIntegrationTests(PostgresFixture postgres) : Post
 
         exact.IsSuccess.ShouldBeTrue();
         exact.Value.Items.First().Number.ShouldBe("ORB-42");
+        // The handler cuts the text; the repository must also be safe when called directly with hostile or oversized text.
+        await using var scope = host.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<ITicketRepository>();
+        foreach (var text in new[] { new string('a', 10_000), "&|!:*()<>'; --" })
+        {
+            var page = await repository.ListAsync(new TicketQuery(TicketView.All, SearchText: text), Ct);
+            page.ShouldNotBeNull();
+        }
+
         (await ListAsync(host, Request())).TotalCount.ShouldBeGreaterThan(0);
     }
 }
