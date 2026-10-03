@@ -51,3 +51,33 @@ public sealed class ConstructorDependencyController(IFixtureRequestHandler handl
 {
     public Task<IActionResult> Get([FromServices] IFixtureRequestHandler other, CancellationToken cancellationToken) => Task.FromResult<IActionResult>(Ok(handler));
 }
+
+public sealed class FixtureRecord;
+
+[Authorize(Policy = "Agent")]
+public sealed class UnitOfWorkParameterController : ControllerBase
+{
+    public Task<IActionResult> Get([FromServices] IFixtureRequestHandler handler, [FromServices] TechStrap.Application.Persistence.IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
+        Task.FromResult<IActionResult>(Ok());
+}
+
+[Authorize(Policy = "Agent")]
+public sealed class RecordParameterController : ControllerBase
+{
+    public Task<IActionResult> Get([FromServices] IFixtureRequestHandler handler, FixtureRecord record, CancellationToken cancellationToken) =>
+        Task.FromResult<IActionResult>(Ok());
+}
+
+[Authorize(Policy = "Agent")]
+public sealed class DbContextParameterController : ControllerBase
+{
+    public Task<IActionResult> Get([FromServices] IFixtureRequestHandler handler, [FromServices] Microsoft.EntityFrameworkCore.DbContext context, CancellationToken cancellationToken) =>
+        Task.FromResult<IActionResult>(Ok());
+}
+
+[Authorize(Policy = "Agent")]
+public sealed class InfrastructureParameterController : ControllerBase
+{
+    public Task<IActionResult> Get([FromServices] IFixtureRequestHandler handler, [FromServices] TechStrap.Infrastructure.InfrastructureAssemblyMarker infrastructure, CancellationToken cancellationToken) =>
+        Task.FromResult<IActionResult>(Ok());
+}

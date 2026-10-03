@@ -27,6 +27,10 @@ public sealed class ControllerBoundaryTests
     [InlineData(typeof(TwoHandlersController), "exactly one")]
     [InlineData(typeof(NoCancellationController), "CancellationToken")]
     [InlineData(typeof(ConstructorDependencyController), "constructor")]
+    [InlineData(typeof(UnitOfWorkParameterController), "IUnitOfWork")]
+    [InlineData(typeof(RecordParameterController), "FixtureRecord")]
+    [InlineData(typeof(DbContextParameterController), "DbContext")]
+    [InlineData(typeof(InfrastructureParameterController), "InfrastructureAssemblyMarker")]
     public void A_bad_controller_is_flagged(Type controller, string expected) =>
         ControllerBoundaryRules.FindViolations([controller], FixtureAssembly).ShouldContain(violation => violation.Contains(expected));
 }
