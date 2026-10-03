@@ -5,6 +5,7 @@ using SyntaxCircus.Observability;
 using ObservabilitySentryOptions = SyntaxCircus.Observability.SentryOptions;
 using TechStrap.Api.Options;
 using TechStrap.Api.Startup;
+using TechStrap.Application.Email;
 
 namespace TechStrap.Api.Tests;
 
@@ -85,8 +86,14 @@ public sealed partial class EnvExampleCompletenessTests
                 "EMAIL__SMTP__USERNAME",
                 "EMAIL__SMTP__PASSWORD",
                 "EMAIL__SMTP__DEFAULTFROM",
+                "EMAIL__SMTP__MAXRETRYATTEMPTS",
+                "EMAIL__SMTP__TLSMODE",
+                "EMAIL__SMTP__RETRYMODE",
+                "EMAIL__SMTP__TOTALSENDTIMEOUT",
+                .. OptionKeys(typeof(EmailOutboxWorkerOptions), EmailOutboxWorkerOptions.SectionName),
                 "STORAGE__LOCAL__ROOTPATH",
                 "TECHSTRAP_PORTAL_PUBLIC_URL",
+                "TECHSTRAP_PORTAL_SHOW_POWERED_BY",
             ]
         },
         {

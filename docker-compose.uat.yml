@@ -122,6 +122,11 @@ services:
       Email__Smtp__Username: ${SMTP_USERNAME:-}
       Email__Smtp__Password: ${SMTP_PASSWORD:-}
       Email__Smtp__DefaultFrom: ${SMTP_FROM:-}
+      Email__Smtp__TlsMode: ${SMTP_TLS_MODE:-StartTls}
+      Email__Smtp__MaxRetryAttempts: "1"
+      Email__Smtp__RetryMode: TransientOnly
+      Email__Smtp__TotalSendTimeout: "00:00:30"
+      TECHSTRAP_PORTAL_SHOW_POWERED_BY: ${TECHSTRAP_PORTAL_SHOW_POWERED_BY:-true}
     depends_on:
       api:
         condition: service_healthy
