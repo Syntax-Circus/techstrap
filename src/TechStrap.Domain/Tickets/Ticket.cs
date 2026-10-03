@@ -203,7 +203,7 @@ public sealed class Ticket
 
         var now = clock.GetUtcNow();
         FirstResponseAt ??= now;
-        if (Status is TicketStatus.New or TicketStatus.Open)
+        if (Status is TicketStatus.New or TicketStatus.Open && TicketStatusRules.CanTransition(Status, TicketStatus.Pending))
         {
             ApplyStatus(TicketStatus.Pending, Actor.ForAgent(agentId), now, clock);
         }
@@ -224,7 +224,7 @@ public sealed class Ticket
             return added;
         }
 
-        if (Status is TicketStatus.Pending or TicketStatus.Solved)
+        if (Status is TicketStatus.Pending or TicketStatus.Solved && TicketStatusRules.CanTransition(Status, TicketStatus.Open))
         {
             ApplyStatus(TicketStatus.Open, Actor.ForRequester(requesterId), clock.GetUtcNow(), clock);
         }
@@ -246,8 +246,8 @@ public sealed class Ticket
 
         var from = AssigneeId;
         AssigneeId = agentId;
-        Touch(clock);
         Raise(TicketEventType.Assigned, actor, Payload(("from", from), ("to", agentId)), clock);
+        Touch(clock);
         return DomainResult.Ok();
     }
 
@@ -265,8 +265,8 @@ public sealed class Ticket
 
         var from = Priority;
         Priority = priority;
-        Touch(clock);
         Raise(TicketEventType.PriorityChanged, actor, Payload(("from", from.ToString()), ("to", priority.ToString())), clock);
+        Touch(clock);
         return DomainResult.Ok();
     }
 
@@ -285,8 +285,8 @@ public sealed class Ticket
 
         var from = ProductId;
         ProductId = productId;
-        Touch(clock);
         Raise(TicketEventType.ProductChanged, actor, Payload(("from", from), ("to", productId)), clock);
+        Touch(clock);
         return DomainResult.Ok();
     }
 
@@ -299,8 +299,8 @@ public sealed class Ticket
 
         if (_tagIds.Add(tagId))
         {
-            Touch(clock);
             Raise(TicketEventType.TagAdded, actor, Payload(("tagId", tagId)), clock);
+            Touch(clock);
         }
 
         return DomainResult.Ok();
@@ -315,8 +315,8 @@ public sealed class Ticket
 
         if (_tagIds.Remove(tagId))
         {
-            Touch(clock);
             Raise(TicketEventType.TagRemoved, actor, Payload(("tagId", tagId)), clock);
+            Touch(clock);
         }
 
         return DomainResult.Ok();
@@ -336,8 +336,8 @@ public sealed class Ticket
         }
 
         IsSpam = isSpam;
-        Touch(clock);
         Raise(TicketEventType.MarkedSpam, actor, Payload(("isSpam", isSpam)), clock);
+        Touch(clock);
         return DomainResult.Ok();
     }
 
@@ -406,6 +406,7 @@ public sealed class Ticket
             Actor.ForRequester(requesterId),
             Payload(("number", number.ToString()), ("productId", productId), ("channel", channel.ToString()), ("parentTicketId", parentTicketId)),
             clock);
+        ticket.Touch(clock);
         return DomainResult<Ticket>.Ok(ticket);
     }
 
@@ -447,15 +448,17 @@ public sealed class Ticket
             return closed;
         }
 
-        var message = Message.CreateAt(Id, authorType, authorId, visibility, body, Stamp(clock), clock);
+        var stamp = NextStamp(clock);
+        var message = Message.CreateAt(Id, authorType, authorId, visibility, body, stamp, clock);
         if (message.IsFailure)
         {
             return message;
         }
 
+        _lastStamp = stamp;
         _pendingMessages.Add(message.Value);
-        Touch(clock);
         Raise(TicketEventType.MessageAdded, actor, Payload(("messageId", message.Value.Id), ("visibility", visibility.ToString())), clock);
+        Touch(clock);
         return message;
     }
 
@@ -477,11 +480,18 @@ public sealed class Ticket
             ClosedAt = now;
         }
 
-        LastActivityAt = now;
         Raise(TicketEventType.StatusChanged, actor, Payload(("from", from.ToString()), ("to", to.ToString())), clock);
+        Touch(clock);
     }
 
-    private void Touch(TimeProvider clock) => LastActivityAt = clock.GetUtcNow();
+    /// <summary>Last activity is the read time at microsecond resolution, never earlier than a stamp already issued (so Restore can seed from it).</summary>
+    private void Touch(TimeProvider clock)
+    {
+        var now = Truncate(clock.GetUtcNow());
+        LastActivityAt = now > _lastStamp ? now : _lastStamp;
+    }
+
+    private static DateTimeOffset Truncate(DateTimeOffset value) => value.AddTicks(-(value.Ticks % MicrosecondTicks));
 
     private void Raise(TicketEventType type, Actor actor, string payloadJson, TimeProvider clock) =>
         _pendingEvents.Add(TicketEvent.Raise(Id, type, actor, payloadJson, Stamp(clock), clock));
@@ -492,8 +502,15 @@ public sealed class Ticket
     /// </summary>
     private DateTimeOffset Stamp(TimeProvider clock)
     {
-        var now = clock.GetUtcNow();
-        _lastStamp = now > _lastStamp ? now : _lastStamp.AddTicks(MicrosecondTicks);
+        _lastStamp = NextStamp(clock);
         return _lastStamp;
+    }
+
+    /// <summary>The next stamp without consuming it: the clock truncated to whole microseconds, or one microsecond after the last stamp.</summary>
+    private DateTimeOffset NextStamp(TimeProvider clock)
+    {
+        var now = Truncate(clock.GetUtcNow());
+        var earliest = _lastStamp.AddTicks(MicrosecondTicks);
+        return now > earliest ? now : earliest;
     }
 }

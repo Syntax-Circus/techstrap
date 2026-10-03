@@ -18,7 +18,7 @@ public sealed class TicketMutationTests
 
         ticket.Status.ShouldBe(TicketStatus.Pending);
         ticket.FirstResponseAt.ShouldBe(_factory.Clock.GetUtcNow());
-        ticket.LastActivityAt.ShouldBe(_factory.Clock.GetUtcNow());
+        ticket.LastActivityAt.ShouldBe(ticket.PendingEvents.Max(e => e.OccurredAt));
         ticket.PendingMessages.ShouldHaveSingleItem().ShouldBe(message);
         message.IsVisibleToCustomer.ShouldBeTrue();
         Types(ticket).ShouldBe([TicketEventType.MessageAdded, TicketEventType.StatusChanged]);
@@ -297,5 +297,73 @@ public sealed class TicketMutationTests
         restored.TagIds.ShouldBe([tag]);
         restored.Version.ShouldBe(42u);
         restored.PendingEvents.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Stamps_stay_distinct_increasing_and_whole_microseconds_when_the_clock_moves_by_a_few_ticks()
+    {
+        var clock = new TickingTimeProvider(new DateTimeOffset(2026, 10, 2, 9, 0, 0, TimeSpan.Zero).AddTicks(3));
+        var ticket = Ticket.Create(_factory.Number(), _factory.ProductId, _factory.RequesterId, "Subject", TicketChannel.Web, null, false, clock).Value;
+
+        ticket.AddAgentReply(_factory.AgentId, "one", clock);
+        ticket.AddTag(Guid.NewGuid(), _factory.Agent, clock);
+        ticket.AddCustomerReply(_factory.RequesterId, "two", clock);
+
+        var stamps = ticket.PendingEvents.Select(e => e.OccurredAt)
+            .Concat(ticket.PendingMessages.Select(m => m.CreatedAt))
+            .OrderBy(t => t)
+            .ToList();
+        stamps.Count.ShouldBe(ticket.PendingEvents.Count + ticket.PendingMessages.Count);
+        stamps.ShouldAllBe(t => t.Ticks % 10 == 0);
+        for (var i = 1; i < stamps.Count; i++)
+        {
+            stamps[i].ShouldBeGreaterThan(stamps[i - 1]);
+        }
+
+        ticket.LastActivityAt.ShouldBeGreaterThanOrEqualTo(stamps[^1]);
+    }
+
+    [Fact]
+    public void A_restored_ticket_stamps_after_everything_already_stored()
+    {
+        var ticket = _factory.Saved();
+        ticket.AddAgentReply(_factory.AgentId, "one", _factory.Clock);
+        ticket.AddInternalNote(_factory.AgentId, "note", _factory.Clock);
+        var earlier = ticket.PendingEvents.Select(e => e.OccurredAt).Concat(ticket.PendingMessages.Select(m => m.CreatedAt)).Max();
+
+        var restored = Ticket.Restore(
+            ticket.Id, ticket.Number, ticket.ProductId, ticket.RequesterId, ticket.Subject, ticket.Status, ticket.Priority, ticket.AssigneeId, ticket.Channel,
+            ticket.IsSpam, ticket.ParentTicketId, ticket.MetadataJson, ticket.MetadataTrusted, ticket.CustomFieldsJson, ticket.CreatedAt, ticket.FirstResponseAt,
+            ticket.SolvedAt, ticket.ClosedAt, ticket.LastActivityAt, ticket.TagIds, 1);
+        restored.AddTag(Guid.NewGuid(), _factory.Agent, _factory.Clock);
+
+        restored.PendingEvents.ShouldHaveSingleItem().OccurredAt.ShouldBeGreaterThan(earlier);
+    }
+
+    [Fact]
+    public void A_failed_reply_consumes_no_stamp_and_leaves_nothing_pending()
+    {
+        var failing = _factory.Saved();
+        var control = _factory.Saved();
+
+        failing.AddAgentReply(_factory.AgentId, "  ", _factory.Clock).IsFailure.ShouldBeTrue();
+        failing.PendingMessages.ShouldBeEmpty();
+        failing.PendingEvents.ShouldBeEmpty();
+
+        failing.AddTag(Guid.NewGuid(), _factory.Agent, _factory.Clock);
+        control.AddTag(Guid.NewGuid(), _factory.Agent, _factory.Clock);
+        failing.PendingEvents.Single().OccurredAt.ShouldBe(control.PendingEvents.Single().OccurredAt);
+    }
+
+    private sealed class TickingTimeProvider(DateTimeOffset start) : TimeProvider
+    {
+        private long _calls;
+        private DateTimeOffset _now = start;
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            _now = _now.AddTicks((_calls++ % 5) + 1);
+            return _now;
+        }
     }
 }
