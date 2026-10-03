@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace TechStrap.Portal.Tests;
 
@@ -35,6 +36,7 @@ public sealed class PortalHostTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         html.ShouldNotContain("TechStrap portal style guide");
+        html.ShouldNotContain("ts-sg-");
     }
 
     [Fact]
@@ -46,6 +48,16 @@ public sealed class PortalHostTests
         var html = await client.GetStringAsync("/", TestContext.Current.CancellationToken);
 
         html.ShouldNotContain("ts-powered");
+    }
+
+    [Fact]
+    public async Task A_malformed_TECHSTRAP_PORTAL_SHOW_POWERED_BY_fails_at_startup_instead_of_on_every_page()
+    {
+        await using var factory = new PortalFactory().WithWebHostBuilder(b => b.UseSetting("TECHSTRAP_PORTAL_SHOW_POWERED_BY", "maybe"));
+
+        var failure = Should.Throw<OptionsValidationException>(() => factory.CreateClient());
+
+        failure.Message.ShouldContain("TECHSTRAP_PORTAL_SHOW_POWERED_BY");
     }
 
     [Fact]

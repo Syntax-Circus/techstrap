@@ -44,9 +44,15 @@ if (!string.IsNullOrWhiteSpace(keyRingPath))
 
 builder.Services.AddRazorComponents();
 // Installation-wide switch for the "Powered by TechStrap" footer (D-024); shown unless set to false.
+// A value that is not true or false fails at startup rather than breaking every page.
 builder.Services.AddOptions<PoweredByOptions>()
     .Configure<IConfiguration>((options, configuration) =>
-        options.Show = configuration.GetValue(PoweredByOptions.ConfigurationKey, true));
+        options.Show = !bool.TryParse(configuration[PoweredByOptions.ConfigurationKey], out var show) || show)
+    .Validate<IConfiguration>(
+        (options, configuration) => string.IsNullOrWhiteSpace(configuration[PoweredByOptions.ConfigurationKey])
+            || bool.TryParse(configuration[PoweredByOptions.ConfigurationKey], out _),
+        $"{PoweredByOptions.ConfigurationKey} must be true or false.")
+    .ValidateOnStart();
 
 var app = builder.Build();
 telemetry.LogStartupWarning(app.Logger);
