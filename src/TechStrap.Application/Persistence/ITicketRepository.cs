@@ -65,6 +65,9 @@ public interface ITicketRepository
     /// </summary>
     Task<IReadOnlyList<Ticket>> ListSolvedBeforeAsync(DateTimeOffset solvedBefore, int limit, CancellationToken cancellationToken);
 
+    /// <summary>Ids of every ticket carrying the tag, any status. Used to detach a tag before deleting it (D-030).</summary>
+    Task<IReadOnlyList<Guid>> ListTicketIdsWithTagAsync(Guid tagId, CancellationToken cancellationToken);
+
     void AddAccessToken(TicketAccessToken token);
 
     void UpdateAccessToken(TicketAccessToken token);

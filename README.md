@@ -77,6 +77,8 @@ Start at the [discovery index](docs/architecture/00-DISCOVERY-INDEX.md).
 | [Package map](docs/architecture/03-PACKAGE-MAP.md) | Dependencies with pinned versions |
 | [Decision log](docs/architecture/04-DECISION-LOG.md) | Material decisions and their status |
 | [Admin UX brief](docs/architecture/UX-BRIEF-admin.md) · [Portal UX brief](docs/architecture/UX-BRIEF-portal.md) | Designer handoffs |
+| [Agent authentication](docs/self-hosting/AGENT-AUTHENTICATION.md) | Self-hosting: OIDC issuer, audience and group settings |
+| [Development seed data](docs/development/DEV-DATA.md) | What the Development seeder creates and when |
 | [Implementation roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md) | Phases 01–12, task index, validation commands |
 
 ## License

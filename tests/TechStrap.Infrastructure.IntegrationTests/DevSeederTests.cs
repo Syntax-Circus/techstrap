@@ -10,6 +10,7 @@ using TechStrap.Domain.Knowledge;
 using TechStrap.Domain.Products;
 using TechStrap.Domain.Tickets;
 using TechStrap.Infrastructure.Persistence;
+using TechStrap.Infrastructure.Security;
 using TechStrap.Infrastructure.Seeding;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
@@ -110,6 +111,41 @@ public sealed class DevSeederTests(PostgresFixture postgres) : PostgresIntegrati
         published.Items.Count.ShouldBeGreaterThanOrEqualTo(2);
         var found = await ReadAsync(provider, sp => sp.GetRequiredService<IKbRepository>().SearchAsync(new KbSearchQuery("reset password", Status: KbArticleStatus.Published), Ct));
         found.Items.ShouldHaveSingleItem().Slug.ShouldBe("reset-password");
+    }
+
+    [Theory]
+    [InlineData(DevelopmentApiKeys.OrbitlyTrusted)]
+    [InlineData(DevelopmentApiKeys.OrbitlyPublic)]
+    [InlineData(DevelopmentApiKeys.PaperplaneTrusted)]
+    public void A_development_key_is_a_prefix_plus_43_characters(string key) => key.Length.ShouldBe(47);
+
+    [Fact]
+    public async Task Seeding_stores_real_hashes_and_prefixes_for_the_development_keys_and_never_the_secret()
+    {
+        await using var provider = BuildProvider();
+
+        await SeedAsync(provider);
+
+        var hasher = new ApiKeyHasher();
+        var orbitly = (await ReadAsync(provider, sp => sp.GetRequiredService<IProductRepository>().GetByKeyAsync("orbitly", Ct)))!;
+        var paperplane = (await ReadAsync(provider, sp => sp.GetRequiredService<IProductRepository>().GetByKeyAsync("paperplane", Ct)))!;
+        var orbitlyKeys = await ReadAsync(provider, sp => sp.GetRequiredService<IProductRepository>().ListApiKeysAsync(orbitly.Id, Ct));
+        var paperplaneKeys = await ReadAsync(provider, sp => sp.GetRequiredService<IProductRepository>().ListApiKeysAsync(paperplane.Id, Ct));
+        var trusted = orbitlyKeys.Single(k => k.Kind == ApiKeyKind.Trusted);
+        var publicKey = orbitlyKeys.Single(k => k.Kind == ApiKeyKind.Public);
+        var paper = paperplaneKeys.ShouldHaveSingleItem();
+        trusted.KeyHash.ShouldBe(hasher.Hash(DevelopmentApiKeys.OrbitlyTrusted));
+        publicKey.KeyHash.ShouldBe(hasher.Hash(DevelopmentApiKeys.OrbitlyPublic));
+        paper.KeyHash.ShouldBe(hasher.Hash(DevelopmentApiKeys.PaperplaneTrusted));
+        trusted.KeyPrefix.ShouldBe("tsk_devOrbit");
+        publicKey.KeyPrefix.ShouldBe("tsp_devOrbit");
+        paper.KeyPrefix.ShouldBe("tsk_devPaper");
+
+        await using var connection = new NpgsqlConnection(Database.ConnectionString);
+        await connection.OpenAsync(Ct);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT count(*) FROM product_api_keys WHERE key_hash LIKE '%NotASecret%'";
+        ((long)(await command.ExecuteScalarAsync(Ct))!).ShouldBe(0);
     }
 
     [Fact]

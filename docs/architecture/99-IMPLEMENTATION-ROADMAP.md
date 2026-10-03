@@ -20,7 +20,7 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 | 01 | [Foundation](PHASE-01-foundation.md) | none | all | Must go first | D-003, D-006, D-013, D-019 | Complete (CI/release verification pending) |
 | 02 | [Brand and UX](PHASE-02-brand-and-ux.md) | 01 | 07, 09 | Runs alongside 03 to 06 (no shared files); blocks the UI phases | D-002, D-023, D-024, D-025 | Complete |
 | 03 | [Domain and persistence](PHASE-03-domain-and-persistence.md) | 01 | 04 | Alongside 02 | D-009, D-010, D-011, D-026, D-027, D-028 | Complete |
-| 04 | [Agent auth and admin config](PHASE-04-agent-auth-and-admin-config.md) | 03 | 05 | Alongside 02 | D-001, D-004, D-016, D-022 | Not started |
+| 04 | [Agent auth and admin config](PHASE-04-agent-auth-and-admin-config.md) | 03 | 05 | Alongside 02 | D-001, D-004, D-016, D-022, D-029 (roles from IdP groups only), D-030 (tag delete), D-031 (accent format only) | Complete |
 | 05 | [Intake, email and worker](PHASE-05-intake-email-worker.md) | 04 | 06, 11 | Alongside 02 | D-001, D-010, D-012, D-014, D-019, D-020 | Not started |
 | 06 | [Ticket operations](PHASE-06-ticket-operations.md) | 05 | 07, 08, 09 | Alongside 02 and 11 | D-006, D-008, D-009, D-022 | Not started |
 | 07 | [Admin app](PHASE-07-admin-app.md) | 02, 06 | 08 (editor UI), 10 | 11 alongside; 08 API work alongside | D-017, D-022 | Not started |
@@ -402,7 +402,7 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 | 4 | Open the cross-repo PR registering subnet `172.16.31.0/24` in the `_template` `CLIENT_IP_RATE_LIMITING.md` registry, and confirm it is free on the UAT host (D-019) | P01-T16 |
 | 5 | Choose the `SECURITY.md` private reporting address | P01-T19 |
 | 6 | Choose the visual direction and approve `docs/BRAND.md` | P02-T01 to P02-T03 |
-| 7 | Set up the Authentik application and groups per the `syntax-circus-authentik` repo: a confidential OIDC client for Admin (code plus PKCE, `offline_access`, group claim in the id and access tokens), a provider for the API audience, and groups mapped to `TECHSTRAP_AGENT_GROUP` and `TECHSTRAP_ADMIN_GROUP`; set `TECHSTRAP_BOOTSTRAP_ADMIN` for the first sign-in | P04-T14, P07-T02, P12-T17 |
+| 7 | Set up the Authentik application and groups per the `syntax-circus-authentik` repo: a confidential OIDC client for Admin (code plus PKCE, `offline_access`, group claim in the id and access tokens), a provider for the API audience, and groups mapped to `TECHSTRAP_AGENT_GROUP` and `TECHSTRAP_ADMIN_GROUP`; the first admin is whoever is in the admin group (D-029) | P04-T14, P07-T02, P12-T17 |
 | 8 | Supply the reverse-proxy address and trusted network values for UAT and production (Q-08) and an SMTP relay for UAT | P01-T16, P12-T14 |
 | 9 | Create the nuget.org publishing setup: reserve the `TechStrap.*` package IDs, create a Trusted Publishing policy per package, add the repository secret `NUGET_USER` (fallback `NUGET_API_KEY`) and a GitHub environment `release` with required reviewers | P11-T15 |
 | 10 | Provide a macOS runner (or approve the macOS CI cost) for the MAUI workload build | P11-T07 |

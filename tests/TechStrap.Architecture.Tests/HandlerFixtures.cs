@@ -35,6 +35,38 @@ public static class HandlerFixtures
         public Task HandleAsync(SampleRequest request, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
+    public interface IHttpClientSampleHandler
+    {
+        Task HandleAsync(CancellationToken cancellationToken);
+    }
+
+    public sealed class HttpClientSampleHandler(HttpClient client) : IHttpClientSampleHandler
+    {
+        public Task HandleAsync(CancellationToken cancellationToken) => client.GetAsync("/", cancellationToken);
+    }
+
+    public sealed class SampleOptions;
+
+    public interface IClockedSampleHandler
+    {
+        Task HandleAsync(CancellationToken cancellationToken);
+    }
+
+    public sealed class ClockedSampleHandler(ISampleRepository repository, TimeProvider clock, Microsoft.Extensions.Options.IOptions<SampleOptions> options) : IClockedSampleHandler
+    {
+        public Task HandleAsync(CancellationToken cancellationToken) => Task.FromResult((repository, clock, options));
+    }
+
+    public interface IServiceProviderSampleHandler
+    {
+        Task HandleAsync(CancellationToken cancellationToken);
+    }
+
+    public sealed class ServiceProviderSampleHandler(IServiceProvider services) : IServiceProviderSampleHandler
+    {
+        public Task HandleAsync(CancellationToken cancellationToken) => Task.FromResult(services);
+    }
+
     public interface IUnsealedHandler
     {
         Task HandleAsync(SampleRequest request, CancellationToken cancellationToken);

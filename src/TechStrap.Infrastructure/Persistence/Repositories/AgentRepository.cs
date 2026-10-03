@@ -33,8 +33,32 @@ internal sealed class AgentRepository(TechStrapDbContext context) : IAgentReposi
         return new PagedResult<Agent>([.. records.Select(a => a.ToDomain())], page, pageSize, total);
     }
 
+    public async Task<IReadOnlyList<Agent>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        var records = await context.Set<AgentRecord>().AsNoTracking().Where(a => ids.Contains(a.Id)).ToListAsync(cancellationToken);
+        return [.. records.Select(a => a.ToDomain())];
+    }
+
     public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
         context.Set<AgentRecord>().CountAsync(a => a.IsActive && a.Role == AgentRole.Admin, cancellationToken);
+
+    public Task<int> CountActiveAdminsLockedAsync(CancellationToken cancellationToken)
+    {
+        if (context.Database.CurrentTransaction is null)
+        {
+            throw new InvalidOperationException("Counting locked admins must run inside an IUnitOfWork scope.");
+        }
+
+        // FOR UPDATE cannot sit next to an aggregate; EF wraps the raw query as a subquery: SELECT count(*) FROM (... FOR UPDATE).
+        return context.Set<AgentRecord>()
+            .FromSqlRaw("SELECT * FROM agents WHERE role = 'Admin' AND is_active FOR UPDATE")
+            .CountAsync(cancellationToken);
+    }
 
     public void Add(Agent agent) => context.Set<AgentRecord>().Add(agent.ToRecord());
 

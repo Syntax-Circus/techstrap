@@ -18,4 +18,6 @@ public static class UiCopy
     public const string ErrorTitle = "Couldn't load this screen.";
     public const string ErrorDescription = "Something went wrong while drawing it. Try again, and tell an admin if it keeps happening.";
     public const string ErrorHomeLabel = "Back to the start";
+    public const string UnhandledErrorTitle = "Something went wrong on our side.";
+    public const string UnhandledErrorDescription = "That request didn't finish. Try again, and tell an admin if it keeps happening.";
 }

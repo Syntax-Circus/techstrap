@@ -78,8 +78,8 @@
   - **Pain points:** fear of exposing a secret or choosing the wrong key kind;
     unclear blast radius of a revoke or delete; no record of who changed what.
   - **Access/permissions:** admin group claim (all Agent abilities plus the
-    screens marked Admin below). The first admin is bootstrapped via
-    `TECHSTRAP_BOOTSTRAP_ADMIN`; an unauthorised signed-in user sees a clear
+    screens marked Admin below). The first admin is whoever is in the IdP
+    admin group (D-029); an unauthorised signed-in user sees a clear
     "no access" screen, never an empty app.
 
 ## Key User Flows

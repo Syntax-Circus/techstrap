@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SyntaxCircus.Common;
+using TechStrap.Application.ApiKeys;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Seeding;
 using TechStrap.Domain;
@@ -34,6 +35,7 @@ public sealed class DevelopmentDataSeeder(
     ITicketRepository tickets,
     IKbRepository knowledgeBase,
     ITicketNumberAllocator numbers,
+    IApiKeyHasher apiKeyHasher,
     TimeProvider clock,
     ILogger<DevelopmentDataSeeder> logger) : IDevelopmentDataSeeder
 {
@@ -94,6 +96,9 @@ public sealed class DevelopmentDataSeeder(
         where T : class =>
         value ?? throw new InvalidOperationException($"Seed data needs {what}, which was not found.");
 
+    private DomainResult<ProductApiKey> DevKey(Guid productId, ApiKeyKind kind, string plaintext, string label) =>
+        ProductApiKey.Create(productId, kind, plaintext[..ApiKeyFormat.StoredPrefixLength], apiKeyHasher.Hash(plaintext), label, clock);
+
     private async Task StageFoundationAsync(CancellationToken cancellationToken)
     {
         var orbitly = Must(Product.Create(
@@ -102,9 +107,9 @@ public sealed class DevelopmentDataSeeder(
             "paperplane", "Paperplane", "PPL", Must(ProductBranding.Create("Paperplane", null, "#0EA5E9", null, null)), clock));
         products.Add(orbitly);
         products.Add(paperplane);
-        products.AddApiKey(Must(ProductApiKey.Create(orbitly.Id, ApiKeyKind.Trusted, "tsk_dev1", "dev-trusted-key-hash-1", "Orbitly server (dev)", clock)));
-        products.AddApiKey(Must(ProductApiKey.Create(orbitly.Id, ApiKeyKind.Public, "tsp_dev1", "dev-public-key-hash-1", "Orbitly app (dev)", clock)));
-        products.AddApiKey(Must(ProductApiKey.Create(paperplane.Id, ApiKeyKind.Trusted, "tsk_dev2", "dev-trusted-key-hash-2", "Paperplane server (dev)", clock)));
+        products.AddApiKey(Must(DevKey(orbitly.Id, ApiKeyKind.Trusted, DevelopmentApiKeys.OrbitlyTrusted, "Orbitly server (dev)")));
+        products.AddApiKey(Must(DevKey(orbitly.Id, ApiKeyKind.Public, DevelopmentApiKeys.OrbitlyPublic, "Orbitly app (dev)")));
+        products.AddApiKey(Must(DevKey(paperplane.Id, ApiKeyKind.Trusted, DevelopmentApiKeys.PaperplaneTrusted, "Paperplane server (dev)")));
 
         var sam = Must(Agent.Create("dev|sam", "Sam Whitfield", "sam@example.com", AgentRole.Admin, clock));
         var riley = Must(Agent.Create("dev|riley", "Riley Chen", "riley@example.com", AgentRole.Agent, clock));

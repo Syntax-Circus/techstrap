@@ -394,4 +394,52 @@ public sealed class TicketMutationTests
         assigned[1].GetProperty("from").GetGuid().ShouldBe(first);
         assigned[1].GetProperty("to").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
     }
+
+    [Fact]
+    public void Detaching_a_deleted_tag_records_TagRemoved_with_the_reason_and_leaves_last_activity_alone()
+    {
+        var ticket = _factory.Saved();
+        var tagId = Guid.CreateVersion7();
+        ticket.AddTag(tagId, _factory.Agent, _factory.Clock).IsSuccess.ShouldBeTrue();
+        ticket.AcceptChanges();
+        var lastActivity = ticket.LastActivityAt;
+        _factory.Clock.Advance(TimeSpan.FromHours(1));
+
+        ticket.DetachDeletedTag(tagId, _factory.Agent, _factory.Clock).IsSuccess.ShouldBeTrue();
+
+        ticket.TagIds.ShouldNotContain(tagId);
+        ticket.LastActivityAt.ShouldBe(lastActivity);
+        ticket.PendingEvents.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            e => e.Type.ShouldBe(TicketEventType.TagRemoved),
+            e => e.PayloadJson.ShouldContain("\"reason\":\"tag-deleted\""));
+    }
+
+    [Fact]
+    public void A_closed_ticket_can_still_lose_a_deleted_tag_and_stays_closed()
+    {
+        var ticket = _factory.ClosedWithTag(out var tagId);
+        var lastActivity = ticket.LastActivityAt;
+        _factory.Clock.Advance(TimeSpan.FromHours(1));
+
+        ticket.DetachDeletedTag(tagId, _factory.Agent, _factory.Clock).IsSuccess.ShouldBeTrue();
+
+        ticket.Status.ShouldBe(TicketStatus.Closed);
+        ticket.TagIds.ShouldNotContain(tagId);
+        ticket.PendingEvents.ShouldHaveSingleItem().Type.ShouldBe(TicketEventType.TagRemoved);
+        ticket.LastActivityAt.ShouldBe(lastActivity);
+    }
+
+    [Fact]
+    public void Detaching_a_tag_the_ticket_does_not_carry_records_nothing()
+    {
+        var ticket = _factory.Saved();
+
+        ticket.DetachDeletedTag(Guid.CreateVersion7(), _factory.Agent, _factory.Clock).IsSuccess.ShouldBeTrue();
+
+        ticket.PendingEvents.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Detaching_needs_a_valid_actor() =>
+        _factory.Saved().DetachDeletedTag(Guid.CreateVersion7(), default, _factory.Clock).Error!.Code.ShouldBe("actor-invalid");
 }

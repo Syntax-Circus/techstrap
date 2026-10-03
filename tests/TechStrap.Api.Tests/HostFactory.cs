@@ -34,6 +34,14 @@ public class HostFactory<TProgram>(
     {
         // A developer's gitignored .env.local must never leak into tests.
         Environment.SetEnvironmentVariable("DotEnv__Enabled", "false");
+
+        // AddSyntaxCircusJwtBearer reads Authority and Audiences while Program.cs builds the host, before the factory's
+        // in-memory settings exist, so the test issuer must arrive as environment variables to reach the real
+        // validation parameters (the same reason TrustedProxy cannot be overridden through settings).
+        foreach (var (key, value) in Auth.TestJwt.Settings)
+        {
+            Environment.SetEnvironmentVariable(key.Replace(":", "__"), value);
+        }
     }
 
     public CollectingSink LogSink { get; } = new();
@@ -55,11 +63,21 @@ public class HostFactory<TProgram>(
     }
 }
 
+/// <summary>The Api host with the locally signed test issuer (TestJwt) always configured, so any test can send a bearer token.</summary>
 public sealed class ApiFactory(
     string environment = "Development",
     IReadOnlyDictionary<string, string?>? settings = null,
     Action<IServiceCollection>? configureServices = null)
-    : HostFactory<TechStrap.Api.Program>(environment, settings, configureServices);
+    : HostFactory<TechStrap.Api.Program>(
+        environment,
+        Auth.TestJwt.Settings.Concat(settings ?? new Dictionary<string, string?>())
+            .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Last().Value, StringComparer.OrdinalIgnoreCase),
+        services =>
+        {
+            Auth.TestJwt.Configure(services);
+            configureServices?.Invoke(services);
+        });
 
 public sealed class WorkerFactory(
     string environment = "Development",

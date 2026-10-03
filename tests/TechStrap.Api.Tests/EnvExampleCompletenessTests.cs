@@ -67,7 +67,7 @@ public sealed partial class EnvExampleCompletenessTests
                 "CONNECTIONSTRINGS__TECHSTRAP",
                 "TECHSTRAP_AGENT_GROUP",
                 "TECHSTRAP_ADMIN_GROUP",
-                "TECHSTRAP_BOOTSTRAP_ADMIN",
+                "TECHSTRAP_GROUP_CLAIM_TYPE",
                 "AUTHENTICATION__JWTBEARER__AUTHORITY",
                 "AUTHENTICATION__JWTBEARER__AUDIENCES__0",
                 "TECHSTRAP_PORTAL_PUBLIC_URL",
