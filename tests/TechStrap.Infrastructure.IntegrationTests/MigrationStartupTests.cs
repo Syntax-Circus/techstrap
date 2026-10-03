@@ -14,16 +14,14 @@ public sealed class MigrationStartupTests(PostgresFixture postgres)
     private static readonly TimeSpan LockObservationDelay = TimeSpan.FromSeconds(1.5);
 
     [Fact]
-    public async Task An_empty_database_migrates_to_exactly_the_Initial_migration()
+    public async Task An_empty_database_migrates_to_every_migration_in_the_assembly_in_order()
     {
         await using var database = await postgres.CreateDatabaseAsync(migrated: false);
         await using var context = database.CreateDbContext();
 
         await context.MigrateWithAdvisoryLockAsync(TechStrapDatabase.MigrationLockKey, TestContext.Current.CancellationToken);
 
-        var applied = await ReadHistoryAsync(database);
-        applied.Count.ShouldBe(1);
-        applied[0].ShouldEndWith("_Initial");
+        (await ReadHistoryAsync(database)).ShouldBe(ExpectedMigrationIds());
     }
 
     [Fact]
@@ -38,7 +36,7 @@ public sealed class MigrationStartupTests(PostgresFixture postgres)
         await using var second = database.CreateDbContext();
         await second.MigrateWithAdvisoryLockAsync(TechStrapDatabase.MigrationLockKey, TestContext.Current.CancellationToken);
 
-        (await ReadHistoryAsync(database)).Count.ShouldBe(1);
+        (await ReadHistoryAsync(database)).ShouldBe(ExpectedMigrationIds());
     }
 
     [Fact]
@@ -52,7 +50,7 @@ public sealed class MigrationStartupTests(PostgresFixture postgres)
             first.MigrateWithAdvisoryLockAsync(TechStrapDatabase.MigrationLockKey, TestContext.Current.CancellationToken),
             second.MigrateWithAdvisoryLockAsync(TechStrapDatabase.MigrationLockKey, TestContext.Current.CancellationToken));
 
-        (await ReadHistoryAsync(database)).Count.ShouldBe(1);
+        (await ReadHistoryAsync(database)).ShouldBe(ExpectedMigrationIds());
     }
 
     [Fact]
@@ -72,7 +70,7 @@ public sealed class MigrationStartupTests(PostgresFixture postgres)
         await ExecuteAsync(holder, $"SELECT pg_advisory_unlock({TechStrapDatabase.MigrationLockKey})");
         await migration.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
-        (await ReadHistoryAsync(database)).Count.ShouldBe(1);
+        (await ReadHistoryAsync(database)).ShouldBe(ExpectedMigrationIds());
     }
 
     [Fact]
@@ -82,6 +80,12 @@ public sealed class MigrationStartupTests(PostgresFixture postgres)
         await using var context = database.CreateDbContext();
 
         context.Database.HasPendingModelChanges().ShouldBeFalse();
+    }
+
+    private static List<string> ExpectedMigrationIds()
+    {
+        using var context = new TechStrapDbContext(new DbContextOptionsBuilder<TechStrapDbContext>().UseNpgsql("Host=localhost").Options);
+        return [.. context.Database.GetMigrations()];
     }
 
     private static async Task<List<string>> ReadHistoryAsync(TestDatabase database)

@@ -12,11 +12,15 @@ public static class TechStrapDatabase
     /// <summary>Postgres advisory lock key that serialises migrate-on-startup across API instances.</summary>
     public const long MigrationLockKey = 6_387_541_208;
 
+    /// <summary>Postgres advisory lock key that serialises development seeding across API instances.</summary>
+    public const long SeedLockKey = 6_387_541_209;
+
     /// <summary>Health check tag that /health/ready selects.</summary>
     public const string ReadyHealthTag = "ready";
 
     public static DbContextOptionsBuilder Configure(DbContextOptionsBuilder builder, string? connectionString) =>
         builder
             .UseNpgsql(connectionString ?? string.Empty)
-            .UseSyntaxCircusSnakeCaseNamingConvention();
+            .UseSyntaxCircusSnakeCaseNamingConvention()
+            .AddInterceptors(new AppendOnlyEventInterceptor());
 }

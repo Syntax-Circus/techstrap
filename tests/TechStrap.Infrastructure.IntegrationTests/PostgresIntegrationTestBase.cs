@@ -10,11 +10,21 @@ public abstract class PostgresIntegrationTestBase(PostgresFixture postgres) : IA
 {
     protected PostgresFixture Postgres { get; } = postgres;
 
-    protected TestDatabase Database { get; private set; } = null!;
+    protected TestDatabase? DatabaseOrNull { get; private set; }
 
-    public async ValueTask InitializeAsync() => Database = await Postgres.CreateDatabaseAsync();
+    /// <summary>The per-test database. Only valid after <see cref="InitializeAsync"/> succeeded.</summary>
+    protected TestDatabase Database => DatabaseOrNull ?? throw new InvalidOperationException("The test database has not been created.");
 
-    public async ValueTask DisposeAsync() => await Database.DisposeAsync();
+    public async ValueTask InitializeAsync() => DatabaseOrNull = await Postgres.CreateDatabaseAsync();
+
+    /// <summary>Safe when <see cref="InitializeAsync"/> threw: there is nothing to drop then (PHASE-01 carry-forward).</summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (DatabaseOrNull is not null)
+        {
+            await DatabaseOrNull.DisposeAsync();
+        }
+    }
 
     protected TechStrapDbContext CreateDbContext() => Database.CreateDbContext();
 }

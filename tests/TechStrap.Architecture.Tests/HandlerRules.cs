@@ -165,6 +165,12 @@ public static class HandlerRules
             return true;
         }
 
+        // D-026: a persistence record (*Record) is Infrastructure-internal and never a handler dependency.
+        if (dependency.Name.EndsWith(AbstractionRules.RecordSuffix, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
         var ns = dependency.Namespace ?? string.Empty;
         return ForbiddenNamespacePrefixes.Any(prefix =>
             ns.Equals(prefix, StringComparison.Ordinal) || ns.StartsWith(prefix + ".", StringComparison.Ordinal));

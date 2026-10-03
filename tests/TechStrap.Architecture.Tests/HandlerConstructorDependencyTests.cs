@@ -32,6 +32,8 @@ public sealed class HandlerConstructorDependencyTests
     [InlineData(typeof(HandlerFixtures.ControllerBaseHandler), "Microsoft.AspNetCore.Mvc.ControllerBase")]
     [InlineData(typeof(HandlerFixtures.ConcreteInfrastructureHandler), "TechStrap.Infrastructure.InfrastructureAssemblyMarker")]
     [InlineData(typeof(HandlerFixtures.NestedGenericDependencyHandler), "Microsoft.EntityFrameworkCore.DbSet")]
+    [InlineData(typeof(HandlerFixtures.RecordHandler), "TicketRecord")]
+    [InlineData(typeof(HandlerFixtures.NestedRecordHandler), "TicketRecord")]
     public void A_handler_with_a_forbidden_dependency_is_flagged(Type badHandler, string forbiddenTypeFragment)
     {
         var violations = HandlerRules.FindConstructorDependencyViolations([badHandler], InfrastructureAssembly);

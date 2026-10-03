@@ -7,6 +7,7 @@ Approval basis:
 - **Reviewed draft spec:** decisions carried over from `docs/superpowers/specs/2026-10-02-techstrap-core-design.md`, which the owner reviewed and used as the baseline. Approved on that basis.
 - **Owner confirmation (2026-10-02, after review):** D-014 and D-016 to D-022 were drafted by Claude (D-014 from plan section C; D-016 to D-022 while reconciling the artifact set) and then explicitly confirmed by the owner. D-018 also confirms the relay mechanism of D-007.
 - **Proposed:** none. D-008's default (N = 7 days) was confirmed by the owner on 2026-10-02.
+- **Owner decision (2026-10-02, PHASE-03 planning):** D-026 (separate persistence entities) and D-027 (stored generated search vectors); D-028 (Domain result type) approved 2026-10-03.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -41,6 +42,9 @@ Approval basis:
 | D-023 | Visual direction: Carbon Copy v2; mascot only in Admin brand moments; portal shows Powered-by only | Approved (owner) | 2026-10-02 | PHASE-02, PHASE-07, PHASE-09, BRAND.md |
 | D-024 | Customer-facing identity, spam recovery and portal prefill | Approved (owner 2026-10-02) | 2026-10-02 | 01-REQUIREMENTS, 02-ARCHITECTURE, PHASE-03 to PHASE-07, PHASE-09, UX-BRIEF-admin, UX-BRIEF-portal, BRAND.md |
 | D-025 | The product-accent derivation helper lives in `TechStrap.Contracts` | Approved (owner 2026-10-02) | 2026-10-02 | PHASE-02, PHASE-04, PHASE-05, PHASE-09, BRAND.md |
+| D-026 | Separate persistence entities (records); Domain stays pure | Approved (owner 2026-10-02) | 2026-10-02 | PHASE-03, 02-ARCHITECTURE |
+| D-027 | Full-text search uses stored generated tsvector columns | Approved (owner 2026-10-02) | 2026-10-02 | PHASE-03, PHASE-06, PHASE-08 |
+| D-028 | Domain returns its own result type; Application converts it | Approved (owner 2026-10-03) | 2026-10-02 | PHASE-03, 02-ARCHITECTURE |
 
 ---
 
@@ -760,3 +764,97 @@ BRAND.md section 22 requires one pure function that turns a product accent (`#RR
 ### Approval
 - **Approved by:** Jon Seeley (owner, 2026-10-02 plan review)
 - **Approved on:** 2026-10-02
+
+---
+
+## D-026: Separate persistence entities (records); Domain stays pure
+
+- **Status:** Approved (owner decision 2026-10-02)
+- **Date:** 2026-10-02
+- **Owner:** Jon Seeley
+- **Related artifacts:** PHASE-03, 02-ARCHITECTURE sections 2, 3 and 5, _template APPLICATION_ARCHITECTURE.md
+
+### Context
+PHASE-03 assumed EF Core would map the Domain types directly through fluent configuration. A domain with private setters, collections that raise events, a number that never changes and optimistic-concurrency tokens fits that badly: the entities would grow EF-shaped members (parameterless constructors, public setters, a `Version` property, a `SearchVector` property) that exist only for the database.
+
+### Decision
+- `TechStrap.Domain` stays pure: entities, value objects and invariants only, with no EF attributes and no EF-driven shapes.
+- `TechStrap.Infrastructure` owns **persistence records**, one per table. **Naming convention:** a `Record` suffix on the singular name (`TicketRecord`, `MessageRecord`, `TicketTagRecord`), in the namespace `TechStrap.Infrastructure.Persistence.Records`, declared `internal sealed`. C# `record` types (such as the Contracts request records, D-016) are unrelated and never carry the suffix.
+- Records are mapped with fluent `IEntityTypeConfiguration<T>` classes (`Persistence/Configurations`), snake_case names, string-backed enums and the Postgres `xmin` system column as the optimistic-concurrency token (`Version`).
+- Repositories (interfaces in Application, implementations in Infrastructure) map between records and Domain or Application models. They never expose `IQueryable`, records or `DbSet`.
+- Architecture tests enforce it: no type in Domain or Application is named `*Record` or references one (`PersistenceRecordBoundaryTests`); no Application abstraction exposes a record, EF, HTTP or Infrastructure type (`AbstractionShapeTests`); and no handler constructor takes a record (`HandlerConstructorDependencyTests`, the rule carried forward from PHASE-01).
+
+### Alternatives Considered
+- Map Domain types directly (the PHASE-03 assumption): less code, but the Domain would carry persistence concerns and the architecture rule "no EF-driven shapes in Domain" could not be kept.
+- Attribute-based mapping on Domain types: forbidden, Domain references nothing.
+- A shared "entity" base used by both: the same coupling under another name.
+
+### Consequences
+- A new field touches four places: the Domain type, the record, its configuration and the mapper. Integration tests that must seed or inspect rows directly see the records through `InternalsVisibleTo`.
+- The concurrency token travels with the loaded Domain object (`Version`). On update the repository copies the changes onto the record loaded in the current scope and applies the Domain object's `Version` as that record's original `xmin`, so the UPDATE checks the token the caller saw, not the one read in the current request.
+- The PHASE-03 risk "Assumption: directly" is resolved by this decision.
+
+### Approval
+- **Approved by:** Jon Seeley (owner decision)
+- **Approved on:** 2026-10-02
+
+---
+
+## D-027: Full-text search uses stored generated tsvector columns
+
+- **Status:** Approved (owner 2026-10-02)
+- **Date:** 2026-10-02
+- **Owner:** Jon Seeley
+- **Related artifacts:** PHASE-03 (vectors and indexes), PHASE-06 (ticket search), PHASE-08 (KB search), D-011
+
+### Context
+Ticket search must cover the subject and the message bodies, which live in two tables, and KB search must weight title above summary above body. The PHASE-03 risk asked whether a trigger or an application-maintained column should keep the vectors current.
+
+### Decision
+- Search vectors are Postgres `GENERATED ALWAYS AS (...) STORED` columns with GIN indexes: `tickets.search_vector` (subject, weight A), `messages.search_vector` (sanitized body text, weight B) and `kb_articles.search_vector` (title A, summary B, body C). English configuration (A-07).
+- There are no triggers and no application-maintained columns. The application never writes a vector.
+- Ticket search joins the two: a ticket matches when its subject, one of its messages (public or internal; ticket search is agent-only) or its exact number matches, and the relevance is the subject rank plus the best message rank plus a boost for an exact number. KB search ranks the single article vector. Queries use `websearch_to_tsquery` and `ts_rank`.
+
+### Implementation finding (verified on Npgsql.EntityFrameworkCore.PostgreSQL 10.0.3)
+`HasGeneratedTsVectorColumn(vector, config, properties)` exists in the pinned version, but it takes only a configuration name and a list of properties: it cannot give each column its own weight, and the weights are what this decision is for. The vectors are therefore declared with `HasComputedColumnSql("setweight(to_tsvector('english', coalesce(col, '')), 'A') || ...", stored: true)`, which is the same STORED generated column, still generated into the migration by `dotnet ef` (`computedColumnSql` with `stored: true`, plus a GIN index) and not written by hand. A generated column can read only its own row, so the requester name and email from the PHASE-03 ticket-vector sketch are not in the vector; the exact ticket number is matched by equality instead.
+
+### Alternatives Considered
+- A trigger on messages that updates the ticket vector: hidden logic, hand-written SQL in a migration.
+- An application-maintained column: every code path that adds a message must remember to update it.
+- `HasGeneratedTsVectorColumn` without weights: simple, but a body match would rank like a subject match (ticket) and a body match like a title match (KB).
+
+### Consequences
+- Resolves the PHASE-03 full-text-search risk. Index maintenance cost is paid on every write to the three tables.
+- Changing the search configuration or weights is a new migration that rebuilds the generated columns.
+- `SearchSchemaTests` pin the generated columns, the absence of triggers, the GIN indexes and index usability; `TicketSearchTests` and `KbSearchTests` pin the ranking.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, 2026-10-02)
+- **Approved on:** 2026-10-02
+
+---
+
+## D-028: Domain returns its own result type; Application converts it
+
+- **Status:** Approved (owner 2026-10-03)
+- **Date:** 2026-10-02
+- **Owner:** Jon Seeley
+- **Related artifacts:** PHASE-03, 02-ARCHITECTURE section 2, `ProjectReferenceDirectionTests`
+
+### Context
+The PHASE-03 document says Domain methods return `Result` from `SyntaxCircus.Common`. But Domain references no project, package or framework (02-ARCHITECTURE section 2, enforced by `Domain_and_Contracts_reference_no_project_package_or_framework`), and `SyntaxCircus.Common` is referenced by Application only.
+
+### Decision
+Domain defines `DomainResult`, `DomainResult<T>` and `DomainError` (kinds Validation, NotFound, Conflict, with a stable code and message), using only the BCL. Application converts them with `ToResult()` to `SyntaxCircus.Common` results; the conversion keeps the code and message, maps the kind one to one, and keeps a validation target only for validation errors, as the Common type requires.
+
+### Alternatives Considered
+- Let Domain reference `SyntaxCircus.Common`: one result type, but it changes the reference rules, the "Domain references nothing" statement in 02-ARCHITECTURE and one architecture test.
+- Throw exceptions from Domain: invalid transitions are expected outcomes, not exceptional.
+
+### Consequences
+- Two small result types and one conversion extension, covered by `DomainResultExtensionsTests`.
+- If the owner prefers the first alternative, the change is local: delete `DomainResult.cs`, reference the package from Domain, relax the rule that Domain references nothing (`Domain_and_Contracts_reference_no_project_package_or_framework` and the matching statement in 02-ARCHITECTURE section 2), and drop the statement that only Application references `SyntaxCircus.Common`.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, 2026-10-03 plan review)
+- **Approved on:** 2026-10-03

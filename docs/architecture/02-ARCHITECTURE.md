@@ -138,16 +138,17 @@ Header names are constants in `TechStrap.Contracts` and are the same everywhere:
 
 ## 5. Data model summary
 
-All tables snake_case, UTC `timestamptz`, `uuid` primary keys unless noted (**Assumption**: v7 GUIDs). Tickets and products carry a `xmin`/`row_version` concurrency token.
+All tables snake_case, UTC `timestamptz`, `uuid` primary keys unless noted (**Assumption**: v7 GUIDs). Tickets, products, requesters and KB articles carry the Postgres `xmin` system column as their concurrency token (mapped as `Version`; there is no separate `row_version` column).
 
 | Entity (table) | Key columns | Indexes and constraints |
 | --- | --- | --- |
-| `products` | `id`, `key` (unique slug), `name`, `number_prefix` (unique), `next_ticket_number`, branding (`display_name`, `logo`, `accent_colour`, `from_address`, `reply_to`), `is_active`, `row_version` | unique `key`, unique `number_prefix` |
+| `products` | `id`, `key` (unique slug), `name`, `number_prefix` (unique), branding (`display_name`, `logo`, `accent_colour`, `from_address`, `reply_to`), `is_active`, `xmin` (concurrency token) | unique `key`, unique `number_prefix` |
+| `product_ticket_sequences` | `product_id` (PK, FK to `products`), `next_number` | the per-product ticket counter, separate from `products` so taking a number never changes the product row's `xmin` (D-009) |
 | `product_api_keys` | `id`, `product_id`, `kind` (`Trusted`/`Public`), `key_hash`, `key_prefix`, `label`, `created_at`, `revoked_at`, `last_used_at` | unique `key_hash`; index `product_id` |
 | `agents` | `id`, `oidc_subject` (unique), `name`, `email`, `role` (`Agent`/`Admin`), `is_active`, `last_seen_at`, `public_display_name` (nullable, max 60; customer-facing name override, D-024) | unique `oidc_subject`; index `email` |
 | `agent_notification_preferences` | `agent_id`, `product_id`, `notify_new_ticket` | PK (`agent_id`, `product_id`) |
-| `requesters` | `id`, `email` (citext unique), `name`, `external_user_ref`, `erased_at` | unique `email`; index `external_user_ref` |
-| `tickets` | `id`, `number` (stored full number, e.g. `ACME-142`), `product_id`, `requester_id`, `subject`, `status`, `priority`, `assignee_id`, `channel` (`Web`/`Api`), `is_spam`, `parent_ticket_id`, `metadata` jsonb, `metadata_trusted` bool, `custom_fields` jsonb (reserved), `created_at`, `first_response_at`, `solved_at`, `closed_at`, `last_activity_at`, `search_vector`, `row_version` | unique `number` (global, D-009); indexes (`product_id`, `status`, `last_activity_at`), (`assignee_id`, `status`), `requester_id`, `parent_ticket_id`, partial `status = Solved` on `solved_at`; partial `is_spam = true` on `last_activity_at` (Spam view); GIN `search_vector` |
+| `requesters` | `id`, `email` (citext unique), `name`, `external_user_ref`, `erased_at`, `xmin` (concurrency token) | unique `email`; index `external_user_ref` |
+| `tickets` | `id`, `number` (stored full number, e.g. `ACME-142`), `product_id`, `requester_id`, `subject`, `status`, `priority`, `assignee_id`, `channel` (`Web`/`Api`), `is_spam`, `parent_ticket_id`, `metadata` jsonb, `metadata_trusted` bool, `custom_fields` jsonb (reserved), `created_at`, `first_response_at`, `solved_at`, `closed_at`, `last_activity_at`, `search_vector`, `xmin` (concurrency token) | unique `number` (global, D-009); indexes (`product_id`, `status`, `last_activity_at`), (`assignee_id`, `status`), `requester_id`, `parent_ticket_id`, partial `status = Solved` on `solved_at`; partial `is_spam = true` on `last_activity_at` (Spam view); GIN `search_vector` |
 | `messages` | `id`, `ticket_id`, `author_type` (`Requester`/`Agent`/`System`), `author_id`, `visibility` (`Public`/`Internal`), `body` (sanitized), `message_id`, `in_reply_to` (reserved, nullable), `created_at`, `search_vector` | index (`ticket_id`, `created_at`); GIN `search_vector` |
 | `attachments` | `id`, `ticket_id`, `message_id`, `file_name`, `content_type`, `size`, `storage_key`, `created_at` | index `message_id`, `ticket_id` |
 | `ticket_events` (append-only) | `id`, `ticket_id`, `type`, `actor_type`, `actor_id`, `payload` jsonb, `occurred_at` | index (`ticket_id`, `occurred_at`); no update or delete except hard-delete cascade |
@@ -155,21 +156,23 @@ All tables snake_case, UTC `timestamptz`, `uuid` primary keys unless noted (**As
 | `ticket_access_tokens` | `id`, `ticket_id`, `requester_id`, `token_hash`, `expires_at`, `revoked_at`, `last_used_at` | unique `token_hash`; index (`ticket_id`, `requester_id`) |
 | `email_outbox` | `id`, `kind`, `to_address`, `payload` jsonb, `product_id`, `ticket_id`, `status` (`Pending`/`Sending`/`Sent`/`DeadLettered`/`Discarded`), `attempts`, `next_attempt_at`, `claimed_by`, `locked_until`, `last_error`, `created_at`, `sent_at` | partial index (`next_attempt_at`) where `status = Pending`; index `status` |
 | `kb_categories` | `id`, `product_id` (nullable = shared), `name`, `slug`, `sort_order` | unique (`product_id`, `slug`) |
-| `kb_articles` | `id`, `product_id` (nullable), `category_id`, `slug`, `title`, `summary`, `body_markdown`, `status`, `author_id`, `created_at`, `updated_at`, `published_at`, `search_vector` | unique (`product_id`, `slug`) with nulls treated equal; GIN `search_vector`; index (`status`, `published_at`) |
+| `kb_articles` | `id`, `product_id` (nullable), `category_id`, `slug`, `title`, `summary`, `body_markdown`, `status`, `author_id`, `created_at`, `updated_at`, `published_at`, `search_vector`, `xmin` (concurrency token) | unique (`product_id`, `slug`) with nulls treated equal; GIN `search_vector`; index (`status`, `published_at`) |
 | `ticket_articles` | `ticket_id`, `message_id`, `article_id` | PK (`message_id`, `article_id`) |
 | `admin_events` | `id`, `type`, `actor_id`, `subject_type`, `subject_id`, `payload` jsonb (never holds erased values or secrets), `occurred_at`. Types cover product, key, agent and tag changes plus erase-requester, delete-ticket and dead-letter retry/discard (D-006) | index (`occurred_at`), (`subject_type`, `subject_id`) |
 | `intake_idempotency_keys` | `id`, `api_key_id`, `key_hash`, `ticket_id`, `response` jsonb, `created_at` (24 h retention, D-020) | unique (`api_key_id`, `key_hash`); index `created_at` |
 
 Full-text search (D-011):
 
-- `tickets.search_vector`: subject (weight A), requester name/email and ticket number text (B). `messages.search_vector`: body text (C), Public and Internal both indexed; internal hits only returned to agents (all ticket search is agent-only).
+- `tickets.search_vector`: subject (weight A); an exact ticket number is matched by equality, and the requester is not in the vector because a generated column reads only its own row (D-027). `messages.search_vector`: body text (B), Public and Internal both indexed; internal hits only returned to agents (all ticket search is agent-only).
 - `kb_articles.search_vector`: title (A), summary (B), body (C). Public search filters `status = Published`.
-- Config `english` (A-07); generated columns or trigger-maintained, decided in PHASE-03. Queries use `websearch_to_tsquery` and `ts_rank`.
+- Config `english` (A-07); stored generated columns with GIN indexes, no triggers (D-027). Queries use `websearch_to_tsquery` and `ts_rank`.
 - No external search engine.
 
-Ticket number: `ITicketNumberAllocator` runs `UPDATE products SET next_ticket_number = next_ticket_number + 1 ... RETURNING` inside the creating transaction; the stored `tickets.number` is `{products.number_prefix}-{sequence}`, immutable (D-009), and unique globally on that stored value (a product move keeps the original prefix).
+Ticket number: `ITicketNumberAllocator` runs `INSERT INTO product_ticket_sequences ... ON CONFLICT (product_id) DO UPDATE SET next_number = next_number + 1 ... RETURNING` (the counter row is created on the product's first ticket) inside the creating transaction; the stored `tickets.number` is `{products.number_prefix}-{sequence}`, immutable (D-009), and unique globally on that stored value (a product move keeps the original prefix).
 
 Status machine (Domain): `New -> Open | Pending | Solved`, `Open <-> Pending`, `Open | Pending -> Solved`, `Solved -> Open` (customer reply or agent), `Solved -> Closed` (auto-close or agent), `Closed` terminal. `is_spam` is orthogonal to status.
+
+The ER diagram, the rules the database enforces and the migration list are in [05-SCHEMA.md](05-SCHEMA.md) (PHASE-03).
 
 ## 6. Main data flows
 

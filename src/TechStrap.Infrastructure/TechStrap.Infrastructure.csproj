@@ -17,4 +17,9 @@
     <PackageReference Include="SyntaxCircus.EntityFrameworkCore.Postgres" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Persistence records are internal (D-026); the integration tests may see them to seed and inspect rows. -->
+    <InternalsVisibleTo Include="TechStrap.Infrastructure.IntegrationTests" />
+  </ItemGroup>
+
 </Project>

@@ -60,7 +60,7 @@ public sealed class ApiStartupTasksTests(TestPostgres postgres)
 
         await ApiStartupTasks.RunAsync(services, Environment("Production"), configuration, TestContext.Current.CancellationToken);
 
-        (await CountAppliedMigrationsAsync(connectionString)).ShouldBe(1);
+        (await CountAppliedMigrationsAsync(connectionString)).ShouldBe(ExpectedMigrations.Ids().Count);
     }
 
     [Fact]
@@ -142,6 +142,6 @@ public sealed class ApiStartupTasksTests(TestPostgres postgres)
 
         await ApiStartupTasks.RunAsync(services, Environment("Development"), configuration, TestContext.Current.CancellationToken);
 
-        migrationsSeenBySeeder.ShouldBe(1);
+        migrationsSeenBySeeder.ShouldBe(ExpectedMigrations.Ids().Count);
     }
 }
