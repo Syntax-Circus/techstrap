@@ -172,6 +172,8 @@ Ticket number: `ITicketNumberAllocator` runs `INSERT INTO product_ticket_sequenc
 
 Status machine (Domain): `New -> Open | Pending | Solved`, `Open <-> Pending`, `Open | Pending -> Solved`, `Solved -> Open` (customer reply or agent), `Solved -> Closed` (auto-close or agent), `Closed` terminal. `is_spam` is orthogonal to status.
 
+The ER diagram, the rules the database enforces and the migration list are in [05-SCHEMA.md](05-SCHEMA.md) (PHASE-03).
+
 ## 6. Main data flows
 
 ### 6.1 Intake (web form or app API)

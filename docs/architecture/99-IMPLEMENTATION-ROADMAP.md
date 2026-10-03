@@ -420,9 +420,9 @@ Items found during PHASE-01 reviews that later phases own. Fold each into the na
 
 | Item | Owning phase |
 | --- | --- |
-| Replace the `PlaceholderTests` in `TechStrap.Domain.Tests` and `TechStrap.Application.Tests` with real tests | PHASE-03 / PHASE-04 |
-| Add a `HandlerConstructorDependencyTests` rule forbidding persistence entity types | PHASE-03 |
-| `PostgresIntegrationTestBase.DisposeAsync` null-deref when initialisation threw | PHASE-03 |
+| Replace the `PlaceholderTests` in `TechStrap.Domain.Tests` and `TechStrap.Application.Tests` with real tests | PHASE-03 / PHASE-04 (done in PHASE-03: both placeholders replaced) |
+| Add a `HandlerConstructorDependencyTests` rule forbidding persistence entity types | PHASE-03 (done: `*Record` rule, D-026) |
+| `PostgresIntegrationTestBase.DisposeAsync` null-deref when initialisation threw | PHASE-03 (done) |
 | Handler rules: inspect abstract/base controllers and inherited actions; narrow `IsHandlerType` to Application types | PHASE-04 |
 | Replace `UnauthenticatedScheme` with JWT bearer and an explicit problem-details challenge | PHASE-04 |
 | Admin/Portal security headers with a Blazor-aware CSP; extract the shared Admin/Portal host wiring | PHASE-07 / PHASE-09 |
