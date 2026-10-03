@@ -94,4 +94,55 @@ public sealed class EmailServiceRegistrationTests
 
         provider.GetRequiredService<IOptions<SmtpOptions>>().Value.ShouldNotBeNull();
     }
+
+    [Fact]
+    public void A_lease_shorter_than_one_batch_of_send_timeouts_fails_validation_and_names_the_setting()
+    {
+        var settings = Smtp();
+        settings["Email:Smtp:TotalSendTimeout"] = "00:00:30";
+        settings["EmailOutbox:BatchSize"] = "20";
+        settings["EmailOutbox:LeaseSeconds"] = "120";
+        using var provider = Build(settings);
+
+        var exception = Should.Throw<OptionsValidationException>(() => provider.GetRequiredService<IOptions<SmtpOptions>>().Value);
+
+        exception.Message.ShouldContain("EmailOutbox:LeaseSeconds");
+        exception.Message.ShouldContain("BatchSize");
+    }
+
+    [Fact]
+    public void A_lease_covering_one_batch_of_send_timeouts_plus_a_minute_passes_validation()
+    {
+        var settings = Smtp();
+        settings["Email:Smtp:TotalSendTimeout"] = "00:00:30";
+        settings["EmailOutbox:BatchSize"] = "20";
+        settings["EmailOutbox:LeaseSeconds"] = "660";
+        using var provider = Build(settings);
+
+        provider.GetRequiredService<IOptions<SmtpOptions>>().Value.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void The_default_lease_passes_with_the_default_batch_and_a_30_second_timeout()
+    {
+        var settings = Smtp();
+        settings["Email:Smtp:TotalSendTimeout"] = "00:00:30";
+        using var provider = Build(settings);
+
+        provider.GetRequiredService<IOptions<SmtpOptions>>().Value.ShouldNotBeNull();
+        provider.GetRequiredService<IOptions<EmailOutboxWorkerOptions>>().Value.LeaseSeconds.ShouldBe(900);
+    }
+
+    [Fact]
+    public void A_disabled_worker_skips_the_lease_batch_rule()
+    {
+        var settings = Smtp();
+        settings["EmailOutbox:Enabled"] = "false";
+        settings["Email:Smtp:TotalSendTimeout"] = "00:00:30";
+        settings["EmailOutbox:LeaseSeconds"] = "120";
+        using var provider = Build(settings);
+
+        provider.GetRequiredService<IOptions<SmtpOptions>>().Value.ShouldNotBeNull();
+        provider.GetRequiredService<IOptions<EmailOutboxWorkerOptions>>().Value.LeaseSeconds.ShouldBe(120);
+    }
 }

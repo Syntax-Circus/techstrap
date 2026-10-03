@@ -51,7 +51,7 @@ public sealed class DrainEmailOutboxHandlerTests
 
         await _handler.HandleAsync("w1", source.Token);
 
-        await _store.Received(1).ClaimBatchAsync("w1", 20, TimeSpan.FromSeconds(120), source.Token);
+        await _store.Received(1).ClaimBatchAsync("w1", 20, TimeSpan.FromSeconds(900), source.Token);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public sealed class DrainEmailOutboxHandlerTests
 
         await Should.ThrowAsync<OperationCanceledException>(() => _handler.HandleAsync("w1", source.Token));
 
-        await _store.Received(1).ClaimBatchAsync("w1", 20, TimeSpan.FromSeconds(120), source.Token);
+        await _store.Received(1).ClaimBatchAsync("w1", 20, TimeSpan.FromSeconds(900), source.Token);
         await _sender.Received(1).SendAsync(Arg.Any<OutboundEmail>(), source.Token);
         await _store.DidNotReceive().MarkFailedAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _store.DidNotReceive().MarkSentAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());

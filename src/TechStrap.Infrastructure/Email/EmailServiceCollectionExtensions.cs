@@ -38,9 +38,25 @@ public static class EmailServiceCollectionExtensions
             .Validate<IOptions<EmailOutboxWorkerOptions>>(
                 (smtp, worker) => !worker.Value.Enabled || (!string.IsNullOrWhiteSpace(smtp.Host) && !string.IsNullOrWhiteSpace(smtp.DefaultFrom)),
                 "Email:Smtp:Host and Email:Smtp:DefaultFrom are required while the email outbox worker is enabled.")
+            // Hangs off the SMTP options (not the worker options) so the two validators never depend on each other.
+            .Validate<IOptions<EmailOutboxWorkerOptions>>(
+                (smtp, worker) => LeaseCoversBatch(worker.Value, smtp),
+                "EmailOutbox:LeaseSeconds must be at least EmailOutbox:BatchSize x Email:Smtp:TotalSendTimeout (in seconds) + 60, "
+                + "because every claimed row shares one lease and the handler sends them one at a time; "
+                + "otherwise the lease can expire mid-batch and rows are sent twice.")
             .ValidateOnStart();
 
         services.TryAddScoped<IDrainEmailOutboxHandler, DrainEmailOutboxHandler>();
         return services;
+    }
+
+    private static bool LeaseCoversBatch(EmailOutboxWorkerOptions worker, SmtpOptions smtp)
+    {
+        if (!worker.Enabled || smtp.TotalSendTimeout is not { } timeout)
+        {
+            return true;
+        }
+
+        return worker.LeaseSeconds >= worker.BatchSize * timeout.TotalSeconds + 60;
     }
 }

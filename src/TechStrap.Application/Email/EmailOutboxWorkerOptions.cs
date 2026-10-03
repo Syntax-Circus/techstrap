@@ -10,8 +10,11 @@ public sealed class EmailOutboxWorkerOptions
 
     public int BatchSize { get; set; } = 20;
 
-    /// <summary>Covers sending one whole batch; a crashed worker's rows are reclaimed after it.</summary>
-    public int LeaseSeconds { get; set; } = 120;
+    /// <summary>
+    /// Covers sending one whole batch (default 900 = 20 rows x the 30 s total send timeout = 600 s, plus margin);
+    /// a crashed worker's rows are reclaimed after it.
+    /// </summary>
+    public int LeaseSeconds { get; set; } = 900;
 
     public string? WorkerId { get; set; }
 }
