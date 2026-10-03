@@ -23,11 +23,14 @@ BeforeAll {
     }
 
     function New-ProductionEnvFile {
-        param([string]$Path, [switch]$WithoutPostgresPassword)
+        param([string]$Path, [switch]$WithoutPostgresPassword, [switch]$WithoutSmtpHost)
 
         $lines = Get-Content -LiteralPath (Join-Path $script:RepoRoot '.env.production.example')
         if ($WithoutPostgresPassword) {
             $lines = $lines | ForEach-Object { if ($_ -like 'POSTGRES_PASSWORD=*') { 'POSTGRES_PASSWORD=' } else { $_ } }
+        }
+        if ($WithoutSmtpHost) {
+            $lines = $lines | ForEach-Object { if ($_ -like 'SMTP_HOST=*') { 'SMTP_HOST=' } else { $_ } }
         }
         Set-Content -LiteralPath $Path -Value $lines
     }
@@ -83,6 +86,30 @@ Describe 'docker-compose files' -Skip:(-not $script:DockerAvailable) {
         $worker.environment.Email__Smtp__RetryMode | Should -Be 'TransientOnly'
         $worker.environment.Email__Smtp__TlsMode | Should -Be 'StartTls'
         $worker.environment.PSObject.Properties.Name | Should -Contain 'TECHSTRAP_PORTAL_SHOW_POWERED_BY'
+    }
+
+    It 'production and uat workers pass the EmailOutbox settings through with defaults (<file>)' -ForEach @(
+        @{ file = 'docker-compose.production.yml' }
+        @{ file = 'docker-compose.uat.yml' }
+    ) {
+        $envFile = Join-Path $TestDrive 'env-outbox'
+        New-ProductionEnvFile -Path $envFile
+        $worker = (Get-ComposeConfig -File $file -EnvFile $envFile).Config.services.worker
+        $worker.environment.EmailOutbox__Enabled | Should -Be 'true'
+        $worker.environment.EmailOutbox__BatchSize | Should -Be '20'
+        $worker.environment.EmailOutbox__LeaseSeconds | Should -Be '900'
+        $worker.environment.EmailOutbox__PollIntervalSeconds | Should -Be '5'
+    }
+
+    It '<file> refuses to resolve without SMTP_HOST and says how to fix it' -ForEach @(
+        @{ file = 'docker-compose.production.yml' }
+        @{ file = 'docker-compose.uat.yml' }
+    ) {
+        $envFile = Join-Path $TestDrive 'env-nosmtphost'
+        New-ProductionEnvFile -Path $envFile -WithoutSmtpHost
+        $result = Get-ComposeConfig -File $file -EnvFile $envFile
+        $result.ExitCode | Should -Not -Be 0
+        $result.Output | Should -Match 'set SMTP_HOST in the env file'
     }
 
     It 'local compose mounts the shared storage volume on api and worker only' {
