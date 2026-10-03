@@ -18,7 +18,7 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 | # | Phase | Depends on | Unblocks | Parallelism | Key decisions | Status |
 | --- | --- | --- | --- | --- | --- | --- |
 | 01 | [Foundation](PHASE-01-foundation.md) | none | all | Must go first | D-003, D-006, D-013, D-019 | Complete (CI/release verification pending) |
-| 02 | [Brand and UX](PHASE-02-brand-and-ux.md) | 01 | 07, 09 | Runs alongside 03 to 06 (no shared files); blocks the UI phases | D-002 | Complete (visual review pending) |
+| 02 | [Brand and UX](PHASE-02-brand-and-ux.md) | 01 | 07, 09 | Runs alongside 03 to 06 (no shared files); blocks the UI phases | D-002, D-023, D-024, D-025 | Complete (visual review pending) |
 | 03 | [Domain and persistence](PHASE-03-domain-and-persistence.md) | 01 | 04 | Alongside 02 | D-009, D-010, D-011 | Not started |
 | 04 | [Agent auth and admin config](PHASE-04-agent-auth-and-admin-config.md) | 03 | 05 | Alongside 02 | D-001, D-004, D-016, D-022 | Not started |
 | 05 | [Intake, email and worker](PHASE-05-intake-email-worker.md) | 04 | 06, 11 | Alongside 02 | D-001, D-010, D-012, D-014, D-019, D-020 | Not started |
@@ -119,6 +119,7 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P04-T13 | Extend architecture tests with controller and handler rules |
 | P04-T14 | Update `.env.example`, OpenAPI and the dev seeder; self-host auth note |
 | P04-T15 | `UpdateMyProfileRequestHandler` and public display name contracts (D-024) |
+| P04-T16 | Production exception handler with a plain error page in Admin and Portal |
 
 ### PHASE-05 Intake, email and worker
 
@@ -411,7 +412,7 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 
 ## 8. Decisions still open
 
-None. All decisions (D-001 to D-024) were approved on 2026-10-02 (D-023 visual direction and D-024 customer-facing identity, spam recovery and portal prefill were settled by the owner after the first plan).
+None. All decisions (D-001 to D-025) were approved on 2026-10-02 (D-023 visual direction and D-024 customer-facing identity, spam recovery and portal prefill were settled by the owner after the first plan).
 
 ## 9. Carried forward from PHASE-01
 

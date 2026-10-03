@@ -186,6 +186,7 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 - [ ] **P07-T19** Apply BRAND.md tokens/SCSS, responsive layout and accessibility pass per `UX-BRIEF-admin.md` (focus order, ARIA on dialogs/badges, contrast)
   - **Depends on:** P07-T07, P07-T08, P07-T14
   - **Validation:** Manual checklist from UX-BRIEF-admin completed; keyboard-only run through queue -> reply -> solve; axe (browser extension) run has no critical findings (record in PR).
+  - **Validation (PHASE-02 carry-over):** Admin must not use semantic `.text-{color}` or `.link-{color}` utilities in dark mode (they fail contrast there); use brand tokens or `.text-*-emphasis`. Add a `BrandWindow` heading-level parameter so standalone brand pages (404, sign-in) render an `h1`. The keyboard walk-through deferred from PHASE-02 happens here.
 - [ ] **P07-T20** Add Admin to compose and verify Dockerfile run; add admin architecture rules (no reference to Application/Infrastructure/EF; no `HttpClient` use in `.razor` files)
   - **Depends on:** P07-T02
   - **Validation:** `docker compose up` -> `/health/ready` 200; Architecture.Tests fail when a forbidden reference or `[Inject] HttpClient` in a component is introduced (verified by a deliberate failing sample).

@@ -134,7 +134,9 @@ Each handler task writes `{Handler}Tests` (substitutes for repositories, fake `T
 - [ ] **P04-T15** (D-024) Add `UpdateMyProfileRequest` (`PublicDisplayName`, nullable) and `AgentDto.PublicDisplayName` to Contracts, a shared public-name format constant (`{0} from {1} Support`) for the Admin preview, and implement `UpdateMyProfileRequestHandler` with `AgentsController.UpdateMyProfile` (`PUT /api/agents/me/profile`, Agent policy). A new handler is needed because `UpdateNotificationPreferencesRequestHandler` is a per-product alert opt-in
   - **Depends on:** P04-T04, P03-T17
   - **Validation:** `UpdateMyProfileRequestHandlerTests` cover set, change, clear (null and blank), over-long and `@` names (422 with field error), deactivated agent forbidden, and that only the caller's own record changes; controller test shows delegation with the cancellation token; integration test persists the value and `GET /api/agents/me` returns it; `ContractNamingTests` and `OpenApiSurfaceTests` pass; a parity test shows the Contracts format constant and `AgentPublicIdentity.Resolve` produce the same string
-
+- [ ] **P04-T16** (PHASE-02 carry-over) Add a production `UseExceptionHandler` with a plain, no-humour error page in Admin and Portal (cause plus next step, BRAND.md section 3); the branded 404 is for 404 only
+  - **Depends on:** P04-T02
+  - **Validation:** a host test forcing an unhandled exception in Admin and Portal returns 500 with the plain error page, no `ts-window` and no 404 copy
 
 ## Success Criteria
 
