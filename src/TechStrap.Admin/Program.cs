@@ -49,6 +49,12 @@ telemetry.LogStartupWarning(app.Logger);
 
 app.UseForwardedHeaders();
 app.UseCorrelationId();
+if (!app.Environment.IsDevelopment())
+{
+    // Plain error page for unhandled exceptions (BRAND.md section 3); the branded window is for the Admin 404 only.
+    app.UseExceptionHandler("/error", createScopeForErrors: true);
+}
+
 // An address that matches no page gets the branded 404 (re-executed, so the 404 status code is kept).
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 // BRAND.md section 3: humour never covers an error that blocks work, so only 404 is re-executed to the not-found page.
