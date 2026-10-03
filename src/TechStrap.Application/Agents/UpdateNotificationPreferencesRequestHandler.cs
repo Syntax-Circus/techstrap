@@ -19,6 +19,13 @@ public sealed class UpdateNotificationPreferencesRequestHandler(
 {
     public async Task<Result> HandleAsync(UpdateNotificationPreferencesRequest request, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
+        var me = await CurrentAgent.RequireActiveAsync(currentAgent, agents, cancellationToken);
+        if (me.IsFailure)
+        {
+            return Result.Failure(me.Errors[0]);
+        }
+
         if (request.Preferences is null)
         {
             return Result.Failure(new ResultError("notification-preferences-required", "Send the list of product preferences.", ResultErrorKind.Validation, "preferences"));
@@ -27,23 +34,21 @@ public sealed class UpdateNotificationPreferencesRequestHandler(
         var seen = new HashSet<Guid>();
         for (var index = 0; index < request.Preferences.Count; index++)
         {
-            var productId = request.Preferences[index].ProductId;
-            if (!seen.Add(productId))
+            var preference = request.Preferences[index];
+            if (preference is null)
+            {
+                return Result.Failure(new ResultError("notification-preference-required", "Each preference needs a product and a choice.", ResultErrorKind.Validation, $"preferences[{index}]"));
+            }
+
+            if (!seen.Add(preference.ProductId))
             {
                 return Result.Failure(new ResultError("notification-product-repeated", "Each product can appear only once.", ResultErrorKind.Validation, $"preferences[{index}].productId"));
             }
 
-            if (await products.GetByIdAsync(productId, cancellationToken) is null)
+            if (await products.GetByIdAsync(preference.ProductId, cancellationToken) is null)
             {
                 return Result.Failure(new ResultError("notification-product-unknown", "That product does not exist. Reload the list and try again.", ResultErrorKind.Validation, $"preferences[{index}].productId"));
             }
-        }
-
-        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
-        var me = await CurrentAgent.RequireActiveAsync(currentAgent, agents, cancellationToken);
-        if (me.IsFailure)
-        {
-            return Result.Failure(me.Errors[0]);
         }
 
         foreach (var preference in request.Preferences)

@@ -69,4 +69,29 @@ public sealed class UpdateNotificationPreferencesRequestHandlerTests
         (await Handler().HandleAsync(new UpdateNotificationPreferencesRequest(null!), TestContext.Current.CancellationToken))
             .Errors.ShouldHaveSingleItem().Target.ShouldBe("preferences");
     }
+
+    [Fact]
+    public async Task A_null_preference_element_is_a_field_error()
+    {
+        var result = await Handler().HandleAsync(
+            new UpdateNotificationPreferencesRequest([new NotificationPreferenceUpdateDto(_orbitly.Id, true), null!]), TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            error => error.Kind.ShouldBe(ResultErrorKind.Validation),
+            error => error.Code.ShouldBe("notification-preference-required"),
+            error => error.Target.ShouldBe("preferences[1]"));
+        await _agents.DidNotReceive().SetNotificationPreferenceAsync(Arg.Any<AgentNotificationPreference>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_deactivated_agent_cannot_change_preferences()
+    {
+        _me.SetActive(false);
+
+        var result = await Handler().HandleAsync(
+            new UpdateNotificationPreferencesRequest([new NotificationPreferenceUpdateDto(Guid.CreateVersion7(), true)]), TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("agent-inactive");
+        await _agents.DidNotReceive().SetNotificationPreferenceAsync(Arg.Any<AgentNotificationPreference>(), Arg.Any<CancellationToken>());
+    }
 }

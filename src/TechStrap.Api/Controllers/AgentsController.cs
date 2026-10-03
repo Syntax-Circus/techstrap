@@ -38,12 +38,14 @@ public sealed class AgentsController : ControllerBase
         CancellationToken cancellationToken) =>
         (await updateAgent.HandleAsync(id, request, cancellationToken)).ToActionResult(this, Ok);
 
+    /// <summary>Every active product with the caller's new-ticket alert choice.</summary>
     [HttpGet("me/notification-preferences")]
     public async Task<IActionResult> GetMyNotificationPreferences(
         [FromServices] IGetMyNotificationPreferencesRequestHandler getPreferences,
         CancellationToken cancellationToken) =>
         (await getPreferences.HandleAsync(cancellationToken)).ToActionResult(this, Ok);
 
+    /// <summary>Sets the caller's new-ticket alert choice for the listed products.</summary>
     [HttpPut("me/notification-preferences")]
     public async Task<IActionResult> UpdateMyNotificationPreferences(
         UpdateNotificationPreferencesRequest request,
