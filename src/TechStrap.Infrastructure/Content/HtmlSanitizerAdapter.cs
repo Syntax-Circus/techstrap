@@ -8,7 +8,7 @@ namespace TechStrap.Infrastructure.Content;
 internal sealed class HtmlSanitizerAdapter : IHtmlSanitizer
 {
     private static readonly string[] _tags =
-        ["p", "br", "strong", "b", "em", "i", "u", "a", "ul", "ol", "li", "blockquote", "code", "pre", "h1", "h2", "h3", "h4"];
+        ["p", "br", "strong", "b", "em", "i", "u", "a", "ul", "ol", "li", "blockquote", "code", "pre", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "del", "s"];
 
     private readonly GanssHtmlSanitizer _sanitizer;
 
