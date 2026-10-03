@@ -87,6 +87,17 @@ internal sealed class AttachmentStore(IStorageProvider storage) : IAttachmentSto
 
     public Task DeleteAsync(string storageKey, CancellationToken cancellationToken) => storage.DeleteAsync(storageKey, cancellationToken);
 
+    public async Task<Stream?> OpenReadAsync(string storageKey, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(storageKey))
+        {
+            return null;
+        }
+
+        var result = await storage.ReadAsync(storageKey, cancellationToken);
+        return result is null ? null : new OwnedReadStream(result.Content, result);
+    }
+
     private async Task DeleteQuietlyAsync(string key)
     {
         try

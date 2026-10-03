@@ -63,7 +63,25 @@ public sealed record TicketSummary(
     Guid ProductId,
     Guid RequesterId,
     string RequesterEmail,
+    string? RequesterName,
     Guid? AssigneeId,
     bool IsSpam,
+    IReadOnlyList<Guid> TagIds,
     DateTimeOffset CreatedAt,
     DateTimeOffset LastActivityAt);
+
+/// <summary>Ticket counts for the queue tabs; each count has exactly the membership of the matching <see cref="TicketView"/> list.</summary>
+public sealed record TicketViewCounts(int Unassigned, int Mine, int Open, int Pending, int All, int Spam);
+
+/// <summary>A fresh, untracked read of the ticket's mutable state and concurrency token, taken after a commit.</summary>
+public sealed record TicketState(
+    Guid Id,
+    string Number,
+    TicketStatus Status,
+    TicketPriority Priority,
+    Guid ProductId,
+    Guid? AssigneeId,
+    bool IsSpam,
+    IReadOnlyList<Guid> TagIds,
+    DateTimeOffset LastActivityAt,
+    uint Version);

@@ -73,4 +73,16 @@ public interface ITicketRepository
     void UpdateAccessToken(TicketAccessToken token);
 
     Task<TicketAccessToken?> GetAccessTokenByHashAsync(string tokenHash, CancellationToken cancellationToken);
+
+    /// <summary>Per-view counts for the queue tabs; view membership exactly as <see cref="ListAsync"/> (Mine uses <paramref name="agentId"/>).</summary>
+    Task<TicketViewCounts> CountViewsAsync(Guid agentId, CancellationToken cancellationToken);
+
+    /// <summary>An attachment by its own id (agent download), or null. Agent-only: it does not hide internal notes.</summary>
+    Task<Attachment?> GetAttachmentByIdAsync(Guid attachmentId, CancellationToken cancellationToken);
+
+    /// <summary>A message by its own id (the Worker renders reply emails from it at send time, D-033), or null. Agent and worker only: it does not hide internal notes.</summary>
+    Task<Message?> GetMessageAsync(Guid messageId, CancellationToken cancellationToken);
+
+    /// <summary>An untracked read straight from the database; use after a commit to return the new Version.</summary>
+    Task<TicketState?> GetStateAsync(Guid id, CancellationToken cancellationToken);
 }

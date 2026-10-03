@@ -106,12 +106,12 @@ internal sealed class TicketRepository(TechStrapDbContext context) : ITicketRepo
         {
             total = await tickets.CountAsync(cancellationToken);
             rows = await tickets
-                .Join(context.Set<RequesterRecord>(), t => t.RequesterId, r => r.Id, (t, r) => new { Ticket = t, r.Email })
+                .Join(context.Set<RequesterRecord>(), t => t.RequesterId, r => r.Id, (t, r) => new { Ticket = t, r.Email, r.Name })
                 .OrderByDescending(x => x.Ticket.LastActivityAt).ThenByDescending(x => x.Ticket.Id)
                 .Skip(offset).Take(pageSize)
                 .Select(x => new TicketSummary(
                     x.Ticket.Id, x.Ticket.Number, x.Ticket.Subject, x.Ticket.Status, x.Ticket.Priority, x.Ticket.ProductId, x.Ticket.RequesterId, x.Email,
-                    x.Ticket.AssigneeId, x.Ticket.IsSpam, x.Ticket.CreatedAt, x.Ticket.LastActivityAt))
+                    x.Name, x.Ticket.AssigneeId, x.Ticket.IsSpam, Array.Empty<Guid>(), x.Ticket.CreatedAt, x.Ticket.LastActivityAt))
                 .ToListAsync(cancellationToken);
         }
         else
@@ -119,16 +119,64 @@ internal sealed class TicketRepository(TechStrapDbContext context) : ITicketRepo
             var ranked = Rank(tickets, text);
             total = await ranked.CountAsync(cancellationToken);
             rows = await ranked
-                .Join(context.Set<RequesterRecord>(), x => x.Ticket.RequesterId, r => r.Id, (x, r) => new { x.Ticket, x.Score, r.Email })
+                .Join(context.Set<RequesterRecord>(), x => x.Ticket.RequesterId, r => r.Id, (x, r) => new { x.Ticket, x.Score, r.Email, r.Name })
                 .OrderByDescending(x => x.Score).ThenByDescending(x => x.Ticket.LastActivityAt).ThenByDescending(x => x.Ticket.Id)
                 .Skip(offset).Take(pageSize)
                 .Select(x => new TicketSummary(
                     x.Ticket.Id, x.Ticket.Number, x.Ticket.Subject, x.Ticket.Status, x.Ticket.Priority, x.Ticket.ProductId, x.Ticket.RequesterId, x.Email,
-                    x.Ticket.AssigneeId, x.Ticket.IsSpam, x.Ticket.CreatedAt, x.Ticket.LastActivityAt))
+                    x.Name, x.Ticket.AssigneeId, x.Ticket.IsSpam, Array.Empty<Guid>(), x.Ticket.CreatedAt, x.Ticket.LastActivityAt))
                 .ToListAsync(cancellationToken);
         }
 
-        return new PagedResult<TicketSummary>(rows, page, pageSize, total);
+        return new PagedResult<TicketSummary>(await WithTagsAsync(rows, cancellationToken), page, pageSize, total);
+    }
+
+    /// <summary>Fills in the tag ids of a page of summaries with one query (no per-row lookups).</summary>
+    private async Task<List<TicketSummary>> WithTagsAsync(List<TicketSummary> rows, CancellationToken cancellationToken)
+    {
+        if (rows.Count == 0)
+        {
+            return rows;
+        }
+
+        var pageIds = rows.Select(r => r.Id).ToArray();
+        var links = await context.Set<TicketTagRecord>().AsNoTracking()
+            .Where(l => pageIds.Contains(l.TicketId))
+            .Select(l => new { l.TicketId, l.TagId })
+            .ToListAsync(cancellationToken);
+        var byTicket = links.GroupBy(l => l.TicketId).ToDictionary(g => g.Key, g => (IReadOnlyList<Guid>)[.. g.Select(l => l.TagId).Order()]);
+        return [.. rows.Select(r => byTicket.TryGetValue(r.Id, out var tagIds) ? r with { TagIds = tagIds } : r)];
+    }
+
+    public async Task<TicketViewCounts> CountViewsAsync(Guid agentId, CancellationToken cancellationToken)
+    {
+        Task<int> Count(TicketView view) =>
+            ViewQuery(context.Set<TicketRecord>().AsNoTracking(), new TicketQuery(view, AgentId: agentId)).CountAsync(cancellationToken);
+
+        // Sequential: one DbContext cannot run two commands at once.
+        return new TicketViewCounts(
+            await Count(TicketView.Unassigned),
+            await Count(TicketView.Mine),
+            await Count(TicketView.Open),
+            await Count(TicketView.Pending),
+            await Count(TicketView.All),
+            await Count(TicketView.Spam));
+    }
+
+    public async Task<Attachment?> GetAttachmentByIdAsync(Guid attachmentId, CancellationToken cancellationToken) =>
+        (await context.Set<AttachmentRecord>().AsNoTracking().FirstOrDefaultAsync(a => a.Id == attachmentId, cancellationToken))?.ToDomain();
+
+    public async Task<Message?> GetMessageAsync(Guid messageId, CancellationToken cancellationToken) =>
+        (await context.Set<MessageRecord>().AsNoTracking().FirstOrDefaultAsync(m => m.Id == messageId, cancellationToken))?.ToDomain();
+
+    public async Task<TicketState?> GetStateAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var record = await context.Set<TicketRecord>().AsNoTracking().Include(t => t.Tags).FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
+        return record is null
+            ? null
+            : new TicketState(
+                record.Id, record.Number, record.Status, record.Priority, record.ProductId, record.AssigneeId, record.IsSpam,
+                [.. record.Tags.Select(t => t.TagId).Order()], record.LastActivityAt, record.Version);
     }
 
     /// <summary>

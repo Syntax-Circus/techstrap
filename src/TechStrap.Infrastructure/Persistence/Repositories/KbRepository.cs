@@ -143,4 +143,13 @@ internal sealed class KbRepository(TechStrapDbContext context) : IKbRepository
             .ToListAsync(cancellationToken);
         return [.. records.Select(a => a.ToDomain())];
     }
+
+    public async Task<IReadOnlyList<TicketArticle>> ListTicketArticlesAsync(Guid ticketId, CancellationToken cancellationToken)
+    {
+        var records = await context.Set<TicketArticleRecord>().AsNoTracking()
+            .Where(l => l.TicketId == ticketId)
+            .OrderBy(l => l.MessageId).ThenBy(l => l.ArticleId)
+            .ToListAsync(cancellationToken);
+        return [.. records.Select(l => new TicketArticle(l.TicketId, l.MessageId, l.ArticleId))];
+    }
 }
