@@ -33,6 +33,7 @@ public sealed class ClaimsCurrentAgentClaimsTests
     [InlineData("[\"other\",\"TechStrap-Agents\"]")]
     [InlineData("other, techstrap-agents")]
     [InlineData("other techstrap-agents")]
+    [InlineData("[null,\"techstrap-agents\"]")]
     public void Groups_are_read_from_repeated_claims_json_arrays_and_delimited_lists(string value)
     {
         ClaimsCurrentAgentClaims.FromPrincipal(Principal(("sub", "abc"), ("groups", "unrelated"), ("groups", value)), Options)!

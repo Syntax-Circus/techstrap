@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using TechStrap.Api.Startup;
 
@@ -50,7 +52,26 @@ public sealed class AgentAuthTests(TestPostgres postgres)
         (await GetAsync(factory, "/__test/agent", TestJwt.Token("s1", [TestJwt.AgentGroup], signingKey: otherKey))).ShouldBe(HttpStatusCode.Unauthorized);
         (await GetAsync(factory, "/__test/agent", TestJwt.Token("s1", [TestJwt.AgentGroup], audience: "someone-else"))).ShouldBe(HttpStatusCode.Unauthorized);
         (await GetAsync(factory, "/__test/agent", TestJwt.Token("s1", [TestJwt.AgentGroup], issuer: "https://evil.test/"))).ShouldBe(HttpStatusCode.Unauthorized);
-        (await GetAsync(factory, "/__test/agent", TestJwt.Token("s1", [TestJwt.AgentGroup], expires: DateTime.UtcNow.AddMinutes(-1)))).ShouldBe(HttpStatusCode.Unauthorized);
+        (await GetAsync(factory, "/__test/agent", TestJwt.Token("s1", [TestJwt.AgentGroup], expires: DateTime.UtcNow.AddMinutes(-10)))).ShouldBe(HttpStatusCode.Unauthorized);
+        (await GetAsync(factory, "/__test/agent", TestJwt.Token("s1", [TestJwt.AgentGroup], omitExpiry: true))).ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task The_effective_bearer_options_validate_issuer_audience_lifetime_and_signature()
+    {
+        await using var factory = await FactoryAsync();
+        using var client = factory.CreateClient();
+
+        var options = factory.Services.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>().Get(JwtBearerDefaults.AuthenticationScheme);
+
+        options.TokenValidationParameters.ValidateIssuer.ShouldBeTrue();
+        options.TokenValidationParameters.ValidateAudience.ShouldBeTrue();
+        options.TokenValidationParameters.ValidateLifetime.ShouldBeTrue();
+        options.TokenValidationParameters.ValidateIssuerSigningKey.ShouldBeTrue();
+        options.TokenValidationParameters.RequireSignedTokens.ShouldBeTrue();
+        options.TokenValidationParameters.RequireExpirationTime.ShouldBeTrue();
+        options.TokenValidationParameters.ValidAudiences.ShouldContain(TestJwt.Audience);
+        options.MapInboundClaims.ShouldBeFalse();
     }
 
     [Fact]

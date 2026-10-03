@@ -34,6 +34,14 @@ public class HostFactory<TProgram>(
     {
         // A developer's gitignored .env.local must never leak into tests.
         Environment.SetEnvironmentVariable("DotEnv__Enabled", "false");
+
+        // AddSyntaxCircusJwtBearer reads Authority and Audiences while Program.cs builds the host, before the factory's
+        // in-memory settings exist, so the test issuer must arrive as environment variables to reach the real
+        // validation parameters (the same reason TrustedProxy cannot be overridden through settings).
+        foreach (var (key, value) in Auth.TestJwt.Settings)
+        {
+            Environment.SetEnvironmentVariable(key.Replace(":", "__"), value);
+        }
     }
 
     public CollectingSink LogSink { get; } = new();

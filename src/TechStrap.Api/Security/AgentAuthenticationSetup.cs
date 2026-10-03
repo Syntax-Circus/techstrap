@@ -18,7 +18,20 @@ public static class AgentAuthenticationSetup
 
         // Keep raw OIDC claim names (sub, email, name, groups) so ClaimsCurrentAgentClaims and TECHSTRAP_GROUP_CLAIM_TYPE
         // mean exactly what the IdP sends.
-        services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options => options.MapInboundClaims = false);
+        services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+        {
+            options.MapInboundClaims = false;
+
+            // Pin the validation switches so a package default can never weaken them. The package leaves
+            // ValidateIssuerSigningKey at the ASP.NET default (false); the others are already true.
+            var parameters = options.TokenValidationParameters;
+            parameters.ValidateIssuer = true;
+            parameters.ValidateAudience = true;
+            parameters.ValidateLifetime = true;
+            parameters.ValidateIssuerSigningKey = true;
+            parameters.RequireSignedTokens = true;
+            parameters.RequireExpirationTime = true;
+        });
 
         services.AddOptions<JwtSettings>()
             .Bind(configuration.GetSection(JwtSection))
@@ -30,9 +43,9 @@ public static class AgentAuthenticationSetup
         services.AddOptions<AgentAccessOptions>()
             .Configure<IConfiguration>((options, config) =>
             {
-                options.AgentGroup = config[AgentAccessOptions.AgentGroupKey] ?? options.AgentGroup;
-                options.AdminGroup = config[AgentAccessOptions.AdminGroupKey] ?? options.AdminGroup;
-                options.GroupClaimType = config[AgentAccessOptions.GroupClaimTypeKey] ?? options.GroupClaimType;
+                options.AgentGroup = config[AgentAccessOptions.AgentGroupKey]?.Trim() ?? options.AgentGroup;
+                options.AdminGroup = config[AgentAccessOptions.AdminGroupKey]?.Trim() ?? options.AdminGroup;
+                options.GroupClaimType = config[AgentAccessOptions.GroupClaimTypeKey]?.Trim() ?? options.GroupClaimType;
             })
             .Validate(options => !string.IsNullOrWhiteSpace(options.AgentGroup), $"{AgentAccessOptions.AgentGroupKey} must not be blank.")
             .Validate(options => !string.IsNullOrWhiteSpace(options.AdminGroup), $"{AgentAccessOptions.AdminGroupKey} must not be blank.")

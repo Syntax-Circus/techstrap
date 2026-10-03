@@ -21,7 +21,7 @@ public static class AgentGroups
         {
             try
             {
-                return JsonSerializer.Deserialize<string[]>(text)?.Select(item => item.Trim()) ?? [];
+                return JsonSerializer.Deserialize<string[]>(text)?.Where(item => item is not null).Select(item => item.Trim()) ?? [];
             }
             catch (JsonException)
             {

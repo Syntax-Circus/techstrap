@@ -21,7 +21,7 @@ public static class TestJwt
     public const string AgentGroup = "techstrap-agents";
     public const string AdminGroup = "techstrap-admins";
 
-    private static readonly SymmetricSecurityKey SigningKey = new(Encoding.UTF8.GetBytes("techstrap-test-signing-key-not-a-secret-0123456789"));
+    private static readonly SymmetricSecurityKey _signingKey = new(Encoding.UTF8.GetBytes("techstrap-test-signing-key-not-a-secret-0123456789"));
 
     public static IReadOnlyDictionary<string, string?> Settings { get; } = new Dictionary<string, string?>
     {
@@ -33,17 +33,7 @@ public static class TestJwt
         services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
         {
             options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(
-                new OpenIdConnectConfiguration { Issuer = Issuer, SigningKeys = { SigningKey } });
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidIssuer = Issuer,
-                ValidateAudience = true,
-                ValidAudience = Audience,
-                ValidateLifetime = true,
-                IssuerSigningKey = SigningKey,
-                ClockSkew = TimeSpan.Zero,
-            };
+                new OpenIdConnectConfiguration { Issuer = Issuer, SigningKeys = { _signingKey } });
         });
 
     public static string Token(
@@ -54,6 +44,7 @@ public static class TestJwt
         string issuer = Issuer,
         string audience = Audience,
         DateTime? expires = null,
+        bool omitExpiry = false,
         SecurityKey? signingKey = null)
     {
         var claims = new List<Claim> { new("sub", subject) };
@@ -69,15 +60,15 @@ public static class TestJwt
 
         claims.AddRange(groups.Select(group => new Claim("groups", group)));
         var now = DateTime.UtcNow;
-        return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+        return new JsonWebTokenHandler { SetDefaultTimesOnTokenCreation = false }.CreateToken(new SecurityTokenDescriptor
         {
             Issuer = issuer,
             Audience = audience,
             Subject = new ClaimsIdentity(claims),
             NotBefore = now.AddMinutes(-5),
             IssuedAt = now.AddMinutes(-5),
-            Expires = expires ?? now.AddMinutes(30),
-            SigningCredentials = new SigningCredentials(signingKey ?? SigningKey, SecurityAlgorithms.HmacSha256),
+            Expires = omitExpiry ? null : expires ?? now.AddMinutes(30),
+            SigningCredentials = new SigningCredentials(signingKey ?? _signingKey, SecurityAlgorithms.HmacSha256),
         });
     }
 
