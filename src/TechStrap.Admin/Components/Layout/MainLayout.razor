@@ -11,9 +11,9 @@
     <main class="ts-main">
         <GlobalErrorBoundary BoundaryName="admin UI"
                              CssClass="ts-error"
-                             Title="Couldn't load this screen."
-                             Description="Something went wrong while drawing it. Try again, and tell an admin if it keeps happening."
-                             HomeLabel="Back to the start">
+                             Title="@UiCopy.ErrorTitle"
+                             Description="@UiCopy.ErrorDescription"
+                             HomeLabel="@UiCopy.ErrorHomeLabel">
             @Body
         </GlobalErrorBoundary>
     </main>

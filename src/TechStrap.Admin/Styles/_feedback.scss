@@ -36,3 +36,51 @@
     border-radius: 0;
   }
 }
+
+// The reconnect dialog from SyntaxCircus.Blazor.Components (CssClass="ts-reconnect"). The package toggles the hidden attribute on
+// [data-reconnect-state] blocks, so these rules must not set display on them. The static preview in the style guide reuses the class.
+.ts-reconnect {
+  max-width: 420px;
+  padding: 16px;
+  color: var(--ink);
+  background: var(--sheet);
+  border: 2px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--shadow);
+
+  p {
+    margin: 0 0 12px;
+  }
+
+  button {
+    min-height: 34px;
+    padding: 6px 14px;
+    font: 600 .75rem var(--ts-font-mono);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--paper);
+    background: var(--ink);
+    border: 2px solid var(--ink);
+    border-radius: 0;
+  }
+
+  &::backdrop {
+    background: var(--scrim);
+  }
+}
+
+// Style-guide preview: every state shown at once inside one sheet.
+.ts-reconnect--preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  [data-reconnect-state] {
+    padding-bottom: 12px;
+    border-bottom: 1px dashed var(--rule-strong);
+  }
+
+  [data-reconnect-state]:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+}

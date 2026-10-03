@@ -129,6 +129,24 @@
             </div>
         </section>
 
+        <section class="ts-sg-section" aria-labelledby="sg-reconnect">
+            <h2 id="sg-reconnect" class="ts-label">Reconnect and error UI</h2>
+            <p class="ts-sg-note">The real reconnect dialog (SyntaxCircus.Blazor.Components) is mounted once in App.razor and shows when the circuit drops; here each state is previewed as static markup with the same copy. Blocking failures are plain: a cause and a next step.</p>
+            <div class="ts-sg-states">
+                <div class="ts-reconnect ts-reconnect--preview">
+                    <div data-reconnect-state="first"><p>@UiCopy.ReconnectFirst</p></div>
+                    <div data-reconnect-state="retrying"><p>@UiCopy.ReconnectRetryingBefore<span>5</span>@UiCopy.ReconnectRetryingAfter</p></div>
+                    <div data-reconnect-state="failed"><p>@UiCopy.ReconnectFailed</p><button type="button" data-reconnect-action="retry">@UiCopy.RetryLabel</button></div>
+                    <div data-reconnect-state="paused"><p>@UiCopy.ReconnectPaused</p><button type="button" data-reconnect-action="resume">@UiCopy.ResumeLabel</button></div>
+                    <div data-reconnect-state="resume-failed"><p>@UiCopy.ReconnectResumeFailed</p><button type="button" data-reconnect-action="resume">@UiCopy.ResumeLabel</button></div>
+                </div>
+                <GlobalErrorView CssClass="ts-error"
+                                 Title="@UiCopy.ErrorTitle"
+                                 Description="@UiCopy.ErrorDescription"
+                                 HomeLabel="@UiCopy.ErrorHomeLabel" />
+            </div>
+        </section>
+
         <section class="ts-sg-section" aria-labelledby="sg-buttons">
             <h2 id="sg-buttons" class="ts-label">Buttons</h2>
             <div class="ts-sg-row">
