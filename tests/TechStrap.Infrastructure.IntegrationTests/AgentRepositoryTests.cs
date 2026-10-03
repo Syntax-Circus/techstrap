@@ -35,6 +35,29 @@ public sealed class AgentRepositoryTests(PostgresFixture postgres) : PostgresInt
     }
 
     [Fact]
+    public async Task GetByIdsAsync_returns_the_known_agents_and_ignores_unknown_ids()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var sam = NewAgent(host, "oidc|sam", "Sam W.", "sam@example.com");
+        var riley = NewAgent(host, "oidc|riley", "Riley", "riley@example.com");
+        var other = NewAgent(host, "oidc|other", "Other", "other@example.com");
+        await host.CommitAsync(sp =>
+        {
+            var repository = sp.GetRequiredService<IAgentRepository>();
+            repository.Add(sam);
+            repository.Add(riley);
+            repository.Add(other);
+            return Task.CompletedTask;
+        });
+
+        var found = await host.ReadAsync(sp => sp.GetRequiredService<IAgentRepository>().GetByIdsAsync([sam.Id, riley.Id, Guid.NewGuid()], Ct));
+        var none = await host.ReadAsync(sp => sp.GetRequiredService<IAgentRepository>().GetByIdsAsync([], Ct));
+
+        found.Select(a => a.Id).Order().ShouldBe(new[] { sam.Id, riley.Id }.Order());
+        none.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Updating_changes_role_active_flag_and_clears_the_public_display_name()
     {
         await using var host = new PersistenceTestHost(Database);

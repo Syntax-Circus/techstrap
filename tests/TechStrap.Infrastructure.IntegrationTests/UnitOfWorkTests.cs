@@ -35,7 +35,7 @@ public sealed class UnitOfWorkTests(PostgresFixture postgres) : PostgresIntegrat
 
         await using var verify = host.CreateScope();
         (await verify.ServiceProvider.GetRequiredService<IProductRepository>().GetByKeyAsync("acme", Ct)).ShouldNotBeNull();
-        (await verify.ServiceProvider.GetRequiredService<IAdminEventRepository>().ListAsync(null, 1, 10, Ct)).TotalCount.ShouldBe(1);
+        (await verify.ServiceProvider.GetRequiredService<IAdminEventRepository>().ListAsync(new AdminEventFilter(null, null, null), 1, 10, Ct)).TotalCount.ShouldBe(1);
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public sealed class UnitOfWorkTests(PostgresFixture postgres) : PostgresIntegrat
 
         await using var verify = host.CreateScope();
         (await verify.ServiceProvider.GetRequiredService<IProductRepository>().ListAsync(false, Ct)).ShouldBeEmpty();
-        (await verify.ServiceProvider.GetRequiredService<IAdminEventRepository>().ListAsync(null, 1, 10, Ct)).TotalCount.ShouldBe(0);
+        (await verify.ServiceProvider.GetRequiredService<IAdminEventRepository>().ListAsync(new AdminEventFilter(null, null, null), 1, 10, Ct)).TotalCount.ShouldBe(0);
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public sealed class UnitOfWorkTests(PostgresFixture postgres) : PostgresIntegrat
 
         await using var verify = host.CreateScope();
         (await verify.ServiceProvider.GetRequiredService<IProductRepository>().GetByKeyAsync("acme", Ct))!.Name.ShouldBe("Renamed by first");
-        (await verify.ServiceProvider.GetRequiredService<IAdminEventRepository>().ListAsync(null, 1, 10, Ct)).TotalCount.ShouldBe(0);
+        (await verify.ServiceProvider.GetRequiredService<IAdminEventRepository>().ListAsync(new AdminEventFilter(null, null, null), 1, 10, Ct)).TotalCount.ShouldBe(0);
     }
 
     [Fact]
@@ -204,7 +204,7 @@ public sealed class UnitOfWorkTests(PostgresFixture postgres) : PostgresIntegrat
 
         result.Errors.ShouldHaveSingleItem().Code.ShouldBe(PersistenceErrorCodes.Duplicate);
         await using var verify = host.CreateScope();
-        (await verify.ServiceProvider.GetRequiredService<IAdminEventRepository>().ListAsync(null, 1, 10, Ct)).TotalCount.ShouldBe(0);
+        (await verify.ServiceProvider.GetRequiredService<IAdminEventRepository>().ListAsync(new AdminEventFilter(null, null, null), 1, 10, Ct)).TotalCount.ShouldBe(0);
     }
 
     [Fact]

@@ -33,6 +33,17 @@ internal sealed class AgentRepository(TechStrapDbContext context) : IAgentReposi
         return new PagedResult<Agent>([.. records.Select(a => a.ToDomain())], page, pageSize, total);
     }
 
+    public async Task<IReadOnlyList<Agent>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        var records = await context.Set<AgentRecord>().AsNoTracking().Where(a => ids.Contains(a.Id)).ToListAsync(cancellationToken);
+        return [.. records.Select(a => a.ToDomain())];
+    }
+
     public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
         context.Set<AgentRecord>().CountAsync(a => a.IsActive && a.Role == AgentRole.Admin, cancellationToken);
 

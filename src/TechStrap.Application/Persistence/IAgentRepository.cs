@@ -15,6 +15,9 @@ public interface IAgentRepository
     /// </summary>
     Task<PagedResult<Agent>> ListAsync(bool activeOnly, int page, int pageSize, CancellationToken cancellationToken);
 
+    /// <summary>The agents with these ids; unknown ids are skipped.</summary>
+    Task<IReadOnlyList<Agent>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
+
     Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken);
 
     /// <summary>

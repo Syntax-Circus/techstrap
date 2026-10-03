@@ -11,15 +11,25 @@ internal sealed class AdminEventRepository(TechStrapDbContext context) : IAdminE
 {
     public void Add(AdminEvent adminEvent) => context.Set<AdminEventRecord>().Add(adminEvent.ToRecord());
 
-    public async Task<PagedResult<AdminEvent>> ListAsync(AdminSubjectType? subjectType, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<PagedResult<AdminEvent>> ListAsync(AdminEventFilter filter, int page, int pageSize, CancellationToken cancellationToken)
     {
         page = Paging.NormalizePage(page);
         pageSize = Paging.NormalizePageSize(pageSize);
 
         var query = context.Set<AdminEventRecord>().AsNoTracking();
-        if (subjectType is { } type)
+        if (filter.SubjectType is { } subjectType)
         {
-            query = query.Where(e => e.SubjectType == type);
+            query = query.Where(e => e.SubjectType == subjectType);
+        }
+
+        if (filter.ActorId is { } actorId)
+        {
+            query = query.Where(e => e.ActorId == actorId);
+        }
+
+        if (filter.AsOf is { } asOf)
+        {
+            query = query.Where(e => e.OccurredAt <= asOf);
         }
 
         var total = await query.CountAsync(cancellationToken);
