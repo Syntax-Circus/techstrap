@@ -37,6 +37,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IKbRepository, KbRepository>();
         services.AddScoped<IEmailOutbox, EmailOutbox>();
         services.AddScoped<IEmailOutboxStore, EmailOutboxStore>();
+        services.AddScoped<IIntakeIdempotencyStore, IntakeIdempotencyStore>();
 
         return services;
     }

@@ -25,7 +25,7 @@ public sealed class AbstractionShapeTests
         [
             "IUnitOfWork", "IUnitOfWorkScope", "ITicketNumberAllocator", "ITicketRepository", "IRequesterRepository",
             "IProductRepository", "IAgentRepository", "ITagRepository", "IKbRepository", "IAdminEventRepository",
-            "IEmailOutbox", "IEmailOutboxStore",
+            "IEmailOutbox", "IEmailOutboxStore", "IIntakeIdempotencyStore",
         ];
         foreach (var name in expected)
         {
