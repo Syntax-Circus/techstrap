@@ -113,7 +113,7 @@ Interfaces live in `TechStrap.Application`; implementations in `TechStrap.Infras
 | `ITicketNotificationPlanner` | Planner over `IEmailOutbox` and the renderer | Recipient rules and outbox rows (PHASE-06) |
 | `IAttachmentStore` | Over `SyntaxCircus.Storage` | Ticket attachments: size and type checks, streams, deletion |
 | `IKbImageStore` | Over `SyntaxCircus.Storage` | KB images under the public-read `kb-images/` prefix (PHASE-08) |
-| `IAccessTokenService`, `IApiKeyHasher` | Token and key services | Generate, hash, verify (constant time) |
+| `IApiKeyHasher` | `ApiKeyHasher` (Infrastructure, PHASE-04) | Generate, hash, verify (constant time). `IAccessTokenService` follows in PHASE-05 |
 | `IIntakeIdempotencyStore` | EF store | `Idempotency-Key` lookups, 24 h retention (D-020) |
 | `IHtmlSanitizer`, `IMarkdownRenderer` | HtmlSanitizer, Markdig | D-014 |
 | `ITicketChangeBroadcaster` | SignalR (API), Postgres `NOTIFY` (Worker) | D-018. Resolves OQ-2 |
