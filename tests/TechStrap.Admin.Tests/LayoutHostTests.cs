@@ -17,6 +17,8 @@ public sealed class LayoutHostTests
         html.ShouldContain("TechStrap Admin");
         html.ShouldContain("src=\"brand/mark.svg\"");
         html.ShouldContain("ts-shell");
+        // The brand link keeps an accessible name when the rail collapses and its text is hidden (Lighthouse link-name).
+        html.ShouldContain("class=\"ts-brand\" href=\"/\" aria-label=\"TechStrap Admin home\"");
 
         var mark = await client.GetAsync("/brand/mark.svg", TestContext.Current.CancellationToken);
         mark.StatusCode.ShouldBe(HttpStatusCode.OK);
