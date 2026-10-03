@@ -111,26 +111,41 @@ Describe 'font endpoints manifest assertion' {
     }
 }
 
-Describe 'clean publish serves the self-hosted fonts' {
-    # Reproduces the image build: fonts, bin and obj are removed so libman restores the fonts during publish itself.
-    # Needs network access to jsdelivr, like the Docker build. Fonts, bin and obj are git-ignored and regenerated.
+Describe 'clean publish serves the self-hosted fonts' -Tag 'Network' {
+    # Reproduces the image build in a throwaway copy of the tree (no bin, obj or restored fonts), so libman restores the
+    # fonts during publish itself and nothing under the real src/ is touched. Tagged Network because libman downloads
+    # from jsdelivr, like the Docker build; exclude with -ExcludeTagFilter Network when offline.
     It '<Project> publishes an endpoints manifest that maps the restored .woff2 files' -ForEach @(
         @{ Project = 'TechStrap.Admin' }
         @{ Project = 'TechStrap.Portal' }
     ) {
-        $projectDir = Join-Path $script:RepoRoot 'src' $Project
-        $output = Join-Path ([IO.Path]::GetTempPath()) "techstrap-publish-$Project-$([guid]::NewGuid().ToString('N'))"
+        $copy = Join-Path ([IO.Path]::GetTempPath()) "techstrap-publish-$([guid]::NewGuid().ToString('N'))"
         try {
-            foreach ($name in 'wwwroot/fonts', 'bin', 'obj') {
-                Remove-Item -LiteralPath (Join-Path $projectDir $name) -Recurse -Force -ErrorAction SilentlyContinue
+            $null = New-Item -ItemType Directory -Path $copy -Force
+            foreach ($file in 'Directory.Build.props', 'Directory.Build.targets', 'Directory.Packages.props', 'global.json', 'GitVersion.yml', 'NuGet.config', 'nuget.config') {
+                $source = Join-Path $script:RepoRoot $file
+                if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination (Join-Path $copy $file) -Force }
             }
-            $log = & dotnet publish (Join-Path $projectDir "$Project.csproj") -c Release -o $output -p:DisableGitVersionTask=true 2>&1
+            foreach ($dir in '.config', 'assets/brand/scss', "src/$Project", 'src/TechStrap.Contracts') {
+                $source = Join-Path $script:RepoRoot $dir
+                if (-not (Test-Path -LiteralPath $source)) { continue }
+                $target = Join-Path $copy $dir
+                $null = New-Item -ItemType Directory -Path (Split-Path $target) -Force
+                Copy-Item -LiteralPath $source -Destination $target -Recurse -Force
+            }
+            foreach ($name in 'wwwroot/fonts', 'bin', 'obj') {
+                foreach ($dir in "src/$Project", 'src/TechStrap.Contracts') {
+                    Remove-Item -LiteralPath (Join-Path $copy $dir $name) -Recurse -Force -ErrorAction SilentlyContinue
+                }
+            }
+            $output = Join-Path $copy 'out'
+            $log = & dotnet publish (Join-Path $copy 'src' $Project "$Project.csproj") -c Release -o $output -p:DisableGitVersionTask=true 2>&1
             $LASTEXITCODE | Should -Be 0 -Because ($log -join [Environment]::NewLine)
             $manifest = Get-Content -LiteralPath (Join-Path $output "$Project.staticwebassets.endpoints.json") -Raw
             $manifest | Should -Match '\.woff2' -Because 'MapStaticAssets serves only what this manifest lists'
         }
         finally {
-            Remove-Item -LiteralPath $output -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath $copy -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
 }
