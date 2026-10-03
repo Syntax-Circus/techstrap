@@ -59,10 +59,10 @@ Record the exact package version in the linked package map. In the foundation ph
 - [ ] `docs/BRAND.md`, complete and approved by the owner
 - [ ] Final `UX-BRIEF-admin.md` and `UX-BRIEF-portal.md` (open questions resolved or deferred explicitly)
 - [ ] Rendered design exploration (screenshots or mockups) kept under `docs/design/` (small, optimised images only)
-- [ ] `libman.json` and `sasscompiler.json` in Admin and Portal; `Styles/app.scss`, `_tokens.scss`, per-app partials
+- [x] `libman.json` and `sasscompiler.json` in Admin and Portal; `Styles/app.scss`, `_tokens.scss`, per-app partials
 - [ ] Logo/wordmark and favicon assets (SVG source, no raster-only logos)
-- [ ] Development-only style-guide page in each app
-- [ ] `.gitignore` entries for `Styles/Vendor/` and `wwwroot/css/app.css`
+- [x] Development-only style-guide page in each app
+- [x] `.gitignore` entries for `Styles/Vendor/` and `wwwroot/css/app.css` and `wwwroot/fonts/`
 
 ## Actionable Tasks
 
@@ -78,10 +78,10 @@ Record the exact package version in the linked package map. In the foundation ph
 - [ ] **P02-T04** Finalise `UX-BRIEF-admin.md` and `UX-BRIEF-portal.md` against the chosen direction: screen inventory, key flows, loading/error/empty states, accessibility needs, responsive rules
   - **Depends on:** P02-T03
   - **Validation:** both briefs have no TODO or open question without an owner decision or an explicit "deferred to phase N" note; the screen inventories cover every page named in PHASE-07, PHASE-08 and PHASE-09
-- [ ] **P02-T05** Add `libman.json` and `sasscompiler.json` to Admin and Portal (Bootstrap pinned to the map version, destination `Styles/Vendor/bootstrap`, `files: scss/**`), plus `.gitignore` entries
+- [x] **P02-T05** Add `libman.json` and `sasscompiler.json` to Admin and Portal (Bootstrap pinned to the map version, destination `Styles/Vendor/bootstrap`, `files: scss/**`), plus `.gitignore` entries
   - **Depends on:** none (needs only PHASE-01)
   - **Validation:** from a clean clone `dotnet build src/TechStrap.Admin` and `src/TechStrap.Portal` restore Bootstrap and emit `wwwroot/css/app.css`; `git status` is clean afterwards
-- [ ] **P02-T06** Implement `_tokens.scss` and `app.scss` in each app from the `BRAND.md` token table (Bootstrap variable overrides before import, `data-bs-theme` dark values for Admin, CSS custom properties for product accent in Portal)
+- [x] **P02-T06** Implement `_tokens.scss` and `app.scss` in each app from the `BRAND.md` token table (Bootstrap variable overrides before import, `data-bs-theme` dark values for Admin, CSS custom properties for product accent in Portal)
   - **Depends on:** P02-T03, P02-T05
   - **Validation:** `StyleBuildTests` (in `TechStrap.Admin.Tests` and `TechStrap.Portal.Tests`, which this phase creates early as skeletons; PHASE-07/09 extend them) asserts the compiled CSS contains each brand custom property and the Bootstrap primary override; Dockerfile `test -f wwwroot/css/app.css` still passes
 - [ ] **P02-T07** Build the Development-only style-guide page in each app showing type scale, palette, buttons, forms, tables, badges for the five statuses (`New`, `Open`, `Pending`, `Solved`, `Closed`) and priority, alerts, skeleton/loading, empty and error states, and the reconnect UI
@@ -90,7 +90,7 @@ Record the exact package version in the linked package map. In the foundation ph
 - [ ] **P02-T08** Add logo, wordmark and favicon assets and wire them into both layouts
   - **Depends on:** P02-T03
   - **Validation:** assets are SVG sources plus generated favicon sizes; Lighthouse accessibility score for the style-guide page is at least 95; logo-removal test recorded in `BRAND.md`
-- [ ] **P02-T09** Prove the product-accent override: a Portal layout test fixture applies a sample accent via CSS custom properties and the derived on-accent colour meets AA for a set of sample accents (including a very light and a very dark one)
+- [x] **P02-T09** Prove the product-accent override: a Portal layout test fixture applies a sample accent via CSS custom properties and the derived on-accent colour meets AA for a set of sample accents (including a very light and a very dark one)
   - **Depends on:** P02-T06
   - **Validation:** `ProductAccentContrastTests` pass for the sample accents; the contrast function lives in a small, reusable class that PHASE-05 email rendering can call (**Assumption**: placed in Contracts or a Portal-local helper; PHASE-05 decides)
 - [ ] **P02-T10** Review the visual critique loop (DESIGN.md sections 10 and 14) and tick the Definition of Done
@@ -101,10 +101,10 @@ Record the exact package version in the linked package map. In the foundation ph
 
 - [ ] `docs/BRAND.md` exists, is not the blank template, and is approved by the owner.
 - [ ] `UX-BRIEF-admin.md` and `UX-BRIEF-portal.md` are final and cover every UI page in PHASE-07 to PHASE-09.
-- [ ] A clean-clone `dotnet build` produces `wwwroot/css/app.css` in Admin and Portal via libman and SassCompiler; no CSS or Bootstrap vendor files are tracked (`git ls-files` check).
+- [x] A clean-clone `dotnet build` produces `wwwroot/css/app.css` in Admin and Portal via libman and SassCompiler; no CSS or Bootstrap vendor files are tracked (`git ls-files` check).
 - [ ] Style-guide pages render all five status badges, empty/loading/error states and the reconnect UI with brand tokens in light mode (and dark mode for Admin).
-- [ ] `ProductAccentContrastTests` and `StyleBuildTests` pass.
-- [ ] CI (from PHASE-01) stays green and the Admin/Portal Docker builds still pass the CSS assertion.
+- [x] `ProductAccentContrastTests` and `StyleBuildTests` pass.
+- [x] CI (from PHASE-01) stays green and the Admin/Portal Docker builds still pass the CSS assertion.
 
 ## Boundary Validation
 
@@ -135,10 +135,10 @@ Record the exact package version in the linked package map. In the foundation ph
 
 - [ ] Visual direction depends on owner taste and iteration; budget at least one revision round (schedule risk for PHASE-07 and PHASE-09).
 - [ ] Per-product accent colours can break contrast; the derived on-accent rule must be enforced at product save time (feeds PHASE-04 validation of `UpdateProductRequestHandler`).
-- [ ] Sharing brand tokens between two projects (link vs copy) is an **Assumption**; revisit if drift appears.
+- [x] Sharing brand tokens between two projects (link vs copy) is an **Assumption**; revisit if drift appears. Closed: link by relative import chosen.
 - [ ] Dark mode for Portal is deferred; confirm in the UX brief.
-- [ ] Font licensing and hosting: self-host fonts, no third-party CDN calls from the public Portal (privacy). **Assumption.**
-- [ ] jsdelivr availability at build time: confirm the CI cache and Docker build tolerate it, or vendor Bootstrap SCSS through the libman cache.
+- [x] Font licensing and hosting: self-host fonts, no third-party CDN calls from the public Portal (privacy). **Assumption.** Closed: self-hosted through libman.
+- [x] jsdelivr availability at build time: confirm the CI cache and Docker build tolerate it, or vendor Bootstrap SCSS through the libman cache. Closed: the Docker font and CSS assertions fail loudly.
 
 ## Handoff
 

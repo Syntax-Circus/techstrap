@@ -550,6 +550,8 @@ Target: **WCAG 2.2 AA** (decided).
 
 **Result: pass.** With the mascot and name removed, Admin is still recognisable by: ruled ledger rows with a red margin line; tilted rectangular rubber-stamp badges on the ticket view; the white / canary / pink timeline with a perforated, notched pink internal note; ledger-ruled keycaps and the form-sheet palette. No other helpdesk looks like a stack of carbon forms. Confidence: high in Admin. The **portal fails the test by design**: it is the product's, and not ours to make recognisable.
 
+**Implementation check (P02-T08, Admin style guide and shell, mascot and wordmark hidden):** pending controller visual review. It needs the Admin guide viewed in a browser with `img { display: none }`; the expected outcome (ruled ledger table with the red margin line, straight and tilted stamps, the white / canary / pink timeline with the dashed notched pink note, ledger-ruled keycaps) is recorded here once seen. Portal: fails by design (the product's identity, not ours). The SVG logo and wordmark are provisional (auto-traced); this result does not depend on them.
+
 # 26. Art-Direction Review Checklist
 
 Before merging UI work, confirm:
