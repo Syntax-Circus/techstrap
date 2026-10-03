@@ -48,6 +48,8 @@ telemetry.LogStartupWarning(app.Logger);
 
 app.UseForwardedHeaders();
 app.UseCorrelationId();
+// An address that matches no page gets the branded 404 (re-executed, so the 404 status code is kept).
+app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseAntiforgery();
 app.MapStandardHealthChecks();
 app.MapRazorComponentsWithStaticAssets<App>()

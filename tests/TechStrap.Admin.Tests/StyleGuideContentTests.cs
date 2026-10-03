@@ -34,6 +34,7 @@ public sealed class StyleGuideContentTests : IAsyncLifetime
     [InlineData("sg-stamps")]
     [InlineData("sg-tints")]
     [InlineData("sg-keys")]
+    [InlineData("sg-windows")]
     public void Section_is_present(string id)
     {
         Section(id).QuerySelector($"h2#{id}").ShouldNotBeNull(id);
@@ -86,5 +87,26 @@ public sealed class StyleGuideContentTests : IAsyncLifetime
         {
             keys.ShouldContain(key);
         }
+    }
+
+    [Fact]
+    public void The_three_brand_moment_windows_show_with_their_titles_and_one_action_each()
+    {
+        var windows = Section("sg-windows").QuerySelectorAll(".ts-window");
+
+        windows.Select(w => w.QuerySelector(".ts-window-title")!.TextContent)
+            .ShouldBe(["queue.exe — 0 items", "techstrap — sign in", "ERROR 404 — not found"]);
+        foreach (var window in windows)
+        {
+            window.QuerySelectorAll(".ts-window-button, .ts-window-link").Length.ShouldBe(1, window.GetAttribute("aria-label"));
+        }
+    }
+
+    [Fact]
+    public void The_logo_wordmark_and_head_mark_are_shown_from_the_SVG_files()
+    {
+        var sources = Section("sg-windows").QuerySelectorAll(".ts-sg-logos img").Select(i => i.GetAttribute("src")).ToList();
+
+        sources.ShouldBe(["brand/logo.svg", "brand/mark.svg", "brand/wordmark.svg"]);
     }
 }

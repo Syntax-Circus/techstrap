@@ -1,0 +1,24 @@
+<article class="ts-window" aria-label="@Heading">
+    <div class="ts-window-titlebar">
+        <i class="ts-window-led" aria-hidden="true"></i>
+        <span class="ts-window-title">@Title</span>
+    </div>
+    <div class="ts-window-body">
+        <img src="brand/mark.svg" alt="" width="96" height="96" />
+        <h2>@Heading</h2>
+        @ChildContent
+    </div>
+</article>
+
+@code {
+    /// <summary>The short title-bar text, for example "queue.exe — 0 items".</summary>
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Heading { get; set; } = string.Empty;
+
+    /// <summary>The copy and the single action: one sentence per line, then one button or one link.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

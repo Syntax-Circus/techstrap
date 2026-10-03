@@ -120,3 +120,40 @@
   flex-direction: column;
   gap: 10px;
 }
+
+.ts-sg-windows {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: stretch;
+  margin-top: 12px;
+
+  .ts-window {
+    max-width: none;
+  }
+}
+
+// The mascot's navy outline disappears on the dark paper, so logos sit on a neutral white chip (the portal background,
+// which does not change with the theme). The outlined wordmark is black by default and is inverted in dark.
+.ts-sg-logos {
+  gap: 20px;
+
+  img {
+    padding: 8px;
+    background: var(--p-bg);
+    border: 1px solid var(--rule-strong);
+  }
+}
+
+@include color-mode(dark) {
+  .ts-sg-wordmark {
+    filter: invert(1);
+    background: transparent;
+  }
+}
+
+@media (max-width: 760px) {
+  .ts-sg-windows {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
