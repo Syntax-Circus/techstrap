@@ -29,6 +29,8 @@ public static class ControllerActions
         ["TagsController.Create"] = 201,
         ["TagsController.Update"] = 200,
         ["TagsController.Delete"] = 204,
+        ["TicketsController.List"] = 200,
+        ["TicketsController.Counts"] = 200,
         ["AdminEventsController.List"] = 200,
         ["IntakeController.Submit"] = 201,
         ["PublicIntakeController.Submit"] = 201,

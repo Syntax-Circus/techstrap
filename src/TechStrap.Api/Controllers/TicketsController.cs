@@ -1,0 +1,39 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using SyntaxCircus.AspNetCore.Common;
+using TechStrap.Api.Security;
+using TechStrap.Application.Persistence;
+using TechStrap.Application.Tickets;
+using TechStrap.Contracts.Tickets;
+
+namespace TechStrap.Api.Controllers;
+
+/// <summary>The agent ticket queue and ticket operations (PHASE-06a). Every action delegates to one named handler.</summary>
+[ApiController]
+[Route("api/tickets")]
+[Authorize(Policy = AuthorizationPolicies.Agent)]
+public sealed class TicketsController : ControllerBase
+{
+    /// <summary>The queue: a view, optional filters and search, one page. A search matches internal notes too (agent-only).</summary>
+    [HttpGet]
+    public async Task<IActionResult> List(
+        [FromQuery] string? view,
+        [FromQuery] Guid? productId,
+        [FromQuery] string? status,
+        [FromQuery] string? priority,
+        [FromQuery] Guid? assigneeId,
+        [FromQuery] Guid? tagId,
+        [FromQuery] Guid? requesterId,
+        [FromQuery] string? search,
+        [FromServices] IListTicketsRequestHandler handler,
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = Paging.DefaultPageSize) =>
+        (await handler.HandleAsync(new ListTicketsRequest(view, productId, status, priority, assigneeId, tagId, requesterId, search, page, pageSize), cancellationToken))
+            .ToActionResult(this, Ok);
+
+    /// <summary>The number on each queue tab.</summary>
+    [HttpGet("counts")]
+    public async Task<IActionResult> Counts([FromServices] ICountTicketViewsRequestHandler handler, CancellationToken cancellationToken) =>
+        (await handler.HandleAsync(cancellationToken)).ToActionResult(this, Ok);
+}
