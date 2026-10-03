@@ -114,3 +114,9 @@
 .ts-empty {
   color: var(--ink-2);
 }
+
+.ts-sg-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

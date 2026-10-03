@@ -62,6 +62,47 @@
             </div>
         </section>
 
+        <section class="ts-sg-section" aria-labelledby="sg-tints">
+            <h2 id="sg-tints" class="ts-label">Carbon tint code</h2>
+            <p class="ts-sg-note">White is the customer, canary is a public reply (the customer sees it), pink with a dashed edge and a notched corner is an internal note (the customer never sees it). The code is never reused for anything else.</p>
+            <div class="ts-sg-timeline">
+                <TintedEntry Kind="EntryKind.Customer" Author="Dana Whitfield" Time="08:41">
+                    <p>Since upgrading to 2.4 on Tuesday our nightly backup job exits with code 17 and no files are written. We have 40 workstations affected.</p>
+                </TintedEntry>
+                <TintedEntry Kind="EntryKind.InternalNote" Author="Priya Rao" Time="09:02">
+                    <p>Exit 17 is the new VSS snapshot failure. The 2.4 installer drops the old service account. Checking with dev before I promise a fix.</p>
+                </TintedEntry>
+                <TintedEntry Kind="EntryKind.PublicReply" Author="Sam Marsh" Time="09:08">
+                    <p>Hi Dana, thanks for the log. We can reproduce this on 2.4 and are checking the fix. As a workaround, re-run the service account repair from the Settings page.</p>
+                </TintedEntry>
+            </div>
+            <TintLegend />
+        </section>
+
+        <section class="ts-sg-section" aria-labelledby="sg-keys">
+            <h2 id="sg-keys" class="ts-label">Keyboard</h2>
+            <p class="ts-sg-note">Single-key shortcuts never fire while typing. Every shortcut also has a command palette entry (PHASE-07).</p>
+            <table class="table ts-sg-table">
+                <thead><tr><th scope="col">Key</th><th scope="col">Context</th><th scope="col">Action</th></tr></thead>
+                <tbody>
+                    <tr><td><Kbd>j</Kbd> / <Kbd>ArrowDown</Kbd></td><td>Queue</td><td>Select next row</td></tr>
+                    <tr><td><Kbd>k</Kbd> / <Kbd>ArrowUp</Kbd></td><td>Queue</td><td>Select previous row</td></tr>
+                    <tr><td><Kbd>Enter</Kbd></td><td>Queue</td><td>Open the selected ticket</td></tr>
+                    <tr><td><Kbd>/</Kbd></td><td>Queue, ticket</td><td>Focus the queue search</td></tr>
+                    <tr><td><Kbd>r</Kbd></td><td>Ticket</td><td>Reply to the customer</td></tr>
+                    <tr><td><Kbd>n</Kbd></td><td>Ticket</td><td>Add an internal note</td></tr>
+                    <tr><td><Kbd>e</Kbd></td><td>Ticket</td><td>Focus the assignee control</td></tr>
+                    <tr><td><Kbd>Esc</Kbd></td><td>Ticket, in a field</td><td>Back to the queue, or leave the field</td></tr>
+                    <tr><td><Kbd>Ctrl</Kbd><Kbd>Enter</Kbd></td><td>In the composer</td><td>Send reply or add note</td></tr>
+                    <tr><td><Kbd>Ctrl</Kbd><Kbd>K</Kbd> / <Kbd>Cmd</Kbd><Kbd>K</Kbd></td><td>Anywhere</td><td>Open or close the command palette</td></tr>
+                </tbody>
+            </table>
+            <div class="ts-sg-row">
+                <button type="button" class="btn btn-primary">Send reply <Kbd>Ctrl</Kbd><Kbd>Enter</Kbd></button>
+                <button type="button" class="btn btn-secondary">Cancel <Kbd>Esc</Kbd></button>
+            </div>
+        </section>
+
         <section class="ts-sg-section" aria-labelledby="sg-buttons">
             <h2 id="sg-buttons" class="ts-label">Buttons</h2>
             <div class="ts-sg-row">

@@ -32,6 +32,8 @@ public sealed class StyleGuideContentTests : IAsyncLifetime
     [InlineData("sg-alerts")]
     [InlineData("sg-states")]
     [InlineData("sg-stamps")]
+    [InlineData("sg-tints")]
+    [InlineData("sg-keys")]
     public void Section_is_present(string id)
     {
         Section(id).QuerySelector($"h2#{id}").ShouldNotBeNull(id);
@@ -60,6 +62,29 @@ public sealed class StyleGuideContentTests : IAsyncLifetime
         foreach (var token in BrandTokenTable.Read())
         {
             shown.ShouldContain(token.Name);
+        }
+    }
+
+    [Fact]
+    public void The_three_tinted_entries_and_the_legend_show()
+    {
+        var section = Section("sg-tints");
+
+        section.QuerySelectorAll(".ts-entry--customer").Length.ShouldBe(1);
+        section.QuerySelectorAll(".ts-entry--public").Length.ShouldBe(1);
+        section.QuerySelectorAll(".ts-entry--note").Length.ShouldBe(1);
+        section.QuerySelectorAll(".ts-legend").Length.ShouldBe(1);
+        section.QuerySelector(".ts-entry-label")!.TextContent.ShouldBe("INTERNAL NOTE");
+    }
+
+    [Fact]
+    public void Every_keyboard_convention_of_BRAND_md_has_a_keycap_row()
+    {
+        var keys = Section("sg-keys").QuerySelectorAll("kbd").Select(k => k.TextContent).ToHashSet();
+
+        foreach (var key in new[] { "j", "k", "Enter", "/", "r", "n", "e", "Esc", "Ctrl", "Cmd", "K" })
+        {
+            keys.ShouldContain(key);
         }
     }
 }

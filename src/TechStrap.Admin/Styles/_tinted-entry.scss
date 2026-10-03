@@ -1,0 +1,116 @@
+// The carbon tint code (BRAND.md section 12). A hard rule: white = customer, canary = public reply, pink + dashed edge + notched
+// corner = internal note. These tokens are used here and nowhere else (TintStyleTests scans the styles for that).
+
+.ts-entry {
+  position: relative;
+  padding: 8px 12px 10px;
+  color: var(--ink);
+  border: 1px solid var(--rule-strong);
+  box-shadow: 2px 2px 0 var(--shadow);
+}
+
+.ts-entry-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 4px;
+  font: 500 .6875rem var(--ts-font-mono);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+
+  strong {
+    font-weight: 600;
+    color: var(--ink);
+  }
+}
+
+.ts-entry-time {
+  margin-left: auto;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+// Message bodies are the long-form reading text: Serif 15/1.55, at most 68 characters wide.
+.ts-entry-body {
+  font: 400 .9375rem/1.55 var(--ts-font-serif);
+
+  p {
+    max-width: 68ch;
+    margin: 4px 0;
+  }
+}
+
+.ts-entry--customer {
+  background: var(--sheet);
+  border-left: 6px solid var(--ink-3);
+}
+
+.ts-entry--public {
+  margin-left: 28px;
+  background: var(--canary);
+  border-left: 6px solid var(--canary-edge);
+}
+
+// Pink, dashed edge, notched top-right corner, no shadow: it reads as a cut-out that the customer never sees.
+.ts-entry--note {
+  margin-left: 28px;
+  background: var(--pink);
+  border: 2px dashed var(--pink-edge);
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+  box-shadow: none;
+
+  .ts-entry-head {
+    color: var(--note-ink);
+  }
+}
+
+.ts-entry-label {
+  display: inline-block;
+  padding: 0 5px;
+  font: 600 .6875rem var(--ts-font-mono);
+  letter-spacing: .06em;
+  color: var(--note-ink);
+  border: 2px solid var(--note-ink);
+  border-radius: 2px 5px 2px 4px / 4px 2px 5px 2px;
+}
+
+// Legend shown under the timeline.
+.ts-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0 0;
+  font: 400 .6875rem var(--ts-font-mono);
+  color: var(--ink-2);
+}
+
+.ts-legend-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 4px;
+  vertical-align: -2px;
+  border: 1px solid var(--rule-strong);
+}
+
+.ts-legend-swatch--customer {
+  background: var(--sheet);
+}
+
+.ts-legend-swatch--public {
+  background: var(--canary);
+}
+
+.ts-legend-swatch--note {
+  background: var(--pink);
+  border-style: dashed;
+}
+
+@media (max-width: 820px) {
+  .ts-entry--public,
+  .ts-entry--note {
+    margin-left: 8px;
+  }
+}

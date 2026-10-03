@@ -1,0 +1,15 @@
+<article class="@CssClass">
+    <div class="ts-entry-head">
+        @if (Kind == EntryKind.InternalNote)
+        {
+            <span class="ts-entry-label">@InternalNoteLabel</span>
+        }
+        <strong>@Author</strong>
+        @if (Kind != EntryKind.InternalNote)
+        {
+            <span class="ts-entry-role">@RoleLabel</span>
+        }
+        <span class="ts-entry-time">@Time</span>
+    </div>
+    <div class="ts-entry-body">@ChildContent</div>
+</article>
