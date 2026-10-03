@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SyntaxCircus.Common;
 
@@ -29,7 +30,16 @@ public static class ControllerActions
         ["TagsController.Update"] = 200,
         ["TagsController.Delete"] = 204,
         ["AdminEventsController.List"] = 200,
+        ["IntakeController.Submit"] = 201,
+        ["PublicIntakeController.Submit"] = 201,
+        ["PublicProductsController.Get"] = 200,
     };
+
+    /// <summary>Actions whose effective policy (action-level, else controller-level) is Agent or Admin.</summary>
+    public static IEnumerable<MethodInfo> AgentOrAdminActions() =>
+        All().Where(method =>
+            (method.GetCustomAttribute<AuthorizeAttribute>() ?? method.DeclaringType!.GetCustomAttribute<AuthorizeAttribute>())?.Policy
+                is TechStrap.Api.Security.AuthorizationPolicies.Agent or TechStrap.Api.Security.AuthorizationPolicies.Admin);
 
     public static IEnumerable<MethodInfo> All() =>
         typeof(TechStrap.Api.Program).Assembly.GetTypes()

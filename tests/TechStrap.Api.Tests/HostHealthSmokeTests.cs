@@ -1,4 +1,11 @@
 using System.Net;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using SyntaxCircus.EntityFrameworkCore.Postgres;
+using TechStrap.Infrastructure.Persistence;
+using TechStrap.Worker.Outbox;
 
 namespace TechStrap.Api.Tests;
 
@@ -43,6 +50,45 @@ public sealed class HostHealthSmokeTests(TestPostgres postgres)
 
         (await client.GetAsync("/health/live", TestContext.Current.CancellationToken)).StatusCode.ShouldBe(HttpStatusCode.OK);
         (await client.GetAsync("/health/ready", TestContext.Current.CancellationToken)).StatusCode.ShouldBe(HttpStatusCode.ServiceUnavailable);
+    }
+
+    [Fact]
+    public async Task Worker_boots_with_the_outbox_enabled_and_smtp_configured()
+    {
+        var connectionString = await postgres.CreateDatabaseAsync();
+        var options = new DbContextOptionsBuilder<TechStrapDbContext>();
+        TechStrapDatabase.Configure(options, connectionString);
+        await using (var context = new TechStrapDbContext(options.Options))
+        {
+            await context.MigrateWithAdvisoryLockAsync(TechStrapDatabase.MigrationLockKey, TestContext.Current.CancellationToken);
+        }
+
+        var settings = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:TechStrap"] = connectionString,
+            ["EmailOutbox:Enabled"] = "true",
+            ["Email:Smtp:Host"] = "localhost",
+            ["Email:Smtp:DefaultFrom"] = "support@example.test",
+        };
+        await using var factory = new WorkerFactory(settings: settings);
+        using var client = factory.CreateClient();
+
+        (await client.GetAsync("/health/ready", TestContext.Current.CancellationToken)).StatusCode.ShouldBe(HttpStatusCode.OK);
+        factory.Services.GetServices<IHostedService>().OfType<EmailOutboxWorker>().ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Worker_refuses_to_boot_with_the_outbox_enabled_and_no_smtp_host()
+    {
+        var settings = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:TechStrap"] = await postgres.CreateDatabaseAsync(),
+            ["EmailOutbox:Enabled"] = "true",
+        };
+        await using var factory = new WorkerFactory(settings: settings);
+
+        var error = Should.Throw<OptionsValidationException>(() => factory.CreateClient());
+        error.Message.ShouldContain("Email:Smtp:Host");
     }
 
     [Fact]

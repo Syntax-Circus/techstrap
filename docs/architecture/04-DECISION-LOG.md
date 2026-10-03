@@ -9,6 +9,7 @@ Approval basis:
 - **Proposed:** none. D-008's default (N = 7 days) was confirmed by the owner on 2026-10-02.
 - **Owner decision (2026-10-02, PHASE-03 planning):** D-026 (separate persistence entities) and D-027 (stored generated search vectors); D-028 (Domain result type) approved 2026-10-03.
 - **Owner decision (2026-10-03, PHASE-04 planning):** D-029 (roles from IdP groups only; amends D-004), D-030 (deleting a tag in use), D-031 (product accent validation is format only).
+- **Owner decision (2026-10-03, PHASE-05 planning):** D-032 (intake rules: honeypot, untrusted external ref, link cap, attachments). D-033 and D-034 were proposed in the PHASE-05 plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -49,6 +50,9 @@ Approval basis:
 | D-029 | Agent roles come from IdP groups only; no bootstrap admin | Approved (owner 2026-10-03) | 2026-10-03 | PHASE-04, PHASE-07, 02-ARCHITECTURE, D-004 |
 | D-030 | Deleting a tag in use: reject unless forced; forced delete detaches with events | Approved (owner 2026-10-03) | 2026-10-03 | PHASE-04, PHASE-06 |
 | D-031 | Product accent validation is format only | Approved (owner 2026-10-03) | 2026-10-03 | PHASE-02, PHASE-04, D-025 |
+| D-032 | Intake rules: honeypot, untrusted external ref, access-link cap, attachment limits | Approved (owner 2026-10-03) | 2026-10-03 | PHASE-05, PHASE-09, PHASE-11 |
+| D-033 | Emails render in the Worker at send time; Application owns the sender abstraction | Approved (owner, PHASE-05 plan review) | 2026-10-03 | PHASE-05, PHASE-06, PHASE-12, 02-ARCHITECTURE |
+| D-034 | Intake transport: explicit Public policy, ApiKey scheme policy, JSON-only API intake | Approved (owner, PHASE-05 plan review) | 2026-10-03 | PHASE-05, PHASE-09, PHASE-11 |
 
 ---
 
@@ -956,4 +960,102 @@ PHASE-04 asked for a 400 on a "low-contrast" product accent. The PHASE-02 `Produ
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, 2026-10-03 PHASE-04 planning)
+- **Approved on:** 2026-10-03
+
+---
+
+## D-032: Intake rules: honeypot, untrusted external ref, access-link cap, attachment limits
+
+- **Status:** Approved (owner 2026-10-03)
+- **Date:** 2026-10-03
+- **Owner:** Jon Seeley
+- **Related artifacts:** PHASE-05 (`SubmitTicketRequestHandler`, `IAttachmentStore`, `TicketAccessToken`), D-001, D-020
+
+### Context
+PHASE-05 listed four assumptions for intake that need the owner's answer.
+
+### Decision
+- **Honeypot.** If the hidden web-form field is filled, the API answers with the normal 201 and a plausible ticket number. It creates no ticket and sends no email.
+- **Untrusted external reference.** A public key or the web form may send an external user reference. The reference is dropped, and the response carries the warning `external-user-ref-ignored`. Only trusted keys store it (D-001).
+- **Access-link lifetime.** Customer access tokens still slide 90 days on each use. They never live past 365 days after issue (`TicketAccessToken.MaxLifetime`).
+- **Attachments.** 10 MiB per file, 25 MiB per message, at most 5 files. Allowed types are PNG, JPEG, GIF, WebP, PDF, plain text, `.log`, CSV and ZIP. Each file must match both its declared type and its leading bytes. The stored content type is the canonical type for the matched kind, never the client's value.
+
+### Alternatives Considered
+- **Visible honeypot error:** it teaches bots which field to skip.
+- **Rejecting an untrusted external reference:** an app that sends the field by mistake would lose tickets.
+- **A 180-day or 2-year cap:** a shorter cap means more refresh requests; a longer one means longer exposure if a link leaks.
+
+### Consequences
+- `ticket_access_tokens` gains an `issued_at` column (migration `AddAccessTokenIssuedAt`).
+- PHASE-09's lost-link flow issues a fresh token when a link hits its cap.
+- `IntakeLimits` (Contracts) holds the limits, so the Portal form and the SDK can validate before upload.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, 2026-10-03 PHASE-05 planning)
+- **Approved on:** 2026-10-03
+
+---
+
+## D-033: Emails render in the Worker at send time; Application owns the sender abstraction
+
+- **Status:** Approved (owner, PHASE-05 plan review)
+- **Date:** 2026-10-03
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-010, D-024, 02-ARCHITECTURE 6.4 and 7.2, PHASE-05 (`DrainEmailOutboxHandler`), `EmailOutboxItem`
+
+### Context
+PHASE-05 assumed emails would render when queued, storing subject, text and HTML in the outbox row. 02-ARCHITECTURE section 6.4 and the D-024 consequences instead say the Worker renders at send time and reads `TECHSTRAP_PORTAL_SHOW_POWERED_BY`. The outbox payload is capped at 16 000 characters, which a branded HTML email with a text part can exceed.
+
+There is also a layering problem. The architecture rules let Application reference only `SyntaxCircus.Common`, and a handler may depend only on Application interfaces. A handler therefore cannot depend on `SyntaxCircus.Email.IEmailSender` directly.
+
+### Decision
+- **What the outbox stores.** Each outbox row stores template data: a `kind`, such as `ticket-confirmation`, and a small JSON payload, such as the ticket number, subject, requester name and portal link.
+- **Rendering and sending.** `DrainEmailOutboxHandler` loads the product's branding, renders with `IEmailTemplateRenderer` and sends through `IOutboundEmailSender`. Both interfaces belong to Application. Infrastructure's `SmtpOutboundEmailSender` adapts the second to `SyntaxCircus.Email.IEmailSender`.
+- **Branding at send time.** Branding is read when the email is sent, so a branding change between queueing and sending shows the new branding.
+- **The portal link.** The plaintext access token exists only when the email is queued, so the link is captured in the payload. A sent row's payload therefore holds a working link until a retention sweep removes it, carried forward to PHASE-12.
+- **Nowhere else.** `email_outbox.payload` is the only column that may hold a plaintext token. The idempotency store (D-020) keeps the response without the link; a replay issues a fresh access token for the original ticket and returns a new link.
+
+### Alternatives Considered
+- **Render when queued, and raise the payload cap.** This leaves the link in the row just the same, freezes branding, and contradicts D-024's statement that the Worker reads the Powered-by setting.
+- **Let Application reference `SyntaxCircus.Email`.** This breaks the project reference rules.
+
+### Consequences
+- The Worker reads `TECHSTRAP_PORTAL_SHOW_POWERED_BY`; the Api does not need to.
+- PHASE-06 notification emails follow the same pattern: a payload kind plus a renderer template.
+- PHASE-12 adds a retention sweep for sent rows (proposed: 30 days), with a payload scrub.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-05 plan review)
+- **Approved on:** 2026-10-03
+
+---
+
+## D-034: Intake transport: explicit Public policy, ApiKey scheme policy, JSON-only API intake
+
+- **Status:** Approved (owner, PHASE-05 plan review)
+- **Date:** 2026-10-03
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-001, D-022, D-029, PHASE-04 `ControllerBoundaryRules`, PHASE-05 controllers
+
+### Context
+Every Api controller declares an authorization policy (PHASE-04 `ControllerBoundaryTests`). The new public routes allow anonymous callers. The intake route authenticates with an API key, not the default bearer scheme.
+
+### Decision
+- **Public policy.** `AuthorizationPolicies.Public` admits everyone, including anonymous callers. Public controllers declare it at class level and rely on rate limits and size limits.
+- **ApiKey policy.** `AuthorizationPolicies.ApiKey` authenticates with the `ApiKey` scheme only and requires a product-id claim. A missing, unknown or revoked key gets the same empty 401.
+- **Fallback.** The fallback policy stays "any authenticated caller".
+- **API intake body.** `POST /api/intake/tickets` takes a JSON `SubmitTicketRequest` with no attachments in v1. The web form (`POST /api/public/products/{key}/tickets`) takes multipart with attachments.
+- **Follow-ups.** Intake takes no ticket number. Follow-up submission is added by the Portal (PHASE-09), which must check that the ticket belongs to the caller.
+
+### Alternatives Considered
+- **`[AllowAnonymous]` with no policy.** This needs an exception in the boundary rule.
+- **Multipart API intake now.** The SDK (PHASE-11) has not asked for attachments yet.
+
+### Consequences
+- **Test scope.** `AgentAccessCoverageTests` covers only routes with the Agent or Admin policy. Public and ApiKey routes get their own coverage tests.
+- **SDK attachments.** PHASE-11 adds API attachments if the SDK needs them.
+- **Rate-limit partitions.** The key policy runs before authentication, so a key id is not available; it partitions on the raw key prefix. Trusted keys are partitioned per prefix and client IP, so spoofing a known prefix (prefixes appear in the Admin UI and audit logs) costs only the spoofer's own IP partition. Invented prefixes still each get a partition per IP.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-05 plan review)
 - **Approved on:** 2026-10-03

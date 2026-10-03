@@ -89,7 +89,7 @@ Versions of these are pinned by the owning phase when it starts; they were not v
 | --- | --- | --- |
 | `postgres:17` | Database (compose, Testcontainers) | P01 |
 | `mcr.microsoft.com/dotnet/aspnet:10.0` and `sdk:10.0` | Dockerfile base images | P01 |
-| Mailpit image | Local and test SMTP capture | P05 |
+| `axllent/mailpit:v1.31.4` | Local and test SMTP capture (verified current stable on 2026-10-03) | P05 |
 | `NuGet/login@v1` GitHub Action | nuget.org Trusted Publishing (OIDC) | P11 |
 | k6 | Load tests (`tests/load/`) | P12 |
 | Trivy | Container image scan | P12 |

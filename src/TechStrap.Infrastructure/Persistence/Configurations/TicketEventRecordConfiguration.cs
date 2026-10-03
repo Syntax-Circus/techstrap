@@ -32,6 +32,7 @@ internal sealed class TicketAccessTokenRecordConfiguration : IEntityTypeConfigur
         builder.Property(t => t.TokenHash).HasMaxLength(DomainLimits.HashMaxLength).IsRequired();
         builder.HasOne<TicketRecord>().WithMany().HasForeignKey(t => t.TicketId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne<RequesterRecord>().WithMany().HasForeignKey(t => t.RequesterId).OnDelete(DeleteBehavior.Restrict);
+        builder.Property(t => t.IssuedAt).HasDefaultValueSql("now()");
         builder.HasIndex(t => t.TokenHash).IsUnique();
         builder.HasIndex(t => new { t.TicketId, t.RequesterId });
     }

@@ -30,6 +30,8 @@ internal sealed class TicketAccessTokenRecord
 
     public string TokenHash { get; set; } = string.Empty;
 
+    public DateTimeOffset IssuedAt { get; set; }
+
     public DateTimeOffset ExpiresAt { get; set; }
 
     public DateTimeOffset? RevokedAt { get; set; }

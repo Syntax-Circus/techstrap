@@ -12,9 +12,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="HtmlSanitizer" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="SyntaxCircus.Email" />
     <PackageReference Include="SyntaxCircus.EntityFrameworkCore.Postgres" />
+    <PackageReference Include="SyntaxCircus.Storage" />
   </ItemGroup>
 
   <ItemGroup>

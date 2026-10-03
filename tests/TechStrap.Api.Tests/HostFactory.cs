@@ -52,7 +52,13 @@ public class HostFactory<TProgram>(
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
             // Tests opt in to migration explicitly; most do not need a database at startup.
-            configuration.AddInMemoryCollection(new Dictionary<string, string?> { [ApiStartupTasks.MigrateOnStartupKey] = "false" });
+            // The intake settings are validated on start, so every host that registers intake needs a valid default.
+            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [ApiStartupTasks.MigrateOnStartupKey] = "false",
+                ["TECHSTRAP_PORTAL_PUBLIC_URL"] = "https://portal.test",
+                ["Storage:Local:RootPath"] = Path.Combine(Path.GetTempPath(), "techstrap-tests-default-storage"),
+            });
             configuration.AddInMemoryCollection(settings ?? new Dictionary<string, string?>());
         });
         builder.ConfigureServices(services =>
@@ -79,10 +85,18 @@ public sealed class ApiFactory(
             configureServices?.Invoke(services);
         });
 
+/// <summary>The Worker host. The email outbox loop is off by default so smoke tests never start it against an unmigrated database; a test turns it on through <c>settings</c>.</summary>
 public sealed class WorkerFactory(
     string environment = "Development",
-    IReadOnlyDictionary<string, string?>? settings = null)
-    : HostFactory<TechStrap.Worker.Program>(environment, settings);
+    IReadOnlyDictionary<string, string?>? settings = null,
+    Action<IServiceCollection>? configureServices = null)
+    : HostFactory<TechStrap.Worker.Program>(
+        environment,
+        new Dictionary<string, string?> { ["EmailOutbox:Enabled"] = "false" }
+            .Concat(settings ?? new Dictionary<string, string?>())
+            .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Last().Value, StringComparer.OrdinalIgnoreCase),
+        configureServices);
 
 public sealed class AdminFactory(string environment = "Development")
     : HostFactory<TechStrap.Admin.Program>(environment);

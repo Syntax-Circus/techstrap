@@ -1,4 +1,4 @@
-# Local stack: Postgres 17 plus the four TechStrap images built from this checkout.
+# Local stack: Postgres 17, Mailpit (SMTP capture) plus the four TechStrap images built from this checkout.
 #   docker compose up -d --build
 # Optional per-host overrides go in src/TechStrap.<Host>/.env.local (gitignored, see .env.example).
 # The reverse proxy and TLS are not part of compose.
@@ -15,6 +15,17 @@ services:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U techstrap -d techstrap"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.31.4
+    # Web UI only; SMTP (1025) stays on the compose network for the worker.
+    ports:
+      - "127.0.0.1:${TECHSTRAP_MAILPIT_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -122,8 +133,18 @@ services:
       TECHSTRAP_PORTAL_PUBLIC_URL: http://localhost:8082
       Storage__Provider: Local
       Storage__Local__RootPath: /app/storage
+      Email__Smtp__Host: mailpit
+      Email__Smtp__Port: "1025"
+      Email__Smtp__TlsMode: None
+      Email__Smtp__MaxRetryAttempts: "1"
+      Email__Smtp__RetryMode: TransientOnly
+      Email__Smtp__TotalSendTimeout: "00:00:30"
+      Email__Smtp__DefaultFrom: support@techstrap.localhost
+      TECHSTRAP_PORTAL_SHOW_POWERED_BY: ${TECHSTRAP_PORTAL_SHOW_POWERED_BY:-true}
     depends_on:
       api:
+        condition: service_healthy
+      mailpit:
         condition: service_healthy
     volumes:
       - techstrap-storage:/app/storage

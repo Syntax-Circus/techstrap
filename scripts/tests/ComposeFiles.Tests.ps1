@@ -23,12 +23,14 @@ BeforeAll {
     }
 
     function New-ProductionEnvFile {
-        param([string]$Path, [switch]$WithoutPostgresPassword)
+        param([string]$Path, [switch]$WithoutPostgresPassword, [switch]$WithoutSmtpHost)
 
         $lines = Get-Content -LiteralPath (Join-Path $script:RepoRoot '.env.production.example')
         if ($WithoutPostgresPassword) {
             $lines = $lines | ForEach-Object { if ($_ -like 'POSTGRES_PASSWORD=*') { 'POSTGRES_PASSWORD=' } else { $_ } }
         }
+        $smtpHost = if ($WithoutSmtpHost) { '' } else { 'smtp.test' }
+        $lines = $lines | ForEach-Object { if ($_ -like 'SMTP_HOST=*') { "SMTP_HOST=$smtpHost" } else { $_ } }
         Set-Content -LiteralPath $Path -Value $lines
     }
 
@@ -45,11 +47,68 @@ Describe 'docker-compose files' -Skip:(-not $script:DockerAvailable) {
 
     It 'local compose has the four app services plus Postgres 17 and never trusts a wide range' {
         $config = (Get-ComposeConfig -File 'docker-compose.yml').Config
-        ($config.services.PSObject.Properties.Name | Sort-Object) | Should -Be @('admin', 'api', 'portal', 'postgres', 'worker')
+        ($config.services.PSObject.Properties.Name | Sort-Object) | Should -Be @('admin', 'api', 'mailpit', 'portal', 'postgres', 'worker')
         $config.services.postgres.image | Should -Be 'postgres:17'
         foreach ($service in 'api', 'admin', 'portal') {
             $config.services.$service.environment.TRUSTEDPROXY__TRUSTEDNETWORKS__0 | Should -Not -Match '^(172\.16\.0\.0/12|0\.0\.0\.0/0)$'
         }
+    }
+
+    It 'local mailpit publishes its web UI on loopback only and no SMTP port' {
+        $mailpit = (Get-ComposeConfig -File 'docker-compose.yml').Config.services.mailpit
+        $ports = @($mailpit.ports)
+        $ports.Count | Should -Be 1
+        [int]$ports[0].target | Should -Be 8025
+        $ports[0].host_ip | Should -Be '127.0.0.1'
+        [int]$ports[0].published | Should -Be 8025
+        @($ports | Where-Object { [int]$_.target -eq 1025 }).Count | Should -Be 0
+    }
+
+    It 'local worker sends through mailpit without TLS and with outbox-safe retries' {
+        $worker = (Get-ComposeConfig -File 'docker-compose.yml').Config.services.worker
+        $worker.environment.Email__Smtp__Host | Should -Be 'mailpit'
+        $worker.environment.Email__Smtp__Port | Should -Be '1025'
+        $worker.environment.Email__Smtp__TlsMode | Should -Be 'None'
+        $worker.environment.Email__Smtp__MaxRetryAttempts | Should -Be '1'
+        $worker.environment.Email__Smtp__RetryMode | Should -Be 'TransientOnly'
+        $worker.depends_on.mailpit.condition | Should -Be 'service_healthy'
+    }
+
+    It 'production and uat workers use outbox-safe SMTP settings and pass the Powered-by setting (<file>)' -ForEach @(
+        @{ file = 'docker-compose.production.yml' }
+        @{ file = 'docker-compose.uat.yml' }
+    ) {
+        $envFile = Join-Path $TestDrive 'env-smtp'
+        New-ProductionEnvFile -Path $envFile
+        $worker = (Get-ComposeConfig -File $file -EnvFile $envFile).Config.services.worker
+        $worker.environment.Email__Smtp__MaxRetryAttempts | Should -Be '1'
+        $worker.environment.Email__Smtp__RetryMode | Should -Be 'TransientOnly'
+        $worker.environment.Email__Smtp__TlsMode | Should -Be 'StartTls'
+        $worker.environment.PSObject.Properties.Name | Should -Contain 'TECHSTRAP_PORTAL_SHOW_POWERED_BY'
+    }
+
+    It 'production and uat workers pass the EmailOutbox settings through with defaults (<file>)' -ForEach @(
+        @{ file = 'docker-compose.production.yml' }
+        @{ file = 'docker-compose.uat.yml' }
+    ) {
+        $envFile = Join-Path $TestDrive 'env-outbox'
+        New-ProductionEnvFile -Path $envFile
+        $worker = (Get-ComposeConfig -File $file -EnvFile $envFile).Config.services.worker
+        $worker.environment.EmailOutbox__Enabled | Should -Be 'true'
+        $worker.environment.EmailOutbox__BatchSize | Should -Be '20'
+        $worker.environment.EmailOutbox__LeaseSeconds | Should -Be '900'
+        $worker.environment.EmailOutbox__PollIntervalSeconds | Should -Be '5'
+    }
+
+    It '<file> refuses to resolve without SMTP_HOST and says how to fix it' -ForEach @(
+        @{ file = 'docker-compose.production.yml' }
+        @{ file = 'docker-compose.uat.yml' }
+    ) {
+        $envFile = Join-Path $TestDrive 'env-nosmtphost'
+        New-ProductionEnvFile -Path $envFile -WithoutSmtpHost
+        $result = Get-ComposeConfig -File $file -EnvFile $envFile
+        $result.ExitCode | Should -Not -Be 0
+        $result.Output | Should -Match 'set SMTP_HOST in the env file'
     }
 
     It 'local compose mounts the shared storage volume on api and worker only' {

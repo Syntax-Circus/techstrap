@@ -105,7 +105,7 @@ internal static class TicketMappings
     };
 
     public static TicketAccessToken ToDomain(this TicketAccessTokenRecord record) =>
-        TicketAccessToken.Restore(record.Id, record.TicketId, record.RequesterId, record.TokenHash, record.ExpiresAt, record.RevokedAt, record.LastUsedAt);
+        TicketAccessToken.Restore(record.Id, record.TicketId, record.RequesterId, record.TokenHash, record.IssuedAt, record.ExpiresAt, record.RevokedAt, record.LastUsedAt);
 
     public static TicketAccessTokenRecord ToRecord(this TicketAccessToken token) => new()
     {
@@ -113,6 +113,7 @@ internal static class TicketMappings
         TicketId = token.TicketId,
         RequesterId = token.RequesterId,
         TokenHash = token.TokenHash,
+        IssuedAt = token.IssuedAt,
         ExpiresAt = token.ExpiresAt,
         RevokedAt = token.RevokedAt,
         LastUsedAt = token.LastUsedAt,

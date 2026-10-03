@@ -16,7 +16,7 @@ internal sealed class PersistenceTestHost : IAsyncDisposable
 {
     private readonly ServiceProvider _provider;
 
-    public PersistenceTestHost(TestDatabase database, FakeTimeProvider? clock = null)
+    public PersistenceTestHost(TestDatabase database, FakeTimeProvider? clock = null, Action<IServiceCollection>? configure = null)
     {
         Clock = clock ?? new FakeTimeProvider(new DateTimeOffset(2026, 10, 2, 9, 0, 0, TimeSpan.Zero));
         var configuration = new ConfigurationBuilder()
@@ -28,6 +28,7 @@ internal sealed class PersistenceTestHost : IAsyncDisposable
         services.AddLogging();
         services.AddSingleton<TimeProvider>(Clock);
         services.AddTechStrapPersistence();
+        configure?.Invoke(services);
         _provider = services.BuildServiceProvider();
     }
 

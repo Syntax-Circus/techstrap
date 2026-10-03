@@ -8,6 +8,7 @@ using SyntaxCircus.Observability;
 using TechStrap.Api.Options;
 using TechStrap.Api.Security;
 using TechStrap.Api.Startup;
+using TechStrap.Infrastructure.Intake;
 using TechStrap.Infrastructure.Persistence;
 using TechStrap.Infrastructure.Security;
 using TechStrap.Infrastructure.Seeding;
@@ -51,15 +52,30 @@ builder.Services.AddOptions<PublicRateLimitOptions>()
     .Validate(o => o.WindowSeconds >= 1, "RateLimiting:Public:WindowSeconds must be >= 1.")
     .ValidateOnStart();
 
+builder.Services.AddOptions<IntakeRateLimitOptions>()
+    .Bind(builder.Configuration.GetSection(IntakeRateLimitOptions.SectionName))
+    .Validate(o => o.WebFormPermitLimit >= 1, "RateLimiting:Intake:WebFormPermitLimit must be >= 1.")
+    .Validate(o => o.WebFormWindowSeconds >= 1, "RateLimiting:Intake:WebFormWindowSeconds must be >= 1.")
+    .Validate(o => o.PublicKeyPermitLimit >= 1, "RateLimiting:Intake:PublicKeyPermitLimit must be >= 1.")
+    .Validate(o => o.PublicKeyWindowSeconds >= 1, "RateLimiting:Intake:PublicKeyWindowSeconds must be >= 1.")
+    .Validate(o => o.TrustedKeyPermitLimit >= 1, "RateLimiting:Intake:TrustedKeyPermitLimit must be >= 1.")
+    .Validate(o => o.TrustedKeyWindowSeconds >= 1, "RateLimiting:Intake:TrustedKeyWindowSeconds must be >= 1.")
+    .ValidateOnStart();
+
 builder.Services.AddRateLimiter(options =>
 {
     var limits = builder.Configuration.GetSection(PublicRateLimitOptions.SectionName).Get<PublicRateLimitOptions>()
         ?? new PublicRateLimitOptions();
     options.AddPerIpFixedWindow(PublicRateLimitOptions.PolicyName, limits.PermitLimit, TimeSpan.FromSeconds(limits.WindowSeconds));
+    var intake = builder.Configuration.GetSection(IntakeRateLimitOptions.SectionName).Get<IntakeRateLimitOptions>()
+        ?? new IntakeRateLimitOptions();
+    options.AddIntakePolicies(intake);
     options.UseProblemDetailsRejection();
 });
 
 builder.Services.AddAgentAuthentication(builder.Configuration, builder.Environment);
+builder.Services.AddProductApiKeyAuthentication(builder.Configuration);
+builder.Services.AddTechStrapIntake(builder.Configuration);
 builder.Services.AddResultProblemDetails();
 builder.Services.AddApplicationHandlers();
 
@@ -72,6 +88,7 @@ app.UseForwardedHeaders();
 app.UseCorrelationId();
 app.UseSecurityHeaders();
 app.UseProblemDetailsExceptionHandling();
+app.UseRequestTooLargeProblemDetails();
 app.UseSerilogRequestLogging(options =>
 {
     options.Logger = app.Services.GetRequiredService<Serilog.ILogger>();

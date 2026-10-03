@@ -8,4 +8,10 @@ public static class AuthorizationPolicies
 
     /// <summary>Admin group, and not deactivated.</summary>
     public const string Admin = "Admin";
+
+    /// <summary>Product API key only (the ApiKey scheme); requires the product claim.</summary>
+    public const string ApiKey = "ApiKey";
+
+    /// <summary>Admits everyone; marks a route as deliberately anonymous (D-034).</summary>
+    public const string Public = "Public";
 }

@@ -16,6 +16,8 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
     private static IReadOnlyList<(string Method, string Path)> Routes(ApiFactory factory) =>
         [.. factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
             .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("api/", StringComparison.Ordinal) == true)
+            .Where(endpoint => endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Any(data =>
+                data.Policy is TechStrap.Api.Security.AuthorizationPolicies.Agent or TechStrap.Api.Security.AuthorizationPolicies.Admin))
             .SelectMany(endpoint => (endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? ["GET"])
                 .Select(method => (method, "/" + string.Join('/', endpoint.RoutePattern.PathSegments.Select(segment =>
                     segment.IsSimple && segment.Parts[0] is Microsoft.AspNetCore.Routing.Patterns.RoutePatternLiteralPart literal
@@ -37,7 +39,7 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
         await database.ExecuteAsync("UPDATE agents SET is_active = false WHERE oidc_subject = 'off'");
         var routes = Routes(factory);
 
-        routes.Count.ShouldBe(Controllers.ControllerActions.All().Count());
+        routes.Count.ShouldBe(Controllers.ControllerActions.AgentOrAdminActions().Count());
         foreach (var (method, path) in routes)
         {
             using var response = await SendAsync(client, method, path);
