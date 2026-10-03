@@ -9,4 +9,8 @@
     <PackageReference Include="SyntaxCircus.Common" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="TechStrap.Application.Tests" />
+  </ItemGroup>
+
 </Project>
