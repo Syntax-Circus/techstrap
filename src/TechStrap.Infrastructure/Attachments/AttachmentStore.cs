@@ -1,22 +1,20 @@
 using System.Buffers;
-using System.Globalization;
-using System.Text;
 using SyntaxCircus.Common;
 using SyntaxCircus.Storage;
 using TechStrap.Application.Attachments;
 using TechStrap.Contracts.Intake;
 using TechStrap.Domain.Rules;
+using TechStrap.Domain.Tickets;
 
 namespace TechStrap.Infrastructure.Attachments;
 
 internal sealed class AttachmentStore(IStorageProvider storage) : IAttachmentStore
 {
     private const string Target = "attachments";
-    private const string FallbackName = "attachment";
 
     public async Task<Result<StoredAttachment>> SaveAsync(Guid ticketId, IncomingAttachment file, CancellationToken cancellationToken)
     {
-        var safeName = SafeDisplayName(file.FileName);
+        var safeName = AttachmentFileName.Sanitize(file.FileName);
         var extension = Path.GetExtension(safeName).ToLowerInvariant();
         if (!IntakeLimits.AllowedExtensions.Contains(extension))
         {
@@ -109,39 +107,6 @@ internal sealed class AttachmentStore(IStorageProvider storage) : IAttachmentSto
             // Best effort only; the original failure is the one to surface.
         }
     }
-
-    private static string SafeDisplayName(string? fileName)
-    {
-        var name = Path.GetFileName((fileName ?? string.Empty).Replace('\\', '/'));
-        var builder = new StringBuilder(name.Length);
-        foreach (var c in name)
-        {
-            if (!char.IsControl(c) && CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.Format)
-            {
-                builder.Append(c);
-            }
-        }
-
-        name = builder.ToString().Trim();
-        if (name is "" or "." or "..")
-        {
-            return FallbackName;
-        }
-
-        if (name.Length > DomainLimits.FileNameMaxLength)
-        {
-            var extension = Path.GetExtension(name);
-            name = extension.Length < DomainLimits.FileNameMaxLength / 2
-                ? string.Concat(name.AsSpan(0, SafeCut(name, DomainLimits.FileNameMaxLength - extension.Length)), extension)
-                : name[..SafeCut(name, DomainLimits.FileNameMaxLength)];
-        }
-
-        return name;
-    }
-
-    /// <summary>The cut length, backed off by one when it would split a surrogate pair.</summary>
-    private static int SafeCut(string name, int length) =>
-        length > 0 && char.IsHighSurrogate(name[length - 1]) ? length - 1 : length;
 
     private static Result<StoredAttachment> TooLarge() =>
         Failure("attachment-too-large", $"This file is too large. Each file can be up to {IntakeLimits.MaxFileBytes / (1024 * 1024)} MB.");

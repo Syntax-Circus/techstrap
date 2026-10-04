@@ -384,4 +384,38 @@ public sealed class AddCustomerReplyRequestHandlerTests
         await _planner.Received().PlanFollowUpConfirmationAsync(Arg.Any<Ticket>(), token);
         await _planner.Received().PlanNewTicketAsync(Arg.Any<Ticket>(), _ann, true, token);
     }
+
+    [Theory]
+    [InlineData("C:\\fakepath\\shot.png")]
+    [InlineData("../shot.png")]
+    [InlineData("  shot.png ")]
+    public async Task A_double_submit_replays_when_the_store_rewrote_the_name(string incomingName)
+    {
+        var parent = GivenTicket(TicketStatus.Closed);
+        var followUpId = Guid.NewGuid();
+        _tickets.ListRecentFollowUpsAsync(parent.Id, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns([new FollowUpCandidate(followUpId, "ORB-70", Guid.NewGuid(), "<p>It broke again</p>", _clock.GetUtcNow(), ["shot.png"])]);
+
+        var result = await Reply("It broke again", [Png(incomingName)]);
+
+        result.Value.TicketNumber.ShouldBe("ORB-70");
+        _tickets.DidNotReceive().Add(Arg.Any<Ticket>());
+        await _store.DidNotReceive().SaveAsync(Arg.Any<Guid>(), Arg.Any<IncomingAttachment>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Two_names_that_both_sanitise_to_the_fallback_still_compare_by_count_and_name()
+    {
+        var parent = GivenTicket(TicketStatus.Closed);
+
+        // Existing follow-up has two files named "attachment" (the fallback)
+        _tickets.ListRecentFollowUpsAsync(parent.Id, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns([new FollowUpCandidate(Guid.NewGuid(), "ORB-70", Guid.NewGuid(), "<p>It broke again</p>", _clock.GetUtcNow(), ["attachment", "attachment"])]);
+
+        // Incoming has two files named "attachment" (already sanitized) -> replays the existing follow-up
+        var result = await Reply("It broke again", [Png("attachment"), Png("attachment")]);
+
+        result.Value.TicketNumber.ShouldBe("ORB-70");
+        _tickets.DidNotReceive().Add(Arg.Any<Ticket>());
+    }
 }
