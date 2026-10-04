@@ -24,13 +24,24 @@ public sealed class CustomerDtoShapeTests
         violations.ShouldBeEmpty();
     }
 
-    [Fact]
-    public void The_type_walk_detects_unsafe_nested_types()
+    [Theory]
+    [InlineData(typeof(DirectEnumerableFixture))]
+    [InlineData(typeof(NestedListInListFixture))]
+    [InlineData(typeof(DictionaryOfListsFixture))]
+    public void The_type_walk_detects_unsafe_types_through_nested_generics(Type fixture)
     {
-        // Negative test: prove the walk catches violations when a customer DTO leaks agent types.
-        var violations = WalkTypesFromRoot(typeof(UnsafeFixture)).ToList();
+        // Negative test: prove the walk catches violations when agent types are nested in System generics.
+        var violations = WalkTypesFromRoot(fixture).ToList();
         violations.ShouldNotBeEmpty();
         violations.ShouldContain(v => v.Contains("MessageDto", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void The_type_walk_allows_safe_types_in_arrays()
+    {
+        // Positive test: arrays of safe types (like CustomerMessageDto[]) don't trigger violations.
+        var violations = WalkTypesFromRoot(typeof(CustomerMessageDtoArrayFixture)).ToList();
+        violations.ShouldBeEmpty();
     }
 
     private static IEnumerable<string> WalkTypesFromRoot(Type root)
@@ -50,21 +61,11 @@ public sealed class CustomerDtoShapeTests
             if (IsLeaf(type))
                 continue;
 
-            // Every non-leaf type must be in the safe set
-            if (!customerSafeTypes.Contains(type))
+            // Every non-leaf, non-nested type must be in the safe set
+            // (nested types are test fixtures, exempt from the check)
+            if (!IsTestFixture(type) && !customerSafeTypes.Contains(type))
             {
                 violations.Add($"Type {type.FullName} is not in the customer-safe set");
-            }
-
-            // Unwrap arrays and generic type arguments
-            var typesToExamine = new List<Type> { type };
-            if (type.IsArray)
-            {
-                typesToExamine.Add(type.GetElementType()!);
-            }
-            if (type.IsGenericType)
-            {
-                typesToExamine.AddRange(type.GetGenericArguments());
             }
 
             // Walk all properties to find types to visit
@@ -72,26 +73,14 @@ public sealed class CustomerDtoShapeTests
             foreach (var prop in properties)
             {
                 var propType = prop.PropertyType;
-                typesToExamine.Add(propType);
 
-                // Unwrap arrays
-                if (propType.IsArray)
+                // Flatten all nested generics and arrays to find all actual types
+                foreach (var flattened in Flatten(propType))
                 {
-                    typesToExamine.Add(propType.GetElementType()!);
-                }
-
-                // Unwrap generic type arguments
-                if (propType.IsGenericType)
-                {
-                    typesToExamine.AddRange(propType.GetGenericArguments());
-                }
-            }
-
-            foreach (var typeToVisit in typesToExamine)
-            {
-                if (typeToVisit != null && !IsLeaf(typeToVisit))
-                {
-                    toVisit.Enqueue(typeToVisit);
+                    if (!IsLeaf(flattened))
+                    {
+                        toVisit.Enqueue(flattened);
+                    }
                 }
             }
         }
@@ -99,18 +88,62 @@ public sealed class CustomerDtoShapeTests
         return violations;
     }
 
+    private static bool IsTestFixture(Type type)
+    {
+        // Only test fixture wrapper types (those ending with "Fixture") are exempt
+        return type.Name.EndsWith("Fixture", StringComparison.Ordinal);
+    }
+
+    private static IEnumerable<Type> Flatten(Type type)
+    {
+        // Yield the type itself
+        yield return type;
+
+        // If it's an array, yield its flattened element type
+        if (type.IsArray)
+        {
+            var elementType = type.GetElementType()!;
+            foreach (var flattened in Flatten(elementType))
+            {
+                yield return flattened;
+            }
+        }
+
+        // If it's a generic type, yield the flattened version of each type argument
+        if (type.IsGenericType)
+        {
+            var args = type.GetGenericArguments();
+            foreach (var arg in args)
+            {
+                foreach (var flattened in Flatten(arg))
+                {
+                    yield return flattened;
+                }
+            }
+        }
+    }
+
     private static bool IsLeaf(Type type)
     {
         // True for types we don't need to walk further
-        return type.IsPrimitive
-            || type == typeof(string)
-            || type == typeof(DateTimeOffset)
-            || type == typeof(Guid)
-            || type.IsEnum
-            || type.Namespace?.StartsWith("System", StringComparison.Ordinal) == true;
+        if (type.IsPrimitive || type == typeof(string) || type == typeof(DateTimeOffset) || type == typeof(Guid) || type.IsEnum)
+            return true;
+
+        // Arrays are wrappers; their element types are handled separately by Flatten
+        if (type.IsArray)
+            return true;
+
+        var ns = type.Namespace;
+        return ns == "System" || ns?.StartsWith("System.", StringComparison.Ordinal) == true;
     }
 
-    private sealed record UnsafeFixture(IEnumerable<MessageDto> Leaked);
+    private sealed record DirectEnumerableFixture(IEnumerable<MessageDto> Leaked);
+
+    private sealed record NestedListInListFixture(IReadOnlyList<List<MessageDto>> Leaked);
+
+    private sealed record DictionaryOfListsFixture(Dictionary<string, IReadOnlyList<MessageDto>> Leaked);
+
+    private sealed record CustomerMessageDtoArrayFixture(CustomerMessageDto[] Messages);
 
     private sealed record MessageDto(Guid Id, string BodyHtml);
 
