@@ -9,6 +9,9 @@ namespace TechStrap.Application.Tickets;
 
 internal static class TicketMutation
 {
+    /// <summary>A failed ticket-state result for the given error.</summary>
+    public static Result<TicketStateDto> Fail(ResultError error) => Result<TicketStateDto>.Failure(error);
+
     /// <summary>Resolves the active agent and loads the ticket, enforcing the client's RowVersion (D-036).</summary>
     public static async Task<Result<(Agent Agent, Ticket Ticket)>> LoadAsync(
         Guid ticketId,

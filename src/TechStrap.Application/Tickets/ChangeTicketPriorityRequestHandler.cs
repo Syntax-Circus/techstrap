@@ -27,25 +27,23 @@ public sealed class ChangeTicketPriorityRequestHandler(
         var loaded = await TicketMutation.LoadAsync(ticketId, request.RowVersion, rowVersionRequired: true, currentAgent, agents, tickets, cancellationToken);
         if (loaded.IsFailure)
         {
-            return Fail(loaded.Errors[0]);
+            return TicketMutation.Fail(loaded.Errors[0]);
         }
 
         var (agent, ticket) = loaded.Value;
 
         if (!TicketNameParser.TryPriority(request.Priority, out var priority))
         {
-            return Fail(TicketErrors.Invalid("priority", "priority-invalid", "Choose a priority: Low, Normal, High or Urgent."));
+            return TicketMutation.Fail(TicketErrors.Invalid("priority", "priority-invalid", "Choose a priority: Low, Normal, High or Urgent."));
         }
 
         var changed = ticket.ChangePriority(priority, Actor.ForAgent(agent.Id), clock);
         if (changed.IsFailure)
         {
-            return Fail(changed.Error!.ToError());
+            return TicketMutation.Fail(changed.Error!.ToError());
         }
 
         tickets.Update(ticket);
         return await TicketMutation.CommitAsync(scope, ticket.Id, tickets, cancellationToken);
     }
-
-    private static Result<TicketStateDto> Fail(ResultError error) => Result<TicketStateDto>.Failure(error);
 }

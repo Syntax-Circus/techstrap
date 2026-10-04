@@ -26,7 +26,7 @@ public sealed class ChangeTicketStatusRequestHandler(
     {
         if (!TicketNameParser.TryStatus(request.Status, out var to))
         {
-            return Fail(TicketErrors.Invalid("status", "status-invalid", "Choose a status: New, Open, Pending, Solved or Closed."));
+            return TicketMutation.Fail(TicketErrors.Invalid("status", "status-invalid", "Choose a status: New, Open, Pending, Solved or Closed."));
         }
 
         await using var scope = await unitOfWork.BeginAsync(cancellationToken);
@@ -34,7 +34,7 @@ public sealed class ChangeTicketStatusRequestHandler(
         var loaded = await TicketMutation.LoadAsync(ticketId, request.RowVersion, rowVersionRequired: true, currentAgent, agents, tickets, cancellationToken);
         if (loaded.IsFailure)
         {
-            return Fail(loaded.Errors[0]);
+            return TicketMutation.Fail(loaded.Errors[0]);
         }
 
         var (agent, ticket) = loaded.Value;
@@ -42,7 +42,7 @@ public sealed class ChangeTicketStatusRequestHandler(
         var changed = ticket.ChangeStatus(to, Actor.ForAgent(agent.Id), clock);
         if (changed.IsFailure)
         {
-            return Fail(changed.Error!.ToError());
+            return TicketMutation.Fail(changed.Error!.ToError());
         }
 
         tickets.Update(ticket);
@@ -53,6 +53,4 @@ public sealed class ChangeTicketStatusRequestHandler(
 
         return await TicketMutation.CommitAsync(scope, ticket.Id, tickets, cancellationToken);
     }
-
-    private static Result<TicketStateDto> Fail(ResultError error) => Result<TicketStateDto>.Failure(error);
 }

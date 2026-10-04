@@ -30,7 +30,7 @@ public sealed class AssignTicketRequestHandler(
         var loaded = await TicketMutation.LoadAsync(ticketId, request.RowVersion, rowVersionRequired: true, currentAgent, agents, tickets, cancellationToken);
         if (loaded.IsFailure)
         {
-            return Fail(loaded.Errors[0]);
+            return TicketMutation.Fail(loaded.Errors[0]);
         }
 
         var (agent, ticket) = loaded.Value;
@@ -41,12 +41,12 @@ public sealed class AssignTicketRequestHandler(
             assignee = await agents.GetByIdAsync(assigneeId, cancellationToken);
             if (assignee is null)
             {
-                return Fail(TicketErrors.AgentNotFound());
+                return TicketMutation.Fail(TicketErrors.AgentNotFound());
             }
 
             if (!assignee.IsActive)
             {
-                return Fail(TicketErrors.Invalid("assigneeId", "assignee-inactive", "That agent is inactive. Choose an active agent."));
+                return TicketMutation.Fail(TicketErrors.Invalid("assigneeId", "assignee-inactive", "That agent is inactive. Choose an active agent."));
             }
         }
 
@@ -54,7 +54,7 @@ public sealed class AssignTicketRequestHandler(
         var assigned = ticket.Assign(assignee?.Id, Actor.ForAgent(agent.Id), clock);
         if (assigned.IsFailure)
         {
-            return Fail(assigned.Error!.ToError());
+            return TicketMutation.Fail(assigned.Error!.ToError());
         }
 
         tickets.Update(ticket);
@@ -65,6 +65,4 @@ public sealed class AssignTicketRequestHandler(
 
         return await TicketMutation.CommitAsync(scope, ticket.Id, tickets, cancellationToken);
     }
-
-    private static Result<TicketStateDto> Fail(ResultError error) => Result<TicketStateDto>.Failure(error);
 }

@@ -75,6 +75,24 @@ public sealed class TicketsController : ControllerBase
         Guid id, [FromBody] MoveTicketProductRequest request, [FromServices] IMoveTicketProductRequestHandler handler, CancellationToken cancellationToken) =>
         (await handler.HandleAsync(id, request, cancellationToken)).ToActionResult(this, Ok);
 
+    /// <summary>Adds a tag. Adding one the ticket already has succeeds. The row version is required.</summary>
+    [HttpPost("{id:guid}/tags")]
+    public async Task<IActionResult> AddTag(
+        Guid id, [FromBody] AddTicketTagRequest request, [FromServices] IAddTicketTagRequestHandler handler, CancellationToken cancellationToken) =>
+        (await handler.HandleAsync(id, request, cancellationToken)).ToActionResult(this, Ok);
+
+    /// <summary>Removes a tag. Removing one the ticket does not have succeeds. The row version comes from the query string and is required.</summary>
+    [HttpDelete("{id:guid}/tags/{tagId:guid}")]
+    public async Task<IActionResult> RemoveTag(
+        Guid id, Guid tagId, [FromQuery] uint? rowVersion, [FromServices] IRemoveTicketTagRequestHandler handler, CancellationToken cancellationToken) =>
+        (await handler.HandleAsync(id, tagId, rowVersion, cancellationToken)).ToActionResult(this, Ok);
+
+    /// <summary>Marks or unmarks the ticket as spam; spam leaves every view except Spam. The row version is required.</summary>
+    [HttpPut("{id:guid}/spam")]
+    public async Task<IActionResult> MarkSpam(
+        Guid id, [FromBody] MarkTicketSpamRequest request, [FromServices] IMarkTicketSpamRequestHandler handler, CancellationToken cancellationToken) =>
+        (await handler.HandleAsync(id, request, cancellationToken)).ToActionResult(this, Ok);
+
     /// <summary>A public reply to the customer: Markdown body, optional files and linked articles, optionally solving the ticket.</summary>
     [HttpPost("{id:guid}/replies")]
     [Consumes("multipart/form-data")]

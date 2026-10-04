@@ -29,36 +29,34 @@ public sealed class MoveTicketProductRequestHandler(
         var loaded = await TicketMutation.LoadAsync(ticketId, request.RowVersion, rowVersionRequired: true, currentAgent, agents, tickets, cancellationToken);
         if (loaded.IsFailure)
         {
-            return Fail(loaded.Errors[0]);
+            return TicketMutation.Fail(loaded.Errors[0]);
         }
 
         var (agent, ticket) = loaded.Value;
 
         if (request.ProductId is not { } productId)
         {
-            return Fail(TicketErrors.Invalid("productId", "product-required", "Choose the product to move this ticket to."));
+            return TicketMutation.Fail(TicketErrors.Invalid("productId", "product-required", "Choose the product to move this ticket to."));
         }
 
         var product = await products.GetByIdAsync(productId, cancellationToken);
         if (product is null)
         {
-            return Fail(ProductErrors.NotFound());
+            return TicketMutation.Fail(ProductErrors.NotFound());
         }
 
         if (!product.IsActive)
         {
-            return Fail(TicketErrors.Invalid("productId", "product-inactive", "That product is inactive. Choose an active product."));
+            return TicketMutation.Fail(TicketErrors.Invalid("productId", "product-inactive", "That product is inactive. Choose an active product."));
         }
 
         var moved = ticket.MoveToProduct(product.Id, Actor.ForAgent(agent.Id), clock);
         if (moved.IsFailure)
         {
-            return Fail(moved.Error!.ToError());
+            return TicketMutation.Fail(moved.Error!.ToError());
         }
 
         tickets.Update(ticket);
         return await TicketMutation.CommitAsync(scope, ticket.Id, tickets, cancellationToken);
     }
-
-    private static Result<TicketStateDto> Fail(ResultError error) => Result<TicketStateDto>.Failure(error);
 }
