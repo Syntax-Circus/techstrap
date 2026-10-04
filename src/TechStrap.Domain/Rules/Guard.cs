@@ -51,6 +51,40 @@ internal static partial class Guard
         return DomainResult<string>.Ok(text);
     }
 
+    /// <summary>
+    /// Blank becomes null. A value must be an absolute https URL with a host and no user info, or an http URL for the loopback hosts localhost and 127.0.0.1
+    /// (a developer's machine); anything else is "{target}-invalid". The logo is rendered as an image source in emails and on the portal, so javascript:, data:,
+    /// file: and relative paths never get in. The Contracts twin is <c>BrandingRules.IsAcceptableLogoUrl</c>; a parity test keeps them equal.
+    /// </summary>
+    public static DomainResult<string?> OptionalImageUrl(string? value, int maxLength, string target)
+    {
+        var text = value?.Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            return DomainResult<string?>.Ok(null);
+        }
+
+        if (text.Length > maxLength)
+        {
+            return DomainErrors.Validation($"{target}-too-long", $"{target} must be at most {maxLength} characters.", target);
+        }
+
+        return IsSafeImageUrl(text)
+            ? DomainResult<string?>.Ok(text)
+            : DomainErrors.Validation($"{target}-invalid", $"{target} must be an https URL (or http for localhost).", target);
+    }
+
+    private static bool IsSafeImageUrl(string text)
+    {
+        if (text.Any(c => char.IsWhiteSpace(c) || char.IsControl(c)) || !Uri.TryCreate(text, UriKind.Absolute, out var uri) || uri.UserInfo.Length > 0 || uri.Host.Length == 0)
+        {
+            return false;
+        }
+
+        return uri.Scheme == Uri.UriSchemeHttps
+            || (uri.Scheme == Uri.UriSchemeHttp && uri.Host is "localhost" or "127.0.0.1");
+    }
+
     /// <summary>Normalises "#aabbcc" to "#AABBCC".</summary>
     public static DomainResult<string> Colour(string? value, string target)
     {

@@ -40,7 +40,7 @@ public sealed record ProductBranding
         string? replyTo)
     {
         var name = Guard.RequiredText(displayName, DomainLimits.NameMaxLength, "display-name");
-        var logo = Guard.OptionalText(logoPath, DomainLimits.UrlMaxLength, "logo-path");
+        var logo = Guard.OptionalImageUrl(logoPath, DomainLimits.UrlMaxLength, "logo-path");
         var accent = Guard.Colour(accentColour ?? DefaultAccentColour, "accent-colour");
         var from = Guard.OptionalEmail(fromAddress, "from-address");
         var reply = Guard.OptionalEmail(replyTo, "reply-to");

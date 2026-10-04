@@ -147,4 +147,65 @@ public sealed class ProductEndpointTests(TestPostgres postgres)
         unknown.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await unknown.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldContain("preferences[0].productId");
     }
+
+    // Review Focus 4: the logo is rendered as an image source in emails and on the portal, so the API itself refuses an unsafe URL (the Admin editor only mirrors the rule).
+    [Theory]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=")]
+    [InlineData("/logo.svg")]
+    [InlineData("//evil.example/logo.png")]
+    [InlineData("file:///etc/passwd")]
+    [InlineData("http://cdn.orbitly.example/logo.png")]
+    [InlineData("https://user:secret@cdn.orbitly.example/logo.png")]
+    public async Task An_unsafe_logo_url_is_400_with_a_logo_path_error_on_create_and_on_update_and_nothing_is_stored(string logo)
+    {
+        var (factory, _, admin, agent) = await StartAsync();
+        await using var _ = factory;
+        using var __ = admin;
+        using var ___ = agent;
+        var existing = await CreateAsync(admin, "orbitly", "ORB");
+        var branding = new ProductBrandingRequest("Orbitly", logo, "#7c3aed", null, null);
+
+        using var create = await admin.PostAsJsonAsync("/api/products", new CreateProductRequest("unsafe", "Unsafe", "UNS", branding), TestContext.Current.CancellationToken);
+        using var update = await admin.PutAsJsonAsync(
+            $"/api/products/{existing.Id}", new UpdateProductRequest("Orbitly", branding, true, existing.Version), TestContext.Current.CancellationToken);
+
+        foreach (var response in new[] { create, update })
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+            var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            body.ShouldContain("\"logo-path\"");
+            body.ShouldContain("logo-path-invalid");
+        }
+
+        var products = (await admin.GetFromJsonAsync<List<ProductDto>>("/api/products", TestContext.Current.CancellationToken))!;
+        products.Select(product => product.Key).ShouldBe(["orbitly"]);
+        products.Single().Branding.LogoPath.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("https://cdn.orbitly.example/logo.png", "https://cdn.orbitly.example/logo.png")]
+    [InlineData("  https://cdn.orbitly.example/logo.png  ", "https://cdn.orbitly.example/logo.png")]
+    [InlineData("http://localhost:5080/logo.png", "http://localhost:5080/logo.png")]
+    [InlineData("http://127.0.0.1:5080/logo.png", "http://127.0.0.1:5080/logo.png")]
+    [InlineData("", null)]
+    [InlineData("   ", null)]
+    [InlineData(null, null)]
+    public async Task A_safe_logo_url_or_a_blank_one_is_accepted_on_update_and_read_back(string? logo, string? expected)
+    {
+        var (factory, _, admin, agent) = await StartAsync();
+        await using var _ = factory;
+        using var __ = admin;
+        using var ___ = agent;
+        var existing = await CreateAsync(admin, "orbitly", "ORB");
+
+        using var update = await admin.PutAsJsonAsync(
+            $"/api/products/{existing.Id}",
+            new UpdateProductRequest("Orbitly", new ProductBrandingRequest("Orbitly", logo, "#7c3aed", null, null), true, existing.Version),
+            TestContext.Current.CancellationToken);
+
+        update.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var read = (await agent.GetFromJsonAsync<ProductDto>($"/api/products/{existing.Id}", TestContext.Current.CancellationToken))!;
+        read.Branding.LogoPath.ShouldBe(expected);
+    }
 }

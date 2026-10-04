@@ -105,14 +105,14 @@ public sealed class TagEndpointTests(TestPostgres postgres)
     }
 
     /// <summary>Puts a tag on a ticket through the DI container (the Api has no ticket endpoints yet): a requester, a numbered ticket and its tag.</summary>
-    private static async Task AttachTagToNewTicketAsync(ApiFactory factory, Guid agentId, Guid productId, Guid tagId)
+    private static async Task AttachTagToNewTicketAsync(ApiFactory factory, Guid agentId, Guid productId, Guid tagId, string requesterEmail = "ann@example.com")
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var scope = factory.Services.CreateAsyncScope();
         var services = scope.ServiceProvider;
         var clock = services.GetRequiredService<TimeProvider>();
         await using var work = await services.GetRequiredService<IUnitOfWork>().BeginAsync(cancellationToken);
-        var requester = Requester.Create("ann@example.com", "Ann", null, clock).Value;
+        var requester = Requester.Create(requesterEmail, "Ann", null, clock).Value;
         services.GetRequiredService<IRequesterRepository>().Add(requester);
         var number = (await services.GetRequiredService<ITicketNumberAllocator>().AllocateAsync(productId, cancellationToken)).Value;
         var ticket = Ticket.Create(number, productId, requester.Id, "Cannot sign in", TicketChannel.Web, null, false, clock).Value;
@@ -152,5 +152,34 @@ public sealed class TagEndpointTests(TestPostgres postgres)
 
         forced.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         (await admin.GetFromJsonAsync<List<TagDto>>("/api/tags", TestContext.Current.CancellationToken))!.Select(t => t.Id).ShouldNotContain(tag.Id);
+    }
+
+    [Fact]
+    public async Task The_summary_lists_every_tag_with_its_ticket_count_and_only_an_admin_may_read_it()
+    {
+        var (factory, admin, agent) = await StartAsync();
+        await using var _ = factory;
+        using var __ = admin;
+        using var ___ = agent;
+        var (productId, agentId) = await ProductAndAdminAsync(admin);
+        var bug = await CreateAsync(admin, "bug");
+        var billing = await CreateAsync(admin, "billing");
+        await CreateAsync(admin, "unused");
+        await AttachTagToNewTicketAsync(factory, agentId, productId, bug.Id, "ann@example.com");
+        await AttachTagToNewTicketAsync(factory, agentId, productId, bug.Id, "bea@example.com");
+        await AttachTagToNewTicketAsync(factory, agentId, productId, billing.Id, "cy@example.com");
+
+        var summary = (await admin.GetFromJsonAsync<List<TagSummaryDto>>("/api/tags/summary", TestContext.Current.CancellationToken))!;
+        using var asAgent = await agent.GetAsync("/api/tags/summary", TestContext.Current.CancellationToken);
+        var plain = (await agent.GetFromJsonAsync<List<TagDto>>("/api/tags", TestContext.Current.CancellationToken))!;
+
+        // CreateAsync names a tag after its slug, so name order is billing, bug, unused.
+        summary.Select(tag => (tag.Slug, tag.TicketCount)).ShouldBe([("billing", 1), ("bug", 2), ("unused", 0)]);
+        summary.Single(tag => tag.Slug == "bug").ShouldSatisfyAllConditions(
+            tag => tag.Id.ShouldBe(bug.Id),
+            tag => tag.Name.ShouldBe("bug"),
+            tag => tag.Colour.ShouldBe("#DC2626"));
+        asAgent.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        plain.Select(tag => tag.Slug).ShouldBe(["billing", "bug", "unused"]);
     }
 }

@@ -91,4 +91,40 @@ public sealed class AgentManagementEndpointTests(TestPostgres postgres)
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await database.ScalarAsync<long>("SELECT count(*) FROM agents WHERE oidc_subject = 'other' AND is_active")).ShouldBe(1);
     }
+
+    [Fact]
+    public async Task An_admin_sees_every_agent_with_email_role_active_flag_and_last_seen()
+    {
+        var database = await ApiTestDatabase.CreateAsync(postgres);
+        await using var factory = new ApiFactory(settings: database.Settings);
+        using var admin = factory.CreateClient().Bearer(TestJwt.Token("admin", [TestJwt.AdminGroup], email: "admin@example.com"));
+        using var agent = factory.CreateClient().Bearer(TestJwt.Token("agent", [TestJwt.AgentGroup], email: "agent@example.com"));
+        using var other = factory.CreateClient().Bearer(TestJwt.Token("other", [TestJwt.AgentGroup], email: "other@example.com"));
+        var adminMe = await SignInAsync(admin);
+        var agentMe = await SignInAsync(agent);
+        var otherMe = await SignInAsync(other);
+        using var deactivate = await admin.PutAsJsonAsync($"/api/agents/{otherMe.Id}", new UpdateAgentRequest(false), TestContext.Current.CancellationToken);
+        deactivate.EnsureSuccessStatusCode();
+
+        var page = (await admin.GetFromJsonAsync<PagedResponse<AgentListItemDto>>("/api/agents", TestContext.Current.CancellationToken))!;
+
+        page.TotalCount.ShouldBe(3);
+        var rows = page.Items.ToDictionary(item => item.Id);
+        rows.Keys.ShouldBe([adminMe.Id, agentMe.Id, otherMe.Id], ignoreOrder: true);
+        rows[adminMe.Id].ShouldSatisfyAllConditions(
+            row => row.Email.ShouldBe("admin@example.com"),
+            row => row.Role.ShouldBe(AgentRoles.Admin),
+            row => row.IsActive.ShouldBe(true),
+            row => row.LastSeenAt.ShouldNotBeNull());
+        rows[agentMe.Id].ShouldSatisfyAllConditions(
+            row => row.Email.ShouldBe("agent@example.com"),
+            row => row.Role.ShouldBe(AgentRoles.Agent),
+            row => row.IsActive.ShouldBe(true),
+            row => row.LastSeenAt.ShouldNotBeNull());
+        rows[otherMe.Id].ShouldSatisfyAllConditions(
+            row => row.Email.ShouldBe("other@example.com"),
+            row => row.Role.ShouldBe(AgentRoles.Agent),
+            row => row.IsActive.ShouldBe(false),
+            row => row.LastSeenAt.ShouldNotBeNull());
+    }
 }

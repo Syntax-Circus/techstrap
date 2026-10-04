@@ -85,7 +85,7 @@ public sealed class ProductTests
     public void Updating_details_changes_name_and_branding_but_never_the_key_or_prefix()
     {
         var product = Product.Create("orbitly", "Orbitly", "ORB", null, _clock).Value;
-        var branding = ProductBranding.Create("Orbitly Cloud", "/logo.svg", "#112233", null, null).Value;
+        var branding = ProductBranding.Create("Orbitly Cloud", "https://cdn.orbitly.example/logo.svg", "#112233", null, null).Value;
 
         product.UpdateDetails("Orbitly Cloud", branding).IsSuccess.ShouldBeTrue();
 
