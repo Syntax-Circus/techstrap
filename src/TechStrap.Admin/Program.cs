@@ -97,6 +97,7 @@ var anonymous = app.MapGroup(string.Empty).AllowAnonymous();
 anonymous.MapStandardHealthChecks();
 anonymous.MapStaticAssets();
 app.MapAdminAuthEndpoints();
+app.MapAttachmentPassThrough();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

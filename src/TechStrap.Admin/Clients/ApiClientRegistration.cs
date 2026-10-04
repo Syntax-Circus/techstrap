@@ -36,6 +36,8 @@ public static class ApiClientRegistration
         services.AddScoped<IAgentsClient, AgentsClient>();
         services.AddScoped<IProductsClient, ProductsClient>();
         services.AddScoped<ITagsClient, TagsClient>();
+        services.AddScoped<ITicketsClient, TicketsClient>();
+        services.AddScoped<IRequestersClient, RequestersClient>();
         services.AddScoped<AgentSession>();
         return services;
     }
