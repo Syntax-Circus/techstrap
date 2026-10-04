@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
@@ -35,8 +35,23 @@ public sealed class RequestNewAccessLinkRequestHandlerTests
         _outbox.CountRecentAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns(0);
     }
 
+    private readonly CapturingLogger _logger = new();
+
+    private sealed class CapturingLogger : ILogger<RequestNewAccessLinkRequestHandler>
+    {
+        public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, formatter(state, exception)));
+    }
+
     private RequestNewAccessLinkRequestHandler Handler(IUnitOfWork unitOfWork) =>
-        new(_requesters, _tickets, _outbox, _planner, unitOfWork, _clock, Options.Create(_options), NullLogger<RequestNewAccessLinkRequestHandler>.Instance);
+        new(_requesters, _tickets, _outbox, _planner, unitOfWork, _clock, Options.Create(_options), _logger);
 
     private Task<Result> Request(string? email, IUnitOfWork? unitOfWork = null) =>
         Handler(unitOfWork ?? UnitOfWorkSubstitute.Create()).HandleAsync(new RequestNewAccessLinkRequest(email), Ct);
@@ -71,17 +86,71 @@ public sealed class RequestNewAccessLinkRequestHandlerTests
         await unitOfWork.DidNotReceiveWithAnyArgs().BeginAsync(Ct);
     }
 
-    [Fact]
-    public async Task Over_the_per_address_cap_nothing_is_sent_and_the_answer_is_the_same()
+    [Theory]
+    [InlineData(2, true)]
+    [InlineData(3, false)]
+    public async Task Over_the_per_address_cap_nothing_is_sent_and_the_answer_is_the_same(int recent, bool sends)
     {
-        _outbox.CountRecentAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns(3);
+        _outbox.CountRecentAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns(recent);
         var unitOfWork = UnitOfWorkSubstitute.Create();
 
         var result = await Request("ann@example.com", unitOfWork);
 
         result.IsSuccess.ShouldBeTrue();
-        await _planner.DidNotReceiveWithAnyArgs().PlanAccessLinksAsync(default!, default!, Ct);
+        await _requesters.Received(1).GetByEmailAsync("ann@example.com", Ct);
+        if (sends)
+        {
+            await _planner.Received(1).PlanAccessLinksAsync(_ann, _links, Ct);
+        }
+        else
+        {
+            await _tickets.DidNotReceiveWithAnyArgs().ListRecentTicketsForRequesterAsync(default, default, Ct);
+            await _planner.DidNotReceiveWithAnyArgs().PlanAccessLinksAsync(default!, default!, Ct);
+            await unitOfWork.DidNotReceiveWithAnyArgs().BeginAsync(Ct);
+        }
+    }
+
+    [Fact]
+    public async Task A_known_requester_with_no_tickets_returns_success_and_plans_nothing()
+    {
+        _tickets.ListRecentTicketsForRequesterAsync(_ann.Id, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns([]);
+        var unitOfWork = UnitOfWorkSubstitute.Create();
+
+        (await Request("ann@example.com", unitOfWork)).IsSuccess.ShouldBeTrue();
+
         await unitOfWork.DidNotReceiveWithAnyArgs().BeginAsync(Ct);
+        await _planner.DidNotReceiveWithAnyArgs().PlanAccessLinksAsync(default!, default!, Ct);
+    }
+
+    [Fact]
+    public async Task A_planner_fault_still_returns_success_and_logs_only_the_exception_type()
+    {
+        _planner.PlanAccessLinksAsync(Arg.Any<Requester>(), Arg.Any<IReadOnlyList<RequesterTicketLink>>(), Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new InvalidOperationException("secret ann@example.com detail"));
+
+        var result = await Request("ann@example.com");
+
+        result.IsSuccess.ShouldBeTrue();
+        var entry = _logger.Entries.ShouldHaveSingleItem();
+        entry.Level.ShouldBe(LogLevel.Warning);
+        entry.Message.ShouldContain(nameof(InvalidOperationException));
+        entry.Message.ShouldNotContain("ann");
+        entry.Message.ShouldNotContain("secret");
+    }
+
+    [Fact]
+    public async Task A_cancelled_request_still_propagates_cancellation()
+    {
+        using var cts = new CancellationTokenSource();
+        _planner.PlanAccessLinksAsync(Arg.Any<Requester>(), Arg.Any<IReadOnlyList<RequesterTicketLink>>(), Arg.Any<CancellationToken>())
+            .Returns<Task>(_ =>
+            {
+                cts.Cancel();
+                throw new OperationCanceledException(cts.Token);
+            });
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            Handler(UnitOfWorkSubstitute.Create()).HandleAsync(new RequestNewAccessLinkRequest("ann@example.com"), cts.Token));
     }
 
     [Theory]
@@ -116,5 +185,10 @@ public sealed class RequestNewAccessLinkRequestHandlerTests
         var result = await Request("ann@example.com", UnitOfWorkSubstitute.Create(UnitOfWorkSubstitute.Conflict("duplicate")));
 
         result.IsSuccess.ShouldBeTrue();
+        var entry = _logger.Entries.ShouldHaveSingleItem();
+        entry.Level.ShouldBe(LogLevel.Warning);
+        entry.Message.ShouldContain("duplicate");
+        entry.Message.ShouldNotContain("ann");
+        entry.Message.ShouldNotContain("example");
     }
 }

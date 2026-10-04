@@ -45,18 +45,27 @@ public sealed class RequestNewAccessLinkRequestHandler(
             return Ignored();
         }
 
-        var links = await tickets.ListRecentTicketsForRequesterAsync(requester.Id, limits.MaxLinks, cancellationToken);
-        if (links.Count == 0)
+        // Everything past the shared count and lookup runs for known requesters only, so a fault here must not surface as a 500
+        // (that would tell the caller the address is known). Only cancellation escapes. The message is never logged.
+        try
         {
-            return Ignored();
-        }
+            var links = await tickets.ListRecentTicketsForRequesterAsync(requester.Id, limits.MaxLinks, cancellationToken);
+            if (links.Count == 0)
+            {
+                return Ignored();
+            }
 
-        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
-        await planner.PlanAccessLinksAsync(requester, links, cancellationToken);
-        var committed = await scope.CommitAsync(cancellationToken);
-        if (committed.IsFailure)
+            await using var scope = await unitOfWork.BeginAsync(cancellationToken);
+            await planner.PlanAccessLinksAsync(requester, links, cancellationToken);
+            var committed = await scope.CommitAsync(cancellationToken);
+            if (committed.IsFailure)
+            {
+                logger.LogWarning("Access-link request not saved ({Code})", committed.Errors[0].Code);
+            }
+        }
+        catch (Exception exception) when (!(exception is OperationCanceledException && cancellationToken.IsCancellationRequested))
         {
-            logger.LogWarning("Access-link request not saved ({Code})", committed.Errors[0].Code);
+            logger.LogWarning("Access-link request not completed ({ExceptionType})", exception.GetType().Name);
         }
 
         return Result.Success();

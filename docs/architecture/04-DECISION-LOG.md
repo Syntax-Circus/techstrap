@@ -1225,6 +1225,10 @@ The customer side authenticates with a ticket token rather than an agent credent
   - A known, non-erased requester gets one email to their own address. It holds links to their 5 most recently active non-spam tickets, each with a freshly issued token.
   - A per-address cap of 3 emails per hour is enforced inside the handler by counting recent `access-links` outbox rows. Over the cap, the response is still 202 and nothing is sent.
   - There is also a per-IP limit at the host.
+- **Accepted residual risks (lost link).**
+  - **Timing.** Known addresses do more work than unknown ones (tens of milliseconds). The per-address cap and the per-IP limit bound it. A possible hardening is to move the send off the request path.
+  - **Concurrent requests.** Parallel requests can overshoot the per-address cap inside the count-to-commit window. The per-IP limit bounds it. A possible hardening is an advisory lock per address.
+  - **Mixed-case stored addresses.** The cap count is an exact match on `to_address`. This is safe because the Domain always lowercases addresses; data that bypasses the Domain would escape the cap.
 - **Reopen window.** The window shown in emails comes from `AutoCloseOptions.Days`, bound from `TECHSTRAP_AUTOCLOSE_DAYS`.
   - `TicketSolvedEmail` already carries it. `AgentReplyEmail` gains `ReopenDays`.
   - Rows queued before the upgrade have no value (`ReopenDays = 0`). The renderer falls back to `TicketNotices.DefaultReopenDays`.

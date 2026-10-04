@@ -61,7 +61,7 @@ public sealed class LostLinkUniformityTests(TestPostgres postgres)
     [Fact]
     public async Task Known_and_unknown_addresses_are_indistinguishable()
     {
-        var (factory, _) = await StartAsync();
+        var (factory, database) = await StartAsync();
         await using var owned = factory;
         using var client = factory.CreateClient();
 
@@ -83,6 +83,10 @@ public sealed class LostLinkUniformityTests(TestPostgres postgres)
         var knownMedian = await MedianAsync(client, "ann@example.com");
         var unknownMedian = await MedianAsync(client, "nobody@example.com");
         (knownMedian - unknownMedian).Duration().ShouldBeLessThan(TimeSpan.FromMilliseconds(250));
+
+        // Prove the known path really sent while timing: 1 initial + 1 warm-up + 10 timed = 12 rows, all under the limit of 20.
+        (await database.ScalarAsync<long>(
+            "SELECT count(*) FROM email_outbox WHERE kind = 'access-links' AND to_address = 'ann@example.com'")).ShouldBe(12);
     }
 
     [Fact]
