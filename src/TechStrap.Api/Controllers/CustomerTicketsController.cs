@@ -64,4 +64,19 @@ public sealed class CustomerTicketsController : ControllerBase
             }
         }
     }
+
+    [HttpGet("attachments/{id:guid}")]
+    public async Task<IActionResult> GetAttachment(
+        [FromHeader(Name = HeaderNames.TicketToken)] string? token,
+        Guid id,
+        [FromServices] IGetCustomerAttachmentRequestHandler handler,
+        CancellationToken cancellationToken)
+    {
+        Response.Headers.CacheControl = "no-store"; // 404s; AttachmentDownloadResult sets private, no-store on success
+        return (await handler.HandleAsync(token, id, cancellationToken)).ToActionResult(this, content =>
+        {
+            Response.RegisterForDisposeAsync(content.Content);
+            return new AttachmentDownloadResult(content);
+        });
+    }
 }

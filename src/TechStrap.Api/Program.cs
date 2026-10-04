@@ -107,26 +107,10 @@ app.Use(async (context, next) =>
     {
         context.Response.OnStarting(() =>
         {
-            context.Response.Headers.CacheControl = "no-store";
-            return Task.CompletedTask;
-        });
-    }
-
-    await next();
-});
-// Downloads get `Content-Security-Policy: sandbox`. The shared security-headers middleware overwrites the CSP when the response starts,
-// and start callbacks run last-registered-first, so this must be registered before it to have the final say.
-app.Use(async (context, next) =>
-{
-    if (context.Request.Path.StartsWithSegments("/api/attachments", StringComparison.OrdinalIgnoreCase))
-    {
-        context.Response.OnStarting(() =>
-        {
-            if (context.Response.StatusCode == StatusCodes.Status200OK)
+            // Keep a stricter value a result already set (the attachment download sends "private, no-store").
+            if (!context.Response.Headers.CacheControl.ToString().Contains("no-store", StringComparison.OrdinalIgnoreCase))
             {
-                var headers = context.Response.Headers;
-                var existing = headers.ContentSecurityPolicy.ToString();
-                headers.ContentSecurityPolicy = string.IsNullOrEmpty(existing) ? "sandbox" : $"{existing}; sandbox";
+                context.Response.Headers.CacheControl = "no-store";
             }
 
             return Task.CompletedTask;
@@ -135,6 +119,8 @@ app.Use(async (context, next) =>
 
     await next();
 });
+// Must stay before UseSecurityHeaders: it appends to the CSP at response start and start callbacks run last-registered-first.
+app.UseAttachmentSandbox();
 app.UseSecurityHeaders();
 app.UseProblemDetailsExceptionHandling();
 app.UseRequestTooLargeProblemDetails();
