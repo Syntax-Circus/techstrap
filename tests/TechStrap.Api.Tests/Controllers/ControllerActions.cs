@@ -32,6 +32,7 @@ public static class ControllerActions
         ["TicketsController.List"] = 200,
         ["TicketsController.Counts"] = 200,
         ["TicketsController.Get"] = 200,
+        ["TicketsController.Reply"] = 201,
         ["AdminEventsController.List"] = 200,
         ["IntakeController.Submit"] = 201,
         ["PublicIntakeController.Submit"] = 201,

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,7 +14,7 @@ namespace TechStrap.Api.Tests.Auth;
 /// <summary>Every controller route refuses anonymous callers, callers outside the groups, and deactivated agents (D-029).</summary>
 public sealed class AgentAccessCoverageTests(TestPostgres postgres)
 {
-    private static IReadOnlyList<(string Method, string Path)> Routes(ApiFactory factory) =>
+    private static IReadOnlyList<(string Method, string Path, bool Multipart)> Routes(ApiFactory factory) =>
         [.. factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
             .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("api/", StringComparison.Ordinal) == true)
             .Where(endpoint => endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Any(data =>
@@ -22,12 +23,37 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
                 .Select(method => (method, "/" + string.Join('/', endpoint.RoutePattern.PathSegments.Select(segment =>
                     segment.IsSimple && segment.Parts[0] is Microsoft.AspNetCore.Routing.Patterns.RoutePatternLiteralPart literal
                         ? literal.Content
-                        : Guid.CreateVersion7().ToString())))))];
+                        : Guid.CreateVersion7().ToString())), IsMultipart(endpoint))))];
 
-    private static async Task<HttpResponseMessage> SendAsync(HttpClient client, string method, string path) =>
-        await client.SendAsync(
-            new HttpRequestMessage(new HttpMethod(method), path) { Content = method is "GET" or "DELETE" ? null : new StringContent("{}", Encoding.UTF8, "application/json") },
-            TestContext.Current.CancellationToken);
+    /// <summary>True when the action consumes multipart/form-data: a JSON probe would be answered 415 before authorization runs.</summary>
+    private static bool IsMultipart(RouteEndpoint endpoint) =>
+        endpoint.Metadata.GetOrderedMetadata<IAcceptsMetadata>().Any(accepts =>
+            accepts.ContentTypes.Any(type => type.Equals("multipart/form-data", StringComparison.OrdinalIgnoreCase)));
+
+    private static async Task<HttpResponseMessage> SendAsync(HttpClient client, string method, string path, bool multipart = false)
+    {
+        using var request = new HttpRequestMessage(new HttpMethod(method), path);
+        if (method is not ("GET" or "DELETE"))
+        {
+            request.Content = multipart
+                ? new MultipartFormDataContent { { new StringContent("probe"), "probe" } }
+                : new StringContent("{}", Encoding.UTF8, "application/json");
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Multipart_routes_are_probed_with_a_multipart_body()
+    {
+        var database = await ApiTestDatabase.CreateAsync(postgres);
+        await using var factory = new ApiFactory(settings: database.Settings);
+        var routes = Routes(factory);
+
+        routes.ShouldContain(route => route.Multipart && route.Method == "POST" && route.Path.EndsWith("/replies", StringComparison.Ordinal));
+        routes.Where(route => route.Multipart).ShouldAllBe(route => route.Method == "POST");
+        routes.Count(route => route.Multipart).ShouldBeLessThan(routes.Count);
+    }
 
     [Fact]
     public async Task A_deactivated_agent_is_refused_on_every_agent_endpoint()
@@ -40,9 +66,9 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
         var routes = Routes(factory);
 
         routes.Count.ShouldBe(Controllers.ControllerActions.AgentOrAdminActions().Count());
-        foreach (var (method, path) in routes)
+        foreach (var (method, path, multipart) in routes)
         {
-            using var response = await SendAsync(client, method, path);
+            using var response = await SendAsync(client, method, path, multipart);
             response.StatusCode.ShouldBe(HttpStatusCode.Forbidden, $"{method} {path}");
             (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldContain("agent-inactive", customMessage: $"{method} {path}");
         }
@@ -56,10 +82,10 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
         using var anonymous = factory.CreateClient();
         using var outsider = factory.CreateClient().Bearer(TestJwt.Token("outsider", ["someone-else"]));
 
-        foreach (var (method, path) in Routes(factory))
+        foreach (var (method, path, multipart) in Routes(factory))
         {
-            using var anonymousResponse = await SendAsync(anonymous, method, path);
-            using var outsiderResponse = await SendAsync(outsider, method, path);
+            using var anonymousResponse = await SendAsync(anonymous, method, path, multipart);
+            using var outsiderResponse = await SendAsync(outsider, method, path, multipart);
             anonymousResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized, $"{method} {path}");
             outsiderResponse.StatusCode.ShouldBe(HttpStatusCode.Forbidden, $"{method} {path}");
         }
@@ -87,7 +113,7 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
                     ? literal.Content
                     : Guid.CreateVersion7().ToString()));
             var method = endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods[0] ?? "GET";
-            using var response = await SendAsync(client, method, path);
+            using var response = await SendAsync(client, method, path, IsMultipart(endpoint));
             response.StatusCode.ShouldBe(HttpStatusCode.Forbidden, $"{method} {path}");
         }
 
