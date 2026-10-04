@@ -22,7 +22,14 @@ public sealed class EraseRequesterIntegrationTests(PostgresFixture postgres) : P
 {
     private static readonly CancellationToken Ct = TestContext.Current.CancellationToken;
     private static readonly byte[] Png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13];
-    private static readonly string[] Needles = ["pat@example.com", "Pat Rivera", "canary-7f3a", "subject-canary-91c2"];
+    private static readonly string[] Needles = ["pat@example.com", "Pat Rivera", "canary-7f3a", "subject-canary-91c2", "pat-passport", "ext-canary-pat"];
+
+    private static readonly string[] ExpectedLocations =
+    [
+        "attachments.file_name", "email_outbox.payload", "email_outbox.to_address", "messages.body", "messages.search_vector",
+        "requesters.email", "requesters.external_user_ref", "requesters.name", "tickets.custom_fields", "tickets.metadata",
+        "tickets.search_vector", "tickets.subject",
+    ];
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), "techstrap-erase-requester-" + Guid.NewGuid().ToString("N"));
 
@@ -87,7 +94,7 @@ public sealed class EraseRequesterIntegrationTests(PostgresFixture postgres) : P
         var host = new PersistenceTestHost(Database);
         var scenario = await TicketScenario.CreateAsync(host);
         var admin = Agent.Create("oidc|admin", "Ada", "ada@example.com", AgentRole.Admin, host.Clock).Value;
-        var pat = Requester.Create("pat@example.com", "Pat Rivera", null, host.Clock).Value;
+        var pat = Requester.Create("pat@example.com", "Pat Rivera", "ext-canary-pat", host.Clock).Value;
         var bob = Requester.Create("bob@example.com", "Bob Stone", null, host.Clock).Value;
         (await host.CommitAsync(sp =>
         {
@@ -217,6 +224,10 @@ public sealed class EraseRequesterIntegrationTests(PostgresFixture postgres) : P
         {
             before.ShouldContain(entry => entry.EndsWith($"holds '{needle}'", StringComparison.Ordinal), needle);
         }
+
+        // Each seeded location is proven individually (tsvector coverage rests on the single-token needles).
+        before.Select(entry => entry[..entry.IndexOf(" holds", StringComparison.Ordinal)]).Distinct().Order(StringComparer.Ordinal)
+            .ShouldBe(ExpectedLocations);
 
         arranged.StoredKeysOfPat.ShouldAllBe(key => File.Exists(Path.Combine(_root, key)));
 

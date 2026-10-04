@@ -50,7 +50,7 @@ internal sealed class RequesterErasure(TechStrapDbContext context) : IRequesterE
             .Where(t => t.RequesterId == requesterId && t.RevokedAt == null)
             .ExecuteUpdateAsync(set => set.SetProperty(t => t.RevokedAt, now), cancellationToken);
 
-        // Outbox addresses are normally stored lower-cased, but a mixed-case row must not survive an erasure, so compare case-insensitively.
+        // Domain Guard.Email stores addresses lower-cased, so the lower() comparison is defence in depth (for example rows written outside the Domain), not a fix for real mixed-case data.
         var address = email.Trim().ToLowerInvariant();
         var outboxRows = await context.Set<EmailOutboxRecord>()
             .Where(e => e.ToAddress.ToLower() == address || (e.TicketId != null && ticketIds.Contains(e.TicketId.Value)))

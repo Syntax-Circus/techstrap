@@ -24,6 +24,9 @@ public sealed class EraseRequesterEndpointTests(TestPostgres postgres)
         return (factory, seed, database, admin, ann);
     }
 
+    /// <summary>The problem document carries the error code in its type member.</summary>
+    private static string? ProblemCode(string json) => System.Text.Json.JsonDocument.Parse(json).RootElement.GetProperty("type").GetString();
+
     private static HttpRequestMessage CustomerGet(string token)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "/api/customer/ticket");
@@ -46,7 +49,7 @@ public sealed class EraseRequesterEndpointTests(TestPostgres postgres)
         erased.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         using var after = await customer.SendAsync(CustomerGet(seed.ValidToken), Ct);
         after.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-        (await after.Content.ReadAsStringAsync(Ct)).ShouldContain("not-found");
+        ProblemCode(await after.Content.ReadAsStringAsync(Ct)).ShouldBe("not-found");
     }
 
     [Fact]
@@ -77,7 +80,7 @@ public sealed class EraseRequesterEndpointTests(TestPostgres postgres)
         using var response = await admin.PostAsync($"/api/requesters/{Guid.NewGuid()}/erase", null, Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-        (await response.Content.ReadAsStringAsync(Ct)).ShouldContain("requester-not-found");
+        ProblemCode(await response.Content.ReadAsStringAsync(Ct)).ShouldBe("requester-not-found");
     }
 
     [Fact]
