@@ -169,7 +169,7 @@ public sealed class SensitiveDataLeakTests(TestPostgres postgres) : IAsyncLifeti
         created.StatusCode.ShouldBe(HttpStatusCode.Created);
         var number = (await created.Content.ReadFromJsonAsync<SubmitTicketResponse>(TestContext.Current.CancellationToken))!.TicketNumber;
 
-        using var sam = factory.CreateClient().Bearer(TestJwt.Token("sam", [TestJwt.AgentGroup], email: agentEmail, name: "Sam"));
+        using var sam = factory.CreateClient().Bearer(TestJwt.Token("sam", [TestJwt.AgentGroup], email: agentEmail, name: "Sam Hargreaves"));
         (await sam.GetAsync("/api/agents/me", TestContext.Current.CancellationToken)).EnsureSuccessStatusCode();
         var detail = (await sam.GetFromJsonAsync<TechStrap.Contracts.Tickets.TicketDetailDto>($"/api/tickets/{number}", TestContext.Current.CancellationToken))!;
         using var form = new MultipartFormDataContent { { new StringContent("We are looking into it"), "body" } };
@@ -184,7 +184,8 @@ public sealed class SensitiveDataLeakTests(TestPostgres postgres) : IAsyncLifeti
             payload = (string)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
         }
 
-        payload.ShouldContain("Orbitly Support");
+        payload.ShouldContain("Sam from Orbitly Support");
+        payload.ShouldNotContain("Hargreaves");
         payload.ShouldNotContain("@");
         var markerAt = payload.IndexOf(TokenMarker, StringComparison.Ordinal);
         markerAt.ShouldBeGreaterThan(-1);
@@ -195,19 +196,19 @@ public sealed class SensitiveDataLeakTests(TestPostgres postgres) : IAsyncLifeti
         columns.ShouldContain(("email_outbox", "payload"));
         foreach (var (table, column) in columns)
         {
-            foreach (var needle in new[] { token, agentEmail })
+            foreach (var needle in new[] { token, agentEmail, "Hargreaves" })
             {
                 var sql = $"SELECT count(*) FROM \"{table}\" WHERE \"{column}\"::text LIKE '%' || @needle || '%'";
                 await using var count = new NpgsqlCommand(sql, connection);
                 count.Parameters.AddWithValue("needle", needle);
                 var found = (long)(await count.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
                 var expected = needle == token && table == "email_outbox" && column == "payload" ? 1L : 0L;
-                if (needle == agentEmail && table == "agents" && column == "email")
+                if ((needle == agentEmail && table == "agents" && column == "email") || (needle == "Hargreaves" && table == "agents" && column == "name"))
                 {
                     continue; // the agent's own profile row legitimately holds it
                 }
 
-                found.ShouldBe(expected, $"{table}.{column} for {(needle == token ? "the reply token" : "the agent email")}");
+                found.ShouldBe(expected, $"{table}.{column} for {(needle == token ? "the reply token" : "the agent email or surname")}");
             }
         }
 

@@ -105,10 +105,10 @@ Record the exact package version in the linked package map. In the foundation ph
 
 Write the named handler test class first for every handler task (substitutes for repositories and fake `TimeProvider`), then implement.
 
-- [x] **P06-T01** Add Contracts DTOs and request types; extend `ContractNamingTests`
+- [ ] **P06-T01** Add Contracts DTOs and request types; extend `ContractNamingTests`
   - **Depends on:** none (inside this phase)
   - **Validation:** `ContractNamingTests` pass; DTO round-trip serialisation tests pass; no internal-only field (note bodies, hashes) in `Customer*` DTOs (`CustomerDtoShapeTests`)
-  - **06a evidence:** TicketDtoSerializationTests, ContractNamingTests (06a DTOs and requests; customer and dead-letter DTOs are 06b) (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
+  - **06a part done:** TicketDtoSerializationTests, ContractNamingTests (ticket DTOs and requests); **06b remaining:** customer and dead-letter DTOs (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
 - [x] **P06-T02** Implement `ITicketNotificationPlanner` with `TicketNotificationPlannerTests` (recipient rules per case, opt-in preferences, no email to the acting agent, no internal notes sent, branding of the ticket's current product) and `TicketNotificationPlanner` over `IEmailOutbox`, staging template data only (D-033); add the new templates
   - **Depends on:** P06-T01
   - **Validation:** `TicketNotificationPlannerTests` pass; template snapshot tests for all new templates; outbox rows are created in the caller's transaction (integration test with rollback)
@@ -139,19 +139,19 @@ Write the named handler test class first for every handler task (substitutes for
   - **06a evidence:** AssignTicketRequestHandlerTests, ChangeTicketPriorityRequestHandlerTests, MoveTicketProductRequestHandlerTests, TicketFieldEndpointTests (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
 - [x] **P06-T09** `AddTicketTagRequestHandlerTests`, `RemoveTicketTagRequestHandlerTests` and handlers
   - **Depends on:** P06-T04
-  - **Validation:** duplicate add is 409; remove of absent tag is 404; `TagAdded`/`TagRemoved` events written
+  - **Validation:** tags are idempotent (D-036): adding a tag the ticket has, or removing one it lacks, is 200 with no event; an unknown tag id is 404; `TagAdded`/`TagRemoved` events written
   - **06a evidence:** AddTicketTagRequestHandlerTests, RemoveTicketTagRequestHandlerTests, TicketTagAndSpamEndpointTests (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
-- [x] **P06-T10** `MarkTicketSpamRequestHandlerTests` and `DeleteTicketRequestHandlerTests` plus handlers (`DeleteTicketIntegrationTests`: messages, events, attachment rows and files, and pending outbox rows are removed; an `AdminEvent` without ticket content is written)
+- [ ] **P06-T10** `MarkTicketSpamRequestHandlerTests` and `DeleteTicketRequestHandlerTests` plus handlers (`DeleteTicketIntegrationTests`: messages, events, attachment rows and files, and pending outbox rows are removed; an `AdminEvent` without ticket content is written)
   - **Depends on:** P06-T04
   - **Validation:** spam sets and clears the flag and hides from the normal views; delete leaves no rows or files for the ticket; delete is Admin-only and spam is available to Agents (`TicketAuthorizationTests`, D-022)
-  - **06a evidence:** 06a half only (MarkTicketSpamRequestHandlerTests, TicketTagAndSpamEndpointTests); delete-ticket is 06b (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
+  - **06a part done:** mark spam (MarkTicketSpamRequestHandlerTests, TicketTagAndSpamEndpointTests); **06b remaining:** delete-ticket (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
 - [ ] **P06-T11** `EraseRequesterRequestHandlerTests` and handler; `EraseRequesterIntegrationTests`
   - **Depends on:** P06-T10
   - **Validation:** after erase no message body, name, email or attachment file for that requester remains; ticket numbers and event ids survive; tokens revoked; `AdminEvent` written; a search for the old email finds nothing
-- [x] **P06-T12** `GetAttachmentRequestHandlerTests` and handler with `AttachmentsController` (one route, `GET /api/attachments/{id}`, agent JWT or `X-Ticket-Token`); safe headers (`Content-Disposition: attachment`, `X-Content-Type-Options: nosniff`)
+- [ ] **P06-T12** `GetAttachmentRequestHandlerTests` and handler with `AttachmentsController` (one route, `GET /api/attachments/{id}`, agent JWT or `X-Ticket-Token`); safe headers (`Content-Disposition: attachment`, `X-Content-Type-Options: nosniff`)
   - **Depends on:** P06-T05
   - **Validation:** agent can download any ticket's attachment; customer token only that ticket's public attachments; internal-note attachments denied (404 uniform); forged or expired token gets 404
-  - **06a evidence:** 06a half only, agent download (GetAttachmentRequestHandlerTests, AttachmentDownloadEndpointTests); the customer-token half is 06b (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
+  - **06a part done:** agent download (GetAttachmentRequestHandlerTests, AttachmentDownloadEndpointTests); **06b remaining:** customer-token access (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
 - [ ] **P06-T13** `GetCustomerTicketRequestHandlerTests` and handler; `CustomerTicketsController.Get`
   - **Depends on:** P06-T01
   - **Validation:** invalid, expired and revoked tokens give byte-identical 404 bodies (`UniformNotFoundTests`); no tags, notes or other requesters in output; expiry slides on success
@@ -173,18 +173,18 @@ Write the named handler test class first for every handler task (substitutes for
 - [ ] **P06-T19** Configure Serilog PII redaction (requester email, names, tokens) and rate limits for customer routes; add `LogRedactionTests` and options validation tests
   - **Depends on:** P06-T13
   - **Validation:** a fixture email and token submitted through the API never appear in captured log output; bad limit options fail startup
-- [x] **P06-T20** Extend architecture tests (controller delegation, handler constructor rules, `Customer*` DTO shape, no handler returns transport types) and add `TicketLifecycleEndToEndTests` (submit, list, reply, customer reply, solve, auto-close, customer reply creating a follow-up) plus OpenAPI surface and `.env.example` updates
+- [ ] **P06-T20** Extend architecture tests (controller delegation, handler constructor rules, `Customer*` DTO shape, no handler returns transport types) and add `TicketLifecycleEndToEndTests` (submit, list, reply, customer reply, solve, auto-close, customer reply creating a follow-up) plus OpenAPI surface and `.env.example` updates
   - **Depends on:** P06-T05, P06-T11, P06-T14, P06-T16, P06-T17
   - **Validation:** `dotnet test` green; the end-to-end test passes on Testcontainers with a fake clock; `OpenApiSurfaceTests` lists every route in the table
-  - **06a evidence:** 06a part only (TicketLifecycleEndToEndTests submit-to-Solved, OpenApiSurfaceTests); customer reply, auto-close and follow-up are 06b (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
+  - **06a part done:** TicketLifecycleEndToEndTests submit-to-Solved, OpenApiSurfaceTests; **06b remaining:** customer reply, auto-close and follow-up in the lifecycle test, the customer-route architecture tests (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
 - [x] **P06-T21** (D-024) Add `TicketView.Spam` to `ListTicketsRequestHandler` (all statuses with `is_spam = true`; every other view excludes spam) and extend `MarkTicketSpamRequestHandler` and `PUT /api/tickets/{id}/spam` to take `IsSpam` so Not spam is idempotent
   - **Depends on:** P06-T03, P06-T10
   - **Validation:** `ListTicketsRequestHandlerTests` and `ListTicketsIntegrationTests`: a spam ticket appears only in the Spam view and in none of the five; after Not spam it returns to its normal views with its status unchanged; the partial `is_spam` index is used (`EXPLAIN`); Agents may set and clear the flag; the event is written and no outbox row is created; a repeat call is a no-op
   - **06a evidence:** ListTicketsRequestHandlerTests, TicketTagAndSpamEndpointTests, MarkTicketSpamRequestHandlerTests (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
-- [x] **P06-T22** (D-024) Resolve the customer-facing agent name with `AgentPublicIdentity.Resolve` in `AddAgentReplyRequestHandler` (passed to the planner; the outbox row stores the resolved public name in its template data, and the reply message by id, not the body, D-036) and in `GetCustomerTicketRequestHandler` (an `AuthorDisplayName` on the public message DTO); `CustomerTicketDto` carries no agent id, email or surname
+- [ ] **P06-T22** (D-024) Resolve the customer-facing agent name with `AgentPublicIdentity.Resolve` in `AddAgentReplyRequestHandler` (passed to the planner; the outbox row stores the resolved public name in its template data, and the reply message by id, not the body, D-036) and in `GetCustomerTicketRequestHandler` (an `AuthorDisplayName` on the public message DTO); `CustomerTicketDto` carries no agent id, email or surname
   - **Depends on:** P06-T05, P06-T13, P03-T17, P05-T18
   - **Validation:** tests: default gives "Sam from Orbitly Support", an override gives "Samantha from Orbitly Support"; the serialized customer DTO and the agent-reply outbox row contain the resolved name and no agent email; changing the override affects later replies, not already queued rows (`SensitiveDataLeakTests` extended)
-  - **06a evidence:** 06a reply half only (AddAgentReplyRequestHandlerTests, SensitiveDataLeakTests agent-reply case); the customer DTO half is 06b (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
+  - **06a part done:** agent-reply half (AddAgentReplyRequestHandlerTests, SensitiveDataLeakTests agent-reply case); **06b remaining:** customer DTO author name (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
 
 
 ## Success Criteria

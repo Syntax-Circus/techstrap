@@ -49,6 +49,12 @@ public sealed class TicketLifecycleEndToEndTests(TestPostgres postgres) : IDispo
         return kinds;
     }
 
+    private static (string From, string To) Transition(TicketEventDto e)
+    {
+        using var json = System.Text.Json.JsonDocument.Parse(e.PayloadJson);
+        return (json.RootElement.GetProperty("from").GetString()!, json.RootElement.GetProperty("to").GetString()!);
+    }
+
     [Fact]
     public async Task A_ticket_goes_from_submission_to_solved_through_the_agent_api()
     {
@@ -138,6 +144,8 @@ public sealed class TicketLifecycleEndToEndTests(TestPostgres postgres) : IDispo
         }
 
         (await OutboxKindsAsync(database)).ShouldBe(["ticket-confirmation", "agent-reply"], ignoreOrder: true);
+        var firstResponseAt = (await sam.GetFromJsonAsync<TicketDetailDto>($"/api/tickets/{id}", Ct))!.FirstResponseAt;
+        firstResponseAt.ShouldNotBeNull();
 
         // 6. Priority, tag, product move: the number stays.
         var version = await TicketTestData.VersionAsync(sam, id);
@@ -179,25 +187,19 @@ public sealed class TicketLifecycleEndToEndTests(TestPostgres postgres) : IDispo
         final.Messages.Count(m => m.Visibility == "Internal").ShouldBe(1);
         final.Messages.Count(m => m.AuthorType == "Agent" && m.Visibility == "Public").ShouldBe(1);
 
+        final.FirstResponseAt.ShouldBe(firstResponseAt, "first response is stamped once");
+
         var types = final.Events.Select(e => e.Type).ToList();
         string[] expected =
         [
-            nameof(TicketEventType.Created), nameof(TicketEventType.Assigned), nameof(TicketEventType.MessageAdded),
+            nameof(TicketEventType.Created), nameof(TicketEventType.MessageAdded), nameof(TicketEventType.Assigned), nameof(TicketEventType.MessageAdded),
             nameof(TicketEventType.MessageAdded), nameof(TicketEventType.StatusChanged), nameof(TicketEventType.PriorityChanged),
             nameof(TicketEventType.TagAdded), nameof(TicketEventType.ProductChanged), nameof(TicketEventType.StatusChanged),
         ];
-        var cursor = 0;
-        foreach (var type in types)
-        {
-            if (cursor < expected.Length && type == expected[cursor])
-            {
-                cursor++;
-            }
-        }
-
-        cursor.ShouldBe(expected.Length, $"events in order should contain {string.Join(", ", expected)} but were {string.Join(", ", types)}");
-        final.Events[^1].Type.ShouldBe(nameof(TicketEventType.StatusChanged));
-        final.Events[^1].PayloadJson.ShouldContain("Solved");
+        types.ShouldBe(expected);
+        var statusEvents = final.Events.Where(e => e.Type == nameof(TicketEventType.StatusChanged)).ToList();
+        Transition(statusEvents[0]).ShouldBe(("New", "Pending")); // assigning does not open a New ticket
+        Transition(statusEvents[1]).ShouldBe(("Pending", "Solved"));
 
         // 9. The agent downloads the PNG.
         using var download = await sam.GetAsync($"/api/attachments/{attachment.Id}", Ct);
