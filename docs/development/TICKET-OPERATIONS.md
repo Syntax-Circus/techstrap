@@ -4,6 +4,7 @@ What an agent can do to a ticket through the API: list, read, reply, note, chang
 tags and spam, and download attachments. Submission is covered in [INTAKE.md](INTAKE.md); sign-in is covered in
 [AGENT-AUTHENTICATION.md](../self-hosting/AGENT-AUTHENTICATION.md). The customer routes (read, reply, lost link, attachments) and auto-close are covered under [Customer access](#customer-access).
 Delete and erase and dead letters arrive with PHASE-06c.
+The agent app that drives these routes is described in [ADMIN-APP.md](ADMIN-APP.md).
 
 All routes below need an agent bearer token (a member of the agent group). Set it once, together with a ticket id:
 

@@ -45,7 +45,7 @@ PHASE-07 lands in three PRs. Each task id below carries its PR in brackets.
 - **Destructive actions** (delete ticket, erase requester, revoke key, discard dead letter, deactivate agent) use a shared `ConfirmDialog` requiring explicit confirmation; erase-requester requires typing the requester's email. **Assumption.**
 - **Role-gated UI (D-022):** delete ticket, erase requester, dead letters, products, API keys, agents, tags and the audit log are Admin-only and hidden from Agents (the API enforces the policy); mark spam, ticket handling, KB articles and the notification preferences are available to every Agent. The assignee picker uses the Agent-readable active-agent list.
 - **API key secrets are shown once** (returned by `CreateProductApiKeyRequestHandler`), never persisted in component state beyond the dialog's lifetime, never logged.
-- **Tests**: bUnit for component behavior in the new `tests/TechStrap.Admin.Tests` project (bUnit and `Microsoft.Extensions.TimeProvider.Testing` versions are in [03-PACKAGE-MAP.md](03-PACKAGE-MAP.md)). Playwright smoke tests are optional (**Assumption**, P07-T21).
+- **Tests**: bUnit for component behavior in the new `tests/TechStrap.Admin.Tests` project (bUnit and `Microsoft.Extensions.TimeProvider.Testing` versions are in [03-PACKAGE-MAP.md](03-PACKAGE-MAP.md)). Playwright smoke tests move to PHASE-12 (D-040, P07-T21); PHASE-07 has no Playwright dependency.
 
 ## Application Boundaries
 
@@ -137,50 +137,63 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 - [ ] Ticket detail with timeline, reply/internal note, sidebar actions, tags, attachments, spam/delete/erase.
 - [ ] Settings: products + branding, API keys, agents, tags, notification preferences.
 - [ ] Dead letters and admin-events pages.
-- [ ] `tests/TechStrap.Admin.Tests` (bUnit) and CI step; optional Playwright smoke (**Assumption**).
+- [ ] `tests/TechStrap.Admin.Tests` (bUnit) and CI step (Playwright smoke moved to PHASE-12, D-040).
 - [ ] Admin Dockerfile run verified; compose service healthy.
 
 ## Actionable Tasks
 
-- [ ] **P07-T01** [07a] Add `TechStrap.Admin/.env.example` keys and options classes (OIDC authority/client id/secret, API base URL, group names, cookie settings) with constants for config section names
+- [x] **P07-T01** [07a] Add `TechStrap.Admin/.env.example` keys and options classes (OIDC authority/client id/secret, API base URL, group names, cookie settings) with constants for config section names
   - **Depends on:** P01 (host skeleton)
   - **Validation:** App fails fast with a clear message when a required key is missing (unit test on options validation); `.env.example` lists every key.
+  - **07a evidence:** the Task 3 options tests, `EnvExampleCompletenessTests`
 - [ ] **P07-T02** [07a] Wire cookie + OIDC sign-in with `SaveTokens`, `offline_access`, `AddBlazorTokenForwarding`, `UseBlazorTokenCache` in the documented middleware order
   - **Depends on:** P07-T01
   - **Validation:** Manual sign-in against UAT/local Authentik reaches the shell; `GET /api/agents/me` succeeds with the forwarded token; request log shows no token values.
-- [ ] **P07-T03** [07a] Extend the `tests/TechStrap.Admin.Tests` project (skeleton created in PHASE-02; add bUnit) and the `Shared/` primitives: `LoadingState`, `ErrorState`, `EmptyState`, `ConfirmDialog`, `StatusBadge`, `PriorityBadge`, `TagChip`, `PagerControl`
+  - **07a evidence (automated part):** `AdminSignInTests`, `AgentSessionTests`, `AgentGateTests`, `AgentAccessHostTests`, `AdminHostSmokeTests`, `AdminLeakTests`. The manual sign-in against a real provider is still open (Authentik is not set up; docs/development/ADMIN-APP.md)
+- [x] **P07-T03** [07a] Extend the `tests/TechStrap.Admin.Tests` project (skeleton created in PHASE-02; add bUnit) and the `Shared/` primitives: `LoadingState`, `ErrorState`, `EmptyState`, `ConfirmDialog`, `StatusBadge`, `PriorityBadge`, `TagChip`, `PagerControl`
   - **Depends on:** P07-T02, P02 SCSS tokens
   - **Validation:** bUnit tests per component (render states, callback fires once, focus lands in dialog); no component beyond the inline ceiling lacks a `.razor.cs`.
-- [ ] **P07-T04** [07a] Build `App.razor`, `Routes.razor`, `MainLayout`, `NavMenu`, `NotFoundPage`, `NoAccessPage` with `GlobalErrorBoundary` and `ReconnectModal`
+  - **07a evidence:** `StateComponentTests`, `TagChipAndPagerTests`, `ConfirmDialogTests`, `TicketDisplayTests` (the spec's StatusBadge/PriorityBadge are the existing StatusStamp/PriorityMark plus TicketDisplay, D-040)
+- [x] **P07-T04** [07a] Build `App.razor`, `Routes.razor`, `MainLayout`, `NavMenu`, `NotFoundPage`, `NoAccessPage` with `GlobalErrorBoundary` and `ReconnectModal`
   - **Depends on:** P07-T03
   - **Validation:** bUnit: throwing child shows fallback and "Try again" recovers; unknown route renders not-found; non-agent principal sees no-access page.
+  - **07a evidence:** `MainLayoutTests`, `ShellComponentTests`, `AgentGateTests`, `ReconnectAndErrorTests`
 - [ ] **P07-T05** [07a] Implement typed clients (`IAgentsClient`, `IProductsClient`, `ITagsClient`, `IAdminEventsClient`) over `ApiClientBase` with ProblemDetails -> `Result` mapping and per-client resilience config
   - **Depends on:** P07-T02
   - **Validation:** Unit tests with stub `HttpMessageHandler`: success, 400 field errors, 403, 409, 503 retry on GET only, cancellation token propagated.
+  - **07a evidence:** 07a: agents, products and tags clients (`ApiConnectionTests`, `ReferenceDataClientTests`); `IAdminEventsClient` arrives in 07b
 - [ ] **P07-T06** [07a] Implement `ITicketsClient`, `IAttachmentsClient`, `IDeadLettersClient` (including `RowVersion` in the request body; replace local state with the returned `TicketStateDto` (D-036) and multipart reply submit (D-036))
   - **Depends on:** P07-T05
   - **Validation:** Same stub-handler suite; 409 maps to a distinct `Result` error code constant used by components.
-- [ ] **P07-T07** [07a] Build `TicketQueuePage`, `QueueViewTabs`, `QueueFilterBar`, `TicketRow`, paging, with query-string state
+  - **07a evidence:** 07a: `ITicketsClient`, `IRequestersClient`, the attachment pass-through (`TicketsClientTests`, `AttachmentPassThroughTests`); there is no `IAttachmentsClient` (the pass-through is an endpoint, D-017) and `IDeadLettersClient` arrives in 07b
+- [x] **P07-T07** [07a] Build `TicketQueuePage`, `QueueViewTabs`, `QueueFilterBar`, `TicketRow`, paging, with query-string state
   - **Depends on:** P07-T06, P07-T03
   - **Validation:** bUnit with fake `ITicketsClient`: each view tab requests the right filter; search debounce issues one call; empty/error/loading render; page change preserves filters.
-- [ ] **P07-T08** [07a] Build `TicketDetailPage` and `TicketDetailPresenter` (async assembly of detail + lookups) with loading/NotFound/error states and concurrency-token handling
+  - **07a evidence:** `TicketQueuePageTests` (default Unassigned, only the Spam tab asks for spam, one debounced call, paging keeps filters)
+- [x] **P07-T08** [07a] Build `TicketDetailPage` and `TicketDetailPresenter` (async assembly of detail + lookups) with loading/NotFound/error states and concurrency-token handling
   - **Depends on:** P07-T06, P07-T03
   - **Validation:** bUnit: 404 shows NotFound view; presenter unit test maps a `TicketDetailDto` fixture to the view model; closed ticket renders read-only (no composer/actions).
-- [ ] **P07-T09** [07a] Build `TicketTimeline` + `TimelineEntryFactory` covering every `TicketEvent` type (Created, MessageAdded, StatusChanged, Assigned, ProductChanged, PriorityChanged, TagAdded, TagRemoved, plus spam/follow-up events defined in P06)
+  - **07a evidence:** `TicketDetailPageTests`, `TicketDetailPresenterTests`
+- [x] **P07-T09** [07a] Build `TicketTimeline` + `TimelineEntryFactory` covering every `TicketEvent` type (Created, MessageAdded, StatusChanged, Assigned, ProductChanged, PriorityChanged, TagAdded, TagRemoved, plus spam/follow-up events defined in P06)
   - **Depends on:** P07-T08
   - **Validation:** Unit test is a theory over every event-type constant; unknown type renders a generic entry rather than throwing.
-- [ ] **P07-T10** [07a] Build `MessageThread`/`MessageBubble`/`AttachmentList` and the admin-hosted `GET /attachments/{id}` pass-through
+  - **07a evidence:** `TimelineEntryFactoryTests` (every `TicketEventTypes` constant)
+- [x] **P07-T10** [07a] Build `MessageThread`/`MessageBubble`/`AttachmentList` and the admin-hosted `GET /attachments/{id}` pass-through
   - **Depends on:** P07-T08
   - **Validation:** bUnit: internal notes visually distinct; the only `MarkupString` site renders the sanitized body; host test: pass-through streams bytes, sets `Content-Disposition: attachment` and `X-Content-Type-Options: nosniff`, returns 404 for an unknown id and never reaches the DB (no Infrastructure reference).
-- [ ] **P07-T11** [07a] Build `ReplyComposer` (public reply / internal note) with draft preservation and validation
+  - **07a evidence:** `TicketDetailPageTests`, `MarkupStringSiteTests`, `AttachmentPassThroughTests`, `AdminHostSmokeTests`
+- [x] **P07-T11** [07a] Build `ReplyComposer` (public reply / internal note) with draft preservation and validation
   - **Depends on:** P07-T08
   - **Validation:** bUnit: submit calls the correct client method per mode; double-submit prevented; draft kept on 409/failed submit; cleared on success.
-- [ ] **P07-T12** [07a] Build `TicketSidebar` and `TagPicker` for status/assignee/priority/product/tags, honoring legal transitions from the API error response
+  - **07a evidence:** `ReplyComposerTests` (`Draft_and_files_survive_a_conflict`)
+- [x] **P07-T12** [07a] Build `TicketSidebar` and `TagPicker` for status/assignee/priority/product/tags, honoring legal transitions from the API error response
   - **Depends on:** P07-T08
   - **Validation:** bUnit: each action calls its client method with the current concurrency token; failure shows inline error and reverts display; Closed hides actions.
-- [ ] **P07-T13** [07a] Build spam/delete ticket and `EraseRequesterDialog` flows (typed-email confirmation); spam is available to Agents, delete and erase are shown to Admins only (D-022)
+  - **07a evidence:** `TicketSidebarTests`, `TicketDetailConflictTests`
+- [x] **P07-T13** [07a] Build spam/delete ticket and `EraseRequesterDialog` flows (typed-email confirmation); spam is available to Agents, delete and erase are shown to Admins only (D-022)
   - **Depends on:** P07-T12, P07-T03
   - **Validation:** bUnit: confirm button disabled until the email matches; success navigates to the queue; cancel makes no call; delete and erase are absent for an Agent principal and present for an Admin, spam is present for both.
+  - **07a evidence:** `DestructiveActionTests`
 - [ ] **P07-T14** [07b] Build `ProductsPage` and `ProductEditorPage` including branding fields and accent-colour validation
   - **Depends on:** P07-T05, P07-T03
   - **Validation:** bUnit: invalid accent rejected client-side with the same constant as the server regex; server 400 errors map to fields; Admin-only actions hidden for Agent role.
@@ -206,9 +219,10 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 - [ ] **P07-T21** Moved to PHASE-12 (D-040): optional Playwright smoke tests for sign-in-free paths.
   - **Depends on:** P07-T11, P07-T20
   - **Validation:** Smoke run passes against compose with seed data in CI nightly (not blocking PRs).
-- [ ] **P07-T22** [07a] (D-024) Add the **Spam** view to the rail and `QueueViewTabs` (requests `TicketView.Spam`; plain "No spam" empty state; muted count) and the **Not spam** action: key `u` on the selected Spam-view row or an open flagged ticket, plus the overflow menu and palette command; status-bar hint, status message "Restored ACME-142 from spam" and shortcut help entry. `u` follows the typing guard and the My settings shortcut toggle
+- [x] **P07-T22** [07a] (D-024) Add the **Spam** view to the rail and `QueueViewTabs` (requests `TicketView.Spam`; plain "No spam" empty state; muted count) and the **Not spam** action: key `u` on the selected Spam-view row or an open flagged ticket, plus the overflow menu and palette command; status-bar hint, status message "Restored ACME-142 from spam" and shortcut help entry. `u` follows the typing guard and the My settings shortcut toggle
   - **Depends on:** P07-T07, P07-T13, P06-T21
   - **Validation:** bUnit with fake `ITicketsClient`: the Spam tab requests the Spam view and the five normal tabs never request it; `u` sends `IsSpam = false` once, removes the row and shows the status message; `u` does nothing while typing, with shortcuts off, or on a ticket that is not flagged; Not spam is present for an Agent principal; the help dialog lists `u`; no clash with `j`, `k`, `r`, `n`, `e`, `/`
+  - **07a evidence:** `TicketQueuePageTests`, `NotSpamQueueTests`, `DestructiveActionTests`, `ShortcutServiceTests` (the palette command is part of the 07c palette)
 - [ ] **P07-T23** [07b] (D-024) Add the optional **Public display name** field to My settings (`PublicDisplayNameField`, `MyProfileViewModel`, `IAgentsClient.UpdateMyProfile`) with the live preview line "Customers see: Sam from Orbitly Support", helper text that email is never shown, and inline save confirmation
   - **Depends on:** P07-T16, P04-T15
   - **Validation:** bUnit: the preview shows "Sam from Orbitly Support" by default, "Samantha from Orbitly Support" while typing "Samantha", and returns to the default when cleared; save calls `UpdateMyProfile` once and shows confirmation; an over-long name or one containing `@` shows the field error from a 422; the field is optional
@@ -216,15 +230,15 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 
 ## Success Criteria
 
-- [ ] An agent in the configured group signs in, sees the queue with all five views plus the Spam view, filters and searches, pages results, and opens a ticket.
-- [ ] From ticket detail an agent can reply publicly, add an internal note, change status/assignee/priority/product, tag, mark spam, delete, and erase the requester; every action is reflected in the timeline after reload.
+- [x] An agent in the configured group signs in, sees the queue with all five views plus the Spam view, filters and searches, pages results, and opens a ticket. (07a evidence: `TicketQueuePageTests`, `AdminHostSmokeTests`)
+- [x] From ticket detail an agent can reply publicly, add an internal note, change status/assignee/priority/product, tag, mark spam, delete, and erase the requester; every action is reflected in the timeline after reload. (07a evidence: `ReplyComposerTests`, `TicketSidebarTests`, `DestructiveActionTests`)
 - [ ] A non-agent user is rejected by the API and sees the no-access page; an expired session prompts re-sign-in instead of a blank error.
 - [ ] Admin can create/edit products with branding, create (show-once) and revoke Trusted/Public keys, manage agents/tags/notification preferences, and retry/discard dead letters.
-- [ ] The Spam view lists flagged tickets and `u` restores one (Not spam) without a dialog; normal views never show spam (D-024).
+- [x] The Spam view lists flagged tickets and `u` restores one (Not spam) without a dialog; normal views never show spam (D-024). (07a evidence: `NotSpamQueueTests`)
 - [ ] An agent can set a public display name in My settings and sees the live preview "Customers see: ..." (D-024).
-- [ ] A 409 concurrency conflict never loses a typed reply draft.
+- [x] A 409 concurrency conflict never loses a typed reply draft. (07a evidence: `ReplyComposerTests`, `TicketDetailConflictTests`)
 - [ ] `dotnet build`, `dotnet test` (including bUnit and architecture tests) are green; admin container is healthy under compose.
-- [ ] Admin project references only Contracts (plus packages), verified by the architecture test.
+- [ ] Admin project references only Contracts and Hosting (plus packages; D-040), never Application, Infrastructure or Domain, verified by the architecture test (07c).
 
 ## Boundary Validation
 
