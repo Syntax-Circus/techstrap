@@ -41,6 +41,8 @@ internal sealed class EmailOutboxRecordConfiguration : IEntityTypeConfiguration<
         // Dead letters are rare and listed newest first. A plain status index is not selective enough for the claim query (the planner prefers it over the two partial indexes above).
         builder.HasIndex(e => e.CreatedAt).HasDatabaseName("ix_email_outbox_created_at_when_dead_lettered").HasFilter("status = 'DeadLettered'");
         builder.HasIndex(e => e.TicketId);
+        // The per-address lost-link count (CountRecentAsync) filters on exactly these three columns (D-038, D-039).
+        builder.HasIndex(e => new { e.Kind, e.ToAddress, e.CreatedAt }).HasDatabaseName("ix_email_outbox_kind_to_address_created_at");
     }
 }
 

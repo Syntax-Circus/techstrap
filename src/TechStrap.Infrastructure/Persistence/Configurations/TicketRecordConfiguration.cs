@@ -25,7 +25,8 @@ internal sealed class TicketRecordConfiguration : IEntityTypeConfiguration<Ticke
         builder.HasOne<ProductRecord>().WithMany().HasForeignKey(t => t.ProductId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<RequesterRecord>().WithMany().HasForeignKey(t => t.RequesterId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<AgentRecord>().WithMany().HasForeignKey(t => t.AssigneeId).OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne<TicketRecord>().WithMany().HasForeignKey(t => t.ParentTicketId).OnDelete(DeleteBehavior.Restrict);
+        // Hard-deleting a parent ticket (Admin only, D-006, D-039) unlinks its follow-ups; their own events keep parentTicketId.
+        builder.HasOne<TicketRecord>().WithMany().HasForeignKey(t => t.ParentTicketId).OnDelete(DeleteBehavior.SetNull);
         builder.HasMany(t => t.Tags).WithOne().HasForeignKey(tag => tag.TicketId).OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(t => t.Number).IsUnique();
