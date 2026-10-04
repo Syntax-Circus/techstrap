@@ -42,28 +42,28 @@ public sealed class AttachmentFileNameTests
         sanitised.Length.ShouldBeLessThanOrEqualTo(DomainLimits.FileNameMaxLength);
     }
 
-    [Fact]
-    public void Sanitising_twice_changes_nothing()
+    [Theory]
+    [MemberData(nameof(IdempotentTestCases))]
+    public void Sanitising_twice_changes_nothing(string? input)
     {
-        var testCases = new[]
-        {
-            "shot.png",
-            "C:\\fakepath\\shot.png",
-            "../../etc/passwd.txt",
-            "  spaced.png  ",
-            "a\u0007b\u200Ec.png",
-            "",
-            ".",
-            "..",
-            "folder/",
-            new string('a', 250) + "😀" + new string('b', 10) + ".png",
-        };
-
-        foreach (var testCase in testCases)
-        {
-            var first = AttachmentFileName.Sanitize(testCase);
-            var second = AttachmentFileName.Sanitize(first);
-            second.ShouldBe(first, $"Sanitizing '{testCase}' twice should not change the result");
-        }
+        var first = AttachmentFileName.Sanitize(input);
+        var second = AttachmentFileName.Sanitize(first);
+        second.ShouldBe(first, $"Sanitizing '{input}' twice should not change the result");
     }
+
+    public static IEnumerable<object?[]> IdempotentTestCases() =>
+        new[]
+        {
+            new object?[] { "shot.png" },
+            new object?[] { "C:\\fakepath\\shot.png" },
+            new object?[] { "../../etc/passwd.txt" },
+            new object?[] { "  spaced.png  " },
+            new object?[] { "a\u0007b\u200Ec.png" },
+            new object?[] { "" },
+            new object?[] { null },
+            new object?[] { "." },
+            new object?[] { ".." },
+            new object?[] { "folder/" },
+            new object?[] { new string('a', 250) + "😀" + new string('b', 10) + ".png" },
+        };
 }
