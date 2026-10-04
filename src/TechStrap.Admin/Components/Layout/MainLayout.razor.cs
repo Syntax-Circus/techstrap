@@ -19,7 +19,27 @@ public partial class MainLayout : IDisposable
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
 
-    protected override void OnInitialized() => Shortcuts.Pressed += OnShortcutAsync;
+    /// <summary>
+    /// The page has <c>&lt;base href="/"&gt;</c>, so a bare <c>#main</c> would resolve to the home page. The link names the current address with the fragment replaced.
+    /// <c>main</c> has <c>tabindex="-1"</c>, so following the fragment also moves focus.
+    /// </summary>
+    private string SkipLinkHref
+    {
+        get
+        {
+            var uri = Navigation.Uri;
+            var hash = uri.IndexOf('#', StringComparison.Ordinal);
+            return (hash < 0 ? uri : uri[..hash]) + "#main";
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        Shortcuts.Pressed += OnShortcutAsync;
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) => _ = InvokeAsync(StateHasChanged);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -54,5 +74,9 @@ public partial class MainLayout : IDisposable
 
     private void CloseHelp() => _helpOpen = false;
 
-    public void Dispose() => Shortcuts.Pressed -= OnShortcutAsync;
+    public void Dispose()
+    {
+        Shortcuts.Pressed -= OnShortcutAsync;
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
 }

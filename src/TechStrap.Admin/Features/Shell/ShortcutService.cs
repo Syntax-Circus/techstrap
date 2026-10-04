@@ -37,6 +37,7 @@ public sealed class ShortcutService(IJSRuntime js) : IAsyncDisposable
 
     private IJSObjectReference? _module;
     private DotNetObjectReference<ShortcutService>? _self;
+    private Task? _starting;
 
     /// <summary>Raised once per recognised shortcut; every handler is awaited in subscription order.</summary>
     public event Func<ShortcutAction, Task>? Pressed;
@@ -85,17 +86,31 @@ public sealed class ShortcutService(IJSRuntime js) : IAsyncDisposable
         };
     }
 
-    /// <summary>Imports the module and registers the document listener. Call it once per circuit, after the first render.</summary>
-    public async Task StartAsync()
-    {
-        if (_module is not null)
-        {
-            return;
-        }
+    /// <summary>
+    /// Imports the module and registers the document listener. Call it once per circuit, after the first render. Concurrent calls share one start, and a
+    /// circuit that is already gone is not an error. Any other failure lets the next call try again.
+    /// </summary>
+    public Task StartAsync() => _starting ??= StartCoreAsync();
 
-        _module = await js.InvokeAsync<IJSObjectReference>("import", ModulePath);
-        _self = DotNetObjectReference.Create(this);
-        await _module.InvokeVoidAsync("register", _self);
+    private async Task StartCoreAsync()
+    {
+        try
+        {
+            var module = await js.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            var self = DotNetObjectReference.Create(this);
+            _module = module;
+            _self = self;
+            await module.InvokeVoidAsync("register", self);
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is gone, and so is the page that would have held the listener.
+        }
+        catch
+        {
+            _starting = null;
+            throw;
+        }
     }
 
     [JSInvokable]
@@ -127,7 +142,9 @@ public sealed class ShortcutService(IJSRuntime js) : IAsyncDisposable
         {
             // The circuit is gone, and so is the page that held the listener.
         }
-
-        _self?.Dispose();
+        finally
+        {
+            _self?.Dispose();
+        }
     }
 }

@@ -101,15 +101,28 @@ public sealed class ConfirmDialogTests : AdminComponentTest
     }
 
     [Fact]
-    public void Enter_cannot_confirm_because_there_is_no_form_and_the_buttons_are_not_submit_buttons()
+    public void There_is_no_implicit_submit_and_the_initial_focus_is_never_a_button()
     {
         var cut = RenderDialog(p => p.Add(c => c.RequiredText, "ACME-142"));
+        // Read before typing: bUnit blanks the element reference once a later render has happened.
+        Dialogs.Invocations["open"].Single().Arguments[1].ShouldBeElementReferenceTo(cut.Find("input"));
         Type(cut, "ACME-142");
 
         cut.FindAll("form").ShouldBeEmpty();
         cut.FindAll("button").ShouldAllBe(button => button.GetAttribute("type") == "button");
         cut.Find("input").HasAttribute("onkeydown").ShouldBeFalse();
         _confirmed.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_dialog_whose_script_failed_to_open_does_not_try_to_close_on_dispose()
+    {
+        using var context = new BunitContext();
+        context.JSInterop.SetupModule("./js/dialog.js");
+
+        Should.Throw<Exception>(() => context.Render<ConfirmDialog>(p => p.Add(c => c.Open, true).Add(c => c.Title, "x")));
+
+        await Should.NotThrowAsync(async () => await context.DisposeComponentsAsync());
     }
 
     [Fact]

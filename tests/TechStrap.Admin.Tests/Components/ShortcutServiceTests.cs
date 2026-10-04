@@ -1,4 +1,7 @@
 using Bunit;
+using Microsoft.JSInterop;
+using Microsoft.JSInterop.Infrastructure;
+using NSubstitute;
 using TechStrap.Admin.Features.Shell;
 using TechStrap.Admin.Tests.Support;
 
@@ -98,6 +101,67 @@ public sealed class ShortcutServiceTests : AdminComponentTest
         await ShortcutService.StartAsync();
 
         Shortcuts.VerifyInvoke("register", 1);
+    }
+
+    [Fact]
+    public async Task Disposing_unregisters_the_listener_once_and_releases_the_dotnet_reference()
+    {
+        await ShortcutService.StartAsync();
+        var reference = (DotNetObjectReference<ShortcutService>)Shortcuts.Invocations["register"].Single().Arguments[0]!;
+
+        await ShortcutService.DisposeAsync();
+
+        Shortcuts.VerifyInvoke("unregister", 1);
+        Should.Throw<ObjectDisposedException>(() => reference.Value);
+    }
+
+    [Fact]
+    public async Task The_dotnet_reference_is_released_even_when_unregister_fails()
+    {
+        DotNetObjectReference<ShortcutService>? reference = null;
+        var module = Substitute.For<IJSObjectReference>();
+        module.InvokeAsync<IJSVoidResult>("register", Arg.Any<object?[]?>()).Returns(call =>
+        {
+            reference = (DotNetObjectReference<ShortcutService>)call.Arg<object?[]>()[0]!;
+            return ValueTask.FromResult<IJSVoidResult>(null!);
+        });
+        module.InvokeAsync<IJSVoidResult>("unregister", Arg.Any<object?[]?>()).Returns<ValueTask<IJSVoidResult>>(_ => throw new JSException("boom"));
+        var js = Substitute.For<IJSRuntime>();
+        js.InvokeAsync<IJSObjectReference>("import", Arg.Any<object?[]?>()).Returns(ValueTask.FromResult(module));
+        var service = new ShortcutService(js);
+        await service.StartAsync();
+
+        await Should.ThrowAsync<JSException>(async () => await service.DisposeAsync());
+
+        Should.Throw<ObjectDisposedException>(() => reference!.Value);
+    }
+
+    [Fact]
+    public async Task Concurrent_starts_import_and_register_once()
+    {
+        var gate = new TaskCompletionSource<IJSObjectReference>();
+        var module = Substitute.For<IJSObjectReference>();
+        module.InvokeAsync<IJSVoidResult>("register", Arg.Any<object?[]?>()).Returns(ValueTask.FromResult<IJSVoidResult>(null!));
+        var js = Substitute.For<IJSRuntime>();
+        js.InvokeAsync<IJSObjectReference>("import", Arg.Any<object?[]?>()).Returns(new ValueTask<IJSObjectReference>(gate.Task));
+        var service = new ShortcutService(js);
+
+        var first = service.StartAsync();
+        var second = service.StartAsync();
+        gate.SetResult(module);
+        await Task.WhenAll(first, second);
+
+        await js.Received(1).InvokeAsync<IJSObjectReference>("import", Arg.Any<object?[]?>());
+        await module.Received(1).InvokeAsync<IJSVoidResult>("register", Arg.Any<object?[]?>());
+    }
+
+    [Fact]
+    public async Task Starting_when_the_circuit_is_already_gone_does_not_throw()
+    {
+        var js = Substitute.For<IJSRuntime>();
+        js.InvokeAsync<IJSObjectReference>("import", Arg.Any<object?[]?>()).Returns<ValueTask<IJSObjectReference>>(_ => throw new JSDisconnectedException("gone"));
+
+        await Should.NotThrowAsync(() => new ShortcutService(js).StartAsync());
     }
 
     [Fact]

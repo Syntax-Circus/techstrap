@@ -92,14 +92,14 @@ public partial class ConfirmDialog : IAsyncDisposable
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (Open == _shown)
+        var wantOpen = Open;
+        if (wantOpen == _shown)
         {
             return;
         }
 
-        _shown = Open;
         _module ??= await Js.InvokeAsync<IJSObjectReference>("import", ModulePath);
-        if (Open)
+        if (wantOpen)
         {
             await _module.InvokeVoidAsync("open", _dialog, RequiredText is null ? _title : _input);
         }
@@ -107,6 +107,9 @@ public partial class ConfirmDialog : IAsyncDisposable
         {
             await _module.InvokeVoidAsync("close", _dialog);
         }
+
+        // Only after the script succeeded: a failed open must not leave us believing the dialog is showing.
+        _shown = wantOpen;
     }
 
     private void OnTyped(ChangeEventArgs e) => _typed = e.Value as string ?? string.Empty;

@@ -1,10 +1,10 @@
 @inherits LayoutComponentBase
 
-<a class="ts-skip-link" href="#main">Skip to main content</a>
+<a class="ts-skip-link" href="@SkipLinkHref">Skip to main content</a>
 <div class="ts-shell">
     <NavMenu />
     <div class="ts-content">
-        <main class="ts-main" id="main">
+        <main class="ts-main" id="main" tabindex="-1">
             <GlobalErrorBoundary BoundaryName="admin UI"
                                  CssClass="ts-error"
                                  Title="@UiCopy.ErrorTitle"

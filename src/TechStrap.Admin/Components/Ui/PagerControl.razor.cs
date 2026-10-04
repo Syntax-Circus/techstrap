@@ -20,11 +20,14 @@ public partial class PagerControl
 
     private int PageCount => Math.Max(1, (int)Math.Ceiling(TotalCount / (double)Math.Max(1, PageSize)));
 
-    private int First => ((Page - 1) * PageSize) + 1;
+    /// <summary>The page shown: <see cref="Page"/> kept inside the range, so a stale page number (the list shrank) never prints "201-60 of 60".</summary>
+    private int CurrentPage => Math.Clamp(Page, 1, PageCount);
 
-    private int Last => Math.Min(TotalCount, Page * PageSize);
+    private int First => ((CurrentPage - 1) * PageSize) + 1;
 
-    private Task PreviousAsync() => Page > 1 ? OnPageChanged.InvokeAsync(Page - 1) : Task.CompletedTask;
+    private int Last => Math.Min(TotalCount, CurrentPage * PageSize);
 
-    private Task NextAsync() => Page < PageCount ? OnPageChanged.InvokeAsync(Page + 1) : Task.CompletedTask;
+    private Task PreviousAsync() => CurrentPage > 1 ? OnPageChanged.InvokeAsync(CurrentPage - 1) : Task.CompletedTask;
+
+    private Task NextAsync() => CurrentPage < PageCount ? OnPageChanged.InvokeAsync(CurrentPage + 1) : Task.CompletedTask;
 }

@@ -86,7 +86,52 @@ public sealed class ShellComponentTests : AdminComponentTest
 
         Shortcuts.VerifyInvoke("register", 1);
         cut.Find("main#main #page").TextContent.ShouldBe("page");
-        cut.Find("a.ts-skip-link").GetAttribute("href").ShouldBe("#main");
+        cut.Find("main#main").GetAttribute("tabindex").ShouldBe("-1");
+    }
+
+    [Fact]
+    public void The_skip_link_targets_the_current_page_so_the_base_href_cannot_send_it_home()
+    {
+        this.AddAgentShell();
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/queue?view=mine");
+        var cut = Render<MainLayout>(p => p.SignedIn().Add(l => l.Body, (RenderFragment)(b => { })));
+
+        var href = cut.Find("a.ts-skip-link").GetAttribute("href")!;
+
+        // The page has <base href="/">: a bare "#main" would resolve to "/#main". Resolve what is rendered the way the browser does.
+        var resolved = new Uri(new Uri(navigation.BaseUri), href);
+        resolved.AbsolutePath.ShouldBe("/queue");
+        resolved.Query.ShouldBe("?view=mine");
+        resolved.Fragment.ShouldBe("#main");
+    }
+
+    [Fact]
+    public void The_skip_link_follows_the_page_when_the_user_navigates()
+    {
+        this.AddAgentShell();
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        var cut = Render<MainLayout>(p => p.SignedIn().Add(l => l.Body, (RenderFragment)(b => { })));
+
+        cut.InvokeAsync(() => navigation.NavigateTo("/tickets/ACME-142#reply"));
+
+        var resolved = new Uri(new Uri(navigation.BaseUri), cut.Find("a.ts-skip-link").GetAttribute("href")!);
+        resolved.AbsolutePath.ShouldBe("/tickets/ACME-142");
+        resolved.Fragment.ShouldBe("#main");
+    }
+
+    [Fact]
+    public async Task After_the_layout_is_disposed_a_key_press_reaches_no_layout_handler()
+    {
+        this.AddAgentShell();
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        Render<MainLayout>(p => p.SignedIn().Add(l => l.Body, (RenderFragment)(b => { })));
+        navigation.NavigateTo("/tickets/ACME-142");
+
+        await DisposeComponentsAsync();
+        await PressAsync("/");
+
+        navigation.Uri.ShouldEndWith("/tickets/ACME-142");
     }
 
     [Fact]

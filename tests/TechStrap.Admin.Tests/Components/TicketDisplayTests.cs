@@ -27,8 +27,25 @@ public sealed class TicketDisplayTests : AdminComponentTest
         TicketDisplay.Stamp(status, isSpam: true).ShouldBe(StampStatus.Spam);
 
     [Fact]
-    public void An_unknown_status_fails_loudly_instead_of_guessing() =>
-        Should.Throw<ArgumentOutOfRangeException>(() => TicketDisplay.Stamp("Archived", isSpam: false));
+    public void An_unknown_status_falls_back_to_the_neutral_open_stamp_and_logs_a_warning()
+    {
+        var log = new CapturingLogger();
+
+        TicketDisplay.Stamp("Archived", isSpam: false, log).ShouldBe(StampStatus.Open);
+
+        log.Warnings.ShouldHaveSingleItem().ShouldContain("Archived");
+    }
+
+    [Fact]
+    public void A_known_status_and_a_spam_ticket_log_nothing()
+    {
+        var log = new CapturingLogger();
+
+        TicketDisplay.Stamp(TicketStatuses.Pending, isSpam: false, log);
+        TicketDisplay.Stamp("Archived", isSpam: true, log).ShouldBe(StampStatus.Spam);
+
+        log.Warnings.ShouldBeEmpty();
+    }
 
     [Theory]
     [InlineData(TicketPriorities.Urgent, PriorityLevel.Urgent)]
@@ -39,8 +56,32 @@ public sealed class TicketDisplayTests : AdminComponentTest
         TicketDisplay.Priority(priority).ShouldBe(expected);
 
     [Fact]
-    public void An_unknown_priority_fails_loudly() =>
-        Should.Throw<ArgumentOutOfRangeException>(() => TicketDisplay.Priority("Critical"));
+    public void An_unknown_priority_falls_back_to_normal_and_logs_a_warning()
+    {
+        var log = new CapturingLogger();
+
+        TicketDisplay.Priority("Critical", log).ShouldBe(PriorityLevel.Normal);
+
+        log.Warnings.ShouldHaveSingleItem().ShouldContain("Critical");
+    }
+
+    private sealed class CapturingLogger : Microsoft.Extensions.Logging.ILogger
+    {
+        public List<string> Warnings { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+
+        public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == Microsoft.Extensions.Logging.LogLevel.Warning)
+            {
+                Warnings.Add(formatter(state, exception));
+            }
+        }
+    }
 
     [Theory]
     [InlineData(0, "just now")]

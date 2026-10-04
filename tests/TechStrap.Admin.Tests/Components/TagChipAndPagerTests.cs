@@ -65,6 +65,16 @@ public sealed class TagChipAndPagerTests : AdminComponentTest
     }
 
     [Fact]
+    public void A_page_beyond_the_last_is_clamped_to_the_last_page()
+    {
+        var cut = Render<PagerControl>(p => p.Add(c => c.Page, 9).Add(c => c.PageSize, 25).Add(c => c.TotalCount, 60));
+
+        cut.Find(".ts-pager-summary").TextContent.ShouldBe("51–60 of 60");
+        cut.Find(".ts-pager-page").TextContent.ShouldBe("Page 3 of 3");
+        cut.FindAll("button")[1].HasAttribute("disabled").ShouldBeTrue();
+    }
+
+    [Fact]
     public void A_single_page_shows_the_summary_without_buttons_and_an_empty_list_shows_nothing()
     {
         var single = Render<PagerControl>(p => p.Add(c => c.Page, 1).Add(c => c.PageSize, 25).Add(c => c.TotalCount, 4));
