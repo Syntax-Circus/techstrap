@@ -122,6 +122,25 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
         allowed.StatusCode.ShouldNotBe(HttpStatusCode.Unauthorized);
     }
 
+    [Fact]
+    public async Task The_five_06c_routes_are_admin_only()
+    {
+        var database = await ApiTestDatabase.CreateAsync(postgres);
+        await using var factory = new ApiFactory(settings: database.Settings);
+        var adminOnly = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("api/", StringComparison.Ordinal) == true)
+            .Where(endpoint => IsAdminOnly(endpoint.Metadata.GetMetadata<ControllerActionDescriptor>()!.MethodInfo))
+            .SelectMany(endpoint => (endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? ["GET"]).Select(method => $"{method} {endpoint.RoutePattern.RawText}"))
+            .ToHashSet();
+
+        string[] expected =
+        [
+            "DELETE api/tickets/{id:guid}", "POST api/requesters/{id:guid}/erase",
+            "GET api/dead-letters", "POST api/dead-letters/{id:guid}/retry", "DELETE api/dead-letters/{id:guid}",
+        ];
+        expected.Except(adminOnly).ShouldBeEmpty();
+    }
+
     private static bool IsAdminOnly(MethodInfo action) =>
         (action.GetCustomAttribute<AuthorizeAttribute>() ?? action.DeclaringType!.GetCustomAttribute<AuthorizeAttribute>())?.Policy == TechStrap.Api.Security.AuthorizationPolicies.Admin;
 }
