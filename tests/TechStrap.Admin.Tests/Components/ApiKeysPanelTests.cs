@@ -228,6 +228,47 @@ public sealed class ApiKeysPanelTests : AdminComponentTest
     }
 
     [Fact]
+    public async Task A_create_that_finishes_after_the_panel_is_gone_shows_nothing_and_stores_nothing()
+    {
+        var gate = new TaskCompletionSource<Result<CreateProductApiKeyResponse>>();
+        _products.CreateApiKeyAsync(TestData.OrbitlyId, Arg.Any<CreateProductApiKeyRequest>(), Arg.Any<CancellationToken>()).Returns(gate.Task);
+        var cut = RenderPanel();
+        Choose(cut, ApiKeyKinds.Public);
+        Submit(cut);
+
+        cut.Instance.Dispose();
+        gate.SetResult(TestData.Ok(new CreateProductApiKeyResponse(TestData.ApiKey("tsk_new9"), Secret)));
+        await cut.InvokeAsync(() => { });
+
+        StatusMessages.Current.ShouldBeNull();
+        Dialogs.VerifyNotInvoke("open");
+        cut.Markup.ShouldNotContain(Secret);
+        cut.Markup.ShouldNotContain("tsk_new9");
+    }
+
+    [Fact]
+    public void After_a_lost_answer_the_form_is_locked_with_its_values_kept_until_the_list_is_reloaded()
+    {
+        _products.CreateApiKeyAsync(TestData.OrbitlyId, Arg.Any<CreateProductApiKeyRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Fail<CreateProductApiKeyResponse>(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again."));
+        var cut = RenderPanel();
+        Choose(cut, ApiKeyKinds.Public);
+        cut.Find("#ts-key-label").Input("CI server");
+        Submit(cut);
+
+        cut.Find("fieldset").HasAttribute("disabled").ShouldBeTrue();
+        cut.Find("form.ts-key-create button[type=submit]").HasAttribute("disabled").ShouldBeTrue();
+        cut.Find("#ts-key-label").GetAttribute("value").ShouldBe("CI server");
+        Submit(cut);
+        Creates().Count.ShouldBe(1, "a second click must not send a second POST");
+
+        cut.Find(".ts-conflict button").Click();
+
+        cut.Find("fieldset").HasAttribute("disabled").ShouldBeFalse();
+        cut.Find("form.ts-key-create button[type=submit]").HasAttribute("disabled").ShouldBeFalse();
+    }
+
+    [Fact]
     public void A_lost_answer_says_the_key_may_exist_but_its_secret_cannot_be_shown_and_never_offers_a_bare_retry()
     {
         _products.CreateApiKeyAsync(TestData.OrbitlyId, Arg.Any<CreateProductApiKeyRequest>(), Arg.Any<CancellationToken>())

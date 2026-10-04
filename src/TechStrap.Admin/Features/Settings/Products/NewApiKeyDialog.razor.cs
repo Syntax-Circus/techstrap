@@ -99,18 +99,37 @@ public sealed partial class NewApiKeyDialog : IAsyncDisposable
         {
             _module ??= await Js.InvokeAsync<IJSObjectReference>("import", ModulePath);
             copied = await _module.InvokeAsync<bool>("copyText", _plaintext);
-            if (!copied)
-            {
-                await _module.InvokeVoidAsync("selectText", _secret);
-            }
         }
-        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+        catch (Exception ex) when (IsScriptFailure(ex))
         {
-            // The script could not run: the key is still on screen in a read-only field the agent can select by hand.
+            // The script could not run or never answered: handled like a refused copy.
         }
 
-        _copyStatus = copied ? ApiKeysCopy.Copied : ApiKeysCopy.CopyFailed;
+        if (copied)
+        {
+            _copyStatus = ApiKeysCopy.Copied;
+            return;
+        }
+
+        // After any copy failure the key is selected for Ctrl+C, and the message only claims that when the selection really happened.
+        _copyStatus = await TrySelectAsync() ? ApiKeysCopy.CopyFailed : ApiKeysCopy.CopyAndSelectFailed;
     }
+
+    private async Task<bool> TrySelectAsync()
+    {
+        try
+        {
+            _module ??= await Js.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            await _module.InvokeVoidAsync("selectText", _secret);
+            return true;
+        }
+        catch (Exception ex) when (IsScriptFailure(ex))
+        {
+            return false;
+        }
+    }
+
+    private static bool IsScriptFailure(Exception ex) => ex is JSException or JSDisconnectedException or InvalidOperationException or TaskCanceledException;
 
     public async ValueTask DisposeAsync()
     {

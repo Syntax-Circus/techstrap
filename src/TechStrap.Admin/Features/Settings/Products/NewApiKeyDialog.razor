@@ -1,7 +1,7 @@
 @implements IAsyncDisposable
 
 <ConfirmDialog Open="_open" Title="@ApiKeysCopy.NewKeyTitle" ConfirmLabel="@ApiKeysCopy.Done" CancelLabel="@ShellCopy.Close"
-               ConfirmDisabled="@(!_stored)" Error="@_hint" OnConfirm="CloseAsync" OnCancel="TryCloseAsync">
+               ConfirmDisabled="@(!_stored)" Dismissable="@_stored" Error="@_hint" OnConfirm="CloseAsync" OnCancel="TryCloseAsync">
     @if (_plaintext is not null)
     {
         <p>@ApiKeysCopy.ShownOnce(ProductName)</p>

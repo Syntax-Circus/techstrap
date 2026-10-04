@@ -1,4 +1,4 @@
-<dialog @ref="_dialog" class="@CssClass" aria-labelledby="@TitleId" aria-describedby="@BodyId"
+<dialog @ref="_dialog" class="@CssClass" data-lock="@Lock" aria-labelledby="@TitleId" aria-describedby="@BodyId"
         @oncancel="CancelAsync" @oncancel:preventDefault="true">
     <h2 id="@TitleId" tabindex="-1" @ref="_title">@Title</h2>
     <div id="@BodyId" class="ts-dialog-body">@ChildContent</div>

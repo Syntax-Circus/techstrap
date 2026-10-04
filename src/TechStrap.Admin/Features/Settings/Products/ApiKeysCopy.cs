@@ -41,6 +41,7 @@ public static class ApiKeysCopy
     public const string Copy = "Copy";
     public const string Copied = "Copied to the clipboard.";
     public const string CopyFailed = "Couldn't copy. The key is selected: press Ctrl+C to copy it.";
+    public const string CopyAndSelectFailed = "Couldn't copy. Select the key and press Ctrl+C.";
     public const string Stored = "I have stored this key";
     public const string StoreFirst = "Tick \"I have stored this key\" before you close this window.";
     public const string Done = "Done";

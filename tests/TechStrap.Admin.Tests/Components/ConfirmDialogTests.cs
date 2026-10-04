@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Components;
 using Bunit;
 using TechStrap.Admin.Components.Ui;
 using TechStrap.Admin.Tests.Support;
@@ -186,5 +187,67 @@ public sealed class ConfirmDialogTests : AdminComponentTest
 
         cut.Find("dialog").ClassList.ShouldContain("ts-dialog--danger");
         cut.Find("button.btn-danger").TextContent.ShouldBe("Delete ticket");
+    }
+
+    // ---- the native dialog can never be dismissed behind .NET's back (Chromium's repeated-Esc rule) -----------------
+
+    [Fact]
+    public void The_lock_is_told_to_the_script_through_a_data_attribute_and_the_dotnet_handle_goes_with_open()
+    {
+        var cut = RenderDialog();
+        cut.Find("dialog").HasAttribute("data-lock").ShouldBeFalse();
+        Dialogs.Invocations["open"].Single().Arguments.Count.ShouldBe(3);
+
+        cut.Render(p => p.Add(c => c.Busy, true));
+        cut.Find("dialog").GetAttribute("data-lock").ShouldBe("busy");
+
+        cut.Render(p => p.Add(c => c.Busy, false).Add(c => c.Dismissable, false));
+        cut.Find("dialog").GetAttribute("data-lock").ShouldBe("hold");
+    }
+
+    [Fact]
+    public async Task A_stray_native_close_of_a_dismissable_dialog_is_a_cancel()
+    {
+        var cut = RenderDialog();
+
+        await cut.InvokeAsync(() => cut.Instance.NativeClosed());
+
+        _cancelled.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_stray_native_close_the_owner_does_not_answer_re_opens_the_dialog_so_the_two_never_disagree()
+    {
+        var cut = RenderDialog();
+
+        await cut.InvokeAsync(() => cut.Instance.NativeClosed());
+
+        Dialogs.VerifyInvoke("open", 2);
+    }
+
+    [Fact]
+    public async Task A_stray_native_close_the_owner_answers_by_closing_does_not_re_open()
+    {
+        var cut = RenderDialog();
+        cut.Render(p => p.Add(c => c.OnCancel, EventCallback.Factory.Create(this, () => { _cancelled++; cut.Render(q => q.Add(c => c.Open, false)); })));
+
+        await cut.InvokeAsync(() => cut.Instance.NativeClosed());
+
+        _cancelled.ShouldBe(1);
+        Dialogs.VerifyInvoke("open", 1);
+        Dialogs.VerifyInvoke("close", 1);
+    }
+
+    [Fact]
+    public async Task Esc_pressed_on_a_held_dialog_reaches_the_owner_but_never_while_busy()
+    {
+        var cut = RenderDialog(p => p.Add(c => c.Dismissable, false));
+
+        await cut.InvokeAsync(() => cut.Instance.EscapePressed());
+        _cancelled.ShouldBe(1);
+
+        cut.Render(p => p.Add(c => c.Busy, true));
+        await cut.InvokeAsync(() => cut.Instance.EscapePressed());
+        _cancelled.ShouldBe(1);
     }
 }

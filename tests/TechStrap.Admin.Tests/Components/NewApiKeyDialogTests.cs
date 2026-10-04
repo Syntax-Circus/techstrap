@@ -229,17 +229,63 @@ public sealed class NewApiKeyDialogTests : AdminComponentTest
     }
 
     [Fact]
-    public async Task A_script_that_cannot_run_is_the_same_as_a_refused_copy_and_never_breaks_the_dialog()
+    public async Task A_copy_that_throws_still_selects_the_key_and_says_so_and_never_breaks_the_dialog()
     {
         _clipboard = JSInterop.SetupModule("./js/clipboard.js");
         _clipboard.Setup<bool>("copyText", _ => true).SetException(new JSException("clipboard blocked"));
+        _clipboard.SetupVoid("selectText", _ => true).SetVoidResult();
         var cut = RenderDialog();
         await ShowAsync(cut);
 
         cut.Find(".ts-key-secret button").Click();
 
         cut.WaitForAssertion(() => cut.Find(".ts-key-copy-status").TextContent.ShouldBe("Couldn't copy. The key is selected: press Ctrl+C to copy it."));
+        _clipboard.VerifyInvoke("selectText", 1);
         cut.Find("input#ts-key-secret").GetAttribute("value").ShouldBe(Secret);
+    }
+
+    [Fact]
+    public async Task When_the_key_cannot_be_selected_either_the_message_does_not_claim_a_selection()
+    {
+        _clipboard = JSInterop.SetupModule("./js/clipboard.js");
+        _clipboard.Setup<bool>("copyText", _ => true).SetException(new JSException("clipboard blocked"));
+        _clipboard.SetupVoid("selectText", _ => true).SetException(new JSException("select blocked"));
+        var cut = RenderDialog();
+        await ShowAsync(cut);
+
+        cut.Find(".ts-key-secret button").Click();
+
+        cut.WaitForAssertion(() => cut.Find(".ts-key-copy-status").TextContent.ShouldBe("Couldn't copy. Select the key and press Ctrl+C."));
+        _clipboard.VerifyInvoke("selectText", 1);
+        cut.Find("input#ts-key-secret").GetAttribute("value").ShouldBe(Secret);
+    }
+
+    [Fact]
+    public async Task A_clipboard_script_that_never_answers_a_timeout_is_a_failed_copy_not_a_broken_circuit()
+    {
+        _clipboard = JSInterop.SetupModule("./js/clipboard.js");
+        _clipboard.Setup<bool>("copyText", _ => true).SetException(new TaskCanceledException());
+        _clipboard.SetupVoid("selectText", _ => true).SetVoidResult();
+        var cut = RenderDialog();
+        await ShowAsync(cut);
+
+        cut.Find(".ts-key-secret button").Click();
+
+        cut.WaitForAssertion(() => cut.Find(".ts-key-copy-status").TextContent.ShouldBe("Couldn't copy. The key is selected: press Ctrl+C to copy it."));
+        _clipboard.VerifyInvoke("selectText", 1);
+    }
+
+    [Fact]
+    public async Task The_dialog_is_held_open_for_the_script_until_the_key_is_stored_and_released_after()
+    {
+        var cut = RenderDialog();
+        await ShowAsync(cut);
+
+        cut.Find("dialog").GetAttribute("data-lock").ShouldBe("hold");
+
+        TickStored(cut);
+
+        cut.Find("dialog").HasAttribute("data-lock").ShouldBeFalse();
     }
 
     // ---- logs ------------------------------------------------------------------------------------------------------

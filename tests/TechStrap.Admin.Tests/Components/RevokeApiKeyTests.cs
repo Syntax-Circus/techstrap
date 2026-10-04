@@ -200,7 +200,7 @@ public sealed class RevokeApiKeyTests : AdminComponentTest
     }
 
     [Fact]
-    public void A_revoke_that_finishes_after_the_panel_is_gone_is_not_cancelled_and_reports_nothing()
+    public async Task A_revoke_that_finishes_after_the_panel_is_gone_is_not_cancelled_and_reports_nothing()
     {
         var gate = new TaskCompletionSource<Result>();
         _products.RevokeApiKeyAsync(TestData.OrbitlyId, Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(gate.Task);
@@ -210,8 +210,9 @@ public sealed class RevokeApiKeyTests : AdminComponentTest
 
         cut.Instance.Dispose();
         gate.SetResult(TestData.Ok());
+        await cut.InvokeAsync(() => { });
 
-        _products.Received(1).RevokeApiKeyAsync(TestData.OrbitlyId, _billingId, Arg.Is<CancellationToken>(t => !t.CanBeCanceled));
+        _ = _products.Received(1).RevokeApiKeyAsync(TestData.OrbitlyId, _billingId, Arg.Is<CancellationToken>(t => !t.CanBeCanceled));
         StatusMessages.Current.ShouldBeNull();
     }
 }

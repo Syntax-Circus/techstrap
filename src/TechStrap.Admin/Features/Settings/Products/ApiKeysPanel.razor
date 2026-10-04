@@ -3,7 +3,7 @@
     <h2 id="ts-keys-heading">@ApiKeysCopy.Heading</h2>
 
     <form class="ts-key-create ts-form" novalidate @onsubmit="CreateAsync">
-        <fieldset disabled="@_busy">
+        <fieldset disabled="@(_busy || _createUncertain)">
             <div class="ts-field">
                 <label for="ts-key-kind" class="form-label">@ApiKeysCopy.KindLabel</label>
                 <select id="ts-key-kind" class="form-select @(_kindError is null ? null : "is-invalid")" @onchange="OnKindChanged">
@@ -31,7 +31,7 @@
             </div>
         </fieldset>
         <div class="ts-form-actions">
-            <button type="submit" class="btn btn-primary" disabled="@(_busy || _kind.Length == 0)">@(_busy ? ApiKeysCopy.Creating : ApiKeysCopy.Create)</button>
+            <button type="submit" class="btn btn-primary" disabled="@(_busy || _createUncertain || _kind.Length == 0)">@(_busy ? ApiKeysCopy.Creating : ApiKeysCopy.Create)</button>
         </div>
     </form>
 

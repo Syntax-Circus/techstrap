@@ -103,7 +103,8 @@ public sealed partial class ApiKeysPanel : IDisposable
 
     private async Task CreateAsync()
     {
-        if (_busy)
+        // After a lost answer the key may exist: no second create until the agent has reloaded the list and looked.
+        if (_busy || _createUncertain)
         {
             return;
         }
