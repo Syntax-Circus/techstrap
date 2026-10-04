@@ -13,6 +13,7 @@ using TechStrap.Domain.Products;
 using TechStrap.Infrastructure.Email;
 using TechStrap.Infrastructure.Intake;
 using TechStrap.Infrastructure.IntegrationTests.Support;
+using TechStrap.Infrastructure.Tickets;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
 
@@ -160,6 +161,7 @@ public sealed class EmailDrainIntegrationTests(PostgresFixture postgres, Mailpit
                 configureServices: (services, configuration) =>
                 {
                     services.AddTechStrapIntake(configuration);
+                    services.AddTechStrapTicketOperations(configuration);
                     services.AddScoped<ISubmitTicketRequestHandler, SubmitTicketRequestHandler>();
                 });
             await SeedProductAsync(host);

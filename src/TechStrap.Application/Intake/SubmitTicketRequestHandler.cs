@@ -8,6 +8,7 @@ using TechStrap.Application.Email;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Results;
 using TechStrap.Application.Security;
+using TechStrap.Application.Tickets.Notifications;
 using TechStrap.Contracts.Intake;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
@@ -36,6 +37,7 @@ public sealed class SubmitTicketRequestHandler(
     IAttachmentStore attachments,
     IHtmlSanitizer sanitizer,
     IEmailOutbox outbox,
+    ITicketNotificationPlanner planner,
     IIntakeIdempotencyStore idempotency,
     IUnitOfWork unitOfWork,
     TimeProvider clock,
@@ -253,6 +255,7 @@ public sealed class SubmitTicketRequestHandler(
         var link = portal.Value.TicketLink(issued.Value.PlaintextToken);
 
         EnqueueConfirmation(number, ticket.Value, requester.Value, product, link);
+        await planner.PlanNewTicketAsync(ticket.Value, requester.Value, isFollowUp: false, cancellationToken);
 
         var response = new SubmitTicketResponse(number.ToString(), isApi ? link : null, warnings.ToArray());
 

@@ -6,10 +6,13 @@ using TechStrap.Application.Attachments;
 using TechStrap.Application.Intake;
 using TechStrap.Application.Persistence;
 using TechStrap.Contracts.Intake;
+using TechStrap.Application.Tickets.Notifications;
+using TechStrap.Domain.Agents;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
 using TechStrap.Domain.Requesters;
 using TechStrap.Infrastructure.Intake;
+using TechStrap.Infrastructure.Tickets;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
 
@@ -132,6 +135,7 @@ public sealed class SubmitTicketIntegrationTests(PostgresFixture postgres) : Pos
                 .Build();
             services.AddLogging();
             services.AddTechStrapIntake(configuration);
+            services.AddTechStrapTicketOperations(configuration);
             services.AddScoped<ISubmitTicketRequestHandler, SubmitTicketRequestHandler>();
             extra?.Invoke(services);
         });
@@ -205,6 +209,25 @@ public sealed class SubmitTicketIntegrationTests(PostgresFixture postgres) : Pos
         {
             Directory.Delete(_root, recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task A_submission_commits_one_new_ticket_alert_for_an_opted_in_agent()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        (await host.CommitAsync(async sp =>
+        {
+            var agent = Agent.Create("sub-sam", "Sam Taylor", "sam.taylor@techstrap.test", AgentRole.Agent, host.Clock).Value;
+            var agents = sp.GetRequiredService<IAgentRepository>();
+            agents.Add(agent);
+            await agents.SetNotificationPreferenceAsync(new AgentNotificationPreference(agent.Id, seed.ProductId, true), Ct);
+        })).IsSuccess.ShouldBeTrue();
+
+        (await SubmitAsync(host, Request("pat@example.com"), WebContext())).IsSuccess.ShouldBeTrue();
+
+        (await ScalarAsync("SELECT count(*) FROM email_outbox WHERE kind = 'new-ticket-alert'")).ShouldBe(1);
+        (await TextAsync("SELECT to_address FROM email_outbox WHERE kind = 'new-ticket-alert'")).ShouldBe("sam.taylor@techstrap.test");
     }
 
     [Fact]
