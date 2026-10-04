@@ -57,6 +57,8 @@ public static class ProductsCopy
     public const string ConflictKept = "Your edits are still on screen. Reload shows the saved version and drops them.";
     public const string Reload = "Reload";
     public const string SaveUncertain = "The save may have gone through. Reload to see the saved version before you save again.";
+    public const string CreateUncertain = "We could not confirm the product was created. Check the products list before you create it again.";
+    public const string OpenList = "Open the products list";
     public const string ProductKeyTaken = "Another product already uses this key or ticket number prefix.";
 
     public static string Saved(string name) => $"Saved {name}";

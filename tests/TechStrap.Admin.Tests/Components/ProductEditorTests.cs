@@ -525,4 +525,108 @@ public sealed class ProductEditorTests : AdminPageTest
         Value(cut, "ts-product-key").ShouldBe("nimbus");
         _navigation.Uri.ShouldNotContain("/keys");
     }
+
+    // ---- fix round 1 ---------------------------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData(ApiErrorCodes.ApiTimeout)]
+    [InlineData(ApiErrorCodes.ApiError)]
+    [InlineData(ApiErrorCodes.ApiUnavailable)]
+    public void An_uncertain_create_keeps_the_form_and_every_value_says_so_and_offers_no_reload(string code)
+    {
+        _products.CreateAsync(Arg.Any<CreateProductRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Fail<ProductDto>(code, "Lost."));
+        var cut = RenderNew();
+        Type(cut, "ts-product-key", "nimbus");
+        Type(cut, "ts-product-name", "Nimbus");
+        Type(cut, "ts-product-prefix", "NIM");
+        Type(cut, "ts-product-display", "Nimbus Cloud");
+
+        Save(cut);
+
+        var alert = cut.Find(".ts-conflict[role=alert]");
+        alert.TextContent.ShouldContain("We could not confirm the product was created.");
+        alert.QuerySelector("button").ShouldBeNull();
+        alert.QuerySelector("a")!.GetAttribute("href").ShouldBe("/settings/products");
+        Value(cut, "ts-product-key").ShouldBe("nimbus");
+        Value(cut, "ts-product-name").ShouldBe("Nimbus");
+        Value(cut, "ts-product-prefix").ShouldBe("NIM");
+        Value(cut, "ts-product-display").ShouldBe("Nimbus Cloud");
+        cut.FindAll("form.ts-form").Count.ShouldBe(1);
+        _products.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void After_a_successful_save_the_form_shows_the_logo_the_api_returned_not_the_typed_text()
+    {
+        _products.UpdateAsync(TestData.OrbitlyId, Arg.Any<UpdateProductRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Ok(TestData.ProductDetail(version: 8, logo: "https://cdn.example/")));
+        var cut = RenderEdit();
+
+        Type(cut, "ts-product-logo", "HTTPS://Cdn.Example");
+        Save(cut);
+
+        Value(cut, "ts-product-logo").ShouldBe("https://cdn.example/");
+        cut.Find("img.ts-accent-preview-logo").GetAttribute("src").ShouldBe("https://cdn.example/");
+    }
+
+    [Theory]
+    [InlineData("key")]
+    [InlineData("number-prefix")]
+    public void On_an_edit_a_server_error_for_a_field_the_form_does_not_show_appears_above_the_form(string target)
+    {
+        _products.UpdateAsync(TestData.OrbitlyId, Arg.Any<UpdateProductRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Result<ProductDto>.Failure(new ResultError("x-invalid", "Permanent field refused.", ResultErrorKind.Validation, target)));
+        var cut = RenderEdit();
+        Type(cut, "ts-product-name", "Changed");
+
+        Save(cut);
+
+        cut.Find("p.ts-form-error[role=alert]").TextContent.ShouldBe("Permanent field refused.");
+    }
+
+    [Fact]
+    public void A_new_Id_on_the_same_component_drops_the_banners_errors_and_dirty_state_of_the_old_product()
+    {
+        var other = Guid.Parse("aaaaaaaa-0000-0000-0000-0000000000c3");
+        _products.GetAsync(other, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail("Other", id: other, key: "other", prefix: "OTH")));
+        _products.UpdateAsync(TestData.OrbitlyId, Arg.Any<UpdateProductRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Fail<ProductDto>(ApiErrorCodes.ConcurrencyConflict, "Stale.", ResultErrorKind.Conflict));
+        var cut = RenderEdit();
+        Type(cut, "ts-product-name", "Mine");
+        Save(cut);
+        cut.FindAll(".ts-conflict").Count.ShouldBe(1);
+        Type(cut, "ts-product-accent", "bad");
+        cut.Find("#ts-product-accent").Blur();
+        cut.FindAll(".ts-field-error").Count.ShouldBe(1);
+
+        cut.Render(p => p.Add(c => c.Id, other.ToString()));
+
+        cut.WaitForAssertion(() => Value(cut, "ts-product-name").ShouldBe("Other"));
+        cut.FindAll(".ts-conflict").ShouldBeEmpty();
+        cut.FindAll(".ts-field-error").ShouldBeEmpty();
+        cut.FindAll(".ts-dirty").ShouldBeEmpty();
+        cut.FindAll("p.ts-form-error").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_new_invalid_Id_on_the_same_component_renders_no_form()
+    {
+        var cut = RenderEdit();
+        var notFound = 0;
+        _navigation.OnNotFound += (_, _) => notFound++;
+
+        cut.Render(p => p.Add(c => c.Id, "not-a-guid"));
+
+        notFound.ShouldBe(1);
+        cut.FindAll("form").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void An_invalid_Id_renders_no_blank_form()
+    {
+        var cut = Render<ProductEditorPage>(p => p.Add(c => c.Id, "not-a-guid"));
+
+        cut.FindAll("form").ShouldBeEmpty();
+    }
 }

@@ -7,6 +7,10 @@
     {
         <LoadingState Rows="6" Label="@ProductsCopy.EditorLoading" />
     }
+    else if (_notFound)
+    {
+        @* NotFound has been raised; nothing else is drawn. *@
+    }
     else if (_loadError is not null)
     {
         <ErrorState Message="@_loadError" OnRetry="@(_gone ? default(EventCallback) : EventCallback.Factory.Create(this, LoadAsync))" />
@@ -20,7 +24,14 @@
                 <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="ReloadAsync">@ProductsCopy.Reload</button>
             </div>
         }
-        @if (_uncertain)
+        @if (_uncertain && _creating)
+        {
+            <div class="ts-conflict" role="alert">
+                <p>@ProductsCopy.CreateUncertain</p>
+                <a href="/settings/products">@ProductsCopy.OpenList</a>
+            </div>
+        }
+        else if (_uncertain)
         {
             <div class="ts-conflict" role="alert">
                 <p>@ProductsCopy.SaveUncertain</p>

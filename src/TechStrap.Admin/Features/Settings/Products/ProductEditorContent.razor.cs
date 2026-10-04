@@ -28,6 +28,7 @@ public sealed partial class ProductEditorContent : IDisposable
     private bool _conflict;
     private bool _uncertain;
     private bool _gone;
+    private bool _notFound;
     private bool _disposed;
 
     [Inject]
@@ -60,6 +61,14 @@ public sealed partial class ProductEditorContent : IDisposable
 
         _loadedFor = Id ?? string.Empty;
         _creating = Id is null;
+        _conflict = false;
+        _uncertain = false;
+        _formError = null;
+        _loadError = null;
+        _gone = false;
+        _notFound = false;
+        _dirty = false;
+        _errors.Clear();
         if (_creating)
         {
             _model = new ProductEditorViewModel();
@@ -68,6 +77,8 @@ public sealed partial class ProductEditorContent : IDisposable
 
         if (!Guid.TryParse(Id, out _id))
         {
+            _notFound = true;
+            _model = new ProductEditorViewModel();
             Navigation.NotFound();
             return;
         }
@@ -229,7 +240,7 @@ public sealed partial class ProductEditorContent : IDisposable
     {
         foreach (var error in errors)
         {
-            if (error.Target is { } target && ProductFields.All.Contains(target))
+            if (error.Target is { } target && ProductFields.All.Contains(target) && (_creating || !ProductFields.CreateOnly.Contains(target)))
             {
                 _errors.TryAdd(target, error.Message);
             }
