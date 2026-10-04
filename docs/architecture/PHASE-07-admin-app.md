@@ -273,8 +273,9 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 - [ ] Blazor Server circuit memory with many open tabs; keep component state small and dispose subscriptions.
 - [ ] Agent token lifetime vs. long-lived circuits: relies on Blazor.Auth refresh; verify behavior with Authentik's access-token lifetime in UAT.
 - [x] Carried forward from the PHASE-04 final review: Mark the Admin `/error` page `[AllowAnonymous]` when Admin auth lands. (done in PHASE-07a)
-- [x] [07b] Carried forward from the PHASE-04 final review: Return the `tag-in-use` count as a structured field, not only in the message text. (done in PHASE-07b, D-041)
+- [x] [07b] Carried forward from the PHASE-04 final review: Return the `tag-in-use` count as a structured field, not only in the message text. (resolved differently in PHASE-07b, D-041: the count comes from `GET /api/tags/summary`; the 409 still carries it only in its message.)
 - [x] [07b] Carried forward from the PHASE-04 final review: Add an endpoint test for the admin agent-list fields (`Email`, `Role`, `IsActive`, `LastSeenAt`). (done in PHASE-07b, D-041)
+- [ ] [07c] Carried forward from the PHASE-07b final review: `AccentPreview` styles itself with an inline `style` attribute (validated `#RRGGBB` values only), so the 07c CSP needs `style-src-attr` or a CSSOM approach instead of `style-src 'self'` alone.
 - [ ] Carried forward from the PHASE-04 final review: Add an OpenAPI bearer security scheme so generated clients know the endpoints need a token (also needed by PHASE-11).
 - [x] Carried forward from PHASE-06c (D-039): wire `PiiRedactionEnricher` into the Admin host's `AddStandardSerilog` call once the Admin handles requester data (done in PHASE-07a through TechStrap.Hosting, D-040; the Sentry header scrub is wired too).
 

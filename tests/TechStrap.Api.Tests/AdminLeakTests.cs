@@ -144,4 +144,45 @@ public sealed class AdminLeakTests
         AssertVerboseWasCaptured(factory);
         factory.LogSink.Events.Select(Everything).ShouldAllBe(text => !text.Contains(token) && !text.Contains("Bearer "));
     }
+
+    // The OTLP exporter makes its HTTP calls through IHttpClientFactory. The factory's default logging handler writes raw header values into structured log state at Trace, which would put an
+    // OTLP "x-api-key" in the logs. The Admin removes the default logging handler from every factory client, so the secret never reaches a log event.
+    private const string OtlpSecret = "otlp-secret-0123456789abcdef0123456789abcdef";
+
+    [Fact]
+    public async Task An_OTLP_header_secret_appears_in_no_log_event_even_at_Verbose()
+    {
+        // The observability options are read while Program.cs builds the host, before the factory's in-memory settings exist, so they arrive as environment variables (like the test issuer does).
+        var variables = new Dictionary<string, string>
+        {
+            ["OpenTelemetry__Enabled"] = "true",
+            ["OpenTelemetry__OtlpEndpoint"] = "http://127.0.0.1:1/",
+            ["OpenTelemetry__OtlpProtocol"] = "http/protobuf",
+            ["OpenTelemetry__Headers"] = $"x-api-key={OtlpSecret}",
+        };
+        foreach (var (key, value) in variables)
+        {
+            Environment.SetEnvironmentVariable(key, value);
+        }
+
+        var factory = VerboseFactory();
+        try
+        {
+            using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
+            (await client.GetStringAsync("/", Ct)).ShouldNotContain(OtlpSecret);
+            (await client.GetStringAsync("/queue/spam", Ct)).ShouldNotContain(OtlpSecret);
+        }
+        finally
+        {
+            // Disposing the host flushes the trace exporter, which sends (and fails against the closed port) through the factory's HTTP client.
+            await factory.DisposeAsync();
+            foreach (var key in variables.Keys)
+            {
+                Environment.SetEnvironmentVariable(key, null);
+            }
+        }
+
+        AssertVerboseWasCaptured(factory);
+        factory.LogSink.Events.Select(Everything).ShouldAllBe(text => !text.Contains(OtlpSecret));
+    }
 }

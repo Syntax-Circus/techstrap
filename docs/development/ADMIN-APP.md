@@ -184,7 +184,7 @@ Everything in this section needs the Admin role. The API refuses the same calls 
 
 - **Products** (`/settings/products`, `/settings/products/new`, `/settings/products/{id}`): a list of every product, active or not, and an editor for the name and the branding (display name, logo, accent colour,
   email from address and reply-to). The key and the ticket number prefix are permanent: they are asked for when the product is created and shown read-only afterwards. The logo is an **address, not an upload**:
-  only a full `https://` address is accepted (`http://localhost` too, in Development), a blank value means no logo, and the API refuses the same addresses, so `javascript:`, `data:`, relative paths and other
+  only a full `https://` address is accepted (`http://localhost` or `http://127.0.0.1` too, in every environment), a blank value means no logo, and the API refuses the same addresses, so `javascript:`, `data:`, relative paths and other
   schemes never reach an email or the portal. The accent colour is checked with the same pattern as the API (`#RRGGBB`); a low-contrast colour only shows a note, because TechStrap darkens it wherever it is used
   for text. A live preview shows the name, the logo and the accent. Saving always sends the product's current Active setting and the version the editor was opened on: if someone else saved first you see "This
   product changed since you opened it", your edits stay on screen, and Reload shows the saved version. A failed or lost save never clears the form.
@@ -231,7 +231,7 @@ Every agent, not only an admin, has **My settings** (`/account/notifications`):
 | A settings page says "You don't have access to this page." | The signed-in agent is not an Admin. Roles come from the identity provider's groups, and the API decides. |
 | The new API key dialog will not close | Tick "I have stored this key" first. The key is shown once and cannot be shown again; if you lost it, revoke the key and create another. |
 | Copy does nothing in the new API key dialog | The browser refused the clipboard (a page that is not https, or blocked). The key is selected: press Ctrl+C. |
-| A product's logo is refused | Only a full https:// address is accepted (and http://localhost in Development). There is no upload. |
+| A product's logo is refused | Only a full https:// address is accepted (and http://localhost or http://127.0.0.1, in every environment). There is no upload. |
 | The theme does not change | The choice is kept in this browser: private windows and cleared site data forget it, and Auto follows the device. |
 
 ## Tests
@@ -257,7 +257,7 @@ no knowledge-base article picker (PHASE-08); no presence or live updates (PHASE-
 - **Logo addresses are stored normalised.** The API saves the logo as `uri.AbsoluteUri` (so `HTTPS://Example.com` comes back as `https://example.com/`), and it rejects an address that holds a Unicode format character (such as a right-to-left override) as well as whitespace and control characters. The editor shows the saved form after a save.
 - **`ConfirmDialog` has `Dismissable`** (default true). The show-once API key dialog sets it to false until "I have stored this key" is ticked: Esc and a stray native close cannot close the browser's dialog, Esc still reaches the owner so it can explain, and when the browser closed the dialog anyway the component resyncs and shows it again.
 - **`AgentSession.ReloadAsync` keeps the session Ready** when the API answers with a server error, a timeout or cannot be reached, so a failed refresh (a transient failure while the page is open) never turns a working page into an error screen. A refusal (403, for example after the admin deactivates their own account) or an inactive account still changes the state to no access.
-- **The API clients have no HttpClient logging.** The default `IHttpClientFactory` logging writes each request header, `Authorization` included, at Trace (event 102). Both named API clients carry the agent's bearer token, so `ApiClientRegistration` calls `RemoveAllLoggers()` on them (the auth, forwarded-IP and retry handlers are untouched). `AdminLeakTests` runs with every Serilog level at Verbose and fails if a token or a new API key reaches any log line.
+- **No factory client has HttpClient logging.** The default `IHttpClientFactory` logging writes each request header, `Authorization` included, at Trace (event 102), and an OTLP exporter's `x-api-key` the same way. `Program.cs` calls `ConfigureHttpClientDefaults(http => http.RemoveAllLoggers())`, so this is a default for every client the factory creates (the two API clients, the OTLP exporters' clients and any future one); only the logging handlers are removed, the auth, forwarded-IP and retry handlers are untouched. `ApiClientRegistration` still calls `RemoveAllLoggers()` on the two API clients. `AdminLeakTests` runs with every Serilog level at Verbose and fails if a token, a new API key or an OTLP header secret reaches any log line.
 
 ## Known gaps in 07b
 
