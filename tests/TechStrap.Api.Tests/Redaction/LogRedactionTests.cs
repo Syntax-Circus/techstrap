@@ -10,7 +10,7 @@ using TechStrap.Application.Security;
 using TechStrap.Contracts.Http;
 using TechStrap.Contracts.Intake;
 using TechStrap.Contracts.Tickets;
-using TechStrap.Infrastructure.Logging;
+using TechStrap.Hosting.Logging;
 
 namespace TechStrap.Api.Tests.Redaction;
 

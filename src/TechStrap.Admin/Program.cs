@@ -6,6 +6,8 @@ using SyntaxCircus.AspNetCore.Serilog;
 using SyntaxCircus.DotEnv;
 using SyntaxCircus.Observability;
 using TechStrap.Admin.Components;
+using TechStrap.Hosting.Logging;
+using TechStrap.Hosting.Sentry;
 
 const string ServiceName = "techstrap-admin";
 
@@ -18,7 +20,11 @@ if (builder.Configuration.ShouldLoadDotEnv(builder.Environment))
 }
 
 var telemetry = builder.AddSyntaxCircusObservability(ServiceName);
-builder.AddStandardSerilog(configureEnrichment: telemetry.ConfigureSerilog);
+builder.AddStandardSerilog(configureEnrichment: logger =>
+{
+    telemetry.ConfigureSerilog(logger);
+    logger.Enrich.With<PiiRedactionEnricher>();
+});
 if (telemetry.Options.Sentry.IsEnabled)
 {
     builder.WebHost.UseSentry(options =>
@@ -26,6 +32,7 @@ if (telemetry.Options.Sentry.IsEnabled)
         telemetry.ConfigureSentry(options, context =>
             context.TransactionContext.Name.Contains("/health", StringComparison.OrdinalIgnoreCase)
                 || context.TransactionContext.Name.Contains("/_blazor", StringComparison.OrdinalIgnoreCase) ? 0d : null);
+        options.AddSensitiveHeaderScrubbing();
         options.AutoSessionTracking = false;
     });
 }

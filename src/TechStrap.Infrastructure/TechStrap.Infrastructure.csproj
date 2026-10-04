@@ -16,7 +16,6 @@
     <PackageReference Include="Markdig" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
-    <PackageReference Include="SyntaxCircus.AspNetCore.Serilog" />
     <PackageReference Include="SyntaxCircus.Email" />
     <PackageReference Include="SyntaxCircus.EntityFrameworkCore.Postgres" />
     <PackageReference Include="SyntaxCircus.Storage" />
@@ -25,8 +24,6 @@
   <ItemGroup>
     <!-- Persistence records are internal (D-026); the integration tests may see them to seed and inspect rows. -->
     <InternalsVisibleTo Include="TechStrap.Infrastructure.IntegrationTests" />
-    <!-- LogRedactionTests construct PiiRedactionEnricher through its internal failure seam (a throwing text redactor) to prove redaction fails closed. -->
-    <InternalsVisibleTo Include="TechStrap.Api.Tests" />
   </ItemGroup>
 
 </Project>

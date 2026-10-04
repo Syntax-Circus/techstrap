@@ -8,6 +8,7 @@ public static class ReferenceRules
 {
     public const string Domain = "TechStrap.Domain";
     public const string Contracts = "TechStrap.Contracts";
+    public const string Hosting = "TechStrap.Hosting";
     public const string Application = "TechStrap.Application";
     public const string Infrastructure = "TechStrap.Infrastructure";
     public const string Api = "TechStrap.Api";
@@ -24,12 +25,13 @@ public static class ReferenceRules
         {
             [Domain] = [],
             [Contracts] = [],
+            [Hosting] = [],
             [Application] = [Domain, Contracts],
             [Infrastructure] = [Application, Domain, Contracts],
-            [Api] = [Application, Infrastructure, Contracts],
-            [Worker] = [Application, Infrastructure, Contracts],
-            [Admin] = [Contracts],
-            [Portal] = [Contracts],
+            [Api] = [Application, Infrastructure, Contracts, Hosting],
+            [Worker] = [Application, Infrastructure, Contracts, Hosting],
+            [Admin] = [Contracts, Hosting],
+            [Portal] = [Contracts, Hosting],
             [Client] = [Contracts],
             [ClientMaui] = [Client, Contracts],
         };

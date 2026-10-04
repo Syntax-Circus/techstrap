@@ -9,6 +9,23 @@ BeforeAll {
         param([string]$Name)
         return Get-Content -LiteralPath (Join-Path $script:RepoRoot "Dockerfile.$Name") -Raw
     }
+
+    # Every TechStrap project the host needs to build: itself plus its ProjectReference closure (Admin: Contracts and Hosting).
+    function Get-ProjectReferenceClosure {
+        param([string]$Project)
+        $seen = [System.Collections.Generic.HashSet[string]]::new()
+        $queue = [System.Collections.Generic.Queue[string]]::new()
+        $queue.Enqueue($Project)
+        while ($queue.Count -gt 0) {
+            $name = $queue.Dequeue()
+            if (-not $seen.Add($name)) { continue }
+            $text = Get-Content -LiteralPath (Join-Path $script:RepoRoot "src/$name/$name.csproj") -Raw
+            foreach ($match in [regex]::Matches($text, '<ProjectReference Include="\.\./(?<name>[^/]+)/')) {
+                $queue.Enqueue($match.Groups['name'].Value)
+            }
+        }
+        return @($seen | Sort-Object)
+    }
 }
 
 Describe 'Dockerfile.<_>' -ForEach $script:Hosts {
@@ -111,6 +128,15 @@ Describe 'font endpoints manifest assertion' {
     }
 }
 
+Describe 'clean publish copy list' {
+    It '<Project> copies itself and every project it references, and no other TechStrap project' -ForEach @(
+        @{ Project = 'TechStrap.Admin'; Expected = @('TechStrap.Admin', 'TechStrap.Contracts', 'TechStrap.Hosting') }
+        @{ Project = 'TechStrap.Portal'; Expected = @('TechStrap.Contracts', 'TechStrap.Portal') }
+    ) {
+        Get-ProjectReferenceClosure -Project $Project | Should -Be $Expected
+    }
+}
+
 Describe 'clean publish serves the self-hosted fonts' -Tag 'Network' {
     # Reproduces the image build in a throwaway copy of the tree (no bin, obj or restored fonts), so libman restores the
     # fonts during publish itself and nothing under the real src/ is touched. Tagged Network because libman downloads
@@ -126,7 +152,8 @@ Describe 'clean publish serves the self-hosted fonts' -Tag 'Network' {
                 $source = Join-Path $script:RepoRoot $file
                 if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination (Join-Path $copy $file) -Force }
             }
-            foreach ($dir in '.config', 'eng', 'assets/brand/scss', "src/$Project", 'src/TechStrap.Contracts') {
+            $projectDirs = Get-ProjectReferenceClosure -Project $Project | ForEach-Object { "src/$_" }
+            foreach ($dir in @('.config', 'eng', 'assets/brand/scss') + $projectDirs) {
                 $source = Join-Path $script:RepoRoot $dir
                 if (-not (Test-Path -LiteralPath $source)) { continue }
                 $target = Join-Path $copy $dir
@@ -134,7 +161,7 @@ Describe 'clean publish serves the self-hosted fonts' -Tag 'Network' {
                 Copy-Item -LiteralPath $source -Destination $target -Recurse -Force
             }
             foreach ($name in 'wwwroot/fonts', 'bin', 'obj') {
-                foreach ($dir in "src/$Project", 'src/TechStrap.Contracts') {
+                foreach ($dir in $projectDirs) {
                     Remove-Item -LiteralPath (Join-Path $copy $dir $name) -Recurse -Force -ErrorAction SilentlyContinue
                 }
             }

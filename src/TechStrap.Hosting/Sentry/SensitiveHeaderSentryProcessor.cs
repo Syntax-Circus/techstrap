@@ -1,7 +1,7 @@
 using Sentry;
 using Sentry.Extensibility;
 
-namespace TechStrap.Api.Startup;
+namespace TechStrap.Hosting.Sentry;
 
 /// <summary>
 /// Removes credential-bearing request headers from Sentry events and transactions. Sentry strips only Cookie and Authorization by default, so the

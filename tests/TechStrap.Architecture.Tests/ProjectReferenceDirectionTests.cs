@@ -18,7 +18,7 @@ public sealed class ProjectReferenceDirectionTests
     }
 
     [Fact]
-    public void Solution_contains_the_ten_source_projects()
+    public void Solution_contains_the_eleven_source_projects()
     {
         var graph = ProjectGraph.LoadSourceProjects(ProjectGraph.FindRepositoryRoot());
 
@@ -39,12 +39,46 @@ public sealed class ProjectReferenceDirectionTests
     }
 
     [Fact]
-    public void Admin_and_Portal_reference_only_Contracts()
+    public void Admin_and_Portal_reference_only_Contracts_and_Hosting()
     {
         var graph = ProjectGraph.LoadSourceProjects(ProjectGraph.FindRepositoryRoot());
 
-        graph[ReferenceRules.Admin].ProjectReferences.ShouldBe([ReferenceRules.Contracts]);
-        graph[ReferenceRules.Portal].ProjectReferences.ShouldBe([ReferenceRules.Contracts]);
+        // Admin signs agents in and logs, so it uses the shared Hosting helpers; Portal joins in PHASE-09. Neither may ever see Application, Infrastructure or Domain.
+        graph[ReferenceRules.Admin].ProjectReferences.Order().ShouldBe([ReferenceRules.Contracts, ReferenceRules.Hosting]);
+        graph[ReferenceRules.Portal].ProjectReferences.ShouldContain(ReferenceRules.Contracts);
+        graph[ReferenceRules.Portal].ProjectReferences.Except([ReferenceRules.Contracts, ReferenceRules.Hosting]).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Hosting_references_no_TechStrap_project_and_only_the_logging_and_telemetry_packages()
+    {
+        var graph = ProjectGraph.LoadSourceProjects(ProjectGraph.FindRepositoryRoot());
+
+        graph[ReferenceRules.Hosting].ProjectReferences.ShouldBeEmpty();
+        graph[ReferenceRules.Hosting].PackageReferences.Order().ShouldBe(["SyntaxCircus.AspNetCore.Serilog", "SyntaxCircus.Observability"]);
+    }
+
+    [Fact]
+    public void Infrastructure_no_longer_references_a_logging_package()
+    {
+        var graph = ProjectGraph.LoadSourceProjects(ProjectGraph.FindRepositoryRoot());
+
+        graph[ReferenceRules.Infrastructure].PackageReferences.ShouldNotContain("SyntaxCircus.AspNetCore.Serilog");
+    }
+
+    [Fact]
+    public void Rules_flag_Hosting_referencing_a_project_and_Infrastructure_referencing_Hosting()
+    {
+        var graph = new Dictionary<string, ProjectNode>
+        {
+            [ReferenceRules.Hosting] = Node(ReferenceRules.Hosting, projects: [ReferenceRules.Contracts]),
+            [ReferenceRules.Infrastructure] = Node(ReferenceRules.Infrastructure, projects: [ReferenceRules.Hosting]),
+        };
+
+        var violations = ReferenceRules.Evaluate(graph);
+
+        violations.ShouldContain($"{ReferenceRules.Hosting} must not reference {ReferenceRules.Contracts}.");
+        violations.ShouldContain($"{ReferenceRules.Infrastructure} must not reference {ReferenceRules.Hosting}.");
     }
 
     // The tests below feed the rules deliberately bad graphs: they prove each rule can fail.

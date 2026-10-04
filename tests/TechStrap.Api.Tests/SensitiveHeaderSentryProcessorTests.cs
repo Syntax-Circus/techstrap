@@ -1,5 +1,5 @@
 using Sentry;
-using TechStrap.Api.Startup;
+using TechStrap.Hosting.Sentry;
 
 namespace TechStrap.Api.Tests;
 

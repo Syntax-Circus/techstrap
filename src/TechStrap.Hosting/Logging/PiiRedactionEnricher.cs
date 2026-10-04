@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 using Serilog.Core;
 using Serilog.Events;
 
-namespace TechStrap.Infrastructure.Logging;
+namespace TechStrap.Hosting.Logging;
 
 /// <summary>
 /// Rewrites PII-shaped text in every property value before any sink sees the event (D-039): email addresses, 43-character access tokens and
