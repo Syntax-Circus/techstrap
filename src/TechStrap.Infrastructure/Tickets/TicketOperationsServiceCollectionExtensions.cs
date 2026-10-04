@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Tickets.AutoClose;
+using TechStrap.Application.Tickets.Customer;
 using TechStrap.Application.Tickets.Notifications;
 
 namespace TechStrap.Infrastructure.Tickets;
@@ -19,6 +20,12 @@ public static class TicketOperationsServiceCollectionExtensions
                 $"{AdminLinkOptions.PublicUrlKey} must be an absolute http or https URL without a query or fragment when set.")
             .ValidateOnStart();
         AddAutoCloseOptions(services, configuration);
+        services.AddOptions<LostLinkOptions>()
+            .Bind(configuration.GetSection(LostLinkOptions.SectionName))
+            .Validate(o => o.MaxLinks is >= 1 and <= 10, "LostLink:MaxLinks must be between 1 and 10.")
+            .Validate(o => o.PerAddressLimit is >= 1 and <= 20, "LostLink:PerAddressLimit must be between 1 and 20.")
+            .Validate(o => o.PerAddressWindowMinutes is >= 1 and <= 1440, "LostLink:PerAddressWindowMinutes must be between 1 and 1440.")
+            .ValidateOnStart();
         services.TryAddScoped<ITicketNotificationPlanner, TicketNotificationPlanner>();
         return services;
     }

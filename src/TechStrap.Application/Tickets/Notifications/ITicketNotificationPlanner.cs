@@ -1,4 +1,5 @@
 using TechStrap.Domain.Agents;
+using TechStrap.Domain.Requesters;
 using TechStrap.Domain.Tickets;
 
 namespace TechStrap.Application.Tickets.Notifications;
@@ -14,4 +15,16 @@ public interface ITicketNotificationPlanner
     Task PlanSolvedAsync(Ticket ticket, CancellationToken cancellationToken);
 
     Task PlanAssignedAsync(Ticket ticket, Agent assignee, Agent actor, CancellationToken cancellationToken);
+
+    /// <summary>New-ticket alert to agents opted in for the ticket's product (active only). Not for spam (a new ticket is never spam).</summary>
+    Task PlanNewTicketAsync(Ticket ticket, Requester requester, bool isFollowUp, CancellationToken cancellationToken);
+
+    /// <summary>Customer replied: to the assignee if set and active, else to agents opted in for the product. Nothing for spam tickets (D-038).</summary>
+    Task PlanCustomerReplyAsync(Ticket ticket, bool reopened, CancellationToken cancellationToken);
+
+    /// <summary>Confirmation to the requester for a follow-up ticket (ticket-confirmation kind, fresh token). Skips spam and erased, as for any customer email.</summary>
+    Task PlanFollowUpConfirmationAsync(Ticket followUp, CancellationToken cancellationToken);
+
+    /// <summary>One access-links email to the requester's own address with a fresh link per ticket (D-037: nothing revoked). Skips erased requesters and empty lists.</summary>
+    Task PlanAccessLinksAsync(Requester requester, IReadOnlyList<RequesterTicketLink> tickets, CancellationToken cancellationToken);
 }

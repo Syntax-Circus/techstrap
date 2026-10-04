@@ -5,6 +5,9 @@ using Microsoft.Extensions.Options;
 using Npgsql;
 using TechStrap.Application.Intake;
 using TechStrap.Application.Persistence;
+using TechStrap.Application.Security;
+using TechStrap.Application.Tickets;
+using TechStrap.Application.Tickets.AutoClose;
 using TechStrap.Application.Tickets.Notifications;
 using TechStrap.Domain.Agents;
 using TechStrap.Domain.Outbox;
@@ -25,17 +28,21 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
 
     private sealed record Seed(Guid ProductId, Guid OtherProductId, Guid RequesterId, Guid TicketId, Guid SamId, Guid AlexId, Guid InactiveId);
 
-    private PersistenceTestHost NewHost(string? adminUrl = "https://admin.test") =>
+    private PersistenceTestHost NewHost(string? adminUrl = "https://admin.test", IReadOnlyDictionary<string, string?>? extra = null) =>
         new(Database, configure: services =>
         {
-            var configuration = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    [PortalLinkOptions.PublicUrlKey] = "https://help.test",
-                    [AdminLinkOptions.PublicUrlKey] = adminUrl,
-                    ["Storage:Local:RootPath"] = Path.Combine(Path.GetTempPath(), "techstrap-planner-" + Guid.NewGuid().ToString("N")),
-                })
-                .Build();
+            var settings = new Dictionary<string, string?>
+            {
+                [PortalLinkOptions.PublicUrlKey] = "https://help.test",
+                [AdminLinkOptions.PublicUrlKey] = adminUrl,
+                ["Storage:Local:RootPath"] = Path.Combine(Path.GetTempPath(), "techstrap-planner-" + Guid.NewGuid().ToString("N")),
+            };
+            foreach (var (key, value) in extra ?? new Dictionary<string, string?>())
+            {
+                settings[key] = value;
+            }
+
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
             services.AddLogging();
             services.AddTechStrapIntake(configuration);
             services.AddTechStrapTicketOperations(configuration);
@@ -300,6 +307,191 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
         (await host.CommitAsync(sp => PlanAsync(sp, seed, (planner, ticket, sam, alex) => planner.PlanAssignedAsync(ticket, alex, sam, Ct)))).IsSuccess.ShouldBeTrue();
 
         (await TextAsync("SELECT payload::text FROM email_outbox")).ShouldContain("\"adminLink\": null");
+    }
+
+    private static async Task OptInAsync(IServiceProvider sp, Guid agentId, Guid productId) =>
+        await sp.GetRequiredService<IAgentRepository>().SetNotificationPreferenceAsync(new AgentNotificationPreference(agentId, productId, true), Ct);
+
+    private static async Task SeedOptInsAsync(PersistenceTestHost host, Seed seed) =>
+        (await host.CommitAsync(async sp =>
+        {
+            await OptInAsync(sp, seed.SamId, seed.ProductId);
+            await OptInAsync(sp, seed.AlexId, seed.OtherProductId);
+            await OptInAsync(sp, seed.InactiveId, seed.ProductId);
+        })).IsSuccess.ShouldBeTrue();
+
+    [Fact]
+    public async Task A_new_ticket_alerts_only_agents_opted_in_for_its_product()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        await SeedOptInsAsync(host, seed);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, async (planner, ticket, _, _) =>
+        {
+            var requester = (await sp.GetRequiredService<IRequesterRepository>().GetByIdAsync(seed.RequesterId, Ct))!;
+            await planner.PlanNewTicketAsync(ticket, requester, false, Ct);
+        }))).IsSuccess.ShouldBeTrue();
+
+        (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(1);
+        (await TextAsync("SELECT kind FROM email_outbox")).ShouldBe("new-ticket-alert");
+        (await TextAsync("SELECT to_address FROM email_outbox")).ShouldBe("sam.taylor@techstrap.test");
+        var payload = await TextAsync("SELECT payload::text FROM email_outbox");
+        payload.ShouldContain("https://admin.test/tickets/ORB-1");
+        payload.ShouldContain("Pat");
+        (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens")).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_customer_reply_alerts_the_active_assignee_only()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        await SeedOptInsAsync(host, seed);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, async (planner, ticket, _, alex) =>
+        {
+            ticket.Assign(alex.Id, Actor.ForAgent(alex.Id), host.Clock).IsSuccess.ShouldBeTrue();
+            await planner.PlanCustomerReplyAsync(ticket, true, Ct);
+        }))).IsSuccess.ShouldBeTrue();
+
+        (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(1);
+        (await TextAsync("SELECT kind FROM email_outbox")).ShouldBe("customer-reply-alert");
+        (await TextAsync("SELECT to_address FROM email_outbox")).ShouldBe("alex.doe@techstrap.test");
+        (await TextAsync("SELECT payload::text FROM email_outbox")).ShouldContain("\"reopened\": true");
+        (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens")).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_customer_reply_on_an_unassigned_or_inactive_assignee_ticket_alerts_the_opted_in_agents()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        await SeedOptInsAsync(host, seed);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, async (planner, ticket, _, _) =>
+        {
+            await planner.PlanCustomerReplyAsync(ticket, false, Ct);
+            var gone = (await sp.GetRequiredService<IAgentRepository>().GetByIdAsync(seed.InactiveId, Ct))!;
+            ticket.Assign(gone.Id, Actor.ForAgent(gone.Id), host.Clock).IsSuccess.ShouldBeTrue();
+            await planner.PlanCustomerReplyAsync(ticket, false, Ct);
+        }))).IsSuccess.ShouldBeTrue();
+
+        (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(2);
+        (await ScalarAsync("SELECT count(*) FROM email_outbox WHERE to_address = 'sam.taylor@techstrap.test'")).ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task A_customer_reply_on_a_spam_ticket_alerts_nobody()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        await SeedOptInsAsync(host, seed);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, async (planner, ticket, sam, _) =>
+        {
+            ticket.MarkSpam(true, Actor.ForAgent(sam.Id), host.Clock).IsSuccess.ShouldBeTrue();
+            await planner.PlanCustomerReplyAsync(ticket, false, Ct);
+        }))).IsSuccess.ShouldBeTrue();
+
+        (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_follow_up_confirmation_goes_to_the_requester_with_a_fresh_link()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, (planner, ticket, _, _) => planner.PlanFollowUpConfirmationAsync(ticket, Ct)))).IsSuccess.ShouldBeTrue();
+
+        (await TextAsync("SELECT kind FROM email_outbox")).ShouldBe("ticket-confirmation");
+        (await TextAsync("SELECT to_address FROM email_outbox")).ShouldBe("pat@example.com");
+        (await TextAsync("SELECT payload::text FROM email_outbox")).ShouldContain("https://help.test/t/");
+        (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens")).ShouldBe(1);
+    }
+
+    private static async Task<(Requester Requester, List<RequesterTicketLink> Links)> AddTicketsAsync(PersistenceTestHost host, Seed seed, int extra)
+    {
+        var links = new List<RequesterTicketLink>();
+        (await host.CommitAsync(sp =>
+        {
+            var repo = sp.GetRequiredService<ITicketRepository>();
+            for (var i = 0; i < extra; i++)
+            {
+                var t = Ticket.Create(TicketNumber.Create("ORB", i + 2).Value, seed.ProductId, seed.RequesterId, "Subject " + i, TicketChannel.Web, null, false, host.Clock).Value;
+                repo.Add(t);
+                links.Add(new RequesterTicketLink(t.Id, t.ProductId, t.Number.ToString(), t.Subject, t.LastActivityAt));
+            }
+
+            return Task.CompletedTask;
+        })).IsSuccess.ShouldBeTrue();
+        await using var scope = host.CreateScope();
+        var requester = (await scope.ServiceProvider.GetRequiredService<IRequesterRepository>().GetByIdAsync(seed.RequesterId, Ct))!;
+        return (requester, links);
+    }
+
+    [Fact]
+    public async Task Access_links_send_one_email_with_a_fresh_link_per_ticket_and_revoke_nothing()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        var (requester, links) = await AddTicketsAsync(host, seed, 2);
+        var all = new List<RequesterTicketLink> { new(seed.TicketId, seed.ProductId, "ORB-1", "Cannot log in", host.Clock.GetUtcNow()) };
+        all.AddRange(links);
+        (await host.CommitAsync(sp =>
+        {
+            var issued = sp.GetRequiredService<IAccessTokenService>().Issue(seed.TicketId, seed.RequesterId).Value;
+            sp.GetRequiredService<ITicketRepository>().AddAccessToken(issued.Token);
+            return Task.CompletedTask;
+        })).IsSuccess.ShouldBeTrue();
+
+        (await host.CommitAsync(sp => sp.GetRequiredService<ITicketNotificationPlanner>().PlanAccessLinksAsync(requester, all, Ct))).IsSuccess.ShouldBeTrue();
+
+        (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(1);
+        (await TextAsync("SELECT kind FROM email_outbox")).ShouldBe("access-links");
+        (await TextAsync("SELECT to_address FROM email_outbox")).ShouldBe("pat@example.com");
+        (await TextAsync("SELECT product_id::text FROM email_outbox")).ShouldBe(seed.ProductId.ToString());
+        (await TextAsync("SELECT ticket_id::text FROM email_outbox")).ShouldBe(seed.TicketId.ToString());
+        var payload = await TextAsync("SELECT payload::text FROM email_outbox");
+        System.Text.RegularExpressions.Regex.Matches(payload, "https://help.test/t/").Count.ShouldBe(3);
+        (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens")).ShouldBe(4);
+        (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens WHERE revoked_at IS NOT NULL")).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Access_links_are_capped_and_skip_erased_requesters()
+    {
+        await using var host = NewHost(extra: new Dictionary<string, string?> { ["LostLink:MaxLinks"] = "2" });
+        var seed = await SeedAsync(host);
+        var (requester, links) = await AddTicketsAsync(host, seed, 3);
+
+        (await host.CommitAsync(async sp =>
+        {
+            var planner = sp.GetRequiredService<ITicketNotificationPlanner>();
+            await planner.PlanAccessLinksAsync(requester, links, Ct);
+            await planner.PlanAccessLinksAsync(requester, [], Ct);
+            requester.Erase(host.Clock);
+            await planner.PlanAccessLinksAsync(requester, links, Ct);
+        })).IsSuccess.ShouldBeTrue();
+
+        (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(1);
+        (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens")).ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Solved_and_reply_emails_carry_the_configured_reopen_window()
+    {
+        await using var host = NewHost(extra: new Dictionary<string, string?> { [AutoCloseOptions.DaysKey] = "10" });
+        var seed = await SeedAsync(host);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, async (planner, ticket, sam, _) =>
+        {
+            await planner.PlanSolvedAsync(ticket, Ct);
+            await planner.PlanAgentReplyAsync(ticket, AgentMessage(host, seed, sam), sam, false, Ct);
+        }))).IsSuccess.ShouldBeTrue();
+
+        (await ScalarAsync("SELECT count(*) FROM email_outbox WHERE payload::text LIKE '%\"reopenDays\": 10%'")).ShouldBe(2);
     }
 
     [Theory]

@@ -5,11 +5,15 @@ using TechStrap.Application.Email;
 using TechStrap.Application.Intake;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Security;
+using TechStrap.Application.Tickets;
+using TechStrap.Application.Tickets.AutoClose;
+using TechStrap.Application.Tickets.Customer;
 using TechStrap.Application.Tickets.Notifications;
 using TechStrap.Domain.Agents;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
 using TechStrap.Domain.Requesters;
+using TechStrap.Domain.Rules;
 using TechStrap.Domain.Tickets;
 
 namespace TechStrap.Infrastructure.Tickets;
@@ -21,11 +25,14 @@ namespace TechStrap.Infrastructure.Tickets;
 internal sealed class TicketNotificationPlanner(
     IRequesterRepository requesters,
     IProductRepository products,
+    IAgentRepository agents,
     ITicketRepository tickets,
     IAccessTokenService accessTokens,
     IEmailOutbox outbox,
     IOptions<PortalLinkOptions> portalOptions,
     IOptions<AdminLinkOptions> adminOptions,
+    IOptions<AutoCloseOptions> autoClose,
+    IOptions<LostLinkOptions> lostLink,
     TimeProvider clock,
     ILogger<TicketNotificationPlanner> logger) : ITicketNotificationPlanner
 {
@@ -42,14 +49,15 @@ internal sealed class TicketNotificationPlanner(
                 link,
                 AgentPublicIdentity.Resolve(author, product.Branding.DisplayName),
                 message.Id,
-                solved),
+                solved,
+                autoClose.Value.Days),
             cancellationToken);
 
     public Task PlanSolvedAsync(Ticket ticket, CancellationToken cancellationToken) =>
         PlanCustomerAsync(
             ticket,
             EmailTemplates.TicketSolved,
-            (requester, _, link) => new TicketSolvedEmail(ticket.Number.ToString(), ticket.Subject, requester.Name, link, TicketNotices.DefaultReopenDays),
+            (requester, _, link) => new TicketSolvedEmail(ticket.Number.ToString(), ticket.Subject, requester.Name, link, autoClose.Value.Days),
             cancellationToken);
 
     public async Task PlanAssignedAsync(Ticket ticket, Agent assignee, Agent actor, CancellationToken cancellationToken)
@@ -70,6 +78,132 @@ internal sealed class TicketNotificationPlanner(
         var number = ticket.Number.ToString();
         var payload = new TicketAssignedEmail(number, ticket.Subject, product.Name, actor.Name, adminOptions.Value.TicketLink(number));
         Stage(EmailTemplates.TicketAssigned, assignee.Email, payload, ticket);
+    }
+
+    public Task PlanFollowUpConfirmationAsync(Ticket followUp, CancellationToken cancellationToken) =>
+        PlanCustomerAsync(
+            followUp,
+            EmailTemplates.TicketConfirmation,
+            (requester, _, link) => new TicketConfirmationEmail(followUp.Number.ToString(), followUp.Subject, requester.Name, link, null),
+            cancellationToken);
+
+    public async Task PlanNewTicketAsync(Ticket ticket, Requester requester, bool isFollowUp, CancellationToken cancellationToken)
+    {
+        var product = await products.GetByIdAsync(ticket.ProductId, cancellationToken);
+        if (product is null)
+        {
+            logger.LogInformation("Skipped {Kind} for ticket {TicketId}: product unavailable", EmailTemplates.NewTicketAlert, ticket.Id);
+            return;
+        }
+
+        var recipients = await agents.ListAgentsToAlertForProductAsync(ticket.ProductId, cancellationToken);
+        var number = ticket.Number.ToString();
+        var payload = new NewTicketAlertEmail(number, ticket.Subject, product.Name, requester.Name ?? requester.Email, isFollowUp, adminOptions.Value.TicketLink(number));
+        foreach (var agent in recipients.DistinctBy(a => a.Id))
+        {
+            Stage(EmailTemplates.NewTicketAlert, agent.Email, payload, ticket);
+        }
+    }
+
+    public async Task PlanCustomerReplyAsync(Ticket ticket, bool reopened, CancellationToken cancellationToken)
+    {
+        if (ticket.IsSpam)
+        {
+            logger.LogInformation("Skipped {Kind} for ticket {TicketId}: ticket is flagged as spam", EmailTemplates.CustomerReplyAlert, ticket.Id);
+            return;
+        }
+
+        var product = await products.GetByIdAsync(ticket.ProductId, cancellationToken);
+        if (product is null)
+        {
+            logger.LogInformation("Skipped {Kind} for ticket {TicketId}: product unavailable", EmailTemplates.CustomerReplyAlert, ticket.Id);
+            return;
+        }
+
+        IReadOnlyList<Agent> recipients = [];
+        if (ticket.AssigneeId is { } assigneeId)
+        {
+            var assignee = await agents.GetByIdAsync(assigneeId, cancellationToken);
+            if (assignee is { IsActive: true })
+            {
+                recipients = [assignee];
+            }
+        }
+
+        if (recipients.Count == 0)
+        {
+            recipients = await agents.ListAgentsToAlertForProductAsync(ticket.ProductId, cancellationToken);
+        }
+
+        var number = ticket.Number.ToString();
+        var payload = new CustomerReplyAlertEmail(number, ticket.Subject, product.Name, reopened, adminOptions.Value.TicketLink(number));
+        foreach (var agent in recipients.DistinctBy(a => a.Id))
+        {
+            Stage(EmailTemplates.CustomerReplyAlert, agent.Email, payload, ticket);
+        }
+    }
+
+    public async Task PlanAccessLinksAsync(Requester requester, IReadOnlyList<RequesterTicketLink> ticketLinks, CancellationToken cancellationToken)
+    {
+        if (requester.IsErased || ticketLinks.Count == 0)
+        {
+            logger.LogInformation("Skipped {Kind}: requester unavailable or no tickets", EmailTemplates.AccessLinks);
+            return;
+        }
+
+        // Branding follows the first ticket (the most recently active): the drain requires a product on the row.
+        var first = ticketLinks[0];
+        var staged = new List<(AccessLinkEntry Entry, TicketAccessToken Token)>();
+        foreach (var link in ticketLinks.Take(lostLink.Value.MaxLinks))
+        {
+            var issued = accessTokens.Issue(link.TicketId, requester.Id);
+            if (issued.IsFailure)
+            {
+                logger.LogInformation("Skipped a link for {Kind}: access token not issued ({Code})", EmailTemplates.AccessLinks, issued.Error!.Code);
+                continue;
+            }
+
+            staged.Add((new AccessLinkEntry(link.Number, link.Subject, portalOptions.Value.TicketLink(issued.Value.PlaintextToken)), issued.Value.Token));
+        }
+
+        if (staged.Count == 0)
+        {
+            return;
+        }
+
+        var dropped = 0;
+        string json;
+        while (true)
+        {
+            json = JsonSerializer.Serialize(new AccessLinksEmail(requester.Name, [.. staged.Select(s => s.Entry)]), PayloadJson);
+            if (json.Length <= DomainLimits.OutboxPayloadMaxLength || staged.Count <= 1)
+            {
+                break;
+            }
+
+            staged.RemoveAt(staged.Count - 1);
+            dropped++;
+        }
+
+        if (dropped > 0)
+        {
+            logger.LogInformation("Dropped {Dropped} links from {Kind}: payload size cap", dropped, EmailTemplates.AccessLinks);
+        }
+
+        var item = EmailOutboxItem.Enqueue(EmailTemplates.AccessLinks, requester.Email, json, first.ProductId, first.TicketId, clock);
+        if (item.IsFailure)
+        {
+            logger.LogInformation("Skipped {Kind}: not queued ({Code})", EmailTemplates.AccessLinks, item.Error!.Code);
+            return;
+        }
+
+        // Tokens are staged only once the row is valid: all tokens or none (06a ordering rule).
+        foreach (var (_, token) in staged)
+        {
+            tickets.AddAccessToken(token);
+        }
+
+        outbox.Enqueue(item.Value);
     }
 
     private async Task PlanCustomerAsync<TPayload>(
