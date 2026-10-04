@@ -22,7 +22,7 @@
         {
             <ErrorState Message="@_error" OnRetry="ReloadAsync" />
         }
-        else if (_rows.Count == 0)
+        else if (_rows.Count == 0 && _total == 0)
         {
             <EmptyState Heading="@AgentsCopy.NoAgents" />
         }
@@ -37,7 +37,7 @@
                             <th scope="col">@AgentsCopy.ColumnRole</th>
                             <th scope="col">@AgentsCopy.ColumnStatus</th>
                             <th scope="col">@AgentsCopy.ColumnLastSeen</th>
-                            <th scope="col"><span class="visually-hidden">Actions</span></th>
+                            <th scope="col"><span class="visually-hidden">@AgentsCopy.ColumnActions</span></th>
                         </tr>
                     </thead>
                     <tbody>

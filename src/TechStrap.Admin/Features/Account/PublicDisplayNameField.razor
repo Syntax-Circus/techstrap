@@ -1,7 +1,7 @@
 <div class="ts-field ts-public-name">
     <label for="ts-public-name" class="form-label">@MySettingsCopy.NameLabel</label>
     <input id="ts-public-name" type="text" class="form-control @(_error is null ? null : "is-invalid")" value="@_model.PublicDisplayName" autocomplete="off" spellcheck="false"
-           disabled="@_saving" aria-invalid="@(_error is null ? null : "true")" aria-describedby="ts-public-name-preview ts-public-name-help"
+           readonly="@_saving" aria-busy="@(_saving ? "true" : null)" aria-invalid="@(_error is null ? null : "true")" aria-describedby="ts-public-name-preview ts-public-name-help"
            @oninput="OnInput" @onblur="CommitAsync" @onkeydown="OnKeyDownAsync" />
     <p id="ts-public-name-preview" class="ts-public-name-preview">@MySettingsCopy.Preview(PreviewLine)</p>
     <p id="ts-public-name-help" class="ts-field-help">@MySettingsCopy.NameHelp</p>

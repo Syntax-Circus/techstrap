@@ -14,6 +14,9 @@ namespace TechStrap.Admin.Features.Settings.Agents;
 public sealed partial class AgentsContent : IDisposable
 {
     private readonly CancellationTokenSource _lifetime = new();
+
+    // Agents whose activate or deactivate ended with an unknown outcome: held (asking again shows the uncertain copy and sends nothing) until the list has been read again successfully.
+    private readonly HashSet<Guid> _uncertainIds = [];
     private IReadOnlyList<AgentRowViewModel> _rows = [];
     private AgentRowViewModel? _deactivating;
     private string? _error;
@@ -22,6 +25,7 @@ public sealed partial class AgentsContent : IDisposable
     private int _page = 1;
     private int _total;
     private int _loadedPage;
+    private int _loadId;
     private bool _loading = true;
     private bool _busy;
     private bool _uncertain;
@@ -57,12 +61,15 @@ public sealed partial class AgentsContent : IDisposable
 
     private async Task LoadAsync()
     {
+        // Only the latest load may change the screen: a slow answer for an earlier page is ignored.
+        var loadId = ++_loadId;
+        var redirecting = false;
         _loading = true;
         _error = null;
         try
         {
             var result = await Agents.ListPageAsync(_page, AgentsCopy.PageSize, _lifetime.Token);
-            if (_lifetime.IsCancellationRequested)
+            if (_lifetime.IsCancellationRequested || loadId != _loadId)
             {
                 return;
             }
@@ -71,6 +78,15 @@ public sealed partial class AgentsContent : IDisposable
             {
                 _rows = [.. result.Value.Items.Select(AgentRowViewModel.From)];
                 _total = result.Value.TotalCount;
+                _uncertainIds.Clear();
+
+                // A page past the end (an old address, or the last row of the last page went away): go to the last page that has rows instead of saying there are none.
+                var lastPage = Math.Max(1, (_total + AgentsCopy.PageSize - 1) / AgentsCopy.PageSize);
+                if (_rows.Count == 0 && _total > 0 && _page > lastPage)
+                {
+                    redirecting = true;
+                    Navigation.NavigateTo(lastPage <= 1 ? "/settings/agents" : $"/settings/agents?page={lastPage}", replace: true);
+                }
             }
             else
             {
@@ -79,7 +95,11 @@ public sealed partial class AgentsContent : IDisposable
         }
         finally
         {
-            _loading = false;
+            if (loadId == _loadId && !redirecting)
+            {
+                // While redirecting to the last page the next load is already due: keep the loading state, never the empty one.
+                _loading = false;
+            }
         }
     }
 
@@ -101,6 +121,13 @@ public sealed partial class AgentsContent : IDisposable
             return;
         }
 
+        if (_uncertainIds.Contains(row.Id))
+        {
+            _rowError = AgentsCopy.ActivateUncertain(row.DisplayName);
+            _rowUncertain = true;
+            return;
+        }
+
         _busy = true;
         _rowError = null;
         _rowUncertain = false;
@@ -117,10 +144,16 @@ public sealed partial class AgentsContent : IDisposable
                 Replace(row, result.Value);
                 StatusMessages.Show(AgentsCopy.Activated(row.DisplayName));
             }
+            else if (result.Errors[0].Code == ApiErrorCodes.AgentNotFound)
+            {
+                StatusMessages.Show(AgentsCopy.AgentGone);
+                await LoadAsync();
+            }
             else if (ApiErrorCodes.IsUncertainWrite(result.Errors[0].Code))
             {
                 _rowError = AgentsCopy.ActivateUncertain(row.DisplayName);
                 _rowUncertain = true;
+                _uncertainIds.Add(row.Id);
             }
             else
             {
@@ -137,10 +170,10 @@ public sealed partial class AgentsContent : IDisposable
 
     private void AskDeactivate(AgentRowViewModel row)
     {
-        _dialogError = null;
-        _uncertain = false;
         _rowError = null;
         _deactivating = row;
+        _uncertain = _uncertainIds.Contains(row.Id);
+        _dialogError = _uncertain ? AgentsCopy.DeactivateUncertain : null;
     }
 
     private void CancelDeactivate()
@@ -155,7 +188,7 @@ public sealed partial class AgentsContent : IDisposable
 
     private async Task ConfirmDeactivateAsync()
     {
-        if (_busy || _deactivating is not { } row)
+        if (_busy || _deactivating is not { } row || _uncertainIds.Contains(row.Id))
         {
             return;
         }
@@ -186,7 +219,7 @@ public sealed partial class AgentsContent : IDisposable
                 return;
             }
 
-            await ShowDeactivateFailureAsync(result.Errors[0]);
+            await ShowDeactivateFailureAsync(result.Errors[0], row.Id);
         }
         finally
         {
@@ -194,7 +227,7 @@ public sealed partial class AgentsContent : IDisposable
         }
     }
 
-    private async Task ShowDeactivateFailureAsync(ResultError error)
+    private async Task ShowDeactivateFailureAsync(ResultError error, Guid id)
     {
         if (error.Code == ApiErrorCodes.AgentNotFound)
         {
@@ -206,6 +239,7 @@ public sealed partial class AgentsContent : IDisposable
         {
             _dialogError = AgentsCopy.DeactivateUncertain;
             _uncertain = true;
+            _uncertainIds.Add(id);
         }
         else if (error.Code == ApiErrorCodes.LastActiveAdmin)
         {

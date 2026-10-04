@@ -132,6 +132,7 @@ public sealed class AdminOnlyTests : AdminComponentTest
 
         cut.Find("#secret").TextContent.ShouldBe("admin content");
         cut.FindAll(".ts-gate").ShouldBeEmpty();
+        frames.ShouldNotBeEmpty("the session announced the reload, so there are frames to check");
         frames.ShouldAllBe(markup => markup.Contains("admin content") && !markup.Contains("ts-gate") && !markup.Contains("ts-no-access"));
         _contentStarted.ShouldBe(1);
     }

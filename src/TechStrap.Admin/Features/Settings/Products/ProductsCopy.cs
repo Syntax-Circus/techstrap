@@ -15,6 +15,12 @@ public static class ProductsCopy
     public const string ApiKeys = "API keys";
     public const string BackToProducts = "Products";
 
+    public const string ColumnName = "Name";
+    public const string ColumnKey = "Key";
+    public const string ColumnPrefix = "Prefix";
+    public const string ColumnStatus = "Status";
+    public const string ColumnActions = "Actions";
+
     public const string EditorNewTitle = "New product";
     public const string EditorLoading = "Loading product";
     public const string EditorLoadFailed = "Couldn't load this product.";

@@ -26,6 +26,7 @@ public sealed partial class NotificationPreferencesPage : IDisposable
     private string? _saveError;
     private string? _productDisplayName;
     private int _version;
+    private int _loadId;
     private bool _loadingPrefs = true;
     private bool _saving;
     private bool _saveUncertain;
@@ -64,6 +65,8 @@ public sealed partial class NotificationPreferencesPage : IDisposable
 
     private async Task LoadPreferencesAsync()
     {
+        // Only the latest load may change the screen: a slow answer that was overtaken (a reload while the first read runs) is ignored.
+        var loadId = ++_loadId;
         _loadingPrefs = true;
         _prefsError = null;
         _saveError = null;
@@ -71,7 +74,7 @@ public sealed partial class NotificationPreferencesPage : IDisposable
         try
         {
             var result = await Agents.GetNotificationPreferencesAsync(_lifetime.Token);
-            if (_lifetime.IsCancellationRequested)
+            if (_lifetime.IsCancellationRequested || loadId != _loadId)
             {
                 return;
             }
@@ -88,7 +91,10 @@ public sealed partial class NotificationPreferencesPage : IDisposable
         }
         finally
         {
-            _loadingPrefs = false;
+            if (loadId == _loadId)
+            {
+                _loadingPrefs = false;
+            }
         }
     }
 
@@ -108,6 +114,8 @@ public sealed partial class NotificationPreferencesPage : IDisposable
     {
         if (_saving || _saveUncertain)
         {
+            // Swallowed: a new key makes Blazor draw the checkbox again from what is saved, so the click does not leave a tick the page never saved.
+            _version++;
             return;
         }
 

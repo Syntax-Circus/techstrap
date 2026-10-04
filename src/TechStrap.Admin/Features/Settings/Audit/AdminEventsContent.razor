@@ -36,7 +36,7 @@
         {
             <ErrorState Message="@_error" OnRetry="RefreshAsync" />
         }
-        else if (_rows.Count == 0)
+        else if (_rows.Count == 0 && _total == 0)
         {
             @if (_subject is not null || _actor is not null)
             {

@@ -16,6 +16,7 @@ public static class AgentsCopy
     public const string ColumnRole = "Role";
     public const string ColumnStatus = "Status";
     public const string ColumnLastSeen = "Last seen";
+    public const string ColumnActions = "Actions";
     public const string Active = "Active";
     public const string Inactive = "Inactive";
     public const string NeverSeen = "Never";

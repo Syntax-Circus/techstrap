@@ -408,6 +408,43 @@ public sealed class DeadLettersPageTests : AdminPageTest
         StatusMessages.Current.ShouldBeNull();
         Calls(nameof(IDeadLettersClient.ListAsync)).ShouldBe(1);
     }
+    // ---- an unknown outcome is held until the list has been read again --------------------------------------------
+
+    [Fact]
+    public void After_a_lost_retry_answer_a_second_retry_of_that_row_sends_nothing_until_the_list_has_been_read_again()
+    {
+        _letters.RetryAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again."));
+        var cut = RenderPage();
+        Row(cut, _first).QuerySelector("button.ts-retry")!.Click();
+
+        Row(cut, _first).QuerySelector("button.ts-retry")!.Click();
+
+        Calls(nameof(IDeadLettersClient.RetryAsync)).ShouldBe(1);
+        cut.Find(".ts-conflict[role=alert]").TextContent.ShouldContain("The retry may have been queued.");
+
+        cut.Find(".ts-conflict button").Click();
+        Row(cut, _first).QuerySelector("button.ts-retry")!.Click();
+
+        Calls(nameof(IDeadLettersClient.RetryAsync)).ShouldBe(2);
+    }
+
+    [Fact]
+    public void After_a_lost_discard_answer_asking_to_discard_that_row_again_shows_the_uncertain_copy_and_sends_nothing()
+    {
+        _letters.DiscardAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again."));
+        var cut = RenderPage();
+        Row(cut, _first).QuerySelector("button.ts-discard")!.Click();
+        Confirm(cut).Click();
+        DiscardDialog(cut).QuerySelector("button.btn-outline-secondary")!.Click();
+
+        Row(cut, _first).QuerySelector("button.ts-discard")!.Click();
+
+        DiscardDialog(cut).QuerySelector("[role=alert]")!.TextContent.ShouldBe("The discard may have gone through. Reload the list to check before you try again.");
+        Confirm(cut).HasAttribute("disabled").ShouldBeTrue();
+        Confirm(cut).Click();
+        Calls(nameof(IDeadLettersClient.DiscardAsync)).ShouldBe(1);
+    }
+
     // ---- stale loads and pages past the end ----------------------------------------------------------------------
 
     [Fact]

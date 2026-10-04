@@ -231,4 +231,44 @@ public sealed class PublicDisplayNameFieldTests : AdminPageTest
         _agents.Received(1).UpdateMyProfileAsync(Arg.Any<UpdateMyProfileRequest>(), Arg.Is<CancellationToken>(t => !t.CanBeCanceled));
         _agents.Received(1).GetMeAsync(Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public void After_a_lost_answer_the_next_blur_or_Enter_does_not_resend_the_same_value_until_the_text_changes()
+    {
+        _agents.UpdateMyProfileAsync(Arg.Any<UpdateMyProfileRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Fail(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again."), TestData.Ok());
+        var cut = RenderField();
+        cut.Find("#ts-public-name").Input("Samantha");
+        cut.Find("#ts-public-name").Blur();
+
+        cut.Find("#ts-public-name").Blur();
+        cut.Find("#ts-public-name").KeyDown(Key.Enter);
+
+        Saves().Count.ShouldBe(1, "the value may already be stored; asking again sends nothing");
+        cut.Find("#ts-public-name-error").TextContent.ShouldBe("The save may have gone through. Reload the page to see what is saved before you try again.");
+
+        cut.Find("#ts-public-name").Input("Sammy");
+        cut.Find("#ts-public-name").Blur();
+
+        Saves().Select(r => r.PublicDisplayName).ShouldBe(["Samantha", "Sammy"]);
+    }
+
+    [Fact]
+    public void While_saving_the_input_is_read_only_and_busy_never_disabled_so_focus_stays()
+    {
+        var gate = new TaskCompletionSource<Result>();
+        _agents.UpdateMyProfileAsync(Arg.Any<UpdateMyProfileRequest>(), Arg.Any<CancellationToken>()).Returns(gate.Task);
+        var cut = RenderField();
+        cut.Find("#ts-public-name").Input("Samantha");
+
+        cut.Find("#ts-public-name").KeyDown(Key.Enter);
+
+        var input = cut.Find("#ts-public-name");
+        input.HasAttribute("disabled").ShouldBeFalse();
+        input.HasAttribute("readonly").ShouldBeTrue();
+        input.GetAttribute("aria-busy").ShouldBe("true");
+        gate.SetResult(TestData.Ok());
+        cut.WaitForAssertion(() => cut.Find("#ts-public-name").HasAttribute("readonly").ShouldBeFalse());
+        cut.Find("#ts-public-name").HasAttribute("aria-busy").ShouldBeFalse();
+    }
 }

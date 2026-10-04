@@ -13,6 +13,9 @@ namespace TechStrap.Admin.Features.Ops.DeadLetters;
 public sealed partial class DeadLettersContent : IDisposable
 {
     private readonly CancellationTokenSource _lifetime = new();
+
+    // Emails whose retry or discard ended with an unknown outcome: held (asking again shows the uncertain copy and sends nothing) until the list has been read again successfully.
+    private readonly HashSet<Guid> _uncertainIds = [];
     private IReadOnlyList<DeadLetterRowViewModel> _rows = [];
     private DeadLetterRowViewModel? _discarding;
     private string? _error;
@@ -72,6 +75,7 @@ public sealed partial class DeadLettersContent : IDisposable
             {
                 _rows = [.. result.Value.Items.Select(DeadLetterRowViewModel.From)];
                 _total = result.Value.TotalCount;
+                _uncertainIds.Clear();
 
                 // The list already holds the total, so the badge in the navigation follows it without a second call.
                 Failed.Set(_total);
@@ -117,6 +121,13 @@ public sealed partial class DeadLettersContent : IDisposable
             return;
         }
 
+        if (_uncertainIds.Contains(row.Id))
+        {
+            _rowError = DeadLettersCopy.RetryUncertain;
+            _rowUncertain = true;
+            return;
+        }
+
         _busy = true;
         _rowError = null;
         _rowUncertain = false;
@@ -135,7 +146,7 @@ public sealed partial class DeadLettersContent : IDisposable
             }
             else
             {
-                await ShowRowFailureAsync(result.Errors[0]);
+                await ShowRowFailureAsync(result.Errors[0], row.Id);
             }
         }
         finally
@@ -148,10 +159,10 @@ public sealed partial class DeadLettersContent : IDisposable
 
     private void AskDiscard(DeadLetterRowViewModel row)
     {
-        _dialogError = null;
-        _uncertain = false;
         _rowError = null;
         _discarding = row;
+        _uncertain = _uncertainIds.Contains(row.Id);
+        _dialogError = _uncertain ? DeadLettersCopy.DiscardUncertain : null;
     }
 
     private void CancelDiscard()
@@ -166,7 +177,7 @@ public sealed partial class DeadLettersContent : IDisposable
 
     private async Task ConfirmDiscardAsync()
     {
-        if (_busy || _discarding is not { } row)
+        if (_busy || _discarding is not { } row || _uncertainIds.Contains(row.Id))
         {
             return;
         }
@@ -191,7 +202,7 @@ public sealed partial class DeadLettersContent : IDisposable
                 return;
             }
 
-            await ShowDiscardFailureAsync(result.Errors[0]);
+            await ShowDiscardFailureAsync(result.Errors[0], row.Id);
         }
         finally
         {
@@ -199,7 +210,7 @@ public sealed partial class DeadLettersContent : IDisposable
         }
     }
 
-    private async Task ShowDiscardFailureAsync(ResultError error)
+    private async Task ShowDiscardFailureAsync(ResultError error, Guid id)
     {
         if (error.Code is ApiErrorCodes.OutboxNotFound or ApiErrorCodes.OutboxNotDeadLettered)
         {
@@ -211,6 +222,7 @@ public sealed partial class DeadLettersContent : IDisposable
         {
             _dialogError = DeadLettersCopy.DiscardUncertain;
             _uncertain = true;
+            _uncertainIds.Add(id);
         }
         else
         {
@@ -218,7 +230,7 @@ public sealed partial class DeadLettersContent : IDisposable
         }
     }
 
-    private async Task ShowRowFailureAsync(ResultError error)
+    private async Task ShowRowFailureAsync(ResultError error, Guid id)
     {
         if (error.Code is ApiErrorCodes.OutboxNotFound or ApiErrorCodes.OutboxNotDeadLettered)
         {
@@ -229,6 +241,7 @@ public sealed partial class DeadLettersContent : IDisposable
         {
             _rowError = DeadLettersCopy.RetryUncertain;
             _rowUncertain = true;
+            _uncertainIds.Add(id);
         }
         else
         {

@@ -16,6 +16,9 @@ public sealed partial class TagsContent : IDisposable
     private readonly CancellationTokenSource _lifetime = new();
     private readonly Dictionary<string, string> _createErrors = [];
     private readonly Dictionary<string, string> _editErrors = [];
+
+    // Tags whose delete ended with an unknown outcome: held (a second ask shows the uncertain copy and sends nothing) until the list has been read again successfully.
+    private readonly HashSet<Guid> _uncertainDeletes = [];
     private IReadOnlyList<TagRowViewModel> _rows = [];
     private Guid _deletingId;
     private Guid _editing;
@@ -69,6 +72,7 @@ public sealed partial class TagsContent : IDisposable
             if (result.IsSuccess)
             {
                 _rows = Sorted(result.Value.Select(TagRowViewModel.From));
+                _uncertainDeletes.Clear();
                 return true;
             }
 
@@ -288,10 +292,10 @@ public sealed partial class TagsContent : IDisposable
 
     private void AskDelete(TagRowViewModel row)
     {
-        _deleteError = null;
-        _deleteUncertain = false;
         _rowError = null;
         _deletingId = row.Id;
+        _deleteUncertain = _uncertainDeletes.Contains(row.Id);
+        _deleteError = _deleteUncertain ? TagsCopy.DeleteUncertain : null;
     }
 
     private void CancelDelete()
@@ -306,7 +310,7 @@ public sealed partial class TagsContent : IDisposable
 
     private async Task ConfirmDeleteAsync()
     {
-        if (_deleteBusy || Deleting is not { } tag)
+        if (_deleteBusy || Deleting is not { } tag || _uncertainDeletes.Contains(tag.Id))
         {
             return;
         }
@@ -333,7 +337,7 @@ public sealed partial class TagsContent : IDisposable
                 return;
             }
 
-            await ShowDeleteFailureAsync(result.Errors[0]);
+            await ShowDeleteFailureAsync(result.Errors[0], tag.Id);
         }
         finally
         {
@@ -341,7 +345,7 @@ public sealed partial class TagsContent : IDisposable
         }
     }
 
-    private async Task ShowDeleteFailureAsync(ResultError error)
+    private async Task ShowDeleteFailureAsync(ResultError error, Guid tagId)
     {
         if (error.Code == ApiErrorCodes.TagInUse)
         {
@@ -374,6 +378,7 @@ public sealed partial class TagsContent : IDisposable
         {
             _deleteError = TagsCopy.DeleteUncertain;
             _deleteUncertain = true;
+            _uncertainDeletes.Add(tagId);
         }
         else
         {

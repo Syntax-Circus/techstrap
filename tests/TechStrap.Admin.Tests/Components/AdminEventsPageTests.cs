@@ -224,6 +224,60 @@ public sealed class AdminEventsPageTests : AdminPageTest
         cut.Markup.ShouldNotContain("slow");
     }
 
+    [Fact]
+    public void The_events_are_read_without_waiting_for_the_agent_list()
+    {
+        var agentsGate = new TaskCompletionSource<Result<IReadOnlyList<AgentListItemDto>>>();
+        _agents.ListAllAsync(Arg.Any<CancellationToken>()).Returns(agentsGate.Task);
+
+        var cut = RenderPage();
+
+        Requests().Count.ShouldBe(1, "the events read starts while the filter's names are still on their way");
+        cut.WaitForAssertion(() => cut.FindAll("tbody tr").Count.ShouldBe(2));
+        agentsGate.SetResult(TestData.Ok<IReadOnlyList<AgentListItemDto>>([TestData.AgentRow("Ada Admin", TestData.AdaAgentId, AgentRoles.Admin)]));
+        cut.WaitForAssertion(() => cut.Find("#ts-audit-actor").QuerySelectorAll("option").Count.ShouldBe(2));
+    }
+
+    [Theory]
+    [InlineData(1, "1 event")]
+    [InlineData(2, "2 events")]
+    [InlineData(0, "0 events")]
+    public void The_total_is_announced_with_a_singular_or_plural_noun(int total, string expected)
+    {
+        var items = Enumerable.Range(0, Math.Min(total, 25)).Select(_ => TestData.AdminEvent()).ToArray();
+        _events.ListAsync(Arg.Any<AdminEventFilter>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Ok(new PagedResponse<AdminEventDto>(items, 1, 25, total)));
+
+        var cut = RenderPage();
+
+        cut.Find("p[role=status]").TextContent.ShouldBe(expected);
+    }
+
+    [Fact]
+    public void A_page_past_the_end_goes_to_the_last_page_with_rows_and_never_says_there_are_no_events()
+    {
+        _events.ListAsync(Arg.Any<AdminEventFilter>(), 99, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(new PagedResponse<AdminEventDto>([], 99, 25, 30)));
+        _events.ListAsync(Arg.Any<AdminEventFilter>(), 2, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(new PagedResponse<AdminEventDto>([TestData.AdminEvent()], 2, 25, 30)));
+
+        var cut = RenderPage("?page=99");
+
+        cut.WaitForAssertion(() => cut.FindAll("tbody tr").Count.ShouldBe(1));
+        _navigation.Uri.ShouldEndWith("/settings/audit?page=2");
+        cut.Markup.ShouldNotContain("No audit events yet");
+        cut.Markup.ShouldNotContain("No events match");
+    }
+
+    [Fact]
+    public void A_filtered_page_past_the_end_keeps_the_filter_and_goes_to_the_first_page_when_that_is_the_last()
+    {
+        _events.ListAsync(Arg.Any<AdminEventFilter>(), 5, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(new PagedResponse<AdminEventDto>([], 5, 25, 3)));
+
+        var cut = RenderPage("?subject=Tag&page=5");
+
+        cut.WaitForAssertion(() => cut.FindAll("tbody tr").Count.ShouldBe(2));
+        _navigation.Uri.ShouldEndWith("/settings/audit?subject=Tag");
+    }
+
     // ---- paging and asOf -----------------------------------------------------------------------------------------
 
     [Fact]

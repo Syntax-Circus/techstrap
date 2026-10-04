@@ -23,6 +23,7 @@ public static class TagsCopy
     public const string ColumnTag = "Tag";
     public const string ColumnSlug = "Slug";
     public const string ColumnTickets = "Tickets";
+    public const string ColumnActions = "Actions";
     public const string Edit = "Edit";
     public const string Save = "Save";
     public const string Cancel = "Cancel";

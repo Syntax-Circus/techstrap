@@ -185,6 +185,29 @@ public sealed class RevokeApiKeyTests : AdminComponentTest
     }
 
     [Fact]
+    public void After_a_lost_answer_asking_to_revoke_that_key_again_shows_the_uncertain_copy_and_sends_nothing_until_the_list_is_read_again()
+    {
+        _products.RevokeApiKeyAsync(TestData.OrbitlyId, Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again."));
+        var cut = RenderPanel();
+        AskToRevoke(cut, "tsk_ab12");
+        Confirm(cut).Click();
+        RevokeDialog(cut).QuerySelector("button.btn-outline-secondary")!.Click();
+
+        AskToRevoke(cut, "tsk_ab12");
+
+        RevokeDialog(cut).QuerySelector("[role=alert]")!.TextContent.ShouldBe("The revoke may have gone through. Reload the list to check before you try again.");
+        Confirm(cut).HasAttribute("disabled").ShouldBeTrue();
+        Confirm(cut).Click();
+        Revokes().ShouldBe(1);
+
+        // Another key is not held, and the held one is free again once the list has been read.
+        RevokeDialog(cut).QuerySelector("button.btn-outline-secondary")!.Click();
+        AskToRevoke(cut, "tsk_cd34");
+        Confirm(cut).Click();
+        Revokes().ShouldBe(2);
+    }
+
+    [Fact]
     public void A_key_that_is_already_gone_closes_the_dialog_says_so_and_reloads_the_list()
     {
         _products.RevokeApiKeyAsync(TestData.OrbitlyId, Arg.Any<Guid>(), Arg.Any<CancellationToken>())

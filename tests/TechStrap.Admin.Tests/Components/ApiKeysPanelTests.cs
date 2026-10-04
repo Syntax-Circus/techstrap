@@ -290,4 +290,42 @@ public sealed class ApiKeysPanelTests : AdminComponentTest
         _products.Received(2).ListApiKeysAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>());
         cut.FindAll(".ts-conflict").ShouldBeEmpty();
     }
+
+    [Fact]
+    public void A_failed_reload_after_a_lost_create_answer_keeps_the_form_locked()
+    {
+        _products.CreateApiKeyAsync(TestData.OrbitlyId, Arg.Any<CreateProductApiKeyRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Fail<CreateProductApiKeyResponse>(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again."));
+        var cut = RenderPanel();
+        Choose(cut, ApiKeyKinds.Public);
+        Submit(cut);
+        _products.ListApiKeysAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Fail<IReadOnlyList<ProductApiKeyDto>>("api-error", "The API is unavailable."));
+
+        cut.Find(".ts-conflict button").Click();
+
+        cut.Find("fieldset").HasAttribute("disabled").ShouldBeTrue("the list was not read, so nobody has looked yet");
+        cut.Find("form.ts-key-create button[type=submit]").HasAttribute("disabled").ShouldBeTrue();
+        Submit(cut);
+        Creates().Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public void A_slow_answer_for_the_product_that_was_left_never_replaces_the_list_of_the_product_now_shown()
+    {
+        var otherProduct = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var older = new TaskCompletionSource<Result<IReadOnlyList<ProductApiKeyDto>>>();
+        var newer = new TaskCompletionSource<Result<IReadOnlyList<ProductApiKeyDto>>>();
+        _products.ListApiKeysAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(older.Task);
+        _products.ListApiKeysAsync(otherProduct, Arg.Any<CancellationToken>()).Returns(newer.Task);
+        var cut = RenderPanel();
+
+        cut.Render(p => p.Add(c => c.ProductId, otherProduct).Add(c => c.ProductName, "Other"));
+        newer.SetResult(TestData.Ok<IReadOnlyList<ProductApiKeyDto>>([TestData.ApiKey("tsk_new1", ApiKeyKinds.Public, "Other key")]));
+        cut.WaitForAssertion(() => cut.FindAll("tbody tr").Count.ShouldBe(1));
+        older.SetResult(TestData.Ok<IReadOnlyList<ProductApiKeyDto>>([TestData.ApiKey("tsk_old1", ApiKeyKinds.Public, "Old key"), TestData.ApiKey("tsk_old2", ApiKeyKinds.Public, "Old key 2")]));
+        cut.Render();
+
+        cut.FindAll("tbody tr").Select(r => r.QuerySelector("code")!.TextContent).ShouldBe(["tsk_new1"]);
+        cut.FindAll(".ts-loading").ShouldBeEmpty();
+    }
 }

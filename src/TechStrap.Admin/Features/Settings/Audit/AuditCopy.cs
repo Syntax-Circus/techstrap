@@ -26,4 +26,6 @@ public static class AuditCopy
     public const string ColumnWhat = "What changed";
     public const string ColumnSummary = "What happened";
     public const string UnknownActor = "Unknown agent";
+
+    public static string EventCount(int total) => total == 1 ? "1 event" : $"{total} events";
 }

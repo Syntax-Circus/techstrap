@@ -629,4 +629,81 @@ public sealed class ProductEditorTests : AdminPageTest
 
         cut.FindAll("form").ShouldBeEmpty();
     }
+
+    [Fact]
+    public void After_an_uncertain_create_the_button_is_disabled_and_a_second_submit_sends_no_second_post()
+    {
+        _products.CreateAsync(Arg.Any<CreateProductRequest>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail<ProductDto>(ApiErrorCodes.ApiTimeout, "Lost."));
+        var cut = RenderNew();
+        Type(cut, "ts-product-key", "nimbus");
+        Type(cut, "ts-product-name", "Nimbus");
+        Type(cut, "ts-product-prefix", "NIM");
+        Type(cut, "ts-product-display", "Nimbus Cloud");
+        Save(cut);
+
+        cut.Find("button[type=submit]").HasAttribute("disabled").ShouldBeTrue();
+        Save(cut);
+
+        Creates.Count.ShouldBe(1, "a resend would meet a 409 product-key-taken that says the wrong thing");
+        cut.Find(".ts-conflict[role=alert]").TextContent.ShouldContain("We could not confirm the product was created.");
+        cut.FindAll("p.ts-form-error").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_slow_answer_for_the_product_that_was_left_never_replaces_the_form_of_the_product_now_shown()
+    {
+        var other = Guid.Parse("aaaaaaaa-0000-0000-0000-0000000000c4");
+        var older = new TaskCompletionSource<Result<ProductDto>>();
+        var newer = new TaskCompletionSource<Result<ProductDto>>();
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(older.Task);
+        _products.GetAsync(other, Arg.Any<CancellationToken>()).Returns(newer.Task);
+        var cut = RenderEdit();
+
+        cut.Render(p => p.Add(c => c.Id, other.ToString()));
+        newer.SetResult(TestData.Ok(TestData.ProductDetail("Other", id: other, key: "other", prefix: "OTH")));
+        cut.WaitForAssertion(() => Value(cut, "ts-product-name").ShouldBe("Other"));
+        older.SetResult(TestData.Ok(TestData.ProductDetail("Orbitly")));
+        cut.Render();
+
+        Value(cut, "ts-product-name").ShouldBe("Other");
+        cut.FindAll(".ts-loading").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_slow_load_for_the_old_product_never_fills_the_new_product_form_or_leaves_it_loading()
+    {
+        var older = new TaskCompletionSource<Result<ProductDto>>();
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(older.Task);
+        var cut = RenderEdit();
+        cut.FindAll(".ts-loading").Count.ShouldBe(1);
+
+        cut.Render(p => p.Add(c => c.Id, null));
+        older.SetResult(TestData.Ok(TestData.ProductDetail("Orbitly")));
+        cut.Render();
+
+        cut.FindAll(".ts-loading").ShouldBeEmpty();
+        Value(cut, "ts-product-name").ShouldBe(string.Empty);
+        cut.FindAll("#ts-product-key").Count.ShouldBe(1, "the new-product form is shown");
+    }
+
+    [Fact]
+    public void A_save_for_the_old_product_that_finishes_after_the_Id_changed_touches_neither_the_new_form_nor_its_busy_state()
+    {
+        var other = Guid.Parse("aaaaaaaa-0000-0000-0000-0000000000c5");
+        var gate = new TaskCompletionSource<Result<ProductDto>>();
+        _products.UpdateAsync(TestData.OrbitlyId, Arg.Any<UpdateProductRequest>(), Arg.Any<CancellationToken>()).Returns(gate.Task);
+        _products.GetAsync(other, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail("Other", id: other, key: "other", prefix: "OTH")));
+        var cut = RenderEdit();
+        Type(cut, "ts-product-name", "Changed");
+        Save(cut);
+
+        cut.Render(p => p.Add(c => c.Id, other.ToString()));
+        cut.WaitForAssertion(() => Value(cut, "ts-product-name").ShouldBe("Other"));
+        gate.SetResult(TestData.Ok(TestData.ProductDetail("Changed", version: 8)));
+        cut.Render();
+
+        Value(cut, "ts-product-name").ShouldBe("Other");
+        cut.Find("fieldset").HasAttribute("disabled").ShouldBeFalse();
+        cut.FindAll(".ts-dirty").ShouldBeEmpty();
+    }
 }

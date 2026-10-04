@@ -345,6 +345,102 @@ public sealed class AgentsPageTests : AdminPageTest
         Dialogs.VerifyInvoke("close", 1);
     }
 
+    // ---- an unknown outcome is held until the list has been read again --------------------------------------------
+
+    [Fact]
+    public void After_a_lost_activate_answer_a_second_click_sends_nothing_until_the_list_has_been_read_again()
+    {
+        _agents.SetActiveAsync(Arg.Any<Guid>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail<AgentDto>(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again."));
+        var cut = RenderPage();
+        Row(cut, TestData.RaeAgentId).QuerySelector("button.ts-activate")!.Click();
+
+        Row(cut, TestData.RaeAgentId).QuerySelector("button.ts-activate")!.Click();
+
+        Writes().Count().ShouldBe(1);
+        cut.Find(".ts-conflict[role=alert]").TextContent.ShouldContain("The change to Rae Quinn may have gone through.");
+
+        cut.Find(".ts-conflict button").Click();
+        Row(cut, TestData.RaeAgentId).QuerySelector("button.ts-activate")!.Click();
+
+        Writes().Count().ShouldBe(2);
+    }
+
+    [Fact]
+    public void After_a_lost_deactivate_answer_asking_again_shows_the_uncertain_copy_and_sends_nothing()
+    {
+        _agents.SetActiveAsync(Arg.Any<Guid>(), false, Arg.Any<CancellationToken>()).Returns(TestData.Fail<AgentDto>(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again."));
+        var cut = RenderPage();
+        Row(cut, TestData.SamAgentId).QuerySelector("button.ts-deactivate")!.Click();
+        Confirm(cut).Click();
+        DeactivateDialog(cut).QuerySelector("button.btn-outline-secondary")!.Click();
+
+        Row(cut, TestData.SamAgentId).QuerySelector("button.ts-deactivate")!.Click();
+
+        DeactivateDialog(cut).QuerySelector("[role=alert]")!.TextContent.ShouldBe("The change may have gone through. Reload the list to check before you try again.");
+        Confirm(cut).HasAttribute("disabled").ShouldBeTrue();
+        Confirm(cut).Click();
+        Writes().Count().ShouldBe(1);
+    }
+
+    [Fact]
+    public void An_agent_who_is_already_gone_when_activating_says_so_and_reloads_the_list()
+    {
+        _agents.SetActiveAsync(Arg.Any<Guid>(), true, Arg.Any<CancellationToken>()).Returns(TestData.Fail<AgentDto>(ApiErrorCodes.AgentNotFound, "No such agent.", ResultErrorKind.NotFound));
+        var cut = RenderPage();
+
+        Row(cut, TestData.RaeAgentId).QuerySelector("button.ts-activate")!.Click();
+
+        StatusMessages.Current.ShouldBe("That agent no longer exists.");
+        _agents.Received(2).ListPageAsync(1, 25, Arg.Any<CancellationToken>());
+        cut.FindAll(".ts-conflict[role=alert]").ShouldBeEmpty();
+    }
+
+    // ---- stale loads and pages past the end ----------------------------------------------------------------------
+
+    [Fact]
+    public void A_slow_answer_for_an_earlier_page_never_replaces_the_newest_load()
+    {
+        var older = new TaskCompletionSource<Result<PagedResponse<AgentListItemDto>>>();
+        var newer = new TaskCompletionSource<Result<PagedResponse<AgentListItemDto>>>();
+        _agents.ListPageAsync(1, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(older.Task);
+        _agents.ListPageAsync(2, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(newer.Task);
+        var cut = RenderPage();
+        _navigation.NavigateTo("/settings/agents?page=2");
+        cut.WaitForAssertion(() => _agents.Received(1).ListPageAsync(2, 25, Arg.Any<CancellationToken>()));
+
+        newer.SetResult(TestData.Ok(new PagedResponse<AgentListItemDto>([TestData.AgentRow("Rae Quinn", TestData.RaeAgentId)], 2, 25, 26)));
+        cut.WaitForAssertion(() => cut.FindAll("tr[data-agent]").Count.ShouldBe(1));
+        older.SetResult(TestData.Ok(new PagedResponse<AgentListItemDto>([TestData.AgentRow("Sam Ortiz", TestData.SamAgentId), TestData.AgentRow("Ada Admin", TestData.AdaAgentId)], 1, 25, 2)));
+        cut.Render();
+
+        cut.FindAll("tr[data-agent]").Select(r => r.GetAttribute("data-agent")).ShouldBe([TestData.RaeAgentId.ToString()]);
+        cut.FindAll("[aria-busy=true]").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_page_past_the_end_goes_to_the_last_page_with_rows_and_never_says_there_are_no_agents()
+    {
+        _agents.ListPageAsync(99, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(new PagedResponse<AgentListItemDto>([], 99, 25, 30)));
+        _agents.ListPageAsync(2, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(new PagedResponse<AgentListItemDto>([TestData.AgentRow("Rae Quinn", TestData.RaeAgentId)], 2, 25, 30)));
+
+        var cut = RenderPage("?page=99");
+
+        cut.WaitForAssertion(() => cut.FindAll("tr[data-agent]").Count.ShouldBe(1));
+        _navigation.Uri.ShouldEndWith("/settings/agents?page=2");
+        cut.Markup.ShouldNotContain("No agents yet");
+    }
+
+    [Fact]
+    public void A_page_past_the_end_of_a_two_page_list_goes_back_to_the_first_page_without_a_page_number()
+    {
+        _agents.ListPageAsync(3, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(new PagedResponse<AgentListItemDto>([], 3, 25, 10)));
+
+        var cut = RenderPage("?page=3");
+
+        cut.WaitForAssertion(() => cut.FindAll("tr[data-agent]").Count.ShouldBe(3));
+        _navigation.Uri.ShouldEndWith("/settings/agents");
+    }
+
     // ---- deactivating yourself -----------------------------------------------------------------------------------
 
     [Fact]

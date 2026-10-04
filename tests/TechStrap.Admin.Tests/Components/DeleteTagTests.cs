@@ -212,6 +212,45 @@ public sealed class DeleteTagTests : AdminPageTest
     }
 
     [Fact]
+    public void A_409_whose_reload_still_shows_no_tickets_keeps_the_dialog_open_with_the_generic_failure_and_no_force()
+    {
+        _tags.DeleteAsync(_unusedId, false, Arg.Any<CancellationToken>()).Returns(TestData.Fail(ApiErrorCodes.TagInUse, "This tag is on 1 ticket(s).", ResultErrorKind.Conflict));
+        var cut = RenderPage();
+        AskToDelete(cut, "old-idea");
+
+        Confirm(cut).Click();
+
+        _tags.Received(2).ListSummaryAsync(Arg.Any<CancellationToken>());
+        var dialog = Dialog(cut);
+        dialog.QuerySelector("[role=alert]")!.TextContent.ShouldBe("Couldn't delete the tag. Nothing was changed. This tag is on 1 ticket(s).");
+        dialog.QuerySelector("input").ShouldBeNull("the count is still 0, so it stays a medium confirmation");
+        Deletes().ShouldBe([(_unusedId, false)]);
+    }
+
+    [Fact]
+    public void After_a_lost_answer_asking_to_delete_that_tag_again_shows_the_uncertain_copy_and_sends_nothing_until_the_list_is_read_again()
+    {
+        _tags.DeleteAsync(_unusedId, false, Arg.Any<CancellationToken>()).Returns(TestData.Fail(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again."));
+        var cut = RenderPage();
+        AskToDelete(cut, "old-idea");
+        Confirm(cut).Click();
+        Dialog(cut).QuerySelector("button.btn-outline-secondary")!.Click();
+
+        AskToDelete(cut, "old-idea");
+
+        Dialog(cut).QuerySelector("[role=alert]")!.TextContent.ShouldBe("The delete may have gone through. Reload the list to check before you try again.");
+        Confirm(cut).HasAttribute("disabled").ShouldBeTrue();
+        Confirm(cut).Click();
+        Deletes().Count.ShouldBe(1);
+
+        Dialog(cut).QuerySelector(".ts-dialog-recovery button")!.Click();
+        AskToDelete(cut, "old-idea");
+        Confirm(cut).Click();
+
+        Deletes().Count.ShouldBe(2);
+    }
+
+    [Fact]
     public void A_409_whose_reload_fails_closes_the_dialog_and_shows_the_load_error_never_a_medium_confirm_under_in_use_copy()
     {
         _tags.DeleteAsync(_unusedId, false, Arg.Any<CancellationToken>()).Returns(TestData.Fail(ApiErrorCodes.TagInUse, "In use.", ResultErrorKind.Conflict));

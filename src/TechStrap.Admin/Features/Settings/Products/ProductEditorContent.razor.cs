@@ -30,6 +30,8 @@ public sealed partial class ProductEditorContent : IDisposable
     private bool _gone;
     private bool _notFound;
     private bool _disposed;
+    private int _loadId;
+    private int _idEpoch;
 
     [Inject]
     private IProductsClient Products { get; set; } = default!;
@@ -46,8 +48,9 @@ public sealed partial class ProductEditorContent : IDisposable
 
     private string Title => _creating ? ProductsCopy.EditorNewTitle : string.IsNullOrWhiteSpace(_model.Name) ? ProductsCopy.Heading : _model.Name;
 
-    // Save is offered for a new product, and for an edit once something changed.
-    private bool CanSave => _creating || _dirty;
+    // Save is offered for a new product, and for an edit once something changed. After a create whose outcome is unknown the product may exist: no second create (it would meet a 409 product-key-taken
+    // that says the wrong thing) until the agent has left for the products list.
+    private bool CanSave => _creating ? !_uncertain : _dirty;
 
     // The preview never loads an address that failed the rule.
     private string? PreviewLogo => BrandingRules.IsAcceptableLogoUrl(_model.LogoPath) && !string.IsNullOrWhiteSpace(_model.LogoPath) ? _model.LogoPath.Trim() : null;
@@ -60,6 +63,12 @@ public sealed partial class ProductEditorContent : IDisposable
         }
 
         _loadedFor = Id ?? string.Empty;
+
+        // A load or a save that is still running belongs to the previous product (or to the new-product form): it must change nothing here.
+        _idEpoch++;
+        _loadId++;
+        _loading = false;
+        _busy = false;
         _creating = Id is null;
         _conflict = false;
         _uncertain = false;
@@ -88,13 +97,15 @@ public sealed partial class ProductEditorContent : IDisposable
 
     private async Task LoadAsync()
     {
+        // Only the latest load may change the screen: a slow answer that was overtaken (a reload, another product) is ignored.
+        var loadId = ++_loadId;
         _loading = true;
         _loadError = null;
         _gone = false;
         try
         {
             var result = await Products.GetAsync(_id, _lifetime.Token);
-            if (_lifetime.IsCancellationRequested)
+            if (_lifetime.IsCancellationRequested || loadId != _loadId)
             {
                 return;
             }
@@ -113,7 +124,10 @@ public sealed partial class ProductEditorContent : IDisposable
         }
         finally
         {
-            _loading = false;
+            if (loadId == _loadId)
+            {
+                _loading = false;
+            }
         }
     }
 
@@ -162,7 +176,7 @@ public sealed partial class ProductEditorContent : IDisposable
 
     private async Task SaveAsync()
     {
-        if (_busy)
+        if (_busy || (_creating && _uncertain))
         {
             return;
         }
@@ -175,6 +189,8 @@ public sealed partial class ProductEditorContent : IDisposable
             return;
         }
 
+        var epoch = _idEpoch;
+        var creating = _creating;
         _busy = true;
         try
         {
@@ -183,6 +199,17 @@ public sealed partial class ProductEditorContent : IDisposable
                 : await Products.UpdateAsync(_id, _model.ToUpdateRequest(), CancellationToken.None);
             if (_disposed)
             {
+                return;
+            }
+
+            if (epoch != _idEpoch)
+            {
+                // The agent moved to another product (or the new-product form) while this was on its way. The write is done and is never abandoned, but the screen is not its any more: say so once, change nothing else.
+                if (result.IsSuccess)
+                {
+                    StatusMessages.Show(creating ? ProductsCopy.Created(result.Value.Name) : ProductsCopy.Saved(result.Value.Name));
+                }
+
                 return;
             }
 
@@ -206,7 +233,10 @@ public sealed partial class ProductEditorContent : IDisposable
         }
         finally
         {
-            _busy = false;
+            if (epoch == _idEpoch)
+            {
+                _busy = false;
+            }
         }
     }
 

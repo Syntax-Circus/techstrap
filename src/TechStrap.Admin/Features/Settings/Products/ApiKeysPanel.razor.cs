@@ -14,6 +14,9 @@ namespace TechStrap.Admin.Features.Settings.Products;
 public sealed partial class ApiKeysPanel : IDisposable
 {
     private readonly CancellationTokenSource _lifetime = new();
+
+    // Keys whose revoke ended with an unknown outcome: held (asking again shows the uncertain copy and sends nothing) until the list has been read again successfully.
+    private readonly HashSet<Guid> _uncertainRevokes = [];
     private NewApiKeyDialog? _dialog;
     private IReadOnlyList<ApiKeyRowViewModel> _rows = [];
     private ApiKeyRowViewModel? _revoking;
@@ -31,6 +34,7 @@ public sealed partial class ApiKeysPanel : IDisposable
     private bool _revokeUncertain;
     private bool _disposed;
     private Guid _loadedFor;
+    private int _loadId;
 
     [Inject]
     private IProductsClient Products { get; set; } = default!;
@@ -52,41 +56,52 @@ public sealed partial class ApiKeysPanel : IDisposable
         if (_loadedFor != ProductId)
         {
             _loadedFor = ProductId;
+            _uncertainRevokes.Clear();
+            _createUncertain = false;
             await LoadAsync();
         }
     }
 
-    private async Task LoadAsync()
+    // True when this call read the list and it is now on screen. Only the latest load may change the screen: a slow answer that was overtaken (another product, a reload) is ignored.
+    private async Task<bool> LoadAsync()
     {
+        var loadId = ++_loadId;
         _loading = true;
         _loadError = null;
         try
         {
             var result = await Products.ListApiKeysAsync(ProductId, _lifetime.Token);
-            if (_lifetime.IsCancellationRequested)
+            if (_lifetime.IsCancellationRequested || loadId != _loadId)
             {
-                return;
+                return false;
             }
 
             if (result.IsSuccess)
             {
                 _rows = [.. result.Value.Select(ApiKeyRowViewModel.From).OrderByDescending(r => r.CreatedAt)];
+                _uncertainRevokes.Clear();
+                return true;
             }
-            else
-            {
-                _loadError = $"{ApiKeysCopy.LoadFailed} {result.Errors[0].Message}";
-            }
+
+            _loadError = $"{ApiKeysCopy.LoadFailed} {result.Errors[0].Message}";
+            return false;
         }
         finally
         {
-            _loading = false;
+            if (loadId == _loadId)
+            {
+                _loading = false;
+            }
         }
     }
 
     private async Task ReloadAsync()
     {
-        _createUncertain = false;
-        await LoadAsync();
+        // The form stays locked after a lost create answer until the list has really been read again: a failed reload leaves it locked.
+        if (await LoadAsync())
+        {
+            _createUncertain = false;
+        }
     }
 
     private void OnKindChanged(ChangeEventArgs e)
@@ -181,9 +196,9 @@ public sealed partial class ApiKeysPanel : IDisposable
 
     private void AskRevoke(ApiKeyRowViewModel row)
     {
-        _revokeError = null;
-        _revokeUncertain = false;
         _revoking = row;
+        _revokeUncertain = _uncertainRevokes.Contains(row.Id);
+        _revokeError = _revokeUncertain ? ApiKeysCopy.RevokeUncertain : null;
     }
 
     private void CancelRevoke()
@@ -198,7 +213,7 @@ public sealed partial class ApiKeysPanel : IDisposable
 
     private async Task ConfirmRevokeAsync()
     {
-        if (_revokeBusy || _revoking is not { } key)
+        if (_revokeBusy || _revoking is not { } key || _uncertainRevokes.Contains(key.Id))
         {
             return;
         }
@@ -223,7 +238,7 @@ public sealed partial class ApiKeysPanel : IDisposable
                 return;
             }
 
-            await ShowRevokeFailureAsync(result.Errors[0]);
+            await ShowRevokeFailureAsync(result.Errors[0], key.Id);
         }
         finally
         {
@@ -231,7 +246,7 @@ public sealed partial class ApiKeysPanel : IDisposable
         }
     }
 
-    private async Task ShowRevokeFailureAsync(ResultError error)
+    private async Task ShowRevokeFailureAsync(ResultError error, Guid keyId)
     {
         if (error.Code == ApiErrorCodes.ApiKeyNotFound)
         {
@@ -244,6 +259,7 @@ public sealed partial class ApiKeysPanel : IDisposable
             // The revoke may have been applied before the answer was lost: never a bare "try again".
             _revokeError = ApiKeysCopy.RevokeUncertain;
             _revokeUncertain = true;
+            _uncertainRevokes.Add(keyId);
         }
         else
         {

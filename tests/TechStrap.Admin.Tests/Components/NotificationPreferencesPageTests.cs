@@ -53,6 +53,9 @@ public sealed class NotificationPreferencesPageTests : AdminPageTest
     private static AngleSharp.Dom.IElement Toggle(IRenderedComponent<NotificationPreferencesPage> cut, string product) =>
         cut.FindAll(".ts-toggle-list li").Single(li => li.TextContent.Contains($"New tickets in {product}")).QuerySelector("input")!;
 
+    private static int ListKey(IRenderedComponent<NotificationPreferencesPage> cut) =>
+        (int)typeof(NotificationPreferencesPage).GetField("_version", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(cut.Instance)!;
+
     private static bool IsOn(AngleSharp.Dom.IElement toggle) => toggle.HasAttribute("checked");
 
     // ---- a plain agent can use it --------------------------------------------------------------------------------
@@ -129,6 +132,52 @@ public sealed class NotificationPreferencesPageTests : AdminPageTest
         gate.SetResult(TestData.Ok());
         cut.WaitForAssertion(() => cut.FindAll(".ts-toggle-list input").ShouldAllBe(i => !i.HasAttribute("disabled")));
         IsOn(Toggle(cut, "Orbitly")).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void A_toggle_that_is_swallowed_while_a_save_runs_draws_the_checkbox_again_from_what_is_saved()
+    {
+        var gate = new TaskCompletionSource<Result>();
+        _agents.UpdateNotificationPreferencesAsync(Arg.Any<UpdateNotificationPreferencesRequest>(), Arg.Any<CancellationToken>()).Returns(gate.Task);
+        var cut = Render<NotificationPreferencesPage>();
+        Toggle(cut, "Orbitly").Change(true);
+        var before = ListKey(cut);
+
+        Toggle(cut, "Acme").Change(true);
+
+        // A new key makes Blazor replace the list items. bUnit's DOM keeps no tick of its own, so the key is the observable: without a new one the browser keeps a tick that was never saved.
+        ListKey(cut).ShouldBeGreaterThan(before);
+        Saves().Count.ShouldBe(1);
+        gate.SetResult(TestData.Ok());
+        cut.WaitForAssertion(() => cut.FindAll(".ts-toggle-list input").ShouldAllBe(i => !i.HasAttribute("disabled")));
+        IsOn(Toggle(cut, "Acme")).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void A_slow_first_read_of_the_alerts_never_replaces_the_answer_of_a_later_reload()
+    {
+        var older = new TaskCompletionSource<Result<IReadOnlyList<NotificationPreferenceDto>>>();
+        var newer = new TaskCompletionSource<Result<IReadOnlyList<NotificationPreferenceDto>>>();
+        _agents.GetNotificationPreferencesAsync(Arg.Any<CancellationToken>()).Returns(older.Task, newer.Task);
+        var cut = Render<NotificationPreferencesPage>();
+        _agents.Received(1).GetNotificationPreferencesAsync(Arg.Any<CancellationToken>());
+
+        // A reload while the first read is still running (the retry button of the error state, or the reload after a lost answer).
+        // (No button is on screen while a read runs, so the second read is started the way the retry button would.)
+        _ = cut.InvokeAsync(() => (Task)typeof(NotificationPreferencesPage).GetMethod("LoadPreferencesAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(cut.Instance, null)!);
+        _agents.Received(2).GetNotificationPreferencesAsync(Arg.Any<CancellationToken>());
+        newer.SetResult(TestData.Ok<IReadOnlyList<NotificationPreferenceDto>>([new NotificationPreferenceDto(_nimbus, "Nimbus", true)]));
+        cut.WaitForAssertion(() =>
+        {
+            cut.Render(); // forced: the second read was started outside the component's own event handling, so nothing else would redraw it
+            cut.FindAll(".ts-toggle-list li").Count.ShouldBe(1);
+        });
+        older.SetResult(TestData.Ok<IReadOnlyList<NotificationPreferenceDto>>(
+            [new NotificationPreferenceDto(_orbitly, "Orbitly", false), new NotificationPreferenceDto(_nimbus, "Nimbus", true), new NotificationPreferenceDto(_acme, "Acme", false)]));
+        cut.Render();
+
+        cut.FindAll(".ts-toggle-list li").Count.ShouldBe(1);
+        cut.FindAll(".ts-loading").ShouldBeEmpty();
     }
 
     [Fact]

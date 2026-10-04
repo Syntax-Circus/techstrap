@@ -30,6 +30,7 @@ public static class ApiKeysCopy
     public const string ColumnCreated = "Created";
     public const string ColumnLastUsed = "Last used";
     public const string ColumnStatus = "Status";
+    public const string ColumnActions = "Actions";
     public const string NoLabel = "No label";
     public const string NeverUsed = "Never used";
     public const string Active = "Active";

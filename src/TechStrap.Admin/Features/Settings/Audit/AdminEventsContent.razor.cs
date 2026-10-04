@@ -54,18 +54,24 @@ public sealed partial class AdminEventsContent : IDisposable
         _subject = AuditFilters.CanonicalSubject(Subject);
         _actor = Guid.TryParse(Actor, out var actor) ? actor : null;
         _page = int.TryParse(PageNumber, NumberStyles.None, CultureInfo.InvariantCulture, out var page) && page > 1 ? page : 1;
+
+        // Both reads start now and are awaited together: the events never wait for the names of the filter. A failed agent list only means the filter has no names; the stale-load guard in LoadAsync still applies.
+        var agents = Task.CompletedTask;
         if (!_agentsLoaded)
         {
             _agentsLoaded = true;
-            await LoadAgentsAsync();
+            agents = LoadAgentsAsync();
         }
 
+        var events = Task.CompletedTask;
         var key = (_subject, _actor, _page);
         if (_loadedFor != key)
         {
             _loadedFor = key;
-            await LoadAsync();
+            events = LoadAsync();
         }
+
+        await Task.WhenAll(agents, events);
     }
 
     // The filter's actor list. If it cannot be read the filter simply has no names to offer; the log itself still works.
@@ -90,6 +96,7 @@ public sealed partial class AdminEventsContent : IDisposable
 
         // Only the latest load may change the screen: a slow answer for an earlier filter or page is ignored.
         var loadId = ++_loadId;
+        var redirecting = false;
         _loading = true;
         _error = null;
         try
@@ -104,7 +111,15 @@ public sealed partial class AdminEventsContent : IDisposable
             {
                 _rows = [.. result.Value.Items.Select(AdminEventRowViewModel.From)];
                 _total = result.Value.TotalCount;
-                _announcement = $"{_total} events";
+                _announcement = AuditCopy.EventCount(_total);
+
+                // A page past the end (an old address, or the log is shorter than it was): go to the last page that has rows instead of saying there are none.
+                var lastPage = Math.Max(1, (_total + AuditCopy.PageSize - 1) / AuditCopy.PageSize);
+                if (_rows.Count == 0 && _total > 0 && _page > lastPage)
+                {
+                    redirecting = true;
+                    Navigation.NavigateTo(AuditFilters.Uri(_subject, _actor, lastPage), replace: true);
+                }
             }
             else
             {
@@ -113,8 +128,9 @@ public sealed partial class AdminEventsContent : IDisposable
         }
         finally
         {
-            if (loadId == _loadId)
+            if (loadId == _loadId && !redirecting)
             {
+                // While redirecting to the last page the next load is already due: keep the loading state, never the empty one.
                 _loading = false;
             }
         }

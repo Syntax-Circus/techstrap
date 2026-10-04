@@ -22,6 +22,7 @@ public static class DeadLettersCopy
     public const string ColumnAttempts = "Tries";
     public const string ColumnError = "Last error";
     public const string ColumnCreated = "Created";
+    public const string ColumnActions = "Actions";
     public const string OpenTicket = "Open ticket";
     public const string NoTicket = "\u2014";
     public const string Retry = "Retry";

@@ -14,6 +14,9 @@ public sealed partial class PublicDisplayNameField : IDisposable
 {
     private readonly MyProfileViewModel _model = new();
     private string _committed = string.Empty;
+
+    // The value whose save ended with an unknown outcome: it may have been stored, so the same value is never sent again from this page (until the page is reloaded or the text changes).
+    private string? _uncertainValue;
     private string? _error;
     private bool _saving;
     private bool _saved;
@@ -59,6 +62,12 @@ public sealed partial class PublicDisplayNameField : IDisposable
             return;
         }
 
+        if (_uncertainValue is not null && (_model.Normalized ?? string.Empty) == _uncertainValue)
+        {
+            _error = MySettingsCopy.NameUncertain;
+            return;
+        }
+
         _saving = true;
         _saved = false;
         try
@@ -76,10 +85,16 @@ public sealed partial class PublicDisplayNameField : IDisposable
                 _error = ApiErrorCodes.IsUncertainWrite(error.Code)
                     ? MySettingsCopy.NameUncertain
                     : error.Target == ApiFields.PublicDisplayName ? error.Message : MySettingsCopy.NameFailed(error.Message);
+                if (ApiErrorCodes.IsUncertainWrite(error.Code))
+                {
+                    _uncertainValue = request.PublicDisplayName ?? string.Empty;
+                }
+
                 return;
             }
 
             _committed = request.PublicDisplayName ?? string.Empty;
+            _uncertainValue = null;
             _model.PublicDisplayName = _committed;
             _saved = true;
 
