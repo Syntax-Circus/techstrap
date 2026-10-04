@@ -19,6 +19,15 @@ internal sealed class RequesterErasure(TechStrapDbContext context) : IRequesterE
             .Select(t => t.Id)
             .ToListAsync(cancellationToken);
 
+        // Lock order rule: ticket rows first, then attachments and messages, matching the delete and reply paths. Taking attachment or
+        // message row locks before the ticket row here can deadlock against a concurrent delete or reply that locks the ticket first.
+        var tickets = await context.Set<TicketRecord>()
+            .Where(t => ticketIds.Contains(t.Id))
+            .ExecuteUpdateAsync(set => set
+                .SetProperty(t => t.Subject, ErasureMarker.Text)
+                .SetProperty(t => t.Metadata, (string?)null)
+                .SetProperty(t => t.CustomFields, (string?)null), cancellationToken);
+
         var customerMessages = context.Set<MessageRecord>()
             .Where(m => m.AuthorType == AuthorType.Requester && m.AuthorId == requesterId);
 
@@ -38,13 +47,6 @@ internal sealed class RequesterErasure(TechStrapDbContext context) : IRequesterE
 
         var messages = await customerMessages
             .ExecuteUpdateAsync(set => set.SetProperty(m => m.Body, ErasureMarker.Text), cancellationToken);
-
-        var tickets = await context.Set<TicketRecord>()
-            .Where(t => ticketIds.Contains(t.Id))
-            .ExecuteUpdateAsync(set => set
-                .SetProperty(t => t.Subject, ErasureMarker.Text)
-                .SetProperty(t => t.Metadata, (string?)null)
-                .SetProperty(t => t.CustomFields, (string?)null), cancellationToken);
 
         var tokens = await context.Set<TicketAccessTokenRecord>()
             .Where(t => t.RequesterId == requesterId && t.RevokedAt == null)
