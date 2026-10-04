@@ -31,6 +31,7 @@ public static class ControllerActions
         ["TagsController.Delete"] = 204,
         ["TicketsController.List"] = 200,
         ["TicketsController.Counts"] = 200,
+        ["TicketsController.Get"] = 200,
         ["AdminEventsController.List"] = 200,
         ["IntakeController.Submit"] = 201,
         ["PublicIntakeController.Submit"] = 201,

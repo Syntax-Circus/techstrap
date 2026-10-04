@@ -32,6 +32,11 @@ public sealed class TicketsController : ControllerBase
         (await handler.HandleAsync(new ListTicketsRequest(view, productId, status, priority, assigneeId, tagId, requesterId, search, page, pageSize), cancellationToken))
             .ToActionResult(this, Ok);
 
+    /// <summary>One ticket with its full timeline, by id or by number such as ORB-42 (agent-only: internal notes are included).</summary>
+    [HttpGet("{reference}")]
+    public async Task<IActionResult> Get(string reference, [FromServices] IGetTicketRequestHandler handler, CancellationToken cancellationToken) =>
+        (await handler.HandleAsync(reference, cancellationToken)).ToActionResult(this, Ok);
+
     /// <summary>The number on each queue tab.</summary>
     [HttpGet("counts")]
     public async Task<IActionResult> Counts([FromServices] ICountTicketViewsRequestHandler handler, CancellationToken cancellationToken) =>
