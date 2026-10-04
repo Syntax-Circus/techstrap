@@ -58,6 +58,10 @@ public sealed class StubApiHandler : HttpMessageHandler
     public StubApiHandler OnProblem(HttpMethod method, string path, HttpStatusCode status, string type, string detail) =>
         On(method, path, _ => Problem(status, type, detail));
 
+    /// <summary>A 400 validation answer for one field: see <see cref="ValidationProblem(string, string, string)"/>.</summary>
+    public StubApiHandler OnValidationProblem(HttpMethod method, string path, string target, string code, string message) =>
+        On(method, path, _ => ValidationProblem(target, code, message));
+
     /// <summary>
     /// The default answer to <c>GET /api/agents/me</c>: the token decides who is calling (see <see cref="AdminTestPrincipal.AccessToken"/>).
     /// The agent and the admin are 200 with their role; the outsider is 403 agent-access-required; no token is 401.
@@ -88,6 +92,29 @@ public sealed class StubApiHandler : HttpMessageHandler
             Encoding.UTF8,
             "application/problem+json"),
     };
+
+    /// <summary>
+    /// A 400 in the shape the API produces for a validation failure: <c>type</c> "validation-failed", the message per field in <c>errors</c> and the specific code per field in
+    /// <c>errorCodes</c> (the Admin's <c>ProblemMapping</c> reads the codes from there). <paramref name="target"/> is the field exactly as the API sends it, kebab-case
+    /// (for example <c>logo-path</c>); an empty target is a form-level error.
+    /// </summary>
+    public static HttpResponseMessage ValidationProblem(string target, string code, string message) => ValidationProblem([(target, code, message)]);
+
+    /// <summary>The same for several errors; errors on one field keep their order.</summary>
+    public static HttpResponseMessage ValidationProblem(IReadOnlyList<(string Target, string Code, string Message)> errors)
+    {
+        var messages = errors.GroupBy(e => e.Target).ToDictionary(g => g.Key, g => g.Select(e => e.Message).ToArray());
+        var codes = errors.GroupBy(e => e.Target).ToDictionary(g => g.Key, g => g.Select(e => e.Code).ToArray());
+        return new HttpResponseMessage(HttpStatusCode.BadRequest)
+        {
+            Content = new StringContent(
+                JsonSerializer.Serialize(
+                    new { type = "validation-failed", title = "One or more validation errors occurred.", status = 400, detail = errors[0].Message, errors = messages, errorCodes = codes },
+                    Json),
+                Encoding.UTF8,
+                "application/problem+json"),
+        };
+    }
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {

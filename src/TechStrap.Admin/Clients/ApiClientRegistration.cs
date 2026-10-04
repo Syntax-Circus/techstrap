@@ -50,6 +50,8 @@ public static class ApiClientRegistration
         services.AddScoped<ITagsClient, TagsClient>();
         services.AddScoped<ITicketsClient, TicketsClient>();
         services.AddScoped<IRequestersClient, RequestersClient>();
+        services.AddScoped<IAdminEventsClient, AdminEventsClient>();
+        services.AddScoped<IDeadLettersClient, DeadLettersClient>();
         services.AddScoped<AgentSession>();
         return services;
     }
