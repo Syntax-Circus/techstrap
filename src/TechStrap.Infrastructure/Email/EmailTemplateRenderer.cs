@@ -13,8 +13,6 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
 {
     private const string PoweredByText = "Powered by TechStrap";
 
-    private const int ReopenDays = TicketNotices.ReopenDays;
-
     private const string ParagraphStyle = "margin:0 0 16px 0;";
 
     public RenderedEmail RenderTicketConfirmation(TicketConfirmationEmail model, EmailBranding branding)
@@ -71,7 +69,7 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
         var showPoweredBy = options.Value.ShowPoweredBy;
         var subject = $"[{model.TicketNumber}] Re: {model.Subject}";
         var link = Encode(model.PortalLink);
-        var solvedLine = $"We've marked this request as solved. Reply within {ReopenDays} days if you need anything else.";
+        var solvedLine = $"We've marked this request as solved. Reply within {Days(model.ReopenDays > 0 ? model.ReopenDays : TicketNotices.DefaultReopenDays)} if you need anything else.";
 
         var text = new StringBuilder();
         text.Append(Greeting(model.RequesterName)).Append("\n\n");
@@ -107,7 +105,7 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
         var showPoweredBy = options.Value.ShowPoweredBy;
         var subject = $"[{model.TicketNumber}] Solved: {model.Subject}";
         var link = Encode(model.PortalLink);
-        var line = $"We've marked your request as solved. If you need anything else, reply within {model.ReopenDays} days, or use the link below.";
+        var line = $"We've marked your request as solved. If you need anything else, reply within {Days(model.ReopenDays)}, or use the link below.";
 
         var text = new StringBuilder();
         text.Append(Greeting(model.RequesterName)).Append("\n\n");
@@ -158,6 +156,105 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
             : Button(Encode(adminLink), "Open in TechStrap", colors));
         return Build(subject, text.ToString(), Layout(branding, colors, body.ToString(), showPoweredBy: false), branding);
     }
+
+    // Internal alerts to an agent: the Powered-by line is never shown, and the Admin button only for http(s) links.
+    public RenderedEmail RenderNewTicketAlert(NewTicketAlertEmail model, EmailBranding branding)
+    {
+        var kind = model.IsFollowUp ? "New follow-up" : "New ticket";
+        var subject = $"[{model.TicketNumber}] {kind}: {model.Subject}";
+        var intro = model.IsFollowUp
+            ? $"A follow-up ticket {model.TicketNumber} ({model.Subject}) has been opened."
+            : $"A new ticket {model.TicketNumber} ({model.Subject}) has been opened.";
+        var adminLink = WebLinkOrNull(model.AdminLink);
+
+        var text = new StringBuilder();
+        text.Append(intro).Append("\n\n");
+        text.Append($"Product: {model.ProductName}").Append('\n');
+        text.Append($"From: {model.RequesterLabel}").Append("\n\n");
+        text.Append(adminLink is null ? "Open TechStrap to work on it." : $"Open in TechStrap: {adminLink}");
+
+        var colors = Colors(branding);
+        var body = new StringBuilder();
+        body.Append($"<p style=\"{ParagraphStyle}\">{(model.IsFollowUp ? "A follow-up ticket" : "A new ticket")} <strong>{Encode(model.TicketNumber)}</strong> ({Encode(model.Subject)}) has been opened.</p>");
+        body.Append($"<p style=\"{ParagraphStyle}\">Product: {Encode(model.ProductName)}<br>From: {Encode(model.RequesterLabel)}</p>");
+        body.Append(AdminAction(adminLink, colors));
+        return Build(subject, text.ToString(), Layout(branding, colors, body.ToString(), showPoweredBy: false), branding);
+    }
+
+    public RenderedEmail RenderCustomerReplyAlert(CustomerReplyAlertEmail model, EmailBranding branding)
+    {
+        var subject = $"[{model.TicketNumber}] Customer replied: {model.Subject}";
+        var intro = $"The customer replied on ticket {model.TicketNumber} ({model.Subject}).";
+        const string reopenedLine = "The ticket was reopened.";
+        var adminLink = WebLinkOrNull(model.AdminLink);
+
+        var text = new StringBuilder();
+        text.Append(intro).Append("\n\n");
+        text.Append($"Product: {model.ProductName}").Append('\n');
+        if (model.Reopened)
+        {
+            text.Append(reopenedLine).Append('\n');
+        }
+
+        text.Append('\n').Append(adminLink is null ? "Open TechStrap to work on it." : $"Open in TechStrap: {adminLink}");
+
+        var colors = Colors(branding);
+        var body = new StringBuilder();
+        body.Append($"<p style=\"{ParagraphStyle}\">The customer replied on ticket <strong>{Encode(model.TicketNumber)}</strong> ({Encode(model.Subject)}).</p>");
+        body.Append($"<p style=\"{ParagraphStyle}\">Product: {Encode(model.ProductName)}");
+        if (model.Reopened)
+        {
+            body.Append($"<br>{reopenedLine}");
+        }
+
+        body.Append("</p>");
+        body.Append(AdminAction(adminLink, colors));
+        return Build(subject, text.ToString(), Layout(branding, colors, body.ToString(), showPoweredBy: false), branding);
+    }
+
+    // Customer-facing lost-link email: product branding leads, Powered-by follows the option.
+    public RenderedEmail RenderAccessLinks(AccessLinksEmail model, EmailBranding branding)
+    {
+        var showPoweredBy = options.Value.ShowPoweredBy;
+        const string subject = "Your request links";
+        const string intro = "Here are the links to your requests.";
+
+        var text = new StringBuilder();
+        text.Append(Greeting(model.RequesterName)).Append("\n\n");
+        text.Append(intro).Append("\n\n");
+        foreach (var entry in model.Links)
+        {
+            text.Append($"{entry.TicketNumber}: {entry.Subject}").Append('\n');
+            text.Append(entry.PortalLink).Append("\n\n");
+        }
+
+        text.Append($"The {branding.DisplayName} team");
+        AppendTextPoweredBy(text, showPoweredBy);
+
+        var colors = Colors(branding);
+        var body = new StringBuilder();
+        body.Append($"<p style=\"{ParagraphStyle}\">{HtmlGreeting(model.RequesterName)}</p>");
+        body.Append($"<p style=\"{ParagraphStyle}\">{intro}</p>");
+        foreach (var entry in model.Links)
+        {
+            var link = Encode(entry.PortalLink);
+            body.Append($"<p style=\"{ParagraphStyle}\"><strong>{Encode(entry.TicketNumber)}</strong>: {Encode(entry.Subject)}</p>");
+            body.Append(Button(link, "View your request", colors));
+            body.Append(FallbackLink(link, colors));
+        }
+
+        body.Append($"<p style=\"margin:0;\">The {Encode(branding.DisplayName)} team</p>");
+        return Build(subject, text.ToString(), Layout(branding, colors, body.ToString(), showPoweredBy), branding);
+    }
+
+    private static string Days(int count) => count == 1 ? "1 day" : $"{count} days";
+
+    private static string? WebLinkOrNull(string? link) => link is { } candidate && IsWebUrl(candidate) ? candidate : null;
+
+    private static string AdminAction(string? adminLink, ProductAccentColors colors) =>
+        adminLink is null
+            ? "<p style=\"margin:0;\">Open TechStrap to work on it.</p>"
+            : Button(Encode(adminLink), "Open in TechStrap", colors);
 
     private static bool IsWebUrl(string value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http";

@@ -85,14 +85,14 @@ public sealed class ApiFactory(
             configureServices?.Invoke(services);
         });
 
-/// <summary>The Worker host. The email outbox loop is off by default so smoke tests never start it against an unmigrated database; a test turns it on through <c>settings</c>.</summary>
+/// <summary>The Worker host. The email outbox and auto-close loops are off by default so smoke tests never start it against an unmigrated database; a test turns it on through <c>settings</c>.</summary>
 public sealed class WorkerFactory(
     string environment = "Development",
     IReadOnlyDictionary<string, string?>? settings = null,
     Action<IServiceCollection>? configureServices = null)
     : HostFactory<TechStrap.Worker.Program>(
         environment,
-        new Dictionary<string, string?> { ["EmailOutbox:Enabled"] = "false" }
+        new Dictionary<string, string?> { ["EmailOutbox:Enabled"] = "false", ["AutoClose:Enabled"] = "false" }
             .Concat(settings ?? new Dictionary<string, string?>())
             .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.Last().Value, StringComparer.OrdinalIgnoreCase),

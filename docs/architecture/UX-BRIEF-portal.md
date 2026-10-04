@@ -483,16 +483,17 @@ Common rules:
      Contains ticket number, subject, a short copy of what the customer wrote
      (truncated), the link to follow the conversation, the lost-link tip, and
      for a follow-up a sentence linking it to the original ticket number.
+     Currently the follow-up confirmation reuses the ticket-confirmation template
+     without the parent number; the sentence is PHASE-09 copy work.
   2. **Agent reply**: the agent's public reply text (sanitised), linked KB
      articles as titled links (when the agent linked any), the agent's resolved name
      (D-024: "Sam from Orbitly Support", or the agent's public display name
      plus the same suffix; never email or surname), the CTA "View and reply", and the ticket number. Long
      replies are shown in full (not truncated) because the email may be the only
      thing read.
-  3. **Closed notice**: sent when a Solved ticket is auto-closed (or manually
-     closed): states it is now closed, shows the number, explains that replying via
-     the link will start a **follow-up** ticket, and offers the link to the
-     history. Tone: calm, no surprise.
+  3. **Closed notice**: not sent (D-037). Auto-close and manual close email the
+     customer nothing; the Solved notice already explained the window and that a
+     later reply starts a **follow-up** ticket.
   4. **New access link** (lost-link response): a minimal email with the link(s) to
      their tickets (Assumption: one email listing recent tickets; multiple
      tickets per requester: Handoff Notes, question 5). Sent only to the address
@@ -744,7 +745,7 @@ How it applies to the Portal:
     Closed), lost link, a KB article and the uniform error page, each with at
     least four sample products (including the hostile accents above, with and
     without a logo); email mockups in light and dark clients for the
-    confirmation, agent reply and closed notice; and the CSS custom-property
+    confirmation, agent reply and solved notice; and the CSS custom-property
     contract for the product theme.
 - **Acceptance criteria for design review:**
   - [ ] `docs/BRAND.md` exists and the design follows it; product branding
@@ -766,7 +767,7 @@ How it applies to the Portal:
   - [ ] The invalid-token, unknown-product, and unpublished-article pages are
     visually and verbally identical, and the lost-link response is identical for
     matched and unmatched addresses.
-  - [ ] The customer emails (confirmation, agent reply, closed notice, new
+  - [ ] The customer emails (confirmation, agent reply, solved notice, new
     access link) render acceptably in plain text, with images blocked, and in a
     dark-mode client, carry only the product accent and a "Powered by
     TechStrap" line.

@@ -386,6 +386,13 @@ public sealed class Ticket
         // ticket only ever gains more FollowUpCreated events, so no later stamp can sort before it, and Restore seeds _lastStamp from
         // LastActivityAt only (a reload may therefore re-issue a stamp equal to an earlier follow-up stamp, which is harmless).
         Raise(TicketEventType.FollowUpCreated, Actor.ForRequester(RequesterId), Payload(("followUpTicketId", followUp.Value.Id)), clock);
+
+        // A follow-up of a spam ticket is itself spam, so it lands in the Spam view and alerts nobody (D-035).
+        if (IsSpam)
+        {
+            followUp.Value.MarkSpam(true, Actor.System, clock);
+        }
+
         return followUp;
     }
 

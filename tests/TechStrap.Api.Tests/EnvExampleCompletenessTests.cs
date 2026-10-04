@@ -6,6 +6,8 @@ using ObservabilitySentryOptions = SyntaxCircus.Observability.SentryOptions;
 using TechStrap.Api.Options;
 using TechStrap.Api.Startup;
 using TechStrap.Application.Email;
+using TechStrap.Application.Tickets.AutoClose;
+using TechStrap.Application.Tickets.Customer;
 
 namespace TechStrap.Api.Tests;
 
@@ -64,6 +66,8 @@ public sealed partial class EnvExampleCompletenessTests
                 .. TrustedProxyKeys(),
                 .. OptionKeys(typeof(PublicRateLimitOptions), PublicRateLimitOptions.SectionName),
                 .. OptionKeys(typeof(IntakeRateLimitOptions), IntakeRateLimitOptions.SectionName),
+                .. OptionKeys(typeof(CustomerRateLimitOptions), CustomerRateLimitOptions.SectionName),
+                .. OptionKeys(typeof(LostLinkOptions), LostLinkOptions.SectionName),
                 ToEnvName(ApiStartupTasks.MigrateOnStartupKey),
                 ApiStartupTasks.SeedDevelopmentDataKey,
                 "CONNECTIONSTRINGS__TECHSTRAP",
@@ -75,6 +79,7 @@ public sealed partial class EnvExampleCompletenessTests
                 "TECHSTRAP_PORTAL_PUBLIC_URL",
                 "TECHSTRAP_ADMIN_PUBLIC_URL",
                 "STORAGE__LOCAL__ROOTPATH",
+                AutoCloseOptions.DaysKey,
             ]
         },
         {
@@ -95,6 +100,8 @@ public sealed partial class EnvExampleCompletenessTests
                 "STORAGE__LOCAL__ROOTPATH",
                 "TECHSTRAP_PORTAL_PUBLIC_URL",
                 "TECHSTRAP_PORTAL_SHOW_POWERED_BY",
+                AutoCloseOptions.DaysKey,
+                .. OptionKeys(typeof(AutoCloseOptions), AutoCloseOptions.SectionName).Where(k => k != "AUTOCLOSE__DAYS"),
             ]
         },
         {

@@ -102,25 +102,13 @@ public sealed class AddAgentReplyRequestHandler(
             return Fail(message.Error!.ToError());
         }
 
-        var stored = new List<string>();
+        var stored = new StoredAttachmentBatch(attachments, logger);
         try
         {
-            foreach (var file in files)
+            var failed = await stored.SaveAllAsync(ticket.Id, message.Value, files, clock, cancellationToken);
+            if (failed is not null)
             {
-                var saved = await attachments.SaveAsync(ticket.Id, file, cancellationToken);
-                if (saved.IsFailure)
-                {
-                    await DeleteStoredAsync(stored);
-                    return Fail(saved.Errors[0]);
-                }
-
-                stored.Add(saved.Value.StorageKey);
-                var added = message.Value.AddAttachment(saved.Value.FileName, saved.Value.ContentType, saved.Value.Size, saved.Value.StorageKey, clock);
-                if (added.IsFailure)
-                {
-                    await DeleteStoredAsync(stored);
-                    return Fail(added.Error!.ToError());
-                }
+                return Fail(failed);
             }
 
             if (solve)
@@ -128,7 +116,7 @@ public sealed class AddAgentReplyRequestHandler(
                 var solved = ticket.ChangeStatus(TicketStatus.Solved, Actor.ForAgent(agent.Id), clock);
                 if (solved.IsFailure)
                 {
-                    await DeleteStoredAsync(stored);
+                    await stored.DeleteAllAsync();
                     return Fail(solved.Error!.ToError());
                 }
             }
@@ -147,12 +135,12 @@ public sealed class AddAgentReplyRequestHandler(
             var committed = await TicketMutation.CommitAsync(scope, cancellationToken);
             if (committed.IsFailure)
             {
-                await DeleteStoredAsync(stored);
+                await stored.DeleteAllAsync();
                 return Fail(committed.Errors[0]);
             }
 
             // The reply is committed: nothing after this point (state read, DTO building) may delete its files.
-            stored.Clear();
+            stored.Keep();
             var state = await TicketMutation.ReadStateAsync(ticket.Id, tickets, cancellationToken);
             if (state.IsFailure)
             {
@@ -166,28 +154,10 @@ public sealed class AddAgentReplyRequestHandler(
         }
         catch
         {
-            await DeleteStoredAsync(stored);
+            await stored.DeleteAllAsync();
             throw;
         }
     }
 
     private static Result<AgentMessageResponse> Fail(ResultError error) => Result<AgentMessageResponse>.Failure(error);
-
-    private async Task DeleteStoredAsync(List<string> stored)
-    {
-        foreach (var key in stored)
-        {
-            try
-            {
-                await attachments.DeleteAsync(key, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                // Best effort: an orphaned file must not mask the original outcome, but it must be visible.
-                logger.LogWarning("Attachment cleanup failed for {StorageKey} ({ExceptionType}).", key, ex.GetType().Name);
-            }
-        }
-
-        stored.Clear();
-    }
 }

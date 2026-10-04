@@ -60,7 +60,8 @@ public interface ITicketRepository
     Task<IReadOnlyList<Attachment>> GetAttachmentsAsync(Guid ticketId, bool publicOnly, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Solved tickets whose <c>solved_at</c> is before the cutoff, oldest first (auto-close, D-008). Implementations normalize
+    /// Solved, non-spam tickets whose <c>solved_at</c> is before the cutoff, oldest first (auto-close, D-008). Spam is excluded so Solved
+    /// spam can never starve the batch. Implementations normalize
     /// <paramref name="limit"/> through <see cref="Paging.NormalizeBatchSize"/> before querying.
     /// </summary>
     Task<IReadOnlyList<Ticket>> ListSolvedBeforeAsync(DateTimeOffset solvedBefore, int limit, CancellationToken cancellationToken);
@@ -85,4 +86,10 @@ public interface ITicketRepository
 
     /// <summary>An untracked read straight from the database; use after a commit to return the new Version.</summary>
     Task<TicketState?> GetStateAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>Follow-ups of a parent created at or after <paramref name="since"/>, newest first, each with its first public message.</summary>
+    Task<IReadOnlyList<FollowUpCandidate>> ListRecentFollowUpsAsync(Guid parentTicketId, DateTimeOffset since, CancellationToken cancellationToken);
+
+    /// <summary>A requester's non-spam tickets, most recently active first, at most <paramref name="limit"/>.</summary>
+    Task<IReadOnlyList<RequesterTicketLink>> ListRecentTicketsForRequesterAsync(Guid requesterId, int limit, CancellationToken cancellationToken);
 }

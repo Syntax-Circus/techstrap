@@ -144,7 +144,7 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 | FR-EMAIL-03 | Delivery is at-least-once; the outbox id is placed in the `Message-ID` header so repeats are recognizable | M |
 | FR-EMAIL-04 | Email templates exist in text and HTML, carry per-product branding (name, logo, accent colour, from-address, reply-to) | M |
 | FR-EMAIL-05 | Outbound emails tell the customer to reply through the ticket link (until inbound email exists) | M |
-| FR-EMAIL-06 | Email kinds: intake confirmation, agent public reply, new access link, new-ticket alert to opted-in agents, assignment alert, customer-reply alert to assignee, solved notice and closed notice to the requester. PHASE-05 sends only the intake confirmation; PHASE-06 adds the rest through `ITicketNotificationPlanner` | M |
+| FR-EMAIL-06 | Email kinds: intake confirmation, agent public reply, new access link, new-ticket alert to opted-in agents, assignment alert, customer-reply alert to assignee, solved notice to the requester (no closed notice, D-037). PHASE-05 sends only the intake confirmation; PHASE-06 adds the rest through `ITicketNotificationPlanner` | M |
 | FR-EMAIL-07 | Agents can opt in per product to new-ticket alerts via notification preferences | M |
 | FR-EMAIL-08 | Alerts are queued by ticket handlers through `ITicketNotificationPlanner`; there is no separate alert entry point | M |
 | FR-EMAIL-09 | Customer emails render the resolved agent name (FR-CUST-07) and honour the Powered-by setting (FR-CUST-08): link in HTML, bare URL in text, omitted when hidden (D-024) | M |
@@ -166,7 +166,7 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 | FR-TKT-11 | Optimistic concurrency on ticket updates; a conflict returns a clear error and the UI offers refresh | M |
 | FR-TKT-12 | Customer reply on Pending or Solved sets Open and notifies the assignee (or opted-in agents if unassigned) | M |
 | FR-TKT-13 | A Closed ticket is read-only. A customer reply to it creates a new ticket linked by `parent_ticket_id` and returns its link | M |
-| FR-TKT-14 | Auto-close: Solved tickets older than N days (`TECHSTRAP_AUTOCLOSE_DAYS`, default 7, **Assumption**) become Closed through a worker job, with a `StatusChanged` event by the System actor and a closed notice to the requester (Q-04) | M |
+| FR-TKT-14 | Auto-close: Solved tickets older than N days (`TECHSTRAP_AUTOCLOSE_DAYS`, default 7, **Assumption**) become Closed through a worker job, with a `StatusChanged` event by the System actor; no customer email (D-037) | M |
 | FR-TKT-15 | Admin (only, D-022) can list, retry and discard dead-lettered outbox rows; retry and discard write an `AdminEvent` | M |
 | FR-TKT-16 | Attachment download is authorized for agents and for the ticket's customer token; internal-note attachments never reach customers | M |
 | FR-TKT-17 | Every ticket mutation writes a `TicketEvent` in the same transaction | M |
@@ -346,7 +346,7 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 | Q-01 | Which handler covers listing/downloading the KB articles linked to a ticket reply for the customer view? | Included in `GetCustomerTicketRequestHandler` and `GetTicketRequestHandler` output |
 | Q-02 | Is a handler needed for periodic expired-token cleanup? | Not in core; expired tokens are inert and cleaned in a later maintenance task |
 | Q-03 | Should an agent be able to resend or revoke a customer's access link? | Not in core; customer uses lost-link |
-| Q-04 | Should customers receive an email when a ticket auto-closes? | Yes, a short closed notice through `ITicketNotificationPlanner` (PHASE-06, UX-BRIEF-portal); confirm |
+| Q-04 | Should customers receive an email when a ticket auto-closes? | No. Auto-close sends no email; the Solved notice already told the customer about the window (D-037) |
 | Q-05 | Which claim name and value format will Authentik emit for groups (`groups` array)? | Configurable via env; default claim `groups` |
 | Q-06 | Product logo: upload or URL (A-17)? | URL or upload, decided in PHASE-04 |
 | Q-07 | Registry visibility and package ownership for NuGet publishing of the SDK (org vs personal key)? | CI uses an org secret |

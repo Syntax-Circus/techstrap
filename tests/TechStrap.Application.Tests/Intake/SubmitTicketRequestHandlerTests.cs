@@ -11,6 +11,7 @@ using TechStrap.Application.Content;
 using TechStrap.Application.Intake;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Security;
+using TechStrap.Application.Tickets.Notifications;
 using TechStrap.Application.Tests.Support;
 using TechStrap.Contracts.Intake;
 using TechStrap.Domain;
@@ -33,6 +34,7 @@ public sealed class SubmitTicketRequestHandlerTests
     private readonly IAttachmentStore _attachments = Substitute.For<IAttachmentStore>();
     private readonly IHtmlSanitizer _sanitizer = Substitute.For<IHtmlSanitizer>();
     private readonly IEmailOutbox _outbox = Substitute.For<IEmailOutbox>();
+    private readonly ITicketNotificationPlanner _planner = Substitute.For<ITicketNotificationPlanner>();
     private readonly IIntakeIdempotencyStore _idempotency = Substitute.For<IIntakeIdempotencyStore>();
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 10, 3, 9, 0, 0, TimeSpan.Zero));
     private readonly PortalLinkOptions _portal = new() { PublicUrl = "https://help.test/" };
@@ -78,7 +80,7 @@ public sealed class SubmitTicketRequestHandlerTests
     private ILogger<SubmitTicketRequestHandler> _logger = NullLogger<SubmitTicketRequestHandler>.Instance;
 
     private SubmitTicketRequestHandler Handler() =>
-        new(_products, _requesters, _tickets, _allocator, _tokens, _attachments, _sanitizer, _outbox, _idempotency, _unitOfWork, _clock,
+        new(_products, _requesters, _tickets, _allocator, _tokens, _attachments, _sanitizer, _outbox, _planner, _idempotency, _unitOfWork, _clock,
             Options.Create(_portal), _logger);
 
     private static SubmitTicketRequest Request(string? email = "ann@example.com", string? name = "Ann", string? body = "The printer is on fire.", string? externalRef = null, IReadOnlyDictionary<string, string>? metadata = null) =>
@@ -476,6 +478,46 @@ public sealed class SubmitTicketRequestHandlerTests
 
         result.IsSuccess.ShouldBeTrue();
         _outbox.DidNotReceive().Enqueue(Arg.Any<EmailOutboxItem>());
+    }
+
+    [Fact]
+    public async Task A_new_ticket_plans_the_new_ticket_alert_once()
+    {
+        var result = await Handler().HandleAsync(Request(), WebContext(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        await _planner.Received(1).PlanNewTicketAsync(
+            Arg.Is<Ticket>(t => t.Subject == "Printer"),
+            Arg.Is<Requester>(r => r.Email == "ann@example.com"),
+            false,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task The_honeypot_and_an_idempotent_replay_plan_no_alert()
+    {
+        await Handler().HandleAsync(Request(), WebContext(honeypot: true), TestContext.Current.CancellationToken);
+
+        var ticket = ExistingTicket();
+        var stored = JsonSerializer.Serialize(new SubmitTicketResponse("ORB-7", null, []), Json);
+        _idempotency.FindAsync(_apiKeyId, "k1", Arg.Any<CancellationToken>())
+            .Returns(new IntakeIdempotencyEntry(Guid.CreateVersion7(), _apiKeyId, ticket.Id, stored, _clock.GetUtcNow().AddHours(-1)));
+        _tickets.GetByIdAsync(ticket.Id, Arg.Any<CancellationToken>()).Returns(ticket);
+        var replay = await Handler().HandleAsync(Request(), ApiContext(idempotencyKey: "k1"), TestContext.Current.CancellationToken);
+
+        replay.IsSuccess.ShouldBeTrue();
+        await _planner.DidNotReceive().PlanNewTicketAsync(Arg.Any<Ticket>(), Arg.Any<Requester>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_retried_attempt_plans_the_alert_in_the_attempt_that_commits()
+    {
+        _unitOfWork = UnitOfWorkSubstitute.Create(UnitOfWorkSubstitute.Conflict("duplicate"), Result.Success());
+
+        var result = await Handler().HandleAsync(Request(), WebContext(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        await _planner.Received(2).PlanNewTicketAsync(Arg.Any<Ticket>(), Arg.Any<Requester>(), false, Arg.Any<CancellationToken>());
     }
 
     [Fact]

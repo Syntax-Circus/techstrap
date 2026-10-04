@@ -8,6 +8,7 @@ using TechStrap.Application.Email;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Results;
 using TechStrap.Application.Security;
+using TechStrap.Application.Tickets.Notifications;
 using TechStrap.Contracts.Intake;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
@@ -36,6 +37,7 @@ public sealed class SubmitTicketRequestHandler(
     IAttachmentStore attachments,
     IHtmlSanitizer sanitizer,
     IEmailOutbox outbox,
+    ITicketNotificationPlanner planner,
     IIntakeIdempotencyStore idempotency,
     IUnitOfWork unitOfWork,
     TimeProvider clock,
@@ -79,7 +81,7 @@ public sealed class SubmitTicketRequestHandler(
 
         for (var attempt = 1; ; attempt++)
         {
-            var stored = new List<string>();
+            var stored = new StoredAttachmentBatch(attachments, logger);
             Attempt outcome;
             try
             {
@@ -87,7 +89,7 @@ public sealed class SubmitTicketRequestHandler(
             }
             catch
             {
-                await DeleteStoredAsync(stored);
+                await stored.DeleteAllAsync();
                 throw;
             }
 
@@ -171,7 +173,7 @@ public sealed class SubmitTicketRequestHandler(
         List<string> warnings,
         string bodyHtml,
         string? metadataJson,
-        List<string> stored,
+        StoredAttachmentBatch stored,
         CancellationToken cancellationToken)
     {
         var now = clock.GetUtcNow();
@@ -222,22 +224,10 @@ public sealed class SubmitTicketRequestHandler(
             return Fail(message.Error!.ToError());
         }
 
-        foreach (var file in context.Attachments)
+        var savedFiles = await stored.SaveAllAsync(ticket.Value.Id, message.Value, context.Attachments, clock, cancellationToken);
+        if (savedFiles is not null)
         {
-            var saved = await attachments.SaveAsync(ticket.Value.Id, file, cancellationToken);
-            if (saved.IsFailure)
-            {
-                await DeleteStoredAsync(stored);
-                return Fail(saved.Errors[0]);
-            }
-
-            stored.Add(saved.Value.StorageKey);
-            var added = message.Value.AddAttachment(saved.Value.FileName, saved.Value.ContentType, saved.Value.Size, saved.Value.StorageKey, clock);
-            if (added.IsFailure)
-            {
-                await DeleteStoredAsync(stored);
-                return Fail(added.Error!.ToError());
-            }
+            return Fail(savedFiles);
         }
 
         tickets.Add(ticket.Value);
@@ -245,7 +235,7 @@ public sealed class SubmitTicketRequestHandler(
         var issued = tokens.Issue(ticket.Value.Id, requester.Value.Id);
         if (issued.IsFailure)
         {
-            await DeleteStoredAsync(stored);
+            await stored.DeleteAllAsync();
             return Fail(issued.Error!.ToError());
         }
 
@@ -253,6 +243,7 @@ public sealed class SubmitTicketRequestHandler(
         var link = portal.Value.TicketLink(issued.Value.PlaintextToken);
 
         EnqueueConfirmation(number, ticket.Value, requester.Value, product, link);
+        await planner.PlanNewTicketAsync(ticket.Value, requester.Value, isFollowUp: false, cancellationToken);
 
         var response = new SubmitTicketResponse(number.ToString(), isApi ? link : null, warnings.ToArray());
 
@@ -275,11 +266,11 @@ public sealed class SubmitTicketRequestHandler(
         if (committed.IsSuccess)
         {
             // Committed rows now reference these files: an exception from scope disposal must not delete them.
-            stored.Clear();
+            stored.Keep();
             return new Attempt(Result<SubmitTicketResponse>.Success(response), false, idempotencyKey is not null);
         }
 
-        await DeleteStoredAsync(stored);
+        await stored.DeleteAllAsync();
         var error = committed.Errors[0];
 
         // Attachment streams may not be seekable, so a retry is only safe without files; the customer can resubmit.
@@ -364,24 +355,6 @@ public sealed class SubmitTicketRequestHandler(
         {
             logger.LogWarning("Pruning expired idempotency keys failed ({ExceptionType}).", ex.GetType().Name);
         }
-    }
-
-    private async Task DeleteStoredAsync(List<string> stored)
-    {
-        foreach (var key in stored)
-        {
-            try
-            {
-                await attachments.DeleteAsync(key, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                // Best effort: an orphaned file must not mask the original outcome, but it must be visible.
-                logger.LogWarning("Attachment cleanup failed for {StorageKey} ({ExceptionType}).", key, ex.GetType().Name);
-            }
-        }
-
-        stored.Clear();
     }
 
     private static Attempt Fail(ResultError error) => new(Result<SubmitTicketResponse>.Failure(error), false, false);

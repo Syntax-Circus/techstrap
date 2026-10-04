@@ -87,6 +87,17 @@ Describe 'docker-compose files' -Skip:(-not $script:DockerAvailable) {
         $worker.environment.PSObject.Properties.Name | Should -Contain 'TECHSTRAP_PORTAL_SHOW_POWERED_BY'
     }
 
+    It 'production and uat pass the auto-close window to both the api and the worker (<file>)' -ForEach @(
+        @{ file = 'docker-compose.production.yml' }
+        @{ file = 'docker-compose.uat.yml' }
+    ) {
+        $envFile = Join-Path $TestDrive 'env-autoclose'
+        New-ProductionEnvFile -Path $envFile
+        $services = (Get-ComposeConfig -File $file -EnvFile $envFile).Config.services
+        $services.api.environment.TECHSTRAP_AUTOCLOSE_DAYS | Should -Be '7'
+        $services.worker.environment.TECHSTRAP_AUTOCLOSE_DAYS | Should -Be '7'
+    }
+
     It 'production and uat workers pass the EmailOutbox settings through with defaults (<file>)' -ForEach @(
         @{ file = 'docker-compose.production.yml' }
         @{ file = 'docker-compose.uat.yml' }

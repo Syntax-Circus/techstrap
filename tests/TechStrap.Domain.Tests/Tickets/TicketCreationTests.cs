@@ -140,4 +140,27 @@ public sealed class TicketCreationTests
         closed.PendingEvents[1].OccurredAt.ShouldBeGreaterThan(closed.PendingEvents[0].OccurredAt);
         closed.PendingEvents[1].PayloadJson.ShouldContain(second.Id.ToString());
     }
+
+    [Fact]
+    public void A_follow_up_of_a_spam_ticket_is_spam_with_a_system_marked_spam_event()
+    {
+        var parent = _factory.InStatus(TicketStatus.Solved);
+        parent.MarkSpam(true, Actor.ForAgent(Guid.NewGuid()), _factory.Clock).IsSuccess.ShouldBeTrue();
+        parent.ChangeStatus(TicketStatus.Closed, Actor.System, _factory.Clock).IsSuccess.ShouldBeTrue();
+
+        var followUp = parent.CreateFollowUp(_factory.Number(143), _factory.Clock).Value;
+
+        followUp.IsSpam.ShouldBeTrue();
+        followUp.PendingEvents.Select(e => e.Type).ShouldBe([TicketEventType.Created, TicketEventType.MarkedSpam]);
+        followUp.PendingEvents[1].ActorType.ShouldBe(ActorType.System);
+        followUp.PendingEvents[1].PayloadJson.ShouldContain("true");
+    }
+
+    [Fact]
+    public void A_follow_up_of_a_normal_ticket_is_not_spam()
+    {
+        var followUp = _factory.InStatus(TicketStatus.Closed).CreateFollowUp(_factory.Number(143), _factory.Clock).Value;
+
+        followUp.IsSpam.ShouldBeFalse();
+    }
 }

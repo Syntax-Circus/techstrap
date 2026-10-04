@@ -119,6 +119,13 @@ internal sealed class EmailOutboxStore(TechStrapDbContext context, TimeProvider 
     public async Task<EmailOutboxItem?> GetAsync(Guid id, CancellationToken cancellationToken) =>
         (await context.Set<EmailOutboxRecord>().FirstOrDefaultAsync(e => e.Id == id, cancellationToken))?.ToDomain();
 
+    public Task<int> CountRecentAsync(string kind, string toAddress, DateTimeOffset since, CancellationToken cancellationToken)
+    {
+        var address = toAddress.Trim().ToLowerInvariant();
+        return context.Set<EmailOutboxRecord>().AsNoTracking()
+            .CountAsync(e => e.Kind == kind && e.ToAddress == address && e.CreatedAt >= since, cancellationToken);
+    }
+
     public void Update(EmailOutboxItem item) => item.CopyTo(context.FindLoaded<EmailOutboxRecord>(item.Id));
 
     /// <summary>
