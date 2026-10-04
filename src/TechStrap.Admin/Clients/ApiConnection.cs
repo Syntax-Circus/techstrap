@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Polly.CircuitBreaker;
 using SyntaxCircus.Blazor.Auth;
 using SyntaxCircus.Common;
 
@@ -67,8 +66,9 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
             var value = await response.Content.ReadFromJsonAsync<T>(Json, cancellationToken);
             return value is null ? Result<T>.Failure(Unexpected()) : Result<T>.Success(value);
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or NotSupportedException)
         {
+            // An answer that cannot be read (bad JSON, a content type or encoding the reader does not support).
             return Result<T>.Failure(Unexpected());
         }
         catch (Exception ex) when (Transport(ex, cancellationToken) is { } error)
@@ -90,6 +90,10 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
             var errors = ProblemMapping.Map(response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken));
             return Result.Failure(errors[0], [.. errors.Skip(1)]);
         }
+        catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException)
+        {
+            return Result.Failure(Unexpected());
+        }
         catch (Exception ex) when (Transport(ex, cancellationToken) is { } error)
         {
             return Result.Failure(error);
@@ -97,7 +101,7 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
     }
 
     /// <summary>
-    /// A transport failure (unreachable API, timeout, open circuit) as a Result error. The message is fixed, user-safe copy: the gate and the pages print it as is,
+    /// A transport failure (unreachable API, timeout) as a Result error. The message is fixed, user-safe copy: the gate and the pages print it as is,
     /// so it never includes exception text, a host or a port. Returns null for anything else, including a cancellation requested by the caller,
     /// which must keep propagating.
     /// </summary>
@@ -105,7 +109,7 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
     {
         OperationCanceledException when cancellationToken.IsCancellationRequested => null,
         OperationCanceledException or TimeoutException => new ResultError(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again.", ResultErrorKind.Failure),
-        HttpRequestException or BrokenCircuitException => new ResultError(ApiErrorCodes.ApiUnavailable, "TechStrap could not reach the API. Try again in a moment.", ResultErrorKind.Failure),
+        HttpRequestException => new ResultError(ApiErrorCodes.ApiUnavailable, "TechStrap could not reach the API. Try again in a moment.", ResultErrorKind.Failure),
         _ => null,
     };
 

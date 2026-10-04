@@ -130,6 +130,20 @@ public sealed class TicketDetailPresenterTests
     }
 
     [Fact]
+    public async Task Given_lookups_to_reuse_it_fetches_only_the_ticket()
+    {
+        var reused = new TicketLookups([TestData.Product()], [TestData.Agent("Sam Ortiz", TestData.SamAgentId)], [TestData.Tag()]);
+
+        var result = await Presenter().LoadAsync("ORB-42", reused, Ct);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Lookups.ShouldBeSameAs(reused);
+        await _products.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
+        await _agents.DidNotReceive().ListAllAsync(Arg.Any<CancellationToken>());
+        await _tags.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task A_ticket_without_a_parent_makes_no_extra_read()
     {
         await Presenter().LoadAsync("ORB-42", Ct);

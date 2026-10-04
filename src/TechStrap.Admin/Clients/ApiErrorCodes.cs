@@ -18,6 +18,8 @@ public static class ApiErrorCodes
     public const string ApiError = "api-error";
 
     // Produced by the API.
+    /// <summary>The API's exception middleware answers a 500 with this type; the Admin maps every 5xx by status, so it never reaches a component.</summary>
+    public const string InternalError = "internal-error";
     public const string ConcurrencyConflict = "concurrency-conflict";
     public const string TicketClosed = "ticket-closed";
     public const string InvalidStatusTransition = "invalid-status-transition";
@@ -33,6 +35,6 @@ public static class ApiErrorCodes
     public const string AgentNotProvisioned = "agent-not-provisioned";
     public const string AdminAccessRequired = "admin-access-required";
 
-    /// <summary>A write that failed this way may still have been applied (the answer was lost, late or unreadable): say so and offer a reload, never a bare retry.</summary>
+    /// <summary>A write that failed (any 5xx, transport error, timeout or unreadable answer) this way may still have been applied (the answer was lost, late or unreadable): say so and offer a reload, never a bare retry.</summary>
     public static bool IsUncertainWrite(string code) => code is ApiTimeout or ApiUnavailable or UnexpectedResponse or ApiError;
 }

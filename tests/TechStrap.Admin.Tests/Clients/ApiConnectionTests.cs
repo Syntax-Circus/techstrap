@@ -28,6 +28,29 @@ public sealed class ApiConnectionTests
         api.Stub.Count(HttpMethod.Get, "/api/thing").ShouldBe(2);
     }
 
+    [Fact]
+    public async Task A_get_is_retried_twice_on_503_so_three_calls_in_all()
+    {
+        await using var api = await ApiHarness.CreateAsync();
+        api.Stub.OnStatus(HttpMethod.Get, "/api/thing", HttpStatusCode.ServiceUnavailable);
+
+        var result = await api.Get<ApiConnection>().GetAsync<TicketStateDto>("api/thing", Ct);
+
+        result.Errors[0].Code.ShouldBe(ApiErrorCodes.ApiUnavailable);
+        api.Stub.Count(HttpMethod.Get, "/api/thing").ShouldBe(1 + ApiClientRegistration.ReadRetryCount);
+    }
+
+    [Fact]
+    public async Task A_get_is_not_retried_on_500()
+    {
+        await using var api = await ApiHarness.CreateAsync();
+        api.Stub.OnStatus(HttpMethod.Get, "/api/thing", HttpStatusCode.InternalServerError);
+
+        await api.Get<ApiConnection>().GetAsync<TicketStateDto>("api/thing", Ct);
+
+        api.Stub.Count(HttpMethod.Get, "/api/thing").ShouldBe(1);
+    }
+
     // Review Focus 5: a duplicate reply or note must never come from a retry.
     [Theory]
     [InlineData("POST")]
@@ -135,7 +158,7 @@ public sealed class ApiConnectionTests
     [InlineData(404, "ticket-not-found", ResultErrorKind.NotFound)]
     [InlineData(403, "agent-inactive", ResultErrorKind.Forbidden)]
     [InlineData(401, "unauthenticated", ResultErrorKind.Unauthenticated)]
-    [InlineData(500, "unexpected", ResultErrorKind.Failure)]
+    [InlineData(404, "tag-not-found", ResultErrorKind.NotFound)]
     public async Task A_problem_keeps_the_api_code_and_maps_the_status_to_a_kind(int status, string type, ResultErrorKind kind)
     {
         await using var api = await ApiHarness.CreateAsync();
@@ -144,6 +167,21 @@ public sealed class ApiConnectionTests
         var result = await api.Get<ApiConnection>().SendAsync(HttpMethod.Delete, "api/thing", null, Ct);
 
         result.Errors.ShouldHaveSingleItem().ShouldBe(new ResultError(type, "Something specific the agent should read.", kind));
+    }
+
+    // The API's exception middleware answers 500 with type "internal-error": the Admin decides by status, so the write counts as uncertain.
+    [Theory]
+    [InlineData(500, ApiErrorCodes.InternalError, ApiErrorCodes.ApiError)]
+    [InlineData(500, "unexpected", ApiErrorCodes.ApiError)]
+    [InlineData(502, "bad-gateway", ApiErrorCodes.ApiUnavailable)]
+    public async Task A_5xx_is_mapped_by_status_and_keeps_the_api_message(int status, string type, string code)
+    {
+        await using var api = await ApiHarness.CreateAsync();
+        api.Stub.OnProblem(HttpMethod.Delete, "/api/thing", (HttpStatusCode)status, type, "Something specific.");
+
+        var result = await api.Get<ApiConnection>().SendAsync(HttpMethod.Delete, "api/thing", null, Ct);
+
+        result.Errors.ShouldHaveSingleItem().ShouldBe(new ResultError(code, "Something specific.", ResultErrorKind.Failure));
     }
 
     [Theory]
@@ -172,6 +210,34 @@ public sealed class ApiConnectionTests
         var result = await api.Get<ApiConnection>().GetAsync<TicketStateDto>("api/thing", Ct);
 
         result.Errors.ShouldHaveSingleItem().Code.ShouldBe(ApiErrorCodes.UnexpectedResponse);
+    }
+
+    [Theory]
+    [InlineData(typeof(InvalidOperationException))]
+    [InlineData(typeof(NotSupportedException))]
+    public async Task A_response_body_that_cannot_be_read_is_an_unexpected_response_for_reads_and_writes(Type exceptionType)
+    {
+        await using var api = await ApiHarness.CreateAsync();
+        api.Stub.On(HttpMethod.Get, "/api/thing", _ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ThrowingContent(exceptionType) });
+        api.Stub.On(HttpMethod.Delete, "/api/thing", _ => new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = new ThrowingContent(exceptionType) });
+
+        var read = await api.Get<ApiConnection>().GetAsync<TicketStateDto>("api/thing", Ct);
+        var write = await api.Get<ApiConnection>().SendAsync(HttpMethod.Delete, "api/thing", null, Ct);
+
+        read.Errors.ShouldHaveSingleItem().Code.ShouldBe(ApiErrorCodes.UnexpectedResponse);
+        write.Errors.ShouldHaveSingleItem().Code.ShouldBe(ApiErrorCodes.UnexpectedResponse);
+        ApiErrorCodes.IsUncertainWrite(write.Errors[0].Code).ShouldBeTrue();
+    }
+
+    private sealed class ThrowingContent(Type exceptionType) : HttpContent
+    {
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) => throw (Exception)Activator.CreateInstance(exceptionType)!;
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
     }
 
     // Review Focus 2: no request leaves a circuit without its token, and the token is added by the handler pipeline, not by the caller.
@@ -214,8 +280,9 @@ public sealed class ApiConnectionTests
             chain.ShouldContain("ForwardedClientIpHandler");
         }
 
-        read.ShouldContain(name => name.Contains("Resilience", StringComparison.OrdinalIgnoreCase));
-        write.ShouldNotContain(name => name.Contains("Resilience", StringComparison.OrdinalIgnoreCase));
+        // An allowlist of handler types: the write chain is exactly the auth and forwarded-IP handlers, the read chain adds only the retry handler.
+        write.ShouldNotContain("ResilienceHandler");
+        read.Except(write).ShouldBe(["ResilienceHandler"]);
     }
 
     [Fact]
@@ -227,7 +294,8 @@ public sealed class ApiConnectionTests
         await api.Get<ApiConnection>().GetAsync<TicketStateDto>("api/thing", Ct);
 
         api.Get<IHttpClientFactory>().CreateClient(ApiClientNames.Read).BaseAddress.ShouldBe(new Uri("http://api.test/"));
-        api.Get<IHttpClientFactory>().CreateClient(ApiClientNames.Write).Timeout.ShouldBe(TimeSpan.FromSeconds(30));
+        api.Get<IHttpClientFactory>().CreateClient(ApiClientNames.Read).Timeout.ShouldBe(TimeSpan.FromSeconds(30));
+        api.Get<IHttpClientFactory>().CreateClient(ApiClientNames.Write).Timeout.ShouldBe(TimeSpan.FromSeconds(ApiClientRegistration.WriteTimeoutFloorSeconds));
     }
 
     [Fact]

@@ -180,15 +180,16 @@ public sealed partial class TicketSidebar : IDisposable
 
     private async Task HandleFailureAsync(SidebarField field, ResultError error)
     {
-        if (error.Code == ApiErrorCodes.ConcurrencyConflict)
+        var outcome = WriteOutcomes.Classify(error);
+        if (outcome == WriteOutcome.Conflict)
         {
             await OnConflict.InvokeAsync();
         }
-        else if (error.Code == ApiErrorCodes.TicketNotFound)
+        else if (outcome == WriteOutcome.Gone)
         {
             await OnGone.InvokeAsync();
         }
-        else if (ApiErrorCodes.IsUncertainWrite(error.Code))
+        else if (outcome == WriteOutcome.Uncertain)
         {
             // The write may have been saved before the answer was lost: never a bare "try again", the agent reloads to see the current state.
             _errors[field] = SidebarCopy.ChangeUncertain;
@@ -204,7 +205,7 @@ public sealed partial class TicketSidebar : IDisposable
                 _reloadable.Add(field);
             }
 
-            if (error.Code == ApiErrorCodes.TicketClosed)
+            if (outcome == WriteOutcome.Closed)
             {
                 await OnClosed.InvokeAsync();
             }

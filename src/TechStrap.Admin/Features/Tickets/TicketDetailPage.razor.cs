@@ -96,7 +96,7 @@ public sealed partial class TicketDetailPage : IDisposable
         Result<TicketDetailViewModel> result;
         try
         {
-            result = await Presenter.LoadAsync(Number, cts.Token);
+            result = await Presenter.LoadAsync(Number, silent ? _model?.Lookups : null, cts.Token);
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {

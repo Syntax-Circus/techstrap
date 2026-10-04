@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.Extensions.Logging;
 using SyntaxCircus.Common;
 using TechStrap.Admin.Clients;
 using TechStrap.Admin.Components.Ui;
@@ -28,6 +29,9 @@ public sealed partial class ReplyComposer : IDisposable
 
     [Inject]
     private ITicketsClient Tickets { get; set; } = default!;
+
+    [Inject]
+    private ILogger<ReplyComposer> Logger { get; set; } = default!;
 
     [Inject]
     private DraftStore Drafts { get; set; } = default!;
@@ -214,8 +218,11 @@ public sealed partial class ReplyComposer : IDisposable
                 ? await Tickets.ReplyAsync(ticketId, new AddAgentReplyRequest(text, [], statusAfter, rowVersion), files, CancellationToken.None)
                 : await Tickets.AddNoteAsync(ticketId, new AddInternalNoteRequest(text, rowVersion), CancellationToken.None);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // Only the exception type is logged: its message can carry a file name or the requester's address.
+            Logger.LogWarning("A send ended with an unmapped {ExceptionType}; treated as uncertain.", ex.GetType().Name);
+
             // Anything the client did not map (a stale input or a lost circuit while a file stream was read, for instance) leaves the outcome unknown:
             // the server may have committed the write. Settle conservatively and never let the fault reach the renderer.
             draft.UncertainSend = mode;
@@ -256,9 +263,6 @@ public sealed partial class ReplyComposer : IDisposable
 
         return string.IsNullOrEmpty(_draft.StatusAfter) ? null : _draft.StatusAfter;
     }
-
-    private static bool IsUncertain(string code) =>
-        ApiErrorCodes.IsUncertainWrite(code);
 
     // Runs after the write finished, possibly after this component was disposed: the shared draft is settled first, and the UI callbacks only run while alive.
     private async Task HandleResultAsync(ComposerMode mode, ComposerDraft draft, string number, string sentText, Result<AgentMessageResponse> result)
@@ -303,7 +307,8 @@ public sealed partial class ReplyComposer : IDisposable
         }
 
         var error = result.Errors[0];
-        if (IsUncertain(error.Code))
+        var outcome = WriteOutcomes.Classify(error);
+        if (outcome == WriteOutcome.Uncertain)
         {
             // The write may have been saved before the answer was lost, so never offer a bare "Try again": the notice lives in the draft and
             // tells the agent to check the timeline, even on the next mount.
@@ -316,16 +321,16 @@ public sealed partial class ReplyComposer : IDisposable
             return;
         }
 
-        if (error.Code == ApiErrorCodes.ConcurrencyConflict)
+        if (outcome == WriteOutcome.Conflict)
         {
             _error = ReplyComposerCopy.Conflict;
             await OnConflict.InvokeAsync();
         }
-        else if (error.Kind == ResultErrorKind.NotFound)
+        else if (outcome == WriteOutcome.Gone)
         {
             await OnGone.InvokeAsync();
         }
-        else if (error.Code == ApiErrorCodes.TicketClosed)
+        else if (outcome == WriteOutcome.Closed)
         {
             _error = error.Message;
         }

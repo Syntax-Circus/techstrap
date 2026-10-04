@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.JSInterop;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using SyntaxCircus.Common;
 using TechStrap.Admin.Clients;
@@ -524,6 +525,36 @@ public sealed class ReplyComposerTests : AdminComponentTest
         cut.WaitForAssertion(() => Drafts.Get(TestData.TicketId).PublicText.ShouldBeEmpty());
         StatusMessages.Current.ShouldBe("Reply sent on ORB-42");
         RenderComposer().Find("textarea").GetAttribute("value").ShouldBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void An_unmapped_exception_during_a_send_is_uncertain_and_logs_only_the_exception_type()
+    {
+        var logs = new List<(LogLevel Level, string Message, Exception? Exception)>();
+        Services.AddSingleton<ILogger<ReplyComposer>>(new ListLogger(logs));
+        _tickets.ReplyAsync(Arg.Any<Guid>(), Arg.Any<AddAgentReplyRequest>(), Arg.Any<IReadOnlyList<ReplyAttachment>>(), Arg.Any<CancellationToken>())
+            .Returns<Task<Result<AgentMessageResponse>>>(_ => throw new InvalidOperationException("secret ada@example.com"));
+        var cut = RenderComposer();
+        cut.Find("textarea").Input("Maybe sent.");
+
+        cut.FindAll(".ts-composer-actions button")[0].Click();
+
+        cut.WaitForAssertion(() => Drafts.Get(TestData.TicketId).UncertainSend.ShouldBe(ComposerMode.PublicReply));
+        var entry = logs.ShouldHaveSingleItem();
+        entry.Level.ShouldBe(LogLevel.Warning);
+        entry.Message.ShouldContain(nameof(InvalidOperationException));
+        entry.Message.ShouldNotContain("ada@example.com");
+        entry.Exception.ShouldBeNull();
+    }
+
+    private sealed class ListLogger(List<(LogLevel Level, string Message, Exception? Exception)> logs) : ILogger<ReplyComposer>
+    {
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            logs.Add((logLevel, formatter(state, exception), exception));
     }
 
     [Fact]

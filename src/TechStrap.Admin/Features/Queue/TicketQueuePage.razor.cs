@@ -328,9 +328,12 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
                 var error = state.Errors[0];
                 // The shared error button only reloads the list, so it says "Reload" for every Not spam failure.
                 _notSpamError = true;
-                _error = error.Code == ApiErrorCodes.ConcurrencyConflict ? ActionsCopy.ChangedMeanwhile(row.Number)
-                    : ApiErrorCodes.IsUncertainWrite(error.Code) ? ActionsCopy.RestoreUncertain
-                    : ActionsCopy.NotSpamFailed(error.Message);
+                _error = WriteOutcomes.Classify(error) switch
+                {
+                    WriteOutcome.Conflict => ActionsCopy.ChangedMeanwhile(row.Number),
+                    WriteOutcome.Uncertain => ActionsCopy.RestoreUncertain,
+                    _ => ActionsCopy.NotSpamFailed(error.Message),
+                };
                 return;
             }
 

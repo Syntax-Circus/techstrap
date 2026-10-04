@@ -184,17 +184,18 @@ public sealed partial class TicketActions : IDisposable
 
     private async Task HandleFailureAsync(ResultError error, Func<string, string> failure, string uncertain, bool dialogOpen)
     {
-        if (error.Code == ApiErrorCodes.ConcurrencyConflict)
+        var outcome = WriteOutcomes.Classify(error);
+        if (outcome == WriteOutcome.Conflict)
         {
             _dialog = ActionDialog.None;
             await OnConflict.InvokeAsync();
         }
-        else if (error.Code == ApiErrorCodes.TicketNotFound)
+        else if (outcome == WriteOutcome.Gone)
         {
             _dialog = ActionDialog.None;
             await OnGone.InvokeAsync();
         }
-        else if (ApiErrorCodes.IsUncertainWrite(error.Code))
+        else if (outcome == WriteOutcome.Uncertain)
         {
             // The write may have been applied before the answer was lost: never a bare "try again", and nothing claims it was left unchanged.
             if (dialogOpen)

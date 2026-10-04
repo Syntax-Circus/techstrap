@@ -20,8 +20,24 @@ public sealed class TicketDetailPresenter(ITicketsClient tickets, IProductsClien
 
     private const string Ellipsis = "\u2026";
 
-    public async Task<Result<TicketDetailViewModel>> LoadAsync(string reference, CancellationToken cancellationToken)
+    /// <param name="reference">The ticket id or number.</param>
+    /// <param name="reusableLookups">The lookups of the model already on screen. A silent refresh passes them so only the ticket is fetched again; the first load and an explicit Retry pass null.</param>
+    public Task<Result<TicketDetailViewModel>> LoadAsync(string reference, CancellationToken cancellationToken) => LoadAsync(reference, null, cancellationToken);
+
+    public async Task<Result<TicketDetailViewModel>> LoadAsync(string reference, TicketLookups? reusableLookups, CancellationToken cancellationToken)
     {
+        if (reusableLookups is not null)
+        {
+            var reused = await tickets.GetAsync(reference, cancellationToken);
+            if (reused.IsFailure)
+            {
+                return Result<TicketDetailViewModel>.Failure(reused.Errors[0]);
+            }
+
+            var reusedParent = await LoadParentNumberAsync(reused.Value.ParentTicketId, cancellationToken);
+            return Result<TicketDetailViewModel>.Success(Map(reused.Value, reusableLookups, reusedParent));
+        }
+
         var detailTask = tickets.GetAsync(reference, cancellationToken);
         var productsTask = products.ListAsync(cancellationToken);
         var agentsTask = agents.ListAllAsync(cancellationToken);

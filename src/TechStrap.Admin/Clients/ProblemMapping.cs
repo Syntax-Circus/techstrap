@@ -25,7 +25,8 @@ internal static class ProblemMapping
             }
         }
 
-        var code = !string.IsNullOrWhiteSpace(problem.Type) ? problem.Type : DefaultCode(status);
+        // A server error is decided by its status, never by the API's own type ("internal-error" and the like): the write may have been applied.
+        var code = (int)status >= 500 ? DefaultCode(status) : !string.IsNullOrWhiteSpace(problem.Type) ? problem.Type : DefaultCode(status);
         return [new ResultError(code, message, kind)];
     }
 

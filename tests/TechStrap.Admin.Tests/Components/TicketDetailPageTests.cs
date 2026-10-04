@@ -16,13 +16,16 @@ namespace TechStrap.Admin.Tests.Components;
 public sealed class TicketDetailPageTests : AdminComponentTest
 {
     private readonly ITicketsClient _tickets = Substitute.For<ITicketsClient>();
+    private readonly IProductsClient _products = Substitute.For<IProductsClient>();
+    private readonly IAgentsClient _agents = Substitute.For<IAgentsClient>();
+    private readonly ITagsClient _tags = Substitute.For<ITagsClient>();
     private readonly NavigationManager _navigation;
 
     public TicketDetailPageTests()
     {
-        var products = Substitute.For<IProductsClient>();
-        var agents = Substitute.For<IAgentsClient>();
-        var tags = Substitute.For<ITagsClient>();
+        var products = _products;
+        var agents = _agents;
+        var tags = _tags;
         products.ListAsync(Arg.Any<CancellationToken>()).Returns(TestData.Ok<IReadOnlyList<ProductDto>>([TestData.Product()]));
         agents.ListAllAsync(Arg.Any<CancellationToken>()).Returns(TestData.Ok<IReadOnlyList<AgentListItemDto>>([TestData.Agent("Sam Ortiz", TestData.SamAgentId)]));
         tags.ListAsync(Arg.Any<CancellationToken>()).Returns(TestData.Ok<IReadOnlyList<TagDto>>([TestData.Tag()]));
@@ -41,6 +44,20 @@ public sealed class TicketDetailPageTests : AdminComponentTest
         _tickets.GetAsync("ORB-42", Arg.Any<CancellationToken>()).Returns(TestData.Ok(detail));
 
     private IRenderedComponent<TicketDetailPage> RenderTicket() => Render<TicketDetailPage>(p => p.Add(c => c.Number, "ORB-42"));
+
+    [Fact]
+    public async Task A_silent_refresh_reuses_the_lookups_and_only_the_first_load_fetches_them()
+    {
+        var cut = RenderTicket();
+        await _products.Received(1).ListAsync(Arg.Any<CancellationToken>());
+
+        await cut.InvokeAsync(() => cut.Instance.RefreshAsync());
+
+        await _tickets.Received(2).GetAsync("ORB-42", Arg.Any<CancellationToken>());
+        await _products.Received(1).ListAsync(Arg.Any<CancellationToken>());
+        await _agents.Received(1).ListAllAsync(Arg.Any<CancellationToken>());
+        await _tags.Received(1).ListAsync(Arg.Any<CancellationToken>());
+    }
 
     [Fact]
     public void The_header_shows_a_copyable_number_subject_status_product_and_caller()

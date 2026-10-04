@@ -1,14 +1,23 @@
+using System.Net;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
+using Polly;
+using Polly.Retry;
 using SyntaxCircus.AspNetCore.Common;
 using SyntaxCircus.Blazor.Auth;
-using SyntaxCircus.Http.Resilience;
 using TechStrap.Admin.Auth;
 
 namespace TechStrap.Admin.Clients;
 
 public static class ApiClientRegistration
 {
-    public const int ReadRetryCount = 3;
+    /// <summary>Retries after the first attempt: a read is at most 1 + this many calls.</summary>
+    public const int ReadRetryCount = 2;
+
+    /// <summary>The write client allows a multipart reply with attachments at least this long, whatever the configured read timeout.</summary>
+    public const int WriteTimeoutFloorSeconds = 300;
+
+    private static readonly TimeSpan ReadRetryBaseDelay = TimeSpan.FromMilliseconds(250);
 
     // A circuit can live for hours: refresh pooled connections so a DNS change of the API is picked up.
     private static readonly TimeSpan ConnectionLifetime = TimeSpan.FromMinutes(5);
@@ -20,14 +29,17 @@ public static class ApiClientRegistration
     /// </summary>
     public static IServiceCollection AddTechStrapApiClients(this IServiceCollection services)
     {
-        services.AddResilientHttpClient(ApiClientNames.Read, retryCount: ReadRetryCount)
-            .ConfigureHttpClient(ConfigureClient)
+        // Retry only: no circuit breaker. The read client is a singleton per name shared by every agent and every read, so a breaker opened by one
+        // failing endpoint would lock every other agent out of /api/agents/me and the pass-through.
+        services.AddHttpClient(ApiClientNames.Read)
+            .ConfigureHttpClient((sp, client) => ConfigureClient(sp, client, minimumTimeoutSeconds: 0))
             .AddHttpMessageHandler<ApiAuthHandler>()
             .AddForwardedClientIp()
-            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { PooledConnectionLifetime = ConnectionLifetime });
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { PooledConnectionLifetime = ConnectionLifetime })
+            .AddResilienceHandler("techstrap-api-read-retry", builder => builder.AddRetry(ReadRetry()));
 
         services.AddHttpClient(ApiClientNames.Write)
-            .ConfigureHttpClient(ConfigureClient)
+            .ConfigureHttpClient((sp, client) => ConfigureClient(sp, client, WriteTimeoutFloorSeconds))
             .AddHttpMessageHandler<ApiAuthHandler>()
             .AddForwardedClientIp()
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { PooledConnectionLifetime = ConnectionLifetime });
@@ -42,10 +54,26 @@ public static class ApiClientRegistration
         return services;
     }
 
-    private static void ConfigureClient(IServiceProvider services, HttpClient client)
+    // Transport errors, timeouts, 408 and 502/503/504. A 500 is the API's own answer to this request and is not retried.
+    private static HttpRetryStrategyOptions ReadRetry() => new()
+    {
+        MaxRetryAttempts = ReadRetryCount,
+        Delay = ReadRetryBaseDelay,
+        BackoffType = DelayBackoffType.Exponential,
+        UseJitter = true,
+        ShouldHandle = args => ValueTask.FromResult(args.Outcome switch
+        {
+            { Exception: HttpRequestException or TimeoutException } => true,
+            { Exception: OperationCanceledException } => !args.Context.CancellationToken.IsCancellationRequested,
+            { Result.StatusCode: HttpStatusCode.RequestTimeout or HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout } => true,
+            _ => false,
+        }),
+    };
+
+    private static void ConfigureClient(IServiceProvider services, HttpClient client, int minimumTimeoutSeconds)
     {
         var api = services.GetRequiredService<IOptions<ApiOptions>>().Value;
         client.BaseAddress = new Uri(api.BaseUrl.EndsWith('/') ? api.BaseUrl : api.BaseUrl + "/");
-        client.Timeout = TimeSpan.FromSeconds(api.TimeoutSeconds);
+        client.Timeout = TimeSpan.FromSeconds(Math.Max(api.TimeoutSeconds, minimumTimeoutSeconds));
     }
 }
