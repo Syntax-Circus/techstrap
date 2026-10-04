@@ -6,6 +6,7 @@ using Serilog;
 using Serilog.Events;
 using TechStrap.Api.Tests.Auth;
 using TechStrap.Api.Tests.Intake;
+using TechStrap.Application.Security;
 using TechStrap.Contracts.Http;
 using TechStrap.Contracts.Intake;
 using TechStrap.Contracts.Tickets;
@@ -48,6 +49,13 @@ public sealed class LogRedactionTests(TestPostgres postgres) : IDisposable
     [Theory]
     [InlineData("ada@example.com", "[email]")]
     [InlineData("mail Ada.Lovelace+tag@sub.example.co.uk now", "mail [email] now")]
+    [InlineData("josé@bücher.example", "[email]")]
+    [InlineData("用户@例え.テスト", "[email]")]
+    [InlineData("ada@[10.0.0.1]", "[email]")]
+    [InlineData("ada@example.x", "[email]")]
+    [InlineData("ada@my_host.example.com", "[email]")]
+    [InlineData("\"ada lovelace\"@example.com", "[email]")]
+    [InlineData("o'brien@example.com", "[email]")]
     public void Emails_in_scalar_values_are_redacted(string input, string expected)
     {
         var (log, sink) = NewLogger();
@@ -68,10 +76,66 @@ public sealed class LogRedactionTests(TestPostgres postgres) : IDisposable
         e.Properties["Id"].ShouldBeOfType<ScalarValue>().Value.ShouldBe(guid);
         Value(e, "Number").ShouldBe("ORB-42");
         Value(e, "N32").ShouldBe(guid.ToString("N"));      // 32 characters: not a token
-        Value(e, "Long").ShouldBe(Token + "x");            // a 44-character run is not a token
+        Value(e, "Long").ShouldBe(Token + "x");            // a 44-character run (a random long id) is not a token
         Value(e, "Short").ShouldBe(Token[..42]);
         e.Properties["Count"].ShouldBeOfType<ScalarValue>().Value.ShouldBe(7);
         static object? Value(LogEvent e, string name) => ((ScalarValue)e.Properties[name]).Value;
+    }
+
+    [Theory]
+    [InlineData("tsk_" + Token, "[token]")]
+    [InlineData("tsp_" + Token, "[token]")]
+    [InlineData("https://help.test/t%2F" + Token, "https://help.test/t%2F[token]")]
+    [InlineData("SHA256:ABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCD", "[hash]")]
+    public void Api_keys_encoded_tokens_and_uppercase_hashes_are_redacted(string input, string expected)
+    {
+        var (log, sink) = NewLogger();
+        log.Information("Value {Value}", input);
+        sink.Events.Single().Properties["Value"].ShouldBeOfType<ScalarValue>().Value.ShouldBe(expected);
+    }
+
+    [Fact]
+    public void Colliding_dictionary_keys_are_disambiguated_and_siblings_stay_redacted()
+    {
+        var (log, sink) = NewLogger();
+        log.Information("dup {Map} {Other}",
+            new Dictionary<string, int> { ["ada@example.com"] = 1, ["bob@example.com"] = 2 }, "carol@example.com");
+
+        var e = sink.Events.Single();
+        var text = Everything(e);
+        text.ShouldNotContain("@example.com");
+        e.Properties["Map"].ShouldBeOfType<DictionaryValue>().Elements.Count.ShouldBe(2);
+        ((ScalarValue)e.Properties["Other"]).Value.ShouldBe("[email]");
+    }
+
+    [Fact]
+    public void A_scalar_that_is_not_a_string_is_redacted_through_its_text()
+    {
+        var (log, sink) = NewLogger();
+        log.Information("{Link} {Plain}", new Uri("https://help.test/t/" + Token + "?e=ada@example.com"), new Uri("https://help.test/about"));
+
+        var e = sink.Events.Single();
+        var link = e.Properties["Link"].ShouldBeOfType<ScalarValue>().Value.ShouldBeOfType<string>();
+        link.ShouldNotContain(Token);
+        link.ShouldNotContain("ada@example.com");
+        e.Properties["Plain"].ShouldBeOfType<ScalarValue>().Value.ShouldBeOfType<Uri>();   // unchanged text keeps the original value
+    }
+
+    [Fact]
+    public void A_failing_redaction_replaces_only_that_property_and_leaves_no_pii()
+    {
+        var sink = new Sink();
+        var log = new LoggerConfiguration()
+            .Enrich.With(new PiiRedactionEnricher(text => text.Contains("boom", StringComparison.Ordinal) ? throw new TimeoutException() : PiiRedactionEnricher.RedactText(text)))
+            .WriteTo.Sink(sink).CreateLogger();
+
+        log.Information("{A} {B} {C}", "boom ada@example.com", "carol@example.com", new[] { "x", "boom bob@example.com" });
+
+        var e = sink.Events.Single();
+        ((ScalarValue)e.Properties["A"]).Value.ShouldBe(PiiRedactionEnricher.FailedMarker);
+        ((ScalarValue)e.Properties["B"]).Value.ShouldBe("[email]");
+        e.Properties["C"].ShouldBeOfType<ScalarValue>().Value.ShouldBe(PiiRedactionEnricher.FailedMarker);
+        Everything(e).ShouldNotContain("@example.com");
     }
 
     [Fact]
@@ -132,6 +196,24 @@ public sealed class LogRedactionTests(TestPostgres postgres) : IDisposable
 
         var probe = factory.LogSink.Events.Single(e => e.MessageTemplate.Text.StartsWith("Probe ", StringComparison.Ordinal));
         probe.RenderMessage().ShouldBe("Probe \"[email]\" \"[token]\" \"[hash]\"");
+    }
+
+    private static async Task WaitForRequestEventsAsync(ApiFactory factory, params (string Path, int Count)[] expected)
+    {
+        static bool Matches(LogEvent e, string path) =>
+            e.Properties.TryGetValue("RequestPath", out var value) && value is ScalarValue { Value: string p } && p == path;
+
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < deadline
+            && !expected.All(x => factory.LogSink.Events.Count(e => Matches(e, x.Path)) >= x.Count))
+        {
+            await Task.Delay(50, Ct);
+        }
+
+        foreach (var (path, count) in expected)
+        {
+            factory.LogSink.Events.Count(e => Matches(e, path)).ShouldBeGreaterThanOrEqualTo(count, $"request logging for {path}");
+        }
     }
 
     [Fact]

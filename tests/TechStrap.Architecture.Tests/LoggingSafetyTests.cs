@@ -13,11 +13,24 @@ public sealed class LoggingSafetyTests
 
     [Theory]
     [InlineData("options.EnableSensitiveDataLogging();")]
+    [InlineData("optionsBuilder.EnableParameterLogging();")]
+    [InlineData("\"parameterLoggingEnabled\": true")]
     [InlineData("Host=db;Include Error Detail=true")]
     [InlineData("ConnectionStrings__TechStrap: Host=db;IncludeErrorDetail=true")]
     public void A_setting_that_leaks_data_is_flagged(string text)
     {
         LoggingSafetyRules.FindViolations([("Bad.cs", text)]).ShouldNotBeEmpty();
+    }
+
+    [Fact]
+    public void The_scan_covers_dockerfiles_directory_build_files_and_workflows()
+    {
+        var paths = LoggingSafetyRules.Sources(ProjectGraph.FindRepositoryRoot()).Select(s => s.Path).ToList();
+
+        paths.ShouldContain(p => p.StartsWith("Dockerfile", StringComparison.Ordinal));
+        paths.ShouldContain(p => p.StartsWith("Directory.Build", StringComparison.Ordinal));
+        paths.ShouldContain(p => p.Replace(Path.DirectorySeparatorChar, '/').StartsWith(".github/workflows/", StringComparison.Ordinal));
+        paths.ShouldContain(p => p.StartsWith("docker-compose", StringComparison.Ordinal));
     }
 
     [Fact]
