@@ -175,4 +175,131 @@ public sealed class AgentSessionTests
         session.State.ShouldBe(AgentSessionState.Ready);
         changes.ShouldBe(2);
     }
+
+    // The My settings save reloads the session (the display name is part of /api/agents/me). The page must not unmount while that is in flight.
+    [Fact]
+    public async Task A_reload_keeps_the_session_ready_with_the_current_agent_until_the_answer_arrives()
+    {
+        var admin = Agent(AgentRoles.Admin);
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(Result<AgentDto>.Success(admin));
+        var session = Session();
+        await session.EnsureLoadedAsync(Ct);
+        var changes = 0;
+        session.Changed += () => changes++;
+        var gate = new TaskCompletionSource<Result<AgentDto>>();
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(gate.Task);
+
+        var reload = session.ReloadAsync(Ct);
+
+        reload.IsCompleted.ShouldBeFalse();
+        session.State.ShouldBe(AgentSessionState.Ready);
+        session.Agent.ShouldBe(admin);
+        session.IsAdmin.ShouldBeTrue();
+        changes.ShouldBe(0);
+
+        gate.SetResult(Result<AgentDto>.Success(admin with { PublicDisplayName = "Samantha" }));
+        await reload;
+
+        session.State.ShouldBe(AgentSessionState.Ready);
+        session.Agent!.PublicDisplayName.ShouldBe("Samantha");
+        changes.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task While_a_reload_is_in_flight_another_caller_does_not_start_a_second_request()
+    {
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(Result<AgentDto>.Success(Agent()));
+        var session = Session();
+        await session.EnsureLoadedAsync(Ct);
+        _agents.ClearReceivedCalls();
+        var gate = new TaskCompletionSource<Result<AgentDto>>();
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(gate.Task);
+
+        var reload = session.ReloadAsync(Ct);
+        await session.EnsureLoadedAsync(Ct).WaitAsync(TimeSpan.FromSeconds(5), Ct);
+        gate.SetResult(Result<AgentDto>.Success(Agent()));
+        await reload;
+
+        await _agents.Received(1).GetMeAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_reload_that_finds_the_agent_demoted_removes_the_admin_role_at_once()
+    {
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(Result<AgentDto>.Success(Agent(AgentRoles.Admin)), Result<AgentDto>.Success(Agent(AgentRoles.Agent)));
+        var session = Session();
+        await session.EnsureLoadedAsync(Ct);
+        session.IsAdmin.ShouldBeTrue();
+
+        await session.ReloadAsync(Ct);
+
+        session.State.ShouldBe(AgentSessionState.Ready);
+        session.IsAdmin.ShouldBeFalse();
+    }
+
+    [Theory]
+    [InlineData(ApiErrorCodes.AgentInactive, ResultErrorKind.Forbidden, AgentSessionState.NoAccess)]
+    [InlineData(ApiErrorCodes.Unauthenticated, ResultErrorKind.Unauthenticated, AgentSessionState.SessionExpired)]
+    public async Task A_reload_that_the_api_refuses_wins_over_the_ready_session(string code, ResultErrorKind kind, AgentSessionState expected)
+    {
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(Result<AgentDto>.Success(Agent(AgentRoles.Admin)), Refused(code, kind));
+        var session = Session();
+        await session.EnsureLoadedAsync(Ct);
+
+        await session.ReloadAsync(Ct);
+
+        session.State.ShouldBe(expected);
+        session.Agent.ShouldBeNull();
+        session.IsAdmin.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task A_reload_that_cannot_reach_the_api_keeps_the_ready_session_and_does_not_lock_the_agent_out()
+    {
+        var admin = Agent(AgentRoles.Admin);
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(Result<AgentDto>.Success(admin), Refused(ApiErrorCodes.ApiUnavailable, ResultErrorKind.Failure));
+        var session = Session();
+        await session.EnsureLoadedAsync(Ct);
+        var changes = 0;
+        session.Changed += () => changes++;
+
+        await session.ReloadAsync(Ct);
+
+        session.State.ShouldBe(AgentSessionState.Ready);
+        session.Agent.ShouldBe(admin);
+        session.ErrorCode.ShouldBeNull();
+        changes.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_cancelled_reload_leaves_the_ready_session_alone()
+    {
+        var admin = Agent(AgentRoles.Admin);
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(Result<AgentDto>.Success(admin));
+        var session = Session();
+        await session.EnsureLoadedAsync(Ct);
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Throws(new OperationCanceledException());
+
+        await Should.ThrowAsync<OperationCanceledException>(() => session.ReloadAsync(Ct));
+
+        session.State.ShouldBe(AgentSessionState.Ready);
+        session.Agent.ShouldBe(admin);
+    }
+
+    [Fact]
+    public async Task A_reload_from_a_failed_state_starts_again_from_not_loaded_so_the_gate_shows_checking()
+    {
+        var gate = new TaskCompletionSource<Result<AgentDto>>();
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(Refused(ApiErrorCodes.ApiUnavailable, ResultErrorKind.Failure)), _ => gate.Task);
+        var session = Session();
+        await session.EnsureLoadedAsync(Ct);
+        session.State.ShouldBe(AgentSessionState.Unavailable);
+
+        var reload = session.ReloadAsync(Ct);
+
+        session.State.ShouldBe(AgentSessionState.NotLoaded);
+        gate.SetResult(Result<AgentDto>.Success(Agent()));
+        await reload;
+        session.State.ShouldBe(AgentSessionState.Ready);
+    }
 }

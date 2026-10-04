@@ -43,7 +43,7 @@ public sealed class ShortcutService(IJSRuntime js) : IAsyncDisposable
     /// <summary>Raised once per recognised shortcut; every handler is awaited in subscription order.</summary>
     public event Func<ShortcutAction, Task>? Pressed;
 
-    /// <summary>The My settings toggle arrives in PHASE-07b; until then the layer is always on.</summary>
+    /// <summary>On by default. <see cref="PreferencesService"/> sets it from the stored My settings choice on the first interactive render and when the agent flips the toggle.</summary>
     public bool SingleKeyEnabled { get; set; } = true;
 
     /// <summary>The pure decision: which action, if any, a key press means.</summary>

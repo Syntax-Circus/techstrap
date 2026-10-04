@@ -13,8 +13,18 @@ public static class ShellCopy
     public const string Next = "Next";
     public const string PaginationLabel = "Pagination";
     public const string QueueLink = "Queue";
+    public const string MySettingsLink = "My settings";
+    public const string AdminLinksLabel = "Admin";
+    public const string ProductsLink = "Products";
+    public const string AgentsLink = "Agents";
+    public const string TagsLink = "Tags";
+    public const string AuditLink = "Audit";
+    public const string FailedEmailsLink = "Failed emails";
     public const string NavigationLabel = "Admin navigation";
     public const string ShortcutHelpTitle = "Keyboard shortcuts";
     public const string ShortcutHelpOpen = "Shortcuts";
     public const string StatusBarLabel = "Keyboard hints and messages";
+
+    /// <summary>Read out after the "Failed emails" link when the badge shows a number.</summary>
+    public static string FailedEmailsCountLabel(int count) => $"{count} waiting";
 }

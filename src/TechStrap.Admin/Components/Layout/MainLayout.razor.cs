@@ -19,6 +19,9 @@ public partial class MainLayout : IDisposable
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
 
+    [Inject]
+    private PreferencesService Preferences { get; set; } = default!;
+
     /// <summary>
     /// The page has <c>&lt;base href="/"&gt;</c>, so a bare <c>#main</c> would resolve to the home page. The link names the current address with the fragment replaced.
     /// <c>main</c> has <c>tabindex="-1"</c>, so following the fragment also moves focus.
@@ -45,6 +48,8 @@ public partial class MainLayout : IDisposable
     {
         if (firstRender)
         {
+            // The stored preferences first: they set the theme and whether single-key shortcuts act. Neither call throws for a script or storage failure.
+            await Preferences.LoadAsync();
             await Shortcuts.StartAsync();
         }
     }

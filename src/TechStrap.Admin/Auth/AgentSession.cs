@@ -65,7 +65,7 @@ public sealed class AgentSession(IAgentsClient agents)
             var source = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             if (Interlocked.CompareExchange(ref _loading, source.Task, null) is not { } running)
             {
-                await LoadAsync(source, cancellationToken);
+                await LoadAsync(source, keepReadyOnTransientFailure: false, cancellationToken);
                 return;
             }
 
@@ -78,11 +78,11 @@ public sealed class AgentSession(IAgentsClient agents)
         }
     }
 
-    private async Task LoadAsync(TaskCompletionSource source, CancellationToken cancellationToken)
+    private async Task LoadAsync(TaskCompletionSource source, bool keepReadyOnTransientFailure, CancellationToken cancellationToken)
     {
         try
         {
-            Apply(await agents.GetMeAsync(cancellationToken));
+            Apply(await agents.GetMeAsync(cancellationToken), keepReadyOnTransientFailure);
         }
         finally
         {
@@ -92,15 +92,43 @@ public sealed class AgentSession(IAgentsClient agents)
         }
     }
 
-    /// <summary>Asks the API again (the Retry button, or after an admin changed the agent's access).</summary>
-    public Task ReloadAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Asks the API again (the Retry button, or after the agent changed their own profile). A session that is Ready stays Ready, with the current
+    /// <see cref="Agent"/>, until the answer arrives: dropping to NotLoaded would make <c>AgentGate</c> and <c>AdminOnly</c> replace the page with "Checking" and lose
+    /// what the agent was typing (the My settings save reloads the session). <see cref="Changed"/> is raised once, when the answer has been applied. The answer still
+    /// wins: a 403 ends in NoAccess, a 401 in SessionExpired, a lower role removes the admin pages; only a transient failure (the API unreachable, a timeout)
+    /// keeps the Ready session, because an agent who was working a moment ago is not locked out by one lost request. A session that is not Ready starts again from
+    /// NotLoaded, so the gate shows "Checking" while the Retry button's request is in flight.
+    /// </summary>
+    public async Task ReloadAsync(CancellationToken cancellationToken)
     {
-        State = AgentSessionState.NotLoaded;
-        return EnsureLoadedAsync(cancellationToken);
+        var keepReady = State == AgentSessionState.Ready;
+        if (!keepReady)
+        {
+            State = AgentSessionState.NotLoaded;
+        }
+
+        while (true)
+        {
+            var source = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (Interlocked.CompareExchange(ref _loading, source.Task, null) is not { } running)
+            {
+                await LoadAsync(source, keepReady, cancellationToken);
+                return;
+            }
+
+            // Another load is in flight; its answer may be older than the change that prompted this reload, so wait for it and then ask again.
+            await running;
+        }
     }
 
-    private void Apply(Result<AgentDto> result)
+    private void Apply(Result<AgentDto> result, bool keepReadyOnTransientFailure)
     {
+        if (keepReadyOnTransientFailure && result.IsFailure && result.Errors[0].Kind is not (ResultErrorKind.Forbidden or ResultErrorKind.Unauthenticated))
+        {
+            return;
+        }
+
         if (result.IsSuccess && result.Value.IsActive)
         {
             Agent = result.Value;
