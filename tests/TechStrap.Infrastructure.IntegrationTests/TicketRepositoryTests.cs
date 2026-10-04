@@ -323,6 +323,16 @@ public sealed class TicketRepositoryTests(PostgresFixture postgres) : PostgresIn
         var scenario = await TicketScenario.CreateAsync(host);
         var old = await scenario.CreateTicketAsync("old");
         await scenario.UpdateAsync(old.Id, t => t.ChangeStatus(TicketStatus.Solved, scenario.AgentActor, host.Clock));
+        var oldSpam = await scenario.CreateTicketAsync("old spam");
+        await scenario.UpdateAsync(oldSpam.Id, t => t.ChangeStatus(TicketStatus.Solved, scenario.AgentActor, host.Clock));
+        await using (var connection = new NpgsqlConnection(Database.ConnectionString))
+        {
+            await connection.OpenAsync(Ct);
+            await using var command = connection.CreateCommand();
+            command.CommandText = $"UPDATE tickets SET is_spam = true WHERE id = '{oldSpam.Id}'";
+            await command.ExecuteNonQueryAsync(Ct);
+        }
+
         host.Clock.Advance(TimeSpan.FromDays(8));
         var recent = await scenario.CreateTicketAsync("recent");
         await scenario.UpdateAsync(recent.Id, t => t.ChangeStatus(TicketStatus.Solved, scenario.AgentActor, host.Clock));
@@ -332,7 +342,7 @@ public sealed class TicketRepositoryTests(PostgresFixture postgres) : PostgresIn
         {
             var repository = sp.GetRequiredService<ITicketRepository>();
             var due = await repository.ListSolvedBeforeAsync(cutoff, 10, Ct);
-            due.ShouldHaveSingleItem().Id.ShouldBe(old.Id);
+            due.ShouldHaveSingleItem().Id.ShouldBe(old.Id); // the old Solved spam ticket is excluded
             due[0].ChangeStatus(TicketStatus.Closed, Actor.System, host.Clock).IsSuccess.ShouldBeTrue();
             repository.Update(due[0]);
         });

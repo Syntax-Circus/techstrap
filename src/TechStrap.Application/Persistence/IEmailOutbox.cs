@@ -41,4 +41,7 @@ public interface IEmailOutboxStore
     Task<EmailOutboxItem?> GetAsync(Guid id, CancellationToken cancellationToken);
 
     void Update(EmailOutboxItem item);
+
+    /// <summary>How many rows of <paramref name="kind"/> to <paramref name="toAddress"/> (case-insensitive) were created at or after <paramref name="since"/>, any status.</summary>
+    Task<int> CountRecentAsync(string kind, string toAddress, DateTimeOffset since, CancellationToken cancellationToken);
 }

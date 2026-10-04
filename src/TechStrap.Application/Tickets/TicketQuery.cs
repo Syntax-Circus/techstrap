@@ -85,3 +85,9 @@ public sealed record TicketState(
     IReadOnlyList<Guid> TagIds,
     DateTimeOffset LastActivityAt,
     uint Version);
+
+/// <summary>A follow-up created from a parent, with its first public message body (sanitised HTML) for the dedupe check.</summary>
+public sealed record FollowUpCandidate(Guid TicketId, string Number, Guid FirstMessageId, string FirstMessageBody, DateTimeOffset CreatedAt);
+
+/// <summary>A requester's ticket for the lost-link email.</summary>
+public sealed record RequesterTicketLink(Guid TicketId, Guid ProductId, string Number, string Subject, DateTimeOffset LastActivityAt);

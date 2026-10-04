@@ -253,6 +253,35 @@ internal sealed class TicketRepository(TechStrapDbContext context) : ITicketRepo
         return [.. records.Select(t => t.ToDomain())];
     }
 
+    public async Task<IReadOnlyList<FollowUpCandidate>> ListRecentFollowUpsAsync(Guid parentTicketId, DateTimeOffset since, CancellationToken cancellationToken)
+    {
+        var messages = context.Set<MessageRecord>().AsNoTracking();
+        var rows = await context.Set<TicketRecord>().AsNoTracking()
+            .Where(t => t.ParentTicketId == parentTicketId && t.CreatedAt >= since)
+            .Select(t => new
+            {
+                t.Id,
+                t.Number,
+                t.CreatedAt,
+                First = messages
+                    .Where(m => m.TicketId == t.Id && m.Visibility == MessageVisibility.Public)
+                    .OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)
+                    .Select(m => new { m.Id, m.Body })
+                    .FirstOrDefault(),
+            })
+            .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+            .ToListAsync(cancellationToken);
+        return [.. rows.Where(x => x.First is not null).Select(x => new FollowUpCandidate(x.Id, x.Number, x.First!.Id, x.First.Body, x.CreatedAt))];
+    }
+
+    public async Task<IReadOnlyList<RequesterTicketLink>> ListRecentTicketsForRequesterAsync(Guid requesterId, int limit, CancellationToken cancellationToken) =>
+        await context.Set<TicketRecord>().AsNoTracking()
+            .Where(t => t.RequesterId == requesterId && !t.IsSpam)
+            .OrderByDescending(t => t.LastActivityAt).ThenByDescending(t => t.Id)
+            .Take(Math.Max(limit, 0))
+            .Select(t => new RequesterTicketLink(t.Id, t.ProductId, t.Number, t.Subject, t.LastActivityAt))
+            .ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<Guid>> ListTicketIdsWithTagAsync(Guid tagId, CancellationToken cancellationToken) =>
         await context.Set<TicketTagRecord>().AsNoTracking()
             .Where(link => link.TagId == tagId)
@@ -283,7 +312,7 @@ internal sealed class TicketRepository(TechStrapDbContext context) : ITicketRepo
 
     /// <summary>The auto-close query, oldest solved first. Internal so the query-plan tests can check the SQL EF emits for it.</summary>
     internal static IQueryable<TicketRecord> SolvedBeforeQuery(IQueryable<TicketRecord> tickets, DateTimeOffset solvedBefore) =>
-        tickets.Where(t => t.Status == TicketStatus.Solved && t.SolvedAt < solvedBefore).OrderBy(t => t.SolvedAt).ThenBy(t => t.Id);
+        tickets.Where(t => !t.IsSpam && t.Status == TicketStatus.Solved && t.SolvedAt < solvedBefore).OrderBy(t => t.SolvedAt).ThenBy(t => t.Id);
 
     /// <summary>Attachments of the ticket; with <paramref name="publicOnly"/> only those whose parent message is customer-visible (D-024).</summary>
     private IQueryable<AttachmentRecord> VisibleAttachments(Guid ticketId, bool publicOnly)
