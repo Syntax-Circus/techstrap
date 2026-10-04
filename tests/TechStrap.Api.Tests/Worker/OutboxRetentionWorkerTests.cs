@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -18,6 +19,7 @@ public sealed class OutboxRetentionWorkerTests
     private readonly SignallingTimeProvider _timeProvider;
     private readonly IPurgeEmailOutboxHandler _handler = Substitute.For<IPurgeEmailOutboxHandler>();
     private int _scopesCreated;
+    private readonly CollectingLogger _logger = new();
 
     public OutboxRetentionWorkerTests() => _timeProvider = new SignallingTimeProvider(_clock);
 
@@ -53,7 +55,7 @@ public sealed class OutboxRetentionWorkerTests
             return _handler;
         });
         var options = Microsoft.Extensions.Options.Options.Create(new OutboxRetentionOptions { Enabled = enabled, IntervalMinutes = 2, BatchSize = Batch });
-        return new OutboxRetentionWorker(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), options, _timeProvider, new CollectingLogger());
+        return new OutboxRetentionWorker(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), options, _timeProvider, _logger);
     }
 
     private static Result<PurgeEmailOutboxResult> Done(int deleted) =>
@@ -127,12 +129,31 @@ public sealed class OutboxRetentionWorkerTests
         await WaitForAsync(() => Calls == 1);
         await WaitForTimerAsync();
         Calls.ShouldBe(1);
+        _logger.Entries.ShouldContain(e => e.Level == LogLevel.Error && e.Exception is InvalidOperationException);
 
         _clock.Advance(_interval);
         await WaitForAsync(() => Calls == 2);
         await worker.StopAsync(TestContext.Current.CancellationToken);
     }
 
+
+    [Fact]
+    public async Task A_failed_result_is_logged_and_waits_for_the_interval_without_rerunning()
+    {
+        var failure = Result<PurgeEmailOutboxResult>.Failure(new ResultError("boom-code", "boom", ResultErrorKind.Conflict));
+        _handler.HandleAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(failure), _ => Task.FromResult(Done(0)));
+        var worker = CreateWorker();
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+
+        await WaitForAsync(() => Calls == 1);
+        await WaitForTimerAsync();
+        Calls.ShouldBe(1);
+        _logger.Entries.ShouldContain(e => e.Level == LogLevel.Warning);
+
+        _clock.Advance(_interval);
+        await WaitForAsync(() => Calls == 2);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+    }
     [Fact]
     public async Task A_disabled_worker_never_runs()
     {
@@ -149,12 +170,13 @@ public sealed class OutboxRetentionWorkerTests
 
     private sealed class CollectingLogger : ILogger<OutboxRetentionWorker>
     {
+        public ConcurrentQueue<(LogLevel Level, Exception? Exception)> Entries { get; } = new();
+
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
         public bool IsEnabled(LogLevel logLevel) => true;
 
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-        {
-        }
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Enqueue((logLevel, exception));
     }
 }

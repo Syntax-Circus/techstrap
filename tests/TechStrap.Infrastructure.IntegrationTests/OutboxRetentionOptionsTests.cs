@@ -45,6 +45,10 @@ public sealed class OutboxRetentionOptionsTests
     }
 
     [Theory]
+    [InlineData("OutboxRetention:Enabled", "maybe")]
+    [InlineData("OutboxRetention:Enabled", "0")]
+    [InlineData("OutboxRetention:IntervalMinutes", "abc")]
+    [InlineData("OutboxRetention:BatchSize", "abc")]
     [InlineData("OutboxRetention:Days", "0")]
     [InlineData("OutboxRetention:Days", "3651")]
     [InlineData("OutboxRetention:Days", "abc")]
