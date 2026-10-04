@@ -1,0 +1,29 @@
+<div class="ts-tagpicker">
+    @if (Selected.Count == 0)
+    {
+        <p class="ts-tagpicker-none">@SidebarCopy.NoTags</p>
+    }
+    else
+    {
+        <ul class="ts-tagpicker-list">
+            @foreach (var tag in Selected)
+            {
+                <li @key="tag.Id">
+                    <TagChip Name="@tag.Name" Colour="@tag.Colour" />
+                    <button type="button" class="btn btn-link" aria-label="@SidebarCopy.RemoveTag(tag.Name)" disabled="@Disabled" @onclick="() => OnRemove.InvokeAsync(tag.Id)">&times;</button>
+                </li>
+            }
+        </ul>
+    }
+    @if (Addable.Count > 0)
+    {
+        <label for="@AddId" class="visually-hidden">@SidebarCopy.AddTagPlaceholder</label>
+        <select id="@AddId" class="form-select" disabled="@Disabled" @key="@($"add-{_rev}")" @onchange="OnPickedAsync">
+            <option value="" selected>@SidebarCopy.AddTagPlaceholder</option>
+            @foreach (var tag in Addable)
+            {
+                <option value="@tag.Id">@tag.Name</option>
+            }
+        </select>
+    }
+</div>

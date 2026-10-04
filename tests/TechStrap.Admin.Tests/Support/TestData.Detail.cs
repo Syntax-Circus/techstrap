@@ -1,4 +1,6 @@
+using TechStrap.Admin.Features.Tickets;
 using TechStrap.Contracts.Agents;
+using TechStrap.Contracts.Tags;
 using TechStrap.Contracts.Tickets;
 
 namespace TechStrap.Admin.Tests.Support;
@@ -55,4 +57,26 @@ internal static partial class TestData
         bool isSpam = false,
         IReadOnlyList<Guid>? tagIds = null,
         uint rowVersion = 8) => new(TicketId, "ORB-42", status, priority, productId ?? OrbitlyId, assigneeId, isSpam, tagIds ?? [], Now, rowVersion);
+
+    public static readonly Guid BillingTagId = Guid.Parse("bbbbbbbb-0000-0000-0000-000000000002");
+    public static readonly Guid NimbusId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000002");
+
+    /// <summary>The lookups the sidebar tests use: two products, two agents, two tags.</summary>
+    public static TicketLookups Lookups() => new(
+        [Product("Orbitly"), Product("Nimbus", NimbusId)],
+        [Agent("Sam Ortiz", SamAgentId), Agent("Ada Admin", AdaAgentId)],
+        [Tag("bug"), Tag("billing", BillingTagId, "#1D4ED8")]);
+
+    /// <summary>A ready view model (what the presenter builds), for component tests that do not go through the page.</summary>
+    public static TicketDetailViewModel Model(
+        string status = TicketStatuses.Open,
+        string priority = TicketPriorities.Normal,
+        Guid? assigneeId = null,
+        string? assigneeName = null,
+        IReadOnlyList<TicketTagDto>? tags = null,
+        uint rowVersion = 7,
+        bool isSpam = false) => new(
+            TicketId, "ORB-42", "Cannot log in", status, priority, isSpam, OrbitlyId, "Orbitly", assigneeId, assigneeName, tags ?? [],
+            new TicketRequesterDto(RequesterId, "ada@example.com", "Ada Lovelace", null), "Email", Now.AddDays(-1), null, null, null,
+            rowVersion, [], Lookups());
 }

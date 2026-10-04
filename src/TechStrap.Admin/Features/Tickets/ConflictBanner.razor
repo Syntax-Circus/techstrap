@@ -1,0 +1,29 @@
+@if (State == ConflictState.Stale)
+{
+    <div class="ts-conflict" role="alert">
+        <p><strong>@SidebarCopy.ConflictTitle</strong> @SidebarCopy.ConflictKept</p>
+        <button type="button" class="btn btn-outline-secondary" @onclick="OnReload">@SidebarCopy.ConflictReload</button>
+    </div>
+}
+else if (State == ConflictState.Reloaded)
+{
+    <div class="ts-conflict ts-conflict--reloaded" role="status">
+        <p>@SidebarCopy.ConflictReloaded @LatestChange</p>
+        <button type="button" class="btn btn-outline-secondary" @onclick="OnDismiss">@SidebarCopy.ConflictDismiss</button>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ConflictState State { get; set; }
+
+    /// <summary>After the reload: what changed and by whom, taken from the newest change on the timeline.</summary>
+    [Parameter]
+    public string? LatestChange { get; set; }
+
+    [Parameter]
+    public EventCallback OnReload { get; set; }
+
+    [Parameter]
+    public EventCallback OnDismiss { get; set; }
+}

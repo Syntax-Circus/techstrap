@@ -22,6 +22,7 @@ else
         {
             <ErrorState Message="@_error" OnRetry="RefreshAsync" />
         }
+        <ConflictBanner State="_conflict" LatestChange="@_latestChange" OnReload="ReloadAfterConflictAsync" OnDismiss="DismissConflict" />
         <div class="ts-ticket-layout">
             <section class="ts-conversation" aria-label="@TicketCopy.ConversationLabel">
                 <TicketTimeline Entries="_model.Timeline" />
@@ -33,10 +34,21 @@ else
                 else
                 {
                     <ReplyComposer TicketId="_model.Id" TicketNumber="@_model.Number" RequesterEmail="@_model.Requester.Email"
-                                   RowVersion="_model.RowVersion" OnSent="OnSentAsync" OnGone="RefreshAsync" />
+                                   RowVersion="_model.RowVersion" OnSent="OnSentAsync" OnConflict="OnConflictAsync" OnGone="RefreshAsync" />
                 }
             </section>
-            <TicketSidePanel Ticket="_model" />
+            @if (_model.IsClosed)
+            {
+                <TicketSidePanel Ticket="_model" />
+            }
+            else
+            {
+                <TicketSidePanel Ticket="_model">
+                    <Controls>
+                        <TicketSidebar Ticket="_model" OnState="OnStateChangedAsync" OnConflict="OnConflictAsync" OnReload="ReloadAfterConflictAsync" OnGone="RefreshAsync" />
+                    </Controls>
+                </TicketSidePanel>
+            }
         </div>
     </article>
 }

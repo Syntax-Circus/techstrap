@@ -31,6 +31,7 @@ public sealed class TicketDetailPageTests : AdminComponentTest
         Services.AddSingleton(agents);
         Services.AddSingleton(tags);
         Services.AddTicketFeatures();
+        Services.AddSingleton(AgentSessions.SignedIn());
         ShowTicket(TestData.Detail());
         _navigation = Services.GetRequiredService<NavigationManager>();
     }
@@ -235,9 +236,9 @@ public sealed class TicketDetailPageTests : AdminComponentTest
     }
 
     [Fact]
-    public void The_side_panel_shows_the_requester_and_the_ticket_facts_read_only()
+    public void A_closed_tickets_side_panel_shows_the_requester_and_the_facts_read_only_with_no_controls()
     {
-        ShowTicket(TestData.Detail(priority: TicketPriorities.Urgent, assigneeId: TestData.SamAgentId, assigneeName: "Sam Ortiz",
+        ShowTicket(TestData.Detail(status: TicketStatuses.Closed, priority: TicketPriorities.Urgent, assigneeId: TestData.SamAgentId, assigneeName: "Sam Ortiz",
             tags: [new TicketTagDto(TestData.BugTagId, "bug", "#DC2626")]));
 
         var cut = RenderTicket();
@@ -247,6 +248,7 @@ public sealed class TicketDetailPageTests : AdminComponentTest
         facts.TextContent.ShouldContain("Sam Ortiz");
         facts.QuerySelector(".ts-priority")!.TextContent.ShouldBe("Urgent");
         facts.QuerySelector(".ts-tag")!.TextContent.ShouldBe("bug");
+        cut.FindAll("section.ts-sidebar, aside select, aside button").ShouldBeEmpty();
     }
 
     [Fact]

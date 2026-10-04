@@ -1,0 +1,56 @@
+<section class="ts-sidebar" aria-label="Ticket controls" aria-busy="@(_busy ? "true" : null)">
+    <div class="ts-control">
+        <label for="@IdOf(SidebarField.Status)">Status</label>
+        <select id="@IdOf(SidebarField.Status)" class="form-select" disabled="@_busy" @key="KeyOf(SidebarField.Status)" @onchange="OnStatusChangedAsync">
+            @foreach (var status in StatusOptions)
+            {
+                <option value="@status" selected="@(status == Ticket.Status)">@status</option>
+            }
+        </select>
+        <ControlFeedback Saving="@IsSaving(SidebarField.Status)" Error="@ErrorOf(SidebarField.Status)" CanReload="@IsUncertain(SidebarField.Status)" OnReload="ReloadAsync" />
+    </div>
+
+    <div class="ts-control">
+        <label for="@IdOf(SidebarField.Assignee)">Assignee</label>
+        <select id="@IdOf(SidebarField.Assignee)" @ref="_assignee" class="form-select" disabled="@_busy" @key="KeyOf(SidebarField.Assignee)" @onchange="OnAssigneeChangedAsync">
+            <option value="" selected="@(Ticket.AssigneeId is null)">@SidebarCopy.Unassigned</option>
+            @foreach (var agent in AgentOptions)
+            {
+                <option value="@agent.Id" selected="@(agent.Id == Ticket.AssigneeId)">@agent.DisplayLabel</option>
+            }
+        </select>
+        @if (CanAssignToMe)
+        {
+            <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="AssignToMeAsync">@SidebarCopy.AssignToMe</button>
+        }
+        <ControlFeedback Saving="@IsSaving(SidebarField.Assignee)" Error="@ErrorOf(SidebarField.Assignee)" CanReload="@IsUncertain(SidebarField.Assignee)" OnReload="ReloadAsync" />
+    </div>
+
+    <div class="ts-control">
+        <label for="@IdOf(SidebarField.Priority)">Priority</label>
+        <select id="@IdOf(SidebarField.Priority)" class="form-select" disabled="@_busy" @key="KeyOf(SidebarField.Priority)" @onchange="OnPriorityChangedAsync">
+            @foreach (var priority in PriorityOptions)
+            {
+                <option value="@priority" selected="@(priority == Ticket.Priority)">@priority</option>
+            }
+        </select>
+        <ControlFeedback Saving="@IsSaving(SidebarField.Priority)" Error="@ErrorOf(SidebarField.Priority)" CanReload="@IsUncertain(SidebarField.Priority)" OnReload="ReloadAsync" />
+    </div>
+
+    <div class="ts-control">
+        <label for="@IdOf(SidebarField.Product)">Product</label>
+        <select id="@IdOf(SidebarField.Product)" class="form-select" disabled="@_busy" @key="KeyOf(SidebarField.Product)" @onchange="OnProductChangedAsync">
+            @foreach (var product in ProductOptions)
+            {
+                <option value="@product.Id" selected="@(product.Id == Ticket.ProductId)">@product.Name</option>
+            }
+        </select>
+        <ControlFeedback Saving="@IsSaving(SidebarField.Product)" Error="@ErrorOf(SidebarField.Product)" CanReload="@IsUncertain(SidebarField.Product)" OnReload="ReloadAsync" />
+    </div>
+
+    <div class="ts-control">
+        <span class="ts-control-label" id="@IdOf(SidebarField.Tags)">Tags</span>
+        <TagPicker Selected="Ticket.Tags" Available="Ticket.Lookups.Tags" Disabled="_busy" OnAdd="AddTagAsync" OnRemove="RemoveTagAsync" />
+        <ControlFeedback Saving="@IsSaving(SidebarField.Tags)" Error="@ErrorOf(SidebarField.Tags)" CanReload="@IsUncertain(SidebarField.Tags)" OnReload="ReloadAsync" />
+    </div>
+</section>

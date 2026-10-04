@@ -23,6 +23,8 @@ public sealed partial class TicketDetailPage : IDisposable
     private bool _loading;
     private bool _disposed;
     private TicketDetailViewModel? _model;
+    private ConflictState _conflict;
+    private string? _latestChange;
 
     [Inject]
     private TicketDetailPresenter Presenter { get; set; } = default!;
@@ -127,11 +129,36 @@ public sealed partial class TicketDetailPage : IDisposable
     }
 
     /// <summary>A reply or note was accepted: take the new status and RowVersion from the response at once, then reload so the timeline shows the new entries.</summary>
-    private async Task OnSentAsync(AgentMessageResponse response)
+    private Task OnSentAsync(AgentMessageResponse response) => OnStateChangedAsync(response.Ticket);
+
+    /// <summary>Any accepted write: the response replaces the model's status fields and RowVersion, then a reload brings the new timeline entries.</summary>
+    private async Task OnStateChangedAsync(TicketStateDto state)
     {
-        ApplyState(response.Ticket);
+        ApplyState(state);
         await RefreshAsync();
     }
+
+    /// <summary>A write hit 409 concurrency-conflict: nothing was changed, the user's draft and choice stay, and the banner offers a reload.</summary>
+    private Task OnConflictAsync()
+    {
+        _conflict = ConflictState.Stale;
+        _latestChange = null;
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Reload is a silent refresh, so the composer and its files stay mounted.</summary>
+    private async Task ReloadAfterConflictAsync()
+    {
+        await RefreshAsync();
+        if (_model is not null && _error.Length == 0)
+        {
+            var latest = _model.Timeline.LastOrDefault(entry => entry.Kind == TimelineEntryKind.Event);
+            _latestChange = latest is null ? null : SidebarCopy.LatestChange(latest.Text, latest.Actor);
+            _conflict = ConflictState.Reloaded;
+        }
+    }
+
+    private void DismissConflict() => _conflict = ConflictState.None;
 
     private Task OnShortcutAsync(ShortcutAction action)
     {
