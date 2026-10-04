@@ -104,4 +104,36 @@ public sealed class PreferencesServiceLifecycleTests
 
         changes.ShouldBe(0);
     }
+
+    // A failed import must not be remembered: the first call can come before the circuit is ready, and the next setter has to try again.
+    [Fact]
+    public async Task A_synchronous_import_failure_is_not_cached_and_a_later_setter_imports_again_and_saves()
+    {
+        _js.InvokeAsync<IJSObjectReference>("import", Arg.Any<object?[]?>()).Returns(
+            _ => throw new InvalidOperationException("JavaScript interop calls cannot be issued at this time."),
+            _ => new ValueTask<IJSObjectReference>(_module));
+        var service = new PreferencesService(_js, _shortcuts);
+
+        await service.SetThemeAsync(ThemeChoice.Dark);
+        await _module.DidNotReceive().InvokeAsync<bool>("save", Arg.Any<object?[]?>());
+
+        await service.SetThemeAsync(ThemeChoice.Light);
+
+        await _module.Received(1).InvokeAsync<bool>("save", Arg.Is<object?[]?>(a => (string?)a![0] == "theme" && (string?)a[1] == "light"));
+    }
+
+    [Fact]
+    public async Task An_asynchronous_import_failure_is_not_cached_and_a_later_setter_imports_again_and_saves()
+    {
+        _js.InvokeAsync<IJSObjectReference>("import", Arg.Any<object?[]?>()).Returns(
+            _ => new ValueTask<IJSObjectReference>(Task.FromException<IJSObjectReference>(new JSException("import failed"))),
+            _ => new ValueTask<IJSObjectReference>(_module));
+        var service = new PreferencesService(_js, _shortcuts);
+
+        await service.SetThemeAsync(ThemeChoice.Dark);
+        await service.SetThemeAsync(ThemeChoice.Light);
+
+        await _js.Received(2).InvokeAsync<IJSObjectReference>("import", Arg.Any<object?[]?>());
+        await _module.Received(1).InvokeAsync<bool>("save", Arg.Is<object?[]?>(a => (string?)a![0] == "theme" && (string?)a[1] == "light"));
+    }
 }

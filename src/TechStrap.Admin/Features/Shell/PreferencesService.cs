@@ -129,21 +129,31 @@ public sealed class PreferencesService(IJSRuntime js, ShortcutService shortcuts)
         }
     }
 
-    /// <summary>One import shared by a concurrent load and setter. Null when the service was disposed while the import was in flight.</summary>
-    private Task<IJSObjectReference?> ImportAsync() => _import ??= ImportCoreAsync();
-
-    private async Task<IJSObjectReference?> ImportCoreAsync()
+    /// <summary>
+    /// One import shared by a concurrent load and setter. Null when the service was disposed while the import was in flight. A failed import is forgotten
+    /// (only if no newer attempt replaced it), so the next call tries again, for example once the circuit is ready.
+    /// </summary>
+    private async Task<IJSObjectReference?> ImportAsync()
     {
-        IJSObjectReference module;
+        var import = _import ??= ImportCoreAsync();
         try
         {
-            module = await js.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            return await import;
         }
         catch
         {
-            _import = null;
+            if (ReferenceEquals(_import, import))
+            {
+                _import = null;
+            }
+
             throw;
         }
+    }
+
+    private async Task<IJSObjectReference?> ImportCoreAsync()
+    {
+        var module = await js.InvokeAsync<IJSObjectReference>("import", ModulePath);
 
         if (!_disposed)
         {

@@ -96,7 +96,7 @@ public sealed class AgentSession(IAgentsClient agents)
     /// Asks the API again (the Retry button, or after the agent changed their own profile). A session that is Ready stays Ready, with the current
     /// <see cref="Agent"/>, until the answer arrives: dropping to NotLoaded would make <c>AgentGate</c> and <c>AdminOnly</c> replace the page with "Checking" and lose
     /// what the agent was typing (the My settings save reloads the session). <see cref="Changed"/> is raised once, when the answer has been applied. The answer still
-    /// wins: a 403 ends in NoAccess, a 401 in SessionExpired, a lower role removes the admin pages; only a transient failure (the API unreachable, a timeout)
+    /// wins: a 403 ends in NoAccess, a 401 in SessionExpired, a lower role removes the admin pages; only a transient failure (the API unreachable, a timeout, a server error: api-unavailable, api-timeout, api-error)
     /// keeps the Ready session, because an agent who was working a moment ago is not locked out by one lost request. A session that is not Ready starts again from
     /// NotLoaded, so the gate shows "Checking" while the Retry button's request is in flight.
     /// </summary>
