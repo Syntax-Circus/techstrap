@@ -1,9 +1,10 @@
 namespace TechStrap.Api.Tests;
 
+/// <summary>Tests that set process environment variables (read by every host built meanwhile) run alone, so a variable cannot leak into another test's host.</summary>
 [CollectionDefinition(Name, DisableParallelization = true)]
-public sealed class TrustedProxyEnvironmentCollection
+public sealed class ProcessEnvironmentCollection
 {
-    public const string Name = "TrustedProxy environment variables";
+    public const string Name = "Process environment variables";
 }
 
 /// <summary>
@@ -11,7 +12,7 @@ public sealed class TrustedProxyEnvironmentCollection
 /// binds eagerly, so the positive case sets a process environment variable; these tests therefore
 /// run alone (DisableParallelization) so the variable cannot leak into other hosts.
 /// </summary>
-[Collection(TrustedProxyEnvironmentCollection.Name)]
+[Collection(ProcessEnvironmentCollection.Name)]
 public sealed class TrustedProxyStartupTests
 {
     private const string TrustedNetworkVariable = "TrustedProxy__TrustedNetworks__0";

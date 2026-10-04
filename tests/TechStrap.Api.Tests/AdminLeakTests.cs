@@ -15,6 +15,8 @@ using TechStrap.Tests.Shared.AdminHost;
 namespace TechStrap.Api.Tests;
 
 /// <summary>Review Focus 2 at the host: whatever the Admin does for a signed-in agent, the access token never reaches a log line, a page, or a download.</summary>
+/// <remarks>The OTLP test sets process environment variables (the exporter options bind before host settings), so the class runs in the non-parallel <see cref="ProcessEnvironmentCollection"/>.</remarks>
+[Collection(ProcessEnvironmentCollection.Name)]
 public sealed class AdminLeakTests
 {
     private static readonly CancellationToken Ct = TestContext.Current.CancellationToken;
