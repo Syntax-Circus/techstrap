@@ -102,6 +102,7 @@ public sealed partial class EnvExampleCompletenessTests
                 "TECHSTRAP_PORTAL_SHOW_POWERED_BY",
                 AutoCloseOptions.DaysKey,
                 .. OptionKeys(typeof(AutoCloseOptions), AutoCloseOptions.SectionName).Where(k => k != "AUTOCLOSE__DAYS"),
+                .. OptionKeys(typeof(OutboxRetentionOptions), OutboxRetentionOptions.SectionName),
             ]
         },
         {

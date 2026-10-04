@@ -132,6 +132,8 @@ services:
       EmailOutbox__BatchSize: ${TECHSTRAP_EMAIL_OUTBOX_BATCH_SIZE:-20}
       EmailOutbox__LeaseSeconds: ${TECHSTRAP_EMAIL_OUTBOX_LEASE_SECONDS:-900}
       EmailOutbox__PollIntervalSeconds: ${TECHSTRAP_EMAIL_OUTBOX_POLL_INTERVAL_SECONDS:-5}
+      OutboxRetention__Enabled: ${TECHSTRAP_OUTBOX_RETENTION_ENABLED:-true}
+      OutboxRetention__Days: ${TECHSTRAP_OUTBOX_RETENTION_DAYS:-90}
       TECHSTRAP_PORTAL_SHOW_POWERED_BY: ${TECHSTRAP_PORTAL_SHOW_POWERED_BY:-true}
     depends_on:
       api:

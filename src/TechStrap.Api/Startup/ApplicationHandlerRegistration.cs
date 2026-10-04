@@ -18,7 +18,7 @@ public static class ApplicationHandlerRegistration
     }
 
     // Worker-only handlers: registered by the Worker host, never by the Api (their dependencies live there).
-    private static readonly HashSet<string> _workerOnly = [nameof(IDrainEmailOutboxHandler), nameof(IAutoCloseSolvedTicketsHandler)];
+    private static readonly HashSet<string> _workerOnly = [nameof(IDrainEmailOutboxHandler), nameof(IAutoCloseSolvedTicketsHandler), nameof(IPurgeEmailOutboxHandler)];
 
     internal static IReadOnlyCollection<string> WorkerOnly => _workerOnly;
 
