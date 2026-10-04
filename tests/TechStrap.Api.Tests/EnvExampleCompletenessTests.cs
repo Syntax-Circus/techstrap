@@ -7,6 +7,7 @@ using TechStrap.Api.Options;
 using TechStrap.Api.Startup;
 using TechStrap.Application.Email;
 using TechStrap.Application.Tickets.AutoClose;
+using TechStrap.Application.Tickets.Customer;
 
 namespace TechStrap.Api.Tests;
 
@@ -66,6 +67,7 @@ public sealed partial class EnvExampleCompletenessTests
                 .. OptionKeys(typeof(PublicRateLimitOptions), PublicRateLimitOptions.SectionName),
                 .. OptionKeys(typeof(IntakeRateLimitOptions), IntakeRateLimitOptions.SectionName),
                 .. OptionKeys(typeof(CustomerRateLimitOptions), CustomerRateLimitOptions.SectionName),
+                .. OptionKeys(typeof(LostLinkOptions), LostLinkOptions.SectionName),
                 ToEnvName(ApiStartupTasks.MigrateOnStartupKey),
                 ApiStartupTasks.SeedDevelopmentDataKey,
                 "CONNECTIONSTRINGS__TECHSTRAP",

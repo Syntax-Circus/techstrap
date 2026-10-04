@@ -41,6 +41,7 @@ services:
       TECHSTRAP_GROUP_CLAIM_TYPE: ${TECHSTRAP_GROUP_CLAIM_TYPE:-groups}
       Authentication__JwtBearer__Authority: ${OIDC_AUTHORITY:-}
       Authentication__JwtBearer__Audiences__0: ${OIDC_AUDIENCE:-}
+      TECHSTRAP_AUTOCLOSE_DAYS: ${TECHSTRAP_AUTOCLOSE_DAYS:-7}
       Storage__Provider: Local
       Storage__Local__RootPath: /app/storage
     depends_on:
@@ -115,6 +116,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__TechStrap: Host=postgres;Port=5432;Database=${POSTGRES_DB:-techstrap};Username=${POSTGRES_USER:-techstrap};Password=${POSTGRES_PASSWORD}
       TECHSTRAP_PORTAL_PUBLIC_URL: ${TECHSTRAP_PORTAL_PUBLIC_URL:?set TECHSTRAP_PORTAL_PUBLIC_URL in .env.uat}
+      TECHSTRAP_AUTOCLOSE_DAYS: ${TECHSTRAP_AUTOCLOSE_DAYS:-7}
       Storage__Provider: Local
       Storage__Local__RootPath: /app/storage
       Email__Smtp__Host: ${SMTP_HOST:?set SMTP_HOST in the env file (or set TECHSTRAP_EMAIL_OUTBOX_ENABLED=false and SMTP_HOST to any placeholder)}
