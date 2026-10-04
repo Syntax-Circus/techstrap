@@ -201,7 +201,8 @@ public sealed class LogRedactionTests(TestPostgres postgres) : IDisposable
     private static async Task WaitForRequestEventsAsync(ApiFactory factory, params (string Path, int Count)[] expected)
     {
         static bool Matches(LogEvent e, string path) =>
-            e.Properties.TryGetValue("RequestPath", out var value) && value is ScalarValue { Value: string p } && p == path;
+            e.MessageTemplate.Text.StartsWith("HTTP {RequestMethod}", StringComparison.Ordinal)   // the request-logging summary, not a scoped event
+            && e.Properties.TryGetValue("RequestPath", out var value) && value is ScalarValue { Value: string p } && p == path;
 
         var deadline = DateTime.UtcNow.AddSeconds(10);
         while (DateTime.UtcNow < deadline
@@ -248,11 +249,19 @@ public sealed class LogRedactionTests(TestPostgres postgres) : IDisposable
             lost.StatusCode.ShouldBe(HttpStatusCode.Accepted);
         }
 
-        factory.LogSink.Events.ShouldNotBeEmpty();
+        // request logging runs after the response; wait until every request has produced its event so the scan cannot pass vacuously
+        await WaitForRequestEventsAsync(factory, ("/api/intake/tickets", 1), ("/api/customer/ticket", 1), ("/api/customer/access-link", 2));
+
+        string hash;
+        using (var scope = factory.Services.CreateScope())
+        {
+            hash = scope.ServiceProvider.GetRequiredService<IAccessTokenService>().Hash(token);
+        }
+
         foreach (var e in factory.LogSink.Events)
         {
             var text = Everything(e) + "\n" + e.Exception;
-            foreach (var needle in new[] { "ada@example.com", "nobody@example.com", "Ada Lovelace", token })
+            foreach (var needle in new[] { "ada@example.com", "nobody@example.com", "Ada Lovelace", token, hash })
             {
                 text.ShouldNotContain(needle, Case.Insensitive);
             }

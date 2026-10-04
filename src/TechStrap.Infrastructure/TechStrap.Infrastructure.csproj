@@ -25,6 +25,7 @@
   <ItemGroup>
     <!-- Persistence records are internal (D-026); the integration tests may see them to seed and inspect rows. -->
     <InternalsVisibleTo Include="TechStrap.Infrastructure.IntegrationTests" />
+    <!-- LogRedactionTests construct PiiRedactionEnricher through its internal failure seam (a throwing text redactor) to prove redaction fails closed. -->
     <InternalsVisibleTo Include="TechStrap.Api.Tests" />
   </ItemGroup>
 
