@@ -20,4 +20,21 @@ public sealed class AdminHostRedactionTests
         var probe = factory.LogSink.Events.Single(e => e.MessageTemplate.Text.StartsWith("Probe ", StringComparison.Ordinal));
         probe.RenderMessage().ShouldBe("Probe \"[email]\" \"[token]\" \"[hash]\"");
     }
+
+    // SyntaxCircus.Blazor.Auth logs PathAndQuery, which can carry the queue search the agent typed, URL-encoded.
+    [Fact]
+    public async Task The_admin_host_redacts_a_url_encoded_email_and_a_jwt_in_a_logged_path()
+    {
+        await using var factory = new AdminFactory();
+        var logger = factory.Services.GetRequiredService<ILoggerFactory>().CreateLogger("SyntaxCircus.Blazor.Auth.ApiAuthHandler");
+
+        logger.LogWarning("Auth probe {Path} {Bearer}", "/api/tickets?view=all&search=jane%40example.com&page=1", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZGEifQ.c2lnbmF0dXJlX3BhcnQ");
+
+        var probe = factory.LogSink.Events.Single(e => e.MessageTemplate.Text.StartsWith("Auth probe ", StringComparison.Ordinal)).RenderMessage();
+        probe.ShouldNotContain("jane");
+        probe.ShouldNotContain("example.com");
+        probe.ShouldNotContain("eyJ");
+        probe.ShouldContain("[email]");
+        probe.ShouldContain("[token]");
+    }
 }

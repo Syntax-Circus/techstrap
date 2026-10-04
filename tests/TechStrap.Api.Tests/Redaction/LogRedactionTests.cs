@@ -43,6 +43,8 @@ public sealed class LogRedactionTests(TestPostgres postgres) : IDisposable
         return (new LoggerConfiguration().Enrich.With<PiiRedactionEnricher>().WriteTo.Sink(sink).CreateLogger(), sink);
     }
 
+    private static string Text(LogEvent e, string name) => (string)((ScalarValue)e.Properties[name]).Value!;
+
     private static string Everything(LogEvent e) =>
         string.Join('\n', [e.RenderMessage(), .. e.Properties.Values.Select(v => v.ToString())]);
 
@@ -61,6 +63,31 @@ public sealed class LogRedactionTests(TestPostgres postgres) : IDisposable
         var (log, sink) = NewLogger();
         log.Information("Value {Value}", input);
         sink.Events.Single().Properties["Value"].ShouldBeOfType<ScalarValue>().Value.ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData("/api/tickets?view=all&search=jane%40example.com&page=1")]
+    [InlineData("/api/tickets?search=Jane%40Example.COM")]
+    [InlineData("/api/tickets?search=jane%40example.com&x=1")]
+    public void A_url_encoded_email_in_a_query_string_is_redacted(string pathAndQuery)
+    {
+        var (log, sink) = NewLogger();
+        log.Information("No access token for {Path}", pathAndQuery);
+        var text = Text(sink.Events.Single(), "Path");
+        text.ShouldContain("[email]");
+        text.ShouldNotContain("jane", Case.Insensitive);
+        text.ShouldNotContain("example", Case.Insensitive);
+    }
+
+    [Fact]
+    public void A_jwt_shaped_bearer_token_is_redacted()
+    {
+        const string Jwt = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkFkYSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+        var (log, sink) = NewLogger();
+        log.Information("Header {Header} and {Other}", "Bearer " + Jwt, "plain eyJ text");
+        var e = sink.Events.Single();
+        Text(e, "Header").ShouldBe("Bearer [token]");
+        Text(e, "Other").ShouldBe("plain eyJ text");
     }
 
     [Fact]
