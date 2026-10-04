@@ -34,25 +34,18 @@ public sealed class AttachmentDownloadEndpointTests(TestPostgres postgres) : IDi
         return (factory, await TicketTestData.SeedAsync(factory, Ct));
     }
 
-    private static async Task<Guid> ReplyWithAsync(HttpClient client, Guid ticketId, byte[] bytes, string fileName, string contentType)
+    private static async Task<AttachmentDto> ReplyWithAsync(HttpClient client, Guid ticketId, byte[] bytes, string fileName, string contentType)
     {
         using var form = new MultipartFormDataContent { { new StringContent("See attached"), "body" } };
         var file = new ByteArrayContent(bytes);
         file.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
-        if (fileName.Contains('"'))
-        {
-            // HttpClient refuses a raw quote in a multipart file name, so write the header by hand.
-            file.Headers.TryAddWithoutValidation("Content-Disposition", $"form-data; name=attachments; filename=\"{fileName.Replace("\"", "\\\"")}\"");
-            form.Add(file);
-        }
-        else
-        {
-            form.Add(file, "attachments", fileName);
-        }
+        // RFC 5987 part header: HttpClient refuses a raw quote in a file name, and ASP.NET decodes filename*.
+        file.Headers.TryAddWithoutValidation("Content-Disposition", $"form-data; name=attachments; filename*=UTF-8''{Uri.EscapeDataString(fileName)}");
+        form.Add(file);
         using var response = await client.PostAsync($"/api/tickets/{ticketId}/replies", form, Ct);
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         var body = (await response.Content.ReadFromJsonAsync<AgentMessageResponse>(Ct))!;
-        return body.Message.Attachments.ShouldHaveSingleItem().Id;
+        return body.Message.Attachments.ShouldHaveSingleItem();
     }
 
     [Fact]
@@ -61,7 +54,7 @@ public sealed class AttachmentDownloadEndpointTests(TestPostgres postgres) : IDi
         var (factory, seed) = await StartAsync();
         await using var _f = factory;
         using var sam = TicketTestData.AgentClient(factory, "sam");
-        var id = await ReplyWithAsync(sam, seed.Tickets[0].Id, Png, "pixel.png", "image/png");
+        var id = (await ReplyWithAsync(sam, seed.Tickets[0].Id, Png, "pixel.png", "image/png")).Id;
 
         using var response = await sam.GetAsync($"/api/attachments/{id}", Ct);
 
@@ -70,6 +63,9 @@ public sealed class AttachmentDownloadEndpointTests(TestPostgres postgres) : IDi
         response.Content.Headers.ContentDisposition!.DispositionType.ShouldBe("attachment");
         response.Headers.GetValues("X-Content-Type-Options").ShouldContain("nosniff");
         response.Headers.CacheControl!.NoStore.ShouldBeTrue();
+        response.Headers.CacheControl.Private.ShouldBeTrue();
+        response.Content.Headers.ContentLength.ShouldBe(Png.Length);
+        response.Headers.GetValues("Content-Security-Policy").ShouldContain("sandbox");
         response.Content.Headers.ContentType!.MediaType.ShouldBe("image/png");
     }
 
@@ -79,17 +75,17 @@ public sealed class AttachmentDownloadEndpointTests(TestPostgres postgres) : IDi
         var (factory, seed) = await StartAsync();
         await using var _f = factory;
         using var sam = TicketTestData.AgentClient(factory, "sam");
-        var id = await ReplyWithAsync(sam, seed.Tickets[0].Id, "hello"u8.ToArray(), "re\"port ü.txt", "text/plain");
+        var stored = await ReplyWithAsync(sam, seed.Tickets[0].Id, "hello"u8.ToArray(), "re\"port ü.txt", "text/plain");
+        stored.FileName.ShouldContain("\"");
+        stored.FileName.ShouldContain("ü");
 
-        using var response = await sam.GetAsync($"/api/attachments/{id}", Ct);
+        using var response = await sam.GetAsync($"/api/attachments/{stored.Id}", Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var header = string.Join(";", response.Content.Headers.GetValues("Content-Disposition"));
-        header.ShouldStartWith("attachment");
-        header.ShouldContain("filename*=UTF-8''");
-        header.ShouldContain("filename=");
-        header.ShouldNotContain("re\"port");
-        header.ShouldNotContain("ü");
+        var disposition = response.Content.Headers.ContentDisposition!;
+        disposition.DispositionType.ShouldBe("attachment");
+        disposition.FileNameStar.ShouldBe(stored.FileName);
+        disposition.FileName.ShouldBe("re_port _.txt");
     }
 
     [Fact]

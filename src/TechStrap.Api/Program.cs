@@ -88,6 +88,25 @@ await ApiStartupTasks.RunAsync(app.Services, app.Environment, app.Configuration)
 
 app.UseForwardedHeaders();
 app.UseCorrelationId();
+// Downloads get `Content-Security-Policy: sandbox`. The shared security-headers middleware overwrites the CSP when the response starts,
+// and start callbacks run last-registered-first, so this must be registered before it to have the final say.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api/attachments", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.OnStarting(() =>
+        {
+            if (context.Response.StatusCode == StatusCodes.Status200OK)
+            {
+                context.Response.Headers.ContentSecurityPolicy = "sandbox";
+            }
+
+            return Task.CompletedTask;
+        });
+    }
+
+    await next();
+});
 app.UseSecurityHeaders();
 app.UseProblemDetailsExceptionHandling();
 app.UseRequestTooLargeProblemDetails();

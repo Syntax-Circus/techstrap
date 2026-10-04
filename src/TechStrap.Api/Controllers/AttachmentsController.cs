@@ -14,5 +14,9 @@ public sealed class AttachmentsController : ControllerBase
 {
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id, [FromServices] IGetAttachmentRequestHandler handler, CancellationToken cancellationToken) =>
-        (await handler.HandleAsync(id, cancellationToken)).ToActionResult(this, content => new AttachmentDownloadResult(content));
+        (await handler.HandleAsync(id, cancellationToken)).ToActionResult(this, content =>
+        {
+            Response.RegisterForDisposeAsync(content.Content);
+            return new AttachmentDownloadResult(content);
+        });
 }

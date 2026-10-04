@@ -7,7 +7,7 @@ namespace TechStrap.Api.Controllers;
 
 /// <summary>
 /// Streams an attachment as a download. Always <c>Content-Disposition: attachment</c> (filename* plus an ASCII fallback),
-/// <c>nosniff</c> and <c>no-store</c>. The stored content type, including text/html and other text/*, is kept as is:
+/// <c>nosniff</c>, <c>no-store</c> and (via a Program.cs middleware, because the shared security-headers middleware overwrites it) <c>Content-Security-Policy: sandbox</c>. The stored content type, including text/html and other text/*, is kept as is:
 /// attachment and nosniff already stop the browser rendering it inline.
 /// </summary>
 internal sealed class AttachmentDownloadResult(AttachmentContent content) : IActionResult, IStatusCodeActionResult
@@ -17,6 +17,7 @@ internal sealed class AttachmentDownloadResult(AttachmentContent content) : IAct
     public async Task ExecuteResultAsync(ActionContext context)
     {
         var response = context.HttpContext.Response;
+        // Also registered for disposal in the controller, so a filter that replaces this result cannot leak the stream.
         await using var stream = content.Content;
         response.StatusCode = StatusCodes.Status200OK;
         response.ContentType = content.ContentType;
