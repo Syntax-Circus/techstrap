@@ -85,6 +85,7 @@ Start at the [discovery index](docs/architecture/00-DISCOVERY-INDEX.md).
 | [Admin UX brief](docs/architecture/UX-BRIEF-admin.md) · [Portal UX brief](docs/architecture/UX-BRIEF-portal.md) | Designer handoffs |
 | [Agent authentication](docs/self-hosting/AGENT-AUTHENTICATION.md) | Self-hosting: OIDC issuer, audience and group settings |
 | [Development seed data](docs/development/DEV-DATA.md) | What the Development seeder creates and when |
+| [Ticket operations](docs/development/TICKET-OPERATIONS.md) | Agent ticket API: curl examples, RowVersion, email kinds |
 | [Implementation roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md) | Phases 01–12, task index, validation commands |
 
 ## License

@@ -26,8 +26,8 @@
 | 02 | [Brand & UX](PHASE-02-brand-and-ux.md) | 01 | 07, 09 | Complete |
 | 03 | [Domain & persistence](PHASE-03-domain-and-persistence.md) | 01 | 04 | Not started |
 | 04 | [Agent auth & admin config](PHASE-04-agent-auth-and-admin-config.md) | 03 | 05 | Not started |
-| 05 | [Intake, email & worker](PHASE-05-intake-email-worker.md) | 04 | 06, 11 | Implemented (pending merge) |
-| 06 | [Ticket operations](PHASE-06-ticket-operations.md) | 05 | 07, 08, 09 | Not started |
+| 05 | [Intake, email & worker](PHASE-05-intake-email-worker.md) | 04 | 06, 11 | Complete (PR #5 merged) |
+| 06 | [Ticket operations](PHASE-06-ticket-operations.md) | 05 | 07, 08, 09 | 06a implemented (pending merge); 06b not started |
 | 07 | [Admin app](PHASE-07-admin-app.md) | 02, 06 | 08 (editor UI), 10 | Not started |
 | 08 | [Knowledge base](PHASE-08-knowledge-base.md) | 06 (07 for the editor UI) | 09 | Not started |
 | 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 | Not started |

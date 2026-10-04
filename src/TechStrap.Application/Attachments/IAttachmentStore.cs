@@ -18,4 +18,7 @@ public interface IAttachmentStore
     Task<Result<StoredAttachment>> SaveAsync(Guid ticketId, IncomingAttachment file, CancellationToken cancellationToken);
 
     Task DeleteAsync(string storageKey, CancellationToken cancellationToken);
+
+    /// <summary>Opens a stored file for reading, or null when the object is missing. The caller disposes the stream.</summary>
+    Task<Stream?> OpenReadAsync(string storageKey, CancellationToken cancellationToken);
 }

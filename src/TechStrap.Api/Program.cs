@@ -12,6 +12,7 @@ using TechStrap.Infrastructure.Intake;
 using TechStrap.Infrastructure.Persistence;
 using TechStrap.Infrastructure.Security;
 using TechStrap.Infrastructure.Seeding;
+using TechStrap.Infrastructure.Tickets;
 
 const string ServiceName = "techstrap-api";
 
@@ -76,6 +77,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddAgentAuthentication(builder.Configuration, builder.Environment);
 builder.Services.AddProductApiKeyAuthentication(builder.Configuration);
 builder.Services.AddTechStrapIntake(builder.Configuration);
+builder.Services.AddTechStrapTicketOperations(builder.Configuration);
 builder.Services.AddResultProblemDetails();
 builder.Services.AddApplicationHandlers();
 
@@ -86,6 +88,27 @@ await ApiStartupTasks.RunAsync(app.Services, app.Environment, app.Configuration)
 
 app.UseForwardedHeaders();
 app.UseCorrelationId();
+// Downloads get `Content-Security-Policy: sandbox`. The shared security-headers middleware overwrites the CSP when the response starts,
+// and start callbacks run last-registered-first, so this must be registered before it to have the final say.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api/attachments", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.OnStarting(() =>
+        {
+            if (context.Response.StatusCode == StatusCodes.Status200OK)
+            {
+                var headers = context.Response.Headers;
+                var existing = headers.ContentSecurityPolicy.ToString();
+                headers.ContentSecurityPolicy = string.IsNullOrEmpty(existing) ? "sandbox" : $"{existing}; sandbox";
+            }
+
+            return Task.CompletedTask;
+        });
+    }
+
+    await next();
+});
 app.UseSecurityHeaders();
 app.UseProblemDetailsExceptionHandling();
 app.UseRequestTooLargeProblemDetails();

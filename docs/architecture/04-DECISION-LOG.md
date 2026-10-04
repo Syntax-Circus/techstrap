@@ -10,6 +10,7 @@ Approval basis:
 - **Owner decision (2026-10-02, PHASE-03 planning):** D-026 (separate persistence entities) and D-027 (stored generated search vectors); D-028 (Domain result type) approved 2026-10-03.
 - **Owner decision (2026-10-03, PHASE-04 planning):** D-029 (roles from IdP groups only; amends D-004), D-030 (deleting a tag in use), D-031 (product accent validation is format only).
 - **Owner decision (2026-10-03, PHASE-05 planning):** D-032 (intake rules: honeypot, untrusted external ref, link cap, attachments). D-033 and D-034 were proposed in the PHASE-05 plan and approved when the owner approved the plan.
+- **Owner decision (2026-10-03, PHASE-06 planning):** D-035 (PHASE-06 split, Markdown replies, agent attachments, Solved notice). D-036 was proposed in the PHASE-06a plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -53,6 +54,8 @@ Approval basis:
 | D-032 | Intake rules: honeypot, untrusted external ref, access-link cap, attachment limits | Approved (owner 2026-10-03) | 2026-10-03 | PHASE-05, PHASE-09, PHASE-11 |
 | D-033 | Emails render in the Worker at send time; Application owns the sender abstraction | Approved (owner, PHASE-05 plan review) | 2026-10-03 | PHASE-05, PHASE-06, PHASE-12, 02-ARCHITECTURE |
 | D-034 | Intake transport: explicit Public policy, ApiKey scheme policy, JSON-only API intake | Approved (owner, PHASE-05 plan review) | 2026-10-03 | PHASE-05, PHASE-09, PHASE-11 |
+| D-035 | PHASE-06 split into 06a/06b; Markdown agent replies; agent reply attachments; Solved notice | Approved (owner 2026-10-03) | 2026-10-03 | PHASE-06, PHASE-07, PHASE-09 |
+| D-036 | Ticket operations API shape: RowVersion on state changes, TicketStateDto returns, idempotent tags, string enums, multipart replies, lookup by id or number | Approved (owner, PHASE-06a plan review) | 2026-10-03 | PHASE-06, PHASE-07, PHASE-11 |
 
 ---
 
@@ -1058,4 +1061,83 @@ Every Api controller declares an authorization policy (PHASE-04 `ControllerBound
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-05 plan review)
+- **Approved on:** 2026-10-03
+
+---
+
+## D-035: PHASE-06 split into 06a/06b; Markdown agent replies; agent reply attachments; Solved notice
+
+- **Status:** Approved (owner 2026-10-03)
+- **Date:** 2026-10-03
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-008, D-014, D-016, D-022, D-024, D-033, PHASE-06, PHASE-07, PHASE-09, `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`
+
+### Context
+PHASE-06 as written covers about 21 handlers across agent operations, customer routes, background work and admin tools. That is too large for one reviewable PR. It also left three questions open as assumptions: Markdown in replies, attachments on agent replies, and the Solved email.
+
+### Decision
+- **Two PRs.** PHASE-06 lands as 06a and 06b.
+  - 06a is agent operations.
+  - 06b covers customer routes and replies, follow-ups, the lost link, new-ticket and customer-reply alerts, auto-close, delete and erase, dead letters, and the customer path of the attachment download.
+- **Markdown.** Agent reply bodies are Markdown, rendered and then sanitised. Internal notes use the same composer, so they are Markdown too.
+- **Attachments on replies.** Agents may attach files to public replies. The limits match customer uploads: 5 files, 10 MiB each, 25 MiB per message, checked by file content.
+- **Owner decision (2026-10-03):** tickets flagged as spam never email the customer (replies and Solved notices are saved but not emailed); agent alerts are unaffected.
+- **Solved notice.** When an agent sets Solved, the customer gets a short notice that includes the ticket link.
+
+### Alternatives Considered
+- **One PHASE-06 PR.** Rejected: too large to review well.
+- **Plain text replies.** Rejected: agents need lists, links and code in answers.
+- **No agent attachments.** Rejected by the owner.
+- **No Solved email.** Rejected: customers would not learn that the ticket was resolved.
+
+### Consequences
+- **Markdown renderer.** 06a introduces `IMarkdownRenderer`, which PHASE-08 reuses.
+- **Sanitizer allowlist.** It grows by `h5 h6 hr del s`. PHASE-08 adds tables and images.
+- **Notification planner.** `ITicketNotificationPlanner` lands in 06a with three cases: reply, solved and assigned. 06b adds the new-ticket, customer-reply and lost-link cases.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, 2026-10-03 PHASE-06 planning)
+- **Approved on:** 2026-10-03
+
+---
+
+## D-036: Ticket operations API shape: RowVersion on state changes, TicketStateDto returns, idempotent tags, string enums, multipart replies, lookup by id or number
+
+- **Status:** Approved (owner, PHASE-06a plan review)
+- **Date:** 2026-10-03
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-016, D-024, D-033, D-034, 02-ARCHITECTURE section 7.3, PHASE-06, PHASE-07, `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`
+
+### Context
+02-ARCHITECTURE 7.3 mixed 200 and 204 results and left the concurrency token and reply transport unspecified. The Admin app (PHASE-07) and the SDK (PHASE-11) need one predictable shape for ticket writes.
+
+### Decision
+- **Concurrency.** Every state-changing request (status, assignee, priority, product, tags, spam) carries `RowVersion` (`uint`, the ticket's `Version`).
+  - The handler compares it before mutating. A stale version gets `409 concurrency-conflict`. A missing version gets `400 row-version-required`.
+  - Replies and notes accept an optional `RowVersion`. They are appends, so a parallel edit should not block a reply.
+  - Every mutation returns `200 TicketStateDto`, which carries the new `RowVersion`. A reply or note returns `201 AgentMessageResponse(MessageDto Message, TicketStateDto Ticket)`.
+  - This replaces the mixed 200/204 codes in 02-ARCHITECTURE 7.3. Clients always get the token they need for the next write.
+- **Tags are idempotent.** This follows the Domain and 02-ARCHITECTURE: adding a present tag or removing an absent one returns 200 with no event. An unknown tag id is a 404 `tag-not-found`. The PHASE-06 "409 duplicate / 404 absent" wording is superseded.
+- **Contracts carry no enums.** Status, priority, view, event type, author type and visibility travel as strings. Constants classes hold the stable names, and handlers parse them; an unknown value is a 400 with a target.
+- **Reply transport.** A reply is `multipart/form-data`, with text fields plus files. A note is JSON. The PHASE-07 "multipart-free reply submit" note is superseded. `AgentAccessCoverageTests` sends an empty multipart body to multipart routes.
+- **Ticket lookup.** `GET /api/tickets/{reference}` accepts either a ticket id (Guid) or a ticket number such as `ORB-42`, which serves the Admin `/tickets/{number}` route. Mutation routes take `{id:guid}`.
+- **Queue counts.** `GET /api/tickets/counts` returns per-view counts for the signed-in agent. The date-range filter named in PHASE-06 is dropped from v1, because the repository has none and the UX brief does not use it.
+- **Reply email.** The outbox payload holds the message id, not the body (D-033 and the 16 000-character cap). The Worker loads the message body at send time. If the message no longer exists, the row fails with `message-missing`.
+- **Assignment alerts.** These go to the assignee's own email and never to the acting agent. They link into the Admin app only when the optional `TECHSTRAP_ADMIN_PUBLIC_URL` is set.
+- **Attachment download in 06a is agent-only.** It uses the `Agent` policy. 06b changes the policy model for the customer token path (see the D-036 note).
+- **Spam on Closed tickets.** The Domain rejects every mutation on a Closed ticket, including spam, with `409 ticket-closed`. This is kept and documented as a known limit.
+
+### Alternatives Considered
+- **Concurrency token in an `If-Match` header.** Rejected: the typed clients and OpenAPI describe a body field more simply.
+- **Mixed 200/204 results.** Rejected: clients would need an extra read to get the next `RowVersion`.
+- **Enums in Contracts.** Rejected: the Contracts rules allow none.
+
+### Consequences
+- **Typed client.** PHASE-07's typed client sends `RowVersion` in the body and replaces its cached state with the `TicketStateDto` returned by every write.
+- **Replies.** Replies are posted as multipart.
+- **Attachment download in 06b.** 06b must change `GET /api/attachments/{id}` from the `Agent` policy to a policy model that admits both credentials. Two options are a separate customer route, `GET /api/customer/attachments/{id}`, or a combined scheme policy. Decide that in 06b; prefer the separate route, because it keeps "Public stands alone" (D-034).
+- **Worker.** The Worker drain handler gains `ITicketRepository` to load reply bodies at send time.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-06a plan review)
 - **Approved on:** 2026-10-03

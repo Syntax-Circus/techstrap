@@ -61,4 +61,7 @@ public interface IKbRepository
 
     /// <summary>Agent-facing; returns linked articles in any status; never expose to customers.</summary>
     Task<IReadOnlyList<KbArticle>> ListLinkedArticlesAsync(Guid ticketId, CancellationToken cancellationToken);
+
+    /// <summary>Every ticket-to-article link of a ticket with its message id (per-message linked articles).</summary>
+    Task<IReadOnlyList<TicketArticle>> ListTicketArticlesAsync(Guid ticketId, CancellationToken cancellationToken);
 }

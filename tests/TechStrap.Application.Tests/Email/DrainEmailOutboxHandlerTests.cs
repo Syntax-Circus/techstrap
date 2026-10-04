@@ -9,6 +9,7 @@ using TechStrap.Application.Email;
 using TechStrap.Application.Persistence;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
+using TechStrap.Domain.Tickets;
 
 namespace TechStrap.Application.Tests.Email;
 
@@ -21,6 +22,7 @@ public sealed class DrainEmailOutboxHandlerTests
     private readonly IEmailOutboxStore _store = Substitute.For<IEmailOutboxStore>();
     private readonly IProductRepository _products = Substitute.For<IProductRepository>();
     private readonly IEmailTemplateRenderer _renderer = Substitute.For<IEmailTemplateRenderer>();
+    private readonly ITicketRepository _tickets = Substitute.For<ITicketRepository>();
     private readonly IOutboundEmailSender _sender = Substitute.For<IOutboundEmailSender>();
     private readonly Product _product;
     private readonly DrainEmailOutboxHandler _handler;
@@ -34,7 +36,7 @@ public sealed class DrainEmailOutboxHandlerTests
         _store.MarkFailedAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
         _renderer.RenderTicketConfirmation(Arg.Any<TicketConfirmationEmail>(), Arg.Any<EmailBranding>()).Returns(Rendered);
         _sender.SendAsync(Arg.Any<OutboundEmail>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
-        _handler = new DrainEmailOutboxHandler(_store, _products, _renderer, _sender, Options.Create(new EmailOutboxWorkerOptions()), NullLogger<DrainEmailOutboxHandler>.Instance);
+        _handler = new DrainEmailOutboxHandler(_store, _products, _tickets, _renderer, _sender, Options.Create(new EmailOutboxWorkerOptions()), NullLogger<DrainEmailOutboxHandler>.Instance);
     }
 
     private EmailOutboxItem Item(string kind = EmailTemplates.TicketConfirmation, string? payload = null, Guid? productId = null) =>
@@ -189,6 +191,73 @@ public sealed class DrainEmailOutboxHandlerTests
         await _store.Received(1).MarkSentAsync(item.Id, "w1", CancellationToken.None);
         result.Value.ShouldBe(new DrainResult(1, 1, 0));
     }
+
+    private static readonly Guid MessageId = Guid.NewGuid();
+
+    private static readonly AgentReplyEmail ReplyModel = new("ORB-1", "Cannot sign in", "Ann", "https://help.example/t/abc", "Sam from Orbitly Support", MessageId, false);
+
+    private Message AgentMessage(MessageVisibility visibility) =>
+        Message.Restore(MessageId, Guid.NewGuid(), AuthorType.Agent, Guid.NewGuid(), visibility, "<p>Hello</p>", null, null, _clock.GetUtcNow());
+
+    [Fact]
+    public async Task An_agent_reply_row_renders_with_the_message_loaded_at_send_time()
+    {
+        var item = Item(EmailTemplates.AgentReply, JsonSerializer.Serialize(ReplyModel, JsonSerializerOptions.Web));
+        Claims(item);
+        _tickets.GetMessageAsync(MessageId, Arg.Any<CancellationToken>()).Returns(AgentMessage(MessageVisibility.Public));
+        _renderer.RenderAgentReply(Arg.Any<AgentReplyEmail>(), Arg.Any<string>(), Arg.Any<EmailBranding>()).Returns(Rendered);
+
+        var result = await _handler.HandleAsync("w1", CancellationToken.None);
+
+        _renderer.Received(1).RenderAgentReply(ReplyModel, "<p>Hello</p>", Arg.Any<EmailBranding>());
+        await _store.Received(1).MarkSentAsync(item.Id, "w1", CancellationToken.None);
+        result.Value.ShouldBe(new DrainResult(1, 1, 0));
+    }
+
+    [Fact]
+    public async Task An_agent_reply_whose_message_is_gone_or_internal_fails_as_message_missing()
+    {
+        var payload = JsonSerializer.Serialize(ReplyModel, JsonSerializerOptions.Web);
+        _tickets.GetMessageAsync(MessageId, Arg.Any<CancellationToken>()).Returns((Message?)null);
+        await AssertFailedWithoutSending(Item(EmailTemplates.AgentReply, payload), DrainFailures.MessageMissing);
+
+        _tickets.GetMessageAsync(MessageId, Arg.Any<CancellationToken>()).Returns(AgentMessage(MessageVisibility.Internal));
+        await AssertFailedWithoutSending(Item(EmailTemplates.AgentReply, payload), DrainFailures.MessageMissing);
+    }
+
+    [Theory]
+    [InlineData("ticket-solved")]
+    [InlineData("ticket-assigned")]
+    public async Task Solved_and_assignment_rows_render_and_send(string kind)
+    {
+        var payload = kind == EmailTemplates.TicketSolved
+            ? JsonSerializer.Serialize(new TicketSolvedEmail("ORB-1", "S", "Ann", "https://help.example/t/abc", 7), JsonSerializerOptions.Web)
+            : JsonSerializer.Serialize(new TicketAssignedEmail("ORB-1", "S", "Orbitly", "Mia", null), JsonSerializerOptions.Web);
+        var item = Item(kind, payload);
+        Claims(item);
+        _renderer.RenderTicketSolved(Arg.Any<TicketSolvedEmail>(), Arg.Any<EmailBranding>()).Returns(Rendered);
+        _renderer.RenderTicketAssigned(Arg.Any<TicketAssignedEmail>(), Arg.Any<EmailBranding>()).Returns(Rendered);
+
+        var result = await _handler.HandleAsync("w1", CancellationToken.None);
+
+        await _sender.Received(1).SendAsync(Arg.Is<OutboundEmail>(e => e.MessageId == OutboundMessageIds.For(item.Id)), Arg.Any<CancellationToken>());
+        await _store.Received(1).MarkSentAsync(item.Id, "w1", CancellationToken.None);
+        result.Value.ShouldBe(new DrainResult(1, 1, 0));
+    }
+
+    [Theory]
+    [InlineData("ticket-confirmation")]
+    [InlineData("agent-reply")]
+    [InlineData("ticket-solved")]
+    [InlineData("ticket-assigned")]
+    public async Task Each_kind_with_a_payload_missing_required_fields_fails_as_payload_invalid(string kind) =>
+        await AssertFailedWithoutSending(Item(kind, "{}"), DrainFailures.PayloadInvalid);
+
+    [Fact]
+    public async Task An_agent_reply_with_a_blank_public_name_fails_as_payload_invalid() =>
+        await AssertFailedWithoutSending(
+            Item(EmailTemplates.AgentReply, JsonSerializer.Serialize(ReplyModel with { AgentPublicName = " " }, JsonSerializerOptions.Web)),
+            DrainFailures.PayloadInvalid);
 
     private async Task AssertFailedWithoutSending(EmailOutboxItem item, string category)
     {

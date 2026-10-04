@@ -54,6 +54,15 @@ public sealed class HtmlSanitizerTests
         clean.ShouldNotContain("<form");
     }
 
+    [Theory]
+    [InlineData("<h5>x</h5>")]
+    [InlineData("<h6>x</h6>")]
+    [InlineData("<hr>")]
+    [InlineData("<del>x</del>")]
+    [InlineData("<s>x</s>")]
+    public void Allowed_tags_survive(string html) =>
+        _sanitizer.Sanitize(html).ShouldBe(html);
+
     [Fact]
     public void Safe_formatting_is_kept_and_links_get_safe_rel() =>
         _sanitizer.Sanitize("<p>Hi <strong>there</strong> <a href=\"https://example.com\">docs</a></p>")

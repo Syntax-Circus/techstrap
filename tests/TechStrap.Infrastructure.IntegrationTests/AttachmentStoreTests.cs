@@ -46,6 +46,26 @@ public sealed class AttachmentStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task A_stored_file_can_be_opened_and_read_back()
+    {
+        var stored = (await _store.SaveAsync(Guid.CreateVersion7(), Upload("a.png", "image/png", Png), TestContext.Current.CancellationToken)).Value;
+
+        await using var stream = await _store.OpenReadAsync(stored.StorageKey, TestContext.Current.CancellationToken);
+
+        stream.ShouldNotBeNull();
+        using var copy = new MemoryStream();
+        await stream.CopyToAsync(copy, TestContext.Current.CancellationToken);
+        copy.ToArray().ShouldBe(Png);
+    }
+
+    [Fact]
+    public async Task Opening_a_missing_key_returns_null()
+    {
+        (await _store.OpenReadAsync("attachments/none/missing", TestContext.Current.CancellationToken)).ShouldBeNull();
+        (await _store.OpenReadAsync(" ", TestContext.Current.CancellationToken)).ShouldBeNull();
+    }
+
+    [Fact]
     public async Task A_renamed_executable_is_rejected_by_its_leading_bytes()
     {
         var result = await _store.SaveAsync(Guid.CreateVersion7(), Upload("invoice.pdf", "application/pdf", Exe), TestContext.Current.CancellationToken);

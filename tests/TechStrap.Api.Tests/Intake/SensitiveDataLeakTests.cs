@@ -57,6 +57,23 @@ public sealed class SensitiveDataLeakTests(TestPostgres postgres) : IAsyncLifeti
         return viewUrl[(index + TokenMarker.Length)..].Split('?', '#', '/')[0];
     }
 
+    private static async Task<List<(string Table, string Column)>> TextColumnsAsync(NpgsqlConnection connection)
+    {
+        var columns = new List<(string Table, string Column)>();
+        await using var catalogue = new NpgsqlCommand(
+            "SELECT c.table_name, c.column_name FROM information_schema.columns c " +
+            "JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND t.table_type = 'BASE TABLE' " +
+            "WHERE c.table_schema = 'public' AND (c.data_type IN ('text', 'character varying', 'jsonb', 'json', 'ARRAY') OR c.udt_name = 'citext')",
+            connection);
+        await using var reader = await catalogue.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+        while (await reader.ReadAsync(TestContext.Current.CancellationToken))
+        {
+            columns.Add((reader.GetString(0), reader.GetString(1)));
+        }
+
+        return columns;
+    }
+
     [Fact]
     public async Task A_key_submission_leaves_the_plaintext_key_and_token_out_of_logs_and_every_column_but_the_outbox_payload()
     {
@@ -90,19 +107,7 @@ public sealed class SensitiveDataLeakTests(TestPostgres postgres) : IAsyncLifeti
         // 2. Every textual column at rest
         await using var connection = new NpgsqlConnection(database.ConnectionString);
         await connection.OpenAsync(TestContext.Current.CancellationToken);
-        var columns = new List<(string Table, string Column)>();
-        await using (var catalogue = new NpgsqlCommand(
-            "SELECT c.table_name, c.column_name FROM information_schema.columns c " +
-            "JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND t.table_type = 'BASE TABLE' " +
-            "WHERE c.table_schema = 'public' AND (c.data_type IN ('text', 'character varying', 'jsonb', 'json', 'ARRAY') OR c.udt_name = 'citext')",
-            connection))
-        await using (var reader = await catalogue.ExecuteReaderAsync(TestContext.Current.CancellationToken))
-        {
-            while (await reader.ReadAsync(TestContext.Current.CancellationToken))
-            {
-                columns.Add((reader.GetString(0), reader.GetString(1)));
-            }
-        }
+        var columns = await TextColumnsAsync(connection);
 
         columns.ShouldContain(("email_outbox", "payload"));
 
@@ -151,5 +156,62 @@ public sealed class SensitiveDataLeakTests(TestPostgres postgres) : IAsyncLifeti
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldNotContain(seed.OrbitlyTrusted);
+    }
+
+    [Fact]
+    public async Task An_agent_reply_keeps_the_agent_email_out_of_the_outbox_and_the_link_only_in_the_payload()
+    {
+        const string agentEmail = "sam.agent@example.com";
+        var (factory, database, seed) = await StartAsync();
+        await using var _f = factory;
+        using var client = factory.CreateClient();
+        using var created = await PostAsync(client, seed.OrbitlyTrusted, new SubmitTicketRequest("ada@example.com", "Ada", "Help", "Please help", null, null), null);
+        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var number = (await created.Content.ReadFromJsonAsync<SubmitTicketResponse>(TestContext.Current.CancellationToken))!.TicketNumber;
+
+        using var sam = factory.CreateClient().Bearer(TestJwt.Token("sam", [TestJwt.AgentGroup], email: agentEmail, name: "Sam Hargreaves"));
+        (await sam.GetAsync("/api/agents/me", TestContext.Current.CancellationToken)).EnsureSuccessStatusCode();
+        var detail = (await sam.GetFromJsonAsync<TechStrap.Contracts.Tickets.TicketDetailDto>($"/api/tickets/{number}", TestContext.Current.CancellationToken))!;
+        using var form = new MultipartFormDataContent { { new StringContent("We are looking into it"), "body" } };
+        using var replied = await sam.PostAsync($"/api/tickets/{detail.Id}/replies", form, TestContext.Current.CancellationToken);
+        replied.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        await using var connection = new NpgsqlConnection(database.ConnectionString);
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        string payload;
+        await using (var command = new NpgsqlCommand("SELECT payload::text FROM email_outbox WHERE kind = 'agent-reply'", connection))
+        {
+            payload = (string)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
+        }
+
+        payload.ShouldContain("Sam from Orbitly Support");
+        payload.ShouldNotContain("Hargreaves");
+        payload.ShouldNotContain("@");
+        var markerAt = payload.IndexOf(TokenMarker, StringComparison.Ordinal);
+        markerAt.ShouldBeGreaterThan(-1);
+        var token = payload[(markerAt + TokenMarker.Length)..].Split('?', '#', '/', '"', '\\')[0];
+        token.ShouldNotBeNullOrWhiteSpace();
+
+        var columns = await TextColumnsAsync(connection);
+        columns.ShouldContain(("email_outbox", "payload"));
+        foreach (var (table, column) in columns)
+        {
+            foreach (var needle in new[] { token, agentEmail, "Hargreaves" })
+            {
+                var sql = $"SELECT count(*) FROM \"{table}\" WHERE \"{column}\"::text LIKE '%' || @needle || '%'";
+                await using var count = new NpgsqlCommand(sql, connection);
+                count.Parameters.AddWithValue("needle", needle);
+                var found = (long)(await count.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
+                var expected = needle == token && table == "email_outbox" && column == "payload" ? 1L : 0L;
+                if ((needle == agentEmail && table == "agents" && column == "email") || (needle == "Hargreaves" && table == "agents" && column == "name"))
+                {
+                    continue; // the agent's own profile row legitimately holds it
+                }
+
+                found.ShouldBe(expected, $"{table}.{column} for {(needle == token ? "the reply token" : "the agent email or surname")}");
+            }
+        }
+
+        factory.LogSink.Events.ShouldAllBe(e => !e.RenderMessage().Contains(token) && !e.RenderMessage().Contains(agentEmail));
     }
 }
