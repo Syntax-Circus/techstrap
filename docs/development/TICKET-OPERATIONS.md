@@ -111,10 +111,10 @@ Rows are written to `email_outbox` in the same transaction as the change; the Wo
 | --- | --- | --- |
 | `ticket-confirmation` | A ticket is submitted (PHASE-05) | The requester |
 | `agent-reply` | An agent sends a public reply | The requester, signed with the agent's public name, never the agent's email or surname |
-| `ticket-solved` | The status becomes Solved (including "send and solve") | The requester |
+| `ticket-solved` | The status route sets Solved. Send-and-solve queues no separate notice: the agent-reply email is marked `Solved = true` instead | The requester |
 | `ticket-assigned` | A ticket is assigned to another agent | The new assignee. Self-assignment sends nothing |
 
-Notes, priority, tags, product moves and spam send nothing. The customer's access link exists only in the outbox payload.
+Notes, priority, tags, product moves and spam send nothing. Tickets flagged as spam never email the customer: replies and Solved notices are saved but not emailed (owner decision, D-035); agent assignment alerts are unaffected. The customer's access link exists only in the outbox payload.
 
 ## Try it end to end
 

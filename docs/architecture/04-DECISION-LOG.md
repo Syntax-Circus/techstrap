@@ -1081,6 +1081,7 @@ PHASE-06 as written covers about 21 handlers across agent operations, customer r
   - 06b covers customer routes and replies, follow-ups, the lost link, new-ticket and customer-reply alerts, auto-close, delete and erase, dead letters, and the customer path of the attachment download.
 - **Markdown.** Agent reply bodies are Markdown, rendered and then sanitised. Internal notes use the same composer, so they are Markdown too.
 - **Attachments on replies.** Agents may attach files to public replies. The limits match customer uploads: 5 files, 10 MiB each, 25 MiB per message, checked by file content.
+- **Owner decision (2026-10-03):** tickets flagged as spam never email the customer (replies and Solved notices are saved but not emailed); agent alerts are unaffected.
 - **Solved notice.** When an agent sets Solved, the customer gets a short notice that includes the ticket link.
 
 ### Alternatives Considered
