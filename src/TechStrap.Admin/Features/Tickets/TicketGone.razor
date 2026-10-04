@@ -1,0 +1,13 @@
+<section class="ts-gone">
+    <h1>@Heading</h1>
+    <p>@Body</p>
+    <a class="btn btn-outline-secondary" href="/queue">@TicketCopy.BackToQueue</a>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Heading { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Body { get; set; } = string.Empty;
+}

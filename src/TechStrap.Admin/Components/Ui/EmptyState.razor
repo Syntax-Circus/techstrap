@@ -1,0 +1,13 @@
+<div class="ts-state ts-state--empty">
+    <p class="ts-state-heading">@Heading</p>
+    @ChildContent
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Heading { get; set; } = string.Empty;
+
+    /// <summary>Optional next action (a link or a button), already styled by the caller.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

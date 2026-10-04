@@ -1,0 +1,33 @@
+@if (Metadata is not null)
+{
+    <section class="@(Metadata.Trusted ? "ts-metadata" : "ts-metadata ts-metadata--untrusted")" aria-label="@TicketCopy.MetadataHeading">
+        <h2>@TicketCopy.MetadataHeading</h2>
+        @* Two cues besides colour: the word and the dashed border. *@
+        <p class="ts-metadata-trust">
+            <strong>@(Metadata.Trusted ? TicketCopy.Trusted : TicketCopy.Untrusted)</strong>
+            @if (!Metadata.Trusted)
+            {
+                <span> &mdash; @TicketCopy.UntrustedHelp</span>
+            }
+        </p>
+        @if (!Metadata.Readable)
+        {
+            <p>@TicketCopy.MetadataUnreadable</p>
+        }
+        else
+        {
+            <dl>
+                @foreach (var item in Metadata.Items)
+                {
+                    <dt>@item.Key</dt>
+                    <dd>@item.Value</dd>
+                }
+            </dl>
+        }
+    </section>
+}
+
+@code {
+    [Parameter]
+    public MetadataViewModel? Metadata { get; set; }
+}

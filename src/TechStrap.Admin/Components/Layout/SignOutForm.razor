@@ -1,0 +1,14 @@
+@* A plain POST form, not an interactive handler: the sign-out endpoint redirects the browser to the provider. The antiforgery token is checked by the endpoint. *@
+<AuthorizeView>
+    <Authorized>
+        <form method="post" action="@AdminAuthentication.SignOutPath" class="ts-signout">
+            <AntiforgeryToken />
+            <span class="ts-signout-name">@context.User.Identity?.Name</span>
+            <button type="submit" class="ts-rail-link ts-signout-button">@SignOutLabel</button>
+        </form>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    public const string SignOutLabel = "Sign out";
+}

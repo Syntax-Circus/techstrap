@@ -1,0 +1,55 @@
+@page "/tickets/{Number}"
+@attribute [Authorize]
+
+<PageTitle>@Number</PageTitle>
+@if (_loading)
+{
+    <LoadingState Rows="6" Label="@TicketCopy.Loading" />
+}
+else if (_gone is not null)
+{
+    <TicketGone Heading="@_gone.Heading" Body="@_gone.Body" />
+}
+else if (_model is null)
+{
+    <ErrorState Message="@_error" OnRetry="LoadAsync" />
+}
+else
+{
+    <article class="ts-ticket">
+        <TicketHeader Ticket="_model" />
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <ErrorState Message="@_error" OnRetry="RefreshAsync" />
+        }
+        <TicketActions Ticket="_model" OnState="OnStateChangedAsync" OnConflict="OnConflictAsync" OnGone="RefreshAsync" OnReload="ReloadAfterConflictAsync" />
+        <ConflictBanner State="_conflict" LatestChange="@_latestChange" Reloading="_reloading" OnReload="ReloadAfterConflictAsync" OnDismiss="DismissConflict" />
+        <div class="ts-ticket-layout">
+            <section class="ts-conversation" aria-label="@TicketCopy.ConversationLabel">
+                <TicketTimeline Entries="_model.Timeline" />
+                <TintLegend />
+                @if (_model.IsClosed)
+                {
+                    <p class="ts-closed-note" role="note">@TicketCopy.ClosedNotice</p>
+                }
+                else
+                {
+                    <ReplyComposer TicketId="_model.Id" TicketNumber="@_model.Number" RequesterEmail="@_model.Requester.Email"
+                                   RowVersion="_model.RowVersion" OnSent="OnSentAsync" OnConflict="OnConflictAsync" OnGone="RefreshAsync" />
+                }
+            </section>
+            @if (_model.IsClosed)
+            {
+                <TicketSidePanel Ticket="_model" />
+            }
+            else
+            {
+                <TicketSidePanel Ticket="_model">
+                    <Controls>
+                        <TicketSidebar Ticket="_model" OnState="OnStateChangedAsync" OnConflict="OnConflictAsync" OnClosed="RefreshAsync" OnReload="ReloadAfterConflictAsync" OnGone="RefreshAsync" />
+                    </Controls>
+                </TicketSidePanel>
+            }
+        </div>
+    </article>
+}

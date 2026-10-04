@@ -3,14 +3,22 @@ using Microsoft.AspNetCore.DataProtection;
 using Sentry;
 using SyntaxCircus.AspNetCore.Common;
 using SyntaxCircus.AspNetCore.Serilog;
+using SyntaxCircus.Blazor.Auth;
 using SyntaxCircus.DotEnv;
 using SyntaxCircus.Observability;
+using TechStrap.Admin.Auth;
+using TechStrap.Admin.Clients;
 using TechStrap.Admin.Components;
+using TechStrap.Admin.Features.Shell;
+using TechStrap.Admin.Features.Tickets;
+using TechStrap.Admin.Options;
+using TechStrap.Hosting.Logging;
+using TechStrap.Hosting.Sentry;
 
 const string ServiceName = "techstrap-admin";
 
-// Placeholder shell: this host never touches the database and never migrates. It will call the API
-// through typed clients over TechStrap.Contracts once its UI phase lands.
+// The Admin app: this host never touches the database and never migrates. It calls the API only through the typed
+// clients over TechStrap.Contracts (Clients/), with the signed-in agent's token.
 var builder = WebApplication.CreateBuilder(args);
 if (builder.Configuration.ShouldLoadDotEnv(builder.Environment))
 {
@@ -18,7 +26,11 @@ if (builder.Configuration.ShouldLoadDotEnv(builder.Environment))
 }
 
 var telemetry = builder.AddSyntaxCircusObservability(ServiceName);
-builder.AddStandardSerilog(configureEnrichment: telemetry.ConfigureSerilog);
+builder.AddStandardSerilog(configureEnrichment: logger =>
+{
+    telemetry.ConfigureSerilog(logger);
+    logger.Enrich.With<PiiRedactionEnricher>();
+});
 if (telemetry.Options.Sentry.IsEnabled)
 {
     builder.WebHost.UseSentry(options =>
@@ -26,6 +38,7 @@ if (telemetry.Options.Sentry.IsEnabled)
         telemetry.ConfigureSentry(options, context =>
             context.TransactionContext.Name.Contains("/health", StringComparison.OrdinalIgnoreCase)
                 || context.TransactionContext.Name.Contains("/_blazor", StringComparison.OrdinalIgnoreCase) ? 0d : null);
+        options.AddSensitiveHeaderScrubbing();
         options.AutoSessionTracking = false;
     });
 }
@@ -40,6 +53,17 @@ if (!string.IsNullOrWhiteSpace(keyRingPath))
 {
     builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(keyRingPath));
 }
+
+// Required settings are validated when the host starts (not read here), so a missing Auth or Api key stops the start with a clear message.
+builder.Services.AddAdminOptions(builder.Configuration);
+builder.Services.AddBlazorTokenForwarding(builder.Configuration, AdminOptionsRegistration.AuthSection);
+
+builder.Services.AddAdminAuthentication();
+builder.Services.AddCascadingAuthenticationState();
+// The named API clients, the typed clients over them and the scoped AgentSession (the layout's AgentGate asks it who is signed in).
+builder.Services.AddTechStrapApiClients();
+builder.Services.AddShell();
+builder.Services.AddTicketFeatures();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -66,9 +90,19 @@ app.Use(async (context, next) =>
         context.Features.Get<IStatusCodePagesFeature>()?.Enabled = false;
     }
 });
+// Order matters: the token cache middleware needs the authenticated user and must run before antiforgery (SyntaxCircus.Blazor.Auth).
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseBlazorTokenCache();
 app.UseAntiforgery();
-app.MapStandardHealthChecks();
-app.MapRazorComponentsWithStaticAssets<App>()
+
+// Health checks and static assets stay anonymous; the fallback policy requires a signed-in agent for everything else.
+var anonymous = app.MapGroup(string.Empty).AllowAnonymous();
+anonymous.MapStandardHealthChecks();
+anonymous.MapStaticAssets();
+app.MapAdminAuthEndpoints();
+app.MapAttachmentPassThrough();
+app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();

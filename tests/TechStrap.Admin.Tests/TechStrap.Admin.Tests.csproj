@@ -8,10 +8,12 @@
   <ItemGroup>
     <PackageReference Include="bunit" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Include="../Shared/*.cs" LinkBase="Shared" />
+    <Compile Include="../Shared/AdminHost/*.cs" LinkBase="Shared/AdminHost" />
   </ItemGroup>
 
 </Project>

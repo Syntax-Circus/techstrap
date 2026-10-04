@@ -19,6 +19,7 @@
     <Project Path="src/TechStrap.Client/TechStrap.Client.csproj" />
     <Project Path="src/TechStrap.Contracts/TechStrap.Contracts.csproj" />
     <Project Path="src/TechStrap.Domain/TechStrap.Domain.csproj" />
+    <Project Path="src/TechStrap.Hosting/TechStrap.Hosting.csproj" />
     <Project Path="src/TechStrap.Infrastructure/TechStrap.Infrastructure.csproj" />
     <Project Path="src/TechStrap.Portal/TechStrap.Portal.csproj" />
     <Project Path="src/TechStrap.Worker/TechStrap.Worker.csproj" />

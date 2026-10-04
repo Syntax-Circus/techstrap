@@ -7,17 +7,27 @@
 
   <ItemGroup>
     <ProjectReference Include="../TechStrap.Contracts/TechStrap.Contracts.csproj" />
+    <ProjectReference Include="../TechStrap.Hosting/TechStrap.Hosting.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="AspNetCore.SassCompiler" />
     <PackageReference Include="GitVersion.MsBuild" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
     <PackageReference Include="Microsoft.Web.LibraryManager.Build" PrivateAssets="all" />
     <PackageReference Include="SyntaxCircus.AspNetCore.Common" />
     <PackageReference Include="SyntaxCircus.AspNetCore.Serilog" />
+    <PackageReference Include="SyntaxCircus.Blazor.Auth" />
     <PackageReference Include="SyntaxCircus.Blazor.Components" />
+    <PackageReference Include="SyntaxCircus.Common" />
     <PackageReference Include="SyntaxCircus.DotEnv" />
+    <PackageReference Include="SyntaxCircus.Http.Resilience" />
     <PackageReference Include="SyntaxCircus.Observability" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Internal options validators, clients and view models are unit-tested directly. -->
+    <InternalsVisibleTo Include="TechStrap.Admin.Tests" />
   </ItemGroup>
 
 </Project>

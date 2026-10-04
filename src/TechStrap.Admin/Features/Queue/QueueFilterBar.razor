@@ -1,0 +1,55 @@
+<form class="ts-filterbar" role="search" @onsubmit="SubmitSearchAsync" @onsubmit:preventDefault>
+    <button type="submit" hidden>Search</button>
+    <div class="ts-filter ts-filter--search">
+        <label for="queue-search">@QueueCopy.SearchLabel</label>
+        <input id="queue-search" @ref="_search" type="search" class="form-control" autocomplete="off" spellcheck="false"
+               value="@_text" @oninput="OnSearchInput" />
+    </div>
+    <div class="ts-filter">
+        <label for="queue-product">Product</label>
+        <select id="queue-product" class="form-select" @onchange="OnProductChangedAsync">
+            <option value="" selected="@(Filter.ProductId is null)">@QueueCopy.AllProducts</option>
+            @foreach (var product in Products)
+            {
+                <option value="@product.Id" selected="@(Filter.ProductId == product.Id)">@product.Name</option>
+            }
+        </select>
+    </div>
+    <div class="ts-filter">
+        <label for="queue-status">Status</label>
+        <select id="queue-status" class="form-select" @onchange="OnStatusChangedAsync">
+            <option value="" selected="@(Filter.Status is null)">@QueueCopy.AllStatuses</option>
+            @foreach (var status in QueueDefaults.Statuses)
+            {
+                <option value="@status" selected="@(Filter.Status == status)">@status</option>
+            }
+        </select>
+    </div>
+    <div class="ts-filter">
+        <label for="queue-priority">Priority</label>
+        <select id="queue-priority" class="form-select" @onchange="OnPriorityChangedAsync">
+            <option value="" selected="@(Filter.Priority is null)">@QueueCopy.AllPriorities</option>
+            @foreach (var priority in QueueDefaults.Priorities)
+            {
+                <option value="@priority" selected="@(Filter.Priority == priority)">@priority</option>
+            }
+        </select>
+    </div>
+    <div class="ts-filter">
+        <label for="queue-tag">Tag</label>
+        <select id="queue-tag" class="form-select" @onchange="OnTagChangedAsync">
+            <option value="" selected="@(Filter.TagId is null)">@QueueCopy.AllTags</option>
+            @foreach (var tag in Tags)
+            {
+                <option value="@tag.Id" selected="@(Filter.TagId == tag.Id)">@tag.Name</option>
+            }
+        </select>
+    </div>
+    <div class="ts-filter ts-filter--actions">
+        @if (Filter.HasFilters)
+        {
+            <button type="button" class="btn btn-outline-secondary" @onclick="ClearAsync">@QueueCopy.ClearFilters</button>
+        }
+        <button type="button" class="btn btn-outline-secondary" @onclick="OnRefresh">@QueueCopy.Refresh</button>
+    </div>
+</form>

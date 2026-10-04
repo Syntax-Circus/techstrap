@@ -1,0 +1,22 @@
+<dialog @ref="_dialog" class="@CssClass" aria-labelledby="@TitleId" aria-describedby="@BodyId"
+        @oncancel="CancelAsync" @oncancel:preventDefault="true">
+    <h2 id="@TitleId" tabindex="-1" @ref="_title">@Title</h2>
+    <div id="@BodyId" class="ts-dialog-body">@ChildContent</div>
+    @if (RequiredText is not null)
+    {
+        <label for="@InputId" class="ts-dialog-label">@ConfirmPrompt</label>
+        <input id="@InputId" @ref="_input" type="text" class="form-control" autocomplete="off" spellcheck="false"
+               disabled="@Busy" value="@_typed" @oninput="OnTyped" />
+    }
+    @if (Error is not null)
+    {
+        <p class="ts-dialog-error" role="alert">@Error</p>
+    }
+    <div class="ts-dialog-actions">
+        <button type="button" class="btn btn-outline-secondary" disabled="@Busy" @onclick="CancelAsync">@CancelLabel</button>
+        @if (!Informational)
+        {
+            <button type="button" class="@ConfirmCss" disabled="@(!CanConfirm)" @onclick="ConfirmAsync">@ConfirmLabel</button>
+        }
+    </div>
+</dialog>

@@ -53,11 +53,11 @@
 @import "kbd";
 @import "brand-window";
 @import "feedback";
+@import "states";
+@import "dialog";
+@import "statusbar";
+@import "queue";
+@import "ticket";
+@import "composer";
 @import "styleguide";
 @import "motion";
-
-.shell-placeholder {
-  max-width: 40rem;
-  margin: 4rem auto;
-  padding: 0 1rem;
-}

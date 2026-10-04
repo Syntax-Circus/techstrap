@@ -2,10 +2,10 @@ using System.Text.RegularExpressions;
 using Serilog.Core;
 using Serilog.Events;
 
-namespace TechStrap.Infrastructure.Logging;
+namespace TechStrap.Hosting.Logging;
 
 /// <summary>
-/// Rewrites PII-shaped text in every property value before any sink sees the event (D-039): email addresses, 43-character access tokens and
+/// Rewrites PII-shaped text in every property value before any sink sees the event (D-039): email addresses (also URL-encoded), 43-character access tokens, JWT-shaped bearer tokens and
 /// "sha256:" hashes. It cannot touch LogEvent.Exception or the template, and it cannot recognise a name; application code never logs either
 /// (exceptions are logged by type name, requesters by id).
 /// Residual risk, accepted: names cannot be pattern-redacted, and an attached Exception is not rewritten. The worker loops that attach an
@@ -26,11 +26,14 @@ public sealed partial class PiiRedactionEnricher : ILogEventEnricher
     // sha256: plus 64 hex characters, any case.
     private static readonly Regex HashPattern = new(@"sha256:[0-9a-f]{64}", Options | RegexOptions.IgnoreCase | RegexOptions.NonBacktracking, MatchTimeout);
 
+    // Three base64url segments starting with the JWT header prefix "eyJ" ({"): a bearer token. Replaced before the 43-character rule so no segment is left behind.
+    private static readonly Regex JwtPattern = new(@"eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+", Options | RegexOptions.NonBacktracking, MatchTimeout);
+
     // Deliberately broader than what intake accepts (non-whitespace, non-@ local part and domain with a dot): IDN, IP literals, quoted local parts,
-    // single-letter TLDs, underscores. Over-redaction is acceptable; under-redaction is not.
+    // single-letter TLDs, underscores. The separator may be a URL-encoded "@" ("%40", any case): a logged path and query can carry a search term. Over-redaction is acceptable; under-redaction is not.
     private static readonly Regex EmailPattern = new(
-        @"(?:""[^""\r\n]*""|[^\s@<>()\[\]"",;:]+)@(?:\[[^\]\s]+\]|[^\s@<>()\[\]"",;:]+\.[^\s@<>()\[\]"",;:]+)",
-        Options | RegexOptions.NonBacktracking, MatchTimeout);
+        @"(?:""[^""\r\n]*""|[^\s@<>()\[\]"",;:]+)(?:@|%40)(?:\[[^\]\s]+\]|[^\s@<>()\[\]"",;:]+\.[^\s@<>()\[\]"",;:]+)",
+        Options | RegexOptions.IgnoreCase | RegexOptions.NonBacktracking, MatchTimeout);
 
     // An optional API key prefix plus a 43-character base64url run that is a whole run; "%2F" (an encoded slash) counts as a boundary.
     // Lookarounds rule out NonBacktracking, so this one relies on the timeout.
@@ -69,7 +72,7 @@ public sealed partial class PiiRedactionEnricher : ILogEventEnricher
     }
 
     internal static string RedactText(string text) =>
-        TokenPattern.Replace(EmailPattern.Replace(HashPattern.Replace(text, HashMarker), EmailMarker), TokenMarker);
+        TokenPattern.Replace(JwtPattern.Replace(EmailPattern.Replace(HashPattern.Replace(text, HashMarker), EmailMarker), TokenMarker), TokenMarker);
 
     private LogEventPropertyValue Redact(LogEventPropertyValue value)
     {

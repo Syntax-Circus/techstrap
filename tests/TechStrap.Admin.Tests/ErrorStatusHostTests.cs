@@ -1,3 +1,4 @@
+using TechStrap.Tests.Shared.AdminHost;
 using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -16,7 +17,7 @@ public sealed class ErrorStatusHostTests
     {
         await using var factory = new AdminFactory().WithWebHostBuilder(b => b.ConfigureServices(services =>
             services.AddSingleton<IStartupFilter>(new ForcedStatusStartupFilter())));
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
 
         var response = await client.GetAsync("/__test/status/" + status, TestContext.Current.CancellationToken);
         var html = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);

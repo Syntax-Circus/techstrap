@@ -1,0 +1,29 @@
+@if (Saving)
+{
+    <span class="ts-saving" role="status">@SidebarCopy.Saving</span>
+}
+@if (Error is not null)
+{
+    <p class="ts-control-error" role="alert">@Error</p>
+    @if (CanReload)
+    {
+        <button type="button" class="btn btn-link ts-control-reload" @onclick="OnReload">@SidebarCopy.ConflictReload</button>
+    }
+}
+
+@code {
+    /// <summary>This control's request is running.</summary>
+    [Parameter]
+    public bool Saving { get; set; }
+
+    /// <summary>The API's message for the last failed change of this control. The control shows the previous value again.</summary>
+    [Parameter]
+    public string? Error { get; set; }
+
+    /// <summary>The failure left it unknown whether the change was saved, so the error offers a reload instead of a retry.</summary>
+    [Parameter]
+    public bool CanReload { get; set; }
+
+    [Parameter]
+    public EventCallback OnReload { get; set; }
+}

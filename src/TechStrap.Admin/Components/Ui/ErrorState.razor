@@ -1,0 +1,19 @@
+<div class="ts-state ts-state--error" role="alert">
+    <p>@Message</p>
+    @if (OnRetry.HasDelegate)
+    {
+        <button type="button" class="btn btn-outline-secondary" @onclick="OnRetry">@RetryLabel</button>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Message { get; set; } = string.Empty;
+
+    [Parameter]
+    public string RetryLabel { get; set; } = UiCopy.RetryLabel;
+
+    /// <summary>When set, a retry button is drawn and this fires once per click.</summary>
+    [Parameter]
+    public EventCallback OnRetry { get; set; }
+}

@@ -1,0 +1,28 @@
+<section class="ts-facts" aria-label="Ticket properties">
+    <dl>
+        <dt>@TicketCopy.StatusLabel</dt>
+        <dd><StatusStamp Status="Ticket.Stamp" Variant="StampVariant.Ticket" /></dd>
+        <dt>Assignee</dt>
+        <dd>@(Ticket.AssigneeName ?? TicketCopy.Unassigned)</dd>
+        <dt>Priority</dt>
+        <dd><PriorityMark Level="TicketDisplay.Priority(Ticket.Priority)" /></dd>
+        <dt>Product</dt>
+        <dd>@Ticket.ProductName</dd>
+        <dt>Tags</dt>
+        <dd>
+            @if (Ticket.Tags.Count == 0)
+            {
+                <span>@TicketCopy.None</span>
+            }
+            @foreach (var tag in Ticket.Tags)
+            {
+                <TagChip Name="@tag.Name" Colour="@tag.Colour" />
+            }
+        </dd>
+    </dl>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public TicketDetailViewModel Ticket { get; set; } = default!;
+}

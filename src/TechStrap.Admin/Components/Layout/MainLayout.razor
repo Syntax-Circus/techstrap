@@ -1,20 +1,19 @@
 @inherits LayoutComponentBase
 
+<a class="ts-skip-link" href="@SkipLinkHref">Skip to main content</a>
 <div class="ts-shell">
-    <nav class="ts-rail" aria-label="Admin navigation">
-        <a class="ts-brand" href="/" aria-label="TechStrap Admin home">
-            <img src="brand/mark.svg" alt="" width="36" height="36" />
-            <span>TechStrap<small>Call log / admin</small></span>
-        </a>
-        <a class="ts-rail-link" href="/">Home</a>
-    </nav>
-    <main class="ts-main">
-        <GlobalErrorBoundary BoundaryName="admin UI"
-                             CssClass="ts-error"
-                             Title="@UiCopy.ErrorTitle"
-                             Description="@UiCopy.ErrorDescription"
-                             HomeLabel="@UiCopy.ErrorHomeLabel">
-            @Body
-        </GlobalErrorBoundary>
-    </main>
+    <NavMenu />
+    <div class="ts-content">
+        <main class="ts-main" id="main" tabindex="-1">
+            <GlobalErrorBoundary BoundaryName="admin UI"
+                                 CssClass="ts-error"
+                                 Title="@UiCopy.ErrorTitle"
+                                 Description="@UiCopy.ErrorDescription"
+                                 HomeLabel="@UiCopy.ErrorHomeLabel">
+                <AgentGate>@Body</AgentGate>
+            </GlobalErrorBoundary>
+        </main>
+        <StatusBar />
+    </div>
 </div>
+<ShortcutHelpDialog Open="_helpOpen" OnClose="CloseHelp" />

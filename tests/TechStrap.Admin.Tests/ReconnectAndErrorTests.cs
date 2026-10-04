@@ -1,3 +1,4 @@
+using TechStrap.Tests.Shared.AdminHost;
 using System.Net;
 using AngleSharp.Html.Parser;
 using TechStrap.Tests.Shared;
@@ -16,9 +17,10 @@ public sealed class ReconnectAndErrorTests
     public async Task Every_page_mounts_exactly_one_styled_reconnect_dialog_with_plain_copy()
     {
         await using var factory = new AdminFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
 
         var html = await client.GetStringAsync("/", TestContext.Current.CancellationToken);
+        factory.Api.AssertEveryCallBore(AdminTestPrincipal.Agent);
         var page = await new HtmlParser().ParseDocumentAsync(html, TestContext.Current.CancellationToken);
 
         var dialogs = page.QuerySelectorAll("dialog#components-reconnect-modal");

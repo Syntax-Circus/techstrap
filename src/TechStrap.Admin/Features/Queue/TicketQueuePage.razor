@@ -1,0 +1,80 @@
+@using TechStrap.Admin.Features.Tickets
+@page "/"
+@page "/queue/{View?}"
+@attribute [Authorize]
+
+<PageTitle>@_filter.View &middot; Queue</PageTitle>
+<div class="ts-queue">
+    <h1>@QueueCopy.Heading</h1>
+    <QueueViewTabs ActiveView="@_filter.View" Counts="_counts" HrefFor="TabHref" />
+    <QueueFilterBar @ref="_filterBar" Filter="_filter" Products="_products" Tags="_tags" OnChanged="OnFilterChangedAsync" OnRefresh="RefreshAsync" />
+    <p class="visually-hidden" role="status">@_announcement</p>
+
+    @if (_loading && _page is null)
+    {
+        <LoadingState Rows="8" Label="Loading tickets" />
+    }
+    else
+    {
+        @if (_error is not null)
+        {
+            <ErrorState Message="@_error" OnRetry="RetryAsync" RetryLabel="@(_notSpamError ? ActionsCopy.Reload : UiCopy.RetryLabel)" />
+        }
+
+        @if (_rows.Count > 0)
+        {
+            <div class="table-responsive">
+                <table class="table ts-ledger" data-shortcut-scope="queue" aria-busy="@(_loading ? "true" : null)">
+                    <thead>
+                        <tr>
+                            <th scope="col"><span class="visually-hidden">Selection</span></th>
+                            <th scope="col">Ticket</th>
+                            <th scope="col">Subject</th>
+                            <th scope="col">Product</th>
+                            <th scope="col">Requester</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Priority</th>
+                            <th scope="col">Assignee</th>
+                            <th scope="col">Last activity</th>
+                            @if (IsSpamView)
+                            {
+                                <th scope="col"><span class="visually-hidden">Actions</span></th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var i = 0; i < _rows.Count; i++)
+                        {
+                            <TicketRow @key="_rows[i].Id" Row="_rows[i]" Selected="@(i == _selected)" ShowNotSpam="IsSpamView" OnNotSpam="NotSpamAsync" />
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <PagerControl Page="_filter.Page" PageSize="QueueDefaults.PageSize" TotalCount="_page!.TotalCount" OnPageChanged="OnPageChangedAsync" />
+        }
+        else if (_page is not null && _error is null)
+        {
+            @if (_filter.HasFilters)
+            {
+                <EmptyState Heading="@QueueCopy.NoMatchHeading">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ClearFiltersAsync">@QueueCopy.ClearFilters</button>
+                </EmptyState>
+            }
+            else if (IsCaughtUpView)
+            {
+                <div class="ts-window-page">
+                    <BrandWindow Title="@CaughtUpCopy.Title" Heading="@CaughtUpCopy.Heading">
+                        <p>@CaughtUpCopy.Body</p>
+                        <div class="ts-window-action">
+                            <a class="ts-window-link" href="@CaughtUpLinkHref">@CaughtUpLinkText</a>
+                        </div>
+                    </BrandWindow>
+                </div>
+            }
+            else
+            {
+                <EmptyState Heading="@PlainEmptyHeading" />
+            }
+        }
+    }
+</div>

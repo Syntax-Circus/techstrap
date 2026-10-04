@@ -1,0 +1,32 @@
+<tr class="@(Selected ? "ts-row ts-row--selected" : "ts-row")" aria-current="@(Selected ? "true" : null)" data-ticket="@Row.Number">
+    <td class="ts-col-mark" aria-hidden="true"></td>
+    <td class="ts-col-number"><a href="@Row.Href">@Row.Number</a></td>
+    <td class="ts-col-subject">
+        <span class="ts-subject">@Row.Subject</span>
+        @foreach (var tag in Row.Tags)
+        {
+            <TagChip Name="@tag.Name" Colour="@tag.Colour" />
+        }
+    </td>
+    <td class="ts-col-product"><span class="ts-product">@Row.ProductName</span></td>
+    <td class="ts-col-requester">@Row.Requester</td>
+    <td class="ts-col-status"><StatusStamp Status="Row.Stamp" /></td>
+    <td class="ts-col-priority"><PriorityMark Level="Row.Priority" /></td>
+    <td class="ts-col-assignee">
+        @if (Row.AssigneeName is not null)
+        {
+            <span class="ts-avatar" title="@Row.AssigneeName"><span aria-hidden="true">@Row.AssigneeInitials</span><span class="visually-hidden">@Row.AssigneeName</span></span>
+        }
+        else
+        {
+            <span class="ts-unassigned"><span aria-hidden="true">&mdash;</span><span class="visually-hidden">Unassigned</span></span>
+        }
+    </td>
+    <td class="ts-col-activity"><RelativeTime When="Row.LastActivity" /></td>
+    @if (ShowNotSpam)
+    {
+        <td class="ts-col-actions">
+            <button type="button" class="btn btn-link" @onclick="() => OnNotSpam.InvokeAsync(Row)">Not spam <Kbd>u</Kbd></button>
+        </td>
+    }
+</tr>

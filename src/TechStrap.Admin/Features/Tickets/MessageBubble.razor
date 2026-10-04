@@ -1,0 +1,9 @@
+<TintedEntry Kind="Message.Kind" Author="@Message.Author" Time="@TicketDisplay.Relative(Message.At, Time.GetUtcNow())">
+    @* The ONE place the Admin renders HTML from the API. MessageDto.BodyHtml is sanitised on the server; nothing else may use MarkupString (MarkupStringSiteTests). *@
+    <div class="ts-message-body">@((MarkupString)Message.BodyHtml)</div>
+    <AttachmentList Items="Message.Attachments" />
+    @if (Message.Articles.Count > 0)
+    {
+        <p class="ts-articles">@TicketCopy.LinkedArticlesLabel: @string.Join(", ", Message.Articles.Select(a => a.Title))</p>
+    }
+</TintedEntry>

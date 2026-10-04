@@ -8,8 +8,9 @@ using SyntaxCircus.Observability;
 using TechStrap.Api.Options;
 using TechStrap.Api.Security;
 using TechStrap.Api.Startup;
+using TechStrap.Hosting.Logging;
+using TechStrap.Hosting.Sentry;
 using TechStrap.Infrastructure.Intake;
-using TechStrap.Infrastructure.Logging;
 using TechStrap.Infrastructure.Persistence;
 using TechStrap.Infrastructure.Security;
 using TechStrap.Infrastructure.Seeding;
@@ -35,9 +36,7 @@ if (telemetry.Options.Sentry.IsEnabled)
     {
         telemetry.ConfigureSentry(options, context =>
             context.TransactionContext.Name.Contains("/health", StringComparison.OrdinalIgnoreCase) ? 0d : null);
-        var headerProcessor = new SensitiveHeaderSentryProcessor();
-        options.AddEventProcessor(headerProcessor);
-        options.AddTransactionProcessor(headerProcessor);
+        options.AddSensitiveHeaderScrubbing();
         options.AutoSessionTracking = false;
     });
 }

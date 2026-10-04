@@ -1,0 +1,95 @@
+// The reply composer wears the carbon tint code (BRAND.md section 12, UX-BRIEF-admin "Composer distinction"): canary with a solid edge for a public reply,
+// pink with a dashed edge and a notched corner for an internal note. This file is allowed to paint with the tint tokens (TintStyleTests lists it), and
+// the same rule applies as in _tinted-entry.scss: a tint never decorates anything else, and colour is never the only cue (the label, the warning text
+// and the dashed edge say it too).
+
+.ts-composer {
+  position: relative;
+  margin-top: 16px;
+  padding: 10px 12px 12px;
+  color: var(--ink);
+  border: 2px solid var(--rule-strong);
+
+  textarea {
+    background: var(--sheet);
+  }
+}
+
+.ts-composer--public {
+  background: var(--canary);
+  border-color: var(--canary-edge);
+  box-shadow: 2px 2px 0 var(--shadow);
+}
+
+.ts-composer--note {
+  background: var(--pink);
+  border: 2px dashed var(--pink-edge);
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+  box-shadow: none;
+}
+
+.ts-composer-modes {
+  display: inline-flex;
+  gap: 0;
+  margin-bottom: 8px;
+
+  .btn + .btn {
+    margin-left: -2px;
+  }
+}
+
+.ts-composer-audience {
+  margin: 0 0 4px;
+  font: 500 .75rem var(--ts-font-mono);
+}
+
+.ts-composer-warning {
+  margin: 0 0 6px;
+  font: 600 .75rem var(--ts-font-mono);
+  letter-spacing: .03em;
+}
+
+// The persistent warning bar of the note mode (role="status"): it stays visible while the mode is active.
+.ts-composer-warning--internal {
+  padding: 4px 8px;
+  color: var(--note-ink);
+  border: 2px solid var(--note-ink);
+}
+
+.ts-composer-files {
+  margin-top: 8px;
+}
+
+.ts-file-list {
+  margin: 4px 0;
+  padding: 0;
+  list-style: none;
+  font-size: .8125rem;
+}
+
+.ts-composer-status {
+  margin-top: 8px;
+  max-width: 16rem;
+}
+
+.ts-composer-error {
+  margin: 8px 0 0;
+  padding: 4px 8px;
+  background: var(--sheet);
+  border: 2px solid var(--st-spam);
+}
+
+.ts-composer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ts-composer-notice,
+.ts-composer-sending {
+  margin: 8px 0 0;
+  padding: 4px 8px;
+  background: var(--sheet);
+  border: 2px solid var(--rule-strong);
+}

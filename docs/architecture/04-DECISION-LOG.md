@@ -13,6 +13,7 @@ Approval basis:
 - **Owner decision (2026-10-03, PHASE-06 planning):** D-035 (PHASE-06 split, Markdown replies, agent attachments, Solved notice). D-036 was proposed in the PHASE-06a plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-03, PHASE-06b planning):** D-037 (three-PR split, lost link keeps old links, follow-up dedupe window, no auto-close email). D-038 was proposed in the PHASE-06b plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-03, PHASE-06c planning):** D-039, the owner decisions on erase scope, follow-ups of a deleted ticket and outbox retention. Its technical decisions were proposed in the PHASE-06c plan and approved when the owner approved the plan.
+- **Owner decision (2026-10-04, PHASE-07 planning):** D-040, the owner decisions on the PHASE-07 split, the identity provider and the shared hosting project. Its technical decisions were proposed in the PHASE-07a plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -61,6 +62,7 @@ Approval basis:
 | D-037 | PHASE-06 lands as 06a/06b/06c; lost link keeps old links; 2-minute follow-up dedupe; auto-close sends no email | Approved (owner 2026-10-03) | 2026-10-03 | PHASE-06, PHASE-09 |
 | D-038 | Customer API: Public routes with in-handler token auth, uniform 404, separate customer attachment route, lost-link rules, alert recipients, reopen window from AutoCloseOptions, per-ticket auto-close | Approved (owner, PHASE-06b plan review) | 2026-10-03 | PHASE-06, PHASE-09, PHASE-12 |
 | D-039 | PHASE-06c: erase covers subject, metadata and outbox rows; hard delete unlinks follow-ups; outbox retention sweep and lookup index; Serilog redaction enricher; multipart hardening | Approved (owner 2026-10-03; technical decisions at PHASE-06c plan review) | 2026-10-03 | PHASE-06, PHASE-07, PHASE-09, PHASE-12 |
+| D-040 | PHASE-07 lands as 07a/07b/07c; Authentik set up later; TechStrap.Hosting project; Admin sign-in, API clients and ticket-handling decisions | Approved (owner 2026-10-04; technical decisions at PHASE-07a plan review) | 2026-10-04 | PHASE-07, PHASE-08, PHASE-09, PHASE-12 |
 
 ---
 
@@ -174,6 +176,7 @@ The API validates the OIDC JWT and an authorization policy requires a configured
 - Setup docs must explain adding the group claim in each IdP.
 - Removal from the group should block access at the next token; the agent `active` flag handles deprovisioning inside TechStrap.
 - Bootstrap env var must be documented as removable after first sign-in.
+- Amended in part by D-040: the Admin does not parse the group claim; its no-access page follows the API's answer to GET /api/agents/me.
 
 ### Approval
 - **Approved by:** Jon Seeley (owner Q&A)
@@ -536,6 +539,7 @@ Admin exposes `GET /attachments/{id}` and Portal exposes `GET /t/{token}/attachm
 - The two adapters differ in credential and path, so they stay separate (PHASE-09 duplication note).
 - Architecture tests assert neither host references Infrastructure and each adapter calls only the attachments client.
 - Not a boundary deviation.
+- Amended in part by D-040: the Admin adapter streams through the named read client (not a typed, buffering client) and there is no IAttachmentsClient.
 
 ### Approval
 - **Approved by:** Jon Seeley (owner confirmation)
@@ -1300,7 +1304,71 @@ D-006 said what erase and delete are for, but left the detail open. Reading the 
 - **Row versions.** Erasing a requester changes the row version of that requester's tickets, so an agent holding an old copy gets a 409 and reloads.
 - **Backups** still hold erased and deleted data until they expire (D-006, PHASE-12 runbook).
 - **Outbox history** older than the retention window is gone: the dead-letter list and the per-address lost-link count see only recent rows.
+- Amended in part by D-040: PiiRedactionEnricher and the Sentry header scrubber moved to TechStrap.Hosting, and the Admin host is wired in PHASE-07a.
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-06c planning)
 - **Approved on:** 2026-10-03
+
+---
+
+## D-040: PHASE-07 lands as 07a/07b/07c; Authentik later; TechStrap.Hosting; Admin sign-in, clients and ticket handling
+
+- **Status:** Approved (owner 2026-10-04; technical decisions at PHASE-07a plan review)
+- **Date:** 2026-10-04
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-004, D-016, D-017, D-022, D-024, D-029, D-036, D-039, PHASE-07, PHASE-08, PHASE-09, PHASE-12, UX-BRIEF-admin, `docs/superpowers/plans/2026-10-04-phase-07a-admin-shell-and-tickets.md`
+
+### Context
+PHASE-07 has 23 tasks, too many for one review. The owner's identity provider (Authentik) is not set up yet, so nothing can be signed in against it. The Admin needs the log redactor and the Sentry header scrubber of PHASE-06c, but they live in Infrastructure and the Api, which the Admin may not reference (D-005, 02-ARCHITECTURE section 2). Reading the Admin placeholder and the packages shows gaps in the PHASE-07 spec. `SyntaxCircus.Http.Resilience` `ApiClientBase` drops the `errorCodes` the API sends for validation failures and has no `Result` mapping. `AddResilientHttpClient` retries every HTTP method, not only GETs. A circuit gets its token only from a named client created by `IBlazorCircuitHttpClientFactory`. Every ticket call is a 403 until `GET /api/agents/me` has created the agent row. `TicketStateDto` carries ids, not names. The API has no per-requester counts and no list of a ticket's follow-ups.
+
+### Decision
+**Owner decisions (2026-10-04)**
+- **PHASE-07 lands in three PRs.** 07a (T01 to T13 and T22): sign-in, shell, typed clients, queue, and ticket detail with every agent action. 07b (T14 to T18 and T23): the settings and admin pages. 07c (T19 and T20): the brand, responsive and accessibility pass, the compose and Dockerfile checks, the Admin architecture rules, the CSP, shared host wiring and the OpenAPI bearer scheme.
+- **Authentik is not set up yet.** OIDC is wired from configuration for real. Tests use a fake authentication scheme and a stub API, and the docs get an Authentik setup note.
+- **A new `TechStrap.Hosting` project** holds `PiiRedactionEnricher` and `SensitiveHeaderSentryProcessor` (moved, behaviour unchanged). Api, Worker, Admin and Portal may reference it. Infrastructure drops its Serilog package.
+- **No Playwright in PHASE-07.** The optional browser smoke tests (P07-T21) move to PHASE-12.
+
+**Technical decisions (proposed in the plan)**
+- **OIDC configuration** keeps the existing `Auth__*` keys (`AddBlazorTokenForwarding(configuration, "Auth")`). The scopes default to `openid profile email offline_access`. The group keys are the API's flat names `TECHSTRAP_AGENT_GROUP`, `TECHSTRAP_ADMIN_GROUP` and `TECHSTRAP_GROUP_CLAIM_TYPE`, with the API's defaults. Options are validated on start and read lazily, so a missing key stops the start with a message naming the variable, and test factories supply values through in-memory configuration.
+- **UI gating uses the API as the source of truth.** An `AgentSession` calls `GET /api/agents/me` once per scope. That call also creates the agent row, so no ticket call comes before it. A 403 (`agent-access-required`, `agent-inactive`, `agent-email-required`, `agent-identity-invalid`) shows the no-access page, a 401 asks for a new sign-in. The Admin does not copy the group-claim parsing of the API. Delete and erase show only for the role the API reports; the API still enforces them.
+- **Sign-in plumbing.** The cookie scheme is literally `Cookies` (SyntaxCircus.Blazor.Auth reads tokens from it) plus OpenIdConnect with the code flow, PKCE, `SaveTokens`, `offline_access`, `MapInboundClaims=false` and the userinfo claims. `GET /signin` (the anonymous landing page), `GET /signin/start` (the challenge, local return URLs only) and `POST /signout` (antiforgery) are minimal-API endpoints, so an anonymous visitor never opens a circuit. The fallback authorization policy requires a signed-in user. The error and not-found pages, `/signin*`, the health checks and the static assets stay anonymous, and `/_styleguide` stays anonymous in Development only. Tests use a `Test` authentication scheme and never touch OIDC.
+- **Render mode.** `Routes` and `HeadOutlet` render `InteractiveServer`. Prerendering stays on, so the first render also asks the API; reads are doubled until a later phase persists the state across the prerender.
+- **HTTP clients.** There are two named clients with the auth handler and the forwarded client IP. `techstrap-api-read` is resilient (3 retries); `techstrap-api-write` has no retry and no circuit breaker, so a transient failure can never duplicate a reply or a note. The typed clients sit on a small Admin `ApiConnection`, not on `ApiClientBase`. It reads problem details, including `errorCodes`, into `SyntaxCircus.Common` `Result`: 400 is Validation, 401 Unauthenticated, 403 Forbidden, 404 NotFound, 409 Conflict, anything else Failure. Cancellation by the caller propagates and is never mapped.
+- **Attachments (D-017).** `GET /attachments/{id}` streams `GET api/attachments/{id}` through the read client without buffering, forces `Content-Disposition: attachment`, `nosniff` and `Cache-Control: private, no-store`, and answers 404 for any upstream 404. There is no `IAttachmentsClient`: a buffering typed client would defeat the streaming.
+- **Sidebar.** It is optimistic-free (the PHASE-07 table wins over the UX brief): the control shows a pending state, then re-renders from the returned `TicketStateDto`. A failure shows an inline error and the previous value. Every write sends the current `RowVersion`. A 409 `concurrency-conflict` raises a non-blocking banner with Reload and keeps drafts.
+- **Queue.** The default view is Unassigned (UX), not `TicketViews.Default` (All). The page size is 25, the search debounce 300 ms, and all filter state lives in the query string.
+- **Keyboard.** One ES module drives the shortcuts. A status bar with a `role="status"` slot, the shortcut help dialog and the Not spam key `u` are in 07a. The command palette (Ctrl+K) moves to 07c.
+- **Dialogs.** Native `<dialog>`; Enter never confirms. Spam asks for confirmation naming the ticket, delete needs the ticket number typed, erase the requester's email. Not spam has no dialog.
+- **Reply composer.** Separate drafts for a public reply and an internal note, kept per ticket for the life of the circuit. Selected files are kept until a send succeeds. `LinkedArticleIds` stays empty until PHASE-08.
+- **Spec deviations.** `Components/{Ui,Pages,Layout}` stay; the new folders are `Auth/`, `Clients/`, `Options/`, `Features/Queue/` and `Features/Tickets/` (the spec said `Shared/` and `Features/TicketDetail`). `StatusStamp` and `PriorityMark` are the spec's `StatusBadge` and `PriorityBadge`, with a mapper for the API's status strings. The spec's `TicketView.Spam` is `TicketViews.Spam`. The queue mapping stays in the page code-behind; the PHASE-07 table wins over the `TicketQueueViewModelFactory` of 02-ARCHITECTURE section 8.1. `IDeadLettersClient` and `IAdminEventsClient` arrive in 07b with their pages.
+- **Forced by Blazor or the API, found while prototyping.**
+  - Component view models are `public`. Razor components are always public, so an internal parameter type does not compile; helpers stay `internal`.
+  - The composer enforces file size, type and count itself, because `InputFile` has no size limit parameter.
+  - Not spam from the Spam view first reads the ticket, because the queue row has no RowVersion.
+  - A Closed ticket shows a read-only facts panel instead of the sidebar.
+  - Times show in UTC; local-zone display moves to 07c.
+  - The conflict banner offers Reload, but not the UX's "Apply my change again".
+  - `MessageThread` is merged into `TicketTimeline` and `MessageBubble`.
+  - Queue tabs are real links, so each view can be bookmarked.
+- **Known API gaps, recorded.** The erase dialog shows no ticket or attachment counts, because no endpoint returns them. The follow-up children of a ticket are not listed, because the API has no field for them; a follow-up shows "Follow-up to {number}" by fetching its parent.
+- **Hosting.** The shared project is a leaf: it references no TechStrap project, only `SyntaxCircus.AspNetCore.Serilog` and `SyntaxCircus.Observability`. The architecture tests allow Api, Worker, Admin and Portal to reference it and nothing else.
+
+### Alternatives Considered
+- **One PR for PHASE-07.** Rejected by the owner: 23 tasks cannot be reviewed well together.
+- **Wait for Authentik.** Rejected by the owner: the app can be built and tested against fakes now.
+- **Admin references Infrastructure for the redactor.** Rejected: it breaks D-005 and the architecture test.
+- **Copy the redactor into Admin.** Rejected: two copies of a privacy control drift apart.
+- **`ApiClientBase` with `AddResilientHttpClient`.** Rejected: it drops the validation codes, and it retries POST, PUT and DELETE.
+- **Copy the API's group parsing into the Admin.** Rejected: a second implementation can disagree with the API about who has access. The API's answer is the only one that matters.
+- **An interactive `/signin` page.** Rejected: an anonymous visitor would open a circuit that the fallback policy refuses.
+
+### Consequences
+- **Superseded wording.** PHASE-07 ("references `TechStrap.Contracts` only", "built on `ApiClientBase`", `Shared/`, `IAttachmentsClient`, optional Playwright), 02-ARCHITECTURE section 2 (reference table) and the UX-BRIEF-admin "optimistic" sidebar for 07a.
+- **Local compose** needs real or dummy OIDC values for the Admin to start. A dummy authority starts the app; signing in then fails until Authentik exists.
+- **Prerendering doubles the first reads** of a page (the prerender scope and the circuit scope each ask the API).
+- **Row versions.** The sidebar and the composer send the version they loaded; an agent holding an old copy gets a 409 and reloads.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-07 planning)
+- **Approved on:** 2026-10-04

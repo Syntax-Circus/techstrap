@@ -76,6 +76,14 @@ services:
       # Admin trusts only the reverse proxy. 192.0.2.0/24 is a placeholder; set REVERSE_PROXY_CIDR.
       TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${REVERSE_PROXY_CIDR:-192.0.2.0/24}
       DataProtection__KeyRingPath: /app/dataprotection-keys
+      # The Admin will not start without an OIDC client. These placeholders let the container start without an identity provider;
+      # signing in then fails until OIDC_AUTHORITY, OIDC_ADMIN_CLIENT_ID and OIDC_ADMIN_CLIENT_SECRET are set in the root .env (docs/development/ADMIN-APP.md).
+      Auth__Authority: ${OIDC_AUTHORITY:-https://authentik.invalid/application/o/techstrap-admin/}
+      Auth__ClientId: ${OIDC_ADMIN_CLIENT_ID:-techstrap-admin}
+      Auth__ClientSecret: ${OIDC_ADMIN_CLIENT_SECRET:-not-configured}
+      TECHSTRAP_AGENT_GROUP: ${TECHSTRAP_AGENT_GROUP:-techstrap-agents}
+      TECHSTRAP_ADMIN_GROUP: ${TECHSTRAP_ADMIN_GROUP:-techstrap-admins}
+      TECHSTRAP_GROUP_CLAIM_TYPE: ${TECHSTRAP_GROUP_CLAIM_TYPE:-groups}
     depends_on:
       api:
         condition: service_healthy

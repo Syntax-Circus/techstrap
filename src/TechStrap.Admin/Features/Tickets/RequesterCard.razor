@@ -1,0 +1,13 @@
+<section class="ts-requester" aria-label="@TicketCopy.RequesterHeading">
+    <h2>@TicketCopy.RequesterHeading</h2>
+    @if (!string.IsNullOrWhiteSpace(Requester.Name))
+    {
+        <p class="ts-requester-name">@Requester.Name</p>
+    }
+    <p class="ts-requester-email">@Requester.Email</p>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public TicketRequesterDto Requester { get; set; } = default!;
+}

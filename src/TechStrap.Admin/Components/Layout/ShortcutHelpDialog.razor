@@ -1,0 +1,26 @@
+<ConfirmDialog Open="Open" Title="@ShellCopy.ShortcutHelpTitle" Informational="true" CancelLabel="@ShellCopy.Close" OnCancel="OnClose">
+    <table class="ts-shortcut-table">
+        <thead>
+            <tr><th scope="col">Keys</th><th scope="col">Where</th><th scope="col">What it does</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var entry in ShortcutCatalog.All)
+            {
+                <tr>
+                    <td><Kbd>@entry.Keys</Kbd></td>
+                    <td>@entry.Context</td>
+                    <td>@entry.Description</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <p>Single-key shortcuts are off while you type in a field.</p>
+</ConfirmDialog>
+
+@code {
+    [Parameter]
+    public bool Open { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+}

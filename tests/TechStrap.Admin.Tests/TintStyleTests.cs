@@ -15,9 +15,10 @@ public sealed class TintStyleTests
 
     private static readonly CompiledCss Css = CompiledCss.Load("TechStrap.Admin");
 
-    // Styles that may paint with the carbon tints. PHASE-07 adds the reply composer, the avatar fill and the status-bar message
-    // here when those components land; the list is deliberately short so a new use is a conscious decision.
-    private static readonly string[] TintFiles = ["_tinted-entry.scss"];
+    // Styles that may paint with the carbon tints: the timeline entries and, since PHASE-07a, the reply composer (UX-BRIEF-admin,
+    // "Composer distinction"). The avatar and the status-bar message use --head and need no entry. The list is deliberately short
+    // so a new use is a conscious decision.
+    private static readonly string[] TintFiles = ["_tinted-entry.scss", "_composer.scss"];
     private static readonly string[] BrandMomentFiles = ["_brand-window.scss"];
 
     [Fact]
