@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using SyntaxCircus.AspNetCore.Common;
 using SyntaxCircus.Observability;
 using ObservabilitySentryOptions = SyntaxCircus.Observability.SentryOptions;
+using TechStrap.Admin.Options;
 using TechStrap.Api.Options;
 using TechStrap.Api.Startup;
 using TechStrap.Application.Email;
@@ -111,10 +112,13 @@ public sealed partial class EnvExampleCompletenessTests
                 .. ObservabilityKeys(),
                 .. TrustedProxyKeys(),
                 "API__BASEURL",
+                "API__TIMEOUTSECONDS",
                 "AUTH__AUTHORITY",
                 "AUTH__CLIENTID",
                 "AUTH__CLIENTSECRET",
-                "TECHSTRAP_ADMIN_GROUP",
+                AgentGroupOptions.AgentGroupKey,
+                AgentGroupOptions.AdminGroupKey,
+                AgentGroupOptions.GroupClaimTypeKey,
                 "DATAPROTECTION__KEYRINGPATH",
             ]
         },

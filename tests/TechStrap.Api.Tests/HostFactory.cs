@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Serilog.Core;
 using Serilog.Events;
 using TechStrap.Api.Startup;
+using TechStrap.Tests.Shared.AdminHost;
 
 namespace TechStrap.Api.Tests;
 
@@ -98,8 +99,30 @@ public sealed class WorkerFactory(
             .ToDictionary(group => group.Key, group => group.Last().Value, StringComparer.OrdinalIgnoreCase),
         configureServices);
 
-public sealed class AdminFactory(string environment = "Development")
-    : HostFactory<TechStrap.Admin.Program>(environment);
+/// <summary>
+/// The Admin host with the settings its options validation requires (<see cref="AdminTestSettings"/>, with <c>settings</c> applied on top) and a stub API behind its
+/// named HTTP clients (<see cref="Api"/>).
+/// </summary>
+public sealed class AdminFactory : HostFactory<TechStrap.Admin.Program>
+{
+    public AdminFactory(
+        string environment = "Development",
+        IReadOnlyDictionary<string, string?>? settings = null,
+        Action<IServiceCollection>? configureServices = null)
+        : this(environment, settings, configureServices, new StubApiHandler())
+    {
+    }
+
+    private AdminFactory(
+        string environment,
+        IReadOnlyDictionary<string, string?>? settings,
+        Action<IServiceCollection>? configureServices,
+        StubApiHandler api)
+        : base(environment, AdminTestSettings.With(settings), services => configureServices?.Invoke(services)) => Api = api;
+
+    /// <summary>The stub behind the Admin's API clients. The tasks that add the clients and the sign-in wire it in.</summary>
+    public StubApiHandler Api { get; }
+}
 
 public sealed class PortalFactory(string environment = "Development")
     : HostFactory<TechStrap.Portal.Program>(environment);

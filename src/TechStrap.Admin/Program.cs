@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.DataProtection;
 using Sentry;
 using SyntaxCircus.AspNetCore.Common;
 using SyntaxCircus.AspNetCore.Serilog;
+using SyntaxCircus.Blazor.Auth;
 using SyntaxCircus.DotEnv;
 using SyntaxCircus.Observability;
 using TechStrap.Admin.Components;
+using TechStrap.Admin.Options;
 using TechStrap.Hosting.Logging;
 using TechStrap.Hosting.Sentry;
 
@@ -47,6 +49,10 @@ if (!string.IsNullOrWhiteSpace(keyRingPath))
 {
     builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(keyRingPath));
 }
+
+// Required settings are validated when the host starts (not read here), so a missing Auth or Api key stops the start with a clear message.
+builder.Services.AddAdminOptions(builder.Configuration);
+builder.Services.AddBlazorTokenForwarding(builder.Configuration, AdminOptionsRegistration.AuthSection);
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

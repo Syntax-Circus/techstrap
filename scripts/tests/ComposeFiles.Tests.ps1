@@ -143,7 +143,34 @@ Describe 'docker-compose files' -Skip:(-not $script:DockerAvailable) {
         }
     }
 
-    It '<file> resolves with the example env file, trusts the proxy in Admin and Portal only, and the API also trusts the subnet' -ForEach @(
+    It '<file> passes the Admin its OIDC client, the API address and the three group keys' -ForEach @(
+        @{ file = 'docker-compose.yml'; withEnv = $false }
+        @{ file = 'docker-compose.uat.yml'; withEnv = $true }
+        @{ file = 'docker-compose.production.yml'; withEnv = $true }
+    ) {
+        $envFile = ''
+        if ($withEnv) {
+            $envFile = Join-Path $TestDrive 'env-admin'
+            New-ProductionEnvFile -Path $envFile
+        }
+        $result = Get-ComposeConfig -File $file -EnvFile $envFile
+        $result.ExitCode | Should -Be 0
+        $names = $result.Config.services.admin.environment.PSObject.Properties.Name
+        foreach ($key in 'Auth__Authority', 'Auth__ClientId', 'Auth__ClientSecret', 'Api__BaseUrl', 'TECHSTRAP_AGENT_GROUP', 'TECHSTRAP_ADMIN_GROUP', 'TECHSTRAP_GROUP_CLAIM_TYPE') {
+            $names | Should -Contain $key
+        }
+        $result.Config.services.admin.environment.TECHSTRAP_AGENT_GROUP | Should -Be 'techstrap-agents'
+        $result.Config.services.admin.environment.TECHSTRAP_GROUP_CLAIM_TYPE | Should -Be 'groups'
+    }
+
+    It 'local compose gives the Admin placeholder OIDC values so the container starts without an identity provider' {
+        $admin = (Get-ComposeConfig -File 'docker-compose.yml').Config.services.admin.environment
+        $admin.Auth__Authority | Should -Match '^https://'
+        $admin.Auth__ClientId | Should -Not -BeNullOrEmpty
+        $admin.Auth__ClientSecret | Should -Not -BeNullOrEmpty
+    }
+
+    It '<file> resolves with the example env file,trusts the proxy in Admin and Portal only, and the API also trusts the subnet' -ForEach @(
         @{ file = 'docker-compose.production.yml' }
         @{ file = 'docker-compose.uat.yml' }
     ) {
