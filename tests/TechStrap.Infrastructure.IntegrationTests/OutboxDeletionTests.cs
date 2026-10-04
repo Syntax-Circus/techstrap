@@ -107,6 +107,25 @@ public sealed class OutboxDeletionTests(PostgresFixture postgres) : PostgresInte
         (await CountAsync("SELECT count(*) FROM email_outbox WHERE status = 'Sent'")).ShouldBe(1);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(int.MaxValue)]
+    public async Task DeleteFinishedBefore_normalises_a_non_positive_or_oversized_batch_size(int batchSize)
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var cutoff = host.Clock.GetUtcNow();
+        for (var i = 0; i < 3; i++)
+        {
+            await SetAsync(await EnqueueAsync(host, "k", "a@example.com", null), OutboxStatus.Sent, cutoff.AddDays(-1 - i));
+        }
+
+        var deleted = await host.ReadAsync(sp => sp.GetRequiredService<IEmailOutboxStore>().DeleteFinishedBeforeAsync(cutoff, batchSize, Ct));
+
+        deleted.ShouldBe(3);
+        (await CountAsync()).ShouldBe(0);
+    }
+
     [Fact]
     public async Task DeleteFinishedBefore_honours_the_batch_size()
     {

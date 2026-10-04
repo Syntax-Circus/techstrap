@@ -22,13 +22,19 @@ internal sealed class RequesterErasure(TechStrapDbContext context) : IRequesterE
         var customerMessages = context.Set<MessageRecord>()
             .Where(m => m.AuthorType == AuthorType.Requester && m.AuthorId == requesterId);
 
-        var storageKeys = await context.Set<AttachmentRecord>().AsNoTracking()
+        // Select once, then delete exactly those ids: the deleted set and the returned keys are identical even if an attachment
+        // commits in between (READ COMMITTED), so no file is ever orphaned.
+        var doomed = await context.Set<AttachmentRecord>().AsNoTracking()
             .Where(a => customerMessages.Select(m => m.Id).Contains(a.MessageId))
-            .Select(a => a.StorageKey)
+            .Select(a => new { a.Id, a.StorageKey })
             .ToListAsync(cancellationToken);
-        var attachments = await context.Set<AttachmentRecord>()
-            .Where(a => customerMessages.Select(m => m.Id).Contains(a.MessageId))
-            .ExecuteDeleteAsync(cancellationToken);
+        var attachmentIds = doomed.ConvertAll(a => a.Id);
+        var storageKeys = doomed.ConvertAll(a => a.StorageKey);
+        var attachments = attachmentIds.Count == 0
+            ? 0
+            : await context.Set<AttachmentRecord>()
+                .Where(a => attachmentIds.Contains(a.Id))
+                .ExecuteDeleteAsync(cancellationToken);
 
         var messages = await customerMessages
             .ExecuteUpdateAsync(set => set.SetProperty(m => m.Body, ErasureMarker.Text), cancellationToken);

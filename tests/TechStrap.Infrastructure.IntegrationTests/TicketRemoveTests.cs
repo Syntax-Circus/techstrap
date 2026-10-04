@@ -1,7 +1,10 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using TechStrap.Application.Persistence;
 using TechStrap.Domain.Tickets;
+using TechStrap.Infrastructure.Persistence;
+using TechStrap.Infrastructure.Persistence.Records;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
 
@@ -17,6 +20,15 @@ public sealed class TicketRemoveTests(PostgresFixture postgres) : PostgresIntegr
         await using var command = connection.CreateCommand();
         command.CommandText = sql;
         return (long)(await command.ExecuteScalarAsync(Ct))!;
+    }
+
+    private async Task ExecuteAsync(string sql)
+    {
+        await using var connection = new NpgsqlConnection(Database.ConnectionString);
+        await connection.OpenAsync(Ct);
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        await command.ExecuteNonQueryAsync(Ct);
     }
 
     [Fact]
@@ -40,6 +52,20 @@ public sealed class TicketRemoveTests(PostgresFixture postgres) : PostgresIntegr
             sp.GetRequiredService<ITicketRepository>().AddAccessToken(TicketAccessToken.Issue(ticket.Id, scenario.Requester.Id, "hash-1", host.Clock).Value);
             return Task.CompletedTask;
         })).IsSuccess.ShouldBeTrue();
+        var articleId = Guid.NewGuid();
+        var apiKeyId = Guid.NewGuid();
+        await ExecuteAsync($"""
+            INSERT INTO kb_articles (id, slug, title, body_markdown, status, author_id, created_at, updated_at)
+            VALUES ('{articleId}', 'a-1', 'Article', 'body', 'Draft', '{scenario.Agent.Id}', now(), now());
+            INSERT INTO ticket_articles (ticket_id, message_id, article_id)
+            SELECT ticket_id, id, '{articleId}' FROM messages WHERE ticket_id = '{ticket.Id}';
+            INSERT INTO product_api_keys (id, product_id, kind, key_hash, key_prefix, created_at)
+            VALUES ('{apiKeyId}', '{scenario.Acme.Id}', 'Trusted', 'h', 'tsk_x', now());
+            INSERT INTO intake_idempotency_keys (id, api_key_id, key_hash, ticket_id, response, created_at)
+            VALUES (gen_random_uuid(), '{apiKeyId}', 'k', '{ticket.Id}', '[]', now());
+            """);
+        (await CountAsync($"SELECT count(*) FROM ticket_articles WHERE ticket_id = '{ticket.Id}'")).ShouldBe(1);
+        (await CountAsync($"SELECT count(*) FROM intake_idempotency_keys WHERE ticket_id = '{ticket.Id}'")).ShouldBe(1);
 
         var result = await host.CommitAsync(async sp =>
         {
@@ -48,12 +74,14 @@ public sealed class TicketRemoveTests(PostgresFixture postgres) : PostgresIntegr
         });
 
         result.IsSuccess.ShouldBeTrue();
-        foreach (var table in new[] { "tickets", "messages", "attachments", "ticket_events", "ticket_tags", "ticket_access_tokens" })
+        foreach (var table in new[] { "tickets", "messages", "attachments", "ticket_events", "ticket_tags", "ticket_access_tokens", "ticket_articles", "intake_idempotency_keys" })
         {
             var column = table == "tickets" ? "id" : "ticket_id";
             (await CountAsync($"SELECT count(*) FROM {table} WHERE {column} = '{ticket.Id}'")).ShouldBe(0, table);
         }
 
+        (await CountAsync($"SELECT count(*) FROM kb_articles WHERE id = '{articleId}'")).ShouldBe(1);
+        (await CountAsync($"SELECT count(*) FROM product_api_keys WHERE id = '{apiKeyId}'")).ShouldBe(1);
         (await CountAsync($"SELECT count(*) FROM tags WHERE id = '{tag.Id}'")).ShouldBe(1);
         (await CountAsync($"SELECT count(*) FROM requesters WHERE id = '{scenario.Requester.Id}'")).ShouldBe(1);
     }
@@ -84,6 +112,11 @@ public sealed class TicketRemoveTests(PostgresFixture postgres) : PostgresIntegr
             await using var work = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(Ct);
             var repository = scope.ServiceProvider.GetRequiredService<ITicketRepository>();
             repository.Remove((await repository.GetByIdAsync(ticket.Id, Ct))!);
+
+            // Flush the staged delete into the open transaction (everything a commit does short of committing it).
+            var context = scope.ServiceProvider.GetRequiredService<TechStrapDbContext>();
+            await context.SaveChangesAsync(Ct);
+            (await context.Set<TicketRecord>().AsNoTracking().AnyAsync(t => t.Id == ticket.Id, Ct)).ShouldBeFalse();
         }
 
         (await CountAsync($"SELECT count(*) FROM tickets WHERE id = '{ticket.Id}'")).ShouldBe(1);
