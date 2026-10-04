@@ -62,6 +62,8 @@ internal sealed class TicketRepository(TechStrapDbContext context) : ITicketRepo
     /// Agent queue (D-024). Agent-only: with search text it matches internal-note bodies too, and the summaries carry the requester
     /// email and last activity time, so this must never serve a customer.
     /// </summary>
+    public void Remove(Ticket ticket) => context.Set<TicketRecord>().Remove(context.FindLoaded<TicketRecord>(ticket.Id));
+
     public async Task<PagedResult<TicketSummary>> ListAsync(TicketQuery query, CancellationToken cancellationToken)
     {
         var page = Paging.NormalizePage(query.Page);

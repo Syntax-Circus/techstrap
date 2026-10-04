@@ -44,4 +44,14 @@ public interface IEmailOutboxStore
 
     /// <summary>How many rows of <paramref name="kind"/> to <paramref name="toAddress"/> (case-insensitive) were created at or after <paramref name="since"/>, any status.</summary>
     Task<int> CountRecentAsync(string kind, string toAddress, DateTimeOffset since, CancellationToken cancellationToken);
+
+    /// <summary>Deletes every row of the ticket, any status. Runs in the caller's unit of work when one is active (admin delete), so it rolls back with it.</summary>
+    Task<int> DeleteForTicketAsync(Guid ticketId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deletes at most <paramref name="batchSize"/> (normalized through <see cref="Paging.NormalizeBatchSize"/>) Sent or Discarded rows whose
+    /// <c>created_at</c> is before <paramref name="before"/>, oldest first, as one short statement of its own (the retention sweep, D-039).
+    /// Pending, Sending and DeadLettered rows are never touched. Returns how many rows it deleted.
+    /// </summary>
+    Task<int> DeleteFinishedBeforeAsync(DateTimeOffset before, int batchSize, CancellationToken cancellationToken);
 }

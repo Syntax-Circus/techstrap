@@ -126,6 +126,29 @@ internal sealed class EmailOutboxStore(TechStrapDbContext context, TimeProvider 
             .CountAsync(e => e.Kind == kind && e.ToAddress == address && e.CreatedAt >= since, cancellationToken);
     }
 
+    public Task<int> DeleteForTicketAsync(Guid ticketId, CancellationToken cancellationToken) =>
+        context.Set<EmailOutboxRecord>().Where(e => e.TicketId == ticketId).ExecuteDeleteAsync(cancellationToken);
+
+    public async Task<int> DeleteFinishedBeforeAsync(DateTimeOffset before, int batchSize, CancellationToken cancellationToken)
+    {
+        var limit = Paging.NormalizeBatchSize(batchSize);
+        var ids = await context.Set<EmailOutboxRecord>()
+            .Where(e => (e.Status == OutboxStatus.Sent || e.Status == OutboxStatus.Discarded) && e.CreatedAt < before)
+            .OrderBy(e => e.CreatedAt)
+            .Select(e => e.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+        if (ids.Count == 0)
+        {
+            return 0;
+        }
+
+        // The status condition is repeated so a row that changed state since the select is never deleted.
+        return await context.Set<EmailOutboxRecord>()
+            .Where(e => ids.Contains(e.Id) && (e.Status == OutboxStatus.Sent || e.Status == OutboxStatus.Discarded))
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
     public void Update(EmailOutboxItem item) => item.CopyTo(context.FindLoaded<EmailOutboxRecord>(item.Id));
 
     /// <summary>
