@@ -63,6 +63,14 @@ builder.Services.AddOptions<IntakeRateLimitOptions>()
     .Validate(o => o.TrustedKeyWindowSeconds >= 1, "RateLimiting:Intake:TrustedKeyWindowSeconds must be >= 1.")
     .ValidateOnStart();
 
+builder.Services.AddOptions<CustomerRateLimitOptions>()
+    .Bind(builder.Configuration.GetSection(CustomerRateLimitOptions.SectionName))
+    .Validate(o => o.TokenAccessPermitLimit >= 1, "RateLimiting:Customer:TokenAccessPermitLimit must be >= 1.")
+    .Validate(o => o.TokenAccessWindowSeconds >= 1, "RateLimiting:Customer:TokenAccessWindowSeconds must be >= 1.")
+    .Validate(o => o.LostLinkPermitLimit >= 1, "RateLimiting:Customer:LostLinkPermitLimit must be >= 1.")
+    .Validate(o => o.LostLinkWindowSeconds >= 1, "RateLimiting:Customer:LostLinkWindowSeconds must be >= 1.")
+    .ValidateOnStart();
+
 builder.Services.AddRateLimiter(options =>
 {
     var limits = builder.Configuration.GetSection(PublicRateLimitOptions.SectionName).Get<PublicRateLimitOptions>()
@@ -71,6 +79,9 @@ builder.Services.AddRateLimiter(options =>
     var intake = builder.Configuration.GetSection(IntakeRateLimitOptions.SectionName).Get<IntakeRateLimitOptions>()
         ?? new IntakeRateLimitOptions();
     options.AddIntakePolicies(intake);
+    var customer = builder.Configuration.GetSection(CustomerRateLimitOptions.SectionName).Get<CustomerRateLimitOptions>()
+        ?? new CustomerRateLimitOptions();
+    options.AddCustomerPolicies(customer);
     options.UseProblemDetailsRejection();
 });
 
