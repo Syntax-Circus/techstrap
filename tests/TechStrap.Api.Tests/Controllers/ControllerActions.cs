@@ -47,6 +47,7 @@ public static class ControllerActions
         ["PublicIntakeController.Submit"] = 201,
         ["PublicProductsController.Get"] = 200,
         ["CustomerTicketsController.Get"] = 200,
+        ["CustomerTicketsController.Reply"] = 201,
     };
 
     /// <summary>Actions whose effective policy (action-level, else controller-level) is Agent or Admin.</summary>

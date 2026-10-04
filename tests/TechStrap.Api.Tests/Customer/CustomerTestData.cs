@@ -10,7 +10,8 @@ namespace TechStrap.Api.Tests.Customer;
 
 internal sealed record CustomerSeed(
     Guid TicketId, string Number, string ValidToken, string RevokedToken, string ExpiredToken,
-    string OtherTicketToken, string ErasedRequesterToken, Guid PublicAttachmentId, Guid InternalAttachmentId, Guid OtherTicketAttachmentId);
+    string OtherTicketToken, string ErasedRequesterToken, Guid PublicAttachmentId, Guid InternalAttachmentId, Guid OtherTicketAttachmentId,
+    Guid ClosedTicketId, string ClosedNumber, string ClosedToken);
 
 /// <summary>Seeds one product, three requesters, tickets, an agent named Sam Hargreaves and tokens through the real repositories and token service.</summary>
 internal static class CustomerTestData
@@ -65,9 +66,13 @@ internal static class CustomerTestData
         var otherReply = other.AddAgentReply(sam.Id, "<p>Other reply</p>", clock).Value;
         var otherAttachment = otherReply.AddAttachment("other.txt", "text/plain", 10, "storage/other", clock).Value;
         var erasedTicket = await NewTicketAsync(gone, "Erased ticket");
+        var closed = await NewTicketAsync(ann, "Closed ticket");
+        closed.ChangeStatus(TicketStatus.Solved, Actor.ForAgent(sam.Id), clock).IsSuccess.ShouldBeTrue();
+        closed.ChangeStatus(TicketStatus.Closed, Actor.ForAgent(sam.Id), clock).IsSuccess.ShouldBeTrue();
         tickets.Add(main);
         tickets.Add(other);
         tickets.Add(erasedTicket);
+        tickets.Add(closed);
 
         string Issue(Ticket ticket, Requester requester, bool revoke = false)
         {
@@ -89,10 +94,11 @@ internal static class CustomerTestData
             expiredIssued.Token.Id, main.Id, ann.Id, expiredIssued.Token.TokenHash, past.AddDays(-90), past, null, null));
         var otherToken = Issue(other, bob);
         var erasedToken = Issue(erasedTicket, gone);
+        var closedToken = Issue(closed, ann);
 
         (await work.CommitAsync(cancellationToken)).IsSuccess.ShouldBeTrue();
         return new CustomerSeed(
             main.Id, main.Number.ToString(), valid, revoked, expiredIssued.PlaintextToken, otherToken, erasedToken,
-            publicAttachment.Id, internalAttachment.Id, otherAttachment.Id);
+            publicAttachment.Id, internalAttachment.Id, otherAttachment.Id, closed.Id, closed.Number.ToString(), closedToken);
     }
 }

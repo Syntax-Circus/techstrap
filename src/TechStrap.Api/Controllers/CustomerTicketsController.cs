@@ -4,8 +4,11 @@ using Microsoft.AspNetCore.RateLimiting;
 using SyntaxCircus.AspNetCore.Common;
 using TechStrap.Api.Options;
 using TechStrap.Api.Security;
+using TechStrap.Api.Startup;
+using TechStrap.Application.Attachments;
 using TechStrap.Application.Tickets.Customer;
 using TechStrap.Contracts.Http;
+using TechStrap.Contracts.Tickets;
 
 namespace TechStrap.Api.Controllers;
 
@@ -24,5 +27,41 @@ public sealed class CustomerTicketsController : ControllerBase
     {
         Response.Headers.CacheControl = "no-store";
         return (await handler.HandleAsync(token, cancellationToken)).ToActionResult(this, Ok);
+    }
+
+    [HttpPost("ticket/replies")]
+    [Consumes("multipart/form-data")]
+    [ReadFormBeforeBinding]
+    [RequestSizeLimit(IntakeRequestLimits.FormBodyBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = IntakeRequestLimits.FormBodyBytes * 2)] // Kestrel's limit must trip first, as a 413
+    public async Task<IActionResult> Reply(
+        [FromHeader(Name = HeaderNames.TicketToken)] string? token,
+        [FromForm] CustomerReplyForm form,
+        [FromServices] IAddCustomerReplyRequestHandler handler,
+        CancellationToken cancellationToken)
+    {
+        Response.Headers.CacheControl = "no-store";
+        var files = form.Attachments ?? [];
+        var streams = new List<Stream>(files.Count);
+        try
+        {
+            var attachments = new List<IncomingAttachment>(files.Count);
+            foreach (var file in files)
+            {
+                var stream = file.OpenReadStream();
+                streams.Add(stream);
+                attachments.Add(new IncomingAttachment(file.FileName, file.ContentType, file.Length, stream));
+            }
+
+            return (await handler.HandleAsync(token, new AddCustomerReplyRequest(form.Body), attachments, cancellationToken))
+                .ToActionResult(this, response => StatusCode(StatusCodes.Status201Created, response));
+        }
+        finally
+        {
+            foreach (var stream in streams)
+            {
+                await stream.DisposeAsync();
+            }
+        }
     }
 }
