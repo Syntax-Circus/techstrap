@@ -1,0 +1,6 @@
+// Audit log (PHASE-07b): the sentence column wraps (it may carry a long slug or key prefix), and nothing in it is markup.
+
+.ts-audit-summary {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
