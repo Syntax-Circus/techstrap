@@ -1,0 +1,103 @@
+<PageTitle>@Title &middot; Products</PageTitle>
+<div class="ts-settings ts-product-editor">
+    <p class="ts-settings-back"><a href="/settings/products">&larr; @ProductsCopy.BackToProducts</a></p>
+    <h1>@Title</h1>
+
+    @if (_loading)
+    {
+        <LoadingState Rows="6" Label="@ProductsCopy.EditorLoading" />
+    }
+    else if (_loadError is not null)
+    {
+        <ErrorState Message="@_loadError" OnRetry="@(_gone ? default(EventCallback) : EventCallback.Factory.Create(this, LoadAsync))" />
+    }
+    else
+    {
+        @if (_conflict)
+        {
+            <div class="ts-conflict" role="alert">
+                <p><strong>@ProductsCopy.ConflictTitle</strong> @ProductsCopy.ConflictKept</p>
+                <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="ReloadAsync">@ProductsCopy.Reload</button>
+            </div>
+        }
+        @if (_uncertain)
+        {
+            <div class="ts-conflict" role="alert">
+                <p>@ProductsCopy.SaveUncertain</p>
+                <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="ReloadAsync">@ProductsCopy.Reload</button>
+            </div>
+        }
+        @if (_formError is not null)
+        {
+            <p class="ts-form-error" role="alert">@_formError</p>
+        }
+
+        <form class="ts-form" novalidate @onsubmit="SaveAsync">
+            <fieldset disabled="@_busy">
+                @if (_creating)
+                {
+                    @Field("ts-product-key", ProductsCopy.KeyLabel, ApiFields.Key, _model.Key, v => _model.Key = v, ProductsCopy.KeyHelp)
+                }
+                else
+                {
+                    <dl class="ts-readonly">
+                        <dt>@ProductsCopy.KeyLabel</dt>
+                        <dd><code>@_model.Key</code></dd>
+                        <dt>@ProductsCopy.NumberPrefixLabel</dt>
+                        <dd><code>@_model.NumberPrefix</code></dd>
+                    </dl>
+                }
+                @Field("ts-product-name", ProductsCopy.NameLabel, ApiFields.Name, _model.Name, v => _model.Name = v)
+                @if (_creating)
+                {
+                    @Field("ts-product-prefix", ProductsCopy.NumberPrefixLabel, ApiFields.NumberPrefix, _model.NumberPrefix, v => _model.NumberPrefix = v, ProductsCopy.NumberPrefixHelp)
+                }
+
+                <h2>@ProductsCopy.BrandingHeading</h2>
+                @Field("ts-product-display", ProductsCopy.DisplayNameLabel, ApiFields.DisplayName, _model.DisplayName, v => _model.DisplayName = v, ProductsCopy.DisplayNameHelp)
+                @Field("ts-product-logo", ProductsCopy.LogoLabel, ApiFields.LogoPath, _model.LogoPath, v => _model.LogoPath = v, ProductsCopy.LogoHelp, "url")
+                @Field("ts-product-accent", ProductsCopy.AccentLabel, ApiFields.AccentColour, _model.AccentColour, v => _model.AccentColour = v, ProductsCopy.AccentHelp)
+                @Field("ts-product-from", ProductsCopy.FromLabel, ApiFields.FromAddress, _model.FromAddress, v => _model.FromAddress = v, null, "email")
+                @Field("ts-product-reply", ProductsCopy.ReplyToLabel, ApiFields.ReplyTo, _model.ReplyTo, v => _model.ReplyTo = v, null, "email")
+
+                @if (!_creating)
+                {
+                    <div class="form-check ts-product-active">
+                        <input id="ts-product-active" class="form-check-input" type="checkbox" checked="@_model.IsActive" @onchange="OnActiveChanged" />
+                        <label class="form-check-label" for="ts-product-active">@ProductsCopy.ActiveLabel</label>
+                        <p class="ts-field-help">@ProductsCopy.ActiveHelp</p>
+                    </div>
+                }
+
+                <h2>@ProductsCopy.PreviewHeading</h2>
+                <AccentPreview Accent="@_model.AccentColour" DisplayName="@_model.DisplayName" LogoUrl="@PreviewLogo" />
+            </fieldset>
+
+            <div class="ts-form-actions">
+                <button type="submit" class="btn btn-primary" disabled="@(_busy || !CanSave)">@(_busy ? ProductsCopy.Saving : _creating ? ProductsCopy.Create : ProductsCopy.Save)</button>
+                @if (_dirty && !_creating)
+                {
+                    <span class="ts-dirty" role="status">@ProductsCopy.Unsaved</span>
+                }
+            </div>
+        </form>
+    }
+</div>
+
+@code {
+    /// <summary>One labelled text input with its help text and its error; the value is bound on input and checked on blur.</summary>
+    private RenderFragment Field(string id, string label, string field, string value, Action<string> set, string? help = null, string type = "text") => @<div class="ts-field">
+        <label for="@id" class="form-label">@label</label>
+        <input id="@id" type="@type" class="form-control @(_errors.ContainsKey(field) ? "is-invalid" : null)" value="@value" autocomplete="off"
+               aria-invalid="@(_errors.ContainsKey(field) ? "true" : null)" aria-describedby="@(_errors.ContainsKey(field) ? $"{id}-error" : help is not null ? $"{id}-help" : null)"
+               @oninput="e => OnInput(set, e)" @onblur="() => CheckField(field)" />
+        @if (help is not null)
+        {
+            <p id="@($"{id}-help")" class="ts-field-help">@help</p>
+        }
+        @if (_errors.TryGetValue(field, out var message))
+        {
+            <p id="@($"{id}-error")" class="ts-field-error" role="alert">@message</p>
+        }
+    </div>;
+}

@@ -1,0 +1,13 @@
+@page "/settings/products/new"
+@page "/settings/products/{Id}"
+@attribute [Authorize]
+
+<AdminOnly>
+    <ProductEditorContent Id="@Id" />
+</AdminOnly>
+
+@code {
+    /// <summary>The route segment: a product id, or absent on <c>/settings/products/new</c>.</summary>
+    [Parameter]
+    public string? Id { get; set; }
+}

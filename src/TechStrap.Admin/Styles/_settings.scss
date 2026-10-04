@@ -1,0 +1,197 @@
+// Settings pages (PHASE-07b): the page frame, forms, status pills and the branding preview. Working UI like the queue: compact, no mascot, no window frame.
+// Text that comes from outside (names, keys, addresses) wraps instead of stretching the table.
+
+.ts-settings {
+  max-width: 960px;
+  padding: 12px 16px;
+
+  h1 {
+    margin: 0 0 8px;
+    font: 600 1.125rem var(--ts-font-mono);
+  }
+
+  h2 {
+    margin: 20px 0 8px;
+    font: 600 .875rem var(--ts-font-mono);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+}
+
+.ts-settings-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+
+  h1 {
+    margin: 0;
+  }
+}
+
+.ts-settings-back {
+  margin: 0 0 4px;
+  font: 500 .75rem var(--ts-font-mono);
+}
+
+.ts-settings-table {
+  td {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    vertical-align: top;
+  }
+}
+
+.ts-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+// Status in words first; the border colour only repeats it.
+.ts-pill {
+  display: inline-block;
+  padding: 1px 8px;
+  font: 600 .6875rem var(--ts-font-mono);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--sheet);
+  border: 2px solid var(--rule-strong);
+}
+
+.ts-pill--on {
+  border-color: var(--st-open);
+}
+
+.ts-pill--off {
+  color: var(--ink-2);
+  border-style: dashed;
+}
+
+.ts-form {
+  max-width: 560px;
+
+  fieldset {
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
+  }
+}
+
+.ts-field {
+  margin-bottom: 12px;
+}
+
+.ts-field-help {
+  margin: 4px 0 0;
+  font-size: .75rem;
+  color: var(--ink-2);
+}
+
+.ts-field-error {
+  margin: 4px 0 0;
+  padding-left: 8px;
+  font-size: .8125rem;
+  border-left: 3px solid var(--st-spam);
+}
+
+.ts-field-note {
+  max-width: 560px;
+  margin: 8px 0 0;
+  padding-left: 8px;
+  font-size: .8125rem;
+  color: var(--ink-2);
+  border-left: 3px solid var(--rule-strong);
+}
+
+.ts-form-error {
+  max-width: 560px;
+  margin: 0 0 12px;
+  padding: 6px 10px;
+  border: 2px solid var(--st-spam);
+}
+
+.ts-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.ts-dirty {
+  font: 500 .75rem var(--ts-font-mono);
+  color: var(--ink-2);
+}
+
+.ts-readonly {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0 0 12px;
+
+  dt {
+    font: 500 .75rem var(--ts-font-mono);
+    color: var(--ink-2);
+  }
+
+  dd {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+// The branding preview: the same three custom properties the portal sets on its root (docs/BRAND.md), set here on the preview only.
+.ts-accent-preview {
+  max-width: 360px;
+  background: var(--sheet);
+  border: 2px solid var(--rule-strong);
+}
+
+.ts-accent-preview-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 12px;
+  color: var(--ts-on-accent);
+  background: var(--ts-accent);
+}
+
+.ts-accent-preview-logo {
+  max-width: 160px;
+  max-height: 32px;
+  object-fit: contain;
+}
+
+.ts-accent-preview-name {
+  min-width: 0;
+  font: 600 .9375rem var(--ts-font-mono);
+  overflow-wrap: anywhere;
+}
+
+.ts-accent-preview-sample {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin: 0;
+  padding: 12px;
+}
+
+.ts-accent-preview-button {
+  padding: 4px 12px;
+  font: 600 .75rem var(--ts-font-mono);
+  color: var(--ts-on-accent);
+  background: var(--ts-accent);
+  border: 2px solid var(--ts-accent);
+}
+
+.ts-accent-preview-link {
+  color: var(--ts-accent-ink);
+  text-decoration: underline;
+}
