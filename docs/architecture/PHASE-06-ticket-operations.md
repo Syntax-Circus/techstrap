@@ -110,7 +110,7 @@ Write the named handler test class first for every handler task (substitutes for
   - **Depends on:** none (inside this phase)
   - **Validation:** `ContractNamingTests` pass; DTO round-trip serialisation tests pass; no internal-only field (note bodies, hashes) in `Customer*` DTOs (`CustomerDtoShapeTests`)
   - **06a part done:** TicketDtoSerializationTests, ContractNamingTests (ticket DTOs and requests); **06b done:** customer DTOs (CustomerDtoShapeTests); **06c remaining:** dead-letter DTOs (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
-- [ ] **P06-T02** Implement `ITicketNotificationPlanner` with `TicketNotificationPlannerTests` (recipient rules per case, opt-in preferences, no email to the acting agent, no internal notes sent, branding of the ticket's current product) and `TicketNotificationPlanner` over `IEmailOutbox`, staging template data only (D-033); add the new templates
+- [x] **P06-T02** Implement `ITicketNotificationPlanner` with `TicketNotificationPlannerTests` (recipient rules per case, opt-in preferences, no email to the acting agent, no internal notes sent, branding of the ticket's current product) and `TicketNotificationPlanner` over `IEmailOutbox`, staging template data only (D-033); add the new templates
   - **Depends on:** P06-T01
   - **Validation:** `TicketNotificationPlannerTests` pass; template snapshot tests for all new templates; outbox rows are created in the caller's transaction (integration test with rollback)
   - **06a evidence:** TicketNotificationPlannerTests (Infrastructure.IntegrationTests); ticket-assigned, agent-reply and ticket-solved kinds (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)

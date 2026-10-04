@@ -255,7 +255,7 @@ public sealed class SensitiveDataLeakTests(TestPostgres postgres) : IAsyncLifeti
             }
         }
 
-        // 2. Every customer-facing email for this requester goes to the requester's own address only.
+        // 2. Every customer-facing email goes to the requester's own address, and its payload carries no private data.
         (await database.ScalarAsync<long>("SELECT count(*) FROM email_outbox WHERE kind = 'access-links'")).ShouldBe(1L);
         (await database.ScalarAsync<long>("SELECT count(*) FROM email_outbox WHERE kind = 'access-links' AND to_address <> 'ada@example.com'")).ShouldBe(0L);
         (await database.ScalarAsync<long>("SELECT count(*) FROM email_outbox WHERE kind = 'ticket-confirmation' AND to_address = 'ada@example.com'"))
@@ -263,13 +263,42 @@ public sealed class SensitiveDataLeakTests(TestPostgres postgres) : IAsyncLifeti
         (await database.ScalarAsync<long>(
             "SELECT count(*) FROM email_outbox WHERE kind IN ('ticket-confirmation', 'agent-reply', 'ticket-solved', 'access-links') " +
             "AND to_address NOT IN ('ada@example.com', 'bob.other@example.com')")).ShouldBe(0L);
-        (await database.ScalarAsync<long>(
-            "SELECT count(*) FROM email_outbox WHERE kind IN ('agent-reply', 'ticket-solved', 'access-links') AND to_address = 'bob.other@example.com'"))
-            .ShouldBe(0L, "the other requester receives nothing about this ticket");
 
-        // 3. Plaintext tokens live only in email_outbox.payload (and the follow-up response, which carries one to the client).
+        // Bob receives exactly his own intake confirmation and nothing else.
+        (await database.ScalarAsync<long>("SELECT count(*) FROM email_outbox WHERE to_address = 'bob.other@example.com'")).ShouldBe(1L);
+        (await database.ScalarAsync<long>(
+            "SELECT count(*) FROM email_outbox WHERE to_address = 'bob.other@example.com' AND kind = 'ticket-confirmation' AND payload::text LIKE '%ORB-2%'"))
+            .ShouldBe(1L, "the other requester receives only his own intake confirmation");
+
+        var payloads = new List<(string Kind, string Payload)>();
         await using var connection = new NpgsqlConnection(database.ConnectionString);
         await connection.OpenAsync(ct);
+        await using (var rows = new NpgsqlCommand(
+            "SELECT kind, payload::text FROM email_outbox WHERE to_address = 'ada@example.com' " +
+            "AND kind IN ('ticket-confirmation', 'agent-reply', 'ticket-solved', 'access-links')", connection))
+        await using (var reader = await rows.ExecuteReaderAsync(ct))
+        {
+            while (await reader.ReadAsync(ct))
+            {
+                payloads.Add((reader.GetString(0), reader.GetString(1)));
+            }
+        }
+
+        payloads.ShouldNotBeEmpty();
+        payloads.ShouldContain(p => p.Kind == "agent-reply" && p.Payload.Contains("Sam from Orbitly Support"));
+        foreach (var (kind, payload) in payloads)
+        {
+            foreach (var needle in forbidden)
+            {
+                payload.ShouldNotContain(needle, Case.Insensitive, $"{kind} payload");
+            }
+        }
+
+        var followUpConfirmation = payloads.Where(p => p.Kind == "ticket-confirmation" && !p.Payload.Contains(token)).ShouldHaveSingleItem();
+        using var followUpJson = System.Text.Json.JsonDocument.Parse(followUpConfirmation.Payload);
+        TokenOf(followUpJson.RootElement.GetProperty("portalLink").GetString()!).ShouldNotBe(followUpToken);
+
+        // 3. The original link token is in exactly one outbox payload and no other column; the follow-up response token is stored nowhere.
         foreach (var (table, column) in await TextColumnsAsync(connection))
         {
             foreach (var needle in new[] { token, followUpToken })
@@ -277,15 +306,10 @@ public sealed class SensitiveDataLeakTests(TestPostgres postgres) : IAsyncLifeti
                 await using var count = new NpgsqlCommand($"SELECT count(*) FROM \"{table}\" WHERE \"{column}\"::text LIKE '%' || @needle || '%'", connection);
                 count.Parameters.AddWithValue("needle", needle);
                 var found = (long)(await count.ExecuteScalarAsync(ct))!;
-                if (table == "email_outbox" && column == "payload")
-                {
-                    // The follow-up response token is a separate issue from the one in the confirmation email, so only the first is guaranteed here.
-                    (needle == token ? found > 0 : true).ShouldBeTrue();
-                }
-                else
-                {
-                    found.ShouldBe(0L, $"{table}.{column}");
-                }
+                var expected = needle == token && table == "email_outbox" && column == "payload" ? 1L : 0L;
+                found.ShouldBe(expected, needle == token
+                    ? $"{table}.{column} for the original link token"
+                    : $"{table}.{column}: the follow-up response token is never stored, the confirmation email carries its own token");
             }
         }
     }
