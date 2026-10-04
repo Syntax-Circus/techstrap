@@ -1175,7 +1175,7 @@ D-035 split PHASE-06 into 06a and 06b. 06b grew to include customer routes, aler
 
 ### Consequences
 - **06c scope.** Hard delete, requester erasure, dead letters and Serilog PII redaction move to 06c.
-- **Superseded wording.** The "closed notice" in PHASE-06, 02-ARCHITECTURE and FR-TKT-14 is removed.
+- **Superseded wording.** The "closed notice" in PHASE-06, 02-ARCHITECTURE, FR-TKT-14 and UX-BRIEF-portal.md is removed.
 - **Old links.** They stay valid until they expire (90 days sliding, 1-year cap), so a lost-link email adds links without revoking any.
 
 ### Approval
@@ -1228,6 +1228,8 @@ The customer side authenticates with a ticket token rather than an agent credent
 - **Accepted residual risks (lost link).**
   - **Timing.** Known addresses do more work than unknown ones (tens of milliseconds). The per-address cap and the per-IP limit bound it. A possible hardening is to move the send off the request path.
   - **Concurrent requests.** Parallel requests can overshoot the per-address cap inside the count-to-commit window. The per-IP limit bounds it. A possible hardening is an advisory lock per address.
+  - **Dedupe replay tokens.** Each dedupe replay issues a fresh access token. The per-IP token-access limit bounds it.
+  - **Lost-link branding.** The email's branding comes from the most recent ticket's product even when the list spans products (same requester only).
   - **Mixed-case stored addresses.** The cap count is an exact match on `to_address`. This is safe because the Domain always lowercases addresses; data that bypasses the Domain would escape the cap.
 - **Reopen window.** The window shown in emails comes from `AutoCloseOptions.Days`, bound from `TECHSTRAP_AUTOCLOSE_DAYS`.
   - `TicketSolvedEmail` already carries it. `AgentReplyEmail` gains `ReopenDays`.

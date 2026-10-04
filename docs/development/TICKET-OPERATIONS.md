@@ -117,7 +117,7 @@ Rows are written to `email_outbox` in the same transaction as the change; the Wo
 | `customer-reply-alert` | A customer replies | The active assignee, else the opted-in agents. Not sent for spam tickets |
 | `access-links` | A lost-link request matches an address | That requester's own address only |
 
-Notes, priority, tags, product moves and spam send nothing. Tickets flagged as spam never email the customer: replies and Solved notices are saved but not emailed (owner decision, D-035); agent assignment alerts are unaffected. The customer's access link exists only in the outbox payload.
+Notes, priority, tags, product moves and spam send nothing. Tickets flagged as spam never email the customer: replies and Solved notices are saved but not emailed (owner decision, D-035); agent assignment alerts are unaffected. The customer's access link exists only in the outbox payload and in the one follow-up reply response that hands the customer its view link (D-033).
 
 ## Customer access
 
@@ -146,7 +146,8 @@ curl -s -H 'Content-Type: application/json' -X POST "$API/api/customer/access-li
 - **What the customer sees.** Public messages, attachments on them and the agent's public name ("Sam from Orbitly Support"). Never tags,
   internal notes, events, agent ids, emails or surnames, `lastActivityAt`, `rowVersion` or another requester's data (D-024).
   Attachments are sent with `nosniff` and a sandboxing Content-Security-Policy.
-- **Replying.** A reply on a Pending or Solved ticket reopens it and alerts the assignee. A reply on a Closed ticket creates a
+- **Replying.** Every non-spam customer reply alerts the active assignee, or else the agents opted in for the product. A reply on a
+  Pending or Solved ticket also reopens it. A reply on a Closed ticket creates a
   follow-up ticket (new number, linked to the parent, a `FollowUpCreated` event on the parent, a confirmation email) and returns its
   view link in the response (`followUpCreated`, `followUpViewUrl`); the parent stays read-only. The same text sent again within
   2 minutes replays the existing follow-up with a fresh link and no email, and concurrent duplicates produce one follow-up.
@@ -156,7 +157,7 @@ curl -s -H 'Content-Type: application/json' -X POST "$API/api/customer/access-li
   links are not revoked. The accepted residual risks are recorded in [D-038](../architecture/04-DECISION-LOG.md#d-038-customer-api-public-routes-with-in-handler-token-auth-uniform-404-separate-customer-attachment-route-lost-link-rules-alert-recipients-reopen-window-from-autocloseoptions-per-ticket-auto-close).
 - **Rate limits.** Per client IP: 60 requests per 60 seconds on the token routes (`RateLimiting:Customer:TokenAccessPermitLimit`,
   `TokenAccessWindowSeconds`), 5 per hour on the lost-link route (`LostLinkPermitLimit`, `LostLinkWindowSeconds`). On top of that
-  each address gets at most 3 lost-link emails per hour (`LostLink:PerAddressLimit`, `PerAddressWindowMinutes`). Over the limit is 429.
+  each address gets at most 3 lost-link emails per hour (`LostLink:PerAddressLimit`, `PerAddressWindowMinutes`). Only the per-IP limit answers 429; over the per-address cap the route still answers 202 and sends nothing.
 
 ### Auto-close
 
