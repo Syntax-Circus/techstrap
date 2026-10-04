@@ -6,6 +6,7 @@ public static class TicketsServiceCollectionExtensions
     public static IServiceCollection AddTicketFeatures(this IServiceCollection services)
     {
         services.AddScoped<TicketDetailPresenter>();
+        services.AddScoped<DraftStore>();
         return services;
     }
 }

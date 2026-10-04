@@ -126,6 +126,13 @@ public sealed partial class TicketDetailPage : IDisposable
         }
     }
 
+    /// <summary>A reply or note was accepted: take the new status and RowVersion from the response at once, then reload so the timeline shows the new entries.</summary>
+    private async Task OnSentAsync(AgentMessageResponse response)
+    {
+        ApplyState(response.Ticket);
+        await RefreshAsync();
+    }
+
     private Task OnShortcutAsync(ShortcutAction action)
     {
         if (action == ShortcutAction.Escape)

@@ -1,0 +1,75 @@
+<NavigationLock ConfirmExternalNavigation="@HasUnsentText" />
+<section class="@SectionCss" aria-label="Reply composer" data-shortcut-scope="composer">
+    <div class="ts-composer-modes" role="group" aria-label="Reply type">
+        <button type="button" class="@ModeCss(ComposerMode.PublicReply)" aria-pressed="@PressedValue(ComposerMode.PublicReply)" @onclick="() => SetMode(ComposerMode.PublicReply)">
+            @ReplyComposerCopy.PublicTab <Kbd>r</Kbd>
+        </button>
+        <button type="button" class="@ModeCss(ComposerMode.InternalNote)" aria-pressed="@PressedValue(ComposerMode.InternalNote)" @onclick="() => SetMode(ComposerMode.InternalNote)">
+            @ReplyComposerCopy.NoteTab <Kbd>n</Kbd>
+        </button>
+    </div>
+
+    @if (IsPublic)
+    {
+        <p class="ts-composer-audience">To: @RequesterEmail</p>
+        <p class="ts-composer-warning">@ReplyComposerCopy.PublicWarning</p>
+    }
+    else
+    {
+        <p class="ts-composer-warning ts-composer-warning--internal" role="status">@ReplyComposerCopy.InternalWarning</p>
+        <p class="ts-composer-audience">@ReplyComposerCopy.InternalAudience</p>
+    }
+
+    <label for="@TextId" class="visually-hidden">@(IsPublic ? ReplyComposerCopy.PublicTab : ReplyComposerCopy.NoteTab)</label>
+    <textarea id="@TextId" @ref="_text" class="form-control" rows="6" disabled="@_sending"
+              placeholder="@(IsPublic ? ReplyComposerCopy.ReplyPlaceholder : ReplyComposerCopy.NotePlaceholder)"
+              @bind="Text" @bind:event="oninput"></textarea>
+
+    @if (IsPublic)
+    {
+        <div class="ts-composer-files">
+            <label for="@FilesId">@ReplyComposerCopy.AttachFiles</label>
+            <InputFile id="@FilesId" OnChange="OnFilesPickedAsync" multiple accept="@Accept" disabled="@_sending" />
+            @if (_draft.Files.Count > 0)
+            {
+                <ul class="ts-file-list">
+                    @foreach (var file in _draft.Files)
+                    {
+                        <li>
+                            <span class="ts-file-name">@file.Name</span> <span class="ts-file-size">(@TicketDisplay.FileSize(file.Size))</span>
+                            <button type="button" class="btn btn-link" aria-label="@($"Remove {file.Name}")" disabled="@_sending" @onclick="() => RemoveFile(file)">Remove</button>
+                        </li>
+                    }
+                </ul>
+            }
+            @foreach (var problem in _fileProblems)
+            {
+                <p class="ts-composer-error" role="alert">@problem</p>
+            }
+        </div>
+        <div class="ts-composer-status">
+            <label for="@StatusId">After sending</label>
+            <select id="@StatusId" class="form-select" disabled="@_sending" @bind="StatusAfter">
+                <option value="@ReplyComposerCopy.PendingValue">@ReplyComposerCopy.SetPending</option>
+                <option value="@ReplyComposerCopy.LeaveUnchangedValue">@ReplyComposerCopy.LeaveUnchanged</option>
+            </select>
+        </div>
+    }
+
+    @if (_error is not null)
+    {
+        <p class="ts-composer-error" role="alert">@_error</p>
+    }
+
+    <div class="ts-composer-actions">
+        @if (IsPublic)
+        {
+            <button type="button" class="btn btn-primary" disabled="@_sending" @onclick="() => SubmitAsync()">@ReplyComposerCopy.SendReply <Kbd>Ctrl</Kbd><Kbd>Enter</Kbd></button>
+            <button type="button" class="btn btn-outline-secondary" disabled="@_sending" @onclick="() => SubmitAsync(TicketStatuses.Solved)">@ReplyComposerCopy.SendAndSolve</button>
+        }
+        else
+        {
+            <button type="button" class="btn btn-primary" disabled="@_sending" @onclick="() => SubmitAsync()">@ReplyComposerCopy.AddNote <Kbd>Ctrl</Kbd><Kbd>Enter</Kbd></button>
+        }
+    </div>
+</section>

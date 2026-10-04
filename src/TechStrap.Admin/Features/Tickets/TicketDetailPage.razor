@@ -30,6 +30,11 @@ else
                 {
                     <p class="ts-closed-note" role="note">@TicketCopy.ClosedNotice</p>
                 }
+                else
+                {
+                    <ReplyComposer TicketId="_model.Id" TicketNumber="@_model.Number" RequesterEmail="@_model.Requester.Email"
+                                   RowVersion="_model.RowVersion" OnSent="OnSentAsync" OnGone="RefreshAsync" />
+                }
             </section>
             <TicketSidePanel Ticket="_model" />
         </div>

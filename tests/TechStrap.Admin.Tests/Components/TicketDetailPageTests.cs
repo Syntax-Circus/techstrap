@@ -310,4 +310,74 @@ public sealed class TicketDetailPageTests : AdminComponentTest
 
         _tickets.Received(1).GetAsync("ORB-42", Arg.Is<CancellationToken>(t => t.CanBeCanceled));
     }
+
+    [Fact]
+    public void An_open_ticket_gets_the_composer_beneath_the_timeline_and_a_closed_one_does_not()
+    {
+        var open = RenderTicket();
+
+        open.Find("section.ts-conversation ol.ts-timeline").ShouldNotBeNull();
+        open.Find("section.ts-conversation section.ts-composer").ShouldNotBeNull();
+        open.Find("section.ts-composer p.ts-composer-audience").TextContent.ShouldBe("To: ada@example.com");
+
+        ShowTicket(TestData.Detail(status: TicketStatuses.Closed));
+
+        RenderTicket().FindAll("section.ts-composer").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_sent_reply_takes_the_new_row_version_from_the_response_and_reloads_the_timeline()
+    {
+        _tickets.ReplyAsync(Arg.Any<Guid>(), Arg.Any<AddAgentReplyRequest>(), Arg.Any<IReadOnlyList<ReplyAttachment>>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Ok(new AgentMessageResponse(TestData.Message(MessageAuthorTypes.Agent), TestData.State(TicketStatuses.Pending, rowVersion: 8))));
+        _tickets.AddNoteAsync(Arg.Any<Guid>(), Arg.Any<AddInternalNoteRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Ok(new AgentMessageResponse(TestData.Message(MessageAuthorTypes.Agent, MessageVisibilities.Internal), TestData.State(TicketStatuses.Pending, rowVersion: 9))));
+        var cut = RenderTicket();
+        cut.Find("textarea").Input("On it.");
+        ShowTicket(TestData.Detail(status: TicketStatuses.Pending, rowVersion: 8, messages:
+            [TestData.Message(), TestData.Message(MessageAuthorTypes.Agent, authorName: "Sam Ortiz", bodyHtml: "<p>On it.</p>")]));
+
+        cut.FindAll(".ts-composer-actions button")[0].Click();
+
+        cut.WaitForAssertion(() => cut.FindAll("ol.ts-timeline > li.ts-timeline-message").Count.ShouldBe(2));
+        cut.Find(".ts-ticket-badges .ts-stamp").TextContent.ShouldBe("Pending");
+
+        cut.FindAll(".ts-composer-modes button")[1].Click();
+        cut.Find("textarea").Input("Follow-up note.");
+        cut.Find(".ts-composer-actions button").Click();
+
+        _tickets.Received(1).AddNoteAsync(TestData.TicketId, Arg.Is<AddInternalNoteRequest>(r => r.RowVersion == 8u), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void A_draft_in_the_other_tab_survives_the_reload_that_follows_a_send()
+    {
+        _tickets.ReplyAsync(Arg.Any<Guid>(), Arg.Any<AddAgentReplyRequest>(), Arg.Any<IReadOnlyList<ReplyAttachment>>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Ok(new AgentMessageResponse(TestData.Message(MessageAuthorTypes.Agent), TestData.State(rowVersion: 8))));
+        var cut = RenderTicket();
+        cut.FindAll(".ts-composer-modes button")[1].Click();
+        cut.Find("textarea").Input("Half-written note");
+        cut.FindAll(".ts-composer-modes button")[0].Click();
+        cut.Find("textarea").Input("Reply");
+
+        cut.FindAll(".ts-composer-actions button")[0].Click();
+
+        cut.WaitForAssertion(() => _tickets.Received(2).GetAsync("ORB-42", Arg.Any<CancellationToken>()));
+        cut.FindAll(".ts-composer-modes button")[1].Click();
+        cut.Find("textarea").GetAttribute("value").ShouldBe("Half-written note");
+    }
+
+    [Fact]
+    public void A_reply_to_a_ticket_deleted_meanwhile_ends_on_this_ticket_no_longer_exists()
+    {
+        _tickets.ReplyAsync(Arg.Any<Guid>(), Arg.Any<AddAgentReplyRequest>(), Arg.Any<IReadOnlyList<ReplyAttachment>>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Fail<AgentMessageResponse>("ticket-not-found", "Gone.", ResultErrorKind.NotFound));
+        var cut = RenderTicket();
+        cut.Find("textarea").Input("Too late.");
+        _tickets.GetAsync("ORB-42", Arg.Any<CancellationToken>()).Returns(TestData.Fail<TicketDetailDto>("ticket-not-found", "Gone.", ResultErrorKind.NotFound));
+
+        cut.FindAll(".ts-composer-actions button")[0].Click();
+
+        cut.WaitForAssertion(() => cut.Find("section.ts-gone h1").TextContent.ShouldBe("This ticket no longer exists"));
+    }
 }
