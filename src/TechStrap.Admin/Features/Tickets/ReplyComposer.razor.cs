@@ -23,7 +23,6 @@ public sealed partial class ReplyComposer : IDisposable
     private Guid _draftTicket;
     private ElementReference _text;
     private string? _error;
-    private bool _sending;
     private bool _disposed;
     private bool _filesDropped;
 
@@ -67,10 +66,13 @@ public sealed partial class ReplyComposer : IDisposable
     /// <summary>The explicit message of the last attempt, else the "check the timeline" notice that survives mode switches and a closed screen until the next send.</summary>
     private string? ShownError => _error ?? _draft.UncertainSend switch
     {
-        ComposerMode.PublicReply => ReplyComposerCopy.ReplyUncertain,
+        ComposerMode.PublicReply => _filesDropped ? TicketCopy.ReplyUncertainFilesGone : ReplyComposerCopy.ReplyUncertain,
         ComposerMode.InternalNote => ReplyComposerCopy.NoteUncertain,
         _ => null,
     };
+
+    /// <summary>A write for this ticket is in flight, started by this composer or by one that has since been closed.</summary>
+    private bool Sending => _draft.InFlight;
 
     private bool IsPublic => _draft.Mode == ComposerMode.PublicReply;
 
@@ -115,7 +117,9 @@ public sealed partial class ReplyComposer : IDisposable
         if (_draftTicket != TicketId)
         {
             _draftTicket = TicketId;
+            _draft.Changed -= OnDraftChanged;
             _draft = Drafts.Get(TicketId);
+            _draft.Changed += OnDraftChanged;
             _error = null;
             _fileProblems.Clear();
 
@@ -167,12 +171,15 @@ public sealed partial class ReplyComposer : IDisposable
         return Task.CompletedTask;
     }
 
+    // A write settled (possibly one started by a composer that is gone): show its outcome. Raised on any thread.
+    private void OnDraftChanged() => _ = InvokeAsync(StateHasChanged);
+
     private void RemoveFile(IBrowserFile file) => _files.Remove(file);
 
     /// <param name="statusAfterOverride">"Send and solve" passes Solved; otherwise the status choice in the draft applies.</param>
     private async Task SubmitAsync(string? statusAfterOverride = null)
     {
-        if (_sending)
+        if (Sending)
         {
             return;
         }
@@ -185,26 +192,53 @@ public sealed partial class ReplyComposer : IDisposable
             return;
         }
 
-        _sending = true;
-        _error = null;
-        _draft.UncertainSend = null;
-        StateHasChanged();
-
         // The write is never cancelled by the screen closing: the server may commit it, and a cancelled call would leave the draft looking unsent.
-        // Everything below the await works on the captured draft, so it still settles the store when this component is gone.
+        // Everything after the await works on the captured draft and the text that was sent, so it settles the store even when this component is gone.
         var draft = _draft;
         var ticketId = TicketId;
         var number = TicketNumber;
+        var rowVersion = RowVersion;
+        var statusAfter = StatusAfterFor(statusAfterOverride);
+        var files = Attachments();
+        _error = null;
+        draft.UncertainSend = null;
+        draft.InFlightMode = mode;
+        draft.InFlight = true;
+        StateHasChanged();
+        draft.RaiseChanged();
+
+        Result<AgentMessageResponse> result;
         try
         {
-            var result = mode == ComposerMode.PublicReply
-                ? await Tickets.ReplyAsync(ticketId, new AddAgentReplyRequest(text, [], StatusAfterFor(statusAfterOverride), RowVersion), Attachments(), CancellationToken.None)
-                : await Tickets.AddNoteAsync(ticketId, new AddInternalNoteRequest(text, RowVersion), CancellationToken.None);
-            await HandleResultAsync(mode, draft, number, result);
+            result = mode == ComposerMode.PublicReply
+                ? await Tickets.ReplyAsync(ticketId, new AddAgentReplyRequest(text, [], statusAfter, rowVersion), files, CancellationToken.None)
+                : await Tickets.AddNoteAsync(ticketId, new AddInternalNoteRequest(text, rowVersion), CancellationToken.None);
+        }
+        catch (Exception)
+        {
+            // Anything the client did not map (a stale input or a lost circuit while a file stream was read, for instance) leaves the outcome unknown:
+            // the server may have committed the write. Settle conservatively and never let the fault reach the renderer.
+            draft.UncertainSend = mode;
+            Settle(draft);
+            return;
+        }
+
+        try
+        {
+            await HandleResultAsync(mode, draft, number, text, result);
         }
         finally
         {
-            _sending = false;
+            Settle(draft);
+        }
+    }
+
+    private static void Settle(ComposerDraft draft)
+    {
+        if (draft.InFlight)
+        {
+            draft.InFlight = false;
+            draft.RaiseChanged();
         }
     }
 
@@ -227,14 +261,19 @@ public sealed partial class ReplyComposer : IDisposable
         code is ApiErrorCodes.ApiTimeout or ApiErrorCodes.ApiUnavailable or ApiErrorCodes.UnexpectedResponse or ApiErrorCodes.ApiError;
 
     // Runs after the write finished, possibly after this component was disposed: the shared draft is settled first, and the UI callbacks only run while alive.
-    private async Task HandleResultAsync(ComposerMode mode, ComposerDraft draft, string number, Result<AgentMessageResponse> result)
+    private async Task HandleResultAsync(ComposerMode mode, ComposerDraft draft, string number, string sentText, Result<AgentMessageResponse> result)
     {
         if (result.IsSuccess)
         {
             // Only an accepted send clears anything, and only the mode that was sent.
+            // Compare and clear: text that differs from what was sent is the agent's newer text and stays.
             if (mode == ComposerMode.PublicReply)
             {
-                draft.PublicText = string.Empty;
+                if (draft.PublicText == sentText)
+                {
+                    draft.PublicText = string.Empty;
+                }
+
                 draft.FilesDropped = false;
                 if (!_disposed)
                 {
@@ -246,10 +285,15 @@ public sealed partial class ReplyComposer : IDisposable
             }
             else
             {
-                draft.NoteText = string.Empty;
+                if (draft.NoteText == sentText)
+                {
+                    draft.NoteText = string.Empty;
+                }
+
                 StatusMessages.Show(ReplyComposerCopy.NoteAdded(number));
             }
 
+            Settle(draft);
             if (!_disposed)
             {
                 await OnSent.InvokeAsync(result.Value);
@@ -293,7 +337,7 @@ public sealed partial class ReplyComposer : IDisposable
 
     private async Task OnShortcutAsync(ShortcutAction action)
     {
-        if (_sending)
+        if (Sending)
         {
             return;
         }
@@ -330,6 +374,7 @@ public sealed partial class ReplyComposer : IDisposable
     {
         _disposed = true;
         Shortcuts.Pressed -= OnShortcutAsync;
+        _draft.Changed -= OnDraftChanged;
 
         // The files' handles die with this component's input element; the next composer for the ticket says so. A write still in flight is left to finish.
         if (_files.Count > 0)

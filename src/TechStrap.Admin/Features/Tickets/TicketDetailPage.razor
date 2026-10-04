@@ -18,7 +18,7 @@ else
 {
     <article class="ts-ticket">
         <TicketHeader Ticket="_model" />
-        @if (_error is not null)
+        @if (!string.IsNullOrEmpty(_error))
         {
             <ErrorState Message="@_error" OnRetry="RefreshAsync" />
         }

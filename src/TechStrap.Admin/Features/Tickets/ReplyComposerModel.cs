@@ -32,6 +32,16 @@ public sealed class ComposerDraft
     /// <c>InputFile</c> element that produced it is alive, so the next composer tells the agent to attach them again.
     /// </summary>
     public bool FilesDropped { get; set; }
+
+    /// <summary>True from the moment a write starts until it settles. It lives in the store, so a composer mounted meanwhile shows the sending state and cannot send again.</summary>
+    public bool InFlight { get; set; }
+
+    public ComposerMode InFlightMode { get; set; }
+
+    /// <summary>Raised when an in-flight write settles, so every composer showing this draft re-renders. It can fire on any thread.</summary>
+    public event Action? Changed;
+
+    internal void RaiseChanged() => Changed?.Invoke();
 }
 
 /// <summary>

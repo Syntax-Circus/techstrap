@@ -380,4 +380,13 @@ public sealed class TicketDetailPageTests : AdminComponentTest
 
         cut.WaitForAssertion(() => cut.Find("section.ts-gone h1").TextContent.ShouldBe("This ticket no longer exists"));
     }
+
+    [Fact]
+    public void A_ticket_that_loaded_cleanly_shows_no_alert_and_no_retry()
+    {
+        var cut = RenderTicket();
+
+        cut.FindAll("[role=alert]").ShouldBeEmpty();
+        cut.Markup.ShouldNotContain("Retry");
+    }
 }

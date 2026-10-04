@@ -2,6 +2,7 @@ using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Routing;
+using Microsoft.JSInterop;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using SyntaxCircus.Common;
@@ -686,5 +687,176 @@ public sealed class ReplyComposerTests : AdminComponentTest
         await PressAsync("Enter", ctrl: true, typing: true, scope: "composer");
 
         _tickets.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    private static Result<AgentMessageResponse> TimeoutFailure() =>
+        TestData.Fail<AgentMessageResponse>(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again.");
+
+    private TaskCompletionSource<Result<AgentMessageResponse>> HoldReplies()
+    {
+        var gate = new TaskCompletionSource<Result<AgentMessageResponse>>();
+        _tickets.ReplyAsync(Arg.Any<Guid>(), Arg.Any<AddAgentReplyRequest>(), Arg.Any<IReadOnlyList<ReplyAttachment>>(), Arg.Any<CancellationToken>()).Returns(gate.Task);
+        return gate;
+    }
+
+    [Fact]
+    public async Task A_late_success_keeps_text_that_differs_from_what_was_sent()
+    {
+        var gate = HoldReplies();
+        var a = RenderComposer();
+        a.Find("textarea").Input("First reply.");
+        a.FindAll(".ts-composer-actions button")[0].Click();
+        await DisposeComponentsAsync();
+        Drafts.Get(TestData.TicketId).PublicText = "Newer reply.";
+
+        gate.SetResult(Accepted(MessageVisibilities.Public));
+
+        a.WaitForAssertion(() => Drafts.Get(TestData.TicketId).InFlight.ShouldBeFalse());
+        Drafts.Get(TestData.TicketId).PublicText.ShouldBe("Newer reply.");
+    }
+
+    [Fact]
+    public async Task A_late_success_clears_text_that_still_equals_what_was_sent()
+    {
+        var gate = HoldReplies();
+        var a = RenderComposer();
+        a.Find("textarea").Input("Same reply.");
+        a.FindAll(".ts-composer-actions button")[0].Click();
+        await DisposeComponentsAsync();
+
+        gate.SetResult(Accepted(MessageVisibilities.Public));
+
+        a.WaitForAssertion(() => Drafts.Get(TestData.TicketId).InFlight.ShouldBeFalse());
+        Drafts.Get(TestData.TicketId).PublicText.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_composer_mounted_while_a_write_is_in_flight_shows_sending_with_send_and_modes_disabled()
+    {
+        var gate = HoldReplies();
+        var a = RenderComposer();
+        a.Find("textarea").Input("In flight.");
+        a.FindAll(".ts-composer-actions button")[0].Click();
+        await DisposeComponentsAsync();
+
+        var b = RenderComposer();
+
+        b.Find("p.ts-composer-sending").TextContent.ShouldBe("Sending your reply...");
+        b.Find("p.ts-composer-sending").GetAttribute("role").ShouldBe("status");
+        b.FindAll(".ts-composer-actions button").ShouldAllBe(x => x.HasAttribute("disabled"));
+        b.FindAll(".ts-composer-modes button").ShouldAllBe(x => x.HasAttribute("disabled"));
+        gate.SetResult(Accepted(MessageVisibilities.Public));
+        b.WaitForAssertion(() => b.FindAll("p.ts-composer-sending").ShouldBeEmpty());
+    }
+
+    [Fact]
+    public async Task A_mounted_composer_learns_a_success_that_settles_later_and_re_enables_send()
+    {
+        var gate = HoldReplies();
+        var a = RenderComposer();
+        a.Find("textarea").Input("In flight.");
+        a.FindAll(".ts-composer-actions button")[0].Click();
+        await DisposeComponentsAsync();
+        var b = RenderComposer();
+
+        gate.SetResult(Accepted(MessageVisibilities.Public));
+
+        b.WaitForAssertion(() => b.FindAll(".ts-composer-actions button").ShouldAllBe(x => !x.HasAttribute("disabled")));
+        b.Find("textarea").GetAttribute("value").ShouldBeNullOrEmpty();
+        b.FindAll("[role=alert]").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_mounted_composer_learns_an_uncertain_failure_that_settles_later()
+    {
+        var gate = HoldReplies();
+        var a = RenderComposer();
+        a.Find("textarea").Input("In flight.");
+        a.FindAll(".ts-composer-actions button")[0].Click();
+        await DisposeComponentsAsync();
+        var b = RenderComposer();
+
+        gate.SetResult(TimeoutFailure());
+
+        b.WaitForAssertion(() => b.Find("[role=alert]").TextContent.ShouldStartWith("The reply may already have been sent."));
+        b.Find("textarea").GetAttribute("value").ShouldBe("In flight.");
+        b.FindAll(".ts-composer-actions button").ShouldAllBe(x => !x.HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task A_composer_mounted_during_an_in_flight_write_cannot_start_a_second_send()
+    {
+        HoldReplies();
+        var a = RenderComposer();
+        a.Find("textarea").Input("Once.");
+        a.FindAll(".ts-composer-actions button")[0].Click();
+        await DisposeComponentsAsync();
+        RenderComposer();
+
+        await PressAsync("Enter", ctrl: true, typing: true, scope: "composer");
+
+        ReplyRequests().Count().ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_stream_read_failure_settles_the_draft_as_uncertain_and_never_escapes(bool disposedFirst)
+    {
+        var gate = HoldReplies();
+        var cut = RenderComposer();
+        cut.Find("textarea").Input("Stale input.");
+        cut.FindAll(".ts-composer-actions button")[0].Click();
+        if (disposedFirst)
+        {
+            await DisposeComponentsAsync();
+        }
+
+        gate.SetException(new JSException("The input element is gone."));
+
+        cut.WaitForAssertion(() => Drafts.Get(TestData.TicketId).InFlight.ShouldBeFalse());
+        Drafts.Get(TestData.TicketId).UncertainSend.ShouldBe(ComposerMode.PublicReply);
+        Drafts.Get(TestData.TicketId).PublicText.ShouldBe("Stale input.");
+        if (!disposedFirst)
+        {
+            cut.Find("[role=alert]").TextContent.ShouldStartWith("The reply may already have been sent.");
+            cut.FindAll(".ts-composer-actions button").ShouldAllBe(x => !x.HasAttribute("disabled"));
+        }
+    }
+
+    [Fact]
+    public void A_circuit_loss_during_a_note_settles_the_note_as_uncertain()
+    {
+        _tickets.AddNoteAsync(Arg.Any<Guid>(), Arg.Any<AddInternalNoteRequest>(), Arg.Any<CancellationToken>())
+            .Returns<Task<Result<AgentMessageResponse>>>(_ => throw new JSDisconnectedException("gone"));
+        var cut = RenderComposer();
+        cut.FindAll(".ts-composer-modes button")[1].Click();
+        cut.Find("textarea").Input("Note.");
+
+        cut.Find(".ts-composer-actions button").Click();
+
+        Drafts.Get(TestData.TicketId).UncertainSend.ShouldBe(ComposerMode.InternalNote);
+        Drafts.Get(TestData.TicketId).InFlight.ShouldBeFalse();
+        cut.Find("[role=alert]").TextContent.ShouldStartWith("The note may already have been added.");
+    }
+
+    [Fact]
+    public async Task An_uncertain_result_with_dropped_files_does_not_claim_the_files_stay_attached_and_the_notice_shows_in_either_mode()
+    {
+        var gate = HoldReplies();
+        var a = RenderComposer();
+        PickMany(a, "a.png");
+        a.Find("textarea").Input("With a file.");
+        a.FindAll(".ts-composer-actions button")[0].Click();
+        await DisposeComponentsAsync();
+        gate.SetResult(TimeoutFailure());
+        a.WaitForAssertion(() => Drafts.Get(TestData.TicketId).InFlight.ShouldBeFalse());
+
+        var b = RenderComposer();
+
+        b.Find("[role=alert]").TextContent.ShouldBe("The reply may already have been sent. Your text is kept, but your attachments were removed. Check the timeline before sending again.");
+        b.FindAll(".ts-composer-modes button")[1].Click();
+        b.Find("p.ts-composer-notice").TextContent.ShouldBe("Your attachments were removed when you left this ticket. Attach them again.");
+        b.FindAll(".ts-composer-files p.ts-composer-notice").ShouldBeEmpty();
     }
 }

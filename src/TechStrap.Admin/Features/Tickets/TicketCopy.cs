@@ -28,5 +28,8 @@ public static class TicketCopy
     public const string Unassigned = "Unassigned";
     public const string None = "None";
     public const string AttachmentsRemoved = "Your attachments were removed when you left this ticket. Attach them again.";
+    public const string SendingReply = "Sending your reply...";
+    public const string AddingNote = "Adding your note...";
+    public const string ReplyUncertainFilesGone = "The reply may already have been sent. Your text is kept, but your attachments were removed. Check the timeline before sending again.";
     public const string LinkedArticlesLabel = "Linked articles";
 }
