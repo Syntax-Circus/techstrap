@@ -188,7 +188,7 @@ public sealed class TicketDetailPresenterTests
 
         items[0].Value.ShouldBe("ok");
         items[1].Value.Length.ShouldBe(TicketDetailPresenter.MaxMetadataValueLength + 1);
-        items[1].Value.ShouldEndWith("…");
+        items[1].Value.ShouldEndWith("\u2026");
     }
 
     [Theory]

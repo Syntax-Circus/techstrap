@@ -18,7 +18,7 @@ public sealed class TicketDetailPresenter(ITicketsClient tickets, IProductsClien
     /// <summary>...and each value is cut to this many characters (then an ellipsis).</summary>
     public const int MaxMetadataValueLength = 500;
 
-    private const string Ellipsis = "…";
+    private const string Ellipsis = "\u2026";
 
     public async Task<Result<TicketDetailViewModel>> LoadAsync(string reference, CancellationToken cancellationToken)
     {
