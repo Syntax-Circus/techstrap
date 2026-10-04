@@ -303,6 +303,24 @@ public sealed class AgentSessionTests
         session.State.ShouldBe(AgentSessionState.Ready);
     }
 
+    // ProblemMapping gives every status it has no name for (500 and the like) the api-error code; a server error says nothing about the agent's access.
+    [Fact]
+    public async Task A_reload_that_meets_a_server_error_keeps_the_ready_session_and_raises_no_change()
+    {
+        var admin = Agent(AgentRoles.Admin);
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(Result<AgentDto>.Success(admin), Refused(ApiErrorCodes.ApiError, ResultErrorKind.Failure));
+        var session = Session();
+        await session.EnsureLoadedAsync(Ct);
+        var changes = 0;
+        session.Changed += () => changes++;
+
+        await session.ReloadAsync(Ct);
+
+        session.State.ShouldBe(AgentSessionState.Ready);
+        session.Agent.ShouldBe(admin);
+        changes.ShouldBe(0);
+    }
+
     [Fact]
     public async Task A_reload_that_times_out_keeps_the_ready_session()
     {
@@ -317,10 +335,9 @@ public sealed class AgentSessionTests
         session.Agent.ShouldBe(admin);
     }
 
-    // Only an unreachable API or a timeout keeps the session: any other answer (not found, a response the Admin does not understand) is not proof the agent may still work.
+    // Only an unreachable API, a timeout or a server error keeps the session: any other answer (not found, a response the Admin does not understand) is not proof the agent may still work.
     [Theory]
     [InlineData(ApiErrorCodes.UnexpectedResponse, ResultErrorKind.Failure)]
-    [InlineData(ApiErrorCodes.ApiError, ResultErrorKind.Failure)]
     [InlineData("not-found", ResultErrorKind.NotFound)]
     public async Task A_reload_with_any_other_failure_ends_the_ready_session_like_a_first_load(string code, ResultErrorKind kind)
     {
