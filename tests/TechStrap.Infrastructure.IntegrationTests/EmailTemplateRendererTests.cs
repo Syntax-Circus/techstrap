@@ -169,6 +169,82 @@ public sealed class EmailTemplateRendererTests
     }
 
     [Fact]
+    public void An_agent_reply_uses_the_reopen_days_it_carries()
+    {
+        var email = Renderer().RenderAgentReply(Reply(solved: true) with { ReopenDays = 10 }, "<p>Done</p>", Orbitly);
+
+        email.Html.ShouldContain("Reply within 10 days");
+        email.Text.ShouldContain("Reply within 10 days");
+    }
+
+    [Fact]
+    public void An_agent_reply_queued_before_06b_falls_back_to_the_default_reopen_days()
+    {
+        var email = Renderer().RenderAgentReply(Reply(solved: true) with { ReopenDays = 0 }, "<p>Done</p>", Orbitly);
+
+        email.Text.ShouldContain("Reply within 7 days");
+    }
+
+    [Fact]
+    public void A_new_ticket_alert_has_subject_content_and_no_powered_by()
+    {
+        var model = new NewTicketAlertEmail("ORB-42", "Printer jam", "Orbitly", "Ann <ann@x.test>", false, "https://admin.test/tickets/ORB-42");
+        var email = Renderer().RenderNewTicketAlert(model, Orbitly);
+        var followUp = Renderer().RenderNewTicketAlert(model with { IsFollowUp = true, AdminLink = "javascript:alert(1)" }, Orbitly);
+
+        email.Subject.ShouldBe("[ORB-42] New ticket: Printer jam");
+        email.Html.ShouldContain("Printer jam");
+        email.Html.ShouldContain("Orbitly");
+        email.Html.ShouldContain("Ann &lt;ann@x.test&gt;");
+        email.Html.ShouldContain("href=\"https://admin.test/tickets/ORB-42\"");
+        email.Text.ShouldContain("https://admin.test/tickets/ORB-42");
+        email.Html.ShouldNotContain("Powered by");
+        email.Text.ShouldNotContain("Powered by");
+        followUp.Subject.ShouldBe("[ORB-42] New follow-up: Printer jam");
+        followUp.Html.ShouldNotContain("<a ");
+    }
+
+    [Fact]
+    public void A_customer_reply_alert_has_subject_content_and_no_powered_by()
+    {
+        var model = new CustomerReplyAlertEmail("ORB-42", "Printer jam", "Orbitly", true, "https://admin.test/tickets/ORB-42");
+        var email = Renderer().RenderCustomerReplyAlert(model, Orbitly);
+        var plain = Renderer().RenderCustomerReplyAlert(model with { Reopened = false, AdminLink = null }, Orbitly);
+
+        email.Subject.ShouldBe("[ORB-42] Customer replied: Printer jam");
+        email.Html.ShouldContain("reopened");
+        email.Html.ShouldContain("href=\"https://admin.test/tickets/ORB-42\"");
+        email.Html.ShouldNotContain("Powered by");
+        email.Text.ShouldNotContain("Powered by");
+        plain.Html.ShouldNotContain("reopened");
+        plain.Html.ShouldNotContain("<a ");
+    }
+
+    [Fact]
+    public void An_access_links_email_has_a_button_per_link_encodes_fields_and_follows_powered_by()
+    {
+        var model = new AccessLinksEmail("<b>Ann</b>", [
+            new AccessLinkEntry("ORB-1", "<i>One</i>", "https://help.test/t/a?x=1&y=2"),
+            new AccessLinkEntry("ORB-2", "Two", "https://help.test/t/b")]);
+        var email = Renderer().RenderAccessLinks(model, Orbitly);
+
+        email.Subject.ShouldBe("Your request links");
+        email.Html.ShouldContain("Orbitly");
+        email.Html.ShouldContain("href=\"https://help.test/t/a?x=1&amp;y=2\"");
+        email.Html.ShouldContain("href=\"https://help.test/t/b\"");
+        email.Html.ShouldContain("&lt;b&gt;Ann&lt;/b&gt;");
+        email.Html.ShouldContain("&lt;i&gt;One&lt;/i&gt;");
+        email.Html.ShouldNotContain("<b>Ann</b>");
+        email.Html.ShouldNotContain("<i>One</i>");
+        System.Text.RegularExpressions.Regex.Matches(email.Html, "display:inline-block").Count.ShouldBe(2);
+        email.Html.ShouldContain("Or open this link");
+        email.Text.ShouldContain("ORB-1");
+        email.Text.ShouldContain("https://help.test/t/b");
+        email.Html.ShouldContain("Powered by TechStrap");
+        Renderer(showPoweredBy: false).RenderAccessLinks(model, Orbitly).Html.ShouldNotContain("TechStrap");
+    }
+
+    [Fact]
     public void Html_to_text_keeps_paragraphs_lists_and_link_targets()
     {
         var text = HtmlText.ToPlainText("<p>a</p><ul><li>b</li></ul><p><a href=\"https://x.test\">x</a> &amp; y</p>");

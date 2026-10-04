@@ -119,6 +119,9 @@ public sealed class DrainEmailOutboxHandler(
                 AgentReplyEmail agentReply => renderer.RenderAgentReply(agentReply, messageHtml!, emailBranding),
                 TicketSolvedEmail solved => renderer.RenderTicketSolved(solved, emailBranding),
                 TicketAssignedEmail assigned => renderer.RenderTicketAssigned(assigned, emailBranding),
+                NewTicketAlertEmail newTicket => renderer.RenderNewTicketAlert(newTicket, emailBranding),
+                CustomerReplyAlertEmail customerReply => renderer.RenderCustomerReplyAlert(customerReply, emailBranding),
+                AccessLinksEmail accessLinks => renderer.RenderAccessLinks(accessLinks, emailBranding),
                 _ => throw new InvalidOperationException("Unreachable outbox kind."),
             };
         }
@@ -145,6 +148,9 @@ public sealed class DrainEmailOutboxHandler(
                 EmailTemplates.AgentReply => Check(item, (AgentReplyEmail m) => Present(m.TicketNumber, m.PortalLink, m.AgentPublicName) && m.MessageId != Guid.Empty),
                 EmailTemplates.TicketSolved => Check(item, (TicketSolvedEmail m) => Present(m.TicketNumber, m.PortalLink)),
                 EmailTemplates.TicketAssigned => Check(item, (TicketAssignedEmail m) => Present(m.TicketNumber)),
+                EmailTemplates.NewTicketAlert => Check(item, (NewTicketAlertEmail m) => Present(m.TicketNumber, m.Subject, m.ProductName, m.RequesterLabel)),
+                EmailTemplates.CustomerReplyAlert => Check(item, (CustomerReplyAlertEmail m) => Present(m.TicketNumber, m.Subject, m.ProductName)),
+                EmailTemplates.AccessLinks => Check(item, (AccessLinksEmail m) => m.Links is { Count: > 0 } && m.Links.All(l => l is not null && Present(l.TicketNumber, l.PortalLink))),
                 _ => (null, DrainFailures.UnknownKind),
             };
         }

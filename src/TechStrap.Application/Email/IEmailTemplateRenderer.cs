@@ -10,4 +10,10 @@ public interface IEmailTemplateRenderer
     RenderedEmail RenderTicketSolved(TicketSolvedEmail model, EmailBranding branding);
 
     RenderedEmail RenderTicketAssigned(TicketAssignedEmail model, EmailBranding branding);
+
+    RenderedEmail RenderNewTicketAlert(NewTicketAlertEmail model, EmailBranding branding);
+
+    RenderedEmail RenderCustomerReplyAlert(CustomerReplyAlertEmail model, EmailBranding branding);
+
+    RenderedEmail RenderAccessLinks(AccessLinksEmail model, EmailBranding branding);
 }

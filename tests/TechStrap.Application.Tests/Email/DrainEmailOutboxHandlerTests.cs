@@ -246,9 +246,48 @@ public sealed class DrainEmailOutboxHandlerTests
     }
 
     [Theory]
+    [InlineData("new-ticket-alert")]
+    [InlineData("customer-reply-alert")]
+    [InlineData("access-links")]
+    public async Task New_kinds_render_and_send(string kind)
+    {
+        var payload = kind switch
+        {
+            EmailTemplates.NewTicketAlert => JsonSerializer.Serialize(new NewTicketAlertEmail("ORB-1", "S", "Orbitly", "Ann", false, null), JsonSerializerOptions.Web),
+            EmailTemplates.CustomerReplyAlert => JsonSerializer.Serialize(new CustomerReplyAlertEmail("ORB-1", "S", "Orbitly", true, null), JsonSerializerOptions.Web),
+            _ => JsonSerializer.Serialize(new AccessLinksEmail("Ann", [new AccessLinkEntry("ORB-1", "S", "https://help.example/t/abc")]), JsonSerializerOptions.Web),
+        };
+        var item = Item(kind, payload);
+        Claims(item);
+        _renderer.RenderNewTicketAlert(Arg.Any<NewTicketAlertEmail>(), Arg.Any<EmailBranding>()).Returns(Rendered);
+        _renderer.RenderCustomerReplyAlert(Arg.Any<CustomerReplyAlertEmail>(), Arg.Any<EmailBranding>()).Returns(Rendered);
+        _renderer.RenderAccessLinks(Arg.Any<AccessLinksEmail>(), Arg.Any<EmailBranding>()).Returns(Rendered);
+
+        var result = await _handler.HandleAsync("w1", CancellationToken.None);
+
+        await _sender.Received(1).SendAsync(Arg.Is<OutboundEmail>(e => e.MessageId == OutboundMessageIds.For(item.Id)), Arg.Any<CancellationToken>());
+        await _store.Received(1).MarkSentAsync(item.Id, "w1", CancellationToken.None);
+        result.Value.ShouldBe(new DrainResult(1, 1, 0));
+    }
+
+    [Theory]
+    [InlineData("""{"ticketNumber":"ORB-1","subject":"S","productName":"","requesterLabel":"Ann"}""", "new-ticket-alert")]
+    [InlineData("""{"ticketNumber":"ORB-1","subject":"S","productName":"Orbitly","requesterLabel":""}""", "new-ticket-alert")]
+    [InlineData("""{"ticketNumber":"ORB-1","subject":"S","productName":""}""", "customer-reply-alert")]
+    [InlineData("""{"requesterName":"Ann","links":[]}""", "access-links")]
+    [InlineData("""{"requesterName":"Ann"}""", "access-links")]
+    [InlineData("""{"links":[{"ticketNumber":"","subject":"S","portalLink":"https://x.test"}]}""", "access-links")]
+    [InlineData("""{"links":[{"ticketNumber":"ORB-1","subject":"S","portalLink":""}]}""", "access-links")]
+    public async Task A_new_kind_with_a_missing_required_field_fails_as_payload_invalid(string payload, string kind) =>
+        await AssertFailedWithoutSending(Item(kind, payload), DrainFailures.PayloadInvalid);
+
+    [Theory]
     [InlineData("ticket-confirmation")]
     [InlineData("agent-reply")]
     [InlineData("ticket-solved")]
+    [InlineData("new-ticket-alert")]
+    [InlineData("customer-reply-alert")]
+    [InlineData("access-links")]
     [InlineData("ticket-assigned")]
     public async Task Each_kind_with_a_payload_missing_required_fields_fails_as_payload_invalid(string kind) =>
         await AssertFailedWithoutSending(Item(kind, "{}"), DrainFailures.PayloadInvalid);

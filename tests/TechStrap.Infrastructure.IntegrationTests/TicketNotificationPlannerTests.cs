@@ -202,7 +202,7 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
 
         (await TextAsync("SELECT kind FROM email_outbox")).ShouldBe("ticket-solved");
         var payload = await TextAsync("SELECT payload::text FROM email_outbox");
-        payload.ShouldContain($"\"reopenDays\": {TicketNotices.ReopenDays}");
+        payload.ShouldContain($"\"reopenDays\": {TicketNotices.DefaultReopenDays}");
         payload.ShouldContain("https://help.test/t/");
         (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens")).ShouldBe(1);
     }

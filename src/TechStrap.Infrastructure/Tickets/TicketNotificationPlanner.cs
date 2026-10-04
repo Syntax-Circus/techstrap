@@ -49,7 +49,7 @@ internal sealed class TicketNotificationPlanner(
         PlanCustomerAsync(
             ticket,
             EmailTemplates.TicketSolved,
-            (requester, _, link) => new TicketSolvedEmail(ticket.Number.ToString(), ticket.Subject, requester.Name, link, TicketNotices.ReopenDays),
+            (requester, _, link) => new TicketSolvedEmail(ticket.Number.ToString(), ticket.Subject, requester.Name, link, TicketNotices.DefaultReopenDays),
             cancellationToken);
 
     public async Task PlanAssignedAsync(Ticket ticket, Agent assignee, Agent actor, CancellationToken cancellationToken)
