@@ -1,0 +1,173 @@
+// The queue (PHASE-07a): view tabs, filter bar and the ruled ledger. Compact density; the selection marker and the status stamp
+// carry the state in text and shape, not colour alone.
+
+.ts-queue {
+  padding: 12px 16px;
+
+  h1 {
+    margin: 0 0 8px;
+    font: 600 1.125rem var(--ts-font-mono);
+  }
+}
+
+.ts-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-bottom: 8px;
+  border-bottom: 2px solid var(--rule-strong);
+}
+
+.ts-tab {
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+  padding: 6px 12px;
+  font: 600 .75rem var(--ts-font-mono);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+
+  &:hover {
+    background: var(--hover);
+  }
+
+  &[aria-current="page"] {
+    background: var(--sel);
+    border-bottom-color: var(--margin);
+  }
+}
+
+// The Spam count is muted, never an alert (D-024).
+.ts-count {
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.ts-count--muted {
+  color: var(--ink-3);
+}
+
+.ts-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: end;
+  margin-bottom: 8px;
+}
+
+.ts-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  label {
+    font: 500 .6875rem var(--ts-font-mono);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+}
+
+.ts-filter--search {
+  flex: 1 1 220px;
+}
+
+.ts-filter--actions {
+  flex-direction: row;
+  gap: 8px;
+}
+
+// The ruled ledger: square rows on ruled lines with a margin rule on the left.
+.ts-ledger {
+  --bs-table-bg: transparent;
+
+  width: 100%;
+  margin: 0;
+  font-size: .8125rem;
+
+  th {
+    font: 600 .6875rem var(--ts-font-mono);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 4px 8px;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--rule);
+  }
+}
+
+.ts-row {
+  &:hover {
+    background: var(--hover);
+  }
+}
+
+.ts-row--selected {
+  background: var(--sel);
+
+  .ts-col-mark {
+    box-shadow: inset 3px 0 0 var(--margin);
+  }
+
+  .ts-col-mark::before {
+    content: "\25B6";
+    font-size: .625rem;
+  }
+}
+
+.ts-col-mark {
+  width: 22px;
+  padding-left: 6px;
+  color: var(--ink);
+}
+
+.ts-col-number a {
+  font: 600 .75rem var(--ts-font-mono);
+  white-space: nowrap;
+}
+
+.ts-subject {
+  margin-right: 6px;
+  font-weight: 500;
+}
+
+.ts-avatar {
+  display: inline-block;
+  min-width: 24px;
+  padding: 1px 4px;
+  font: 600 .6875rem/1.5 var(--ts-font-mono);
+  text-align: center;
+  background: var(--head);
+  border: 1px solid var(--rule-strong);
+}
+
+.ts-unassigned {
+  color: var(--ink-3);
+}
+
+.ts-col-activity {
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+
+// Narrow screens drop Product, Requester and Priority first (UX open question 2 proposes this order).
+@media (max-width: 820px) {
+  .ts-ledger {
+    .ts-col-product,
+    .ts-col-requester,
+    .ts-col-priority,
+    th:nth-child(4),
+    th:nth-child(5),
+    th:nth-child(7) {
+      display: none;
+    }
+  }
+}

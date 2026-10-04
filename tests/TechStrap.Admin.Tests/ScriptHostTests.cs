@@ -7,6 +7,7 @@ public sealed class ScriptHostTests
     [Theory]
     [InlineData("/js/dialog.js")]
     [InlineData("/js/shortcuts.js")]
+    [InlineData("/js/queue.js")]
     public async Task Module_scripts_are_served_as_javascript_without_signing_in(string path)
     {
         await using var factory = new AdminFactory();

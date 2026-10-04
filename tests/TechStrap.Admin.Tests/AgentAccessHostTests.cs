@@ -16,10 +16,11 @@ public sealed class AgentAccessHostTests
 
         var html = await client.GetStringAsync("/", Ct);
 
-        html.ShouldContain("shell-placeholder");
+        html.ShouldContain("class=\"ts-queue\"");
         html.ShouldNotContain("You don't have access");
         factory.Api.Requests.First().Path.ShouldBe("/api/agents/me");
         factory.Api.Requests.First().Authorization.ShouldBe("Bearer " + AdminTestPrincipal.Agent.AccessToken);
+        factory.Api.AssertEveryCallBore(AdminTestPrincipal.Agent);
     }
 
     [Fact]
@@ -34,7 +35,7 @@ public sealed class AgentAccessHostTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await new AngleSharp.Html.Parser.HtmlParser().ParseDocumentAsync(html, Ct)).QuerySelector("section.ts-no-access h1")!.TextContent.ShouldBe("You don't have access to TechStrap.");
         html.ShouldContain("not in the techstrap-agents group");
-        html.ShouldNotContain("shell-placeholder");
+        html.ShouldNotContain("class=\"ts-queue\"");
         factory.Api.Requests.ShouldAllBe(r => r.Path == "/api/agents/me");
         factory.Api.Requests.ShouldAllBe(r => r.Authorization == "Bearer " + AdminTestPrincipal.Outsider.AccessToken);
     }
@@ -49,7 +50,7 @@ public sealed class AgentAccessHostTests
         var html = await client.GetStringAsync("/", Ct);
 
         html.ShouldContain("has been deactivated");
-        html.ShouldNotContain("shell-placeholder");
+        html.ShouldNotContain("class=\"ts-queue\"");
         factory.Api.Requests.ShouldAllBe(r => r.Authorization == "Bearer " + AdminTestPrincipal.Admin.AccessToken);
     }
 
@@ -68,7 +69,7 @@ public sealed class AgentAccessHostTests
         html.ShouldNotContain("10.1.2.3");
         html.ShouldNotContain("5432");
         html.ShouldNotContain("actively refused");
-        html.ShouldNotContain("shell-placeholder");
+        html.ShouldNotContain("class=\"ts-queue\"");
         factory.Api.Requests.ShouldAllBe(r => r.Authorization == "Bearer " + AdminTestPrincipal.Agent.AccessToken);
     }
 

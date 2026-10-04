@@ -1,0 +1,265 @@
+using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
+using TechStrap.Admin.Clients;
+using TechStrap.Admin.Features.Shell;
+using TechStrap.Contracts.Tickets;
+using TechStrap.Contracts.Paging;
+using TechStrap.Contracts.Products;
+using TechStrap.Contracts.Tags;
+
+namespace TechStrap.Admin.Features.Queue;
+
+/// <summary>
+/// The queue: six views, filters, search and paging, all in the URL. It loads the list and the per-view counts together, keeps the previous list on screen
+/// when a refresh fails, and drives the keyboard selection (<c>j</c>/<c>k</c>, Enter, <c>/</c>). The default view is Unassigned.
+/// </summary>
+public sealed partial class TicketQueuePage : IAsyncDisposable
+{
+    private const string ModulePath = "./js/queue.js";
+
+    private QueueFilter _filter = new(QueueDefaults.View, null, null, null, null, null, 1);
+    private QueueFilter? _loadedFor;
+    private QueueFilterBar? _filterBar;
+    private readonly CancellationTokenSource _lifetime = new();
+    private CancellationTokenSource? _cts;
+    private IJSObjectReference? _module;
+    private PagedResponse<TicketSummaryDto>? _page;
+    private IReadOnlyList<TicketRowViewModel> _rows = [];
+    private TicketViewCountsResponse? _counts;
+    private IReadOnlyList<ProductDto> _products = [];
+    private IReadOnlyList<TagDto> _tags = [];
+    private string? _error;
+    private string _announcement = string.Empty;
+    private bool _loading;
+    private bool _lookupsLoaded;
+    private bool _scrollSelected;
+    private int _selected = -1;
+
+    [Inject]
+    private ITicketsClient Tickets { get; set; } = default!;
+
+    [Inject]
+    private IProductsClient ProductsClient { get; set; } = default!;
+
+    [Inject]
+    private ITagsClient TagsClient { get; set; } = default!;
+
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+
+    [Inject]
+    private ShortcutService Shortcuts { get; set; } = default!;
+
+    [Inject]
+    private IJSRuntime Js { get; set; } = default!;
+
+    /// <summary>The route segment: <c>unassigned</c>, <c>mine</c>, <c>open</c>, <c>pending</c>, <c>all</c> or <c>spam</c>. Absent means the default view.</summary>
+    [Parameter]
+    public string? View { get; set; }
+
+    [SupplyParameterFromQuery(Name = QueueQueryKeys.Product)]
+    public Guid? Product { get; set; }
+
+    [SupplyParameterFromQuery(Name = QueueQueryKeys.Status)]
+    public string? Status { get; set; }
+
+    [SupplyParameterFromQuery(Name = QueueQueryKeys.Priority)]
+    public string? Priority { get; set; }
+
+    [SupplyParameterFromQuery(Name = QueueQueryKeys.Tag)]
+    public Guid? Tag { get; set; }
+
+    [SupplyParameterFromQuery(Name = QueueQueryKeys.Search)]
+    public string? Search { get; set; }
+
+    [SupplyParameterFromQuery(Name = QueueQueryKeys.Page)]
+    public int? PageNumber { get; set; }
+
+    private bool IsCaughtUpView => _filter.View is TicketViews.Unassigned or TicketViews.Mine or TicketViews.Open;
+
+    private string CaughtUpLinkHref => _filter.View == TicketViews.Open
+        ? QueueLinks.Uri(_filter with { View = TicketViews.All })
+        : QueueLinks.Uri(_filter with { View = TicketViews.Open });
+
+    private string CaughtUpLinkText => _filter.View == TicketViews.Open ? CaughtUpCopy.AllTicketsLink : CaughtUpCopy.OpenTicketsLink;
+
+    private string PlainEmptyHeading => _filter.View switch
+    {
+        TicketViews.Pending => QueueCopy.NoPendingHeading,
+        TicketViews.Spam => QueueCopy.NoSpamHeading,
+        _ => QueueCopy.NoTicketsHeading,
+    };
+
+    protected override void OnInitialized() => Shortcuts.Pressed += OnShortcutAsync;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var view = QueueViews.Parse(View);
+        if (view is null)
+        {
+            Navigation.NotFound();
+            return;
+        }
+
+        var filter = new QueueFilter(view, Product, Blank(Status), Blank(Priority), Tag, Blank(Search), Math.Max(1, PageNumber ?? 1));
+        _filter = filter;
+        if (!_lookupsLoaded)
+        {
+            _lookupsLoaded = true;
+            await LoadLookupsAsync();
+        }
+
+        if (filter != _loadedFor)
+        {
+            _loadedFor = filter;
+            _page = null;
+            _rows = [];
+            _selected = -1;
+            await LoadAsync();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_scrollSelected)
+        {
+            return;
+        }
+
+        _scrollSelected = false;
+        _module ??= await Js.InvokeAsync<IJSObjectReference>("import", ModulePath);
+        await _module.InvokeVoidAsync("scrollSelectedIntoView");
+    }
+
+    private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private async Task LoadLookupsAsync()
+    {
+        var products = ProductsClient.ListAsync(_lifetime.Token);
+        var tags = TagsClient.ListAsync(_lifetime.Token);
+        await Task.WhenAll(products, tags);
+
+        // A failed lookup only means that filter has no options; the queue itself still works.
+        _products = products.Result.IsSuccess ? products.Result.Value : [];
+        _tags = tags.Result.IsSuccess ? tags.Result.Value : [];
+    }
+
+    private async Task LoadAsync()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        var cts = _cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        var filter = _filter;
+        _loading = true;
+        _error = null;
+
+        var list = Tickets.ListAsync(filter.ToRequest(), cts.Token);
+        var counts = Tickets.GetCountsAsync(cts.Token);
+        try
+        {
+            await Task.WhenAll(list, counts);
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            return;
+        }
+
+        if (cts.IsCancellationRequested)
+        {
+            return;
+        }
+
+        _loading = false;
+        if (counts.Result.IsSuccess)
+        {
+            _counts = counts.Result.Value;
+        }
+
+        if (list.Result.IsSuccess)
+        {
+            _page = list.Result.Value;
+            _rows = _page.Items.Select(TicketRowViewModel.From).ToList();
+            _selected = Math.Min(_selected, _rows.Count - 1);
+            _announcement = $"{_rows.Count} of {_page.TotalCount} tickets";
+        }
+        else
+        {
+            // Keep whatever list is already on screen; the alert explains and offers a retry.
+            _error = $"{QueueCopy.LoadFailed} {list.Result.Errors[0].Message}";
+        }
+    }
+
+    private Task RefreshAsync() => LoadAsync();
+
+    private Task RetryAsync() => LoadAsync();
+
+    private string TabHref(string view) => QueueLinks.Uri(_filter with { View = view, Page = 1 });
+
+    private Task OnFilterChangedAsync(QueueFilter filter)
+    {
+        Navigation.NavigateTo(QueueLinks.Uri(filter), new NavigationOptions { ReplaceHistoryEntry = true });
+        return Task.CompletedTask;
+    }
+
+    private Task OnPageChangedAsync(int page)
+    {
+        Navigation.NavigateTo(QueueLinks.Uri(_filter with { Page = page }));
+        return Task.CompletedTask;
+    }
+
+    private Task ClearFiltersAsync() => OnFilterChangedAsync(_filter.Cleared());
+
+    private async Task OnShortcutAsync(ShortcutAction action)
+    {
+        await InvokeAsync(async () =>
+        {
+            switch (action)
+            {
+                case ShortcutAction.MoveDown:
+                    Select(_selected + 1);
+                    break;
+                case ShortcutAction.MoveUp:
+                    Select(_selected - 1);
+                    break;
+                case ShortcutAction.OpenSelected when _selected >= 0 && _selected < _rows.Count:
+                    Navigation.NavigateTo(_rows[_selected].Href);
+                    break;
+                case ShortcutAction.FocusSearch when _filterBar is not null:
+                    await _filterBar.FocusSearchAsync();
+                    break;
+            }
+
+            StateHasChanged();
+        });
+    }
+
+    private void Select(int index)
+    {
+        if (_rows.Count == 0)
+        {
+            return;
+        }
+
+        _selected = Math.Clamp(index, 0, _rows.Count - 1);
+        _scrollSelected = true;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Shortcuts.Pressed -= OnShortcutAsync;
+        _lifetime.Cancel();
+        _cts?.Dispose();
+        _lifetime.Dispose();
+        if (_module is not null)
+        {
+            try
+            {
+                await _module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit is gone; nothing left to release.
+            }
+        }
+    }
+}

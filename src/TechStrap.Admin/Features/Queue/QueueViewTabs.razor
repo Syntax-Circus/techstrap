@@ -1,0 +1,27 @@
+<nav class="ts-tabs" aria-label="Queue views">
+    @foreach (var view in QueueViews.All)
+    {
+        var isSpam = view == TicketViews.Spam;
+        <a class="@(isSpam ? "ts-tab ts-tab--spam" : "ts-tab")" href="@HrefFor(view)" aria-current="@(view == ActiveView ? "page" : null)">
+            @view
+            @if (Counts is not null)
+            {
+                <span class="@(isSpam ? "ts-count ts-count--muted" : "ts-count")">@QueueViews.CountOf(Counts, view)</span>
+            }
+        </a>
+    }
+</nav>
+
+@code {
+    /// <summary>The canonical view name that is on screen.</summary>
+    [Parameter, EditorRequired]
+    public string ActiveView { get; set; } = QueueDefaults.View;
+
+    /// <summary>The per-view counts; null until they arrive or when the counts call failed (the tabs then show no numbers).</summary>
+    [Parameter]
+    public TicketViewCountsResponse? Counts { get; set; }
+
+    /// <summary>The link for a tab. Tabs are real links, so a view can be opened in a new tab or bookmarked.</summary>
+    [Parameter, EditorRequired]
+    public Func<string, string> HrefFor { get; set; } = _ => "#";
+}
