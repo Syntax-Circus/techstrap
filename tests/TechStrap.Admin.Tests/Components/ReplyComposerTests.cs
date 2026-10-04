@@ -47,6 +47,11 @@ public sealed class ReplyComposerTests : AdminComponentTest
     private static void Pick(IRenderedComponent<ReplyComposer> cut, string name, int bytes = 4, string type = "image/png") =>
         cut.FindComponent<InputFile>().UploadFiles(InputFileContent.CreateFromBinary(new byte[bytes], name, null, type));
 
+    private static void PickMany(IRenderedComponent<ReplyComposer> cut, params string[] names) =>
+        cut.FindComponent<InputFile>().UploadFiles(names.Select(n => InputFileContent.CreateFromBinary(new byte[4], n, null, "image/png")).ToArray());
+
+    private DraftStore Drafts => Services.GetRequiredService<DraftStore>();
+
     private IEnumerable<AddAgentReplyRequest> ReplyRequests() =>
         _tickets.ReceivedCalls().Where(c => c.GetMethodInfo().Name == nameof(ITicketsClient.ReplyAsync)).Select(c => (AddAgentReplyRequest)c.GetArguments()[1]!);
 
@@ -89,7 +94,8 @@ public sealed class ReplyComposerTests : AdminComponentTest
         cut.Find("textarea").GetAttribute("placeholder").ShouldBe("Note for the team only");
         cut.Find(".ts-composer-actions button").TextContent.ShouldContain("Add internal note");
         cut.Find("section.ts-composer").ClassList.ShouldContain("ts-composer--note");
-        cut.FindAll("select, input[type=file], .ts-composer-files").ShouldBeEmpty();
+        cut.FindAll("select").ShouldBeEmpty();
+        cut.Find(".ts-composer-files").HasAttribute("hidden").ShouldBeTrue("the picker stays mounted (its file handles live in the element) but is hidden");
         cut.Markup.ShouldNotContain("Send and solve");
         cut.Markup.ShouldNotContain("PUBLIC:");
     }
@@ -176,7 +182,7 @@ public sealed class ReplyComposerTests : AdminComponentTest
     }
 
     [Fact]
-    public void The_reply_carries_the_picked_files_and_the_page_s_token()
+    public void The_reply_carries_the_picked_files_and_a_write_token_that_a_closing_screen_cannot_cancel()
     {
         var cut = RenderComposer();
         Pick(cut, "screenshot.png");
@@ -186,7 +192,7 @@ public sealed class ReplyComposerTests : AdminComponentTest
 
         var call = _tickets.ReceivedCalls().Single(c => c.GetMethodInfo().Name == nameof(ITicketsClient.ReplyAsync));
         ((IReadOnlyList<ReplyAttachment>)call.GetArguments()[2]!).Select(f => f.FileName).ShouldBe(["screenshot.png"]);
-        ((CancellationToken)call.GetArguments()[3]!).CanBeCanceled.ShouldBeTrue();
+        ((CancellationToken)call.GetArguments()[3]!).CanBeCanceled.ShouldBeFalse();
     }
 
     [Fact]
@@ -276,7 +282,7 @@ public sealed class ReplyComposerTests : AdminComponentTest
 
         cut.FindAll(".ts-composer-actions button")[0].Click();
 
-        cut.Find("[role=alert]").TextContent.ShouldBe("Couldn't send the reply. Your text and files are kept. The API is unavailable.");
+        cut.Find("[role=alert]").TextContent.ShouldBe("Couldn't send the reply. Your text is kept, and your files stay attached while you stay on this ticket. The API is unavailable.");
         cut.Find("textarea").GetAttribute("value").ShouldBe("Reply text");
         cut.Find(".ts-file-name").TextContent.ShouldBe("a.png");
         _sent.ShouldBe(0);
@@ -308,7 +314,7 @@ public sealed class ReplyComposerTests : AdminComponentTest
 
         _conflicts.ShouldBe(1);
         _sent.ShouldBe(0);
-        cut.Find("[role=alert]").TextContent.ShouldBe("This ticket changed since you opened it. Your text and files are kept; reload the ticket, then send again.");
+        cut.Find("[role=alert]").TextContent.ShouldBe("This ticket changed since you opened it. Your text is kept, and your files stay attached while you stay on this ticket; reload the ticket, then send again.");
         cut.Find("textarea").GetAttribute("value").ShouldBe("A long reply that must not be lost.");
         cut.Find(".ts-file-name").TextContent.ShouldBe("log.txt");
         cut.FindAll(".ts-composer-modes button")[0].GetAttribute("aria-pressed").ShouldBe("true");
@@ -362,6 +368,7 @@ public sealed class ReplyComposerTests : AdminComponentTest
     [InlineData(ApiErrorCodes.ApiTimeout)]
     [InlineData(ApiErrorCodes.ApiUnavailable)]
     [InlineData(ApiErrorCodes.UnexpectedResponse)]
+    [InlineData(ApiErrorCodes.ApiError)]
     public void An_uncertain_write_failure_says_the_reply_may_have_been_sent_and_keeps_the_draft_and_files(string code)
     {
         _tickets.ReplyAsync(Arg.Any<Guid>(), Arg.Any<AddAgentReplyRequest>(), Arg.Any<IReadOnlyList<ReplyAttachment>>(), Arg.Any<CancellationToken>())
@@ -373,7 +380,7 @@ public sealed class ReplyComposerTests : AdminComponentTest
         cut.FindAll(".ts-composer-actions button")[0].Click();
 
         var alert = cut.Find("[role=alert]").TextContent;
-        alert.ShouldBe("The reply may already have been sent. Your text and files are kept. Check the timeline before sending again.");
+        alert.ShouldBe("The reply may already have been sent. Your text is kept, and your files stay attached while you stay on this ticket. Check the timeline before sending again.");
         alert.ShouldNotContain("Try again");
         cut.Find("textarea").GetAttribute("value").ShouldBe("Maybe sent.");
         cut.Find(".ts-file-name").TextContent.ShouldBe("a.png");
@@ -417,8 +424,9 @@ public sealed class ReplyComposerTests : AdminComponentTest
     public void Picked_files_are_listed_with_their_size_and_can_be_removed()
     {
         var cut = RenderComposer();
-        Pick(cut, "a.png", 2048);
-        Pick(cut, "b.pdf", 10, "application/pdf");
+        cut.FindComponent<InputFile>().UploadFiles(
+            InputFileContent.CreateFromBinary(new byte[2048], "a.png", null, "image/png"),
+            InputFileContent.CreateFromBinary(new byte[10], "b.pdf", null, "application/pdf"));
 
         cut.FindAll(".ts-file-name").Select(n => n.TextContent).ShouldBe(["a.png", "b.pdf"]);
         cut.FindAll(".ts-file-size").First().TextContent.ShouldBe("(2 KB)");
@@ -440,15 +448,132 @@ public sealed class ReplyComposerTests : AdminComponentTest
         Pick(cut, "run.exe");
         cut.Find("[role=alert]").TextContent.ShouldBe("run.exe: this file type isn't allowed.");
 
-        for (var i = 0; i < IntakeLimits.MaxFiles; i++)
-        {
-            Pick(cut, $"f{i}.png");
-        }
-
-        cut.FindAll(".ts-file-name").Count.ShouldBe(IntakeLimits.MaxFiles);
-        Pick(cut, "one-too-many.png");
+        PickMany(cut, Enumerable.Range(0, IntakeLimits.MaxFiles + 1).Select(i => $"f{i}.png").ToArray());
         cut.Find("[role=alert]").TextContent.ShouldBe("You can attach up to 5 files.");
         cut.FindAll(".ts-file-name").Count.ShouldBe(IntakeLimits.MaxFiles);
+    }
+
+    [Fact]
+    public void A_second_pick_replaces_the_file_list_because_the_browser_drops_the_first_picks_handles()
+    {
+        var cut = RenderComposer();
+
+        PickMany(cut, "a.png", "b.png");
+        cut.FindAll(".ts-file-name").Select(n => n.TextContent).ShouldBe(["a.png", "b.png"]);
+
+        PickMany(cut, "c.png");
+        cut.FindAll(".ts-file-name").Select(n => n.TextContent).ShouldBe(["c.png"]);
+    }
+
+    [Fact]
+    public void Switching_modes_keeps_the_same_file_input_and_its_file_list()
+    {
+        var cut = RenderComposer();
+        PickMany(cut, "a.png");
+        var input = cut.FindComponent<InputFile>().Instance;
+
+        cut.FindAll(".ts-composer-modes button")[1].Click();
+        cut.FindAll(".ts-composer-modes button")[0].Click();
+
+        cut.FindComponent<InputFile>().Instance.ShouldBeSameAs(input);
+        cut.Find(".ts-file-name").TextContent.ShouldBe("a.png");
+        cut.Find(".ts-composer-files").HasAttribute("hidden").ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Remounting_the_composer_keeps_the_text_drops_the_files_and_says_so()
+    {
+        var first = RenderComposer();
+        first.Find("textarea").Input("Keep my words.");
+        PickMany(first, "a.png");
+        first.FindAll("p.ts-composer-notice").ShouldBeEmpty();
+        await DisposeComponentsAsync();
+
+        var again = RenderComposer();
+
+        again.Find("textarea").GetAttribute("value").ShouldBe("Keep my words.");
+        again.FindAll(".ts-file-list").ShouldBeEmpty();
+        again.Find("p.ts-composer-notice").TextContent.ShouldBe("Your attachments were removed when you left this ticket. Attach them again.");
+    }
+
+    [Fact]
+    public async Task Remounting_without_files_shows_no_notice()
+    {
+        var first = RenderComposer();
+        first.Find("textarea").Input("Words only.");
+        await DisposeComponentsAsync();
+
+        RenderComposer().FindAll("p.ts-composer-notice").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Leaving_mid_send_does_not_cancel_the_write_and_an_accepted_send_still_clears_the_draft()
+    {
+        var gate = new TaskCompletionSource<Result<AgentMessageResponse>>();
+        CancellationToken token = default;
+        _tickets.ReplyAsync(Arg.Any<Guid>(), Arg.Any<AddAgentReplyRequest>(), Arg.Any<IReadOnlyList<ReplyAttachment>>(), Arg.Do<CancellationToken>(t => token = t)).Returns(gate.Task);
+        var cut = RenderComposer();
+        cut.Find("textarea").Input("In flight.");
+        cut.FindAll(".ts-composer-actions button")[0].Click();
+
+        await DisposeComponentsAsync();
+        token.IsCancellationRequested.ShouldBeFalse();
+        gate.SetResult(Accepted(MessageVisibilities.Public));
+
+        cut.WaitForAssertion(() => Drafts.Get(TestData.TicketId).PublicText.ShouldBeEmpty());
+        StatusMessages.Current.ShouldBe("Reply sent on ORB-42");
+        RenderComposer().Find("textarea").GetAttribute("value").ShouldBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task A_send_that_fails_uncertainly_after_leaving_shows_the_check_the_timeline_notice_on_the_next_mount()
+    {
+        var gate = new TaskCompletionSource<Result<AgentMessageResponse>>();
+        _tickets.ReplyAsync(Arg.Any<Guid>(), Arg.Any<AddAgentReplyRequest>(), Arg.Any<IReadOnlyList<ReplyAttachment>>(), Arg.Any<CancellationToken>()).Returns(gate.Task);
+        var cut = RenderComposer();
+        cut.Find("textarea").Input("Maybe sent.");
+        cut.FindAll(".ts-composer-actions button")[0].Click();
+
+        await DisposeComponentsAsync();
+        gate.SetResult(TestData.Fail<AgentMessageResponse>(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again."));
+        cut.WaitForAssertion(() => Drafts.Get(TestData.TicketId).UncertainSend.ShouldNotBeNull());
+
+        var again = RenderComposer();
+        again.Find("[role=alert]").TextContent.ShouldStartWith("The reply may already have been sent.");
+        again.Find("textarea").GetAttribute("value").ShouldBe("Maybe sent.");
+    }
+
+    [Fact]
+    public void The_mode_buttons_are_disabled_while_a_request_is_in_flight()
+    {
+        var gate = new TaskCompletionSource<Result<AgentMessageResponse>>();
+        _tickets.ReplyAsync(Arg.Any<Guid>(), Arg.Any<AddAgentReplyRequest>(), Arg.Any<IReadOnlyList<ReplyAttachment>>(), Arg.Any<CancellationToken>()).Returns(gate.Task);
+        var cut = RenderComposer();
+        cut.Find("textarea").Input("Wait.");
+
+        cut.FindAll(".ts-composer-actions button")[0].Click();
+
+        cut.FindAll(".ts-composer-modes button").ShouldAllBe(b => b.HasAttribute("disabled"));
+        gate.SetResult(Accepted(MessageVisibilities.Public));
+        cut.WaitForAssertion(() => cut.FindAll(".ts-composer-modes button").ShouldAllBe(b => !b.HasAttribute("disabled")));
+    }
+
+    [Fact]
+    public void Switching_modes_keeps_the_check_the_timeline_warning_until_the_next_send()
+    {
+        _tickets.ReplyAsync(Arg.Any<Guid>(), Arg.Any<AddAgentReplyRequest>(), Arg.Any<IReadOnlyList<ReplyAttachment>>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Fail<AgentMessageResponse>(ApiErrorCodes.ApiTimeout, "x"), Accepted(MessageVisibilities.Public));
+        var cut = RenderComposer();
+        cut.Find("textarea").Input("Maybe sent.");
+        cut.FindAll(".ts-composer-actions button")[0].Click();
+
+        cut.FindAll(".ts-composer-modes button")[1].Click();
+        cut.Find("[role=alert]").TextContent.ShouldStartWith("The reply may already have been sent.");
+        cut.FindAll(".ts-composer-modes button")[0].Click();
+        cut.Find("[role=alert]").TextContent.ShouldStartWith("The reply may already have been sent.");
+
+        cut.FindAll(".ts-composer-actions button")[0].Click();
+        cut.FindAll("[role=alert]").ShouldBeEmpty();
     }
 
     [Fact]
@@ -485,6 +610,7 @@ public sealed class ReplyComposerTests : AdminComponentTest
     [InlineData("C:\\temp\\report.pdf", "C:tempreport.pdf")]
     [InlineData("a\"b'c\u0001d.log", "abcd.log")]
     [InlineData("  spaced.png  ", "spaced.png")]
+    [InlineData("evil\u202Egnp.exe", "evilgnp.exe")]
     [InlineData(".png", ".png")]
     public void The_attachment_name_cleaner_never_returns_an_empty_or_odd_name_and_keeps_the_extension(string raw, string expected)
     {

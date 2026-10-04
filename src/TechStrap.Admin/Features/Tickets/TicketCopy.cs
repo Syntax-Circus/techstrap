@@ -27,5 +27,6 @@ public static class TicketCopy
     public const string StatusLabel = "Status";
     public const string Unassigned = "Unassigned";
     public const string None = "None";
+    public const string AttachmentsRemoved = "Your attachments were removed when you left this ticket. Attach them again.";
     public const string LinkedArticlesLabel = "Linked articles";
 }

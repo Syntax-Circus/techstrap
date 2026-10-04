@@ -85,3 +85,10 @@
   gap: 8px;
   margin-top: 10px;
 }
+
+.ts-composer-notice {
+  margin: 8px 0 0;
+  padding: 4px 8px;
+  background: var(--sheet);
+  border: 2px solid var(--rule-strong);
+}

@@ -16,7 +16,7 @@ namespace TechStrap.Admin.Features.Tickets;
 /// </summary>
 public sealed partial class ReplyComposer : IDisposable
 {
-    private readonly CancellationTokenSource _lifetime = new();
+    private readonly List<IBrowserFile> _files = [];
     private readonly List<string> _fileProblems = [];
     private readonly string _id = Guid.NewGuid().ToString("N")[..8];
     private ComposerDraft _draft = new();
@@ -24,6 +24,8 @@ public sealed partial class ReplyComposer : IDisposable
     private ElementReference _text;
     private string? _error;
     private bool _sending;
+    private bool _disposed;
+    private bool _filesDropped;
 
     [Inject]
     private ITicketsClient Tickets { get; set; } = default!;
@@ -61,6 +63,14 @@ public sealed partial class ReplyComposer : IDisposable
     /// <summary>Raised when the API answered that the ticket no longer exists.</summary>
     [Parameter]
     public EventCallback OnGone { get; set; }
+
+    /// <summary>The explicit message of the last attempt, else the "check the timeline" notice that survives mode switches and a closed screen until the next send.</summary>
+    private string? ShownError => _error ?? _draft.UncertainSend switch
+    {
+        ComposerMode.PublicReply => ReplyComposerCopy.ReplyUncertain,
+        ComposerMode.InternalNote => ReplyComposerCopy.NoteUncertain,
+        _ => null,
+    };
 
     private bool IsPublic => _draft.Mode == ComposerMode.PublicReply;
 
@@ -108,6 +118,11 @@ public sealed partial class ReplyComposer : IDisposable
             _draft = Drafts.Get(TicketId);
             _error = null;
             _fileProblems.Clear();
+
+            // Files never travel between composers or tickets: their handles die with the input element that produced them.
+            _files.Clear();
+            _filesDropped = _draft.FilesDropped;
+            _draft.FilesDropped = false;
         }
     }
 
@@ -123,10 +138,13 @@ public sealed partial class ReplyComposer : IDisposable
 
     private Task OnFilesPickedAsync(InputFileChangeEventArgs e)
     {
+        // Each pick replaces the list: the browser invalidates the handles of the previous pick when the input changes.
         _fileProblems.Clear();
+        _files.Clear();
+        _filesDropped = false;
         foreach (var file in e.GetMultipleFiles(Math.Max(1, e.FileCount)))
         {
-            if (_draft.Files.Count >= IntakeLimits.MaxFiles)
+            if (_files.Count >= IntakeLimits.MaxFiles)
             {
                 _fileProblems.Add(string.Format(ReplyComposerCopy.TooManyFiles, IntakeLimits.MaxFiles));
                 break;
@@ -142,14 +160,14 @@ public sealed partial class ReplyComposer : IDisposable
             }
             else
             {
-                _draft.Files.Add(file);
+                _files.Add(file);
             }
         }
 
         return Task.CompletedTask;
     }
 
-    private void RemoveFile(IBrowserFile file) => _draft.Files.Remove(file);
+    private void RemoveFile(IBrowserFile file) => _files.Remove(file);
 
     /// <param name="statusAfterOverride">"Send and solve" passes Solved; otherwise the status choice in the draft applies.</param>
     private async Task SubmitAsync(string? statusAfterOverride = null)
@@ -169,17 +187,20 @@ public sealed partial class ReplyComposer : IDisposable
 
         _sending = true;
         _error = null;
+        _draft.UncertainSend = null;
         StateHasChanged();
+
+        // The write is never cancelled by the screen closing: the server may commit it, and a cancelled call would leave the draft looking unsent.
+        // Everything below the await works on the captured draft, so it still settles the store when this component is gone.
+        var draft = _draft;
+        var ticketId = TicketId;
+        var number = TicketNumber;
         try
         {
             var result = mode == ComposerMode.PublicReply
-                ? await Tickets.ReplyAsync(TicketId, new AddAgentReplyRequest(text, [], StatusAfterFor(statusAfterOverride), RowVersion), Attachments(), _lifetime.Token)
-                : await Tickets.AddNoteAsync(TicketId, new AddInternalNoteRequest(text, RowVersion), _lifetime.Token);
-            await HandleResultAsync(mode, result);
-        }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
-        {
-            // The screen was closed mid-request; the draft stays in the store.
+                ? await Tickets.ReplyAsync(ticketId, new AddAgentReplyRequest(text, [], StatusAfterFor(statusAfterOverride), RowVersion), Attachments(), CancellationToken.None)
+                : await Tickets.AddNoteAsync(ticketId, new AddInternalNoteRequest(text, RowVersion), CancellationToken.None);
+            await HandleResultAsync(mode, draft, number, result);
         }
         finally
         {
@@ -190,7 +211,7 @@ public sealed partial class ReplyComposer : IDisposable
     // Each attempt reopens the picked files, so a retry after a failure or a conflict sends the same bytes (a stream cannot be read twice).
     // The browser's file name is cleaned first: an empty or odd name would make the multipart body throw.
     private List<ReplyAttachment> Attachments() =>
-        _draft.Files.Select(file => new ReplyAttachment(AttachmentFileName.Clean(file.Name), file.ContentType, () => file.OpenReadStream(IntakeLimits.MaxFileBytes))).ToList();
+        _files.Select(file => new ReplyAttachment(AttachmentFileName.Clean(file.Name), file.ContentType, () => file.OpenReadStream(IntakeLimits.MaxFileBytes))).ToList();
 
     private string? StatusAfterFor(string? statusAfterOverride)
     {
@@ -202,29 +223,55 @@ public sealed partial class ReplyComposer : IDisposable
         return string.IsNullOrEmpty(_draft.StatusAfter) ? null : _draft.StatusAfter;
     }
 
-    private async Task HandleResultAsync(ComposerMode mode, Result<AgentMessageResponse> result)
+    private static bool IsUncertain(string code) =>
+        code is ApiErrorCodes.ApiTimeout or ApiErrorCodes.ApiUnavailable or ApiErrorCodes.UnexpectedResponse or ApiErrorCodes.ApiError;
+
+    // Runs after the write finished, possibly after this component was disposed: the shared draft is settled first, and the UI callbacks only run while alive.
+    private async Task HandleResultAsync(ComposerMode mode, ComposerDraft draft, string number, Result<AgentMessageResponse> result)
     {
         if (result.IsSuccess)
         {
             // Only an accepted send clears anything, and only the mode that was sent.
             if (mode == ComposerMode.PublicReply)
             {
-                _draft.PublicText = string.Empty;
-                _draft.Files.Clear();
-                _fileProblems.Clear();
-                StatusMessages.Show(ReplyComposerCopy.ReplySent(TicketNumber));
+                draft.PublicText = string.Empty;
+                draft.FilesDropped = false;
+                if (!_disposed)
+                {
+                    _files.Clear();
+                    _fileProblems.Clear();
+                }
+
+                StatusMessages.Show(ReplyComposerCopy.ReplySent(number));
             }
             else
             {
-                _draft.NoteText = string.Empty;
-                StatusMessages.Show(ReplyComposerCopy.NoteAdded(TicketNumber));
+                draft.NoteText = string.Empty;
+                StatusMessages.Show(ReplyComposerCopy.NoteAdded(number));
             }
 
-            await OnSent.InvokeAsync(result.Value);
+            if (!_disposed)
+            {
+                await OnSent.InvokeAsync(result.Value);
+            }
+
             return;
         }
 
         var error = result.Errors[0];
+        if (IsUncertain(error.Code))
+        {
+            // The write may have been saved before the answer was lost, so never offer a bare "Try again": the notice lives in the draft and
+            // tells the agent to check the timeline, even on the next mount.
+            draft.UncertainSend = mode;
+            return;
+        }
+
+        if (_disposed)
+        {
+            return;
+        }
+
         if (error.Code == ApiErrorCodes.ConcurrencyConflict)
         {
             _error = ReplyComposerCopy.Conflict;
@@ -237,11 +284,6 @@ public sealed partial class ReplyComposer : IDisposable
         else if (error.Code == ApiErrorCodes.TicketClosed)
         {
             _error = error.Message;
-        }
-        else if (error.Code is ApiErrorCodes.ApiTimeout or ApiErrorCodes.ApiUnavailable or ApiErrorCodes.UnexpectedResponse)
-        {
-            // The write may have been saved before the answer was lost, so never offer a bare "Try again": tell the agent to check the timeline.
-            _error = mode == ComposerMode.PublicReply ? ReplyComposerCopy.ReplyUncertain : ReplyComposerCopy.NoteUncertain;
         }
         else
         {
@@ -286,8 +328,13 @@ public sealed partial class ReplyComposer : IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
         Shortcuts.Pressed -= OnShortcutAsync;
-        _lifetime.Cancel();
-        _lifetime.Dispose();
+
+        // The files' handles die with this component's input element; the next composer for the ticket says so. A write still in flight is left to finish.
+        if (_files.Count > 0)
+        {
+            _draft.FilesDropped = true;
+        }
     }
 }

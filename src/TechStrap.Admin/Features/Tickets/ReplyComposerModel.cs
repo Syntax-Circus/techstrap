@@ -1,4 +1,5 @@
-using Microsoft.AspNetCore.Components.Forms;
+using System.Globalization;
+using TechStrap.Contracts.Tickets;
 
 namespace TechStrap.Admin.Features.Tickets;
 
@@ -21,10 +22,16 @@ public sealed class ComposerDraft
     public string StatusAfter { get; set; } = ReplyComposerCopy.PendingValue;
 
     /// <summary>
-    /// The files picked for the public reply. They stay here until the reply is accepted, because a stream cannot be re-read after a failed attempt:
-    /// each attempt rebuilds the multipart body from these <see cref="IBrowserFile"/>s.
+    /// Set when a write may have been saved although its answer was lost (timeout, unreachable API, unreadable or 5xx answer). It holds the mode that was sent
+    /// and survives the screen being closed; the composer shows the "check the timeline" notice until the next send.
     /// </summary>
-    public List<IBrowserFile> Files { get; } = [];
+    public ComposerMode? UncertainSend { get; set; }
+
+    /// <summary>
+    /// Set when a composer was closed while files were attached. The files are NOT kept here: an <c>IBrowserFile</c> is only readable while the
+    /// <c>InputFile</c> element that produced it is alive, so the next composer tells the agent to attach them again.
+    /// </summary>
+    public bool FilesDropped { get; set; }
 }
 
 /// <summary>
@@ -49,7 +56,7 @@ public sealed class DraftStore
 
 /// <summary>
 /// Makes a browser-supplied file name safe to put in a multipart part. <c>MultipartFormDataContent.Add</c> throws on an empty name and the API connection
-/// does not map <see cref="ArgumentException"/>, so an odd name must never reach it: quotes, control characters and path separators are removed, the
+/// does not map <see cref="ArgumentException"/>, so an odd name must never reach it: quotes, control and Unicode format characters (such as the right-to-left override) and path separators are removed, the
 /// extension is kept, and a name that ends up empty becomes <see cref="Fallback"/>.
 /// </summary>
 internal static class AttachmentFileName
@@ -63,14 +70,14 @@ internal static class AttachmentFileName
             return Fallback;
         }
 
-        var cleaned = string.Concat(name.Where(c => !char.IsControl(c) && c is not ('"' or '\'' or '/' or '\\'))).Trim();
+        var cleaned = string.Concat(name.Where(c => !char.IsControl(c) && CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.Format && c is not ('"' or '\'' or '/' or '\\'))).Trim();
         return cleaned.Length == 0 ? Fallback : cleaned;
     }
 }
 
 public static class ReplyComposerCopy
 {
-    public const string PendingValue = "Pending";
+    public const string PendingValue = TicketStatuses.Pending;
     public const string LeaveUnchangedValue = "";
 
     public const string PublicTab = "Public reply";
@@ -88,13 +95,15 @@ public static class ReplyComposerCopy
     public const string AttachFiles = "Attach files";
     public const string EmptyReply = "Write a reply before sending.";
     public const string EmptyNote = "Write a note before adding it.";
-    public const string ReplyFailed = "Couldn't send the reply. Your text and files are kept.";
+    private const string Kept = "Your text is kept, and your files stay attached while you stay on this ticket.";
+
+    public const string ReplyFailed = $"Couldn't send the reply. {Kept}";
     public const string NoteFailed = "Couldn't add the note. Your text is kept.";
 
     /// <summary>A write that timed out, could not reach the API or got an unreadable answer may still have been saved: never offer a bare "Try again".</summary>
-    public const string ReplyUncertain = "The reply may already have been sent. Your text and files are kept. Check the timeline before sending again.";
+    public const string ReplyUncertain = $"The reply may already have been sent. {Kept} Check the timeline before sending again.";
     public const string NoteUncertain = "The note may already have been added. Your text is kept. Check the timeline before adding it again.";
-    public const string Conflict = "This ticket changed since you opened it. Your text and files are kept; reload the ticket, then send again.";
+    public const string Conflict = "This ticket changed since you opened it. Your text is kept, and your files stay attached while you stay on this ticket; reload the ticket, then send again.";
     public const string TooManyFiles = "You can attach up to {0} files.";
     public const string FileTooLarge = "{0} is larger than {1}.";
     public const string FileTypeNotAllowed = "{0}: this file type isn't allowed.";
