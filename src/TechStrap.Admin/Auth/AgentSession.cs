@@ -124,7 +124,7 @@ public sealed class AgentSession(IAgentsClient agents)
 
     private void Apply(Result<AgentDto> result, bool keepReadyOnTransientFailure)
     {
-        if (keepReadyOnTransientFailure && result.IsFailure && result.Errors[0].Kind is not (ResultErrorKind.Forbidden or ResultErrorKind.Unauthenticated))
+        if (keepReadyOnTransientFailure && result.IsFailure && result.Errors[0].Code is ApiErrorCodes.ApiUnavailable or ApiErrorCodes.ApiTimeout)
         {
             return;
         }

@@ -26,9 +26,11 @@ public sealed class PreferencesService(IJSRuntime js, ShortcutService shortcuts)
     private const string SingleKeyKey = "singleKeyShortcuts";
     private const string ThemeKey = "theme";
 
-    private IJSObjectReference? _module;
+    private Task<IJSObjectReference?>? _import;
     private Task? _loading;
     private bool _disposed;
+    private bool _themeSet;
+    private bool _singleKeySet;
 
     /// <summary>True once <see cref="LoadAsync"/> has finished (with the stored values or, when the script was unavailable, the defaults).</summary>
     public bool IsLoaded { get; private set; }
@@ -50,13 +52,32 @@ public sealed class PreferencesService(IJSRuntime js, ShortcutService shortcuts)
         try
         {
             var module = await ImportAsync();
+            if (module is null)
+            {
+                return;
+            }
+
             var stored = await module.InvokeAsync<StoredPreferences>("load");
-            shortcuts.SingleKeyEnabled = stored.SingleKeyShortcuts;
-            Theme = ParseTheme(stored.Theme);
+
+            // A choice the agent made while the stored values were on their way is newer than they are and wins.
+            if (!_disposed && !_singleKeySet)
+            {
+                shortcuts.SingleKeyEnabled = stored.SingleKeyShortcuts;
+            }
+
+            if (!_disposed && !_themeSet)
+            {
+                Theme = ParseTheme(stored.Theme);
+            }
         }
         catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or TaskCanceledException or System.Text.Json.JsonException)
         {
             // No script, no circuit or a prerender: keep the defaults. The agent loses nothing but a remembered choice.
+        }
+
+        if (_disposed)
+        {
+            return;
         }
 
         IsLoaded = true;
@@ -66,17 +87,30 @@ public sealed class PreferencesService(IJSRuntime js, ShortcutService shortcuts)
     /// <summary>Turns the single-key shortcuts on or off (WCAG 2.1.4) and remembers the choice.</summary>
     public async Task SetSingleKeyShortcutsAsync(bool enabled)
     {
+        _singleKeySet = true;
         shortcuts.SingleKeyEnabled = enabled;
         await SaveAsync(SingleKeyKey, enabled);
-        Changed?.Invoke();
+        if (!_disposed)
+        {
+            Changed?.Invoke();
+        }
     }
 
-    /// <summary>Applies a theme to the page now and remembers the choice.</summary>
+    /// <summary>Applies a theme to the page now and remembers the choice. A value that is not one of the three choices is ignored.</summary>
     public async Task SetThemeAsync(ThemeChoice theme)
     {
+        if (!Enum.IsDefined(theme))
+        {
+            return;
+        }
+
+        _themeSet = true;
         Theme = theme;
         await SaveAsync(ThemeKey, theme.ToString().ToLowerInvariant());
-        Changed?.Invoke();
+        if (!_disposed)
+        {
+            Changed?.Invoke();
+        }
     }
 
     private async Task SaveAsync(string key, object value)
@@ -84,7 +118,10 @@ public sealed class PreferencesService(IJSRuntime js, ShortcutService shortcuts)
         try
         {
             var module = await ImportAsync();
-            await module.InvokeAsync<bool>("save", key, value);
+            if (module is not null)
+            {
+                await module.InvokeAsync<bool>("save", key, value);
+            }
         }
         catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or TaskCanceledException)
         {
@@ -92,11 +129,38 @@ public sealed class PreferencesService(IJSRuntime js, ShortcutService shortcuts)
         }
     }
 
-    private async Task<IJSObjectReference> ImportAsync() =>
-        _module ??= await js.InvokeAsync<IJSObjectReference>("import", ModulePath);
+    /// <summary>One import shared by a concurrent load and setter. Null when the service was disposed while the import was in flight.</summary>
+    private Task<IJSObjectReference?> ImportAsync() => _import ??= ImportCoreAsync();
 
-    private static ThemeChoice ParseTheme(string? value) =>
-        Enum.TryParse<ThemeChoice>(value, ignoreCase: true, out var theme) && Enum.IsDefined(theme) ? theme : ThemeChoice.Auto;
+    private async Task<IJSObjectReference?> ImportCoreAsync()
+    {
+        IJSObjectReference module;
+        try
+        {
+            module = await js.InvokeAsync<IJSObjectReference>("import", ModulePath);
+        }
+        catch
+        {
+            _import = null;
+            throw;
+        }
+
+        if (!_disposed)
+        {
+            return module;
+        }
+
+        await DisposeModuleAsync(module);
+        return null;
+    }
+
+    // Only the exact names count: a numeric string such as "1" must not parse into the Light value.
+    private static ThemeChoice ParseTheme(string? value) => value?.ToLowerInvariant() switch
+    {
+        "light" => ThemeChoice.Light,
+        "dark" => ThemeChoice.Dark,
+        _ => ThemeChoice.Auto,
+    };
 
     public async ValueTask DisposeAsync()
     {
@@ -106,14 +170,33 @@ public sealed class PreferencesService(IJSRuntime js, ShortcutService shortcuts)
         }
 
         _disposed = true;
-        if (_module is null)
+        if (_import is null)
         {
             return;
         }
 
+        IJSObjectReference? module;
         try
         {
-            await _module.DisposeAsync();
+            module = await _import;
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or TaskCanceledException)
+        {
+            return;
+        }
+
+        // An import that finished after the disposal has already disposed its own module and answered null.
+        if (module is not null)
+        {
+            await DisposeModuleAsync(module);
+        }
+    }
+
+    private static async ValueTask DisposeModuleAsync(IJSObjectReference module)
+    {
+        try
+        {
+            await module.DisposeAsync();
         }
         catch (JSDisconnectedException)
         {

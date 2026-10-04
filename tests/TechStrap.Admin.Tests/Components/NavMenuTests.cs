@@ -166,6 +166,7 @@ public sealed class NavMenuTests : AdminComponentTest
         agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(gate.Task);
 
         var reload = cut.InvokeAsync(() => Session.ReloadAsync(Ct));
+        cut.Render(); // force a re-render while the answer is pending
 
         cut.FindAll("a.ts-rail-link").Count.ShouldBe(7);
         gate.SetResult(Result<AgentDto>.Success(new AgentDto(Guid.NewGuid(), "Sam", "sam@orbitly.test", AgentRoles.Admin, true, "Samantha", null)));

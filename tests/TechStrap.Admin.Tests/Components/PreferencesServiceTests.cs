@@ -120,17 +120,68 @@ public sealed class PreferencesServiceTests : AdminComponentTest
         service.Theme.ShouldBe(ThemeChoice.Light);
     }
 
+    [Theory]
+    [InlineData("1")]
+    [InlineData("2")]
+    [InlineData("Light,Dark")]
+    [InlineData(" dark")]
+    public async Task A_stored_theme_that_is_only_numerically_or_loosely_a_theme_is_auto(string theme)
+    {
+        Preferences.Setup<StoredPreferences>("load", _ => true).SetResult(new StoredPreferences(true, theme));
+        var service = Service;
+
+        await service.LoadAsync();
+
+        service.Theme.ShouldBe(ThemeChoice.Auto);
+    }
+
+    [Fact]
+    public async Task The_stored_theme_names_are_read_case_insensitively()
+    {
+        Preferences.Setup<StoredPreferences>("load", _ => true).SetResult(new StoredPreferences(true, "LIGHT"));
+        var service = Service;
+
+        await service.LoadAsync();
+
+        service.Theme.ShouldBe(ThemeChoice.Light);
+    }
+
+    [Fact]
+    public async Task An_undefined_theme_value_is_ignored_and_stores_nothing()
+    {
+        var service = Service;
+        await service.SetThemeAsync(ThemeChoice.Dark);
+
+        await service.SetThemeAsync((ThemeChoice)7);
+
+        service.Theme.ShouldBe(ThemeChoice.Dark);
+        Preferences.Invocations["save"].Count.ShouldBe(1);
+    }
+
     [Fact]
     public async Task The_layout_loads_the_preferences_once_before_it_starts_the_key_listener()
     {
         this.AddAgentShell();
-        Preferences.Setup<StoredPreferences>("load", _ => true).SetResult(new StoredPreferences(SingleKeyShortcuts: false, Theme: "light"));
+        var order = new List<string>();
+        Preferences.Setup<StoredPreferences>("load", _ =>
+        {
+            order.Add("load");
+            return true;
+        }).SetResult(new StoredPreferences(SingleKeyShortcuts: false, Theme: "light"));
+        Shortcuts.SetupVoid("register", _ =>
+        {
+            order.Add("register");
+            return true;
+        }).SetVoidResult();
 
         var cut = Render<MainLayout>(p => p.SignedIn().Add(l => l.Body, (RenderFragment)(b => { })));
         await cut.InvokeAsync(() => Task.CompletedTask);
 
         Preferences.VerifyInvoke("load", 1);
         Shortcuts.VerifyInvoke("register", 1);
+        order.ShouldContain("load");
+        order.ShouldContain("register");
+        order.IndexOf("load").ShouldBeLessThan(order.IndexOf("register"));
         ShortcutService.SingleKeyEnabled.ShouldBeFalse();
         Service.Theme.ShouldBe(ThemeChoice.Light);
     }
@@ -150,7 +201,11 @@ public sealed class PreferencesServiceTests : AdminComponentTest
 
         await PressAsync("j");
         await PressAsync("?");
-
         pressed.ShouldBeEmpty();
+
+        await PressAsync("Enter", ctrl: true, typing: true, scope: "composer");
+        await PressAsync("Escape");
+
+        pressed.ShouldBe([ShortcutAction.Send, ShortcutAction.Escape]);
     }
 }

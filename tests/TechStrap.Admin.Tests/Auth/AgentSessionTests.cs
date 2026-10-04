@@ -302,4 +302,36 @@ public sealed class AgentSessionTests
         await reload;
         session.State.ShouldBe(AgentSessionState.Ready);
     }
+
+    [Fact]
+    public async Task A_reload_that_times_out_keeps_the_ready_session()
+    {
+        var admin = Agent(AgentRoles.Admin);
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(Result<AgentDto>.Success(admin), Refused(ApiErrorCodes.ApiTimeout, ResultErrorKind.Failure));
+        var session = Session();
+        await session.EnsureLoadedAsync(Ct);
+
+        await session.ReloadAsync(Ct);
+
+        session.State.ShouldBe(AgentSessionState.Ready);
+        session.Agent.ShouldBe(admin);
+    }
+
+    // Only an unreachable API or a timeout keeps the session: any other answer (not found, a response the Admin does not understand) is not proof the agent may still work.
+    [Theory]
+    [InlineData(ApiErrorCodes.UnexpectedResponse, ResultErrorKind.Failure)]
+    [InlineData(ApiErrorCodes.ApiError, ResultErrorKind.Failure)]
+    [InlineData("not-found", ResultErrorKind.NotFound)]
+    public async Task A_reload_with_any_other_failure_ends_the_ready_session_like_a_first_load(string code, ResultErrorKind kind)
+    {
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(Result<AgentDto>.Success(Agent(AgentRoles.Admin)), Refused(code, kind));
+        var session = Session();
+        await session.EnsureLoadedAsync(Ct);
+
+        await session.ReloadAsync(Ct);
+
+        session.State.ShouldBe(AgentSessionState.Unavailable);
+        session.Agent.ShouldBeNull();
+        session.IsAdmin.ShouldBeFalse();
+    }
 }

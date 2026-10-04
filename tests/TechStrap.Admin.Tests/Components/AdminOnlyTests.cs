@@ -121,6 +121,8 @@ public sealed class AdminOnlyTests : AdminComponentTest
         var reload = cut.InvokeAsync(() => Session.ReloadAsync(Ct));
 
         reload.IsCompleted.ShouldBeFalse();
+        cut.Render(); // a re-render while the answer is pending must still show the content: a drop to NotLoaded would show "Checking"
+        _contentStarted.ShouldBe(1);
         cut.Find("#secret").TextContent.ShouldBe("admin content");
         cut.FindAll(".ts-gate").ShouldBeEmpty();
         cut.FindAll("section.ts-no-access").ShouldBeEmpty();
