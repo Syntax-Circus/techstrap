@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
@@ -87,6 +88,51 @@ public sealed class AutoCloseSolvedTicketsHandlerTests
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBe(new AutoCloseResult(2, 1, 1));
+    }
+
+    [Fact]
+    public async Task A_non_conflict_commit_failure_is_logged_and_skips_that_ticket_only()
+    {
+        var first = Solved();
+        var second = Solved();
+        Candidates(first, second);
+        _clock.Advance(TimeSpan.FromDays(8));
+        var logger = new CollectingLogger();
+        var unitOfWork = UnitOfWorkSubstitute.Create(UnitOfWorkSubstitute.Conflict(PersistenceErrorCodes.ReferenceViolation));
+        var handler = new AutoCloseSolvedTicketsHandler(_tickets, unitOfWork, _clock, Options.Create(_options), logger);
+
+        var result = await handler.HandleAsync(Ct);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(new AutoCloseResult(2, 1, 0));
+        logger.Entries.ShouldContain(e => e.Level == LogLevel.Warning && e.Message.Contains(PersistenceErrorCodes.ReferenceViolation));
+    }
+
+    [Fact]
+    public async Task An_idle_run_logs_at_debug_and_a_busy_run_at_information()
+    {
+        var idle = new CollectingLogger();
+        Candidates();
+        await new AutoCloseSolvedTicketsHandler(_tickets, UnitOfWorkSubstitute.Create(), _clock, Options.Create(_options), idle).HandleAsync(Ct);
+        idle.Entries.ShouldHaveSingleItem().Level.ShouldBe(LogLevel.Debug);
+
+        var busy = new CollectingLogger();
+        Candidates(Solved());
+        _clock.Advance(TimeSpan.FromDays(8));
+        await new AutoCloseSolvedTicketsHandler(_tickets, UnitOfWorkSubstitute.Create(), _clock, Options.Create(_options), busy).HandleAsync(Ct);
+        busy.Entries.ShouldHaveSingleItem().Level.ShouldBe(LogLevel.Information);
+    }
+
+    private sealed class CollectingLogger : ILogger<AutoCloseSolvedTicketsHandler>
+    {
+        public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, formatter(state, exception)));
     }
 
     [Fact]

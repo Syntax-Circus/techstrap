@@ -7,6 +7,8 @@ namespace TechStrap.Application.Persistence;
 /// <see cref="IUnitOfWorkScope.CommitAsync"/> writes everything (ticket, messages, events, tokens, outbox rows) in that one
 /// transaction. The concurrency token travels with the Domain object (<c>Version</c>); repositories apply it as the original token on update.
 /// Disposing a scope that was not committed rolls everything back, including a ticket number that was allocated.
+/// That rollback also clears the context change tracker, so a read made inside a scope that is disposed without committing leaves nothing
+/// tracked; callers (auto-close) rely on this to reload entities with a current concurrency token.
 /// After a successful commit the Domain <c>Version</c> of every updated object is stale (the database assigns a new token): reload before
 /// another update. A scope commits once: a second <see cref="IUnitOfWorkScope.CommitAsync"/> throws. A conflict result writes nothing,
 /// so no events (ticket or admin) are saved for a rolled-back commit.

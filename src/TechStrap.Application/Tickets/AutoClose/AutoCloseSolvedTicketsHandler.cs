@@ -52,7 +52,8 @@ public sealed class AutoCloseSolvedTicketsHandler(
             }
         }
 
-        logger.LogInformation("Auto-close examined {Examined} tickets: {Closed} closed, {Conflicts} conflicts.", ids.Count, closed, conflicts);
+        var level = ids.Count == 0 ? LogLevel.Debug : LogLevel.Information;
+        logger.Log(level, "Auto-close examined {Examined} tickets: {Closed} closed, {Conflicts} conflicts.", ids.Count, closed, conflicts);
         return Result<AutoCloseResult>.Success(new AutoCloseResult(ids.Count, closed, conflicts));
     }
 
@@ -65,8 +66,10 @@ public sealed class AutoCloseSolvedTicketsHandler(
             return Outcome.Skipped;
         }
 
-        if (ticket.ChangeStatus(TicketStatus.Closed, Actor.System, clock).IsFailure)
+        var changed = ticket.ChangeStatus(TicketStatus.Closed, Actor.System, clock);
+        if (changed.IsFailure)
         {
+            logger.LogWarning("Auto-close could not close a ticket: {Code}.", changed.Error!.Code);
             return Outcome.Skipped;
         }
 
@@ -83,8 +86,9 @@ public sealed class AutoCloseSolvedTicketsHandler(
             return Outcome.Conflict;
         }
 
-        // Anything else is not a race to retry quietly: surface it to the worker loop, which logs it and waits.
-        throw new InvalidOperationException($"Auto-close commit failed: {committed.Errors[0].Code}.");
+        // Not a race: log the code and carry on with the other tickets; the ticket stays Solved and is tried again next run.
+        logger.LogWarning("Auto-close commit failed for a ticket: {Code}.", committed.Errors[0].Code);
+        return Outcome.Skipped;
     }
 
     private enum Outcome
