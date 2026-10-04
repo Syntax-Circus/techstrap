@@ -500,7 +500,9 @@ public sealed class TicketLifecycleEndToEndTests(TestPostgres postgres) : IDispo
         after.Number.ShouldBe("ORB-1");
         after.Subject.ShouldBe("[erased]");
         after.Events.Count.ShouldBe(before.Events.Count);
-        after.Messages.Where(m => m.AuthorType == "Requester").ShouldAllBe(m => m.BodyHtml == "[erased]");
+        var requesterMessages = after.Messages.Where(m => m.AuthorType == "Requester").ToList();
+        requesterMessages.ShouldNotBeEmpty();
+        requesterMessages.ShouldAllBe(m => m.BodyHtml == "[erased]");
         after.Messages.Single(m => m.AuthorType == "Agent").BodyHtml.ShouldContain("Agent reply stays");
         (await sam.GetFromJsonAsync<PagedResponse<TicketSummaryDto>>("/api/tickets?view=All&search=zebracanary", Ct))!.Items.ShouldBeEmpty();
         Directory.EnumerateFiles(_storage, "*", SearchOption.AllDirectories).ShouldBeEmpty();
@@ -523,6 +525,7 @@ public sealed class TicketLifecycleEndToEndTests(TestPostgres postgres) : IDispo
         }
 
         var audit = (await admin.GetFromJsonAsync<PagedResponse<AdminEventDto>>("/api/admin-events?subjectType=Requester", Ct))!;
+        audit.Items.Count.ShouldBe(2); // one RequesterErased event per erase call that ran (the repeat records its own, D-039)
         audit.Items.ShouldAllBe(e => e.Type == "RequesterErased" && e.SubjectId == requesterId);
         audit.Items.ShouldAllBe(e => !e.Payload.Contains("ada@example.com") && !e.Payload.Contains("Ada"));
     }

@@ -105,7 +105,7 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
             .ToList();
         var adminOnly = endpoints.Where(item => IsAdminOnly(item.Action.MethodInfo)).ToList();
 
-        adminOnly.Count.ShouldBeGreaterThanOrEqualTo(7);
+        adminOnly.Count.ShouldBeGreaterThanOrEqualTo(15); // 15 admin-only routes today; the floor catches IsAdminOnly silently matching fewer
         foreach (var (endpoint, _) in adminOnly)
         {
             var path = "/" + string.Join('/', endpoint.RoutePattern.PathSegments.Select(segment =>
