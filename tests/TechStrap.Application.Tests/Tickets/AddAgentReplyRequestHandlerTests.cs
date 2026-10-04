@@ -26,7 +26,8 @@ public sealed class AddAgentReplyRequestHandlerTests
     private readonly FakeTimeProvider _clock = new();
     private readonly ICurrentAgentClaims _claims = Substitute.For<ICurrentAgentClaims>();
     private readonly IAgentRepository _agents = Substitute.For<IAgentRepository>();
-    private readonly ITicketRepository _tickets = Substitute.For<ITicketRepository>();
+    private readonly ITicketRepository _tickets;
+    private List<(TicketEventType Type, string Payload)> _stagedEvents = [];
     private readonly IKbRepository _kb = Substitute.For<IKbRepository>();
     private readonly IAttachmentStore _store = Substitute.For<IAttachmentStore>();
     private readonly IMarkdownRenderer _markdown = Substitute.For<IMarkdownRenderer>();
@@ -38,13 +39,13 @@ public sealed class AddAgentReplyRequestHandlerTests
 
     public AddAgentReplyRequestHandlerTests()
     {
+        _tickets = TicketRepositorySubstitute.Create(ticket => _stagedEvents = [.. ticket.PendingEvents.Select(e => (e.Type, e.PayloadJson))]);
         _sam = Agent.Create("sam", "Sam", "sam@example.com", AgentRole.Agent, _clock).Value;
         _claims.Current.Returns(new AgentClaims("sam", "Sam", "sam@example.com", AgentRole.Agent));
         _agents.GetBySubjectAsync("sam", Arg.Any<CancellationToken>()).Returns(_sam);
         _ticket = TicketBuilder.WithVersion(TicketBuilder.New(_clock), 7);
         _tickets.GetByIdAsync(_ticket.Id, Arg.Any<CancellationToken>()).Returns(_ticket);
         _tickets.GetStateAsync(_ticket.Id, Arg.Any<CancellationToken>()).Returns(_ => State(_ticket, 8));
-        _tickets.When(repository => repository.Update(Arg.Any<Ticket>())).Do(call => call.Arg<Ticket>().AcceptChanges()); // as the real repository does
         _markdown.ToHtml(Arg.Any<string>()).Returns(call => string.IsNullOrWhiteSpace(call.Arg<string>()) ? string.Empty : "<p>" + call.Arg<string>() + "</p>"); // like the real renderer, blank in gives nothing out
         _sanitizer.Sanitize(Arg.Any<string>()).Returns(call => call.Arg<string>());
         _store.SaveAsync(Arg.Any<Guid>(), Arg.Any<IncomingAttachment>(), Arg.Any<CancellationToken>()).Returns(call =>
@@ -113,14 +114,23 @@ public sealed class AddAgentReplyRequestHandlerTests
         open.FirstResponseAt.ShouldBe(first);
     }
 
-    [Fact]
-    public async Task Send_and_solve_solves_after_the_reply_and_plans_one_email_marked_solved()
+    [Theory]
+    [InlineData(TicketStatus.New)]
+    [InlineData(TicketStatus.Open)]
+    public async Task Send_and_solve_solves_after_the_reply_and_plans_one_email_marked_solved(TicketStatus start)
     {
-        var result = await Reply(Request(statusAfter: "Solved"));
+        var ticket = TicketBuilder.InStatus(start, _clock);
+        _tickets.GetByIdAsync(ticket.Id, Arg.Any<CancellationToken>()).Returns(ticket);
+        _tickets.GetStateAsync(ticket.Id, Arg.Any<CancellationToken>()).Returns(_ => State(ticket, 8));
+
+        var result = await Handler().HandleAsync(ticket.Id, Request(statusAfter: "Solved"), [], Ct);
 
         result.IsSuccess.ShouldBeTrue();
-        _ticket.Status.ShouldBe(TicketStatus.Solved);
-        await _planner.Received(1).PlanAgentReplyAsync(_ticket, Arg.Any<Message>(), _sam, true, Ct);
+        ticket.Status.ShouldBe(TicketStatus.Solved);
+        _stagedEvents.Select(e => e.Type).ShouldBe([TicketEventType.MessageAdded, TicketEventType.StatusChanged, TicketEventType.StatusChanged]);
+        _stagedEvents[1].Payload.ShouldContain("Pending");
+        _stagedEvents[2].Payload.ShouldContain("Solved");
+        await _planner.Received(1).PlanAgentReplyAsync(ticket, Arg.Any<Message>(), _sam, true, Ct);
         await _planner.DidNotReceive().PlanSolvedAsync(Arg.Any<Ticket>(), Arg.Any<CancellationToken>());
     }
 
@@ -299,10 +309,10 @@ public sealed class AddAgentReplyRequestHandlerTests
     }
 
     [Fact]
-    public async Task A_reply_to_an_erased_requester_is_saved_without_an_email()
+    public async Task The_planner_is_always_consulted_and_decides_who_is_emailed()
     {
         // The planner decides who is emailed (Task 7); the handler always asks it and never fails because it skips.
-        // The end-to-end "no email" with the real planner is proven in AgentReplyIntegrationTests.
+        // The erased-requester end-to-end case with the real planner is AgentReplyIntegrationTests.A_reply_to_an_erased_requester_is_saved_without_an_email.
         var result = await Reply(Request());
 
         result.IsSuccess.ShouldBeTrue();

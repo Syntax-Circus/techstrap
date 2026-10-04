@@ -77,7 +77,7 @@ public sealed class AddAgentReplyRequestHandler(
 
         await using var scope = await unitOfWork.BeginAsync(cancellationToken);
 
-        var loaded = await TicketMutation.LoadAsync(ticketId, request.RowVersion, false, currentAgent, agents, tickets, cancellationToken);
+        var loaded = await TicketMutation.LoadAsync(ticketId, request.RowVersion, rowVersionRequired: false, currentAgent, agents, tickets, cancellationToken);
         if (loaded.IsFailure)
         {
             return Fail(loaded.Errors[0]);
@@ -153,7 +153,7 @@ public sealed class AddAgentReplyRequestHandler(
                 return Fail(committed.Errors[0]);
             }
 
-            // Committed rows now reference these files: an exception from scope disposal must not delete them.
+            // A failure after commit (for example building the DTO) must not delete committed files.
             stored.Clear();
             var dto = new MessageDto(
                 message.Value.Id, message.Value.AuthorType.ToWire(), message.Value.AuthorId, agent.Name ?? agent.Email, message.Value.Visibility.ToWire(),

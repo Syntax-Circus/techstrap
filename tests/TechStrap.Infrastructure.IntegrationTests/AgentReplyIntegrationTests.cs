@@ -34,9 +34,15 @@ public sealed class AgentReplyIntegrationTests(PostgresFixture postgres) : Postg
         public AgentClaims? Current { get; } = new("sub-sam", "Sam Taylor", "sam.taylor@techstrap.test", AgentRole.Agent);
     }
 
-    private sealed class ThrowingOutbox : IEmailOutbox
+    private sealed class ThrowingOutbox(string root) : IEmailOutbox
     {
-        public void Enqueue(EmailOutboxItem item) => throw new InvalidOperationException("outbox unavailable");
+        public void Enqueue(EmailOutboxItem item)
+        {
+            FilesSeen = Directory.Exists(root) ? Directory.GetFiles(root, "*", SearchOption.AllDirectories).Length : 0;
+            throw new InvalidOperationException("outbox unavailable");
+        }
+
+        public static int FilesSeen { get; private set; }
     }
 
     public void Dispose()
@@ -139,12 +145,16 @@ public sealed class AgentReplyIntegrationTests(PostgresFixture postgres) : Postg
     [Fact]
     public async Task A_failed_commit_leaves_no_message_rows_and_no_files()
     {
-        await using var failing = NewHost(services => services.AddScoped<IEmailOutbox, ThrowingOutbox>());
+        await using var failing = NewHost(services => services.AddScoped<IEmailOutbox>(_ => new ThrowingOutbox(_root)));
         var seed = await SeedAsync(failing);
         var messagesBefore = await ScalarAsync("SELECT count(*) FROM messages");
 
-        await Should.ThrowAsync<InvalidOperationException>(
+        var thrown = await Should.ThrowAsync<InvalidOperationException>(
             () => ReplyAsync(failing, seed.TicketId, new AddAgentReplyRequest("Try again", [seed.ArticleId], null, null), PngFile()));
+
+        // The failure came from the outbox, which runs after the file was saved: so the cleanup really had a file to remove.
+        thrown.Message.ShouldBe("outbox unavailable");
+        ThrowingOutbox.FilesSeen.ShouldBe(1);
 
         (await ScalarAsync("SELECT count(*) FROM messages")).ShouldBe(messagesBefore);
         (await ScalarAsync("SELECT count(*) FROM attachments")).ShouldBe(0);
