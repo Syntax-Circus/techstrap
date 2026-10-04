@@ -61,9 +61,10 @@ The Admin refuses to start with a message that names the missing variable. Value
    - the API could not be reached: an alert with Retry, and still no page content.
 3. Delete and erase (and, in 07b, settings, dead letters and the audit log) show **only to an Admin** (`AgentDto.Role`). The API enforces the same rule, so hiding is a courtesy.
 4. Sign out is a POST to `/signout` with an antiforgery token; it ends the cookie session and the provider session.
-5. The Admin forwards the agent's **access token** to the API on every call, through named HTTP clients created per circuit (`IBlazorCircuitHttpClientFactory`). Reads retry on a
-   transient failure; **writes are never retried** (a retried reply would send twice). The refresh token stays on the server (an in-memory token cache); it is never rendered
-   or logged.
+5. The Admin forwards the agent's **access token** to the API on every call, through named HTTP clients created per circuit (`IBlazorCircuitHttpClientFactory`). Reads are retried
+   at most twice, with a short backoff, on a transport error, a timeout, 408, 502, 503 or 504 (never on 500, and there is no circuit breaker); **writes are never retried** (a retried reply would send twice).
+   Tokens: sign-in uses `SaveTokens = true` and there is no session store, so the access, refresh and id tokens are kept in the **encrypted auth cookie** (the browser holds
+   that cookie, not the tokens in readable form), and they are also copied to the server-side token cache that the circuit's HTTP clients read. They are never rendered, put in a URL or logged.
 
 ### Roles
 
@@ -120,7 +121,7 @@ Rules the code follows (and the reviewers check):
 
 - The Admin references **Contracts and Hosting only**: never Application, Infrastructure or Domain. DTOs are never renamed; view models are feature-local.
 - **Components never inject `HttpClient`.** They inject the `I*Client` interfaces, which return `Result<T>`; the clients map the API's ProblemDetails (the error `type` is the code).
-- Every client call takes the component's `CancellationToken`.
+- Every read takes the component's `CancellationToken`. Writes (reply, note, sidebar changes, spam, delete, erase) deliberately pass `CancellationToken.None`: the server may commit a write after the agent has left the screen, so cancelling the call would only hide the outcome.
 - Razor components are always public classes, so a type used as a component parameter is public (a view model cannot be `internal`).
 - A component beyond a few plain parameters and one forwarder has a `.razor.cs`; a factory or presenter exists only for non-trivial assembly (`TicketDetailPresenter`, `TimelineEntryFactory`).
 - The single `MarkupString` is the message body in `MessageBubble` (the API sanitises it). Everything else is encoded.
@@ -168,6 +169,9 @@ The command palette (Ctrl+K) arrives in 07c.
 - **Pages render twice.** Blazor Server prerenders each page on the server, then renders it again in the circuit, so every page loads its data twice (two calls to the API for the same screen). The first render is what a plain HTTP request sees, which is why the host tests can read the data in the HTML. Making the second load reuse the first (persistent component state) is not done in 07a.
 - **Attachments must be re-attached after leaving a ticket.** Chosen files are held by the browser for the composer on screen. The browser only lets the page read a file while the file input that produced it is on screen, so leaving the ticket drops them and the composer tells you to attach them again. The typed text is kept for the life of the circuit; the files are not. A failed send or a conflict on the same screen keeps both.
 
+- **The read client retries but never breaks the circuit.** A read is tried up to three times in all (250 ms base backoff with jitter) on transport errors, timeouts, 408, 502, 503 and 504. There is no circuit breaker: one named read client is shared by every agent, and a breaker opened by one failing endpoint would lock everyone out. Under a real outage every call waits out its retries (roughly a second) before it fails.
+- **Any 5xx counts as an uncertain write.** The pages decide by the answer's status, not by the API's problem `type`, so a write that ends in a 500 says "this may have happened" and offers a reload rather than a bare retry. The write client's timeout is at least 300 seconds (uploads), whatever `Api:TimeoutSeconds` says.
+
 ## Troubleshooting
 
 | You see | Cause |
@@ -184,7 +188,7 @@ The command palette (Ctrl+K) arrives in 07c.
 
 ```bash
 dotnet test --project tests/TechStrap.Admin.Tests -c Release                              # bUnit components and the host tests (fake sign-in, stub API)
-dotnet test --project tests/TechStrap.Api.Tests -c Release --filter "AdminHost|ShellHostTests"
+dotnet test --project tests/TechStrap.Api.Tests -c Release --filter-class "*Admin*" --filter-class "*ShellHostTests"
 ```
 
 bUnit notes that cost time once: JS interop runs in strict mode, so set up `./js/dialog.js` and `./js/shortcuts.js` (the `AdminComponentTest` base class does); the element reference of an element is blanked after the next

@@ -17,8 +17,8 @@ using TechStrap.Hosting.Sentry;
 
 const string ServiceName = "techstrap-admin";
 
-// Placeholder shell: this host never touches the database and never migrates. It will call the API
-// through typed clients over TechStrap.Contracts once its UI phase lands.
+// The Admin app: this host never touches the database and never migrates. It calls the API only through the typed
+// clients over TechStrap.Contracts (Clients/), with the signed-in agent's token.
 var builder = WebApplication.CreateBuilder(args);
 if (builder.Configuration.ShouldLoadDotEnv(builder.Environment))
 {

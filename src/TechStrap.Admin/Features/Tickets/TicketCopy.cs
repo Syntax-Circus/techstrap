@@ -1,3 +1,4 @@
+using TechStrap.Admin.Components.Ui;
 namespace TechStrap.Admin.Features.Tickets;
 
 /// <summary>
@@ -12,7 +13,7 @@ public static class TicketCopy
     public const string NotFoundBody = "No ticket has that number. Check the number, or search the queue.";
     public const string GoneHeading = "This ticket no longer exists";
     public const string GoneBody = "It was deleted after you opened it.";
-    public const string BackToQueue = "Back to the queue";
+    public const string BackToQueue = BrandMomentCopy.NotFoundLinkText;
     public const string ClosedNotice = "Closed tickets are read-only; a customer reply starts a follow-up";
     public const string FollowUpTo = "Follow-up to";
     public const string Untrusted = "Untrusted";

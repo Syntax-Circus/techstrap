@@ -1,3 +1,4 @@
+using TechStrap.Admin.Components.Ui;
 using TechStrap.Admin.Clients;
 
 namespace TechStrap.Admin.Components.Pages;
@@ -11,7 +12,7 @@ public static class NoAccessCopy
     public const string PageTitle = "You don't have access to this page.";
 
     public const string PageReason = "You are signed in, but you are not allowed to open this page.";
-    public const string BackToQueue = "Back to the queue";
+    public const string BackToQueue = BrandMomentCopy.NotFoundLinkText;
 
     public static string Reason(string? code, string? apiMessage, string agentGroup) => code switch
     {

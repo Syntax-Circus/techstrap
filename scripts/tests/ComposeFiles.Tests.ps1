@@ -170,7 +170,7 @@ Describe 'docker-compose files' -Skip:(-not $script:DockerAvailable) {
         $admin.Auth__ClientSecret | Should -Not -BeNullOrEmpty
     }
 
-    It '<file> resolves with the example env file,trusts the proxy in Admin and Portal only, and the API also trusts the subnet' -ForEach @(
+    It '<file> resolves with the example env file, trusts the proxy in Admin and Portal only, and the API also trusts the subnet' -ForEach @(
         @{ file = 'docker-compose.production.yml' }
         @{ file = 'docker-compose.uat.yml' }
     ) {

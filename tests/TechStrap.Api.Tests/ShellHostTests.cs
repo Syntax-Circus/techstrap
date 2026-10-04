@@ -12,12 +12,12 @@ public sealed class ShellHostTests
     private static readonly string[] IconContentTypes = ["image/x-icon", "image/vnd.microsoft.icon"];
 
     [Fact]
-    public async Task Admin_serves_the_placeholder_page_icons_and_compiled_css()
+    public async Task Admin_serves_the_shell_page_icons_and_compiled_css()
     {
         await using var factory = new AdminFactory();
         using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
 
-        await AssertShellAsync(client, "TechStrap Admin");
+        await AssertShellAsync(client, "TechStrap Admin", ".ts-shell");
         factory.Api.AssertEveryCallBore(AdminTestPrincipal.Agent);
     }
 
@@ -27,10 +27,10 @@ public sealed class ShellHostTests
         await using var factory = new PortalFactory();
         using var client = factory.CreateClient();
 
-        await AssertShellAsync(client, "TechStrap Portal");
+        await AssertShellAsync(client, "TechStrap Portal", ".shell-placeholder");
     }
 
-    private static async Task AssertShellAsync(HttpClient client, string expectedHeading)
+    private static async Task AssertShellAsync(HttpClient client, string expectedHeading, string expectedCssClass)
     {
         var home = await client.GetAsync("/", TestContext.Current.CancellationToken);
         home.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -50,7 +50,7 @@ public sealed class ShellHostTests
 
         var css = await client.GetAsync("/css/app.css", TestContext.Current.CancellationToken);
         css.StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await css.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldContain(".shell-placeholder");
+        (await css.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldContain(expectedCssClass);
 
         var script = await client.GetAsync("/_framework/blazor.web.js", TestContext.Current.CancellationToken);
         script.StatusCode.ShouldBe(HttpStatusCode.OK);

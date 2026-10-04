@@ -230,23 +230,23 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 
 ## Success Criteria
 
-- [x] An agent in the configured group signs in, sees the queue with all five views plus the Spam view, filters and searches, pages results, and opens a ticket. (07a evidence: `TicketQueuePageTests`, `AdminHostSmokeTests`)
+- [x] An agent in the configured group signs in, sees the queue with all five views plus the Spam view, filters and searches, pages results, and opens a ticket. (07a evidence: `TicketQueuePageTests`, `AdminHostSmokeTests`; the host tests sign in with the test scheme, the real provider is pending T02)
 - [x] From ticket detail an agent can reply publicly, add an internal note, change status/assignee/priority/product, tag, mark spam, delete, and erase the requester; every action is reflected in the timeline after reload. (07a evidence: `ReplyComposerTests`, `TicketSidebarTests`, `DestructiveActionTests`)
-- [ ] A non-agent user is rejected by the API and sees the no-access page; an expired session prompts re-sign-in instead of a blank error.
+- [x] A non-agent user is rejected by the API and sees the no-access page; an expired session prompts re-sign-in instead of a blank error. (07a evidence: `AgentSessionTests`, `AgentGateTests`, `AgentAccessHostTests`; test scheme, real provider pending T02)
 - [ ] Admin can create/edit products with branding, create (show-once) and revoke Trusted/Public keys, manage agents/tags/notification preferences, and retry/discard dead letters.
 - [x] The Spam view lists flagged tickets and `u` restores one (Not spam) without a dialog; normal views never show spam (D-024). (07a evidence: `NotSpamQueueTests`)
 - [ ] An agent can set a public display name in My settings and sees the live preview "Customers see: ..." (D-024).
 - [x] A 409 concurrency conflict never loses a typed reply draft. (07a evidence: `ReplyComposerTests`, `TicketDetailConflictTests`)
 - [ ] `dotnet build`, `dotnet test` (including bUnit and architecture tests) are green; admin container is healthy under compose.
-- [ ] Admin project references only Contracts and Hosting (plus packages; D-040), never Application, Infrastructure or Domain, verified by the architecture test (07c).
+- [ ] Admin project references only Contracts and Hosting (plus packages; D-040), never Application, Infrastructure or Domain, verified by the architecture test (`ProjectReferenceDirectionTests`).
 
 ## Boundary Validation
 
-- [ ] Application use-case entry points delegate to the named handlers listed above. (No new entry points; the `/attachments/{id}` pass-through only forwards to `IAttachmentsClient`.)
+- [ ] Application use-case entry points delegate to the named handlers listed above. (No new entry points; the `/attachments/{id}` pass-through is an endpoint over the read client, D-017.)
 - [ ] Framework-owned operational or static exemptions execute no application workflow.
 - [ ] Handler constructor dependencies contain only approved abstractions. (N/A here: no handlers added; verified unchanged in P04–P06.)
 - [ ] Persistence and integration entities do not cross infrastructure boundaries. (Admin has no Infrastructure/Domain reference.)
-- [ ] Cancellation reaches asynchronous handler dependencies. (Components pass the circuit/component `CancellationToken` into every client call.)
+- [ ] Cancellation reaches asynchronous handler dependencies. (Components pass the circuit/component `CancellationToken` into every read; writes deliberately pass `CancellationToken.None` so a write already sent is never cancelled by leaving the screen.)
 - [ ] Expected outcomes and transport mapping have focused tests. (Client `Result` mapping tests in P07-T05/T06.)
 - [ ] Infrastructure implementations have integration coverage where applicable. (N/A: typed clients covered by stub-handler tests.)
 - [ ] Inline Razor components contain only simple parameters and, at most, one trivial synchronous `EventCallback`-forwarding callback.
