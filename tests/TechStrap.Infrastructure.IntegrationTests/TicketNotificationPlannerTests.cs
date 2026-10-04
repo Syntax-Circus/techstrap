@@ -379,6 +379,7 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
 
         (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(2);
         (await ScalarAsync("SELECT count(*) FROM email_outbox WHERE to_address = 'sam.taylor@techstrap.test'")).ShouldBe(2);
+        (await ScalarAsync("SELECT count(*) FROM email_outbox WHERE kind = 'customer-reply-alert' AND payload::text LIKE '%https://admin.test/tickets/ORB-1%' AND payload::text LIKE '%\"reopened\": false%'")).ShouldBe(2);
     }
 
     [Fact]
@@ -477,6 +478,60 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
 
         (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(1);
         (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens")).ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Access_links_over_the_payload_cap_drop_trailing_links_and_stage_only_the_kept_tokens()
+    {
+        await using var host = NewHost(extra: new Dictionary<string, string?> { ["LostLink:MaxLinks"] = "10" });
+        var seed = await SeedAsync(host);
+        var (requester, created) = await AddTicketsAsync(host, seed, 8);
+        var links = created.Select(l => l with { Subject = new string('x', 3000) }).ToList();
+
+        (await host.CommitAsync(sp => sp.GetRequiredService<ITicketNotificationPlanner>().PlanAccessLinksAsync(requester, links, Ct))).IsSuccess.ShouldBeTrue();
+
+        var payload = await TextAsync("SELECT payload::text FROM email_outbox");
+        var tokens = System.Text.RegularExpressions.Regex.Matches(payload, "https://help.test/t/([A-Za-z0-9_-]+)").Select(m => m.Groups[1].Value).ToList();
+        tokens.Count.ShouldBeGreaterThan(0);
+        tokens.Count.ShouldBeLessThan(links.Count);
+        (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens")).ShouldBe(tokens.Count);
+        await using var scope = host.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<IAccessTokenService>();
+        foreach (var token in tokens)
+        {
+            (await ScalarAsync($"SELECT count(*) FROM ticket_access_tokens WHERE token_hash = '{service.Hash(token)}'")).ShouldBe(1);
+        }
+    }
+
+    [Fact]
+    public async Task Access_links_for_a_missing_product_stage_nothing()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        var requester = (await AddTicketsAsync(host, seed, 0)).Requester;
+        var links = new List<RequesterTicketLink> { new(seed.TicketId, Guid.NewGuid(), "ORB-1", "Cannot log in", host.Clock.GetUtcNow()) };
+
+        (await host.CommitAsync(sp => sp.GetRequiredService<ITicketNotificationPlanner>().PlanAccessLinksAsync(requester, links, Ct))).IsSuccess.ShouldBeTrue();
+
+        (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(0);
+        (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens")).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task An_assignee_who_is_also_opted_in_receives_one_customer_reply_alert()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        await SeedOptInsAsync(host, seed);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, async (planner, ticket, sam, _) =>
+        {
+            ticket.Assign(sam.Id, Actor.ForAgent(sam.Id), host.Clock).IsSuccess.ShouldBeTrue();
+            await planner.PlanCustomerReplyAsync(ticket, false, Ct);
+        }))).IsSuccess.ShouldBeTrue();
+
+        (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(1);
+        (await TextAsync("SELECT to_address FROM email_outbox")).ShouldBe("sam.taylor@techstrap.test");
     }
 
     [Fact]

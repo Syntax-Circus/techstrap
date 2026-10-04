@@ -151,9 +151,7 @@ internal sealed class TicketNotificationPlanner(
             return;
         }
 
-        // Branding follows the first ticket (the most recently active): the drain requires a product on the row.
-        var first = ticketLinks[0];
-        var staged = new List<(AccessLinkEntry Entry, TicketAccessToken Token)>();
+        var staged = new List<(RequesterTicketLink Link, AccessLinkEntry Entry, TicketAccessToken Token)>();
         foreach (var link in ticketLinks.Take(lostLink.Value.MaxLinks))
         {
             var issued = accessTokens.Issue(link.TicketId, requester.Id);
@@ -163,11 +161,19 @@ internal sealed class TicketNotificationPlanner(
                 continue;
             }
 
-            staged.Add((new AccessLinkEntry(link.Number, link.Subject, portalOptions.Value.TicketLink(issued.Value.PlaintextToken)), issued.Value.Token));
+            staged.Add((link, new AccessLinkEntry(link.Number, link.Subject, portalOptions.Value.TicketLink(issued.Value.PlaintextToken)), issued.Value.Token));
         }
 
         if (staged.Count == 0)
         {
+            return;
+        }
+
+        // Branding follows the first staged link (most recently active survivor): the drain requires a product on the row.
+        var first = staged[0].Link;
+        if (await products.GetByIdAsync(first.ProductId, cancellationToken) is null)
+        {
+            logger.LogInformation("Skipped {Kind}: product unavailable", EmailTemplates.AccessLinks);
             return;
         }
 
@@ -198,7 +204,7 @@ internal sealed class TicketNotificationPlanner(
         }
 
         // Tokens are staged only once the row is valid: all tokens or none (06a ordering rule).
-        foreach (var (_, token) in staged)
+        foreach (var (_, _, token) in staged)
         {
             tickets.AddAccessToken(token);
         }
