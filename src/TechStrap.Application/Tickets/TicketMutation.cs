@@ -47,22 +47,36 @@ internal static class TicketMutation
         return Result<(Agent Agent, Ticket Ticket)>.Success((agent.Value, ticket));
     }
 
-    /// <summary>Commits the scope and returns the fresh state (new RowVersion).</summary>
+    /// <summary>Commits the scope; commit conflicts come back as the failure.</summary>
+    public static async Task<Result> CommitAsync(IUnitOfWorkScope scope, CancellationToken cancellationToken)
+    {
+        var committed = await scope.CommitAsync(cancellationToken);
+        return committed.IsFailure ? Result.Failure(committed.Errors[0]) : Result.Success();
+    }
+
+    /// <summary>
+    /// Reads the fresh state (new RowVersion). The read deliberately ignores request cancellation: a write that has already
+    /// committed should still report its state rather than turn into an aborted request.
+    /// </summary>
+    public static async Task<Result<TicketStateDto>> ReadStateAsync(Guid ticketId, ITicketRepository tickets, CancellationToken cancellationToken)
+    {
+        _ = cancellationToken;
+        var state = await tickets.GetStateAsync(ticketId, CancellationToken.None);
+        return state is null
+            ? Result<TicketStateDto>.Failure(TicketErrors.NotFound())
+            : Result<TicketStateDto>.Success(state.ToDto());
+    }
+
+    /// <summary>Commits the scope and returns the fresh state (see <see cref="ReadStateAsync"/>).</summary>
     public static async Task<Result<TicketStateDto>> CommitAsync(
         IUnitOfWorkScope scope,
         Guid ticketId,
         ITicketRepository tickets,
         CancellationToken cancellationToken)
     {
-        var committed = await scope.CommitAsync(cancellationToken);
-        if (committed.IsFailure)
-        {
-            return Result<TicketStateDto>.Failure(committed.Errors[0]);
-        }
-
-        var state = await tickets.GetStateAsync(ticketId, cancellationToken);
-        return state is null
-            ? Result<TicketStateDto>.Failure(TicketErrors.NotFound())
-            : Result<TicketStateDto>.Success(state.ToDto());
+        var committed = await CommitAsync(scope, cancellationToken);
+        return committed.IsFailure
+            ? Result<TicketStateDto>.Failure(committed.Errors[0])
+            : await ReadStateAsync(ticketId, tickets, cancellationToken);
     }
 }

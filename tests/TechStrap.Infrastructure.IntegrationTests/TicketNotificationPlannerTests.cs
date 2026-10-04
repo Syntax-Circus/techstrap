@@ -173,6 +173,26 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
     }
 
     [Fact]
+    public async Task A_spam_ticket_gets_no_customer_email_and_no_token_but_still_alerts_the_assignee()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, async (planner, ticket, sam, alex) =>
+        {
+            ticket.MarkSpam(true, Actor.ForAgent(sam.Id), host.Clock).IsSuccess.ShouldBeTrue();
+            await planner.PlanAgentReplyAsync(ticket, AgentMessage(host, seed, sam), sam, false, Ct);
+            await planner.PlanAgentReplyAsync(ticket, AgentMessage(host, seed, sam), sam, true, Ct);
+            await planner.PlanSolvedAsync(ticket, Ct);
+            await planner.PlanAssignedAsync(ticket, alex, sam, Ct);
+        }))).IsSuccess.ShouldBeTrue();
+
+        (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(1);
+        (await TextAsync("SELECT kind FROM email_outbox")).ShouldBe("ticket-assigned");
+        (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens")).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task A_solved_notice_carries_the_reopen_window()
     {
         await using var host = NewHost();
@@ -288,6 +308,8 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
     [InlineData("admin.test")]
     [InlineData("https://admin.test/?x=1")]
     [InlineData("https://admin.test/#top")]
+    [InlineData("https://admin.test/?")]
+    [InlineData("https://admin.test/#")]
     public async Task An_invalid_admin_url_fails_options_validation(string url)
     {
         await using var host = NewHost(adminUrl: url);
@@ -301,6 +323,8 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
     {
         AdminLinkOptions.IsValidBase("https://admin.test/app/").ShouldBeTrue();
         AdminLinkOptions.IsValidBase("   ").ShouldBeTrue();
+        AdminLinkOptions.IsValidBase("https://admin.test/?").ShouldBeFalse();
+        AdminLinkOptions.IsValidBase("https://admin.test/#").ShouldBeFalse();
         new AdminLinkOptions { PublicUrl = "https://admin.test/app/" }.TicketLink("ORB-1").ShouldBe("https://admin.test/app/tickets/ORB-1");
     }
 }

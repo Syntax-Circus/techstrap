@@ -71,6 +71,38 @@ public sealed class MarkdownRendererTests
     }
 
     [Fact]
+    public void The_renderer_alone_leaves_no_live_img_for_raw_html()
+    {
+        var doc = new HtmlParser().ParseDocument("<body>" + _markdown.ToHtml("<img src=x onerror=alert(1)>") + "</body>");
+
+        doc.Body!.QuerySelectorAll("img").ShouldBeEmpty();
+    }
+
+    public static TheoryData<string, string> DeeplyNestedInputs() => new()
+    {
+        { string.Concat(Enumerable.Repeat("x\u001b[0m y ", 150)), "x\u001b[0m y" },
+        { "values: " + string.Concat(Enumerable.Repeat("[1, ", 150)), "values: [1, [1, " },
+        { new string('>', 128) + " quoted", "quoted" },
+    };
+
+    [Theory]
+    [MemberData(nameof(DeeplyNestedInputs))]
+    public void Pathologically_nested_text_falls_back_to_encoded_plain_text(string markdown, string expectedFragment)
+    {
+        var html = Should.NotThrow(() => Render(markdown));
+
+        new HtmlParser().ParseDocument("<body>" + html + "</body>").Body!.TextContent.ShouldContain(expectedFragment);
+    }
+
+    [Fact]
+    public void Fallback_html_encodes_the_agents_text()
+    {
+        var html = _markdown.ToHtml(string.Concat(Enumerable.Repeat("[", 200)) + "<b>x</b> & y");
+
+        html.ShouldContain("&lt;b&gt;x&lt;/b&gt; &amp; y");
+    }
+
+    [Fact]
     public void Raw_html_is_shown_as_text()
     {
         var html = Render("<b>bold?</b>");

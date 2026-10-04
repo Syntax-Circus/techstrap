@@ -78,6 +78,13 @@ internal sealed class TicketNotificationPlanner(
         Func<Requester, Product, string, TPayload> build,
         CancellationToken cancellationToken)
     {
+        if (ticket.IsSpam)
+        {
+            // Owner decision (D-035): spam tickets never email the customer. Nothing is staged, including the access token.
+            logger.LogInformation("Skipped {Kind} for ticket {TicketId}: ticket is flagged as spam", kind, ticket.Id);
+            return;
+        }
+
         var requester = await requesters.GetByIdAsync(ticket.RequesterId, cancellationToken);
         if (requester is null || requester.IsErased)
         {

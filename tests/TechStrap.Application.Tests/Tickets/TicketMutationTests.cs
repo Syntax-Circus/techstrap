@@ -109,6 +109,29 @@ public sealed class TicketMutationTests
     }
 
     [Fact]
+    public async Task Commit_and_state_read_are_separate_steps_and_the_read_ignores_cancellation()
+    {
+        var id = Guid.NewGuid();
+        _tickets.GetStateAsync(id, Arg.Any<CancellationToken>()).Returns(
+            new TicketState(id, "TS-42", TicketStatus.Open, TicketPriority.Normal, Guid.NewGuid(), null, false, [], _clock.GetUtcNow(), 3));
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+
+        await using (var scope = await UnitOfWorkSubstitute.Create(UnitOfWorkSubstitute.Conflict("concurrency-conflict")).BeginAsync(Ct))
+        {
+            var committed = await TicketMutation.CommitAsync(scope, Ct);
+
+            committed.Errors.ShouldHaveSingleItem().Code.ShouldBe("concurrency-conflict");
+        }
+
+        var state = await TicketMutation.ReadStateAsync(id, _tickets, cancelled.Token);
+
+        state.Value.RowVersion.ShouldBe(3u);
+        await _tickets.Received(1).GetStateAsync(id, CancellationToken.None);
+        (await TicketMutation.ReadStateAsync(Guid.NewGuid(), _tickets, Ct)).Errors.ShouldHaveSingleItem().Code.ShouldBe("ticket-not-found");
+    }
+
+    [Fact]
     public async Task Commit_returns_the_fresh_state_and_passes_commit_conflicts_through()
     {
         var id = Guid.NewGuid();

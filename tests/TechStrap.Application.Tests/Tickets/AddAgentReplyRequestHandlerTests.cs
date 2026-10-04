@@ -229,8 +229,78 @@ public sealed class AddAgentReplyRequestHandlerTests
     }
 
     [Theory]
-    [InlineData("Closed")]
     [InlineData("solved")]
+    [InlineData(" SOLVED ")]
+    [InlineData("pending")]
+    public async Task Status_after_is_parsed_case_insensitively(string statusAfter)
+    {
+        var result = await Reply(Request(statusAfter: statusAfter));
+
+        result.IsSuccess.ShouldBeTrue();
+        _ticket.Status.ShouldBe(statusAfter.Trim().Equals("solved", StringComparison.OrdinalIgnoreCase) ? TicketStatus.Solved : TicketStatus.Pending);
+    }
+
+    [Fact]
+    public async Task A_failed_attachment_record_removes_files_already_stored()
+    {
+        _store.SaveAsync(Arg.Any<Guid>(), Arg.Is<IncomingAttachment>(f => f.FileName == "odd.png"), Arg.Any<CancellationToken>())
+            .Returns(Result<StoredAttachment>.Success(new StoredAttachment("key-odd", "odd.png", "", 1)));
+
+        var result = await Reply(Request(), [Png("ok.png"), Png("odd.png")]);
+
+        result.IsFailure.ShouldBeTrue();
+        await _store.Received(1).DeleteAsync("key-1", CancellationToken.None);
+        await _store.Received(1).DeleteAsync("key-odd", CancellationToken.None);
+        _tickets.DidNotReceiveWithAnyArgs().Update(default!);
+    }
+
+    [Fact]
+    public async Task A_failed_solve_removes_the_stored_files()
+    {
+        var solved = TicketBuilder.InStatus(TicketStatus.Solved, _clock);
+        _tickets.GetByIdAsync(solved.Id, Arg.Any<CancellationToken>()).Returns(solved);
+
+        var result = await Handler().HandleAsync(solved.Id, Request(statusAfter: "Solved"), [Png()], Ct);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("invalid-status-transition");
+        await _store.Received(1).DeleteAsync("key-1", CancellationToken.None);
+        _tickets.DidNotReceiveWithAnyArgs().Update(default!);
+    }
+
+    [Fact]
+    public async Task A_state_read_that_throws_after_commit_keeps_the_committed_files()
+    {
+        _tickets.GetStateAsync(_ticket.Id, Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("db gone"));
+
+        await Should.ThrowAsync<InvalidOperationException>(() => Reply(Request(), [Png()]));
+
+        await _store.DidNotReceiveWithAnyArgs().DeleteAsync(default!, Ct);
+    }
+
+    [Fact]
+    public async Task A_missing_state_after_commit_keeps_the_committed_files()
+    {
+        _tickets.GetStateAsync(_ticket.Id, Arg.Any<CancellationToken>()).Returns((TicketState?)null);
+
+        var result = await Reply(Request(), [Png()]);
+
+        result.IsFailure.ShouldBeTrue();
+        await _store.DidNotReceiveWithAnyArgs().DeleteAsync(default!, Ct);
+    }
+
+    [Fact]
+    public async Task The_state_read_after_commit_ignores_cancellation()
+    {
+        using var source = new CancellationTokenSource();
+
+        await Reply(Request(), [Png()], ct: source.Token);
+
+        await _tickets.Received().GetStateAsync(_ticket.Id, CancellationToken.None);
+    }
+
+    [Theory]
+    [InlineData("Closed")]
+    [InlineData("Done")]
     [InlineData("Open")]
     public async Task A_bad_status_after_is_a_field_error(string statusAfter)
     {
@@ -332,7 +402,7 @@ public sealed class AddAgentReplyRequestHandlerTests
         result.IsSuccess.ShouldBeTrue();
         await _agents.Received().GetBySubjectAsync("sam", token);
         await _tickets.Received().GetByIdAsync(_ticket.Id, token);
-        await _tickets.Received().GetStateAsync(_ticket.Id, token);
+        await _tickets.Received().GetStateAsync(_ticket.Id, CancellationToken.None);
         await _kb.Received().GetArticleAsync(article.Id, token);
         await _store.Received().SaveAsync(_ticket.Id, Arg.Any<IncomingAttachment>(), token);
         await _planner.Received().PlanAgentReplyAsync(_ticket, Arg.Any<Message>(), _sam, false, token);

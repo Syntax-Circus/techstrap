@@ -62,17 +62,15 @@ public sealed class AddAgentReplyRequestHandler(
             return Fail(TicketErrors.Invalid("linkedArticleIds", "linked-articles-too-many", $"Link at most {TicketOperationLimits.MaxLinkedArticles} articles to one reply."));
         }
 
-        bool solve;
-        switch (request.StatusAfter)
+        var solve = false;
+        if (request.StatusAfter is not null)
         {
-            case null or "Pending":
-                solve = false;
-                break;
-            case "Solved":
-                solve = true;
-                break;
-            default:
+            if (!TicketNameParser.TryStatus(request.StatusAfter, out var statusAfter) || statusAfter is not (TicketStatus.Pending or TicketStatus.Solved))
+            {
                 return Fail(TicketErrors.Invalid("statusAfter", "status-after-invalid", "statusAfter must be Pending or Solved."));
+            }
+
+            solve = statusAfter == TicketStatus.Solved;
         }
 
         await using var scope = await unitOfWork.BeginAsync(cancellationToken);
@@ -146,19 +144,25 @@ public sealed class AddAgentReplyRequestHandler(
 
             await planner.PlanAgentReplyAsync(ticket, message.Value, agent, solve, cancellationToken);
 
-            var committed = await TicketMutation.CommitAsync(scope, ticket.Id, tickets, cancellationToken);
+            var committed = await TicketMutation.CommitAsync(scope, cancellationToken);
             if (committed.IsFailure)
             {
                 await DeleteStoredAsync(stored);
                 return Fail(committed.Errors[0]);
             }
 
-            // A failure after commit (for example building the DTO) must not delete committed files.
+            // The reply is committed: nothing after this point (state read, DTO building) may delete its files.
             stored.Clear();
+            var state = await TicketMutation.ReadStateAsync(ticket.Id, tickets, cancellationToken);
+            if (state.IsFailure)
+            {
+                return Fail(state.Errors[0]);
+            }
+
             var dto = new MessageDto(
                 message.Value.Id, message.Value.AuthorType.ToWire(), message.Value.AuthorId, agent.Name ?? agent.Email, message.Value.Visibility.ToWire(),
                 message.Value.Body, message.Value.CreatedAt, attachmentDtos, linked);
-            return Result<AgentMessageResponse>.Success(new AgentMessageResponse(dto, committed.Value));
+            return Result<AgentMessageResponse>.Success(new AgentMessageResponse(dto, state.Value));
         }
         catch
         {

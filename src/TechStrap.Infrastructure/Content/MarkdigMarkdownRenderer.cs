@@ -1,6 +1,7 @@
 using Markdig;
 using Markdig.Extensions.EmphasisExtras;
 using TechStrap.Application.Content;
+using TechStrap.Application.Intake;
 
 namespace TechStrap.Infrastructure.Content;
 
@@ -14,5 +15,18 @@ internal sealed class MarkdigMarkdownRenderer : IMarkdownRenderer
         .UseEmphasisExtras(EmphasisExtraOptions.Strikethrough)
         .Build();
 
-    public string ToHtml(string markdown) => Markdown.ToHtml(markdown ?? string.Empty, _pipeline);
+    public string ToHtml(string markdown)
+    {
+        var text = markdown ?? string.Empty;
+        try
+        {
+            return Markdown.ToHtml(text, _pipeline);
+        }
+        catch (ArgumentException)
+        {
+            // Markdig refuses very deep nesting (for example 128 unclosed "[" from pasted terminal output). The agent's text is
+            // kept as encoded plain text; nothing from the body is logged.
+            return CustomerText.ToHtml(text);
+        }
+    }
 }
