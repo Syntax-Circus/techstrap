@@ -31,6 +31,25 @@ public sealed class MultipartRouteContractTests(TestPostgres postgres)
     }
 
     [Fact]
+    public async Task A_urlencoded_body_on_the_customer_route_is_415_problem_json()
+    {
+        await using var factory = new ApiFactory();
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/customer/ticket/replies")
+        {
+            Content = new FormUrlEncodedContent([new KeyValuePair<string, string>("body", "hello")]),
+        };
+
+        using var response = await client.SendAsync(request, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnsupportedMediaType);
+        var problem = (await response.Content.ReadFromJsonAsync<ProblemDetails>(Ct))!;
+        problem.Type.ShouldBe("unsupported-media-type");
+        problem.Title.ShouldBe("Unsupported Media Type");
+        problem.Instance.ShouldBe("/api/customer/ticket/replies");
+    }
+
+    [Fact]
     public async Task The_agent_reply_route_runs_its_policy_before_the_415()
     {
         var database = await ApiTestDatabase.CreateAsync(postgres);

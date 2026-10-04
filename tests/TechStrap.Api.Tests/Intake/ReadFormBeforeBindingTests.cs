@@ -28,6 +28,7 @@ public sealed class ReadFormBeforeBindingTests
     private static async Task<(ResourceExecutingContext Context, bool NextCalled)> RunAsync(string? contentType, Stream body)
     {
         var http = new DefaultHttpContext();
+        http.Request.Path = "/api/x";
         http.Request.ContentType = contentType;
         http.Request.Body = body;
         var context = new ResourceExecutingContext(new ActionContext(http, new RouteData(), new ActionDescriptor()), [], []);
@@ -49,7 +50,11 @@ public sealed class ReadFormBeforeBindingTests
         next.ShouldBeFalse();
         var result = context.Result.ShouldBeOfType<ObjectResult>();
         result.StatusCode.ShouldBe(StatusCodes.Status400BadRequest);
-        result.Value.ShouldBeOfType<ProblemDetails>().Type.ShouldBe("request-malformed");
+        var problem = result.Value.ShouldBeOfType<ProblemDetails>();
+        problem.Type.ShouldBe("request-malformed");
+        problem.Title.ShouldBe("Bad Request");
+        problem.Instance.ShouldBe("/api/x");
+        result.ContentTypes.ShouldContain("application/problem+json");
     }
 
     [Fact]
@@ -68,6 +73,8 @@ public sealed class ReadFormBeforeBindingTests
 
     [Theory]
     [InlineData("application/json")]
+    [InlineData("application/x-www-form-urlencoded")]
+    [InlineData("application/x-www-form-urlencoded; charset=utf-8")]
     [InlineData(null)]
     public async Task A_body_that_is_not_a_form_is_a_415_unsupported_media_type(string? contentType)
     {
@@ -76,7 +83,19 @@ public sealed class ReadFormBeforeBindingTests
         next.ShouldBeFalse();
         var result = context.Result.ShouldBeOfType<ObjectResult>();
         result.StatusCode.ShouldBe(StatusCodes.Status415UnsupportedMediaType);
-        result.Value.ShouldBeOfType<ProblemDetails>().Type.ShouldBe("unsupported-media-type");
+        var problem = result.Value.ShouldBeOfType<ProblemDetails>();
+        problem.Type.ShouldBe("unsupported-media-type");
+        problem.Title.ShouldBe("Unsupported Media Type");
+        problem.Instance.ShouldBe("/api/x");
+        result.ContentTypes.ShouldContain("application/problem+json");
+    }
+
+    [Fact]
+    public async Task A_multipart_content_type_with_different_casing_is_accepted()
+    {
+        var (_, next) = await RunAsync("Multipart/Form-Data; boundary=xyz", new MemoryStream("--xyz--\r\n"u8.ToArray()));
+
+        next.ShouldBeTrue();
     }
 
     [Theory]

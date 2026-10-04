@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.Formatters;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Net.Http.Headers;
 using TechStrap.Contracts.Intake;
 
 namespace TechStrap.Api.Startup;
@@ -76,9 +78,9 @@ internal sealed class ReadFormBeforeBindingAttribute : Attribute, IAsyncResource
     public async Task OnResourceExecutionAsync(ResourceExecutingContext context, ResourceExecutionDelegate next)
     {
         var request = context.HttpContext.Request;
-        if (!request.HasFormContentType)
+        if (!IsMultipart(request.ContentType))
         {
-            context.Result = Problem(StatusCodes.Status415UnsupportedMediaType, UnsupportedMediaTypeCode, "Unsupported media type", "This endpoint accepts multipart/form-data.");
+            context.Result = Problem(request, StatusCodes.Status415UnsupportedMediaType, UnsupportedMediaTypeCode, "This endpoint accepts multipart/form-data.");
             return;
         }
 
@@ -93,15 +95,31 @@ internal sealed class ReadFormBeforeBindingAttribute : Attribute, IAsyncResource
         catch (IOException ex) when (!RequestTooLargeMiddleware.IsTooLarge(ex))
         {
             // A body cut short (BadHttpRequestException is an IOException) is the client's fault, not a 500. A 413 is left to RequestTooLargeMiddleware.
-            context.Result = Problem(StatusCodes.Status400BadRequest, MalformedCode, "Malformed request", "The request body could not be read.");
+            context.Result = Problem(request, StatusCodes.Status400BadRequest, MalformedCode, "The request body could not be read.");
             return;
         }
 
         await next();
     }
 
-    private static ObjectResult Problem(int status, string code, string title, string detail) =>
-        new(new ProblemDetails { Status = status, Type = code, Title = title, Detail = detail }) { StatusCode = status };
+    // HasFormContentType also admits application/x-www-form-urlencoded; D-039 answers anything but multipart/form-data with a 415.
+    private static bool IsMultipart(string? contentType) =>
+        MediaTypeHeaderValue.TryParse(contentType, out var parsed)
+        && string.Equals(parsed.MediaType.Value, "multipart/form-data", StringComparison.OrdinalIgnoreCase);
+
+    private static ObjectResult Problem(HttpRequest request, int status, string code, string detail) =>
+        new(new ProblemDetails
+        {
+            Status = status,
+            Type = code,
+            Title = ReasonPhrases.GetReasonPhrase(status),
+            Detail = detail,
+            Instance = request.Path,
+        })
+        {
+            StatusCode = status,
+            ContentTypes = { "application/problem+json" },
+        };
 }
 
 public static class IntakeHosting
