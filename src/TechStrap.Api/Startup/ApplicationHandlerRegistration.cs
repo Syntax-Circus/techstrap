@@ -1,5 +1,6 @@
 using TechStrap.Application;
 using TechStrap.Application.Email;
+using TechStrap.Application.Tickets.AutoClose;
 
 namespace TechStrap.Api.Startup;
 
@@ -17,7 +18,7 @@ public static class ApplicationHandlerRegistration
     }
 
     // Worker-only handlers: registered by the Worker host, never by the Api (their dependencies live there).
-    private static readonly HashSet<string> _workerOnly = [nameof(IDrainEmailOutboxHandler)];
+    private static readonly HashSet<string> _workerOnly = [nameof(IDrainEmailOutboxHandler), nameof(IAutoCloseSolvedTicketsHandler)];
 
     internal static IReadOnlyCollection<string> WorkerOnly => _workerOnly;
 
