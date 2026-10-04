@@ -187,6 +187,7 @@ public sealed class TicketDetailPageTests : AdminComponentTest
         cut.Find("p.ts-closed-note").TextContent.ShouldBe("Closed tickets are read-only; a customer reply starts a follow-up");
         cut.Find(".ts-ticket-badges .ts-stamp").TextContent.ShouldBe("Closed");
         cut.FindAll("textarea, select, form").ShouldBeEmpty();
+        cut.FindAll("section.ts-facts").Count.ShouldBe(1);
     }
 
     [Fact]

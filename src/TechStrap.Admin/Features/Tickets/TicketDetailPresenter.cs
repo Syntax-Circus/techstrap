@@ -12,6 +12,14 @@ namespace TechStrap.Admin.Features.Tickets;
 /// </summary>
 public sealed class TicketDetailPresenter(ITicketsClient tickets, IProductsClient products, IAgentsClient agents, ITagsClient tags)
 {
+    /// <summary>Metadata is caller-controlled, so what is shown is bounded: at most this many items.</summary>
+    public const int MaxMetadataItems = 50;
+
+    /// <summary>...and each value is cut to this many characters (then an ellipsis).</summary>
+    public const int MaxMetadataValueLength = 500;
+
+    private const string Ellipsis = "…";
+
     public async Task<Result<TicketDetailViewModel>> LoadAsync(string reference, CancellationToken cancellationToken)
     {
         var detailTask = tickets.GetAsync(reference, cancellationToken);
@@ -30,7 +38,9 @@ public sealed class TicketDetailPresenter(ITicketsClient tickets, IProductsClien
         {
             if (lookup.IsFailure)
             {
-                return Result<TicketDetailViewModel>.Failure(lookup.Errors[0]);
+                // A lookup that 404s must not read as "ticket not found" (the page maps NotFound to that view), so it becomes a plain failure.
+                var error = lookup.Errors[0];
+                return Result<TicketDetailViewModel>.Failure(error.Kind == ResultErrorKind.NotFound ? new ResultError(error.Code, error.Message, ResultErrorKind.Failure) : error);
             }
         }
 
@@ -74,6 +84,9 @@ public sealed class TicketDetailPresenter(ITicketsClient tickets, IProductsClien
         TimelineEntryFactory.Build(ticket.Messages, ticket.Events, lookups),
         lookups);
 
+    private static string Cap(string value) =>
+        value.Length <= MaxMetadataValueLength ? value : value[..MaxMetadataValueLength] + Ellipsis;
+
     private static MetadataViewModel? ReadMetadata(string? json, bool trusted)
     {
         if (string.IsNullOrWhiteSpace(json))
@@ -90,7 +103,8 @@ public sealed class TicketDetailPresenter(ITicketsClient tickets, IProductsClien
             }
 
             var items = document.RootElement.EnumerateObject()
-                .Select(p => new MetadataItem(p.Name, p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString() ?? string.Empty : p.Value.GetRawText()))
+                .Take(MaxMetadataItems)
+                .Select(p => new MetadataItem(p.Name, Cap(p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString() ?? string.Empty : p.Value.GetRawText())))
                 .ToList();
             return items.Count == 0 ? null : new MetadataViewModel(trusted, Readable: true, items);
         }

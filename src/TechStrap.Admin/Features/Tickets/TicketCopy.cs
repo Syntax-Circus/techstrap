@@ -23,5 +23,9 @@ public static class TicketCopy
     public const string MetadataHeading = "Metadata";
     public const string TimelineLabel = "Timeline";
     public const string AttachmentsLabel = "Attachments";
+    public const string ConversationLabel = "Conversation";
+    public const string StatusLabel = "Status";
+    public const string Unassigned = "Unassigned";
+    public const string None = "None";
     public const string LinkedArticlesLabel = "Linked articles";
 }

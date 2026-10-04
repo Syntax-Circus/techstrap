@@ -168,6 +168,56 @@ public sealed class TicketDetailPresenterTests
     }
 
     [Fact]
+    public async Task Metadata_is_capped_at_the_item_limit()
+    {
+        var json = "{" + string.Join(",", Enumerable.Range(0, TicketDetailPresenter.MaxMetadataItems + 20).Select(i => $"\"k{i}\":\"v\"")) + "}";
+        _tickets.GetAsync("ORB-42", Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.Detail(metadataJson: json)));
+
+        var metadata = (await Presenter().LoadAsync("ORB-42", Ct)).Value.Metadata;
+
+        metadata!.Items.Count.ShouldBe(TicketDetailPresenter.MaxMetadataItems);
+    }
+
+    [Fact]
+    public async Task A_long_metadata_value_is_cut_with_an_ellipsis()
+    {
+        var json = $$"""{"short":"ok","long":"{{new string('x', TicketDetailPresenter.MaxMetadataValueLength + 100)}}"}""";
+        _tickets.GetAsync("ORB-42", Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.Detail(metadataJson: json)));
+
+        var items = (await Presenter().LoadAsync("ORB-42", Ct)).Value.Metadata!.Items;
+
+        items[0].Value.ShouldBe("ok");
+        items[1].Value.Length.ShouldBe(TicketDetailPresenter.MaxMetadataValueLength + 1);
+        items[1].Value.ShouldEndWith("…");
+    }
+
+    [Theory]
+    [InlineData("products")]
+    [InlineData("agents")]
+    [InlineData("tags")]
+    public async Task A_lookup_that_is_not_found_never_reads_as_a_missing_ticket(string which)
+    {
+        switch (which)
+        {
+            case "products":
+                _products.ListAsync(Arg.Any<CancellationToken>()).Returns(TestData.Fail<IReadOnlyList<ProductDto>>("gone", "Gone.", ResultErrorKind.NotFound));
+                break;
+            case "agents":
+                _agents.ListAllAsync(Arg.Any<CancellationToken>()).Returns(TestData.Fail<IReadOnlyList<AgentListItemDto>>("gone", "Gone.", ResultErrorKind.NotFound));
+                break;
+            default:
+                _tags.ListAsync(Arg.Any<CancellationToken>()).Returns(TestData.Fail<IReadOnlyList<TagDto>>("gone", "Gone.", ResultErrorKind.NotFound));
+                break;
+        }
+
+        var result = await Presenter().LoadAsync("ORB-42", Ct);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Errors[0].Kind.ShouldNotBe(ResultErrorKind.NotFound);
+        result.Errors[0].Code.ShouldBe("gone");
+    }
+
+    [Fact]
     public async Task The_token_reaches_every_client_call()
     {
         using var cts = new CancellationTokenSource();

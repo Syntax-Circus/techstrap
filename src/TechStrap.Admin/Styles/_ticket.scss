@@ -93,6 +93,21 @@
   border-left: 2px solid var(--rule-strong);
 }
 
+// Caller-controlled text (metadata values, file names, message bodies) wraps instead of breaking the layout.
+.ts-conversation {
+  min-width: 0;
+}
+
+.ts-message-body {
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+}
+
+.ts-attachments a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .ts-event-text {
   color: var(--ink);
 }
@@ -140,7 +155,9 @@
   }
 
   dd {
+    min-width: 0;
     margin: 0 0 6px;
+    overflow-wrap: anywhere;
   }
 }
 
@@ -193,6 +210,11 @@
 
 .ts-metadata--untrusted {
   border-style: dashed;
+}
+
+.ts-metadata dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ts-metadata-trust {

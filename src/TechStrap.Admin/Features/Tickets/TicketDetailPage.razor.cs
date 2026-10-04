@@ -21,6 +21,7 @@ public sealed partial class TicketDetailPage : IDisposable
     private GoneMessage? _gone;
     private string _error = string.Empty;
     private bool _loading;
+    private bool _disposed;
     private TicketDetailViewModel? _model;
 
     [Inject]
@@ -64,11 +65,14 @@ public sealed partial class TicketDetailPage : IDisposable
     /// <summary>The refresh after a write or a conflict: the model on screen stays until the new one arrives.</summary>
     internal async Task RefreshAsync()
     {
-        await LoadCoreAsync(silent: true);
-        StateHasChanged();
+        if (await LoadCoreAsync(silent: true) && !_disposed)
+        {
+            StateHasChanged();
+        }
     }
 
-    private async Task LoadCoreAsync(bool silent)
+    /// <returns>False when the load was cancelled or superseded and nothing was applied.</returns>
+    private async Task<bool> LoadCoreAsync(bool silent)
     {
         _load?.Cancel();
         _load?.Dispose();
@@ -81,12 +85,12 @@ public sealed partial class TicketDetailPage : IDisposable
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
-            return;
+            return false;
         }
 
         if (cts.IsCancellationRequested)
         {
-            return;
+            return false;
         }
 
         _loading = false;
@@ -94,7 +98,7 @@ public sealed partial class TicketDetailPage : IDisposable
         {
             _model = result.Value;
             _error = string.Empty;
-            return;
+            return true;
         }
 
         var error = result.Errors[0];
@@ -104,11 +108,12 @@ public sealed partial class TicketDetailPage : IDisposable
             _gone = silent
                 ? new GoneMessage(TicketCopy.GoneHeading, TicketCopy.GoneBody)
                 : new GoneMessage(TicketCopy.NotFoundHeading, TicketCopy.NotFoundBody);
-            return;
+            return true;
         }
 
         // A failed refresh keeps the ticket on screen with an inline alert; a failed first load shows the alert alone.
         _error = $"{TicketCopy.LoadFailed} {error.Message}";
+        return true;
     }
 
     /// <summary>Replaces the status fields and RowVersion from a write's response. Used by the composer, the sidebar and the actions.</summary>
@@ -133,6 +138,7 @@ public sealed partial class TicketDetailPage : IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
         Shortcuts.Pressed -= OnShortcutAsync;
         _lifetime.Cancel();
         _load?.Dispose();

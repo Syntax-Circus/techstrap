@@ -23,7 +23,7 @@ else
             <ErrorState Message="@_error" OnRetry="RefreshAsync" />
         }
         <div class="ts-ticket-layout">
-            <section class="ts-conversation" aria-label="Conversation">
+            <section class="ts-conversation" aria-label="@TicketCopy.ConversationLabel">
                 <TicketTimeline Entries="_model.Timeline" />
                 <TintLegend />
                 @if (_model.IsClosed)
