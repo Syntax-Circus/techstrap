@@ -45,6 +45,18 @@ public sealed class TicketsController : ControllerBase
     public async Task<IActionResult> Counts([FromServices] ICountTicketViewsRequestHandler handler, CancellationToken cancellationToken) =>
         (await handler.HandleAsync(cancellationToken)).ToActionResult(this, Ok);
 
+    /// <summary>An agent-only note (Markdown). Never emailed; the row version is optional.</summary>
+    [HttpPost("{id:guid}/notes")]
+    public async Task<IActionResult> AddNote(
+        Guid id, [FromBody] AddInternalNoteRequest request, [FromServices] IAddInternalNoteRequestHandler handler, CancellationToken cancellationToken) =>
+        (await handler.HandleAsync(id, request, cancellationToken)).ToActionResult(this, response => StatusCode(StatusCodes.Status201Created, response));
+
+    /// <summary>Changes the status. The row version is required; a stale one is 409.</summary>
+    [HttpPut("{id:guid}/status")]
+    public async Task<IActionResult> ChangeStatus(
+        Guid id, [FromBody] ChangeTicketStatusRequest request, [FromServices] IChangeTicketStatusRequestHandler handler, CancellationToken cancellationToken) =>
+        (await handler.HandleAsync(id, request, cancellationToken)).ToActionResult(this, Ok);
+
     /// <summary>A public reply to the customer: Markdown body, optional files and linked articles, optionally solving the ticket.</summary>
     [HttpPost("{id:guid}/replies")]
     [Consumes("multipart/form-data")]
