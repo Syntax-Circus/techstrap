@@ -1,0 +1,9 @@
+<footer class="ts-statusbar" aria-label="@ShellCopy.StatusBarLabel">
+    <ul class="ts-statusbar-hints">
+        @foreach (var (keys, label) in ShortcutCatalog.Hints)
+        {
+            <li><Kbd>@keys</Kbd> @label</li>
+        }
+    </ul>
+    <p class="ts-statusbar-message" role="status">@Messages.Current</p>
+</footer>

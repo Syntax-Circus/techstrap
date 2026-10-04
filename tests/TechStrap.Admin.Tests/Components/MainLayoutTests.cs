@@ -1,10 +1,11 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using TechStrap.Admin.Components.Layout;
+using TechStrap.Admin.Tests.Support;
 
 namespace TechStrap.Admin.Tests.Components;
 
-public sealed class MainLayoutTests : BunitContext
+public sealed class MainLayoutTests : AdminComponentTest
 {
     public MainLayoutTests() => this.AddAgentShell();
 
@@ -24,7 +25,7 @@ public sealed class MainLayoutTests : BunitContext
     {
         var cut = Render<MainLayout>(p => p.SignedIn().Add(l => l.Body, b => b.AddMarkupContent(0, "<p id=\"page\">page</p>")));
 
-        cut.Find("main.ts-main #page").TextContent.ShouldBe("page");
+        cut.WaitForAssertion(() => cut.Find("main.ts-main #page").TextContent.ShouldBe("page"));
         cut.Find("nav[aria-label='Admin navigation']").ShouldNotBeNull();
     }
 

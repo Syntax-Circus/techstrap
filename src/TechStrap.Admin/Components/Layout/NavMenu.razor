@@ -1,0 +1,18 @@
+<nav class="ts-rail" aria-label="@ShellCopy.NavigationLabel">
+    <a class="ts-brand" href="/" aria-label="TechStrap Admin home">
+        <img src="brand/mark.svg" alt="" width="36" height="36" />
+        <span>TechStrap<small>Call log / admin</small></span>
+    </a>
+    @if (Session.State == AgentSessionState.Ready)
+    {
+        <NavLink class="ts-rail-link" href="/queue" Match="NavLinkMatch.Prefix">@ShellCopy.QueueLink</NavLink>
+        <div class="ts-rail-user">
+            <span class="ts-rail-name">@DisplayName</span>
+            @if (Session.IsAdmin)
+            {
+                <span class="ts-rail-role">Admin</span>
+            }
+            <SignOutForm />
+        </div>
+    }
+</nav>

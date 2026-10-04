@@ -1,0 +1,12 @@
+@if (TotalCount > 0)
+{
+    <nav class="ts-pager" aria-label="@ShellCopy.PaginationLabel">
+        <span class="ts-pager-summary">@First&ndash;@Last of @TotalCount</span>
+        @if (PageCount > 1)
+        {
+            <button type="button" class="btn btn-outline-secondary" disabled="@(Page <= 1)" @onclick="PreviousAsync">@ShellCopy.Previous</button>
+            <span class="ts-pager-page">Page @Page of @PageCount</span>
+            <button type="button" class="btn btn-outline-secondary" disabled="@(Page >= PageCount)" @onclick="NextAsync">@ShellCopy.Next</button>
+        }
+    </nav>
+}

@@ -1,0 +1,84 @@
+// The shell additions of PHASE-07a: the skip link, the status bar under the page, and the signed-in block at the foot of the rail.
+
+.ts-skip-link {
+  position: absolute;
+  left: -9999px;
+
+  &:focus {
+    left: 8px;
+    top: 8px;
+    z-index: 10;
+    padding: 6px 10px;
+    background: var(--sheet);
+    border: 2px solid var(--ink);
+  }
+}
+
+.ts-statusbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  align-items: center;
+  padding: 4px 16px;
+  font: 400 .6875rem var(--ts-font-mono);
+  color: var(--ink-2);
+  background: var(--head);
+  border-top: 1px solid var(--rule-strong);
+}
+
+.ts-statusbar-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ts-statusbar-message {
+  margin: 0 0 0 auto;
+  color: var(--ink);
+}
+
+// The shell now wraps the page and the status bar so the bar stays at the foot of the screen.
+.ts-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100vh;
+
+  .ts-main {
+    flex: 1;
+  }
+}
+
+.ts-rail-user {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: auto;
+  padding: 8px 14px;
+  border-top: 1px dashed var(--rule-strong);
+  font-size: .75rem;
+
+  form {
+    margin: 0;
+  }
+
+  button.ts-rail-link {
+    width: 100%;
+    padding-left: 0;
+    background: none;
+    border-top: 0;
+    border-right: 0;
+    border-bottom: 0;
+    text-align: left;
+  }
+}
+
+.ts-rail-role {
+  font: 600 .625rem var(--ts-font-mono);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
