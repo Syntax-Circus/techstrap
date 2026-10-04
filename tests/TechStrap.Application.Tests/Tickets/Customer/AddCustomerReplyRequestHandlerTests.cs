@@ -60,10 +60,15 @@ public sealed class AddCustomerReplyRequestHandlerTests
         _tickets.ListRecentFollowUpsAsync(Arg.Any<Guid>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns([]);
     }
 
-    private Ticket GivenTicket(TicketStatus status)
+    private Ticket GivenTicket(TicketStatus status, bool spam = false)
     {
         var ticket = TicketBuilder.New(_clock, _productId, _ann.Id);
         var actor = Actor.ForAgent(Guid.NewGuid());
+        if (spam)
+        {
+            ticket.MarkSpam(true, actor, _clock).IsSuccess.ShouldBeTrue();
+        }
+
         TicketStatus[] path = status switch
         {
             TicketStatus.New => [],
@@ -236,11 +241,15 @@ public sealed class AddCustomerReplyRequestHandlerTests
         await _store.Received(1).DeleteAsync("key-1", CancellationToken.None);
 
         // No files: one conflict, then the retry succeeds.
-        var retried = await Reply(unitOfWork: UnitOfWorkSubstitute.Create(Conflict()));
+        var retryUow = UnitOfWorkSubstitute.Create(Conflict());
+        var retried = await Reply(unitOfWork: retryUow);
+        await retryUow.Received(2).BeginAsync(Arg.Any<CancellationToken>());
         retried.IsSuccess.ShouldBeTrue();
 
         // Two conflicts in a row give up with the reply conflict.
-        var twice = await Reply(unitOfWork: UnitOfWorkSubstitute.Create(Conflict(), Conflict()));
+        var twiceUow = UnitOfWorkSubstitute.Create(Conflict(), Conflict());
+        var twice = await Reply(unitOfWork: twiceUow);
+        await twiceUow.Received(2).BeginAsync(Arg.Any<CancellationToken>());
         twice.Errors.ShouldHaveSingleItem().Code.ShouldBe("reply-conflict");
 
         // Any other failure is returned as is, and a reference violation means the ticket is gone.
@@ -265,6 +274,26 @@ public sealed class AddCustomerReplyRequestHandlerTests
         result.Value.TicketNumber.ShouldBe("ORB-70");
         result.Value.FollowUpCreated.ShouldBeTrue();
         await _store.Received(1).DeleteAsync("key-1", CancellationToken.None);
+        _tickets.Received(2).UpdateAccessToken(Arg.Any<TicketAccessToken>()); // the failed attempt, then the fresh-scope replay slides the expiry too
+    }
+
+    [Fact]
+    public async Task A_follow_up_of_a_spam_ticket_is_spam_and_alerts_nobody_but_still_returns_the_link()
+    {
+        var parent = GivenTicket(TicketStatus.Closed, spam: true);
+        Ticket? added = null;
+        _tickets.When(t => t.Add(Arg.Any<Ticket>())).Do(call => added = call.Arg<Ticket>());
+
+        var result = await Reply("It broke again");
+
+        result.IsSuccess.ShouldBeTrue();
+        added.ShouldNotBeNull().IsSpam.ShouldBeTrue();
+        added.ParentTicketId.ShouldBe(parent.Id);
+        result.Value.ShouldSatisfyAllConditions(
+            r => r.FollowUpCreated.ShouldBeTrue(),
+            r => r.FollowUpViewUrl.ShouldBe("https://help.test/t/fresh-token"));
+        await _planner.DidNotReceiveWithAnyArgs().PlanNewTicketAsync(default!, default!, default, Ct);
+        await _planner.DidNotReceiveWithAnyArgs().PlanCustomerReplyAsync(default!, default, Ct);
     }
 
     [Fact]

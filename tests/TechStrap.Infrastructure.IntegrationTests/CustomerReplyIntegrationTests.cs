@@ -37,7 +37,7 @@ public sealed class CustomerReplyIntegrationTests(PostgresFixture postgres) : Po
             extra?.Invoke(services);
         });
 
-    private static async Task<Seed> SeedAsync(PersistenceTestHost host, TicketStatus status)
+    private static async Task<Seed> SeedAsync(PersistenceTestHost host, TicketStatus status, bool spam = false)
     {
         Guid ticketId = default;
         var token = "";
@@ -64,6 +64,11 @@ public sealed class CustomerReplyIntegrationTests(PostgresFixture postgres) : Po
             var ticket = Ticket.Create(number0, productId, requesterId, "Cannot log in", TicketChannel.Web, null, false, host.Clock).Value;
             ticket.AddCustomerReply(requesterId, "<p>Help</p>", host.Clock).IsSuccess.ShouldBeTrue();
             var actor = Actor.ForAgent(samId);
+            if (spam)
+            {
+                ticket.MarkSpam(true, actor, host.Clock).IsSuccess.ShouldBeTrue();
+            }
+
             foreach (var step in status == TicketStatus.Closed ? [TicketStatus.Solved, TicketStatus.Closed] : new[] { status })
             {
                 ticket.ChangeStatus(step, actor, host.Clock).IsSuccess.ShouldBeTrue();
@@ -146,6 +151,36 @@ public sealed class CustomerReplyIntegrationTests(PostgresFixture postgres) : Po
     }
 
     [Fact]
+    public async Task A_follow_up_of_a_spam_ticket_is_spam_and_leaves_no_emails()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host, TicketStatus.Closed, spam: true);
+
+        var result = await ReplyAsync(host, seed.Token, "It broke again");
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.FollowUpCreated.ShouldBeTrue();
+        result.Value.FollowUpViewUrl.ShouldNotBeNull();
+        (await ScalarAsync($"SELECT count(*) FROM tickets WHERE parent_ticket_id = '{seed.TicketId}' AND is_spam")).ShouldBe(1);
+        (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_successful_reply_slides_the_token_expiry()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host, TicketStatus.Open);
+        (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens WHERE last_used_at IS NULL")).ShouldBe(1);
+        var before = await ScalarAsync("SELECT extract(epoch FROM expires_at)::bigint FROM ticket_access_tokens");
+        host.Clock.Advance(TimeSpan.FromDays(1));
+
+        (await ReplyAsync(host, seed.Token, "Any news?")).IsSuccess.ShouldBeTrue();
+
+        (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens WHERE last_used_at IS NOT NULL")).ShouldBe(1);
+        (await ScalarAsync("SELECT extract(epoch FROM expires_at)::bigint FROM ticket_access_tokens")).ShouldBeGreaterThan(before);
+    }
+
+    [Fact]
     public async Task Two_concurrent_replies_on_a_closed_ticket_create_one_follow_up()
     {
         var rendezvous = new Rendezvous();
@@ -168,6 +203,8 @@ public sealed class CustomerReplyIntegrationTests(PostgresFixture postgres) : Po
         (await ScalarAsync($"SELECT count(*) FROM ticket_events WHERE ticket_id = '{seed.TicketId}' AND type = 'FollowUpCreated'")).ShouldBe(1);
         (await ScalarAsync("SELECT count(*) FROM email_outbox WHERE kind = 'ticket-confirmation'")).ShouldBe(1);
         (await ScalarAsync("SELECT count(*) FROM email_outbox WHERE kind = 'new-ticket-alert'")).ShouldBe(2);
+        // The seed, the winner link, the winner confirmation and the loser replay: the loser discarded link was never committed.
+        (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens")).ShouldBe(4);
     }
 
     private static void Decorate(IServiceCollection services, Rendezvous rendezvous)

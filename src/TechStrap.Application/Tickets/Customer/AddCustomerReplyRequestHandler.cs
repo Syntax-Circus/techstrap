@@ -70,7 +70,7 @@ public sealed class AddCustomerReplyRequestHandler(
 
         for (var attempt = 1; ; attempt++)
         {
-            var stored = new List<string>();
+            var stored = new StoredAttachmentBatch(attachments, logger);
             Attempt outcome;
             try
             {
@@ -78,7 +78,7 @@ public sealed class AddCustomerReplyRequestHandler(
             }
             catch
             {
-                await DeleteStoredAsync(stored);
+                await stored.DeleteAllAsync();
                 throw;
             }
 
@@ -103,7 +103,7 @@ public sealed class AddCustomerReplyRequestHandler(
     }
 
     private async Task<Attempt> AttemptAsync(
-        string? token, string html, IReadOnlyList<IncomingAttachment> files, List<string> stored, CancellationToken cancellationToken)
+        string? token, string html, IReadOnlyList<IncomingAttachment> files, StoredAttachmentBatch stored, CancellationToken cancellationToken)
     {
         await using var scope = await unitOfWork.BeginAsync(cancellationToken);
 
@@ -131,7 +131,7 @@ public sealed class AddCustomerReplyRequestHandler(
                 return Failed(message.Error!.ToError());
             }
 
-            var saved = await SaveAttachmentsAsync(ticket.Id, message.Value, files, stored, cancellationToken);
+            var saved = await stored.SaveAllAsync(ticket.Id, message.Value, files, clock, cancellationToken);
             if (saved is not null)
             {
                 return Failed(saved);
@@ -172,7 +172,7 @@ public sealed class AddCustomerReplyRequestHandler(
                 return Failed(message.Error!.ToError());
             }
 
-            var saved = await SaveAttachmentsAsync(followUp.Id, message.Value, files, stored, cancellationToken);
+            var saved = await stored.SaveAllAsync(followUp.Id, message.Value, files, clock, cancellationToken);
             if (saved is not null)
             {
                 return Failed(saved);
@@ -183,12 +183,16 @@ public sealed class AddCustomerReplyRequestHandler(
             var link = IssueLink(followUp.Id, requester.Id);
             if (link.IsFailure)
             {
-                await DeleteStoredAsync(stored);
+                await stored.DeleteAllAsync();
                 return Failed(link.Errors[0]);
             }
 
             await planner.PlanFollowUpConfirmationAsync(followUp, cancellationToken);
-            await planner.PlanNewTicketAsync(followUp, requester, isFollowUp: true, cancellationToken);
+            if (!followUp.IsSpam)
+            {
+                await planner.PlanNewTicketAsync(followUp, requester, isFollowUp: true, cancellationToken);
+            }
+
             response = Result<CustomerReplyResponse>.Success(new CustomerReplyResponse(followUp.Number.ToString(), message.Value.Id, true, link.Value));
         }
 
@@ -196,11 +200,11 @@ public sealed class AddCustomerReplyRequestHandler(
         if (committed.IsSuccess)
         {
             // The rows now reference these files: nothing after this point may delete them.
-            stored.Clear();
+            stored.Keep();
             return new Attempt(response, false);
         }
 
-        await DeleteStoredAsync(stored);
+        await stored.DeleteAllAsync();
         return FromCommitFailure(committed.Errors[0]);
     }
 
@@ -231,6 +235,13 @@ public sealed class AddCustomerReplyRequestHandler(
             return null;
         }
 
+        if (access.Value.Token.RecordUse(clock).IsFailure)
+        {
+            return null;
+        }
+
+        tickets.UpdateAccessToken(access.Value.Token);
+
         if (await ReplayAsync(access.Value.Ticket, access.Value.Requester.Id, html, cancellationToken) is not { } replay)
         {
             return null;
@@ -257,30 +268,6 @@ public sealed class AddCustomerReplyRequestHandler(
         return Result<string>.Success(portal.Value.TicketLink(issued.Value.PlaintextToken));
     }
 
-    private async Task<ResultError?> SaveAttachmentsAsync(
-        Guid ticketId, Message message, IReadOnlyList<IncomingAttachment> files, List<string> stored, CancellationToken cancellationToken)
-    {
-        foreach (var file in files)
-        {
-            var saved = await attachments.SaveAsync(ticketId, file, cancellationToken);
-            if (saved.IsFailure)
-            {
-                await DeleteStoredAsync(stored);
-                return saved.Errors[0];
-            }
-
-            stored.Add(saved.Value.StorageKey);
-            var added = message.AddAttachment(saved.Value.FileName, saved.Value.ContentType, saved.Value.Size, saved.Value.StorageKey, clock);
-            if (added.IsFailure)
-            {
-                await DeleteStoredAsync(stored);
-                return added.Error!.ToError();
-            }
-        }
-
-        return null;
-    }
-
     private static Attempt FromCommitFailure(ResultError error) => error.Code switch
     {
         PersistenceErrorCodes.ConcurrencyConflict => new Attempt(Result<CustomerReplyResponse>.Failure(CustomerErrors.ReplyConflict()), true),
@@ -291,22 +278,4 @@ public sealed class AddCustomerReplyRequestHandler(
     private static Attempt Failed(ResultError error) => new(Fail(error), false);
 
     private static Result<CustomerReplyResponse> Fail(ResultError error) => Result<CustomerReplyResponse>.Failure(error);
-
-    private async Task DeleteStoredAsync(List<string> stored)
-    {
-        foreach (var key in stored)
-        {
-            try
-            {
-                await attachments.DeleteAsync(key, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                // Best effort: an orphaned file must not mask the original outcome, but it must be visible.
-                logger.LogWarning("Attachment cleanup failed for {StorageKey} ({ExceptionType}).", key, ex.GetType().Name);
-            }
-        }
-
-        stored.Clear();
-    }
 }
