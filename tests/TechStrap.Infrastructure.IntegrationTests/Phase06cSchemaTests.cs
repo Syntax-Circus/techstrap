@@ -32,6 +32,33 @@ public sealed class Phase06cSchemaTests(PostgresFixture postgres) : PostgresInte
     }
 
     [Fact]
+    public void The_outbox_has_a_partial_created_at_index_for_the_finished_retention_sweep()
+    {
+        var index = ModelInspector.Table("email_outbox").GetIndexes()
+            .Single(i => i.GetDatabaseName() == "ix_email_outbox_created_at_when_finished");
+
+        index.Properties.Select(p => p.GetColumnName()).ShouldBe(["created_at"]);
+        index.IsUnique.ShouldBeFalse();
+        index.GetFilter().ShouldBe("status IN ('Sent','Discarded')");
+    }
+
+    [Fact]
+    public async Task The_finished_retention_query_can_use_the_partial_index()
+    {
+        await using var connection = new NpgsqlConnection(Database.ConnectionString);
+        await connection.OpenAsync(Ct);
+        await using var transaction = await connection.BeginTransactionAsync(Ct);
+        await using (var off = new NpgsqlCommand("SET LOCAL enable_seqscan = off", connection, transaction)) { await off.ExecuteNonQueryAsync(Ct); }
+        await using var explain = new NpgsqlCommand(
+            "EXPLAIN SELECT id FROM email_outbox WHERE status IN ('Sent', 'Discarded') AND created_at < now() - interval '30 days' ORDER BY created_at LIMIT 100",
+            connection, transaction);
+        var plan = new List<string>();
+        await using var reader = await explain.ExecuteReaderAsync(Ct);
+        while (await reader.ReadAsync(Ct)) { plan.Add(reader.GetString(0)); }
+        string.Join('\n', plan).ShouldContain("ix_email_outbox_created_at_when_finished");
+    }
+
+    [Fact]
     public async Task Deleting_a_parent_leaves_the_follow_up_with_a_null_parent_and_its_history()
     {
         await using var host = new PersistenceTestHost(Database);

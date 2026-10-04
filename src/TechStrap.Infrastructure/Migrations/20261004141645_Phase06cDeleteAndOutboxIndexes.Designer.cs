@@ -13,7 +13,7 @@ using TechStrap.Infrastructure.Persistence;
 namespace TechStrap.Infrastructure.Migrations
 {
     [DbContext(typeof(TechStrapDbContext))]
-    [Migration("20261004123019_Phase06cDeleteAndOutboxIndexes")]
+    [Migration("20261004141645_Phase06cDeleteAndOutboxIndexes")]
     partial class Phase06cDeleteAndOutboxIndexes
     {
         /// <inheritdoc />
@@ -291,6 +291,10 @@ namespace TechStrap.Infrastructure.Migrations
 
                     b.HasIndex("Kind", "ToAddress", "CreatedAt")
                         .HasDatabaseName("ix_email_outbox_kind_to_address_created_at");
+
+                    b.HasIndex(new[] { "CreatedAt" }, "ix_email_outbox_created_at_when_finished")
+                        .HasDatabaseName("ix_email_outbox_created_at_when_finished")
+                        .HasFilter("status IN ('Sent','Discarded')");
 
                     b.ToTable("email_outbox", (string)null);
                 });

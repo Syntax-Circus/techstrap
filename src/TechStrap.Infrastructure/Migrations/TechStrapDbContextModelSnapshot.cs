@@ -289,6 +289,10 @@ namespace TechStrap.Infrastructure.Migrations
                     b.HasIndex("Kind", "ToAddress", "CreatedAt")
                         .HasDatabaseName("ix_email_outbox_kind_to_address_created_at");
 
+                    b.HasIndex(new[] { "CreatedAt" }, "ix_email_outbox_created_at_when_finished")
+                        .HasDatabaseName("ix_email_outbox_created_at_when_finished")
+                        .HasFilter("status IN ('Sent','Discarded')");
+
                     b.ToTable("email_outbox", (string)null);
                 });
 
