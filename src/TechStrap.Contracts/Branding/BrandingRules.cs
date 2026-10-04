@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace TechStrap.Contracts.Branding;
 
 /// <summary>
@@ -26,7 +28,7 @@ public static class BrandingRules
             return true;
         }
 
-        if (text.Length > LogoUrlMaxLength || text.Any(c => char.IsWhiteSpace(c) || char.IsControl(c)))
+        if (text.Length > LogoUrlMaxLength || text.Any(c => char.IsWhiteSpace(c) || char.IsControl(c) || char.GetUnicodeCategory(c) == UnicodeCategory.Format))
         {
             return false;
         }

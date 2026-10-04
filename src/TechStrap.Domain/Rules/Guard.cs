@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace TechStrap.Domain.Rules;
@@ -69,20 +70,29 @@ internal static partial class Guard
             return DomainErrors.Validation($"{target}-too-long", $"{target} must be at most {maxLength} characters.", target);
         }
 
-        return IsSafeImageUrl(text)
-            ? DomainResult<string?>.Ok(text)
-            : DomainErrors.Validation($"{target}-invalid", $"{target} must be an https URL (or http for localhost).", target);
-    }
-
-    private static bool IsSafeImageUrl(string text)
-    {
-        if (text.Any(c => char.IsWhiteSpace(c) || char.IsControl(c)) || !Uri.TryCreate(text, UriKind.Absolute, out var uri) || uri.UserInfo.Length > 0 || uri.Host.Length == 0)
+        var normalised = NormaliseSafeImageUrl(text);
+        if (normalised is null)
         {
-            return false;
+            return DomainErrors.Validation($"{target}-invalid", $"{target} must be an https URL (or http for localhost).", target);
         }
 
-        return uri.Scheme == Uri.UriSchemeHttps
-            || (uri.Scheme == Uri.UriSchemeHttp && uri.Host is "localhost" or "127.0.0.1");
+        // The stored form is the parsed one (lower-case scheme and host, unsafe characters percent-encoded), so the email renderer's "https://" check holds for every accepted value.
+        return normalised.Length > maxLength
+            ? DomainErrors.Validation($"{target}-too-long", $"{target} must be at most {maxLength} characters.", target)
+            : DomainResult<string?>.Ok(normalised);
+    }
+
+    private static string? NormaliseSafeImageUrl(string text)
+    {
+        if (text.Any(c => char.IsWhiteSpace(c) || char.IsControl(c) || char.GetUnicodeCategory(c) == UnicodeCategory.Format)
+            || !Uri.TryCreate(text, UriKind.Absolute, out var uri) || uri.UserInfo.Length > 0 || uri.Host.Length == 0)
+        {
+            return null;
+        }
+
+        return uri.Scheme == Uri.UriSchemeHttps || (uri.Scheme == Uri.UriSchemeHttp && uri.Host is "localhost" or "127.0.0.1")
+            ? uri.AbsoluteUri
+            : null;
     }
 
     /// <summary>Normalises "#aabbcc" to "#AABBCC".</summary>

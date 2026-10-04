@@ -30,6 +30,8 @@ public sealed class BrandingRulesParityTests
         "/logo.svg", "logo.svg", "../logo.svg", "//cdn.orbitly.example/logo.png", "https://", "https:///logo.png", "https:logo.png",
         "https://user:secret@cdn.orbitly.example/logo.png", "https://cdn.orbitly.example/lo go.png", "https://cdn.orbitly.example/lo\ngo.png",
         "https://cdn.orbitly.example/\u0001.png", "https://m\u00FCnchen.example/logo.png",
+        "\\\\host\\a.png", "https:\\\\host\\a.png", "https://@host/a.png", "https://cdn.example/a\u200B.png", "https://cdn.example/a\u202E.png",
+        "\u00A0https://cdn.example/a.png", "http://2130706433/a.png", "https://cdn.example/\"onerror=x.png",
     ];
 
     [Theory]

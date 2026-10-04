@@ -8,13 +8,22 @@ public sealed class ProductBrandingLogoTests
     [Theory]
     [InlineData("https://cdn.orbitly.example/logo.png", "https://cdn.orbitly.example/logo.png")]
     [InlineData("  https://cdn.orbitly.example/a/b.svg?v=2  ", "https://cdn.orbitly.example/a/b.svg?v=2")]
-    [InlineData("HTTPS://CDN.ORBITLY.EXAMPLE/Logo.PNG", "HTTPS://CDN.ORBITLY.EXAMPLE/Logo.PNG")]
+    [InlineData("HTTPS://CDN.ORBITLY.EXAMPLE/Logo.PNG", "https://cdn.orbitly.example/Logo.PNG")]
+    [InlineData("https://cdn.orbitly.example", "https://cdn.orbitly.example/")]
+    [InlineData("https://cdn.orbitly.example/a\"b<c>d.png", "https://cdn.orbitly.example/a%22b%3Cc%3Ed.png")]
     [InlineData("http://localhost/logo.png", "http://localhost/logo.png")]
     [InlineData("http://localhost:5080/logo.png", "http://localhost:5080/logo.png")]
     [InlineData("http://127.0.0.1:8080/logo.png", "http://127.0.0.1:8080/logo.png")]
     public void A_safe_absolute_logo_url_is_kept_trimmed(string input, string expected)
     {
-        ProductBranding.Create("Orbitly", input, null, null, null).Value.LogoPath.ShouldBe(expected);
+        var stored = ProductBranding.Create("Orbitly", input, null, null, null).Value.LogoPath;
+
+        stored.ShouldBe(expected);
+        // The email renderer shows a logo only when it starts with "https://", so every accepted https sample must be stored in that form.
+        if (input.Contains("https", StringComparison.OrdinalIgnoreCase))
+        {
+            stored.ShouldStartWith("https://");
+        }
     }
 
     [Theory]
@@ -46,6 +55,8 @@ public sealed class ProductBrandingLogoTests
     [InlineData("https://cdn.orbitly.example/lo go.png")]
     [InlineData("https://cdn.orbitly.example/lo\ngo.png")]
     [InlineData("https://cdn.orbitly.example/\u0001logo.png")]
+    [InlineData("https://cdn.orbitly.example/a\u200Bb.png")]
+    [InlineData("https://cdn.orbitly.example/a\u202Eb.png")]
     public void An_unsafe_or_relative_logo_is_rejected_with_a_logo_path_error(string input)
     {
         var error = ProductBranding.Create("Orbitly", input, null, null, null).Error!;
