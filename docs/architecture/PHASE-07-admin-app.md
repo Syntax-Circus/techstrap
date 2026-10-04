@@ -30,12 +30,14 @@ PHASE-07 lands in three PRs. Each task id below carries its PR in brackets.
 
 07a deviations from the text below, all recorded in D-040: the typed clients sit on a small `ApiConnection` (not `ApiClientBase`); there is no `IAttachmentsClient`; the folders are `Auth/`, `Clients/`, `Options/`, `Features/Queue/`, `Features/Tickets/` with primitives in `Components/Ui`; `StatusStamp` and `PriorityMark` are the badges; the sidebar is optimistic-free; the Admin references Contracts and Hosting; the no-access page follows the API's answer to `GET /api/agents/me`.
 
+07b deviations from the text below, all recorded in D-041: roles are read-only (the agents page activates and deactivates only); the product logo is a validated URL field, not an upload; the Admin tag list shows ticket counts from the new `GET /api/tags/summary`; every admin page sits inside an `AdminOnly` guard; the shortcut toggle and the theme are stored in the browser (`preferences.js`); validation errors are 400, not 422. PHASE-07b lands in one PR.
+
 ## Architecture Decisions
 
-- **No new server entry points.** Admin never touches the database and does not reference `TechStrap.Application` or `TechStrap.Infrastructure`; it references `TechStrap.Contracts` and `TechStrap.Hosting` only (enforced by the P01 architecture test, see [02-ARCHITECTURE.md](02-ARCHITECTURE.md)).
+- **No new server entry points.** Admin never touches the database and does not reference `TechStrap.Application` or `TechStrap.Infrastructure`; it references `TechStrap.Contracts` and `TechStrap.Hosting` only (enforced by the P01 architecture test, see [02-ARCHITECTURE.md](02-ARCHITECTURE.md)). PHASE-07b adds one read endpoint to the API, GET /api/tags/summary (D-041); the Admin host itself still adds none.
 - **Sign-in is app-owned**, per `SyntaxCircus.Blazor.Auth`: cookie + OIDC with `SaveTokens = true` and `offline_access`; `AddBlazorTokenForwarding` + `UseBlazorTokenCache` supply the bearer token to the API. Users without the agent group claim see a "no access" page (the API also rejects them, so this is UX only). Redis token cache is **not** used (single admin instance, [03-PACKAGE-MAP.md](03-PACKAGE-MAP.md)). **Assumption.**
-- **Typed clients**: one client per API area (`IAgentsClient`, `IProductsClient`, `ITagsClient`, `ITicketsClient`, `IDeadLettersClient`, `IAdminEventsClient`) in `TechStrap.Admin/Clients/`, built on `SyntaxCircus.Http.Resilience` `ApiClientBase`, registered with `AddResilientHttpClient(...)` + `AddHttpMessageHandler<ApiAuthHandler>()`. Component state classes obtain the HttpClient through `IBlazorCircuitHttpClientFactory` (circuit-safe). Clients return `Result<T>`/DTOs; ProblemDetails (RFC 7807) are mapped to `Result` failures so components never catch HTTP exceptions. 07a builds them on an Admin ApiConnection with two named clients (read: retried; write: never retried), see D-040.
-- **Resilience budget**: GETs retry (3, backoff+jitter); every mutating call is registered with **no automatic retry** (non-idempotent; per Http.Resilience production notes). **Assumption.**
+- **Typed clients**: one client per API area (`IAgentsClient`, `IProductsClient`, `ITagsClient`, `ITicketsClient`, `IDeadLettersClient`, `IAdminEventsClient`) in `TechStrap.Admin/Clients/`, over a small Admin `ApiConnection` (D-040). `AddTechStrapApiClients` registers two named clients that run `ApiAuthHandler` (the bearer token) and forward the client IP; the connection obtains each from `IBlazorCircuitHttpClientFactory` (circuit-safe), so components never see an HttpClient. Clients return `Result<T>`/DTOs; ProblemDetails (RFC 7807), including the `errorCodes` of a 400, are mapped to `Result` failures so components never catch HTTP exceptions. `ApiClientBase` is not used: it drops `errorCodes` and has no `Result` mapping.
+- **Resilience budget**: the read client retries a failed GET twice (`ApiClientRegistration.ReadRetryCount`: exponential backoff with jitter, for transport errors, timeouts, 408 and 502/503/504) and has no circuit breaker, because every circuit shares it; every mutating call uses the write client, which has **no automatic retry** and no breaker (non-idempotent). See D-040.
 - **Optimistic concurrency**: ticket mutations send the ticket's concurrency token (`RowVersion` in `TicketDetailDto`); a 409 renders a "this ticket changed, reload" banner and keeps the agent's unsent reply draft.
 - **Presentation layering** follows _template RAZOR_COMPONENT_ARCHITECTURE.md: Razor markup -> code-behind -> feature-local state/presentation service -> typed client. ViewModels are `internal` records in the owning feature folder (`Features/Tickets`, `Features/Settings`, ...); DTOs from Contracts are never renamed to ViewModels.
 - **Feature-folder layout**: `Features/{Queue,TicketDetail,Settings,DeadLetters,Shell}`; shared presentation primitives in `Shared/`.
@@ -56,12 +58,12 @@ adapter endpoints.
 
 | Entry point/use case | Named handler | Allowed abstractions | Infrastructure implementation | Outcome/transport mapping | Decision |
 | :------------------- | :------------ | :------------------- | :---------------------------- | :------------------------ | :------- |
-| `GET /api/agents/me` (on sign-in, role/active check) | `GetCurrentAgentRequestHandler` (P04) | Admin: `IAgentsClient` | `AgentsClient : ApiClientBase` (HTTP) | `AgentDto`; 403 -> "no access" page | Consumed; no new server entry point |
+| `GET /api/agents/me` (on sign-in, role/active check) | `GetCurrentAgentRequestHandler` (P04) | Admin: `IAgentsClient` | `AgentsClient` over `ApiConnection` (HTTP) | `AgentDto`; 403 -> "no access" page | Consumed; no new server entry point |
 | `GET /api/agents`, `PUT /api/agents/{id}`, `PUT /api/agents/me/notification-preferences` | `ListAgentsRequestHandler`, `UpdateAgentRequestHandler`, `UpdateNotificationPreferencesRequestHandler` (P04) | `IAgentsClient` | `AgentsClient` | `Result<T>` from ProblemDetails; 403 hides Admin-only UI | Consumed; no new server entry point |
-| `PUT /api/agents/me/profile` | `UpdateMyProfileRequestHandler` (P04, D-024) | `IAgentsClient` | `AgentsClient` | `Result` from ProblemDetails; 422 shown as a field error | Consumed; no new server entry point |
+| `PUT /api/agents/me/profile` | `UpdateMyProfileRequestHandler` (P04, D-024) | `IAgentsClient` | `AgentsClient` | `Result` from ProblemDetails; 400 shown as a field error (target public-display-name) | Consumed; no new server entry point |
 | Products: list/get/create/update (incl. branding) | `ListProductsRequestHandler`, `GetProductRequestHandler`, `CreateProductRequestHandler`, `UpdateProductRequestHandler` (P04) | `IProductsClient` | `ProductsClient` | 400 validation errors mapped to field messages | Consumed; no new server entry point |
 | Product API keys: list/create/revoke | `ListProductApiKeysRequestHandler`, `CreateProductApiKeyRequestHandler`, `RevokeProductApiKeyRequestHandler` (P04) | `IProductsClient` | `ProductsClient` | Secret shown once from create response | Consumed; no new server entry point |
-| Tags: list/create/update/delete | `ListTagsRequestHandler`, `CreateTagRequestHandler`, `UpdateTagRequestHandler`, `DeleteTagRequestHandler` (P04) | `ITagsClient` | `TagsClient` | 409 on duplicate slug -> field error | Consumed; no new server entry point |
+| Tags: list/create/update/delete | `ListTagsRequestHandler`, `ListTagSummariesRequestHandler` (07b, D-041), `CreateTagRequestHandler`, `UpdateTagRequestHandler`, `DeleteTagRequestHandler` (P04) | `ITagsClient` | `TagsClient` | 409 on duplicate slug -> field error | Consumed; one new read endpoint, GET /api/tags/summary (D-041) |
 | `GET /api/admin-events` | `ListAdminEventsRequestHandler` (P04) | `IAdminEventsClient` | `AdminEventsClient` | Paged `AdminEventDto` | Consumed; no new server entry point |
 | Ticket queue and search | `ListTicketsRequestHandler` (P06) | `ITicketsClient` | `TicketsClient` | `PagedResponse<TicketSummaryDto>` | Consumed; no new server entry point |
 | Ticket detail + timeline | `GetTicketRequestHandler` (P06) | `ITicketsClient` | `TicketsClient` | `TicketDetailDto`; 404 -> NotFound view | Consumed; no new server entry point |
@@ -103,11 +105,11 @@ feature-local; ViewModels are `internal` records in the same folder.
 | `ConfirmDialog` | Paired (modal state, focus handling, JS-free) | None | Local open/closed | None |
 | `LoadingState`, `ErrorState`, `EmptyState` | Inline (parameters + one retry `EventCallback`) | None | Stateless | None |
 | `ProductsPage` | Paired | `ProductRowViewModel` | Loading/Error/Empty/Content | `ProductDto` |
-| `ProductEditorPage` (details + branding: name, logo URL, accent colour, from/reply-to) | Paired (form state, validation, async save) | `ProductEditorViewModel` (form model; accent colour validated against `#RRGGBB` constant) | Dirty tracking; server validation errors mapped to fields | `CreateProductRequest`/`UpdateProductRequest` |
+| `ProductEditorPage` (details + branding: name, logo URL, accent colour, from/reply-to) | Paired (form state, validation, async save) | `ProductEditorViewModel` (form model; accent colour validated with `BrandingRules.ColourPattern`, logo URL with `BrandingRules.IsAcceptableLogoUrl` (D-041)) | Dirty tracking; server validation errors mapped to fields | `CreateProductRequest`/`UpdateProductRequest` |
 | `ApiKeysPanel` + `NewApiKeyDialog` | Paired | `ApiKeyRowViewModel`; secret held only in dialog field | Show-once secret, cleared on close | `ProductApiKeyDto`, `CreateProductApiKeyRequest/Response` |
-| `AgentsPage` | Paired | `AgentRowViewModel` | Role/active edit inline; Admin-only | `AgentDto`, `UpdateAgentRequest` |
-| `TagsPage` | Paired | `TagRowViewModel` | Inline edit; delete confirm | `TagDto`, `CreateTagRequest`/`UpdateTagRequest` |
-| `NotificationPreferencesPage` | Paired | `NotificationPreferencesViewModel` (product x opt-in toggles) | Dirty tracking; save | `NotificationPreferencesDto` |
+| `AgentsPage` | Paired | `AgentListItemViewModel` | Read-only role badge with the IdP note; activate and deactivate inline (deactivate confirms); Admin-only (D-041) | `AgentListItemDto`, `UpdateAgentRequest` |
+| `TagsPage` | Paired | `TagRowViewModel` | Inline edit; delete confirm (the tag name typed when the tag is in use, with its ticket count) | `TagSummaryDto`, `CreateTagRequest`/`UpdateTagRequest` |
+| `NotificationPreferencesPage` | Paired | `NotificationPreferencesViewModel` (product x opt-in toggles) | Dirty tracking; save | `NotificationPreferenceDto` |
 | `PublicDisplayNameField` (in My settings) | Paired | `MyProfileViewModel` (draft name, preview text, save state) | Live preview from the Contracts format constant; dirty tracking; save on blur or Enter | `UpdateMyProfileRequest`, `AgentDto` |
 | `DeadLettersPage` | Paired | `DeadLetterRowViewModel` (last error truncated) | Retry/discard per row with confirm | `DeadLetterDto` |
 | `AdminEventsPage` | Paired | `AdminEventRowViewModel` built by `AdminEventSummaryFactory` (payload -> sentence) | Paged | `AdminEventDto` |
@@ -121,7 +123,7 @@ all are locked in `Directory.Packages.props` (P01).
 | :------ | :------ | :--------------------------- | :----------- |
 | `SyntaxCircus.Blazor.Auth` | Token forwarding, refresh, circuit-safe HTTP, session expiry | Admin calls a protected API as the signed-in agent | Integration-style test with fake OIDC tokens; manual sign-in against Authentik; 401 flips `SessionStateService` and shows re-sign-in prompt |
 | `SyntaxCircus.Blazor.Components` | `GlobalErrorBoundary`, `ReconnectModal`, `NotFoundView` | Uniform error/reconnect/not-found UI without bespoke boilerplate | bUnit: faulty child renders fallback; reconnect modal present once in `App.razor` |
-| `SyntaxCircus.Http.Resilience` | Typed client base, retry/circuit breaker, ProblemDetails handling | Admin -> API typed clients | Unit tests with a stub handler: retry on GET 503, none on POST, ProblemDetails -> `Result` failure |
+| `SyntaxCircus.Http.Resilience` | Brings the resilience pipeline; the read client uses its retry strategy only (no `ApiClientBase`, no circuit breaker, D-040) | Admin -> API typed clients | Unit tests with a stub handler: retry on GET 503, none on POST, ProblemDetails -> `Result` failure |
 | `SyntaxCircus.Common` | `Result`/`Result<T>`, `ICurrentUserService` abstractions | Clients and presenters return `Result` | Compile + unit tests |
 | `SyntaxCircus.AspNetCore.Common` | Health, security headers, correlation id | Admin host operational endpoints (wired in P01; verified here) | `/health/*` smoke; CSP/headers asserted in a host test |
 | `SyntaxCircus.DotEnv`, `.AspNetCore.Serilog`, `.Observability` | Config and telemetry | Already wired in P01; confirm admin-specific env keys | `.env.example` complete; log redaction test for tokens |
@@ -158,7 +160,7 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
   - **Depends on:** P07-T03
   - **Validation:** bUnit: throwing child shows fallback and "Try again" recovers; unknown route renders not-found; non-agent principal sees no-access page.
   - **07a evidence:** `MainLayoutTests`, `ShellComponentTests`, `AgentGateTests`, `ReconnectAndErrorTests`
-- [ ] **P07-T05** [07a] Implement typed clients (`IAgentsClient`, `IProductsClient`, `ITagsClient`, `IAdminEventsClient`) over `ApiClientBase` with ProblemDetails -> `Result` mapping and per-client resilience config
+- [ ] **P07-T05** [07a] Implement typed clients (`IAgentsClient`, `IProductsClient`, `ITagsClient`, `IAdminEventsClient`) over `ApiConnection` with ProblemDetails -> `Result` mapping, a retrying read client and a never-retrying write client (D-040)
   - **Depends on:** P07-T02
   - **Validation:** Unit tests with stub `HttpMessageHandler`: success, 400 field errors, 403, 409, 503 retry on GET only, cancellation token propagated.
   - **07a evidence:** 07a: agents, products and tags clients (`ApiConnectionTests`, `ReferenceDataClientTests`); `IAdminEventsClient` arrives in 07b
@@ -196,13 +198,13 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
   - **07a evidence:** `DestructiveActionTests`
 - [ ] **P07-T14** [07b] Build `ProductsPage` and `ProductEditorPage` including branding fields and accent-colour validation
   - **Depends on:** P07-T05, P07-T03
-  - **Validation:** bUnit: invalid accent rejected client-side with the same constant as the server regex; server 400 errors map to fields; Admin-only actions hidden for Agent role.
+  - **Validation:** bUnit: an invalid accent is rejected client-side with `BrandingRules.ColourPattern` (the server pattern, pinned by a parity test); a logo URL that is not https (or http for localhost) is rejected client-side and by the API; server 400 errors map to fields by their kebab-case target; the page sits inside `AdminOnly`, so a plain agent sees the no-access page.
 - [ ] **P07-T15** [07b] Build `ApiKeysPanel` + `NewApiKeyDialog` (kind selection Trusted/Public, show-once secret, revoke with confirm)
   - **Depends on:** P07-T14
   - **Validation:** bUnit: secret visible only in the dialog and gone after close; revoked keys render as revoked; public/trusted badges distinct.
 - [ ] **P07-T16** [07b] Build `AgentsPage` and `NotificationPreferencesPage`
   - **Depends on:** P07-T05, P07-T03
-  - **Validation:** bUnit: role/active change calls `UpdateAgentRequest`; Agent role cannot see the page; preferences save posts the full toggle set.
+  - **Validation:** bUnit: the agents page shows the role as a read-only badge with the note "Roles come from your identity provider's groups." and has no role control; activate calls `SetActiveAsync(id, true)` without a confirm, deactivate calls `SetActiveAsync(id, false)` after a confirm, and a 409 `last-active-admin` shows inline; a plain agent sees the no-access page; the preferences save posts the full toggle set.
 - [ ] **P07-T17** [07b] Build `TagsPage` (CRUD with colour) and `AdminEventsPage` + `AdminEventSummaryFactory`
   - **Depends on:** P07-T05, P07-T03
   - **Validation:** bUnit: duplicate-slug 409 shows a field error; factory theory covers every admin-event type constant.
@@ -225,7 +227,7 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
   - **07a evidence:** `TicketQueuePageTests`, `NotSpamQueueTests`, `DestructiveActionTests`, `ShortcutServiceTests` (the palette command is part of the 07c palette)
 - [ ] **P07-T23** [07b] (D-024) Add the optional **Public display name** field to My settings (`PublicDisplayNameField`, `MyProfileViewModel`, `IAgentsClient.UpdateMyProfile`) with the live preview line "Customers see: Sam from Orbitly Support", helper text that email is never shown, and inline save confirmation
   - **Depends on:** P07-T16, P04-T15
-  - **Validation:** bUnit: the preview shows "Sam from Orbitly Support" by default, "Samantha from Orbitly Support" while typing "Samantha", and returns to the default when cleared; save calls `UpdateMyProfile` once and shows confirmation; an over-long name or one containing `@` shows the field error from a 422; the field is optional
+  - **Validation:** bUnit: the preview shows "Sam from Orbitly Support" by default, "Samantha from Orbitly Support" while typing "Samantha", and returns to the default when cleared; save calls `UpdateMyProfile` once and shows confirmation; an over-long name or one containing `@` shows the field error from a 400 (target public-display-name); the field is optional
 
 
 ## Success Criteria
@@ -265,8 +267,8 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 - [ ] Blazor Server circuit memory with many open tabs; keep component state small and dispose subscriptions.
 - [ ] Agent token lifetime vs. long-lived circuits: relies on Blazor.Auth refresh; verify behavior with Authentik's access-token lifetime in UAT.
 - [x] Carried forward from the PHASE-04 final review: Mark the Admin `/error` page `[AllowAnonymous]` when Admin auth lands. (done in PHASE-07a)
-- [ ] Carried forward from the PHASE-04 final review: Return the `tag-in-use` count as a structured field, not only in the message text.
-- [ ] Carried forward from the PHASE-04 final review: Add an endpoint test for the admin agent-list fields (`Email`, `Role`, `IsActive`, `LastSeenAt`).
+- [ ] [07b] Carried forward from the PHASE-04 final review: Return the `tag-in-use` count as a structured field, not only in the message text.
+- [ ] [07b] Carried forward from the PHASE-04 final review: Add an endpoint test for the admin agent-list fields (`Email`, `Role`, `IsActive`, `LastSeenAt`).
 - [ ] Carried forward from the PHASE-04 final review: Add an OpenAPI bearer security scheme so generated clients know the endpoints need a token (also needed by PHASE-11).
 - [x] Carried forward from PHASE-06c (D-039): wire `PiiRedactionEnricher` into the Admin host's `AddStandardSerilog` call once the Admin handles requester data (done in PHASE-07a through TechStrap.Hosting, D-040; the Sentry header scrub is wired too).
 

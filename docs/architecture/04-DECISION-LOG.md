@@ -14,6 +14,7 @@ Approval basis:
 - **Owner decision (2026-10-03, PHASE-06b planning):** D-037 (three-PR split, lost link keeps old links, follow-up dedupe window, no auto-close email). D-038 was proposed in the PHASE-06b plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-03, PHASE-06c planning):** D-039, the owner decisions on erase scope, follow-ups of a deleted ticket and outbox retention. Its technical decisions were proposed in the PHASE-06c plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-04, PHASE-07 planning):** D-040, the owner decisions on the PHASE-07 split, the identity provider and the shared hosting project. Its technical decisions were proposed in the PHASE-07a plan and approved when the owner approved the plan.
+- **Owner decision (2026-10-04, PHASE-07b planning):** D-041, the owner decisions on read-only roles in the Admin, the logo URL field, the tag ticket count and the single PR. Its technical decisions were proposed in the PHASE-07b plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -63,6 +64,7 @@ Approval basis:
 | D-038 | Customer API: Public routes with in-handler token auth, uniform 404, separate customer attachment route, lost-link rules, alert recipients, reopen window from AutoCloseOptions, per-ticket auto-close | Approved (owner, PHASE-06b plan review) | 2026-10-03 | PHASE-06, PHASE-09, PHASE-12 |
 | D-039 | PHASE-06c: erase covers subject, metadata and outbox rows; hard delete unlinks follow-ups; outbox retention sweep and lookup index; Serilog redaction enricher; multipart hardening | Approved (owner 2026-10-03; technical decisions at PHASE-06c plan review) | 2026-10-03 | PHASE-06, PHASE-07, PHASE-09, PHASE-12 |
 | D-040 | PHASE-07 lands as 07a/07b/07c; Authentik set up later; TechStrap.Hosting project; Admin sign-in, API clients and ticket-handling decisions | Approved (owner 2026-10-04; technical decisions at PHASE-07a plan review) | 2026-10-04 | PHASE-07, PHASE-08, PHASE-09, PHASE-12 |
+| D-041 | PHASE-07b: roles are read-only in the Admin; the product logo is a validated URL; the tag list shows ticket counts; Admin guard, browser preferences and client decisions | Approved (owner 2026-10-04; technical decisions at PHASE-07b plan review) | 2026-10-04 | PHASE-07, PHASE-08, PHASE-12 |
 
 ---
 
@@ -912,6 +914,7 @@ D-004 gated agents by group claim and added `TECHSTRAP_BOOTSTRAP_ADMIN` so the f
 - Removing someone from the admin group demotes them at their next token. Their stored role catches up at their next `/me` call.
 - The bootstrap env var disappears from `.env.example`, the compose files and the docs.
 - PHASE-07's agent screen offers activate and deactivate only.
+- Amended in part by D-041: the Admin shows the role as a read-only badge with the note "Roles come from your identity provider's groups."; the agents screen only activates and deactivates.
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, 2026-10-03 PHASE-04 planning)
@@ -942,6 +945,7 @@ Tags are global. A tag that tickets still carry cannot simply disappear: the dat
 ### Consequences
 - A forced delete of a widely used tag loads and saves each ticket in one transaction. A concurrent edit to one of those tickets fails the delete with `409 concurrency-conflict`, and the admin retries.
 - PHASE-06's timeline must render `TagRemoved` with reason `tag-deleted`.
+- Amended in part by D-041: the 409 message still names the count; the Admin tag list and delete confirmation take it from GET /api/tags/summary.
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, 2026-10-03 PHASE-04 planning)
@@ -1334,7 +1338,7 @@ PHASE-07 has 23 tasks, too many for one review. The owner's identity provider (A
 - **UI gating uses the API as the source of truth.** An `AgentSession` calls `GET /api/agents/me` once per scope. That call also creates the agent row, so no ticket call comes before it. A 403 (`agent-access-required`, `agent-inactive`, `agent-email-required`, `agent-identity-invalid`) shows the no-access page, a 401 asks for a new sign-in. The Admin does not copy the group-claim parsing of the API. Delete and erase show only for the role the API reports; the API still enforces them.
 - **Sign-in plumbing.** The cookie scheme is literally `Cookies` (SyntaxCircus.Blazor.Auth reads tokens from it) plus OpenIdConnect with the code flow, PKCE, `SaveTokens`, `offline_access`, `MapInboundClaims=false` and the userinfo claims. `GET /signin` (the anonymous landing page), `GET /signin/start` (the challenge, local return URLs only) and `POST /signout` (antiforgery) are minimal-API endpoints, so an anonymous visitor never opens a circuit. The fallback authorization policy requires a signed-in user. The error and not-found pages, `/signin*`, the health checks and the static assets stay anonymous, and `/_styleguide` stays anonymous in Development only. Tests use a `Test` authentication scheme and never touch OIDC.
 - **Render mode.** `Routes` and `HeadOutlet` render `InteractiveServer`. Prerendering stays on, so the first render also asks the API; reads are doubled until a later phase persists the state across the prerender.
-- **HTTP clients.** There are two named clients with the auth handler and the forwarded client IP. `techstrap-api-read` is resilient (3 retries); `techstrap-api-write` has no retry and no circuit breaker, so a transient failure can never duplicate a reply or a note. The typed clients sit on a small Admin `ApiConnection`, not on `ApiClientBase`. It reads problem details, including `errorCodes`, into `SyntaxCircus.Common` `Result`: 400 is Validation, 401 Unauthenticated, 403 Forbidden, 404 NotFound, 409 Conflict, anything else Failure. Cancellation by the caller propagates and is never mapped.
+- **HTTP clients.** There are two named clients with the auth handler and the forwarded client IP. `techstrap-api-read` retries a failed read twice (transport errors, timeouts, 408, 502, 503 and 504; no circuit breaker, because every circuit shares the client); `techstrap-api-write` has no retry and no circuit breaker, so a transient failure can never duplicate a reply or a note. The typed clients sit on a small Admin `ApiConnection`, not on `ApiClientBase`. It reads problem details, including `errorCodes`, into `SyntaxCircus.Common` `Result`: 400 is Validation, 401 Unauthenticated, 403 Forbidden, 404 NotFound, 409 Conflict, anything else Failure. Cancellation by the caller propagates and is never mapped.
 - **Attachments (D-017).** `GET /attachments/{id}` streams `GET api/attachments/{id}` through the read client without buffering, forces `Content-Disposition: attachment`, `nosniff` and `Cache-Control: private, no-store`, and answers 404 for any upstream 404. There is no `IAttachmentsClient`: a buffering typed client would defeat the streaming.
 - **Sidebar.** It is optimistic-free (the PHASE-07 table wins over the UX brief): the control shows a pending state, then re-renders from the returned `TicketStateDto`. A failure shows an inline error and the previous value. Every write sends the current `RowVersion`. A 409 `concurrency-conflict` raises a non-blocking banner with Reload and keeps drafts.
 - **Queue.** The default view is Unassigned (UX), not `TicketViews.Default` (All). The page size is 25, the search debounce 300 ms, and all filter state lives in the query string.
@@ -1368,7 +1372,66 @@ PHASE-07 has 23 tasks, too many for one review. The owner's identity provider (A
 - **Local compose** needs real or dummy OIDC values for the Admin to start. A dummy authority starts the app; signing in then fails until Authentik exists.
 - **Prerendering doubles the first reads** of a page (the prerender scope and the circuit scope each ask the API).
 - **Row versions.** The sidebar and the composer send the version they loaded; an agent holding an old copy gets a 409 and reloads.
+- Corrected by D-041: the read client retries twice (ApiClientRegistration.ReadRetryCount), not three times, and has no circuit breaker.
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-07 planning)
+- **Approved on:** 2026-10-04
+
+---
+
+## D-041: PHASE-07b: read-only roles, a logo URL field, tag ticket counts, the Admin guard and browser preferences
+
+- **Status:** Approved (owner 2026-10-04; technical decisions at PHASE-07b plan review)
+- **Date:** 2026-10-04
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-022, D-024, D-029, D-030, D-036, D-039, D-040, PHASE-07, UX-BRIEF-admin, `docs/superpowers/plans/2026-10-04-phase-07b-admin-settings.md`
+
+### Context
+PHASE-07a merged the sign-in, the shell, the typed clients and the ticket pages. PHASE-07b builds the settings and admin pages (T14 to T18 and T23). Reading the 07a code and the API shows places where the PHASE-07 table and UX-BRIEF-admin no longer match.
+- **Roles.** The UX brief and the PHASE-07 table have an agents screen that changes roles and stops the last admin from being demoted. Since D-029 the role comes from the IdP groups and `UpdateAgentRequest` carries `IsActive` only.
+- **Logo.** The UX brief has a logo upload. The API has no upload endpoint and no file storage for branding. `ProductBranding.LogoPath` is a plain string of up to 500 characters with no URL check. The email renderer uses it as an image source, and `GET /api/public/products/{key}` hands it to the portal, which will do the same in PHASE-09.
+- **Tag counts.** The tag list should show how many tickets use each tag. `GET /api/tags` has no count. The count of a `409 tag-in-use` exists only in the message text, because the `ResultError` of `SyntaxCircus.Common` has no field for it.
+- **Test gaps.** No endpoint test covers the admin fields of `GET /api/agents`. `AdminEvent` type and subject names, and the `#RRGGBB` colour pattern, exist only in Domain, which the Admin cannot reference.
+- **Guard and session.** `AgentSession.ReloadAsync` drops to NotLoaded until the answer arrives, so a page that reloads the session after a save would be replaced by the "Checking" gate. The Admin has no admin-only guard: D-040 decided that the API's answer, not the group claim, says who is an admin.
+- **Stale text.** The PHASE-07 lines on the typed clients still say `ApiClientBase` and three retries, and D-040 says three retries. The read client retries twice (`ApiClientRegistration.ReadRetryCount`), only on transport errors, timeouts, 408 and 502/503/504, and has no circuit breaker. The PHASE-07 text says validation errors arrive as 422, but the API answers 400.
+
+### Decision
+**Owner decisions (2026-10-04)**
+- **Roles are read-only in the Admin.** The agents screen shows each role as a badge with the note "Roles come from your identity provider's groups." (D-029). An admin can only activate or deactivate an agent.
+- **The product logo is a URL field**, with validation and a preview. There is no upload.
+- **The Admin tag list shows a ticket count per tag**, and the delete confirmation shows the same count.
+- **PHASE-07b lands in one PR.**
+
+**Technical decisions (proposed in the plan)**
+- **Tag summary.** A new Admin-only `GET /api/tags/summary` returns `TagSummaryDto(Id, Slug, Name, Colour, TicketCount)`, ordered by name. It uses one grouped count in `ITagRepository.ListWithTicketCountsAsync` (tickets of any status, spam included, the same set a forced delete detaches). No migration is needed. `TagDto` and `GET /api/tags` do not change, so the tag picker and the queue filter pay for no count. The Admin tag list and the delete confirmation use the summary. A `409 tag-in-use` still carries its message.
+- **Logo URL validation on the server.** The Domain branding guard accepts a blank value (no logo), an absolute `https` URL with a host and no user info, or an `http` URL whose host is `localhost` or `127.0.0.1`. Everything else, including `javascript:`, `data:`, `file:`, relative and protocol-relative values, is a validation error on the field `logo-path` with the code `logo-path-invalid` (400). The Domain cannot know the environment, so the loopback `http` form is allowed in every environment. This is harmless: the email renderer already renders only `https` logos, and a loopback address is not reachable by a customer. A logo stored before this change still loads (`Restore` does not validate) but must be corrected before the product can be saved again. The Admin editor mirrors the rule with Contracts `BrandingRules.IsAcceptableLogoUrl`, so the agent sees the error before submitting, and a parity test keeps the two equal.
+- **Contracts constants.** `AdminEventTypes` (12 values) and `AdminSubjectTypes` (7 values) carry the wire names of the Domain enums. `BrandingRules.ColourPattern` (`^#[0-9A-Fa-f]{6}$`), `BrandingRules.LogoUrlMaxLength` and `BrandingRules.IsAcceptableLogoUrl` carry the branding rules. Domain cannot reference Contracts, so parity tests in Application.Tests compare each constant with the Domain enum or guard, in the style of `TicketNamesParityTests`.
+- **Agent list test.** `AgentManagementEndpointTests` gets the admin case: `Email`, `Role`, `IsActive` and `LastSeenAt` are filled for every agent.
+- **Typed clients.** The 07a `ApiConnection` pattern, no new package. `IProductsClient` gains `GetAsync`, `CreateAsync`, `UpdateAsync`, `ListApiKeysAsync`, `CreateApiKeyAsync` and `RevokeApiKeyAsync`. `IAgentsClient` gains `ListPageAsync`, `SetActiveAsync`, `UpdateMyProfileAsync`, `GetNotificationPreferencesAsync` and `UpdateNotificationPreferencesAsync`. `ITagsClient` gains `ListSummaryAsync`, `CreateAsync`, `UpdateAsync` and `DeleteAsync(id, force)`. `IAdminEventsClient` and `IDeadLettersClient` (list, retry, discard and `CountAsync`, a page of one) are new. Every write uses the write client: no retry, and a page never cancels it. `ApiErrorCodes` gains the codes the pages branch on, and `ApiFields` names the kebab-case targets of a 400.
+- **Admin guard and session.** An `AdminOnly` component wraps the content of each admin page. It shows "Checking" while the session has not loaded, the page-level no-access page for an agent who is not an admin (the content is never built, so nothing inside it runs), and the content for an admin. `AgentSession.ReloadAsync` keeps a Ready session, and its current agent, until the answer arrives, then raises `Changed` once, so a My settings save causes no gate flicker. An answer of 403 or 401 still wins, and only a transient failure keeps the old session. The rail shows the admin links (Products, Agents, Tags, Audit, Failed emails with a count badge) only for an admin, and My settings for everyone. The count comes from `IDeadLettersClient.CountAsync`, called only for an admin and only after the first render.
+- **Browser preferences.** `wwwroot/js/preferences.js` (an ES module) stores the single-key shortcut switch and the theme (`auto`, `light`, `dark`) in `localStorage`. Its functions never throw. `auto` removes the `data-bs-theme` attribute, so the system preference decides. A scoped `PreferencesService` loads them on the first interactive render and sets `ShortcutService.SingleKeyEnabled`. The theme is therefore applied after the first interactive render, so a dark-mode agent can see one light frame; an inline script would fix that but conflicts with the 07c CSP, so the decision moves to 07c.
+- **Pages.** Products (editor with `Version` conflict banner, `IsActive` always sent, preview with `ProductAccent`), API keys (show-once dialog that cannot close until "I have stored this key" is ticked), agents, tags, audit (paged, `asOf` carried through) and failed emails. Revoking a key, deactivating an agent and discarding a failed email use a medium confirm. Deleting a tag in use needs the tag name typed and sends `force=true`.
+- **Docs corrected.** The PHASE-07 client and resilience lines, the T14, T16 and T23 wording, UX-BRIEF-admin on roles, the logo, the last-admin rule, the discard reason and the audit filters, and the D-040 retry count.
+
+### Alternatives Considered
+- **Role editing in the Admin.** Rejected by the owner: D-029 makes the IdP group the only source of a role.
+- **A logo upload.** Rejected by the owner: it needs file storage, content checks and a serving route for a rarely changed value.
+- **A count field on `TagDto`.** Rejected: every tag picker and queue filter call would run a count query, and every `new TagDto(...)` call in the tests would change.
+- **A structured count on the `409 tag-in-use` problem.** Rejected: it needs an extension field in `SyntaxCircus.Common` `ResultError`, a package change; the summary gives the same number before the delete.
+- **Counting with `ListTicketIdsWithTagAsync`.** Rejected: it loads every ticket id of a tag to count them.
+- **Validating the logo only in the Admin editor.** Rejected: the API is reachable without the Admin, and the logo becomes an image source in customer emails and, from PHASE-09, on the portal.
+- **An admin policy that reads the group claim in the Admin.** Rejected in D-040 for the same reason: a second implementation can disagree with the API.
+- **Dropping the session to NotLoaded during a reload.** Rejected: it unmounts the page and loses what the agent was typing.
+
+### Consequences
+- **Superseded wording.** UX-BRIEF-admin (change role, the logo upload, the UI preventing the last-admin demotion, discard reason, audit filter by date), the PHASE-07 table rows for the agents page and the typed clients, and the PHASE-07 validation text of T14, T16 and T23.
+- **D-030 and D-040.** The count of a `tag-in-use` conflict is still in its message, and the Admin takes it from the summary. D-040 said the read client retries three times; it retries twice.
+- **A new read endpoint.** `GET /api/tags/summary` (Admin). No migration.
+- **Existing products** with a relative or `http` logo keep working (the email renderer ignores a logo that is not `https`). Saving such a product requires a valid URL or a blank one.
+- **Failed-email badge.** The rail calls the dead-letters list once per admin circuit and again after a retry or a discard.
+- **Preferences are per browser**, not per agent, and the assignment-alert toggle of the UX brief is out of scope because the API has no such preference.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-07b planning)
 - **Approved on:** 2026-10-04
