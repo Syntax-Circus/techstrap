@@ -57,6 +57,24 @@ public sealed class TicketsController : ControllerBase
         Guid id, [FromBody] ChangeTicketStatusRequest request, [FromServices] IChangeTicketStatusRequestHandler handler, CancellationToken cancellationToken) =>
         (await handler.HandleAsync(id, request, cancellationToken)).ToActionResult(this, Ok);
 
+    /// <summary>Assigns the ticket to an agent, or unassigns it with a null assignee. The row version is required.</summary>
+    [HttpPut("{id:guid}/assignee")]
+    public async Task<IActionResult> Assign(
+        Guid id, [FromBody] AssignTicketRequest request, [FromServices] IAssignTicketRequestHandler handler, CancellationToken cancellationToken) =>
+        (await handler.HandleAsync(id, request, cancellationToken)).ToActionResult(this, Ok);
+
+    /// <summary>Changes the priority. The row version is required.</summary>
+    [HttpPut("{id:guid}/priority")]
+    public async Task<IActionResult> ChangePriority(
+        Guid id, [FromBody] ChangeTicketPriorityRequest request, [FromServices] IChangeTicketPriorityRequestHandler handler, CancellationToken cancellationToken) =>
+        (await handler.HandleAsync(id, request, cancellationToken)).ToActionResult(this, Ok);
+
+    /// <summary>Moves the ticket to another product; its number never changes. The row version is required.</summary>
+    [HttpPut("{id:guid}/product")]
+    public async Task<IActionResult> MoveProduct(
+        Guid id, [FromBody] MoveTicketProductRequest request, [FromServices] IMoveTicketProductRequestHandler handler, CancellationToken cancellationToken) =>
+        (await handler.HandleAsync(id, request, cancellationToken)).ToActionResult(this, Ok);
+
     /// <summary>A public reply to the customer: Markdown body, optional files and linked articles, optionally solving the ticket.</summary>
     [HttpPost("{id:guid}/replies")]
     [Consumes("multipart/form-data")]
