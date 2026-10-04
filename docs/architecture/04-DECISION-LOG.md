@@ -12,6 +12,7 @@ Approval basis:
 - **Owner decision (2026-10-03, PHASE-05 planning):** D-032 (intake rules: honeypot, untrusted external ref, link cap, attachments). D-033 and D-034 were proposed in the PHASE-05 plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-03, PHASE-06 planning):** D-035 (PHASE-06 split, Markdown replies, agent attachments, Solved notice). D-036 was proposed in the PHASE-06a plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-03, PHASE-06b planning):** D-037 (three-PR split, lost link keeps old links, follow-up dedupe window, no auto-close email). D-038 was proposed in the PHASE-06b plan and approved when the owner approved the plan.
+- **Owner decision (2026-10-03, PHASE-06c planning):** D-039, the owner decisions on erase scope, follow-ups of a deleted ticket and outbox retention. Its technical decisions were proposed in the PHASE-06c plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -59,6 +60,7 @@ Approval basis:
 | D-036 | Ticket operations API shape: RowVersion on state changes, TicketStateDto returns, idempotent tags, string enums, multipart replies, lookup by id or number | Approved (owner, PHASE-06a plan review) | 2026-10-03 | PHASE-06, PHASE-07, PHASE-11 |
 | D-037 | PHASE-06 lands as 06a/06b/06c; lost link keeps old links; 2-minute follow-up dedupe; auto-close sends no email | Approved (owner 2026-10-03) | 2026-10-03 | PHASE-06, PHASE-09 |
 | D-038 | Customer API: Public routes with in-handler token auth, uniform 404, separate customer attachment route, lost-link rules, alert recipients, reopen window from AutoCloseOptions, per-ticket auto-close | Approved (owner, PHASE-06b plan review) | 2026-10-03 | PHASE-06, PHASE-09, PHASE-12 |
+| D-039 | PHASE-06c: erase covers subject, metadata and outbox rows; hard delete unlinks follow-ups; outbox retention sweep and lookup index; Serilog redaction enricher; multipart hardening | Approved (owner 2026-10-03; technical decisions at PHASE-06c plan review) | 2026-10-03 | PHASE-06, PHASE-07, PHASE-09, PHASE-12 |
 
 ---
 
@@ -230,6 +232,7 @@ Tickets hold personal data. Full compliance tooling is out of scope for v1, but 
 - Erase and delete write an `AdminEvent`/audit record without the erased data.
 - Backups still hold erased data until rotated; to be stated in the PHASE-12 runbook.
 - Retention remains an explicit future item, not forgotten.
+- Amended in part by D-039: erase also covers the subject, metadata and outbox rows, and outbox retention is no longer deferred.
 
 ### Approval
 - **Approved by:** Jon Seeley (owner Q&A)
@@ -1028,7 +1031,7 @@ There is also a layering problem. The architecture rules let Application referen
 ### Consequences
 - The Worker reads `TECHSTRAP_PORTAL_SHOW_POWERED_BY`; the Api does not need to.
 - PHASE-06 notification emails follow the same pattern: a payload kind plus a renderer template.
-- PHASE-12 adds a retention sweep for sent rows (proposed: 30 days), with a payload scrub.
+- The retention sweep for sent rows moved to PHASE-06c and deletes the rows after 90 days (D-039); there is no payload scrub.
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-05 plan review)
@@ -1252,4 +1255,52 @@ The customer side authenticates with a ticket token rather than an agent credent
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-06b plan review)
+- **Approved on:** 2026-10-03
+
+---
+
+## D-039: PHASE-06c: erase scope, delete and follow-ups, outbox retention, log redaction, multipart hardening
+
+- **Status:** Approved (owner 2026-10-03; technical decisions at PHASE-06c plan review)
+- **Date:** 2026-10-03
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-006, D-022, D-033, D-036, D-037, D-038, PHASE-06, PHASE-07, PHASE-09, PHASE-12, `docs/superpowers/plans/2026-10-03-phase-06c-delete-erase-dead-letters.md`
+
+### Context
+D-006 said what erase and delete are for, but left the detail open. Reading the PHASE-03 to 06b code shows personal data in places D-006 does not list: the ticket subject and its customer metadata, the email outbox (rows addressed to the requester, and agent alerts that carry the requester's name or email), and the plaintext portal link inside every sent row's payload (D-033). `tickets.parent_ticket_id` is `RESTRICT`, so a ticket with follow-ups could not be deleted at all. D-006 deferred retention and D-033 deferred the outbox sweep to PHASE-12, but the lost-link limit (D-038) needs an index on the outbox and sent rows keep a working link for ever.
+
+### Decision
+**Owner decisions (2026-10-03)**
+- **Erase replaces the subject too.** The subject of every ticket the requester opened becomes the erasure marker `[erased]`, and `tickets.metadata` and `tickets.custom_fields` are cleared (customer-supplied, so they may hold personal data).
+- **Only the requester's own messages are replaced.** Messages with author type `Requester` get the marker. Agent replies and internal notes stay.
+- **Erase deletes outbox rows.** Every `email_outbox` row addressed to the requester (any status, including Sent), and every row whose `ticket_id` is one of the requester's tickets (agent alerts carry the requester's name or email).
+- **Outbox retention.** Add an index on (`kind`, `to_address`, `created_at`) and a Worker sweep that deletes `Sent` and `Discarded` rows older than N days (default 90). `DeadLettered`, `Pending` and `Sending` rows are never swept. This supersedes D-033's "PHASE-12 retention sweep with a payload scrub" (the rows are deleted, so there is nothing to scrub) and narrows D-006's "retention deferred" for the outbox only.
+- **Deleting a ticket with follow-ups.** The follow-ups survive and are unlinked (`parent_ticket_id` becomes NULL). Their own `Created` events keep `parentTicketId`, because events are append-only history.
+
+**Technical decisions (proposed in the plan)**
+- **One migration**, generated by `dotnet ef`: `tickets.parent_ticket_id` foreign key becomes `ON DELETE SET NULL`, plus the index `ix_email_outbox_kind_to_address_created_at`. Nothing else.
+- **Delete ticket.** `DELETE /api/tickets/{id}`, Admin, 204 or 404 `ticket-not-found`, no row version. One transaction removes the ticket (the database cascades messages, attachments, events, tokens, tags, linked articles and idempotency keys), deletes the outbox rows for the ticket, and writes `TicketDeleted` with counts only. Attachment files are deleted after the commit, best effort (an orphan file is better than a row that points at a missing file).
+- **Erase requester.** `POST /api/requesters/{id}/erase`, Admin, 204 or 404 `requester-not-found`, idempotent (each call writes an `AdminEvent`). Bulk updates run through a new Application port `IRequesterErasure` inside the handler's transaction, and `Message.Body` stays immutable in the Domain. Files are deleted after the commit. Ticket numbers, ticket events and the requester row (a tombstone) survive.
+- **Dead letters.** `GET /api/dead-letters`, `POST /api/dead-letters/{id}/retry` and `DELETE /api/dead-letters/{id}` (discard), all Admin. A retry or discard of a row that is not dead-lettered is `409 outbox-not-dead-lettered`. `DeadLetterDto` shows a masked recipient and never the payload (it holds a portal link).
+- **Retention clock.** Retention counts from `created_at` for both Sent and Discarded rows (one index, one rule).
+- **Serilog redaction.** A `PiiRedactionEnricher` in Infrastructure, applied by the Api and the Worker, rewrites every log property value (including nested ones): email addresses become `[email]`, 43-character base64url tokens `[token]`, and `sha256:` plus 64 hex characters `[hash]`. Exceptions rely on Npgsql's default (no `Detail` unless "Include Error Detail" is set) and on EF sensitive logging staying off; an architecture test guards both. Admin and Portal handle no requester data yet, so wiring them is a PHASE-07/PHASE-09 follow-up.
+- **Multipart hardening.** A truncated body that is not a 413 answers `400 request-malformed`, not 500. A non-multipart body on the three multipart routes answers 415 from the shared filter, after the route's own policy ran (so the customer route answers 415, not the fallback 401).
+- **Follow-up dedupe** compares sanitised file names, through a Domain `AttachmentFileName.Sanitize` shared with the attachment store.
+- **Portal Sentry scrub** is deferred to PHASE-09: the Portal makes no API calls yet and there is no shared project to hold the processor.
+
+### Alternatives Considered
+- **Keep the subject and metadata on erase.** Rejected by the owner: both are customer-written.
+- **Replace agent replies on erase.** Rejected by the owner: agent text is the company's record, not the requester's data.
+- **Refuse to delete a ticket with follow-ups, or delete them too.** Rejected by the owner: a follow-up is a separate conversation.
+- **Outbox sweep with a payload scrub (D-033).** Rejected: deleting the finished rows is simpler and removes the link entirely.
+- **A column `dead_lettered_at`.** Rejected: the list orders by `created_at` and the DTO does not need it.
+
+### Consequences
+- **Superseded wording.** PHASE-06 ("Automatic retention is out of scope"), 02-ARCHITECTURE 6.8, FR-PRIV-01 and the PHASE-12 carry-forward for the sweep change.
+- **Row versions.** Erasing a requester changes the row version of that requester's tickets, so an agent holding an old copy gets a 409 and reloads.
+- **Backups** still hold erased and deleted data until they expire (D-006, PHASE-12 runbook).
+- **Outbox history** older than the retention window is gone: the dead-letter list and the per-address lost-link count see only recent rows.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-06c planning)
 - **Approved on:** 2026-10-03

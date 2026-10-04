@@ -207,7 +207,7 @@ phase verifies configuration and upgrades only for security fixes.
 - [ ] Carried forward from the PHASE-04 final review: Add a double-revoke end-to-end test, or an xmin concurrency token on `ProductApiKey`.
 - [ ] Carried forward from the PHASE-04 final review: Forced tag delete loads each ticket one at a time (N+1); batch the loads.
 - [ ] Carried forward from the PHASE-04 final review: Notification-preference validation looks up each product one at a time (N+1) and has no cap on the list size; batch the lookup and cap the list.
-- [ ] Carried forward from PHASE-05 (D-033): add a retention sweep for sent `email_outbox` rows (proposed 30 days) that also removes payloads, because a confirmation payload holds a working portal link.
+- [ ] Carried forward from PHASE-05 (D-033): done in PHASE-06c (D-039): the Worker deletes sent outbox rows after 90 days. Only the backup-retention statement remains here.
 
 ## Handoff
 
