@@ -89,6 +89,12 @@ internal sealed class TicketNotificationPlanner(
 
     public async Task PlanNewTicketAsync(Ticket ticket, Requester requester, bool isFollowUp, CancellationToken cancellationToken)
     {
+        if (ticket.IsSpam)
+        {
+            logger.LogInformation("Skipped {Kind} for ticket {TicketId}: ticket is flagged as spam", EmailTemplates.NewTicketAlert, ticket.Id);
+            return;
+        }
+
         var product = await products.GetByIdAsync(ticket.ProductId, cancellationToken);
         if (product is null)
         {

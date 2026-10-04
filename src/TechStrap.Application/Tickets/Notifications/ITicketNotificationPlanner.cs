@@ -16,7 +16,7 @@ public interface ITicketNotificationPlanner
 
     Task PlanAssignedAsync(Ticket ticket, Agent assignee, Agent actor, CancellationToken cancellationToken);
 
-    /// <summary>New-ticket alert to agents opted in for the ticket's product (active only). Not for spam (a new ticket is never spam).</summary>
+    /// <summary>New-ticket alert to agents opted in for the ticket's product (active only). Nothing for spam tickets (a follow-up of a spam ticket is spam).</summary>
     Task PlanNewTicketAsync(Ticket ticket, Requester requester, bool isFollowUp, CancellationToken cancellationToken);
 
     /// <summary>Customer replied: to the assignee if set and active, else to agents opted in for the product. Nothing for spam tickets (D-038).</summary>

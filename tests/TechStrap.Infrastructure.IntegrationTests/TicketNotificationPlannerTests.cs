@@ -399,6 +399,23 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
     }
 
     [Fact]
+    public async Task A_new_ticket_alert_for_a_spam_ticket_alerts_nobody()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        await SeedOptInsAsync(host, seed);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, async (planner, ticket, sam, _) =>
+        {
+            var requester = (await sp.GetRequiredService<IRequesterRepository>().GetByIdAsync(seed.RequesterId, Ct))!;
+            ticket.MarkSpam(true, Actor.ForAgent(sam.Id), host.Clock).IsSuccess.ShouldBeTrue();
+            await planner.PlanNewTicketAsync(ticket, requester, true, Ct);
+        }))).IsSuccess.ShouldBeTrue();
+
+        (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task A_follow_up_confirmation_goes_to_the_requester_with_a_fresh_link()
     {
         await using var host = NewHost();
