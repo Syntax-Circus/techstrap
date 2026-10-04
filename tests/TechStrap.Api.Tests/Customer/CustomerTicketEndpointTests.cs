@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
+using TechStrap.Application.Security;
 using TechStrap.Api.Tests.Auth;
 using TechStrap.Contracts.Http;
 using TechStrap.Contracts.Tickets;
@@ -10,12 +12,25 @@ public sealed class CustomerTicketEndpointTests(TestPostgres postgres)
 {
     private static readonly CancellationToken Ct = TestContext.Current.CancellationToken;
 
-    private async Task<(ApiFactory Factory, CustomerSeed Seed)> StartAsync()
+    private async Task<(ApiFactory Factory, CustomerSeed Seed)> StartAsync() => (await StartWithDatabaseAsync()) is var (f, s, _) ? (f, s) : default;
+
+    private async Task<(ApiFactory Factory, CustomerSeed Seed, ApiTestDatabase Database)> StartWithDatabaseAsync()
     {
         var database = await ApiTestDatabase.CreateAsync(postgres);
         var factory = new ApiFactory(settings: new Dictionary<string, string?>(database.Settings));
-        return (factory, await CustomerTestData.SeedAsync(factory, Ct));
+        return (factory, await CustomerTestData.SeedAsync(factory, Ct), database);
     }
+
+    private static string HashOf(ApiFactory factory, string token)
+    {
+        using var scope = factory.Services.CreateScope();
+        return scope.ServiceProvider.GetRequiredService<IAccessTokenService>().Hash(token);
+    }
+
+    private static Task<string> RowAsync(ApiTestDatabase database, ApiFactory factory, string token) =>
+        database.ScalarAsync<string>(
+            "SELECT coalesce(last_used_at::text, '-') || '|' || expires_at::text || '|' || coalesce(revoked_at::text, '-') " +
+            $"FROM ticket_access_tokens WHERE token_hash = '{HashOf(factory, token)}'");
 
     private static HttpRequestMessage Get(string? token)
     {
@@ -44,6 +59,8 @@ public sealed class CustomerTicketEndpointTests(TestPostgres postgres)
         raw.ShouldNotContain(seed.InternalAttachmentId.ToString());
         raw.ShouldNotContain("sam@example.com");
         raw.ShouldNotContain("Hargreaves");
+        raw.ShouldNotContain(seed.OtherTicketAttachmentId.ToString());
+        raw.ShouldNotContain("Other reply");
         var dto = System.Text.Json.JsonSerializer.Deserialize<CustomerTicketDto>(raw, System.Text.Json.JsonSerializerOptions.Web)!;
         dto.Number.ShouldBe(seed.Number);
         dto.Subject.ShouldBe("Login broken");
@@ -70,5 +87,22 @@ public sealed class CustomerTicketEndpointTests(TestPostgres postgres)
 
         ok.StatusCode.ShouldBe(HttpStatusCode.OK);
         missing.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task A_successful_view_persists_the_token_use_and_slides_the_expiry()
+    {
+        var (factory, seed, database) = await StartWithDatabaseAsync();
+        await using var _f = factory;
+        using var client = factory.CreateClient();
+        var before = (await RowAsync(database, factory, seed.ValidToken)).Split('|');
+        before[0].ShouldBe("-");
+
+        using var response = await client.SendAsync(Get(seed.ValidToken), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var after = (await RowAsync(database, factory, seed.ValidToken)).Split('|');
+        after[0].ShouldNotBe("-");
+        DateTimeOffset.Parse(after[1]).ShouldBeGreaterThan(DateTimeOffset.Parse(before[1]));
     }
 }

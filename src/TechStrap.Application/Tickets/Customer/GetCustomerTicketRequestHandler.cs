@@ -36,6 +36,12 @@ public sealed class GetCustomerTicketRequestHandler(
         }
 
         var (accessToken, ticket, _) = access.Value;
+        var product = await products.GetByIdAsync(ticket.ProductId, cancellationToken);
+        if (product is null)
+        {
+            return NotFound();
+        }
+
         if (accessToken.RecordUse(clock).IsFailure)
         {
             return NotFound();
@@ -46,12 +52,6 @@ public sealed class GetCustomerTicketRequestHandler(
         var messages = await tickets.GetMessagesAsync(ticket.Id, publicOnly: true, cancellationToken);
         var attachments = (await tickets.GetAttachmentsAsync(ticket.Id, publicOnly: true, cancellationToken))
             .ToLookup(attachment => attachment.MessageId);
-        var product = await products.GetByIdAsync(ticket.ProductId, cancellationToken);
-        if (product is null)
-        {
-            return NotFound();
-        }
-
         var agentIds = messages.Where(m => m.AuthorType == AuthorType.Agent && m.AuthorId is not null)
             .Select(m => m.AuthorId!.Value).Distinct().ToList();
         var authors = agentIds.Count == 0
@@ -68,7 +68,7 @@ public sealed class GetCustomerTicketRequestHandler(
 
             return message.AuthorId is { } id && authors.TryGetValue(id, out var agent)
                 ? AgentPublicIdentity.Resolve(agent, displayName)
-                : $"{displayName} Support";
+                : AgentPublicIdentity.SupportName(displayName);
         }
 
         var dtos = messages.Select(message => new CustomerMessageDto(

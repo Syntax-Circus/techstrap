@@ -110,16 +110,41 @@ public sealed class GetCustomerTicketRequestHandlerTests
     public async Task Any_access_failure_is_the_uniform_not_found()
     {
         var errors = new List<ResultError>();
-        foreach (var raw in new string?[] { null, "", "garbage", new string('x', 200) })
+        async Task FailAsync(string? raw)
         {
-            errors.Add((await Handler().HandleAsync(raw, Ct)).Errors.Single());
+            var result = await Handler().HandleAsync(raw, Ct);
+            result.IsFailure.ShouldBeTrue();
+            errors.Add(result.Errors.Single());
+            _tickets.DidNotReceiveWithAnyArgs().UpdateAccessToken(default!);
         }
 
-        _token.Revoke(_clock);
-        errors.Add((await Handler().HandleAsync(Raw, Ct)).Errors.Single());
+        foreach (var raw in new string?[] { null, "", "garbage", new string('x', 200) })
+        {
+            await FailAsync(raw);
+        }
 
+        _products.GetByIdAsync(_product.Id, Arg.Any<CancellationToken>()).Returns((Product?)null);
+        await FailAsync(Raw);
+        _products.GetByIdAsync(_product.Id, Arg.Any<CancellationToken>()).Returns(_product);
+
+        _tickets.GetByIdAsync(_ticket.Id, Arg.Any<CancellationToken>()).Returns((Ticket?)null);
+        await FailAsync(Raw);
+        _tickets.GetByIdAsync(_ticket.Id, Arg.Any<CancellationToken>()).Returns(_ticket);
+
+        _ann.Erase(_clock);
+        await FailAsync(Raw);
+
+        var revoked = TicketAccessToken.Issue(_ticket.Id, _ann.Id, "sha256:abc", _clock).Value;
+        revoked.Revoke(_clock);
+        _tickets.GetAccessTokenByHashAsync("sha256:abc", Arg.Any<CancellationToken>()).Returns(revoked);
+        await FailAsync(Raw);
+
+        _clock.Advance(TicketAccessToken.Lifetime + TimeSpan.FromDays(1));
+        _tickets.GetAccessTokenByHashAsync("sha256:abc", Arg.Any<CancellationToken>()).Returns(_token);
+        await FailAsync(Raw);
+
+        errors.Count.ShouldBe(9);
         errors.Select(e => (e.Code, e.Message, e.Kind)).Distinct().ShouldHaveSingleItem().ShouldBe(("not-found", "Not found.", ResultErrorKind.NotFound));
-        _tickets.DidNotReceiveWithAnyArgs().UpdateAccessToken(default!);
     }
 
     [Fact]

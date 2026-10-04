@@ -1,4 +1,6 @@
 using System.Net;
+using Microsoft.Extensions.DependencyInjection;
+using TechStrap.Application.Security;
 using TechStrap.Api.Tests.Auth;
 using TechStrap.Contracts.Http;
 
@@ -17,6 +19,18 @@ public sealed class CustomerUniformNotFoundTests(TestPostgres postgres)
         var seed = await CustomerTestData.SeedAsync(factory, Ct);
         using var client = factory.CreateClient();
         var ignored = new[] { "Date", "X-Correlation-Id", "X-Request-Id" };
+
+        string Hash(string token)
+        {
+            using var scope = factory.Services.CreateScope();
+            return scope.ServiceProvider.GetRequiredService<IAccessTokenService>().Hash(token);
+        }
+
+        Task<string> Row(string token) => database.ScalarAsync<string>(
+            "SELECT coalesce(last_used_at::text, '-') || '|' || expires_at::text || '|' || coalesce(revoked_at::text, '-') " +
+            $"FROM ticket_access_tokens WHERE token_hash = '{Hash(token)}'");
+        var revokedBefore = await Row(seed.RevokedToken);
+        var expiredBefore = await Row(seed.ExpiredToken);
 
         var shapes = new List<string>();
         foreach (var token in new string?[]
@@ -40,7 +54,10 @@ public sealed class CustomerUniformNotFoundTests(TestPostgres postgres)
             shapes.Add($"{(int)response.StatusCode}|{await response.Content.ReadAsStringAsync(Ct)}|{string.Join(";", headers)}");
         }
 
+        (await Row(seed.RevokedToken)).ShouldBe(revokedBefore);
+        (await Row(seed.ExpiredToken)).ShouldBe(expiredBefore);
         shapes.Distinct().Count().ShouldBe(1, string.Join("\n", shapes));
         shapes[0].ShouldContain("not-found");
+        shapes[0].ShouldContain("no-store");
     }
 }

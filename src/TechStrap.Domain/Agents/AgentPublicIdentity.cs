@@ -9,9 +9,12 @@ public static class AgentPublicIdentity
 {
     private const string SupportSuffix = "Support";
 
+    /// <summary>The name shown for support when no agent name is available: "{Product} Support".</summary>
+    public static string SupportName(string productDisplayName) => $"{productDisplayName} {SupportSuffix}";
+
     public static string Resolve(Agent agent, string productDisplayName)
     {
-        var supportName = $"{productDisplayName} {SupportSuffix}";
+        var supportName = SupportName(productDisplayName);
         var given = !string.IsNullOrWhiteSpace(agent.PublicDisplayName)
             ? agent.PublicDisplayName.Trim()
             : FirstWord(agent.Name);

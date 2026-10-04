@@ -41,6 +41,7 @@ public sealed class CustomerRateLimitTests(TestPostgres postgres)
 
         third.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
         third.Headers.Contains("Retry-After").ShouldBeTrue();
+        third.Headers.CacheControl!.NoStore.ShouldBeTrue();
         using var body = JsonDocument.Parse(await third.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         body.RootElement.GetProperty("type").GetString()!.ShouldContain("rate-limited");
         (await StatusAsync(client, "203.0.113.20")).ShouldBe(HttpStatusCode.NotFound);

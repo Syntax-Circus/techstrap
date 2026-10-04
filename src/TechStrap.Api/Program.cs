@@ -30,6 +30,7 @@ if (telemetry.Options.Sentry.IsEnabled)
     {
         telemetry.ConfigureSentry(options, context =>
             context.TransactionContext.Name.Contains("/health", StringComparison.OrdinalIgnoreCase) ? 0d : null);
+        options.AddEventProcessor(new SensitiveHeaderSentryProcessor());
         options.AutoSessionTracking = false;
     });
 }
@@ -99,6 +100,20 @@ await ApiStartupTasks.RunAsync(app.Services, app.Environment, app.Configuration)
 
 app.UseForwardedHeaders();
 app.UseCorrelationId();
+// Every customer response (200, uniform 404, 429 from the limiter) is uncacheable. Registered before UseRateLimiter so the 429 is covered.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api/customer", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.OnStarting(() =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            return Task.CompletedTask;
+        });
+    }
+
+    await next();
+});
 // Downloads get `Content-Security-Policy: sandbox`. The shared security-headers middleware overwrites the CSP when the response starts,
 // and start callbacks run last-registered-first, so this must be registered before it to have the final say.
 app.Use(async (context, next) =>
