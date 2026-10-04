@@ -30,7 +30,7 @@ public sealed class AddInternalNoteRequestHandlerTests
         _sam = Agent.Create("sam", "Sam", "sam@example.com", AgentRole.Agent, _clock).Value;
         _claims.Current.Returns(new AgentClaims("sam", "Sam", "sam@example.com", AgentRole.Agent));
         _agents.GetBySubjectAsync("sam", Arg.Any<CancellationToken>()).Returns(_sam);
-        _markdown.ToHtml(Arg.Any<string>()).Returns(call => "<p>" + call.Arg<string>() + "</p>");
+        _markdown.ToHtml(Arg.Any<string>()).Returns(call => string.IsNullOrWhiteSpace(call.Arg<string>()) ? string.Empty : "<p>" + call.Arg<string>() + "</p>"); // like the real renderer
         _sanitizer.Sanitize(Arg.Any<string>()).Returns(call => call.Arg<string>());
     }
 
@@ -50,6 +50,7 @@ public sealed class AddInternalNoteRequestHandlerTests
     {
         var ticket = GivenTicket(TicketStatus.Open);
 
+        ticket.FirstResponseAt.ShouldBeNull();
         var result = await Handler().HandleAsync(ticket.Id, new AddInternalNoteRequest("Check **logs**", null), Ct);
 
         result.IsSuccess.ShouldBeTrue();
@@ -85,5 +86,34 @@ public sealed class AddInternalNoteRequestHandlerTests
         result.Errors.ShouldHaveSingleItem().Code.ShouldBe("body-too-long");
         _markdown.DidNotReceiveWithAnyArgs().ToHtml(default!);
         await _tickets.DidNotReceiveWithAnyArgs().GetByIdAsync(default, Ct);
+    }
+
+    [Fact]
+    public async Task A_stale_optional_row_version_is_409_and_nothing_is_stored()
+    {
+        var ticket = GivenTicket(TicketStatus.Open);
+
+        var result = await Handler().HandleAsync(ticket.Id, new AddInternalNoteRequest("Note", 2), Ct);
+
+        result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            e => e.Kind.ShouldBe(ResultErrorKind.Conflict),
+            e => e.Code.ShouldBe(PersistenceErrorCodes.ConcurrencyConflict));
+        _tickets.DidNotReceiveWithAnyArgs().Update(default!);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task An_empty_or_blank_note_is_400_body_required(string? body)
+    {
+        var ticket = GivenTicket(TicketStatus.Open);
+
+        var result = await Handler().HandleAsync(ticket.Id, new AddInternalNoteRequest(body, null), Ct);
+
+        result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            e => e.Kind.ShouldBe(ResultErrorKind.Validation),
+            e => e.Code.ShouldBe("body-required"));
+        _tickets.DidNotReceiveWithAnyArgs().Update(default!);
     }
 }

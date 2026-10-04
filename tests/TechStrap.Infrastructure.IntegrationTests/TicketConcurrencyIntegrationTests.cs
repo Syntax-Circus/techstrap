@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 using Npgsql;
 using SyntaxCircus.Common;
 using TechStrap.Application.Agents;
@@ -26,7 +27,7 @@ public sealed class TicketConcurrencyIntegrationTests(PostgresFixture postgres) 
         public AgentClaims? Current { get; } = new("sub-sam", "Sam Taylor", "sam.taylor@techstrap.test", AgentRole.Agent);
     }
 
-    private PersistenceTestHost NewHost() =>
+    private PersistenceTestHost NewHost(Action<IServiceCollection>? extra = null) =>
         new(Database, configure: services =>
         {
             var configuration = new ConfigurationBuilder()
@@ -38,6 +39,7 @@ public sealed class TicketConcurrencyIntegrationTests(PostgresFixture postgres) 
             services.AddSingleton<ICurrentAgentClaims, StubAgentClaims>();
             services.AddScoped<IChangeTicketStatusRequestHandler, ChangeTicketStatusRequestHandler>();
             services.AddScoped<IAddInternalNoteRequestHandler, AddInternalNoteRequestHandler>();
+            extra?.Invoke(services);
         });
 
     private static async Task<Guid> SeedAsync(PersistenceTestHost host)
@@ -114,44 +116,122 @@ public sealed class TicketConcurrencyIntegrationTests(PostgresFixture postgres) 
         (await ScalarAsync("SELECT count(*) FROM messages")).ShouldBe(messagesBefore + 1);
         (await ScalarAsync($"SELECT count(*) FROM tickets WHERE id = '{ticketId}' AND status = 'Pending'")).ShouldBe(1);
     }
-
     [Fact]
     public async Task Two_simultaneous_status_changes_with_the_same_version_let_exactly_one_win()
     {
-        await using var host = NewHost();
+        var rendezvous = new Rendezvous();
+        await using var host = NewHost(services => Decorate(services, rendezvous));
         var ticketId = await SeedAsync(host);
         var v0 = await VersionAsync(host, ticketId);
         var statusEventsBefore = await ScalarAsync("SELECT count(*) FROM ticket_events WHERE type = 'StatusChanged'");
-        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var ready = 0;
+        rendezvous.Armed = true;
 
         async Task<Result<TicketStateDto>> RaceAsync(string status)
         {
-            // Each racer has its own DI scope (own DbContext and connection) and waits at the gate for the other.
+            // Own DI scope per racer (own DbContext and connection). The gated repository holds each racer after its load
+            // until the other has loaded too, so both pass the v0 check before either commits.
             await using var scope = host.CreateScope();
             var handler = scope.ServiceProvider.GetRequiredService<IChangeTicketStatusRequestHandler>();
-            Interlocked.Increment(ref ready);
-            await gate.Task;
             return await handler.HandleAsync(ticketId, new ChangeTicketStatusRequest(status, v0), Ct);
         }
 
-        var first = Task.Run(() => RaceAsync("Pending"), Ct);
-        var second = Task.Run(() => RaceAsync("Solved"), Ct);
-        while (Volatile.Read(ref ready) < 2)
-        {
-            await Task.Delay(5, Ct);
-        }
+        var results = await Task.WhenAll(Task.Run(() => RaceAsync("Solved"), Ct), Task.Run(() => RaceAsync("Pending"), Ct));
 
-        gate.SetResult();
-        var results = await Task.WhenAll(first, second);
-
+        // Both racers loaded the ticket at v0 before either committed, so the loser can only have failed at commit.
+        rendezvous.LoadedVersions.ShouldBe([v0, v0]);
         results.Count(r => r.IsSuccess).ShouldBe(1);
-        var loser = results.Single(r => r.IsFailure);
-        loser.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+        results.Single(r => r.IsFailure).Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
             e => e.Kind.ShouldBe(ResultErrorKind.Conflict),
             e => e.Code.ShouldBe(PersistenceErrorCodes.ConcurrencyConflict));
         var winner = results.Single(r => r.IsSuccess).Value;
         (await ScalarAsync($"SELECT count(*) FROM tickets WHERE id = '{ticketId}' AND status = '{winner.Status}'")).ShouldBe(1);
         (await ScalarAsync("SELECT count(*) FROM ticket_events WHERE type = 'StatusChanged'")).ShouldBe(statusEventsBefore + 1);
+        // The solved notice is staged in the same unit of work: only a winning Solved racer may leave an outbox row.
+        (await ScalarAsync("SELECT count(*) FROM email_outbox")).ShouldBe(winner.Status == "Solved" ? 1 : 0);
+    }
+
+    private static void Decorate(IServiceCollection services, Rendezvous rendezvous)
+    {
+        var original = services.Last(d => d.ServiceType == typeof(ITicketRepository));
+        services.AddScoped(sp =>
+        {
+            var proxy = DispatchProxy.Create<ITicketRepository, GatedTicketRepository>();
+            var gated = (GatedTicketRepository)(object)proxy;
+            gated.Inner = (ITicketRepository)ActivatorUtilities.CreateInstance(sp, original.ImplementationType!);
+            gated.Rendezvous = rendezvous;
+            return proxy;
+        });
+    }
+
+    public sealed class Rendezvous
+    {
+        private readonly TaskCompletionSource _both = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly List<uint> _loaded = [];
+        private int _arrived;
+
+        public bool Armed { get; set; }
+
+        public IReadOnlyList<uint> LoadedVersions
+        {
+            get
+            {
+                lock (_loaded)
+                {
+                    return [.. _loaded];
+                }
+            }
+        }
+
+        public async Task ArriveAsync(uint loadedVersion)
+        {
+            lock (_loaded)
+            {
+                _loaded.Add(loadedVersion);
+            }
+
+            if (Interlocked.Increment(ref _arrived) == 2)
+            {
+                _both.SetResult();
+            }
+
+            await _both.Task.WaitAsync(TimeSpan.FromSeconds(20), Ct);
+        }
+    }
+
+    /// <summary>Delegates every call; after the first GetByIdAsync of a scope returns, waits until both racers have loaded.</summary>
+    public class GatedTicketRepository : DispatchProxy
+    {
+        private bool _gated;
+
+        public ITicketRepository Inner { get; set; } = null!;
+
+        public Rendezvous Rendezvous { get; set; } = null!;
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            try
+            {
+                var result = targetMethod!.Invoke(Inner, args);
+                if (targetMethod.Name == nameof(ITicketRepository.GetByIdAsync) && Rendezvous.Armed && !_gated)
+                {
+                    _gated = true;
+                    return GateAsync((Task<Ticket?>)result!);
+                }
+
+                return result;
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException is not null)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw;
+            }
+        }
+
+        private async Task<Ticket?> GateAsync(Task<Ticket?> load)
+        {
+            var ticket = await load;
+            await Rendezvous.ArriveAsync(ticket?.Version ?? 0);
+            return ticket;
+        }
     }
 }

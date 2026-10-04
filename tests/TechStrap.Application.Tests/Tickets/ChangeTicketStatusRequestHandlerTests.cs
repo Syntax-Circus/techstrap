@@ -82,14 +82,18 @@ public sealed class ChangeTicketStatusRequestHandlerTests
     public async Task Every_forbidden_transition_is_409_and_nothing_is_committed(TicketStatus from, TicketStatus to)
     {
         var ticket = GivenTicket(from);
+        var scope = Substitute.For<IUnitOfWorkScope>();
+        var unitOfWork = Substitute.For<IUnitOfWork>();
+        unitOfWork.BeginAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(scope));
 
-        var result = await Handler().HandleAsync(ticket.Id, new ChangeTicketStatusRequest(to.ToString(), 5), Ct);
+        var result = await Handler(unitOfWork).HandleAsync(ticket.Id, new ChangeTicketStatusRequest(to.ToString(), 5), Ct);
 
         result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
             e => e.Kind.ShouldBe(ResultErrorKind.Conflict),
             e => e.Code.ShouldBe(from == TicketStatus.Closed ? "ticket-closed" : "invalid-status-transition"));
         ticket.Status.ShouldBe(from);
         _tickets.DidNotReceiveWithAnyArgs().Update(default!);
+        await scope.DidNotReceiveWithAnyArgs().CommitAsync(Ct);
         await _planner.DidNotReceiveWithAnyArgs().PlanSolvedAsync(default!, Ct);
     }
 

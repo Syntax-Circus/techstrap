@@ -17,12 +17,6 @@ public sealed class TicketStatusEndpointTests(TestPostgres postgres)
         return (factory, database, await TicketTestData.SeedAsync(factory, Ct));
     }
 
-    private static async Task<uint> VersionAsync(HttpClient client, Guid id)
-    {
-        using var response = await client.GetAsync($"/api/tickets/{id}", Ct);
-        return (await response.Content.ReadFromJsonAsync<TicketDetailDto>(Ct))!.RowVersion;
-    }
-
     [Fact]
     public async Task Solving_returns_200_with_the_new_row_version_and_queues_a_solved_email()
     {
@@ -31,7 +25,7 @@ public sealed class TicketStatusEndpointTests(TestPostgres postgres)
         using var sam = TicketTestData.AgentClient(factory, "sam");
         var ticket = seed.Tickets[0];
 
-        var version = await VersionAsync(sam, ticket.Id);
+        var version = await TicketTestData.VersionAsync(sam, ticket.Id);
         using var response = await sam.PutAsJsonAsync($"/api/tickets/{ticket.Id}/status", new ChangeTicketStatusRequest("Solved", version), Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -49,7 +43,7 @@ public sealed class TicketStatusEndpointTests(TestPostgres postgres)
         using var sam = TicketTestData.AgentClient(factory, "sam");
         var ticket = seed.Tickets[1];
 
-        using var response = await sam.PutAsJsonAsync($"/api/tickets/{ticket.Id}/status", new ChangeTicketStatusRequest("Open", await VersionAsync(sam, ticket.Id) + 100), Ct);
+        using var response = await sam.PutAsJsonAsync($"/api/tickets/{ticket.Id}/status", new ChangeTicketStatusRequest("Open", await TicketTestData.VersionAsync(sam, ticket.Id) + 100), Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         (await response.Content.ReadAsStringAsync(Ct)).ShouldContain("concurrency-conflict");

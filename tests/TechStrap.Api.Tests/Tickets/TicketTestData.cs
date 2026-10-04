@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http.Json;
+using TechStrap.Contracts.Tickets;
 using TechStrap.Api.Tests.Auth;
 using TechStrap.Application.Persistence;
 using TechStrap.Domain.Agents;
@@ -12,6 +14,7 @@ namespace TechStrap.Api.Tests.Tickets;
 /// What <see cref="TicketTestData.SeedAsync"/> created. Tickets in order: 0 Login broken (Orbitly, unassigned, tagged Billing),
 /// 1 Refund request (Orbitly, unassigned), 2 Export fails (Paperplane, Sam), 3 Dark mode (Orbitly, Sam), 4 Kim's ticket (Orbitly, Kim),
 /// 5 Win a prize (Orbitly, unassigned, spam). All are New.
+/// Ticket.Version is not the persisted row version; use TicketTestData.VersionAsync.
 /// </summary>
 internal sealed record TicketSeed(Product Orbitly, Product Paperplane, Requester Ann, Agent Sam, Agent Kim, Tag Billing, IReadOnlyList<Ticket> Tickets);
 
@@ -75,6 +78,14 @@ internal static class TicketTestData
 
         (await work.CommitAsync(cancellationToken)).IsSuccess.ShouldBeTrue();
         return new TicketSeed(orbitly, paperplane, ann, sam, kim, billing, created);
+    }
+
+    /// <summary>The ticket's current persisted row version, read through the API.</summary>
+    public static async Task<uint> VersionAsync(HttpClient client, Guid ticketId)
+    {
+        using var response = await client.GetAsync($"/api/tickets/{ticketId}", TestContext.Current.CancellationToken);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<TicketDetailDto>(TestContext.Current.CancellationToken))!.RowVersion;
     }
 
     /// <summary>A client signed in as "sam" or "kim" (agent group). Call GET /api/agents/me once before acting; <see cref="SeedAsync"/> does.</summary>
