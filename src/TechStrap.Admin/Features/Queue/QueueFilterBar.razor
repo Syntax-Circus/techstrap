@@ -19,7 +19,7 @@
         <label for="queue-status">Status</label>
         <select id="queue-status" class="form-select" @onchange="OnStatusChangedAsync">
             <option value="" selected="@(Filter.Status is null)">@QueueCopy.AllStatuses</option>
-            @foreach (var status in Statuses)
+            @foreach (var status in QueueDefaults.Statuses)
             {
                 <option value="@status" selected="@(Filter.Status == status)">@status</option>
             }
@@ -29,7 +29,7 @@
         <label for="queue-priority">Priority</label>
         <select id="queue-priority" class="form-select" @onchange="OnPriorityChangedAsync">
             <option value="" selected="@(Filter.Priority is null)">@QueueCopy.AllPriorities</option>
-            @foreach (var priority in Priorities)
+            @foreach (var priority in QueueDefaults.Priorities)
             {
                 <option value="@priority" selected="@(Filter.Priority == priority)">@priority</option>
             }

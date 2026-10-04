@@ -306,6 +306,8 @@ public sealed class TicketQueuePageTests : AdminComponentTest
         Time.Advance(TimeSpan.FromMilliseconds(1));
 
         cut.WaitForAssertion(() => Requests().Select(r => r.Search).ShouldBe(["refund"]));
+        Time.Advance(QueueDefaults.SearchDebounce * 3);
+        Requests().Select(r => r.Search).ShouldBe(["refund"]);
         _navigation.Uri.ShouldEndWith("/queue/open?search=refund");
         ((BunitNavigationManager)_navigation).History.Last().Options.ReplaceHistoryEntry.ShouldBeTrue();
     }
@@ -436,5 +438,111 @@ public sealed class TicketQueuePageTests : AdminComponentTest
             .Select(call => call.GetArguments().Last()).OfType<CancellationToken>().ToList();
         tokens.Count.ShouldBe(4);
         tokens.ShouldAllBe(token => token.CanBeCanceled);
+    }
+
+    [Fact]
+    public void A_page_past_the_end_goes_to_the_last_valid_page_instead_of_claiming_the_queue_is_empty()
+    {
+        _tickets.ListAsync(Arg.Is<ListTicketsRequest>(r => r.Page == 999), Arg.Any<CancellationToken>())
+            .Returns(_ => TestData.Ok(TestData.Page([], page: 999, total: 60)));
+        _tickets.ListAsync(Arg.Is<ListTicketsRequest>(r => r.Page == 3), Arg.Any<CancellationToken>())
+            .Returns(_ => TestData.Ok(TestData.Page([TestData.Summary("ORB-60")], page: 3, total: 60)));
+
+        var cut = RenderQueue("open", "?page=999");
+
+        cut.WaitForAssertion(() => cut.Find("tbody tr").GetAttribute("data-ticket").ShouldBe("ORB-60"));
+        _navigation.Uri.ShouldEndWith("/queue/open?page=3");
+        ((BunitNavigationManager)_navigation).History.Last().Options.ReplaceHistoryEntry.ShouldBeTrue();
+        cut.FindAll(".ts-window").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_page_past_the_end_of_an_empty_result_goes_to_page_one_and_shows_the_empty_state_there()
+    {
+        _tickets.ListAsync(Arg.Any<ListTicketsRequest>(), Arg.Any<CancellationToken>())
+            .Returns(_ => TestData.Ok(TestData.Page([], page: 1, total: 0)));
+
+        var cut = RenderQueue("pending", "?page=4");
+
+        cut.WaitForAssertion(() => cut.Find(".ts-state-heading").TextContent.ShouldBe("No pending tickets"));
+        _navigation.Uri.ShouldEndWith("/queue/pending");
+        Requests().Select(r => r.Page).ShouldBe([4, 1]);
+    }
+
+    [Theory]
+    [InlineData("?product=not-a-guid&tag=zzz", null, null)]
+    [InlineData("?page=-5", null, null)]
+    [InlineData("?page=abc", null, null)]
+    [InlineData("?page=0", null, null)]
+    [InlineData("?status=Bogus&priority=Nope", null, null)]
+    [InlineData("?status=pending&priority=URGENT", "Pending", "Urgent")]
+    [InlineData("?view=Spam", null, null)]
+    public void Tampered_query_values_are_dropped_and_never_reach_the_API(string query, string? status, string? priority)
+    {
+        RenderQueue("open", query);
+
+        var request = Requests().Single();
+        request.View.ShouldBe(TicketViews.Open);
+        request.Page.ShouldBe(1);
+        request.ProductId.ShouldBeNull();
+        request.TagId.ShouldBeNull();
+        request.Status.ShouldBe(status);
+        request.Priority.ShouldBe(priority);
+    }
+
+    [Fact]
+    public async Task Enter_escapes_a_reserved_character_in_the_ticket_number()
+    {
+        _tickets.ListAsync(Arg.Any<ListTicketsRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Ok(TestData.Page([TestData.Summary("ORB/1?x")])));
+        RenderQueue("open");
+
+        await PressAsync("j");
+        await PressAsync("Enter");
+
+        _navigation.Uri.ShouldEndWith("/tickets/ORB%2F1%3Fx");
+    }
+
+    [Fact]
+    public void A_throwing_client_shows_the_error_state_and_clears_the_loading_state()
+    {
+        _tickets.ListAsync(Arg.Any<ListTicketsRequest>(), Arg.Any<CancellationToken>())
+            .Returns<Task<Result<PagedResponse<TicketSummaryDto>>>>(_ => throw new HttpRequestException("secret host 10.1.2.3"));
+
+        var cut = RenderQueue("open");
+
+        cut.Find("[role=alert] p").TextContent.ShouldStartWith("Couldn't load tickets.");
+        cut.Markup.ShouldNotContain("10.1.2.3");
+        cut.FindAll(".ts-skeleton").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_throwing_lookup_client_leaves_those_filters_empty_and_the_list_working()
+    {
+        _products.ListAsync(Arg.Any<CancellationToken>()).Returns<Task<Result<IReadOnlyList<ProductDto>>>>(_ => throw new HttpRequestException("boom"));
+
+        var cut = RenderQueue("open");
+
+        cut.FindAll("tbody tr").Count.ShouldBe(2);
+        cut.FindAll("#queue-product option").Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Refresh_keeps_the_selection_on_the_same_ticket_even_when_it_moves()
+    {
+        var first = TestData.Summary("ORB-1");
+        var second = TestData.Summary("ORB-2");
+        _tickets.ListAsync(Arg.Any<ListTicketsRequest>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.Page([first, second])));
+        var cut = RenderQueue("open");
+        await PressAsync("j");
+        await PressAsync("j");
+        cut.Find("tr[aria-current=true]").GetAttribute("data-ticket").ShouldBe("ORB-2");
+
+        _tickets.ListAsync(Arg.Any<ListTicketsRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Ok(TestData.Page([TestData.Summary("ORB-0"), first, second])));
+        cut.FindAll("button").Single(b => b.TextContent == "Refresh").Click();
+
+        cut.WaitForAssertion(() => cut.FindAll("tbody tr").Count.ShouldBe(3));
+        cut.Find("tr[aria-current=true]").GetAttribute("data-ticket").ShouldBe("ORB-2");
     }
 }

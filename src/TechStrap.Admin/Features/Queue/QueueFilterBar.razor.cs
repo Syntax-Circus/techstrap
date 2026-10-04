@@ -11,11 +11,6 @@ namespace TechStrap.Admin.Features.Queue;
 /// </summary>
 public sealed partial class QueueFilterBar : IDisposable
 {
-    private static readonly string[] Statuses =
-        [TicketStatuses.New, TicketStatuses.Open, TicketStatuses.Pending, TicketStatuses.Solved, TicketStatuses.Closed];
-
-    private static readonly string[] Priorities =
-        [TicketPriorities.Urgent, TicketPriorities.High, TicketPriorities.Normal, TicketPriorities.Low];
 
     private ElementReference _search;
     private ITimer? _timer;

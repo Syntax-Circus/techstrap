@@ -58,7 +58,7 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
     public string? View { get; set; }
 
     [SupplyParameterFromQuery(Name = QueueQueryKeys.Product)]
-    public Guid? Product { get; set; }
+    public string? Product { get; set; }
 
     [SupplyParameterFromQuery(Name = QueueQueryKeys.Status)]
     public string? Status { get; set; }
@@ -67,13 +67,13 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
     public string? Priority { get; set; }
 
     [SupplyParameterFromQuery(Name = QueueQueryKeys.Tag)]
-    public Guid? Tag { get; set; }
+    public string? Tag { get; set; }
 
     [SupplyParameterFromQuery(Name = QueueQueryKeys.Search)]
     public string? Search { get; set; }
 
     [SupplyParameterFromQuery(Name = QueueQueryKeys.Page)]
-    public int? PageNumber { get; set; }
+    public string? PageNumber { get; set; }
 
     private bool IsCaughtUpView => _filter.View is TicketViews.Unassigned or TicketViews.Mine or TicketViews.Open;
 
@@ -101,7 +101,15 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
             return;
         }
 
-        var filter = new QueueFilter(view, Product, Blank(Status), Blank(Priority), Tag, Blank(Search), Math.Max(1, PageNumber ?? 1));
+        // Everything in the query string is untrusted: unparseable or unknown values are dropped rather than sent to the API.
+        var filter = new QueueFilter(
+            view,
+            Guid.TryParse(Product, out var productId) ? productId : null,
+            QueueDefaults.Canonical(QueueDefaults.Statuses, Status),
+            QueueDefaults.Canonical(QueueDefaults.Priorities, Priority),
+            Guid.TryParse(Tag, out var tagId) ? tagId : null,
+            Blank(Search),
+            int.TryParse(PageNumber, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var page) && page > 1 ? page : 1);
         _filter = filter;
         if (!_lookupsLoaded)
         {
@@ -135,13 +143,21 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
 
     private async Task LoadLookupsAsync()
     {
-        var products = ProductsClient.ListAsync(_lifetime.Token);
-        var tags = TagsClient.ListAsync(_lifetime.Token);
-        await Task.WhenAll(products, tags);
+        try
+        {
+            var products = ProductsClient.ListAsync(_lifetime.Token);
+            var tags = TagsClient.ListAsync(_lifetime.Token);
+            await Task.WhenAll(products, tags);
 
-        // A failed lookup only means that filter has no options; the queue itself still works.
-        _products = products.Result.IsSuccess ? products.Result.Value : [];
-        _tags = tags.Result.IsSuccess ? tags.Result.Value : [];
+            // A failed lookup only means that filter has no options; the queue itself still works.
+            _products = products.Result.IsSuccess ? products.Result.Value : [];
+            _tags = tags.Result.IsSuccess ? tags.Result.Value : [];
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _products = [];
+            _tags = [];
+        }
     }
 
     private async Task LoadAsync()
@@ -153,40 +169,69 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
         _loading = true;
         _error = null;
 
-        var list = Tickets.ListAsync(filter.ToRequest(), cts.Token);
-        var counts = Tickets.GetCountsAsync(cts.Token);
         try
         {
+            var list = Tickets.ListAsync(filter.ToRequest(), cts.Token);
+            var counts = Tickets.GetCountsAsync(cts.Token);
             await Task.WhenAll(list, counts);
+
+            if (cts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (counts.Result.IsSuccess)
+            {
+                _counts = counts.Result.Value;
+            }
+
+            if (list.Result.IsSuccess)
+            {
+                ShowPage(list.Result.Value);
+            }
+            else
+            {
+                // Keep whatever list is already on screen; the alert explains and offers a retry.
+                _error = $"{QueueCopy.LoadFailed} {list.Result.Errors[0].Message}";
+            }
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
             return;
         }
+        catch (Exception) when (!cts.IsCancellationRequested)
+        {
+            // Fixed copy only: an exception message can carry a host or a port.
+            _error = $"{QueueCopy.LoadFailed} {QueueCopy.TryAgain}";
+        }
+        finally
+        {
+            // A newer load owns the flag; a superseded one leaves it alone.
+            if (_cts == cts)
+            {
+                _loading = false;
+            }
+        }
+    }
 
-        if (cts.IsCancellationRequested)
+    private void ShowPage(PagedResponse<TicketSummaryDto> page)
+    {
+        // A page past the end (a pasted link, or the last tickets on it were handled meanwhile) is not an empty queue: go to the last real page.
+        if (page.Items.Count == 0 && (page.TotalCount > 0 || _filter.Page > 1))
         {
-            return;
+            var lastPage = page.TotalCount > 0 ? (int)Math.Ceiling(page.TotalCount / (double)QueueDefaults.PageSize) : 1;
+            if (lastPage != _filter.Page)
+            {
+                Navigation.NavigateTo(QueueLinks.Uri(_filter with { Page = lastPage }), new NavigationOptions { ReplaceHistoryEntry = true });
+                return;
+            }
         }
 
-        _loading = false;
-        if (counts.Result.IsSuccess)
-        {
-            _counts = counts.Result.Value;
-        }
-
-        if (list.Result.IsSuccess)
-        {
-            _page = list.Result.Value;
-            _rows = _page.Items.Select(TicketRowViewModel.From).ToList();
-            _selected = Math.Min(_selected, _rows.Count - 1);
-            _announcement = $"{_rows.Count} of {_page.TotalCount} tickets";
-        }
-        else
-        {
-            // Keep whatever list is already on screen; the alert explains and offers a retry.
-            _error = $"{QueueCopy.LoadFailed} {list.Result.Errors[0].Message}";
-        }
+        var selectedId = _selected >= 0 && _selected < _rows.Count ? _rows[_selected].Id : (Guid?)null;
+        _page = page;
+        _rows = page.Items.Select(TicketRowViewModel.From).ToList();
+        _selected = selectedId is { } id ? _rows.ToList().FindIndex(row => row.Id == id) : -1;
+        _announcement = $"{_rows.Count} of {page.TotalCount} tickets";
     }
 
     private Task RefreshAsync() => LoadAsync();

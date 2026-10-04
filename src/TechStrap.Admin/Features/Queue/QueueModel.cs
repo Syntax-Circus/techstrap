@@ -15,6 +15,18 @@ public static class QueueDefaults
 
     /// <summary>The view shown at <c>/</c> and at <c>/queue</c> (UX-BRIEF-admin). Not the API's <c>TicketViews.Default</c>, which is All.</summary>
     public const string View = TicketViews.Unassigned;
+
+    /// <summary>The statuses the filter offers; a status in the URL that is not one of these is dropped.</summary>
+    public static IReadOnlyList<string> Statuses { get; } =
+        [TicketStatuses.New, TicketStatuses.Open, TicketStatuses.Pending, TicketStatuses.Solved, TicketStatuses.Closed];
+
+    /// <summary>The priorities the filter offers; a priority in the URL that is not one of these is dropped.</summary>
+    public static IReadOnlyList<string> Priorities { get; } =
+        [TicketPriorities.Urgent, TicketPriorities.High, TicketPriorities.Normal, TicketPriorities.Low];
+
+    /// <summary>The canonical spelling of <paramref name="value"/> from <paramref name="allowed"/> (case-insensitive), or null when it is blank or unknown.</summary>
+    public static string? Canonical(IReadOnlyList<string> allowed, string? value) =>
+        allowed.FirstOrDefault(item => item.Equals(value?.Trim(), StringComparison.OrdinalIgnoreCase));
 }
 
 /// <summary>The query-string keys of the queue. Every filter lives in the URL so views are linkable and survive a refresh.</summary>
@@ -122,6 +134,7 @@ public static class QueueCopy
 {
     public const string Heading = "Queue";
     public const string LoadFailed = "Couldn't load tickets.";
+    public const string TryAgain = "Try again in a moment.";
     public const string Refresh = "Refresh";
     public const string ClearFilters = "Clear filters";
     public const string NoMatchHeading = "No tickets match";
