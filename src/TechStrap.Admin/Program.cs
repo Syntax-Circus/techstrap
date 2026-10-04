@@ -10,6 +10,7 @@ using TechStrap.Admin.Auth;
 using TechStrap.Admin.Clients;
 using TechStrap.Admin.Components;
 using TechStrap.Admin.Features.Shell;
+using TechStrap.Admin.Features.Tickets;
 using TechStrap.Admin.Options;
 using TechStrap.Hosting.Logging;
 using TechStrap.Hosting.Sentry;
@@ -62,6 +63,7 @@ builder.Services.AddCascadingAuthenticationState();
 // The named API clients, the typed clients over them and the scoped AgentSession (the layout's AgentGate asks it who is signed in).
 builder.Services.AddTechStrapApiClients();
 builder.Services.AddShell();
+builder.Services.AddTicketFeatures();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

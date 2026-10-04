@@ -1,0 +1,268 @@
+// The ticket screen (PHASE-07a): the numbered call-log header, the two regions, the timeline, the side panel and the conflict banner.
+// Two regions: the conversation is dominant; the side panel moves above it on narrow screens.
+
+.ts-ticket {
+  padding: 12px 16px;
+}
+
+.ts-ticket-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 16px;
+  align-items: start;
+}
+
+// The paper-form header: numbered field boxes (decoration on this header only).
+.ts-callform {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 0 0 8px;
+  border: 1px solid var(--rule-strong);
+}
+
+.ts-callform-field {
+  flex: 1 1 140px;
+  padding: 4px 8px;
+  border-right: 1px solid var(--rule-strong);
+
+  dt {
+    font: 500 .625rem var(--ts-font-mono);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+
+  dd {
+    margin: 0;
+    font-size: .8125rem;
+  }
+}
+
+.ts-field-no {
+  display: inline-block;
+  min-width: 14px;
+  padding: 0 3px;
+  margin-right: 2px;
+  color: var(--paper);
+  background: var(--ink);
+}
+
+.ts-callform-problem {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.ts-ticket-number {
+  font: 600 .875rem var(--ts-font-mono);
+  user-select: all;
+}
+
+.ts-ticket-subject {
+  margin: 0;
+  font: 600 1.25rem/1.3 var(--ts-font-mono);
+}
+
+.ts-ticket-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.ts-followup {
+  margin: 0 0 8px;
+  font-size: .8125rem;
+}
+
+.ts-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ts-timeline-event {
+  padding: 2px 0 2px 12px;
+  font: 400 .75rem var(--ts-font-mono);
+  color: var(--ink-2);
+  border-left: 2px solid var(--rule-strong);
+}
+
+.ts-event-text {
+  color: var(--ink);
+}
+
+.ts-attachments {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: .8125rem;
+}
+
+.ts-attachment-meta,
+.ts-articles {
+  color: var(--ink-2);
+}
+
+.ts-closed-note {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  background: var(--head);
+  border: 1px solid var(--rule-strong);
+}
+
+.ts-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+
+  h2 {
+    margin: 0 0 4px;
+    font: 600 .6875rem var(--ts-font-mono);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+
+  dl {
+    margin: 0;
+  }
+
+  dt {
+    font: 500 .6875rem var(--ts-font-mono);
+    color: var(--ink-2);
+  }
+
+  dd {
+    margin: 0 0 6px;
+  }
+}
+
+.ts-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ts-control {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  label,
+  .ts-control-label {
+    font: 500 .6875rem var(--ts-font-mono);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+}
+
+.ts-saving {
+  font: 400 .6875rem var(--ts-font-mono);
+  color: var(--ink-2);
+}
+
+.ts-control-error {
+  margin: 2px 0 0;
+  padding: 2px 6px;
+  font-size: .75rem;
+  border: 2px solid var(--st-spam);
+}
+
+.ts-tagpicker-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+}
+
+// Untrusted metadata: the word "Untrusted" and a dashed edge, never colour alone.
+.ts-metadata {
+  padding: 6px 8px;
+  border: 1px solid var(--rule-strong);
+}
+
+.ts-metadata--untrusted {
+  border-style: dashed;
+}
+
+.ts-metadata-trust {
+  margin: 0 0 4px;
+  font: 500 .6875rem var(--ts-font-mono);
+}
+
+.ts-conflict {
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: var(--sheet);
+  border: 2px solid var(--st-pending);
+
+  p {
+    margin: 0 0 6px;
+  }
+}
+
+.ts-conflict--reloaded {
+  border-color: var(--rule-strong);
+}
+
+.ts-actions {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.ts-menu {
+  position: absolute;
+  z-index: 5;
+  min-width: 14rem;
+  margin: 2px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--sheet);
+  border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--shadow);
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+.ts-menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  font: 500 .75rem var(--ts-font-mono);
+  color: var(--ink);
+  text-align: left;
+  background: none;
+  border: 0;
+
+  &:hover {
+    background: var(--hover);
+  }
+}
+
+.ts-menu-item--danger {
+  color: var(--st-spam);
+  font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+  .ts-ticket-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ts-side {
+    order: -1;
+  }
+}

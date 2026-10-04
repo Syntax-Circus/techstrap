@@ -1,0 +1,21 @@
+<aside class="ts-side" aria-label="Ticket details">
+    @if (Controls is not null)
+    {
+        @Controls
+    }
+    else
+    {
+        <TicketFacts Ticket="Ticket" />
+    }
+    <RequesterCard Requester="Ticket.Requester" />
+    <MetadataPanel Metadata="Ticket.Metadata" />
+</aside>
+
+@code {
+    [Parameter, EditorRequired]
+    public TicketDetailViewModel Ticket { get; set; } = default!;
+
+    /// <summary>The editable controls (status, assignee, priority, product, tags). Without them the same facts are shown as read-only text (a Closed ticket).</summary>
+    [Parameter]
+    public RenderFragment? Controls { get; set; }
+}

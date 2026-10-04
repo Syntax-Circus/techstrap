@@ -1,0 +1,22 @@
+<ol class="ts-timeline" aria-label="@TicketCopy.TimelineLabel">
+    @foreach (var entry in Entries)
+    {
+        <li @key="entry.Id" class="@(entry.Kind == TimelineEntryKind.Message ? "ts-timeline-message" : "ts-timeline-event")">
+            @if (entry.Message is { } message)
+            {
+                <MessageBubble Message="message" />
+            }
+            else
+            {
+                <span class="ts-event-text">@entry.Text</span>
+                <span class="ts-event-by">by @entry.Actor</span>
+                <RelativeTime When="entry.At" />
+            }
+        </li>
+    }
+</ol>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<TimelineEntryViewModel> Entries { get; set; } = [];
+}

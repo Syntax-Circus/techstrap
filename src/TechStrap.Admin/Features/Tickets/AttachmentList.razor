@@ -1,0 +1,18 @@
+@if (Items.Count > 0)
+{
+    <ul class="ts-attachments" aria-label="@TicketCopy.AttachmentsLabel">
+        @foreach (var item in Items)
+        {
+            @* Served by the Admin pass-through (GET /attachments/{id}): always a download, never rendered inline. data-enhance-nav keeps Blazor's router from treating it as a page. *@
+            <li>
+                <a href="@($"/attachments/{item.Id}")" download data-enhance-nav="false">@item.FileName</a>
+                <span class="ts-attachment-meta">(@item.ContentType, @TicketDisplay.FileSize(item.Size))</span>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<AttachmentDto> Items { get; set; } = [];
+}

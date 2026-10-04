@@ -1,0 +1,37 @@
+<header class="ts-ticket-header">
+    <dl class="ts-callform">
+        <div class="ts-callform-field">
+            <dt><span class="ts-field-no" aria-hidden="true">1</span> Ticket no.</dt>
+            <dd><code class="ts-ticket-number">@Ticket.Number</code></dd>
+        </div>
+        <div class="ts-callform-field">
+            <dt><span class="ts-field-no" aria-hidden="true">2</span> Received</dt>
+            <dd><RelativeTime When="Ticket.CreatedAt" /></dd>
+        </div>
+        <div class="ts-callform-field">
+            <dt><span class="ts-field-no" aria-hidden="true">3</span> Caller</dt>
+            <dd>@Ticket.Caller</dd>
+        </div>
+        <div class="ts-callform-field">
+            <dt><span class="ts-field-no" aria-hidden="true">4</span> Channel</dt>
+            <dd>@Ticket.Channel</dd>
+        </div>
+    </dl>
+    <div class="ts-callform-problem">
+        <span class="ts-field-no" aria-hidden="true">5</span>
+        <h1 class="ts-ticket-subject">@Ticket.Subject</h1>
+    </div>
+    <div class="ts-ticket-badges">
+        <StatusStamp Status="Ticket.Stamp" Variant="StampVariant.Ticket" />
+        <span class="ts-product">@Ticket.ProductName</span>
+    </div>
+    @if (Ticket.ParentNumber is not null)
+    {
+        <p class="ts-followup">@TicketCopy.FollowUpTo <a href="@($"/tickets/{Uri.EscapeDataString(Ticket.ParentNumber)}")">@Ticket.ParentNumber</a></p>
+    }
+</header>
+
+@code {
+    [Parameter, EditorRequired]
+    public TicketDetailViewModel Ticket { get; set; } = default!;
+}

@@ -1,0 +1,37 @@
+@page "/tickets/{Number}"
+@attribute [Authorize]
+
+<PageTitle>@Number</PageTitle>
+@if (_loading)
+{
+    <LoadingState Rows="6" Label="@TicketCopy.Loading" />
+}
+else if (_gone is not null)
+{
+    <TicketGone Heading="@_gone.Heading" Body="@_gone.Body" />
+}
+else if (_model is null)
+{
+    <ErrorState Message="@_error" OnRetry="LoadAsync" />
+}
+else
+{
+    <article class="ts-ticket">
+        <TicketHeader Ticket="_model" />
+        @if (_error is not null)
+        {
+            <ErrorState Message="@_error" OnRetry="RefreshAsync" />
+        }
+        <div class="ts-ticket-layout">
+            <section class="ts-conversation" aria-label="Conversation">
+                <TicketTimeline Entries="_model.Timeline" />
+                <TintLegend />
+                @if (_model.IsClosed)
+                {
+                    <p class="ts-closed-note" role="note">@TicketCopy.ClosedNotice</p>
+                }
+            </section>
+            <TicketSidePanel Ticket="_model" />
+        </div>
+    </article>
+}
