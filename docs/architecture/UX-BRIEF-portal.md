@@ -744,7 +744,7 @@ How it applies to the Portal:
     Closed), lost link, a KB article and the uniform error page, each with at
     least four sample products (including the hostile accents above, with and
     without a logo); email mockups in light and dark clients for the
-    confirmation, agent reply and closed notice; and the CSS custom-property
+    confirmation, agent reply and solved notice; and the CSS custom-property
     contract for the product theme.
 - **Acceptance criteria for design review:**
   - [ ] `docs/BRAND.md` exists and the design follows it; product branding
@@ -766,7 +766,7 @@ How it applies to the Portal:
   - [ ] The invalid-token, unknown-product, and unpublished-article pages are
     visually and verbally identical, and the lost-link response is identical for
     matched and unmatched addresses.
-  - [ ] The customer emails (confirmation, agent reply, closed notice, new
+  - [ ] The customer emails (confirmation, agent reply, solved notice, new
     access link) render acceptably in plain text, with images blocked, and in a
     dark-mode client, carry only the product accent and a "Powered by
     TechStrap" line.

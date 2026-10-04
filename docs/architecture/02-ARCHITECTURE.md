@@ -83,7 +83,7 @@ Other conventions: handlers sealed with `I…Handler` interfaces; constants and 
 | `IUnitOfWork` | Atomic multi-write (ticket + message + event + token + outbox rows) in one DB transaction |
 | `ITicketNumberAllocator` | Per-product atomic sequence increment inside the creating transaction |
 | `IEmailOutbox` / `IEmailOutboxStore` | Handlers enqueue rows in the same transaction; worker claims, acks, retries, dead-letters (`SKIP LOCKED`) |
-| `ITicketNotificationPlanner` | Decides which emails and alerts a change produces (customer reply, agent reply, new ticket alerts, assignment, solved and closed notices) and enqueues them; called by ticket handlers. Introduced in PHASE-06, which also adds it to `SubmitTicketRequestHandler` (PHASE-05 queues only the requester confirmation) |
+| `ITicketNotificationPlanner` | Decides which emails and alerts a change produces (customer reply, agent reply, new ticket alerts, assignment, solved notice) and enqueues them; called by ticket handlers. Introduced in PHASE-06, which also adds it to `SubmitTicketRequestHandler` (PHASE-05 queues only the requester confirmation) |
 | `IAttachmentStore` | Over `SyntaxCircus.Storage`; size/type checks, streams, deletion on erase |
 | `IAccessTokenService` | Generate 256-bit tokens, hash, validate, slide expiry, revoke |
 | `IApiKeyHasher` | Generate and hash product API keys; constant-time verify; kind-aware |
@@ -198,7 +198,7 @@ Rows are written in the same transaction as their cause. `DrainEmailOutboxHandle
 
 ### 6.5 Auto-close
 
-Worker scheduled loop (**Assumption** every 15 min) calls `AutoCloseSolvedTicketsHandler`: selects Solved tickets with `solved_at` older than `TECHSTRAP_AUTOCLOSE_DAYS`, sets Closed with `StatusChanged` event by System actor in one transaction per batch, queues a closed notice to the requester through `ITicketNotificationPlanner`, and the Worker's `NOTIFY techstrap_ticket_changes` publisher emits after commit (D-008, D-018).
+Worker scheduled loop (**Assumption** every 15 min) calls `AutoCloseSolvedTicketsHandler`: selects Solved tickets with `solved_at` older than `TECHSTRAP_AUTOCLOSE_DAYS`, sets Closed with `StatusChanged` event by System actor in one transaction per ticket (D-038); no customer email (D-037); the Worker's `NOTIFY techstrap_ticket_changes` publisher emits after commit (D-008, D-018).
 
 ### 6.6 Live updates
 
@@ -277,14 +277,15 @@ Conventions:
 | `PUT /api/tickets/{id}/spam` (Agent, D-022; body `IsSpam`, `false` is "Not spam", D-024) | `MarkTicketSpamRequestHandler` | `ITicketRepository`, `IUnitOfWork`, `ICurrentAgentClaims` | EF repos, UoW | 200 `TicketStateDto`; 404; 409 `ticket-closed` | H, C | D-006 |
 | `DELETE /api/tickets/{id}` (Admin) | `DeleteTicketRequestHandler` | `ITicketRepository`, `IAttachmentStore`, `IEmailOutboxStore`, `IAdminEventRepository`, `IUnitOfWork`, `ICurrentAgentClaims` | EF repos, storage store, Outbox store, UoW | 204; 404 | H, C, I | D-006, D-022 |
 | `POST /api/requesters/{id}/erase` (Admin) | `EraseRequesterRequestHandler` | `IRequesterRepository`, `ITicketRepository`, `IAttachmentStore`, `IEmailOutboxStore`, `IAccessTokenService`, `IAdminEventRepository`, `IUnitOfWork`, `ICurrentAgentClaims` | EF repos, storage store, Outbox store, token service, UoW | 204; 404 | H, C, I | D-006, D-022 |
-| `GET /api/attachments/{id}` (Agent JWT or customer `X-Ticket-Token`; Admin and Portal reach it through their pass-through adapters, D-017) | `GetAttachmentRequestHandler` | `ITicketRepository`, `IAttachmentStore`, `IAccessTokenService`, `ICurrentAgentClaims` | EF repos, storage store, token service | 200 file stream (`Content-Disposition: attachment`, `nosniff`); 404 uniform for customers | H, C, I | none |
-| `GET /api/customer/ticket` (customer token header; `token-access` limit) | `GetCustomerTicketRequestHandler` | `ITicketRepository`, `IAccessTokenService` | EF repos, token service | 200 `CustomerTicketDto` (public messages only); 404 uniform | H, C, I | D-001 (token scheme) |
-| `POST /api/customer/ticket/replies` (customer token header; multipart) | `AddCustomerReplyRequestHandler` (Closed ticket creates follow-up) | `ITicketRepository`, `IRequesterRepository`, `IProductRepository`, `ITicketNumberAllocator`, `IAccessTokenService`, `IAttachmentStore`, `IHtmlSanitizer`, `ITicketNotificationPlanner`, `IUnitOfWork` | EF repos, allocator, token service, storage store, sanitizer, planner, Outbox, UoW | 201 `CustomerReplyResponse` (message id, or new ticket view URL for follow-up); 404 uniform; 400 | H, C, I | D-008 |
-| `POST /api/customer/access-link` (`Public` policy, `lost-link` limit) | `RequestNewAccessLinkRequestHandler` | `IRequesterRepository`, `ITicketRepository`, `IAccessTokenService`, `IEmailOutbox`, `IUnitOfWork` | EF repos, token service, Outbox, UoW | 202 uniform response always; 429 via limiter | H, C, I | D-006 |
+| `GET /api/attachments/{id}` (Agent JWT; Admin reaches it through its pass-through adapter, D-017) | `GetAttachmentRequestHandler` | `ITicketRepository`, `IAttachmentStore`, `ICurrentAgentClaims`, `TimeProvider` | EF repos, storage store | 200 file stream (`Content-Disposition: attachment`, `nosniff`); 404 | H, C, I | none |
+| `GET /api/customer/attachments/{id}` (customer token header; `Public` policy, `token-access` limit; Portal reaches it through its pass-through adapter, D-017) | `GetCustomerAttachmentRequestHandler` | `IAccessTokenService`, `ITicketRepository`, `IRequesterRepository`, `IAttachmentStore`, `TimeProvider`, `ILogger` | EF repos, storage store, token service | 200 file stream (`Content-Disposition: attachment`, `nosniff`); 404 uniform | H, C, I | D-001, D-038
+| `GET /api/customer/ticket` (customer token header; `token-access` limit) | `GetCustomerTicketRequestHandler` | `IAccessTokenService`, `ITicketRepository`, `IRequesterRepository`, `IAgentRepository`, `IProductRepository`, `IUnitOfWork`, `TimeProvider` | EF repos, token service | 200 `CustomerTicketDto` (public messages only); 404 uniform | H, C, I | D-001 (token scheme) |
+| `POST /api/customer/ticket/replies` (customer token header; multipart) | `AddCustomerReplyRequestHandler` (Closed ticket creates follow-up) | `IAccessTokenService`, `ITicketRepository`, `IRequesterRepository`, `ITicketNumberAllocator`, `IAttachmentStore`, `IHtmlSanitizer`, `ITicketNotificationPlanner`, `IUnitOfWork`, `TimeProvider`, `IOptions<PortalLinkOptions>`, `ILogger` | EF repos, allocator, token service, storage store, sanitizer, planner, Outbox, UoW | 201 `CustomerReplyResponse` (message id, or new ticket view URL for follow-up); 404 uniform; 400 | H, C, I | D-008 |
+| `POST /api/customer/access-link` (`Public` policy, `lost-link` limit) | `RequestNewAccessLinkRequestHandler` | `IRequesterRepository`, `ITicketRepository`, `IEmailOutboxStore`, `ITicketNotificationPlanner`, `IUnitOfWork`, `TimeProvider`, `IOptions<LostLinkOptions>`, `ILogger` | EF repos, token service, Outbox, UoW | 202 uniform response always; 429 via limiter | H, C, I | D-006 |
 | `GET /api/dead-letters` (Admin) | `ListDeadLettersRequestHandler` | `IEmailOutboxStore` | Outbox store | 200 paged `DeadLetterDto` | H, C, I | D-010, D-022 |
 | `POST /api/dead-letters/{id}/retry` (Admin) | `RetryDeadLetterRequestHandler` | `IEmailOutboxStore`, `IAdminEventRepository`, `IUnitOfWork`, `ICurrentAgentClaims` | Outbox store, EF repos, UoW | 204; 404; 409 not dead-lettered | H, C, I | D-010, D-022 |
 | `DELETE /api/dead-letters/{id}` (Admin) | `DiscardDeadLetterRequestHandler` | `IEmailOutboxStore`, `IAdminEventRepository`, `IUnitOfWork`, `ICurrentAgentClaims` | Outbox store, EF repos, UoW | 204; 404 | H, C, I | D-010, D-022 |
-| Worker scheduled loop (`AutoCloseWorker` hosted service) | `AutoCloseSolvedTicketsHandler` | `ITicketRepository`, `ITicketNotificationPlanner`, `IUnitOfWork`, `TimeProvider`, `AutoCloseOptions` | EF repos, planner, UoW; the Worker's `PgNotifyTicketChangeBroadcaster` runs from the post-commit interceptor (D-018) | Loop: closed count logged; failure logged, next tick retries | H, I, W | D-008, D-012, D-007 |
+| Worker scheduled loop (`AutoCloseWorker` hosted service) | `AutoCloseSolvedTicketsHandler` | `ITicketRepository`, `IUnitOfWork`, `TimeProvider`, `IOptions<AutoCloseOptions>`, `ILogger` | EF repos, UoW; the Worker's `PgNotifyTicketChangeBroadcaster` runs from the post-commit interceptor (D-018) | Loop: closed count logged; failure logged, next tick retries | H, I, W | D-008, D-012, D-007 |
 | Alerts (new ticket, assignment, customer reply) | no entry point: queued by the handlers above through `ITicketNotificationPlanner` | n/a | n/a | n/a | covered by calling handlers' H tests plus planner unit tests | D-010 |
 
 ### 7.4 Knowledge base (PHASE-08)
@@ -325,7 +326,7 @@ Not entry points: `TicketChangePublishingInterceptor` (Infrastructure post-commi
 | `/openapi/v1.json` | Framework-generated OpenAPI document | No application workflow; anonymous or Development-only, configurable (**Assumption**: anonymous, no secrets) |
 | Static assets (Admin, Portal `wwwroot`, compiled SCSS output) | Static file middleware | No application workflow |
 | KB images under the public-read `kb-images/` prefix (API) | Public static assets served from storage by the API (D-021); written only by `UploadKbImageRequestHandler` | No application workflow; the prefix never holds ticket attachments |
-| Admin `GET /attachments/{id}` and Portal `GET /t/{token}/attachments/{id}` | Pass-through streaming proxies to `GET /api/attachments/{id}` because bearer and customer tokens are server-side (D-017) | No application workflow, no persistence; authorization is enforced by `GetAttachmentRequestHandler`; `Content-Disposition: attachment` and `nosniff` |
+| Admin `GET /attachments/{id}` and Portal `GET /t/{token}/attachments/{id}` | Pass-through streaming proxies: Admin to `GET /api/attachments/{id}`, Portal to `GET /api/customer/attachments/{id}` (D-038), because bearer and customer tokens are server-side (D-017) | No application workflow, no persistence; authorization is enforced by `GetAttachmentRequestHandler` (agent) and `GetCustomerAttachmentRequestHandler` (customer); `Content-Disposition: attachment` and `nosniff` |
 | `/hubs/tickets` handshake (API) | SignalR framework connection setup; the hub methods are the use cases (section 7.5) | JWT bearer and the Agent policy at handshake only |
 | API host startup: migrate database (advisory lock) and dev data seeder (`IDevelopmentDataSeeder`) | Host startup steps with no request input and no transport outcome; the seeder runs only in Development with `TECHSTRAP_SEED_DEV_DATA=true` | No application workflow; API only |
 
@@ -474,7 +475,7 @@ Resolved during the consistency review:
 | OQ-3 | Presence state lives behind `ITicketPresenceStore`, in-memory in the API (section 3.1) |
 | OQ-4 | The KB editor preview calls `POST /api/kb/preview` handled by `RenderKbPreviewRequestHandler` (D-021) |
 | OQ-7 | Handlers accept Contracts request records directly (D-016, A-15) |
-| OQ-8 | Customer routes are `/api/customer/ticket`, `/api/customer/ticket/replies`, `/api/customer/access-link` with the `X-Ticket-Token` header (section 7.3) |
+| OQ-8 | Customer routes are `/api/customer/ticket`, `/api/customer/ticket/replies`, `/api/customer/access-link`, `/api/customer/attachments/{id}` with the `X-Ticket-Token` header (section 7.3, D-038) |
 
 Still open:
 

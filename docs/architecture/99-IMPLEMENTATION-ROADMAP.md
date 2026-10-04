@@ -22,7 +22,7 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 | 03 | [Domain and persistence](PHASE-03-domain-and-persistence.md) | 01 | 04 | Alongside 02 | D-009, D-010, D-011, D-026, D-027, D-028 | Complete |
 | 04 | [Agent auth and admin config](PHASE-04-agent-auth-and-admin-config.md) | 03 | 05 | Alongside 02 | D-001, D-004, D-016, D-022, D-029 (roles from IdP groups only), D-030 (tag delete), D-031 (accent format only) | Complete |
 | 05 | [Intake, email and worker](PHASE-05-intake-email-worker.md) | 04 | 06, 11 | Alongside 02 | D-001, D-010, D-012, D-014, D-019, D-020 | Complete (PR #5 merged) |
-| 06 | [Ticket operations](PHASE-06-ticket-operations.md) | 05 | 07, 08, 09 | Alongside 02 and 11 | D-006, D-008, D-009, D-022, D-035, D-036 | 06a implemented (pending merge); 06b not started |
+| 06 | [Ticket operations](PHASE-06-ticket-operations.md) | 05 | 07, 08, 09 | Alongside 02 and 11 | D-006, D-008, D-009, D-022, D-035, D-036, D-037, D-038 | 06a complete; 06b in progress; 06c not started |
 | 07 | [Admin app](PHASE-07-admin-app.md) | 02, 06 | 08 (editor UI), 10 | 11 alongside; 08 API work alongside | D-017, D-022 | Not started |
 | 08 | [Knowledge base](PHASE-08-knowledge-base.md) | 06 (07 for the editor UI) | 09 | API tasks T01 to T12 alongside 07; editor tasks wait for 07 | D-011, D-014, D-021 | Not started |
 | 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 | 10 and 11 alongside | D-002, D-017, D-019 | Not started |
@@ -407,7 +407,7 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 | 9 | Create the nuget.org publishing setup: reserve the `TechStrap.*` package IDs, create a Trusted Publishing policy per package, add the repository secret `NUGET_USER` (fallback `NUGET_API_KEY`) and a GitHub environment `release` with required reviewers | P11-T15 |
 | 10 | Provide a macOS runner (or approve the macOS CI cost) for the MAUI workload build | P11-T07 |
 | 11 | Provide a scratch environment for the restore drill and agree load-test scheduling on the shared UAT host | P12-T12, P12-T15 |
-| 12 | Confirm the flagged Assumptions that need an owner answer (for example the auto-close notice email in Q-04, honeypot fake success, dropping a Public key's external user ref, Solved notice email) | PHASE-05, PHASE-06 |
+| 12 | Confirm the flagged Assumptions that need an owner answer (for example honeypot fake success, dropping a Public key's external user ref, Solved notice email) | PHASE-05, PHASE-06 |
 | 13 | Review the discovery set and select the first phase (expected: PHASE-01) | Now |
 
 ## 8. Decisions still open

@@ -11,6 +11,7 @@ Approval basis:
 - **Owner decision (2026-10-03, PHASE-04 planning):** D-029 (roles from IdP groups only; amends D-004), D-030 (deleting a tag in use), D-031 (product accent validation is format only).
 - **Owner decision (2026-10-03, PHASE-05 planning):** D-032 (intake rules: honeypot, untrusted external ref, link cap, attachments). D-033 and D-034 were proposed in the PHASE-05 plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-03, PHASE-06 planning):** D-035 (PHASE-06 split, Markdown replies, agent attachments, Solved notice). D-036 was proposed in the PHASE-06a plan and approved when the owner approved the plan.
+- **Owner decision (2026-10-03, PHASE-06b planning):** D-037 (three-PR split, lost link keeps old links, follow-up dedupe window, no auto-close email). D-038 was proposed in the PHASE-06b plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -56,6 +57,8 @@ Approval basis:
 | D-034 | Intake transport: explicit Public policy, ApiKey scheme policy, JSON-only API intake | Approved (owner, PHASE-05 plan review) | 2026-10-03 | PHASE-05, PHASE-09, PHASE-11 |
 | D-035 | PHASE-06 split into 06a/06b; Markdown agent replies; agent reply attachments; Solved notice | Approved (owner 2026-10-03) | 2026-10-03 | PHASE-06, PHASE-07, PHASE-09 |
 | D-036 | Ticket operations API shape: RowVersion on state changes, TicketStateDto returns, idempotent tags, string enums, multipart replies, lookup by id or number | Approved (owner, PHASE-06a plan review) | 2026-10-03 | PHASE-06, PHASE-07, PHASE-11 |
+| D-037 | PHASE-06 lands as 06a/06b/06c; lost link keeps old links; 2-minute follow-up dedupe; auto-close sends no email | Approved (owner 2026-10-03) | 2026-10-03 | PHASE-06, PHASE-09 |
+| D-038 | Customer API: Public routes with in-handler token auth, uniform 404, separate customer attachment route, lost-link rules, alert recipients, reopen window from AutoCloseOptions, per-ticket auto-close | Approved (owner, PHASE-06b plan review) | 2026-10-03 | PHASE-06, PHASE-09, PHASE-12 |
 
 ---
 
@@ -1078,7 +1081,8 @@ PHASE-06 as written covers about 21 handlers across agent operations, customer r
 ### Decision
 - **Two PRs.** PHASE-06 lands as 06a and 06b.
   - 06a is agent operations.
-  - 06b covers customer routes and replies, follow-ups, the lost link, new-ticket and customer-reply alerts, auto-close, delete and erase, dead letters, and the customer path of the attachment download.
+  - 06b covers customer routes and replies, follow-ups, the lost link, new-ticket and customer-reply alerts, auto-close, and the customer path of the attachment download. Delete and erase and dead letters move to 06c.
+  - Superseded in part by D-037 (06c).
 - **Markdown.** Agent reply bodies are Markdown, rendered and then sanitised. Internal notes use the same composer, so they are Markdown too.
 - **Attachments on replies.** Agents may attach files to public replies. The limits match customer uploads: 5 files, 10 MiB each, 25 MiB per message, checked by file content.
 - **Owner decision (2026-10-03):** tickets flagged as spam never email the customer (replies and Solved notices are saved but not emailed); agent alerts are unaffected.
@@ -1140,4 +1144,106 @@ PHASE-06 as written covers about 21 handlers across agent operations, customer r
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-06a plan review)
+- **Approved on:** 2026-10-03
+
+---
+
+## D-037: PHASE-06 lands as 06a/06b/06c; lost link keeps old links; 2-minute follow-up dedupe; auto-close sends no email
+
+- **Status:** Approved (owner 2026-10-03)
+- **Date:** 2026-10-03
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-008, D-024, D-033, D-035, PHASE-06, PHASE-09, `docs/superpowers/plans/2026-10-03-phase-06b-customer-access-alerts-autoclose.md`
+
+### Context
+D-035 split PHASE-06 into 06a and 06b. 06b grew to include customer routes, alerts and auto-close, so the admin tools (delete, erase, dead letters) need their own PR. PHASE-06 also left three customer-side questions open as assumptions: whether a lost-link request revokes old links, how to avoid duplicate follow-ups, and whether auto-close emails the customer.
+
+### Decision
+- **PHASE-06 lands in three PRs.**
+  - 06a is already merged.
+  - 06b (this plan) covers the customer side, alerts and auto-close.
+  - 06c covers hard delete, erasing a requester, dead letters and Serilog PII redaction.
+- **Lost link.** Requesting a new link revokes nothing. Old links stay valid until they expire: 90 days sliding, with a 1-year cap.
+- **Follow-up dedupe.** Within 2 minutes, the same link plus the same message text returns the follow-up that was already created, instead of creating a second one.
+- **Auto-close sends no email.** The Solved notice has already told the customer about the window. This supersedes the "closed notice" in PHASE-06, 02-ARCHITECTURE and FR-TKT-14.
+
+### Alternatives Considered
+- **Keep two PRs.** Rejected: 06b would be too large to review well.
+- **Lost link revokes old links.** Rejected by the owner: a stray request would lock a customer out of links they already hold.
+- **No dedupe on follow-ups.** Rejected: a double submit would create two tickets.
+- **A closed notice on auto-close.** Rejected: the Solved notice has already told the customer about the window.
+
+### Consequences
+- **06c scope.** Hard delete, requester erasure, dead letters and Serilog PII redaction move to 06c.
+- **Superseded wording.** The "closed notice" in PHASE-06, 02-ARCHITECTURE and FR-TKT-14 is removed.
+- **Old links.** They stay valid until they expire (90 days sliding, 1-year cap), so a lost-link email adds links without revoking any.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, 2026-10-03 PHASE-06b planning)
+- **Approved on:** 2026-10-03
+
+---
+
+## D-038: Customer API: Public routes with in-handler token auth, uniform 404, separate customer attachment route, lost-link rules, alert recipients, reopen window from AutoCloseOptions, per-ticket auto-close
+
+- **Status:** Approved (owner, PHASE-06b plan review)
+- **Date:** 2026-10-03
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-008, D-024, D-033, D-034, D-036, D-037, PHASE-06, PHASE-09, PHASE-12, `docs/superpowers/plans/2026-10-03-phase-06b-customer-access-alerts-autoclose.md`
+
+### Context
+The customer side authenticates with a ticket token rather than an agent credential, and D-034 requires the `Public` policy to stand alone. D-036 left the customer attachment route, and several alert and lost-link details, to 06b.
+
+### Decision
+- **Routes.** Each controller carries the `Public` policy and its own rate limit:
+  - `GET /api/customer/ticket` (token-access limit).
+  - `POST /api/customer/ticket/replies`, multipart (token-access limit).
+  - `GET /api/customer/attachments/{id}` (token-access limit). This is a separate route from the agent's `/api/attachments/{id}`, as D-036 prefers.
+  - `POST /api/customer/access-link`, JSON (lost-link limit).
+
+  The token travels only in `X-Ticket-Token`.
+- **Uniform 404.** Every failure gives the same 404 body with code `not-found`. That covers:
+  - a missing, malformed, unknown, revoked or expired token;
+  - an erased requester or a missing ticket;
+  - an attachment on another ticket or on an internal note;
+  - a stored file that is missing.
+
+  Tests compare the response bodies byte for byte.
+- **The link slides on use.** A successful ticket read or reply records the token's use, which slides its expiry within the 1-year cap. An attachment download does not, because it is a read with no write.
+- **Customer-reply alerts.** These go to the assignee if the ticket is assigned and the assignee is active. Otherwise they go to the agents opted in for the product, reusing the existing per-product "new ticket" preference, since there is no separate preference.
+  - Spam tickets send no customer-reply alerts. Their replies sit in the Spam view.
+  - New-ticket and assignment alerts are unaffected by this rule.
+- **Follow-up mechanics.** A reply on a Closed ticket creates a follow-up through `Ticket.CreateFollowUp`, with a new number from the ticket's current product.
+  - The reply becomes the follow-up's first message, and the files are stored against the follow-up.
+  - The customer gets a confirmation email, and opted-in agents get a new-ticket alert.
+  - The response carries a view URL backed by a freshly issued token.
+  - A dedupe replay issues a fresh token for the existing follow-up and sends no email or alert.
+  - If a concurrent duplicate loses on commit, it re-checks the dedupe window and replays.
+- **Lost link.**
+  - The request takes a JSON `{ email }`.
+  - A malformed address is `400 email-invalid`. Any well-formed address gets the same empty `202`.
+  - A known, non-erased requester gets one email to their own address. It holds links to their 5 most recently active non-spam tickets, each with a freshly issued token.
+  - A per-address cap of 3 emails per hour is enforced inside the handler by counting recent `access-links` outbox rows. Over the cap, the response is still 202 and nothing is sent.
+  - There is also a per-IP limit at the host.
+- **Reopen window.** The window shown in emails comes from `AutoCloseOptions.Days`, bound from `TECHSTRAP_AUTOCLOSE_DAYS`.
+  - `TicketSolvedEmail` already carries it. `AgentReplyEmail` gains `ReopenDays`.
+  - Rows queued before the upgrade have no value (`ReopenDays = 0`). The renderer falls back to `TicketNotices.DefaultReopenDays`.
+- **Auto-close runs one unit of work per ticket.**
+  - That way a concurrent customer reply makes only that ticket conflict, and it is retried on the next run.
+  - The query excludes spam, so Solved spam tickets cannot starve the batch.
+  - Tickets are closed with `Actor.System`, and no email is sent (D-037).
+
+### Alternatives Considered
+- **A combined scheme policy on `/api/attachments/{id}`.** Rejected: a separate customer route keeps "Public stands alone" (D-034), as D-036 preferred.
+- **Distinct 404 codes per failure.** Rejected: they would let a caller probe which tokens or tickets exist.
+- **A separate customer-reply alert preference.** Rejected: the existing per-product "new ticket" preference is reused.
+- **One unit of work for the whole auto-close batch.** Rejected: one concurrent customer reply would conflict the whole batch.
+
+### Consequences
+- **Customer DTOs.** They stay inside the D-024 limits.
+- **Worker.** Auto-close runs in the Worker, one unit of work per ticket.
+- **Portal.** PHASE-09 forwards attachment downloads to the customer route with `X-Ticket-Token`.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-06b plan review)
 - **Approved on:** 2026-10-03
