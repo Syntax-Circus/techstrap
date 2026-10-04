@@ -253,6 +253,9 @@ Write the named handler test class first for every handler task (substitutes for
 - [ ] Carried forward from the PHASE-03 final review: A ticket hard-delete repository method (D-006) is not in `ITicketRepository`; add it with the delete-ticket handler (the schema cascade already exists). (06c)
 - [ ] Carried forward from the PHASE-06b final review: an `email_outbox` index on (`kind`, `to_address`, `created_at`) for the per-address lost-link count, together with outbox retention. (06c)
 - [ ] Carried forward from the PHASE-06b final review: the Portal Sentry header scrub (`X-Ticket-Token` and the like), as the Api already has. (06c or PHASE-09)
+- [ ] Carried forward from the PHASE-06b final review: a truncated multipart body on the customer reply route (an `IOException`) answers 500 instead of 400; walk the exception chain as `IntakeHosting` does. (06c)
+- [ ] Carried forward from the PHASE-06b final review: follow-up dedupe compares incoming file names with stored (sanitised) names, so a name the store rewrites never replays and a double submit creates two follow-ups; compare sanitised names. (06c)
+- [ ] Carried forward from the PHASE-06b final review: a non-multipart body on the customer reply route answers the fallback policy's 401, not 415 (`[Consumes]` mismatch has no endpoint metadata). Cosmetic. (06c or PHASE-09)
 - [ ] Carried forward from the PHASE-03 final review: Ticket search: confirm the plan and shape of the GIN-backed search query on realistic data (with PHASE-12). (PHASE-12)
 
 ## Handoff
