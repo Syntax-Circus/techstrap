@@ -83,6 +83,11 @@ public sealed class CustomerAttachmentEndpointTests(TestPostgres postgres) : IDi
         await using var _f = factory;
         using var client = factory.CreateClient();
         var ignored = new[] { "Date", "X-Correlation-Id", "X-Request-Id" };
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            // The seeded row stays but its bytes are gone: the customer must see the same 404 as for any other failure.
+            await scope.ServiceProvider.GetRequiredService<IStorageProvider>().DeleteAsync("storage/public", Ct);
+        }
 
         var shapes = new List<string>();
         foreach (var (id, token) in new (Guid, string?)[]
@@ -93,6 +98,7 @@ public sealed class CustomerAttachmentEndpointTests(TestPostgres postgres) : IDi
             (seed.PublicAttachmentId, "garbage"),
             (seed.PublicAttachmentId, null),
             (seed.PublicAttachmentId, seed.RevokedToken),
+            (seed.PublicAttachmentId, seed.ValidToken), // the stored file is missing
         })
         {
             using var request = Get(id, token);
@@ -110,6 +116,21 @@ public sealed class CustomerAttachmentEndpointTests(TestPostgres postgres) : IDi
         shapes[0].ShouldContain("not-found");
         shapes[0].ShouldContain("no-store");
         shapes[0].ShouldNotContain("sandbox");
+
+        // The body is the same problem document as the ticket GET 404, apart from the echoed instance path.
+        using var ticket = new HttpRequestMessage(HttpMethod.Get, "/api/customer/ticket");
+        ticket.Headers.TryAddWithoutValidation(HeaderNames.TicketToken, "garbage");
+        using var ticketResponse = await client.SendAsync(ticket, Ct);
+        using var attachmentRequest = Get(seed.PublicAttachmentId, "garbage");
+        using var attachmentResponse = await client.SendAsync(attachmentRequest, Ct);
+        WithoutInstance(await attachmentResponse.Content.ReadAsStringAsync(Ct)).ShouldBe(WithoutInstance(await ticketResponse.Content.ReadAsStringAsync(Ct)));
+    }
+
+    private static string WithoutInstance(string problemJson)
+    {
+        var node = System.Text.Json.Nodes.JsonNode.Parse(problemJson)!.AsObject();
+        node.Remove("instance");
+        return node.ToJsonString();
     }
 
     [Fact]
