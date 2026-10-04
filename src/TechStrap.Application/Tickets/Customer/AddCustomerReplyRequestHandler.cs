@@ -93,7 +93,7 @@ public sealed class AddCustomerReplyRequestHandler(
                 continue;
             }
 
-            if (files.Count > 0 && await TryReplayInFreshScopeAsync(token, html, cancellationToken) is { } replayed)
+            if (files.Count > 0 && await TryReplayInFreshScopeAsync(token, html, files, cancellationToken) is { } replayed)
             {
                 return replayed;
             }
@@ -142,7 +142,7 @@ public sealed class AddCustomerReplyRequestHandler(
             await planner.PlanCustomerReplyAsync(ticket, reopened, cancellationToken);
             response = Result<CustomerReplyResponse>.Success(new CustomerReplyResponse(ticket.Number.ToString(), message.Value.Id, false, null));
         }
-        else if (await ReplayAsync(ticket, requester.Id, html, cancellationToken) is { } replay)
+        else if (await ReplayAsync(ticket, requester.Id, html, files, cancellationToken) is { } replay)
         {
             if (replay.IsFailure)
             {
@@ -208,11 +208,13 @@ public sealed class AddCustomerReplyRequestHandler(
         return FromCommitFailure(committed.Errors[0]);
     }
 
-    /// <summary>The dedupe check for a Closed parent: a recent follow-up with the same body is replayed with a fresh token, or null when there is none.</summary>
-    private async Task<Result<CustomerReplyResponse>?> ReplayAsync(Ticket parent, Guid requesterId, string html, CancellationToken cancellationToken)
+    /// <summary>The dedupe check for a Closed parent: a recent follow-up with the same body and the same attachment names (by count and name) is replayed with a fresh token, or null when there is none.
+    /// A different file set is a new submission, so it creates a new follow-up instead of dropping its files.</summary>
+    private async Task<Result<CustomerReplyResponse>?> ReplayAsync(
+        Ticket parent, Guid requesterId, string html, IReadOnlyList<IncomingAttachment> files, CancellationToken cancellationToken)
     {
         var candidates = await tickets.ListRecentFollowUpsAsync(parent.Id, clock.GetUtcNow() - FollowUpDedupeWindow, cancellationToken);
-        var match = candidates.FirstOrDefault(candidate => candidate.FirstMessageBody == html);
+        var match = candidates.FirstOrDefault(candidate => candidate.FirstMessageBody == html && SameFiles(candidate.FirstMessageFileNames, files));
         if (match is null)
         {
             return null;
@@ -224,8 +226,13 @@ public sealed class AddCustomerReplyRequestHandler(
             : Result<CustomerReplyResponse>.Success(new CustomerReplyResponse(match.Number, match.FirstMessageId, true, link.Value));
     }
 
+    private static bool SameFiles(IReadOnlyList<string> existing, IReadOnlyList<IncomingAttachment> incoming) =>
+        existing.Count == incoming.Count
+        && existing.Order(StringComparer.Ordinal).SequenceEqual(incoming.Select(file => file.FileName).Order(StringComparer.Ordinal), StringComparer.Ordinal);
+
     /// <summary>After a conflict with files (which cannot be re-read): the winner may be the same text, so look once more on a clean read.</summary>
-    private async Task<Result<CustomerReplyResponse>?> TryReplayInFreshScopeAsync(string? token, string html, CancellationToken cancellationToken)
+    private async Task<Result<CustomerReplyResponse>?> TryReplayInFreshScopeAsync(
+        string? token, string html, IReadOnlyList<IncomingAttachment> files, CancellationToken cancellationToken)
     {
         await using var scope = await unitOfWork.BeginAsync(cancellationToken);
 
@@ -242,7 +249,7 @@ public sealed class AddCustomerReplyRequestHandler(
 
         tickets.UpdateAccessToken(access.Value.Token);
 
-        if (await ReplayAsync(access.Value.Ticket, access.Value.Requester.Id, html, cancellationToken) is not { } replay)
+        if (await ReplayAsync(access.Value.Ticket, access.Value.Requester.Id, html, files, cancellationToken) is not { } replay)
         {
             return null;
         }

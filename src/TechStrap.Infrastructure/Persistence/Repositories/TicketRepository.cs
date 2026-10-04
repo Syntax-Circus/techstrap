@@ -271,7 +271,18 @@ internal sealed class TicketRepository(TechStrapDbContext context) : ITicketRepo
             })
             .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
             .ToListAsync(cancellationToken);
-        return [.. rows.Where(x => x.First is not null).Select(x => new FollowUpCandidate(x.Id, x.Number, x.First!.Id, x.First.Body, x.CreatedAt))];
+        var firstIds = rows.Where(x => x.First is not null).Select(x => x.First!.Id).ToList();
+        var files = firstIds.Count == 0
+            ? []
+            : await context.Set<AttachmentRecord>().AsNoTracking()
+                .Where(a => firstIds.Contains(a.MessageId))
+                .Select(a => new { a.MessageId, a.FileName })
+                .ToListAsync(cancellationToken);
+        return
+        [
+            .. rows.Where(x => x.First is not null).Select(x => new FollowUpCandidate(
+                x.Id, x.Number, x.First!.Id, x.First.Body, x.CreatedAt, [.. files.Where(f => f.MessageId == x.First.Id).Select(f => f.FileName)])),
+        ];
     }
 
     public async Task<IReadOnlyList<RequesterTicketLink>> ListRecentTicketsForRequesterAsync(Guid requesterId, int limit, CancellationToken cancellationToken) =>

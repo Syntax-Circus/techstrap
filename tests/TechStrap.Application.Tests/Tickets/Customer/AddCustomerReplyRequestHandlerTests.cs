@@ -192,7 +192,7 @@ public sealed class AddCustomerReplyRequestHandlerTests
         var followUpId = Guid.NewGuid();
         var firstMessageId = Guid.NewGuid();
         _tickets.ListRecentFollowUpsAsync(parent.Id, _clock.GetUtcNow() - AddCustomerReplyRequestHandler.FollowUpDedupeWindow, Arg.Any<CancellationToken>())
-            .Returns([new FollowUpCandidate(followUpId, "ORB-70", firstMessageId, "<p>It broke again</p>", _clock.GetUtcNow())]);
+            .Returns([new FollowUpCandidate(followUpId, "ORB-70", firstMessageId, "<p>It broke again</p>", _clock.GetUtcNow(), ["shot.png"])]);
 
         var result = await Reply("It broke again", [Png()]);
 
@@ -207,12 +207,43 @@ public sealed class AddCustomerReplyRequestHandlerTests
         await _planner.DidNotReceiveWithAnyArgs().PlanNewTicketAsync(default!, default!, default, Ct);
     }
 
+    [Theory]
+    [InlineData(new string[0], new[] { "shot.png" })]
+    [InlineData(new[] { "shot.png" }, new string[0])]
+    [InlineData(new[] { "shot.png" }, new[] { "other.png" })]
+    [InlineData(new[] { "shot.png" }, new[] { "shot.png", "second.png" })]
+    public async Task The_same_text_with_a_different_file_set_creates_a_new_follow_up(string[] existing, string[] incoming)
+    {
+        var parent = GivenTicket(TicketStatus.Closed);
+        _tickets.ListRecentFollowUpsAsync(parent.Id, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns([new FollowUpCandidate(Guid.NewGuid(), "ORB-70", Guid.NewGuid(), "<p>It broke again</p>", _clock.GetUtcNow(), existing)]);
+
+        var result = await Reply("It broke again", [.. incoming.Select(name => Png(name))]);
+
+        result.Value.FollowUpCreated.ShouldBeTrue();
+        result.Value.TicketNumber.ShouldBe("ORB-77");
+        _tickets.Received(1).Add(Arg.Any<Ticket>());
+    }
+
+    [Fact]
+    public async Task The_same_text_with_no_files_on_either_side_replays()
+    {
+        var parent = GivenTicket(TicketStatus.Closed);
+        _tickets.ListRecentFollowUpsAsync(parent.Id, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns([new FollowUpCandidate(Guid.NewGuid(), "ORB-70", Guid.NewGuid(), "<p>It broke again</p>", _clock.GetUtcNow(), [])]);
+
+        var result = await Reply("It broke again");
+
+        result.Value.TicketNumber.ShouldBe("ORB-70");
+        _tickets.DidNotReceive().Add(Arg.Any<Ticket>());
+    }
+
     [Fact]
     public async Task Different_text_or_an_older_follow_up_creates_a_new_one()
     {
         var parent = GivenTicket(TicketStatus.Closed);
         _tickets.ListRecentFollowUpsAsync(parent.Id, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
-            .Returns([new FollowUpCandidate(Guid.NewGuid(), "ORB-70", Guid.NewGuid(), "<p>Something else</p>", _clock.GetUtcNow())]);
+            .Returns([new FollowUpCandidate(Guid.NewGuid(), "ORB-70", Guid.NewGuid(), "<p>Something else</p>", _clock.GetUtcNow(), [])]);
 
         var different = await Reply("It broke again");
 
@@ -264,7 +295,7 @@ public sealed class AddCustomerReplyRequestHandlerTests
     public async Task A_conflict_with_files_on_a_closed_ticket_replays_a_follow_up_found_in_a_fresh_scope()
     {
         var parent = GivenTicket(TicketStatus.Closed);
-        var winner = new FollowUpCandidate(Guid.NewGuid(), "ORB-70", Guid.NewGuid(), "<p>Boom</p>", _clock.GetUtcNow());
+        var winner = new FollowUpCandidate(Guid.NewGuid(), "ORB-70", Guid.NewGuid(), "<p>Boom</p>", _clock.GetUtcNow(), ["shot.png"]);
         _tickets.ListRecentFollowUpsAsync(parent.Id, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
             .Returns([], [winner]);
 
