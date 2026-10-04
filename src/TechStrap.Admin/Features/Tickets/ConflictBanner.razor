@@ -2,7 +2,7 @@
 {
     <div class="ts-conflict" role="alert">
         <p><strong>@SidebarCopy.ConflictTitle</strong> @SidebarCopy.ConflictKept</p>
-        <button type="button" class="btn btn-outline-secondary" @onclick="OnReload">@SidebarCopy.ConflictReload</button>
+        <button type="button" @ref="_reload" class="btn btn-outline-secondary" disabled="@Reloading" @onclick="OnReload">@SidebarCopy.ConflictReload</button>
     </div>
 }
 else if (State == ConflictState.Reloaded)
@@ -14,6 +14,9 @@ else if (State == ConflictState.Reloaded)
 }
 
 @code {
+    private ElementReference _reload;
+    private ConflictState _shown;
+
     [Parameter, EditorRequired]
     public ConflictState State { get; set; }
 
@@ -21,9 +24,24 @@ else if (State == ConflictState.Reloaded)
     [Parameter]
     public string? LatestChange { get; set; }
 
+    /// <summary>A reload is running: the button is disabled so it cannot start a second one.</summary>
+    [Parameter]
+    public bool Reloading { get; set; }
+
     [Parameter]
     public EventCallback OnReload { get; set; }
 
     [Parameter]
     public EventCallback OnDismiss { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // The banner appears without the agent asking for it, so it takes focus on its one action.
+        var appeared = State == ConflictState.Stale && _shown != ConflictState.Stale;
+        _shown = State;
+        if (appeared)
+        {
+            await _reload.FocusAsync();
+        }
+    }
 }

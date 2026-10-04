@@ -24,6 +24,7 @@ public sealed partial class TicketDetailPage : IDisposable
     private bool _disposed;
     private TicketDetailViewModel? _model;
     private ConflictState _conflict;
+    private bool _reloading;
     private string? _latestChange;
 
     [Inject]
@@ -65,12 +66,18 @@ public sealed partial class TicketDetailPage : IDisposable
     }
 
     /// <summary>The refresh after a write or a conflict: the model on screen stays until the new one arrives.</summary>
-    internal async Task RefreshAsync()
+    internal async Task RefreshAsync() => await RefreshCoreAsync();
+
+    /// <returns>True when the refresh was applied; false when it was cancelled or superseded by a newer one.</returns>
+    private async Task<bool> RefreshCoreAsync()
     {
-        if (await LoadCoreAsync(silent: true) && !_disposed)
+        var applied = await LoadCoreAsync(silent: true);
+        if (applied && !_disposed)
         {
             StateHasChanged();
         }
+
+        return applied;
     }
 
     /// <returns>False when the load was cancelled or superseded and nothing was applied.</returns>
@@ -149,12 +156,25 @@ public sealed partial class TicketDetailPage : IDisposable
     /// <summary>Reload is a silent refresh, so the composer and its files stay mounted.</summary>
     private async Task ReloadAfterConflictAsync()
     {
-        await RefreshAsync();
-        if (_model is not null && _error.Length == 0)
+        if (_reloading)
         {
-            var latest = _model.Timeline.LastOrDefault(entry => entry.Kind == TimelineEntryKind.Event);
-            _latestChange = latest is null ? null : SidebarCopy.LatestChange(latest.Text, latest.Actor);
-            _conflict = ConflictState.Reloaded;
+            return;
+        }
+
+        _reloading = true;
+        try
+        {
+            var applied = await RefreshCoreAsync();
+            if (applied && !_disposed && _model is not null && _error.Length == 0)
+            {
+                var latest = _model.Timeline.LastOrDefault(entry => entry.Kind == TimelineEntryKind.Event);
+                _latestChange = latest is null ? null : SidebarCopy.LatestChange(latest.Text, latest.Actor);
+                _conflict = ConflictState.Reloaded;
+            }
+        }
+        finally
+        {
+            _reloading = false;
         }
     }
 

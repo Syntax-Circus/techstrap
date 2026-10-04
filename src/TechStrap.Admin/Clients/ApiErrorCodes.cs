@@ -22,6 +22,9 @@ public static class ApiErrorCodes
     public const string TicketClosed = "ticket-closed";
     public const string InvalidStatusTransition = "invalid-status-transition";
     public const string TicketNotFound = "ticket-not-found";
+    public const string AgentNotFound = "agent-not-found";
+    public const string TagNotFound = "tag-not-found";
+    public const string ProductNotFound = "product-not-found";
     public const string RowVersionRequired = "row-version-required";
     public const string AgentAccessRequired = "agent-access-required";
     public const string AgentInactive = "agent-inactive";

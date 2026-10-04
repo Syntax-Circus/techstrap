@@ -52,7 +52,7 @@ public sealed class TicketSidebarTests : AdminComponentTest
         Selected(cut, "select[id^='ts-sidebar-priority-']").ShouldBe("High");
         Selected(cut, "select[id^='ts-sidebar-product-']").ShouldBe("Orbitly");
         cut.Find(".ts-tagpicker-list .ts-tag").TextContent.ShouldBe("bug");
-        cut.FindAll("label").Select(l => l.TextContent).ShouldBe(["Status", "Assignee", "Priority", "Product", "Add tag2026"]);
+        cut.FindAll("label").Select(l => l.TextContent).ShouldBe(["Status", "Assignee", "Priority", "Product", SidebarCopy.AddTagPlaceholder]);
     }
 
     [Fact]
@@ -110,11 +110,11 @@ public sealed class TicketSidebarTests : AdminComponentTest
     {
         var cut = RenderSidebar(TestData.Model(tags: [new TicketTagDto(TestData.BugTagId, "bug", "#DC2626")]));
 
-        cut.FindAll(".ts-tagpicker select option").Select(o => o.TextContent).ShouldBe(["Add tag2026", "billing"]);
+        cut.FindAll(".ts-tagpicker select option").Select(o => o.TextContent).ShouldBe([SidebarCopy.AddTagPlaceholder, "billing"]);
 
         cut.Find(".ts-tagpicker select").Change(TestData.BillingTagId.ToString());
 
-        cut.Find(".ts-tagpicker select").QuerySelectorAll("option").Single(o => o.HasAttribute("selected")).TextContent.ShouldBe("Add tag2026");
+        cut.Find(".ts-tagpicker select").QuerySelectorAll("option").Single(o => o.HasAttribute("selected")).TextContent.ShouldBe(SidebarCopy.AddTagPlaceholder);
     }
 
     [Fact]
@@ -139,7 +139,7 @@ public sealed class TicketSidebarTests : AdminComponentTest
 
         cut.Find("section.ts-sidebar").GetAttribute("aria-busy").ShouldBe("true");
         cut.FindAll("select, button").ShouldAllBe(e => e.HasAttribute("disabled"));
-        cut.Find(".ts-saving").TextContent.ShouldBe("Saving2026");
+        cut.Find(".ts-saving").TextContent.ShouldBe(SidebarCopy.Saving);
         cut.Find(".ts-saving").GetAttribute("role").ShouldBe("status");
 
         cut.Find("select[id^='ts-sidebar-priority-']").Change(TicketPriorities.Urgent);
@@ -283,17 +283,6 @@ public sealed class TicketSidebarTests : AdminComponentTest
         ((ElementReference)JSInterop.VerifyFocusAsyncInvoke().Arguments[0]!).Id.ShouldBe(assigneeId);
     }
 
-    [Fact]
-    public void Every_client_call_receives_a_cancellable_token()
-    {
-        var cut = RenderSidebar();
-
-        cut.Find("select[id^='ts-sidebar-priority-']").Change(TicketPriorities.Urgent);
-
-        var token = (CancellationToken)_tickets.ReceivedCalls().Single().GetArguments().Last()!;
-        token.CanBeCanceled.ShouldBeTrue();
-    }
-
     [Theory]
     [InlineData(ApiErrorCodes.ApiTimeout)]
     [InlineData(ApiErrorCodes.ApiUnavailable)]
@@ -312,7 +301,7 @@ public sealed class TicketSidebarTests : AdminComponentTest
         Selected(cut, "select[id^='ts-sidebar-priority-']").ShouldBe("Normal");
         cut.FindAll(".ts-control-error").ShouldNotContain(e => e.TextContent.Contains("Try again"));
 
-        cut.Find(".ts-control-error button").Click();
+        cut.Find(".ts-control-reload").Click();
 
         _reloads.ShouldBe(1);
         cut.FindAll(".ts-control-error").ShouldBeEmpty();
@@ -329,6 +318,85 @@ public sealed class TicketSidebarTests : AdminComponentTest
         cut.Find("select[id^='ts-sidebar-priority-']").Change(TicketPriorities.High);
 
         cut.Find(".ts-control-error").TextContent.ShouldBe("This ticket is closed.");
-        cut.FindAll(".ts-control-error button").ShouldBeEmpty();
+        cut.FindAll(".ts-control-reload").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_write_is_not_cancelled_when_the_sidebar_is_disposed_mid_request()
+    {
+        var gate = new TaskCompletionSource<Result<TicketStateDto>>();
+        _tickets.ChangePriorityAsync(Arg.Any<Guid>(), Arg.Any<ChangeTicketPriorityRequest>(), Arg.Any<CancellationToken>()).Returns(gate.Task);
+        var cut = RenderSidebar();
+        cut.Find("select[id^='ts-sidebar-priority-']").Change(TicketPriorities.Urgent);
+
+        cut.Dispose();
+
+        var seen = (CancellationToken)_tickets.ReceivedCalls().Single().GetArguments().Last()!;
+        seen.IsCancellationRequested.ShouldBeFalse();
+        gate.SetResult(TestData.Ok(TestData.State(priority: TicketPriorities.Urgent)));
+    }
+
+    [Fact]
+    public void A_refusal_and_a_conflict_both_redraw_the_select_so_the_previous_value_is_visible_again()
+    {
+        _tickets.ChangePriorityAsync(Arg.Any<Guid>(), Arg.Any<ChangeTicketPriorityRequest>(), Arg.Any<CancellationToken>()).Returns(
+            TestData.Fail<TicketStateDto>("boom", "Refused.", ResultErrorKind.Conflict),
+            TestData.Fail<TicketStateDto>(ApiErrorCodes.ConcurrencyConflict, "Stale.", ResultErrorKind.Conflict));
+        var cut = RenderSidebar();
+        // The select carries its @key revision. Bumping it makes Blazor replace the element, which puts the old value back in a real browser
+        // (a select whose bound value did not change is otherwise left showing what the user picked).
+        const string Select = "select[id^='ts-sidebar-priority-']";
+        var before = cut.Find(Select).GetAttribute("data-revision");
+        cut.Find(Select).Change(TicketPriorities.High);
+        var afterRefusal = cut.Find(Select).GetAttribute("data-revision");
+        afterRefusal.ShouldNotBe(before);
+
+        cut.Find(Select).Change(TicketPriorities.Urgent);
+        cut.Find(Select).GetAttribute("data-revision").ShouldNotBe(afterRefusal);
+        Selected(cut, "select[id^='ts-sidebar-priority-']").ShouldBe("Normal");
+    }
+
+    [Theory]
+    [InlineData("agent-not-found")]
+    [InlineData("tag-not-found")]
+    [InlineData("product-not-found")]
+    public void A_404_for_something_other_than_the_ticket_shows_inline_with_reload_and_is_not_gone(string code)
+    {
+        _tickets.AssignAsync(Arg.Any<Guid>(), Arg.Any<AssignTicketRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Fail<TicketStateDto>(code, "That agent no longer exists.", ResultErrorKind.NotFound));
+        var cut = RenderSidebar();
+
+        cut.Find("select[id^='ts-sidebar-assignee-']").Change(TestData.SamAgentId.ToString());
+
+        _gone.ShouldBe(0);
+        cut.Find(".ts-control-error").TextContent.ShouldBe("That agent no longer exists.");
+        cut.Find(".ts-control-reload").TextContent.ShouldBe(SidebarCopy.ConflictReload);
+    }
+
+    [Fact]
+    public void The_reload_button_is_outside_the_alert()
+    {
+        _tickets.ChangePriorityAsync(Arg.Any<Guid>(), Arg.Any<ChangeTicketPriorityRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Fail<TicketStateDto>(ApiErrorCodes.ApiTimeout, "Slow."));
+        var cut = RenderSidebar();
+
+        cut.Find("select[id^='ts-sidebar-priority-']").Change(TicketPriorities.High);
+
+        cut.FindAll("[role=alert] button").ShouldBeEmpty();
+        cut.Find(".ts-control-reload").ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void A_ticket_closed_refusal_shows_inline_and_asks_the_page_to_refresh_so_it_reflects_Closed()
+    {
+        var closed = 0;
+        _tickets.ChangePriorityAsync(Arg.Any<Guid>(), Arg.Any<ChangeTicketPriorityRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Fail<TicketStateDto>(ApiErrorCodes.TicketClosed, "This ticket is closed.", ResultErrorKind.Conflict));
+        var cut = Render<TicketSidebar>(p => p.Add(c => c.Ticket, TestData.Model()).Add(c => c.OnClosed, () => closed++));
+
+        cut.Find("select[id^='ts-sidebar-priority-']").Change(TicketPriorities.High);
+
+        closed.ShouldBe(1);
+        cut.Find(".ts-control-error").TextContent.ShouldBe("This ticket is closed.");
     }
 }

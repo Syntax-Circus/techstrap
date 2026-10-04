@@ -22,7 +22,7 @@ else
         {
             <ErrorState Message="@_error" OnRetry="RefreshAsync" />
         }
-        <ConflictBanner State="_conflict" LatestChange="@_latestChange" OnReload="ReloadAfterConflictAsync" OnDismiss="DismissConflict" />
+        <ConflictBanner State="_conflict" LatestChange="@_latestChange" Reloading="_reloading" OnReload="ReloadAfterConflictAsync" OnDismiss="DismissConflict" />
         <div class="ts-ticket-layout">
             <section class="ts-conversation" aria-label="@TicketCopy.ConversationLabel">
                 <TicketTimeline Entries="_model.Timeline" />
@@ -45,7 +45,7 @@ else
             {
                 <TicketSidePanel Ticket="_model">
                     <Controls>
-                        <TicketSidebar Ticket="_model" OnState="OnStateChangedAsync" OnConflict="OnConflictAsync" OnReload="ReloadAfterConflictAsync" OnGone="RefreshAsync" />
+                        <TicketSidebar Ticket="_model" OnState="OnStateChangedAsync" OnConflict="OnConflictAsync" OnClosed="RefreshAsync" OnReload="ReloadAfterConflictAsync" OnGone="RefreshAsync" />
                     </Controls>
                 </TicketSidePanel>
             }

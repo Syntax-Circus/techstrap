@@ -26,10 +26,10 @@ public sealed partial class TicketSidebar : IDisposable
         [TicketPriorities.Low, TicketPriorities.Normal, TicketPriorities.High, TicketPriorities.Urgent];
 
     private readonly int _id = Interlocked.Increment(ref _nextId);
-    private readonly CancellationTokenSource _lifetime = new();
+    private bool _disposed;
     private readonly Dictionary<SidebarField, string> _errors = [];
     private readonly Dictionary<SidebarField, int> _revisions = [];
-    private readonly HashSet<SidebarField> _uncertain = [];
+    private readonly HashSet<SidebarField> _reloadable = [];
     private ElementReference _assignee;
     private SidebarField? _saving;
     private bool _busy;
@@ -54,6 +54,10 @@ public sealed partial class TicketSidebar : IDisposable
     /// <summary>Raised on 409 <c>concurrency-conflict</c>; the page shows the conflict banner.</summary>
     [Parameter]
     public EventCallback OnConflict { get; set; }
+
+    /// <summary>Raised when a write was refused because the ticket is Closed, so the page refreshes and shows it as Closed.</summary>
+    [Parameter]
+    public EventCallback OnClosed { get; set; }
 
     /// <summary>Raised when the agent asks to reload after a write whose outcome is unknown; the page reloads silently and shows the same banner a conflict does.</summary>
     [Parameter]
@@ -88,7 +92,7 @@ public sealed partial class TicketSidebar : IDisposable
 
     private string? ErrorOf(SidebarField field) => _errors.GetValueOrDefault(field);
 
-    private bool IsUncertain(SidebarField field) => _uncertain.Contains(field);
+    private bool OffersReload(SidebarField field) => _reloadable.Contains(field);
 
     private static string? Text(ChangeEventArgs e) => e.Value as string;
 
@@ -144,11 +148,17 @@ public sealed partial class TicketSidebar : IDisposable
         _busy = true;
         _saving = field;
         _errors.Remove(field);
-        _uncertain.Remove(field);
+        _reloadable.Remove(field);
         StateHasChanged();
         try
         {
-            var result = await send(_lifetime.Token);
+            // A write is never cancelled: it may already be applied, so the screen closing must not abandon it half-sent.
+            var result = await send(CancellationToken.None);
+            if (_disposed)
+            {
+                return;
+            }
+
             if (result.IsSuccess)
             {
                 await OnState.InvokeAsync(result.Value);
@@ -157,10 +167,6 @@ public sealed partial class TicketSidebar : IDisposable
             {
                 await HandleFailureAsync(field, result.Errors[0]);
             }
-        }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
-        {
-            // The screen was closed mid-request.
         }
         finally
         {
@@ -178,7 +184,7 @@ public sealed partial class TicketSidebar : IDisposable
         {
             await OnConflict.InvokeAsync();
         }
-        else if (error.Kind == ResultErrorKind.NotFound)
+        else if (error.Code == ApiErrorCodes.TicketNotFound)
         {
             await OnGone.InvokeAsync();
         }
@@ -186,19 +192,29 @@ public sealed partial class TicketSidebar : IDisposable
         {
             // The write may have been saved before the answer was lost: never a bare "try again", the agent reloads to see the current state.
             _errors[field] = SidebarCopy.ChangeUncertain;
-            _uncertain.Add(field);
+            _reloadable.Add(field);
         }
         else
         {
-            // Includes ticket-closed and invalid-status-transition: the API's own sentence says why.
+            // Includes invalid-status-transition and a 404 for the agent, tag or product: the API's own sentence says why. A 404 for something the
+            // agent picked means the lists are out of date, so a reload is offered.
             _errors[field] = error.Message;
+            if (error.Kind == ResultErrorKind.NotFound)
+            {
+                _reloadable.Add(field);
+            }
+
+            if (error.Code == ApiErrorCodes.TicketClosed)
+            {
+                await OnClosed.InvokeAsync();
+            }
         }
     }
 
     private async Task ReloadAsync()
     {
         _errors.Clear();
-        _uncertain.Clear();
+        _reloadable.Clear();
         await OnReload.InvokeAsync();
     }
 
@@ -213,7 +229,6 @@ public sealed partial class TicketSidebar : IDisposable
     public void Dispose()
     {
         Shortcuts.Pressed -= OnShortcutAsync;
-        _lifetime.Cancel();
-        _lifetime.Dispose();
+        _disposed = true;
     }
 }

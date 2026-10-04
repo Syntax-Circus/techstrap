@@ -4,7 +4,11 @@
 }
 @if (Error is not null)
 {
-    <p class="ts-control-error" role="alert">@Error@if (CanReload){<button type="button" class="btn btn-link" @onclick="OnReload">@SidebarCopy.ConflictReload</button>}</p>
+    <p class="ts-control-error" role="alert">@Error</p>
+    @if (CanReload)
+    {
+        <button type="button" class="btn btn-link ts-control-reload" @onclick="OnReload">@SidebarCopy.ConflictReload</button>
+    }
 }
 
 @code {

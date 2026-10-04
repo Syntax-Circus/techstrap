@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -177,11 +178,78 @@ public sealed class TicketDetailConflictTests : AdminComponentTest
         cut.Find(".ts-control-error").TextContent.ShouldContain("may already have been saved");
 
         ShowTicket(TestData.Detail(priority: TicketPriorities.Urgent, rowVersion: 9));
-        cut.Find(".ts-control-error button").Click();
+        cut.Find(".ts-control-reload").Click();
 
         cut.WaitForAssertion(() => cut.FindAll(".ts-conflict--reloaded").Count.ShouldBe(1));
         cut.FindAll(".ts-control-error").ShouldBeEmpty();
         cut.Find("select[id^='ts-sidebar-priority-']").QuerySelectorAll("option").Single(o => o.HasAttribute("selected")).TextContent.ShouldBe("Urgent");
         cut.Find("textarea").GetAttribute("value").ShouldBe("Keep this.");
+    }
+
+    [Fact]
+    public void A_composer_conflict_reload_keeps_the_composer_mounted_while_the_refresh_is_pending()
+    {
+        ReplyReturns(Conflict());
+        var cut = RenderTicket();
+        cut.FindComponent<InputFile>().UploadFiles(InputFileContent.CreateFromBinary(new byte[4], "log.txt", null, "text/plain"));
+        cut.Find("textarea").Input("Still here.");
+        cut.FindAll(".ts-composer-actions button")[0].Click();
+
+        var gate = new TaskCompletionSource<Result<TicketDetailDto>>();
+        _tickets.GetAsync("ORB-42", Arg.Any<CancellationToken>()).Returns(gate.Task);
+        cut.Find(".ts-conflict button").Click();
+
+        cut.Find("textarea").GetAttribute("value").ShouldBe("Still here.");
+        cut.Find(".ts-file-name").TextContent.ShouldBe("log.txt");
+        cut.Find(".ts-conflict button").HasAttribute("disabled").ShouldBeTrue();
+
+        gate.SetResult(TestData.Ok(TestData.Detail(rowVersion: 9)));
+
+        cut.WaitForAssertion(() => cut.FindAll(".ts-conflict--reloaded").Count.ShouldBe(1));
+        cut.Find("textarea").GetAttribute("value").ShouldBe("Still here.");
+        cut.Find(".ts-file-name").TextContent.ShouldBe("log.txt");
+    }
+
+    [Fact]
+    public void The_conflict_banner_takes_focus_on_its_reload_button_when_it_appears()
+    {
+        PriorityConflicts();
+        var cut = RenderTicket();
+
+        cut.Find("select[id^='ts-sidebar-priority-']").Change(TicketPriorities.Urgent);
+
+        var id = cut.Find(".ts-conflict button").GetAttribute("blazor:elementReference");
+        cut.WaitForAssertion(() => ((ElementReference)JSInterop.VerifyFocusAsyncInvoke().Arguments[0]!).Id.ShouldBe(id));
+    }
+
+    [Fact]
+    public void A_ticket_closed_refusal_refreshes_the_page_so_the_sidebar_gives_way_to_the_closed_facts()
+    {
+        _tickets.ChangePriorityAsync(Arg.Any<Guid>(), Arg.Any<ChangeTicketPriorityRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Fail<TicketStateDto>(ApiErrorCodes.TicketClosed, "This ticket is closed.", ResultErrorKind.Conflict));
+        var cut = RenderTicket();
+        ShowTicket(TestData.Detail(status: TicketStatuses.Closed, rowVersion: 9));
+
+        cut.Find("select[id^='ts-sidebar-priority-']").Change(TicketPriorities.Urgent);
+
+        cut.WaitForAssertion(() => cut.FindAll("section.ts-sidebar").ShouldBeEmpty());
+        cut.Find(".ts-ticket-badges .ts-stamp").TextContent.ShouldBe("Closed");
+    }
+
+    [Fact]
+    public void A_sidebar_write_after_a_reply_uses_the_version_the_reply_returned_not_a_stale_one()
+    {
+        ReplyReturns(TestData.Ok(new AgentMessageResponse(TestData.Message(MessageAuthorTypes.Agent), TestData.State(rowVersion: 8))));
+        _tickets.ChangePriorityAsync(Arg.Any<Guid>(), Arg.Any<ChangeTicketPriorityRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Ok(TestData.State(priority: TicketPriorities.Urgent, rowVersion: 10)));
+        var cut = RenderTicket();
+        cut.Find("textarea").Input("Hello.");
+        ShowTicket(TestData.Detail(rowVersion: 9));
+
+        cut.FindAll(".ts-composer-actions button")[0].Click();
+        cut.WaitForAssertion(() => _tickets.Received(2).GetAsync("ORB-42", Arg.Any<CancellationToken>()));
+        cut.Find("select[id^='ts-sidebar-priority-']").Change(TicketPriorities.Urgent);
+
+        _tickets.Received(1).ChangePriorityAsync(TestData.TicketId, Arg.Is<ChangeTicketPriorityRequest>(r => r.RowVersion == 9u), Arg.Any<CancellationToken>());
     }
 }
