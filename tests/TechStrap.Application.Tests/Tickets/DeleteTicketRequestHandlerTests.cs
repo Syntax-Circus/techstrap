@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
@@ -48,9 +49,21 @@ public sealed class DeleteTicketRequestHandlerTests
         return ticket.AddCustomerReply(Guid.NewGuid(), "<p>hi</p>", _clock).Value;
     }
 
-    private DeleteTicketRequestHandler Handler(IUnitOfWork? unitOfWork = null) =>
+    private sealed class RecordingLogger : ILogger<DeleteTicketRequestHandler>
+    {
+        public List<(LogLevel Level, Dictionary<string, object?> Properties)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, state is IEnumerable<KeyValuePair<string, object?>> pairs ? pairs.ToDictionary(p => p.Key, p => p.Value) : []));
+    }
+
+    private DeleteTicketRequestHandler Handler(IUnitOfWork? unitOfWork = null, ILogger<DeleteTicketRequestHandler>? logger = null) =>
         new(_tickets, _attachments, _outbox, _events, _agents, _claims, unitOfWork ?? UnitOfWorkSubstitute.Create(), _clock,
-            NullLogger<DeleteTicketRequestHandler>.Instance);
+            logger ?? NullLogger<DeleteTicketRequestHandler>.Instance);
 
     [Fact]
     public async Task A_ticket_is_removed_with_its_outbox_rows_and_audited_with_counts_only()
@@ -85,10 +98,16 @@ public sealed class DeleteTicketRequestHandlerTests
     {
         _attachments.DeleteAsync("attachments/a/1", Arg.Any<CancellationToken>()).ThrowsAsync(new IOException("disk"));
 
-        var result = await Handler().HandleAsync(_ticket.Id, TestContext.Current.CancellationToken);
+        var logger = new RecordingLogger();
+
+        var result = await Handler(logger: logger).HandleAsync(_ticket.Id, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         await _attachments.Received(1).DeleteAsync("attachments/a/2", Arg.Any<CancellationToken>());
+        var warning = logger.Entries.ShouldHaveSingleItem();
+        warning.Level.ShouldBe(LogLevel.Warning);
+        warning.Properties["StorageKey"].ShouldBe("attachments/a/1");
+        warning.Properties["ExceptionType"].ShouldBe(nameof(IOException));
     }
 
     [Fact]
