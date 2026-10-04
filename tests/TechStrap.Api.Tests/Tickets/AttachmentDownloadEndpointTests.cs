@@ -65,7 +65,12 @@ public sealed class AttachmentDownloadEndpointTests(TestPostgres postgres) : IDi
         response.Headers.CacheControl!.NoStore.ShouldBeTrue();
         response.Headers.CacheControl.Private.ShouldBeTrue();
         response.Content.Headers.ContentLength.ShouldBe(Png.Length);
-        response.Headers.GetValues("Content-Security-Policy").ShouldContain("sandbox");
+        var csp = string.Join("; ", response.Headers.GetValues("Content-Security-Policy"));
+        csp.ShouldContain("sandbox");
+        csp.ShouldContain("frame-ancestors 'none'");
+        using var counts = await sam.GetAsync("/api/tickets/counts", Ct);
+        counts.StatusCode.ShouldBe(HttpStatusCode.OK);
+        string.Join("; ", counts.Headers.GetValues("Content-Security-Policy")).ShouldNotContain("sandbox");
         response.Content.Headers.ContentType!.MediaType.ShouldBe("image/png");
     }
 

@@ -98,7 +98,9 @@ app.Use(async (context, next) =>
         {
             if (context.Response.StatusCode == StatusCodes.Status200OK)
             {
-                context.Response.Headers.ContentSecurityPolicy = "sandbox";
+                var headers = context.Response.Headers;
+                var existing = headers.ContentSecurityPolicy.ToString();
+                headers.ContentSecurityPolicy = string.IsNullOrEmpty(existing) ? "sandbox" : $"{existing}; sandbox";
             }
 
             return Task.CompletedTask;
