@@ -41,6 +41,7 @@ public static class ControllerActions
         ["TicketsController.AddTag"] = 200,
         ["TicketsController.RemoveTag"] = 200,
         ["TicketsController.MarkSpam"] = 200,
+        ["AttachmentsController.Get"] = 200,
         ["AdminEventsController.List"] = 200,
         ["IntakeController.Submit"] = 201,
         ["PublicIntakeController.Submit"] = 201,
