@@ -44,7 +44,7 @@ Fields follow the _template PROJECT_BRIEF_TEMPLATE.md.
 
 - **Primary data store:** one Postgres 17 database. Attachments and KB images on a local volume via `SyntaxCircus.Storage`.
 - **Sensitive data:** requester name and email, free-text ticket bodies, attachments, app metadata (may include device info).
-- **Retention/deletion:** requester erasure and ticket hard-delete in core; automatic retention rules deferred (D-006).
+- **Retention/deletion:** requester erasure and ticket hard-delete in core; automatic retention rules deferred (D-006), except the email outbox (90 days, D-039).
 - **Authentication provider:** external OIDC. **Authorization model:** group claim to `Agent`/`Admin` policies; per-product API keys; per-ticket customer tokens.
 - **Compliance or residency:** none mandated. Privacy basics only (D-006). Self-hoster owns their own compliance.
 
@@ -107,7 +107,7 @@ Products with branding; agents (claim-gated); requesters; tickets with events, t
 | Workflows (rules engine) | Sub-project 4; subscribes to `TicketEvent` |
 | Passkeys / WebAuthn for agents | Sub-project 5; core is OIDC only |
 | Customer accounts or passwords, live chat, multi-tenancy, native mobile app for agents | Not planned |
-| Automatic retention rules | Deferred (D-006) |
+| Automatic retention rules | Deferred (D-006), except the email outbox (90 days, D-039) |
 | KB revision history, helpfulness feedback, translations, view counts | Cut for core |
 | CAPTCHA | Not in core; Turnstile can be added if spam appears |
 | Localization of UI and emails | English only, with an i18n seam (**Assumption**) |
@@ -243,7 +243,7 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 
 | ID | Requirement | Pri |
 | --- | --- | --- |
-| FR-PRIV-01 | Admin (only, D-022) can erase a requester: anonymize requester identity and their messages, delete their attachments, revoke their tokens; tickets and events remain for statistics | M |
+| FR-PRIV-01 | Admin (only, D-022) can erase a requester: anonymize requester identity, their own messages and their ticket subjects, delete their attachments and the outbox rows about them, revoke their tokens; tickets and events remain for statistics | M |
 | FR-PRIV-02 | Admin (only, D-022) can hard-delete a ticket and its messages, attachments, events | M |
 | FR-PRIV-03 | Serilog output redacts PII (emails, tokens, API keys) | M |
 | FR-PRIV-04 | Erasure and deletion are recorded as `AdminEvent` records without retaining the erased values | M |
@@ -291,7 +291,7 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 - **Content safety:** message bodies are sanitized on write (HtmlSanitizer); KB Markdown is rendered with Markdig and sanitized on output (D-014). Attachment type allowlist and size limits at intake. Files are served with `Content-Disposition: attachment` and `nosniff` (**Assumption**).
 - **Spam:** honeypot, per-IP and per-key rate limits, body and attachment limits, spam flag. No CAPTCHA in core.
 - **Erasure:** FR-PRIV-01 to -04. Backups may still contain erased data until they age out; the runbook states a backup retention period (**Assumption**: 14 days).
-- **Retention:** no automatic purge in core; deferred (D-006). The owner decides retention periods later.
+- **Retention:** no automatic purge in core; deferred (D-006), except the email outbox (90 days, D-039). The owner decides retention periods later.
 - **Transport:** TLS terminates at the reverse proxy outside compose. Internal network traffic is plain HTTP on the pinned compose subnet.
 - **Authorization:** claim-gated agents (D-004), Admin-only operations (product, key, agent and tag management, erase, delete, dead letters, audit; D-022). Mark spam is an Agent action. Resource-level checks (token to ticket, key to product) live in handlers.
 - **Anti-enumeration:** uniform 404 for tokens, uniform response for lost-link, no ticket-number lookup without a token.

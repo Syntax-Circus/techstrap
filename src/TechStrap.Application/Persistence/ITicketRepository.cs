@@ -31,6 +31,13 @@ public interface ITicketRepository
     void Update(Ticket ticket);
 
     /// <summary>
+    /// Stages the hard delete of a ticket the current scope loaded (<see cref="GetByIdAsync"/>). The database cascades its messages,
+    /// attachments, events, access tokens, tags, linked articles and idempotency keys; follow-ups are unlinked (D-039). Never uses a bulk
+    /// delete: the ticket's events are append-only and only a tracked ticket delete is allowed to remove them.
+    /// </summary>
+    void Remove(Ticket ticket);
+
+    /// <summary>
     /// Agent queue page. Implementations normalize the page and page size in <paramref name="query"/> through <see cref="Paging"/>
     /// before querying.
     /// </summary>

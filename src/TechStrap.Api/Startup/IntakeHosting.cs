@@ -1,4 +1,9 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.Formatters;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Net.Http.Headers;
 using TechStrap.Contracts.Intake;
 
 namespace TechStrap.Api.Startup;
@@ -35,7 +40,7 @@ internal sealed class RequestTooLargeMiddleware(RequestDelegate next)
     }
 
     // MVC wraps form-read failures (BadHttpRequestException is an IOException) in ValueProviderException; walk the chain.
-    private static bool IsTooLarge(Exception? ex)
+    internal static bool IsTooLarge(Exception? ex)
     {
         for (; ex is not null; ex = ex.InnerException)
         {
@@ -54,29 +59,67 @@ internal sealed class RequestTooLargeMiddleware(RequestDelegate next)
 /// the 413 BadHttpRequestException reach <see cref="RequestTooLargeMiddleware"/>. The parsed form is cached, so binding reuses it.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
-internal sealed class ReadFormBeforeBindingAttribute : Attribute, IAsyncResourceFilter, IOrderedFilter
+internal sealed class ReadFormBeforeBindingAttribute : Attribute, IAsyncResourceFilter, IOrderedFilter, IApiRequestMetadataProvider
 {
+    public const string MalformedCode = "request-malformed";
+    public const string UnsupportedMediaTypeCode = "unsupported-media-type";
+
     // RequestFormLimits (and RequestSizeLimit) filters default to Order 900 and lower Order runs first. This must run after them, or the
     // form is parsed under Kestrel's 30 MB / 128 MB defaults instead of the endpoint limits.
     public int Order => 1000;
 
+    /// <summary>Documents the body as multipart/form-data in OpenAPI without [Consumes], which would hide the route's authorization policy behind a 401.</summary>
+    public void SetContentTypes(MediaTypeCollection contentTypes)
+    {
+        contentTypes.Clear();
+        contentTypes.Add("multipart/form-data");
+    }
+
     public async Task OnResourceExecutionAsync(ResourceExecutingContext context, ResourceExecutionDelegate next)
     {
         var request = context.HttpContext.Request;
-        if (request.HasFormContentType)
+        if (!IsMultipart(request.ContentType))
         {
-            try
-            {
-                await request.ReadFormAsync(context.HttpContext.RequestAborted);
-            }
-            catch (InvalidDataException)
-            {
-                // Malformed multipart: model binding reports it as a 400.
-            }
+            context.Result = Problem(request, StatusCodes.Status415UnsupportedMediaType, UnsupportedMediaTypeCode, "This endpoint accepts multipart/form-data.");
+            return;
+        }
+
+        try
+        {
+            await request.ReadFormAsync(context.HttpContext.RequestAborted);
+        }
+        catch (InvalidDataException)
+        {
+            // Malformed multipart: model binding reports it as a 400.
+        }
+        catch (IOException ex) when (!RequestTooLargeMiddleware.IsTooLarge(ex))
+        {
+            // A body cut short (BadHttpRequestException is an IOException) is the client's fault, not a 500. A 413 is left to RequestTooLargeMiddleware.
+            context.Result = Problem(request, StatusCodes.Status400BadRequest, MalformedCode, "The request body could not be read.");
+            return;
         }
 
         await next();
     }
+
+    // HasFormContentType also admits application/x-www-form-urlencoded; D-039 answers anything but multipart/form-data with a 415.
+    private static bool IsMultipart(string? contentType) =>
+        MediaTypeHeaderValue.TryParse(contentType, out var parsed)
+        && string.Equals(parsed.MediaType.Value, "multipart/form-data", StringComparison.OrdinalIgnoreCase);
+
+    private static ObjectResult Problem(HttpRequest request, int status, string code, string detail) =>
+        new(new ProblemDetails
+        {
+            Status = status,
+            Type = code,
+            Title = ReasonPhrases.GetReasonPhrase(status),
+            Detail = detail,
+            Instance = request.Path,
+        })
+        {
+            StatusCode = status,
+            ContentTypes = { "application/problem+json" },
+        };
 }
 
 public static class IntakeHosting

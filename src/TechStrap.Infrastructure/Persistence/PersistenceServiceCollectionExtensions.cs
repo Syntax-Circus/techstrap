@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using TechStrap.Application.Persistence;
+using TechStrap.Application.Requesters;
 using TechStrap.Infrastructure.Persistence.Repositories;
 
 namespace TechStrap.Infrastructure.Persistence;
@@ -38,6 +39,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IEmailOutbox, EmailOutbox>();
         services.AddScoped<IEmailOutboxStore, EmailOutboxStore>();
         services.AddScoped<IIntakeIdempotencyStore, IntakeIdempotencyStore>();
+        services.AddScoped<IRequesterErasure, RequesterErasure>();
 
         return services;
     }

@@ -336,22 +336,18 @@ public sealed class TicketRepositoryGuardTests(PostgresFixture postgres) : Postg
     // ---- Item 8: hard delete ----
 
     [Fact]
-    public async Task Hard_deleting_a_ticket_that_has_follow_ups_is_a_reference_violation_conflict_not_an_exception()
+    public async Task Hard_deleting_a_requester_that_has_tickets_is_a_reference_violation_conflict_not_an_exception()
     {
         await using var host = new PersistenceTestHost(Database);
         var (scenario, parent) = await ClosedParentAsync(host);
-        await using (var scope = host.CreateScope())
-        {
-            var loaded = (await Tickets(scope).GetByIdAsync(parent.Id, Ct))!;
-            (await CreateFollowUpAsync(host, scenario, scope, loaded)).IsSuccess.ShouldBeTrue();
-        }
 
+        // Deleting a parent ticket now unlinks its follow-ups (D-039), so the Restrict foreign key used here is requester -> ticket.
         // ITicketRepository has no delete, so this goes through the context: the unit of work still has to translate the FK failure.
         await using var deleteScope = host.CreateScope();
         await using var work = await deleteScope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(Ct);
         var context = deleteScope.ServiceProvider.GetRequiredService<TechStrapDbContext>();
-        var record = await context.Set<TicketRecord>().SingleAsync(t => t.Id == parent.Id, Ct);
-        context.Set<TicketRecord>().Remove(record);
+        var record = await context.Set<RequesterRecord>().SingleAsync(r => r.Id == scenario.Requester.Id, Ct);
+        context.Set<RequesterRecord>().Remove(record);
         var result = await work.CommitAsync(Ct);
 
         result.Errors.ShouldHaveSingleItem().Code.ShouldBe(PersistenceErrorCodes.ReferenceViolation);

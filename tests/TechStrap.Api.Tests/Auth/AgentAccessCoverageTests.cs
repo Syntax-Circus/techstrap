@@ -25,10 +25,10 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
                         ? literal.Content
                         : Guid.CreateVersion7().ToString())), IsMultipart(endpoint))))];
 
-    /// <summary>True when the action consumes multipart/form-data: a JSON probe would be answered 415 before authorization runs.</summary>
+    /// <summary>True when the action reads multipart/form-data (it carries ReadFormBeforeBinding). Authorization runs before that filter, so a JSON probe would also reach 401/403; the multipart body keeps the probe realistic.</summary>
     private static bool IsMultipart(RouteEndpoint endpoint) =>
-        endpoint.Metadata.GetOrderedMetadata<IAcceptsMetadata>().Any(accepts =>
-            accepts.ContentTypes.Any(type => type.Equals("multipart/form-data", StringComparison.OrdinalIgnoreCase)));
+        endpoint.Metadata.GetMetadata<ControllerActionDescriptor>()?.MethodInfo
+            .IsDefined(typeof(TechStrap.Api.Startup.ReadFormBeforeBindingAttribute), inherit: false) == true;
 
     private static async Task<HttpResponseMessage> SendAsync(HttpClient client, string method, string path, bool multipart = false)
     {
@@ -105,7 +105,7 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
             .ToList();
         var adminOnly = endpoints.Where(item => IsAdminOnly(item.Action.MethodInfo)).ToList();
 
-        adminOnly.Count.ShouldBeGreaterThanOrEqualTo(7);
+        adminOnly.Count.ShouldBeGreaterThanOrEqualTo(15); // 15 admin-only routes today; the floor catches IsAdminOnly silently matching fewer
         foreach (var (endpoint, _) in adminOnly)
         {
             var path = "/" + string.Join('/', endpoint.RoutePattern.PathSegments.Select(segment =>
@@ -120,6 +120,25 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
         using var allowed = await SendAsync(client, "GET", "/api/tags");
         allowed.StatusCode.ShouldNotBe(HttpStatusCode.Forbidden);
         allowed.StatusCode.ShouldNotBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task The_five_06c_routes_are_admin_only()
+    {
+        var database = await ApiTestDatabase.CreateAsync(postgres);
+        await using var factory = new ApiFactory(settings: database.Settings);
+        var adminOnly = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("api/", StringComparison.Ordinal) == true)
+            .Where(endpoint => IsAdminOnly(endpoint.Metadata.GetMetadata<ControllerActionDescriptor>()!.MethodInfo))
+            .SelectMany(endpoint => (endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? ["GET"]).Select(method => $"{method} {endpoint.RoutePattern.RawText}"))
+            .ToHashSet();
+
+        string[] expected =
+        [
+            "DELETE api/tickets/{id:guid}", "POST api/requesters/{id:guid}/erase",
+            "GET api/dead-letters", "POST api/dead-letters/{id:guid}/retry", "DELETE api/dead-letters/{id:guid}",
+        ];
+        expected.Except(adminOnly).ShouldBeEmpty();
     }
 
     private static bool IsAdminOnly(MethodInfo action) =>

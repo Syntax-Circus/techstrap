@@ -44,19 +44,7 @@ internal sealed class StoredAttachmentBatch(IAttachmentStore store, ILogger logg
     /// <summary>Best-effort delete of every stored file, ignoring the request's cancellation.</summary>
     public async Task DeleteAllAsync()
     {
-        foreach (var key in _keys)
-        {
-            try
-            {
-                await store.DeleteAsync(key, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                // Best effort: an orphaned file must not mask the original outcome, but it must be visible.
-                logger.LogWarning("Attachment cleanup failed for {StorageKey} ({ExceptionType}).", key, ex.GetType().Name);
-            }
-        }
-
+        await StoredFileCleanup.DeleteAllAsync(store, _keys, logger);
         _keys.Clear();
     }
 }

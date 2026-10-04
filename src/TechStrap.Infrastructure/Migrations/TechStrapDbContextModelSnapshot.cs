@@ -286,6 +286,13 @@ namespace TechStrap.Infrastructure.Migrations
                     b.HasIndex("TicketId")
                         .HasDatabaseName("ix_email_outbox_ticket_id");
 
+                    b.HasIndex("Kind", "ToAddress", "CreatedAt")
+                        .HasDatabaseName("ix_email_outbox_kind_to_address_created_at");
+
+                    b.HasIndex(new[] { "CreatedAt" }, "ix_email_outbox_created_at_when_finished")
+                        .HasDatabaseName("ix_email_outbox_created_at_when_finished")
+                        .HasFilter("status IN ('Sent','Discarded')");
+
                     b.ToTable("email_outbox", (string)null);
                 });
 
@@ -1215,7 +1222,7 @@ namespace TechStrap.Infrastructure.Migrations
                     b.HasOne("TechStrap.Infrastructure.Persistence.Records.TicketRecord", null)
                         .WithMany()
                         .HasForeignKey("ParentTicketId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_tickets_tickets_parent_ticket_id");
 
                     b.HasOne("TechStrap.Infrastructure.Persistence.Records.ProductRecord", null)

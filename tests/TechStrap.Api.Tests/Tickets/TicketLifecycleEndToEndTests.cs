@@ -9,7 +9,9 @@ using TechStrap.Api.Tests.Auth;
 using TechStrap.Api.Tests.Intake;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Tickets.AutoClose;
+using TechStrap.Contracts.AdminEvents;
 using TechStrap.Contracts.Agents;
+using TechStrap.Contracts.DeadLetters;
 using TechStrap.Contracts.Http;
 using TechStrap.Contracts.Paging;
 using TechStrap.Contracts.Tickets;
@@ -372,5 +374,198 @@ public sealed class TicketLifecycleEndToEndTests(TestPostgres postgres) : IDispo
 
         (await database.ScalarAsync<long>("SELECT count(*) FROM email_outbox WHERE kind = 'access-links'")).ShouldBe(1L);
         (await ScalarStringAsync(database, "SELECT to_address FROM email_outbox WHERE kind = 'access-links'")).ShouldBe("ada@example.com");
+    }
+
+    private async Task<(ApiFactory Factory, ApiTestDatabase Database)> StartAsync()
+    {
+        var database = await ApiTestDatabase.CreateAsync(postgres);
+        var settings = new Dictionary<string, string?>(database.Settings)
+        {
+            ["TECHSTRAP_PORTAL_PUBLIC_URL"] = "https://help.test",
+            ["Storage:Local:RootPath"] = _storage,
+        };
+        var factory = new ApiFactory(settings: settings);
+        await IntakeTestData.SeedAsync(factory.Services, Ct);
+        return (factory, database);
+    }
+
+    /// <summary>A client in the admin group; GET /api/agents/me provisions its agent row.</summary>
+    private static async Task<HttpClient> AdminClientAsync(ApiFactory factory)
+    {
+        var admin = factory.CreateClient().Bearer(TestJwt.Token("admin", [TestJwt.AdminGroup], email: "admin@example.com", name: "Ada Admin"));
+        (await admin.GetAsync("/api/agents/me", Ct)).EnsureSuccessStatusCode();
+        return admin;
+    }
+
+    private static async Task SubmitAsync(HttpClient anonymous, string body, bool withPng = false)
+    {
+        using var form = new MultipartFormDataContent
+        {
+            { new StringContent("ada@example.com"), "email" }, { new StringContent("Ada"), "name" },
+            { new StringContent("Cannot log in"), "subject" }, { new StringContent(body), "body" },
+        };
+        if (withPng)
+        {
+            var file = new ByteArrayContent(Png);
+            file.Headers.ContentType = MediaTypeHeaderValue.Parse("image/png");
+            form.Add(file, "attachments", "shot.png");
+        }
+
+        using var submitted = await anonymous.PostAsync("/api/public/products/orbitly/tickets", form, Ct);
+        submitted.StatusCode.ShouldBe(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task An_admin_deletes_a_closed_ticket_and_its_follow_up_survives_unlinked()
+    {
+        var (factory, database) = await StartAsync();
+        await using var _ = factory;
+        using var sam = TicketTestData.AgentClient(factory, "sam");
+        (await sam.GetAsync("/api/agents/me", Ct)).EnsureSuccessStatusCode();
+        using var admin = await AdminClientAsync(factory);
+        using var anonymous = factory.CreateClient();
+
+        await SubmitAsync(anonymous, "Please help");
+        var token = TokenFromPortalLink(await ScalarStringAsync(database, "SELECT payload::text FROM email_outbox WHERE kind = 'ticket-confirmation'"));
+        var parent = (await sam.GetFromJsonAsync<TicketDetailDto>("/api/tickets/ORB-1", Ct))!;
+        foreach (var status in new[] { "Solved", "Closed" })
+        {
+            using var changed = await sam.PutAsJsonAsync(
+                $"/api/tickets/{parent.Id}/status", new ChangeTicketStatusRequest(status, await TicketTestData.VersionAsync(sam, parent.Id)), Ct);
+            changed.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        CustomerReplyResponse followUp;
+        using (var reply = await CustomerReplyAsync(anonymous, token, "It broke again"))
+        {
+            reply.StatusCode.ShouldBe(HttpStatusCode.Created);
+            followUp = (await reply.Content.ReadFromJsonAsync<CustomerReplyResponse>(Ct))!;
+        }
+
+        var followUpToken = TokenFromLink(followUp.FollowUpViewUrl!);
+
+        // An agent may not delete; an admin may.
+        using (var refused = await sam.DeleteAsync($"/api/tickets/{parent.Id}", Ct)) { refused.StatusCode.ShouldBe(HttpStatusCode.Forbidden); }
+        using (var deleted = await admin.DeleteAsync($"/api/tickets/{parent.Id}", Ct)) { deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent); }
+
+        foreach (var table in new[] { "messages", "ticket_events", "ticket_access_tokens", "attachments", "ticket_tags", "email_outbox" })
+        {
+            (await database.ScalarAsync<long>($"SELECT count(*) FROM {table} WHERE ticket_id = '{parent.Id}'")).ShouldBe(0L, table);
+        }
+
+        (await database.ScalarAsync<long>($"SELECT count(*) FROM tickets WHERE id = '{parent.Id}'")).ShouldBe(0L);
+        (await database.ScalarAsync<bool>($"SELECT parent_ticket_id IS NULL FROM tickets WHERE number = '{followUp.TicketNumber}'")).ShouldBeTrue();
+        (await database.ScalarAsync<long>(
+            $"SELECT count(*) FROM ticket_events e JOIN tickets t ON t.id = e.ticket_id WHERE t.number = '{followUp.TicketNumber}' AND e.payload::text LIKE '%parentTicketId%'"))
+            .ShouldBe(1L, "the follow-up's own Created event keeps its history");
+        using (var gone = await sam.GetAsync($"/api/tickets/{parent.Id}", Ct)) { gone.StatusCode.ShouldBe(HttpStatusCode.NotFound); }
+        (await CustomerViewAsync(anonymous, followUpToken)).Number.ShouldBe(followUp.TicketNumber);
+        using (var stale = new HttpRequestMessage(HttpMethod.Get, "/api/customer/ticket"))
+        {
+            stale.Headers.TryAddWithoutValidation(HeaderNames.TicketToken, token);
+            (await anonymous.SendAsync(stale, Ct)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        }
+
+        var audit = (await admin.GetFromJsonAsync<PagedResponse<AdminEventDto>>("/api/admin-events?subjectType=Ticket", Ct))!;
+        var entry = audit.Items.Single(e => e.Type == "TicketDeleted" && e.SubjectId == parent.Id);
+        entry.Payload.ShouldNotContain("Cannot log in");
+        entry.Payload.ShouldNotContain("ada@example.com");
+    }
+
+    [Fact]
+    public async Task An_admin_erases_a_requester_and_the_customer_view_and_agent_queue_show_no_trace()
+    {
+        var (factory, database) = await StartAsync();
+        await using var _ = factory;
+        using var sam = TicketTestData.AgentClient(factory, "sam");
+        (await sam.GetAsync("/api/agents/me", Ct)).EnsureSuccessStatusCode();
+        using var admin = await AdminClientAsync(factory);
+        using var anonymous = factory.CreateClient();
+
+        await SubmitAsync(anonymous, "zebracanary reach me at ada@example.com", withPng: true);
+        var token = TokenFromPortalLink(await ScalarStringAsync(database, "SELECT payload::text FROM email_outbox WHERE kind = 'ticket-confirmation'"));
+        var before = (await sam.GetFromJsonAsync<TicketDetailDto>("/api/tickets/ORB-1", Ct))!;
+        using (var form = new MultipartFormDataContent { { new StringContent("Agent reply stays"), "body" } })
+        using (var replied = await sam.PostAsync($"/api/tickets/{before.Id}/replies", form, Ct)) { replied.StatusCode.ShouldBe(HttpStatusCode.Created); }
+        before = (await sam.GetFromJsonAsync<TicketDetailDto>("/api/tickets/ORB-1", Ct))!;
+        (await sam.GetFromJsonAsync<PagedResponse<TicketSummaryDto>>("/api/tickets?view=All&search=zebracanary", Ct))!.Items.ShouldHaveSingleItem();
+        Directory.EnumerateFiles(_storage, "*", SearchOption.AllDirectories).ShouldNotBeEmpty();
+        var requesterId = await database.ScalarAsync<Guid>("SELECT id FROM requesters WHERE email = 'ada@example.com'");
+
+        using (var refused = await sam.PostAsync($"/api/requesters/{requesterId}/erase", null, Ct)) { refused.StatusCode.ShouldBe(HttpStatusCode.Forbidden); }
+        using (var erased = await admin.PostAsync($"/api/requesters/{requesterId}/erase", null, Ct)) { erased.StatusCode.ShouldBe(HttpStatusCode.NoContent); }
+        using (var again = await admin.PostAsync($"/api/requesters/{requesterId}/erase", null, Ct)) { again.StatusCode.ShouldBe(HttpStatusCode.NoContent); }
+
+        var after = (await sam.GetFromJsonAsync<TicketDetailDto>("/api/tickets/ORB-1", Ct))!;
+        after.Number.ShouldBe("ORB-1");
+        after.Subject.ShouldBe("[erased]");
+        after.Events.Count.ShouldBe(before.Events.Count);
+        var requesterMessages = after.Messages.Where(m => m.AuthorType == "Requester").ToList();
+        requesterMessages.ShouldNotBeEmpty();
+        requesterMessages.ShouldAllBe(m => m.BodyHtml == "[erased]");
+        after.Messages.Single(m => m.AuthorType == "Agent").BodyHtml.ShouldContain("Agent reply stays");
+        (await sam.GetFromJsonAsync<PagedResponse<TicketSummaryDto>>("/api/tickets?view=All&search=zebracanary", Ct))!.Items.ShouldBeEmpty();
+        Directory.EnumerateFiles(_storage, "*", SearchOption.AllDirectories).ShouldBeEmpty();
+        using (var stale = new HttpRequestMessage(HttpMethod.Get, "/api/customer/ticket"))
+        {
+            stale.Headers.TryAddWithoutValidation(HeaderNames.TicketToken, token);
+            (await anonymous.SendAsync(stale, Ct)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        }
+
+        foreach (var sql in new[]
+        {
+            "SELECT count(*) FROM requesters WHERE email = 'ada@example.com' OR name = 'Ada'",
+            "SELECT count(*) FROM email_outbox WHERE to_address = 'ada@example.com' OR ticket_id IS NOT NULL",
+            "SELECT count(*) FROM attachments",
+            "SELECT count(*) FROM messages WHERE body LIKE '%ada@example.com%' OR body LIKE '%zebracanary%'",
+            "SELECT count(*) FROM tickets WHERE subject <> '[erased]'",
+        })
+        {
+            (await database.ScalarAsync<long>(sql)).ShouldBe(0L, sql);
+        }
+
+        var audit = (await admin.GetFromJsonAsync<PagedResponse<AdminEventDto>>("/api/admin-events?subjectType=Requester", Ct))!;
+        audit.Items.Count.ShouldBe(2); // one RequesterErased event per erase call that ran (the repeat records its own, D-039)
+        audit.Items.ShouldAllBe(e => e.Type == "RequesterErased" && e.SubjectId == requesterId);
+        audit.Items.ShouldAllBe(e => !e.Payload.Contains("ada@example.com") && !e.Payload.Contains("Ada"));
+    }
+
+    [Fact]
+    public async Task An_admin_lists_retries_and_discards_dead_letters_and_an_agent_cannot()
+    {
+        var (factory, database) = await StartAsync();
+        await using var _ = factory;
+        using var sam = TicketTestData.AgentClient(factory, "sam");
+        (await sam.GetAsync("/api/agents/me", Ct)).EnsureSuccessStatusCode();
+        using var admin = await AdminClientAsync(factory);
+        var retryId = Guid.NewGuid();
+        var discardId = Guid.NewGuid();
+        foreach (var id in new[] { retryId, discardId })
+        {
+            await database.ExecuteAsync($$"""
+                INSERT INTO email_outbox (id, kind, to_address, payload, status, attempts, next_attempt_at, last_error, created_at)
+                VALUES ('{{id}}', 'ticket-confirmation', 'ada@example.com', '{"portalLink":"https://help.test/t/secret"}', 'DeadLettered', 5, now(), 'render-failed', now())
+                """);
+        }
+
+        using (var refused = await sam.GetAsync("/api/dead-letters", Ct)) { refused.StatusCode.ShouldBe(HttpStatusCode.Forbidden); }
+        var raw = await admin.GetStringAsync("/api/dead-letters", Ct);
+        raw.ShouldNotContain("ada@example.com");
+        raw.ShouldNotContain("secret");
+        raw.ShouldNotContain("payload", Case.Insensitive);
+        var list = System.Text.Json.JsonSerializer.Deserialize<PagedResponse<DeadLetterDto>>(raw, System.Text.Json.JsonSerializerOptions.Web)!;
+        list.TotalCount.ShouldBe(2);
+        list.Items.ShouldAllBe(d => d.Recipient == "a***@example.com" && d.Kind == "ticket-confirmation" && d.Attempts == 5 && d.LastError == "render-failed");
+
+        using (var retried = await admin.PostAsync($"/api/dead-letters/{retryId}/retry", null, Ct)) { retried.StatusCode.ShouldBe(HttpStatusCode.NoContent); }
+        (await ScalarStringAsync(database, $"SELECT status FROM email_outbox WHERE id = '{retryId}'")).ShouldBe("Pending");
+        (await database.ScalarAsync<int>($"SELECT attempts FROM email_outbox WHERE id = '{retryId}'")).ShouldBe(0);
+        using (var twice = await admin.PostAsync($"/api/dead-letters/{retryId}/retry", null, Ct)) { twice.StatusCode.ShouldBe(HttpStatusCode.Conflict); }
+        using (var discarded = await admin.DeleteAsync($"/api/dead-letters/{discardId}", Ct)) { discarded.StatusCode.ShouldBe(HttpStatusCode.NoContent); }
+        using (var missing = await admin.DeleteAsync($"/api/dead-letters/{Guid.NewGuid()}", Ct)) { missing.StatusCode.ShouldBe(HttpStatusCode.NotFound); }
+        (await admin.GetFromJsonAsync<PagedResponse<DeadLetterDto>>("/api/dead-letters", Ct))!.Items.ShouldBeEmpty();
+
+        var audit = (await admin.GetFromJsonAsync<PagedResponse<AdminEventDto>>("/api/admin-events?subjectType=EmailOutbox", Ct))!;
+        audit.Items.Select(e => e.Type).ShouldBe(["DeadLetterRetried", "DeadLetterDiscarded"], ignoreOrder: true);
     }
 }

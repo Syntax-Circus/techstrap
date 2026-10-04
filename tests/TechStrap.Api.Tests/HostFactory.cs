@@ -92,7 +92,7 @@ public sealed class WorkerFactory(
     Action<IServiceCollection>? configureServices = null)
     : HostFactory<TechStrap.Worker.Program>(
         environment,
-        new Dictionary<string, string?> { ["EmailOutbox:Enabled"] = "false", ["AutoClose:Enabled"] = "false" }
+        new Dictionary<string, string?> { ["EmailOutbox:Enabled"] = "false", ["AutoClose:Enabled"] = "false", ["OutboxRetention:Enabled"] = "false" }
             .Concat(settings ?? new Dictionary<string, string?>())
             .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.Last().Value, StringComparer.OrdinalIgnoreCase),

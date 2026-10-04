@@ -30,7 +30,6 @@ public sealed class CustomerTicketsController : ControllerBase
     }
 
     [HttpPost("ticket/replies")]
-    [Consumes("multipart/form-data")]
     [ReadFormBeforeBinding]
     [RequestSizeLimit(IntakeRequestLimits.FormBodyBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = IntakeRequestLimits.FormBodyBytes * 2)] // Kestrel's limit must trip first, as a 413

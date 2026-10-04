@@ -228,7 +228,7 @@ public sealed class AddCustomerReplyRequestHandler(
 
     private static bool SameFiles(IReadOnlyList<string> existing, IReadOnlyList<IncomingAttachment> incoming) =>
         existing.Count == incoming.Count
-        && existing.Order(StringComparer.Ordinal).SequenceEqual(incoming.Select(file => file.FileName).Order(StringComparer.Ordinal), StringComparer.Ordinal);
+        && existing.Order(StringComparer.Ordinal).SequenceEqual(incoming.Select(file => AttachmentFileName.Sanitize(file.FileName)).Order(StringComparer.Ordinal), StringComparer.Ordinal);
 
     /// <summary>After a conflict with files (which cannot be re-read): the winner may be the same text, so look once more on a clean read.</summary>
     private async Task<Result<CustomerReplyResponse>?> TryReplayInFreshScopeAsync(

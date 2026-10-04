@@ -55,7 +55,8 @@ public sealed class AddCustomerReplyRequestHandlerTests
         _store.SaveAsync(Arg.Any<Guid>(), Arg.Any<IncomingAttachment>(), Arg.Any<CancellationToken>()).Returns(call =>
         {
             var file = call.Arg<IncomingAttachment>();
-            return Result<StoredAttachment>.Success(new StoredAttachment($"key-{++_fileCounter}", file.FileName, "image/png", file.Length));
+            var sanitisedName = AttachmentFileName.Sanitize(file.FileName);
+            return Result<StoredAttachment>.Success(new StoredAttachment($"key-{++_fileCounter}", sanitisedName, "image/png", file.Length));
         });
         _tickets.ListRecentFollowUpsAsync(Arg.Any<Guid>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns([]);
     }
@@ -383,5 +384,61 @@ public sealed class AddCustomerReplyRequestHandlerTests
         await _allocator.Received().AllocateAsync(_productId, token);
         await _planner.Received().PlanFollowUpConfirmationAsync(Arg.Any<Ticket>(), token);
         await _planner.Received().PlanNewTicketAsync(Arg.Any<Ticket>(), _ann, true, token);
+    }
+
+    [Theory]
+    [InlineData("C:\\fakepath\\shot.png")]
+    [InlineData("../shot.png")]
+    [InlineData("  shot.png ")]
+    public async Task A_double_submit_replays_when_the_store_rewrote_the_name(string incomingName)
+    {
+        var parent = GivenTicket(TicketStatus.Closed);
+        var followUpId = Guid.NewGuid();
+        _tickets.ListRecentFollowUpsAsync(parent.Id, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns([new FollowUpCandidate(followUpId, "ORB-70", Guid.NewGuid(), "<p>It broke again</p>", _clock.GetUtcNow(), ["shot.png"])]);
+
+        var result = await Reply("It broke again", [Png(incomingName)]);
+
+        result.Value.TicketNumber.ShouldBe("ORB-70");
+        _tickets.DidNotReceive().Add(Arg.Any<Ticket>());
+        await _store.DidNotReceive().SaveAsync(Arg.Any<Guid>(), Arg.Any<IncomingAttachment>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Two_names_that_both_sanitise_to_the_fallback_still_compare_by_count_and_name()
+    {
+        var parent = GivenTicket(TicketStatus.Closed);
+        var followUpId = Guid.NewGuid();
+        var firstMessageId = Guid.NewGuid();
+
+        // Existing follow-up has two files named "attachment" (the fallback)
+        _tickets.ListRecentFollowUpsAsync(parent.Id, _clock.GetUtcNow() - AddCustomerReplyRequestHandler.FollowUpDedupeWindow, Arg.Any<CancellationToken>())
+            .Returns([new FollowUpCandidate(followUpId, "ORB-70", firstMessageId, "<p>It broke again</p>", _clock.GetUtcNow(), ["attachment", "attachment"])]);
+
+        // Incoming has two names that sanitise to fallback: ".." and "." -> replays the existing follow-up
+        var result = await Reply("It broke again", [Png(".."), Png(".")]);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(new CustomerReplyResponse("ORB-70", firstMessageId, true, "https://help.test/t/fresh-token"));
+        _tickets.Received(1).AddAccessToken(Arg.Is<TicketAccessToken>(t => t.TicketId == followUpId));
+        await _allocator.DidNotReceive().AllocateAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        _tickets.DidNotReceive().Add(Arg.Any<Ticket>());
+        _tickets.DidNotReceive().Update(Arg.Any<Ticket>());
+        await _store.DidNotReceive().SaveAsync(Arg.Any<Guid>(), Arg.Any<IncomingAttachment>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Two_fallback_names_with_different_counts_create_a_new_follow_up()
+    {
+        var parent = GivenTicket(TicketStatus.Closed);
+        _tickets.ListRecentFollowUpsAsync(parent.Id, _clock.GetUtcNow() - AddCustomerReplyRequestHandler.FollowUpDedupeWindow, Arg.Any<CancellationToken>())
+            .Returns([new FollowUpCandidate(Guid.NewGuid(), "ORB-70", Guid.NewGuid(), "<p>It broke again</p>", _clock.GetUtcNow(), ["attachment", "attachment"])]);
+
+        // Incoming has only one name that sanitises to fallback -> different count, creates new follow-up
+        var result = await Reply("It broke again", [Png("..")]);
+
+        result.Value.FollowUpCreated.ShouldBeTrue();
+        result.Value.TicketNumber.ShouldBe("ORB-77");
+        _tickets.Received(1).Add(Arg.Any<Ticket>());
     }
 }

@@ -1,0 +1,138 @@
+using System.Text.RegularExpressions;
+using Serilog.Core;
+using Serilog.Events;
+
+namespace TechStrap.Infrastructure.Logging;
+
+/// <summary>
+/// Rewrites PII-shaped text in every property value before any sink sees the event (D-039): email addresses, 43-character access tokens and
+/// "sha256:" hashes. It cannot touch LogEvent.Exception or the template, and it cannot recognise a name; application code never logs either
+/// (exceptions are logged by type name, requesters by id).
+/// Residual risk, accepted: names cannot be pattern-redacted, and an attached Exception is not rewritten. The worker loops that attach an
+/// exception (EmailOutboxWorker, AutoCloseWorker, OutboxRetentionWorker) get Npgsql's default, which hides PostgresException.Detail unless the error-detail connection option is enabled;
+/// the LoggingSafety architecture tests guard that nothing sets it. A char[] is captured as single characters and is not redacted.
+/// Redaction fails closed: if rewriting a property throws (including a regex timeout) that property becomes "[redaction-failed]".
+/// </summary>
+public sealed partial class PiiRedactionEnricher : ILogEventEnricher
+{
+    public const string EmailMarker = "[email]";
+    public const string TokenMarker = "[token]";
+    public const string HashMarker = "[hash]";
+    public const string FailedMarker = "[redaction-failed]";
+
+    private const RegexOptions Options = RegexOptions.CultureInvariant;
+    private static readonly TimeSpan MatchTimeout = TimeSpan.FromMilliseconds(250);
+
+    // sha256: plus 64 hex characters, any case.
+    private static readonly Regex HashPattern = new(@"sha256:[0-9a-f]{64}", Options | RegexOptions.IgnoreCase | RegexOptions.NonBacktracking, MatchTimeout);
+
+    // Deliberately broader than what intake accepts (non-whitespace, non-@ local part and domain with a dot): IDN, IP literals, quoted local parts,
+    // single-letter TLDs, underscores. Over-redaction is acceptable; under-redaction is not.
+    private static readonly Regex EmailPattern = new(
+        @"(?:""[^""\r\n]*""|[^\s@<>()\[\]"",;:]+)@(?:\[[^\]\s]+\]|[^\s@<>()\[\]"",;:]+\.[^\s@<>()\[\]"",;:]+)",
+        Options | RegexOptions.NonBacktracking, MatchTimeout);
+
+    // An optional API key prefix plus a 43-character base64url run that is a whole run; "%2F" (an encoded slash) counts as a boundary.
+    // Lookarounds rule out NonBacktracking, so this one relies on the timeout.
+    private static readonly Regex TokenPattern = new(
+        @"(?:(?<![A-Za-z0-9_\-])|(?<=%2[Ff]))(?:ts[kp]_)?[A-Za-z0-9_\-]{43}(?![A-Za-z0-9_\-])",
+        Options, MatchTimeout);
+
+    private readonly Func<string, string> _redactText;
+
+    public PiiRedactionEnricher()
+        : this(RedactText)
+    {
+    }
+
+    internal PiiRedactionEnricher(Func<string, string> redactText) => _redactText = redactText;
+
+    public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
+    {
+        foreach (var (name, value) in logEvent.Properties.ToArray())
+        {
+            LogEventPropertyValue redacted;
+            try
+            {
+                redacted = Redact(value);
+            }
+            catch (Exception)
+            {
+                redacted = new ScalarValue(FailedMarker);
+            }
+
+            if (!ReferenceEquals(redacted, value))
+            {
+                logEvent.AddOrUpdateProperty(new LogEventProperty(name, redacted));
+            }
+        }
+    }
+
+    internal static string RedactText(string text) =>
+        TokenPattern.Replace(EmailPattern.Replace(HashPattern.Replace(text, HashMarker), EmailMarker), TokenMarker);
+
+    private LogEventPropertyValue Redact(LogEventPropertyValue value)
+    {
+        switch (value)
+        {
+            case ScalarValue { Value: string text }:
+                var clean = _redactText(text);
+                return clean == text ? value : new ScalarValue(clean);
+            case ScalarValue { Value: { } other } when IsTextual(other):
+                var original = other.ToString();
+                if (original is null)
+                {
+                    return value;
+                }
+
+                var cleaned = _redactText(original);
+                return cleaned == original ? value : new ScalarValue(cleaned);
+            case SequenceValue sequence:
+                var elements = sequence.Elements.Select(Redact).ToArray();
+                return Same(elements, sequence.Elements) ? value : new SequenceValue(elements);
+            case StructureValue structure:
+                var properties = structure.Properties.Select(p => new LogEventProperty(p.Name, Redact(p.Value))).ToArray();
+                return Same(properties.Select(p => p.Value), structure.Properties.Select(p => p.Value)) ? value : new StructureValue(properties, structure.TypeTag);
+            case DictionaryValue dictionary:
+                return RedactDictionary(dictionary);
+            default:
+                return value;
+        }
+    }
+
+    /// <summary>Anything that is not a primitive, decimal, Guid, date/time type or enum (a Uri, a custom type Serilog kept as an object).</summary>
+    private static bool IsTextual(object value) =>
+        value is not (Guid or decimal or DateTime or DateTimeOffset or TimeSpan or DateOnly or TimeOnly or Enum) && !value.GetType().IsPrimitive;
+
+    private LogEventPropertyValue RedactDictionary(DictionaryValue dictionary)
+    {
+        var used = new HashSet<ScalarValue>();
+        var entries = new List<KeyValuePair<ScalarValue, LogEventPropertyValue>>();
+        var changed = false;
+        foreach (var (key, element) in dictionary.Elements)
+        {
+            var newKey = (ScalarValue)Redact(key);
+            // two keys can redact to the same marker; keep both entries instead of throwing (a throw would fail the whole event open)
+            if (!used.Add(newKey) && newKey.Value is string text)
+            {
+                var n = 2;
+                ScalarValue candidate;
+                do
+                {
+                    candidate = new ScalarValue($"{text}#{n++}");
+                }
+                while (!used.Add(candidate));
+                newKey = candidate;
+            }
+
+            var newValue = Redact(element);
+            changed |= !ReferenceEquals(newKey, key) || !ReferenceEquals(newValue, element);
+            entries.Add(KeyValuePair.Create(newKey, newValue));
+        }
+
+        return changed ? new DictionaryValue(entries) : dictionary;
+    }
+
+    private static bool Same(IEnumerable<LogEventPropertyValue> left, IEnumerable<LogEventPropertyValue> right) =>
+        left.Zip(right, ReferenceEquals).All(same => same);
+}

@@ -111,6 +111,17 @@ Describe 'docker-compose files' -Skip:(-not $script:DockerAvailable) {
         $worker.environment.EmailOutbox__PollIntervalSeconds | Should -Be '5'
     }
 
+    It 'production and uat workers pass the outbox retention settings through with defaults (<file>)' -ForEach @(
+        @{ file = 'docker-compose.production.yml' }
+        @{ file = 'docker-compose.uat.yml' }
+    ) {
+        $envFile = Join-Path $TestDrive 'env-retention'
+        New-ProductionEnvFile -Path $envFile
+        $worker = (Get-ComposeConfig -File $file -EnvFile $envFile).Config.services.worker
+        $worker.environment.OutboxRetention__Enabled | Should -Be 'true'
+        $worker.environment.OutboxRetention__Days | Should -Be '90'
+    }
+
     It '<file> refuses to resolve without SMTP_HOST and says how to fix it' -ForEach @(
         @{ file = 'docker-compose.production.yml' }
         @{ file = 'docker-compose.uat.yml' }
