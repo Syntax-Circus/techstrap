@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace TechStrap.Domain.Rules;
@@ -49,6 +50,49 @@ internal static partial class Guard
         }
 
         return DomainResult<string>.Ok(text);
+    }
+
+    /// <summary>
+    /// Blank becomes null. A value must be an absolute https URL with a host and no user info, or an http URL for the loopback hosts localhost and 127.0.0.1
+    /// (a developer's machine); anything else is "{target}-invalid". The logo is rendered as an image source in emails and on the portal, so javascript:, data:,
+    /// file: and relative paths never get in. The Contracts twin is <c>BrandingRules.IsAcceptableLogoUrl</c>; a parity test keeps them equal.
+    /// </summary>
+    public static DomainResult<string?> OptionalImageUrl(string? value, int maxLength, string target)
+    {
+        var text = value?.Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            return DomainResult<string?>.Ok(null);
+        }
+
+        if (text.Length > maxLength)
+        {
+            return DomainErrors.Validation($"{target}-too-long", $"{target} must be at most {maxLength} characters.", target);
+        }
+
+        var normalised = NormaliseSafeImageUrl(text);
+        if (normalised is null)
+        {
+            return DomainErrors.Validation($"{target}-invalid", $"{target} must be an https URL (or http for localhost).", target);
+        }
+
+        // The stored form is the parsed one (lower-case scheme and host, unsafe characters percent-encoded), so the email renderer's "https://" check holds for every accepted value.
+        return normalised.Length > maxLength
+            ? DomainErrors.Validation($"{target}-too-long", $"{target} must be at most {maxLength} characters.", target)
+            : DomainResult<string?>.Ok(normalised);
+    }
+
+    private static string? NormaliseSafeImageUrl(string text)
+    {
+        if (text.Any(c => char.IsWhiteSpace(c) || char.IsControl(c) || char.GetUnicodeCategory(c) == UnicodeCategory.Format)
+            || !Uri.TryCreate(text, UriKind.Absolute, out var uri) || uri.UserInfo.Length > 0 || uri.Host.Length == 0)
+        {
+            return null;
+        }
+
+        return uri.Scheme == Uri.UriSchemeHttps || (uri.Scheme == Uri.UriSchemeHttp && uri.Host is "localhost" or "127.0.0.1")
+            ? uri.AbsoluteUri
+            : null;
     }
 
     /// <summary>Normalises "#aabbcc" to "#AABBCC".</summary>

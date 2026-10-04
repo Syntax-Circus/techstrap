@@ -16,4 +16,43 @@ Describe 'Admin browser scripts' {
 
         $LASTEXITCODE | Should -Be 0 -Because $output
     }
+
+    It 'passes the node:test suite for the browser preferences (storage never throws, theme values)' {
+        if (-not $script:Node) {
+            Set-ItResult -Skipped -Because 'node is not installed, so the preferences.js tests cannot run'
+            return
+        }
+
+        $testFile = Join-Path $script:RepoRoot 'tests/TechStrap.Admin.Tests/js/preferences.test.mjs'
+
+        $output = & node --test $testFile 2>&1 | Out-String
+
+        $LASTEXITCODE | Should -Be 0 -Because $output
+    }
+
+    It 'passes the node:test suite for the clipboard helpers' {
+        if (-not $script:Node) {
+            Set-ItResult -Skipped -Because 'node is not installed, so the clipboard.js tests cannot run'
+            return
+        }
+
+        $testFile = Join-Path $script:RepoRoot 'tests/TechStrap.Admin.Tests/js/clipboard.test.mjs'
+
+        $output = & node --test $testFile 2>&1 | Out-String
+
+        $LASTEXITCODE | Should -Be 0 -Because $output
+    }
+
+    It 'passes the node:test suite for the dialog module (Esc and a stray native close can never dismiss a locked dialog)' {
+        if (-not $script:Node) {
+            Set-ItResult -Skipped -Because 'node is not installed, so the dialog.js tests cannot run'
+            return
+        }
+
+        $testFile = Join-Path $script:RepoRoot 'tests/TechStrap.Admin.Tests/js/dialog.test.mjs'
+
+        $output = & node --test $testFile 2>&1 | Out-String
+
+        $LASTEXITCODE | Should -Be 0 -Because $output
+    }
 }

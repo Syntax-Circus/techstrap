@@ -249,6 +249,7 @@ Conventions:
 | `POST /api/products/{id}/api-keys` (Admin) | `CreateProductApiKeyRequestHandler` | `IProductRepository`, `IApiKeyHasher`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW, hasher | 201 `CreateProductApiKeyResponse` (plain key shown once); 404; 400 invalid kind | H, C, I | D-001 |
 | `DELETE /api/products/{id}/api-keys/{keyId}` (Admin) | `RevokeProductApiKeyRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 204; 404 | H, C, I | D-001 |
 | `GET /api/tags` (Agent) | `ListTagsRequestHandler` | `ITagRepository` | EF repos | 200 `TagDto[]` | H, C | none |
+| `GET /api/tags/summary` (Admin) | `ListTagSummariesRequestHandler` | `ITagRepository` | EF repos (one grouped count) | 200 `TagSummaryDto[]` | H, C | D-041 |
 | `POST /api/tags` (Admin) | `CreateTagRequestHandler` | `ITagRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 201 `TagDto`; 409 duplicate slug | H, C, I | none |
 | `PUT /api/tags/{id}` (Admin) | `UpdateTagRequestHandler` | `ITagRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 200 `TagDto`; 404; 409 | H, C | none |
 | `DELETE /api/tags/{id}` (Admin) | `DeleteTagRequestHandler` | `ITagRepository`, `ITicketRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 204; 404; 409 in use | H, C, I | none |

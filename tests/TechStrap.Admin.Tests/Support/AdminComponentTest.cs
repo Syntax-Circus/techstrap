@@ -24,6 +24,11 @@ public abstract class AdminComponentTest : BunitContext
         Dialogs = JSInterop.SetupModule("./js/dialog.js");
         Dialogs.SetupVoid("open", _ => true).SetVoidResult();
         Dialogs.SetupVoid("close", _ => true).SetVoidResult();
+
+        // MainLayout loads the stored preferences on its first render; by default nothing is stored (shortcuts on, theme auto).
+        Preferences = JSInterop.SetupModule("./js/preferences.js");
+        Preferences.Setup<StoredPreferences>("load", _ => true).SetResult(new StoredPreferences(SingleKeyShortcuts: true, Theme: "auto"));
+        Preferences.Setup<bool>("save", _ => true).SetResult(true);
     }
 
     protected FakeTimeProvider Time { get; }
@@ -33,6 +38,9 @@ public abstract class AdminComponentTest : BunitContext
 
     /// <summary>The <c>dialog.js</c> module double; use <c>VerifyInvoke("open")</c> and read the arguments of the invocation.</summary>
     protected BunitJSModuleInterop Dialogs { get; }
+
+    /// <summary>The <c>preferences.js</c> module double: <c>load</c> answers the defaults and <c>save</c> succeeds; read the arguments from <c>Invocations["save"]</c>.</summary>
+    protected BunitJSModuleInterop Preferences { get; }
 
     protected ShortcutService ShortcutService => Services.GetRequiredService<ShortcutService>();
 

@@ -1,0 +1,26 @@
+// Tags page (PHASE-07b): the colour row and the delete count.
+
+.ts-colour-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+
+  .form-control {
+    max-width: 12rem;
+    font-family: var(--ts-font-mono);
+  }
+}
+
+.ts-colour-preview {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ts-tag-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-delete-count {
+  margin: 0 0 8px;
+  font: 600 .9375rem var(--ts-font-mono);
+}

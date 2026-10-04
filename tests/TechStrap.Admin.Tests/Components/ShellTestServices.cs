@@ -22,6 +22,11 @@ internal static class ShellTestServices
         agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(Result<AgentDto>.Success(new AgentDto(Guid.NewGuid(), "Sam", "sam@orbitly.test", role, true, null, null)));
         context.AddAuthorization().SetAuthorized("Sam Agent");
         context.Services.AddSingleton(agents);
+
+        // The rail asks this once for an admin session (the badge). A plain agent must never reach it; tests read it back with GetRequiredService.
+        var deadLetters = Substitute.For<IDeadLettersClient>();
+        deadLetters.CountAsync(Arg.Any<CancellationToken>()).Returns(Result<int>.Success(0));
+        context.Services.AddSingleton(deadLetters);
         context.Services.AddSingleton<AgentSession>();
         context.Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(new AgentGroupOptions()));
         context.Services.AddSingleton<AntiforgeryStateProvider, NoTokenAntiforgeryStateProvider>();

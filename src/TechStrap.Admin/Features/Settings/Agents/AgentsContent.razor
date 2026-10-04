@@ -1,0 +1,115 @@
+<PageTitle>@AgentsCopy.Heading &middot; Settings</PageTitle>
+    <div class="ts-settings ts-agents">
+        <h1>@AgentsCopy.Heading</h1>
+        <p class="ts-field-note ts-roles-note">@AgentsCopy.RolesNote</p>
+
+        @if (_rowError is not null)
+        {
+            <div class="ts-conflict" role="alert">
+                <p>@_rowError</p>
+                @if (_rowUncertain)
+                {
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ReloadAsync">@AgentsCopy.ReloadList</button>
+                }
+            </div>
+        }
+
+        @if (_loading && _rows.Count == 0)
+        {
+            <LoadingState Rows="5" Label="@AgentsCopy.Loading" />
+        }
+        else if (_error is not null)
+        {
+            <ErrorState Message="@_error" OnRetry="ReloadAsync" />
+        }
+        else if (_rows.Count == 0 && _total == 0)
+        {
+            <EmptyState Heading="@AgentsCopy.NoAgents" />
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table ts-ledger ts-settings-table" aria-busy="@(_loading ? "true" : null)">
+                    <thead>
+                        <tr>
+                            <th scope="col">@AgentsCopy.ColumnName</th>
+                            <th scope="col">@AgentsCopy.ColumnEmail</th>
+                            <th scope="col">@AgentsCopy.ColumnRole</th>
+                            <th scope="col">@AgentsCopy.ColumnStatus</th>
+                            <th scope="col">@AgentsCopy.ColumnLastSeen</th>
+                            <th scope="col"><span class="visually-hidden">@AgentsCopy.ColumnActions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in _rows)
+                        {
+                            <tr @key="row.Id" data-agent="@row.Id">
+                                <td>@row.DisplayName @if (IsSelf(row)) { <span class="ts-you">@AgentsCopy.You</span> }</td>
+                                <td>@(row.Email ?? AgentsCopy.Unknown)</td>
+                                <td>
+                                    @if (row.Role is { } role)
+                                    {
+                                        <span class="@("ts-role ts-role--" + role.ToLowerInvariant())">@role</span>
+                                    }
+                                    else
+                                    {
+                                        @AgentsCopy.Unknown
+                                    }
+                                </td>
+                                <td>
+                                    @if (row.IsActive is { } active)
+                                    {
+                                        <span class="ts-pill @(active ? "ts-pill--on" : "ts-pill--off")">@(active ? AgentsCopy.Active : AgentsCopy.Inactive)</span>
+                                    }
+                                    else
+                                    {
+                                        @AgentsCopy.Unknown
+                                    }
+                                </td>
+                                <td>
+                                    @if (row.LastSeenAt is { } seen)
+                                    {
+                                        <RelativeTime When="seen" />
+                                    }
+                                    else
+                                    {
+                                        @AgentsCopy.NeverSeen
+                                    }
+                                </td>
+                                <td class="ts-settings-actions">
+                                    @if (row.IsActive == true)
+                                    {
+                                        <button type="button" class="btn btn-outline-secondary ts-deactivate" disabled="@_busy" @onclick="() => AskDeactivate(row)">@AgentsCopy.Deactivate</button>
+                                    }
+                                    else if (row.IsActive == false)
+                                    {
+                                        <button type="button" class="btn btn-outline-secondary ts-activate" disabled="@_busy" @onclick="() => ActivateAsync(row)">@AgentsCopy.Activate</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <PagerControl Page="_page" PageSize="AgentsCopy.PageSize" TotalCount="_total" OnPageChanged="OnPageChanged" />
+        }
+
+        <ConfirmDialog Open="@(_deactivating is not null)" Title="@(_deactivating is null ? string.Empty : AgentsCopy.DeactivateTitle(_deactivating.DisplayName))"
+                       ConfirmLabel="@AgentsCopy.DeactivateConfirm" Danger="true" Busy="_busy" ConfirmDisabled="_uncertain" Error="@_dialogError"
+                       OnConfirm="ConfirmDeactivateAsync" OnCancel="CancelDeactivate">
+            @if (_deactivating is not null)
+            {
+                <p>@AgentsCopy.DeactivateBody</p>
+                @if (IsSelf(_deactivating))
+                {
+                    <p>@AgentsCopy.DeactivateSelfWarning</p>
+                }
+                @if (_uncertain)
+                {
+                    <div class="ts-dialog-recovery">
+                        <button type="button" class="btn btn-link" @onclick="ReloadAfterUncertainAsync">@AgentsCopy.ReloadList</button>
+                    </div>
+                }
+            }
+        </ConfirmDialog>
+    </div>

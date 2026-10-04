@@ -1,0 +1,83 @@
+<PageTitle>@AuditCopy.Heading &middot; Settings</PageTitle>
+    <div class="ts-settings ts-audit">
+        <h1>@AuditCopy.Heading</h1>
+        <p class="ts-field-help">@AuditCopy.Intro</p>
+
+        <div class="ts-filterbar">
+            <div class="ts-field">
+                <label for="ts-audit-subject" class="form-label">@AuditCopy.SubjectFilter</label>
+                <select id="ts-audit-subject" class="form-select" @onchange="OnSubjectChanged">
+                    <option value="" selected="@(_subject is null)">@AuditCopy.AllSubjects</option>
+                    @foreach (var subject in Subjects)
+                    {
+                        <option value="@subject" selected="@(_subject == subject)">@AdminEventSummaryFactory.SubjectLabel(subject)</option>
+                    }
+                </select>
+            </div>
+            <div class="ts-field">
+                <label for="ts-audit-actor" class="form-label">@AuditCopy.ActorFilter</label>
+                <select id="ts-audit-actor" class="form-select" @onchange="OnActorChanged">
+                    <option value="" selected="@(_actor is null)">@AuditCopy.AllActors</option>
+                    @foreach (var agent in _agents)
+                    {
+                        <option value="@agent.Id" selected="@(_actor == agent.Id)">@(string.IsNullOrWhiteSpace(agent.Name) ? agent.DisplayLabel : agent.Name)</option>
+                    }
+                </select>
+            </div>
+            <button type="button" class="btn btn-outline-secondary" @onclick="RefreshAsync">@AuditCopy.Refresh</button>
+        </div>
+        <p class="visually-hidden" role="status">@_announcement</p>
+
+        @if (_loading && _rows.Count == 0)
+        {
+            <LoadingState Rows="6" Label="@AuditCopy.Loading" />
+        }
+        else if (_error is not null)
+        {
+            <ErrorState Message="@_error" OnRetry="RefreshAsync" />
+        }
+        else if (_rows.Count == 0 && _total == 0)
+        {
+            @if (_subject is not null || _actor is not null)
+            {
+                <EmptyState Heading="@AuditCopy.NoMatches">
+                    <a class="btn btn-outline-secondary" href="/settings/audit">@AuditCopy.ClearFilters</a>
+                </EmptyState>
+            }
+            else
+            {
+                <EmptyState Heading="@AuditCopy.NoEvents" />
+            }
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table ts-ledger ts-settings-table" aria-busy="@(_loading ? "true" : null)">
+                    <thead>
+                        <tr>
+                            <th scope="col">@AuditCopy.ColumnWhen</th>
+                            <th scope="col">@AuditCopy.ColumnWho</th>
+                            <th scope="col">@AuditCopy.ColumnWhat</th>
+                            <th scope="col">@AuditCopy.ColumnSummary</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in _rows)
+                        {
+                            <tr @key="row.Id">
+                                <td><RelativeTime When="row.At" /></td>
+                                <td>@row.Actor</td>
+                                <td>@row.Subject</td>
+                                <td class="ts-audit-summary">@row.Summary</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <PagerControl Page="_page" PageSize="AuditCopy.PageSize" TotalCount="_total" OnPageChanged="OnPageChanged" />
+        }
+    </div>
+
+@code {
+    private static IReadOnlyList<string> Subjects => AuditFilters.Subjects;
+}

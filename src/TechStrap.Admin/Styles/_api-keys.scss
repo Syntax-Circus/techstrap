@@ -1,0 +1,60 @@
+// API keys (PHASE-07b): the kind badge, the one-time secret and the revoked row. The kind is always the word; the border style (solid for Trusted, dashed for Public) only repeats it.
+
+.ts-kind {
+  display: inline-block;
+  padding: 1px 8px;
+  font: 600 .6875rem var(--ts-font-mono);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--sheet);
+  border: 2px solid var(--ink);
+}
+
+.ts-kind--public {
+  border-style: dashed;
+}
+
+.ts-kind-explained {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: .8125rem;
+  color: var(--ink-2);
+}
+
+.ts-key-kind-line {
+  overflow-wrap: anywhere;
+}
+
+.ts-key-secret {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.ts-key-secret-input {
+  min-width: 0;
+  font-family: var(--ts-font-mono);
+  font-size: .8125rem;
+}
+
+.ts-key-copy-status {
+  min-height: 1.25rem;
+  margin: 4px 0 8px;
+  font-size: .8125rem;
+}
+
+// A revoked key stays in the list so the history is visible, but it reads as finished: struck through and muted, with the word "Revoked" in its status.
+.ts-key--revoked {
+  color: var(--ink-2);
+
+  td:not(:last-child) {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+  }
+
+  .ts-pill,
+  .ts-pill + time {
+    text-decoration: none;
+  }
+}

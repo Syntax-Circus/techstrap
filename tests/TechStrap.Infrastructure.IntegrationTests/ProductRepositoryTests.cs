@@ -19,7 +19,7 @@ public sealed class ProductRepositoryTests(PostgresFixture postgres) : PostgresI
     public async Task A_saved_product_is_found_by_id_and_by_key_with_all_fields()
     {
         await using var host = new PersistenceTestHost(Database);
-        var branding = ProductBranding.Create("Orbitly Cloud", "/logo.svg", "#112233", "help@orbitly.example", "reply@orbitly.example").Value;
+        var branding = ProductBranding.Create("Orbitly Cloud", "https://cdn.orbitly.example/logo.svg", "#112233", "help@orbitly.example", "reply@orbitly.example").Value;
         var product = Product.Create("orbitly", "Orbitly", "ORB", branding, host.Clock).Value;
         await using (var scope = host.CreateScope())
         {

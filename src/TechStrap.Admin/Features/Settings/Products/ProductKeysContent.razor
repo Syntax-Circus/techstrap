@@ -1,0 +1,20 @@
+<PageTitle>@ApiKeysCopy.Heading &middot; Products</PageTitle>
+    <div class="ts-settings">
+        <p class="ts-settings-back"><a href="/settings/products">&larr; @ProductsCopy.BackToProducts</a></p>
+        @if (_loading)
+        {
+            <LoadingState Rows="3" Label="@ProductsCopy.EditorLoading" />
+        }
+        else if (_error is not null)
+        {
+            <ErrorState Message="@_error" OnRetry="@(_gone ? default(EventCallback) : EventCallback.Factory.Create(this, LoadAsync))" />
+        }
+        else
+        {
+            <div class="ts-settings-head">
+                <h1>@_product!.Name</h1>
+                <a href="/settings/products/@_product.Id">@ProductsCopy.Edit</a>
+            </div>
+            <ApiKeysPanel ProductId="_product.Id" ProductName="@_product.Branding.DisplayName" />
+        }
+    </div>

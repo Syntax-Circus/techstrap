@@ -1,0 +1,53 @@
+<PageTitle>@ProductsCopy.Heading &middot; Settings</PageTitle>
+<div class="ts-settings">
+    <div class="ts-settings-head">
+        <h1>@ProductsCopy.Heading</h1>
+        <a class="btn btn-primary" href="/settings/products/new">@ProductsCopy.NewProduct</a>
+    </div>
+
+    @if (_loading)
+    {
+        <LoadingState Rows="4" Label="@ProductsCopy.Loading" />
+    }
+    else if (_error is not null)
+    {
+        <ErrorState Message="@_error" OnRetry="LoadAsync" />
+    }
+    else if (_rows.Count == 0)
+    {
+        <EmptyState Heading="@ProductsCopy.NoProducts">
+            <p>@ProductsCopy.NoProductsHint</p>
+        </EmptyState>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table ts-ledger ts-settings-table">
+                <thead>
+                    <tr>
+                        <th scope="col">@ProductsCopy.ColumnName</th>
+                        <th scope="col">@ProductsCopy.ColumnKey</th>
+                        <th scope="col">@ProductsCopy.ColumnPrefix</th>
+                        <th scope="col">@ProductsCopy.ColumnStatus</th>
+                        <th scope="col"><span class="visually-hidden">@ProductsCopy.ColumnActions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in _rows)
+                    {
+                        <tr @key="row.Id" data-product="@row.Key">
+                            <td><a href="/settings/products/@row.Id">@row.Name</a></td>
+                            <td><code>@row.Key</code></td>
+                            <td><code>@row.NumberPrefix</code></td>
+                            <td><span class="ts-pill @(row.IsActive ? "ts-pill--on" : "ts-pill--off")">@(row.IsActive ? ProductsCopy.Active : ProductsCopy.Inactive)</span></td>
+                            <td class="ts-settings-actions">
+                                <a href="/settings/products/@row.Id">@ProductsCopy.Edit</a>
+                                <a href="/settings/products/@row.Id/keys">@ProductsCopy.ApiKeys</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

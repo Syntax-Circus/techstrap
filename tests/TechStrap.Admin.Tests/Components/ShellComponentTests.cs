@@ -49,7 +49,7 @@ public sealed class ShellComponentTests : AdminComponentTest
     }
 
     [Fact]
-    public async Task The_rail_marks_an_admin_and_has_no_settings_links_yet()
+    public async Task The_rail_marks_an_admin()
     {
         this.AddAgentShell(AgentRoles.Admin);
         await Services.GetRequiredService<AgentSession>().EnsureLoadedAsync(Xunit.TestContext.Current.CancellationToken);
@@ -57,8 +57,6 @@ public sealed class ShellComponentTests : AdminComponentTest
         var cut = Render<NavMenu>(p => p.SignedIn());
 
         cut.Find(".ts-rail-role").TextContent.ShouldBe("Admin");
-        cut.FindAll("a[href^='/settings']").ShouldBeEmpty();
-        cut.FindAll("a[href^='/ops']").ShouldBeEmpty();
     }
 
     [Fact]

@@ -6,12 +6,30 @@
     @if (Session.State == AgentSessionState.Ready)
     {
         <NavLink class="ts-rail-link" href="/queue" Match="NavLinkMatch.Prefix">@ShellCopy.QueueLink</NavLink>
+        @if (Session.IsAdmin)
+        {
+            <div class="ts-rail-group" role="group" aria-label="@ShellCopy.AdminLinksLabel">
+                <NavLink class="ts-rail-link" href="/settings/products" Match="NavLinkMatch.Prefix">@ShellCopy.ProductsLink</NavLink>
+                <NavLink class="ts-rail-link" href="/settings/agents" Match="NavLinkMatch.Prefix">@ShellCopy.AgentsLink</NavLink>
+                <NavLink class="ts-rail-link" href="/settings/tags" Match="NavLinkMatch.Prefix">@ShellCopy.TagsLink</NavLink>
+                <NavLink class="ts-rail-link" href="/settings/audit" Match="NavLinkMatch.Prefix">@ShellCopy.AuditLink</NavLink>
+                <NavLink class="ts-rail-link" href="/ops/dead-letters" Match="NavLinkMatch.Prefix">
+                    @ShellCopy.FailedEmailsLink
+                    @if (Failed.Count is > 0 and var failed)
+                    {
+                        <span class="ts-rail-badge" aria-hidden="true">@failed</span>
+                        <span class="visually-hidden">@ShellCopy.FailedEmailsCountLabel(failed)</span>
+                    }
+                </NavLink>
+            </div>
+        }
         <div class="ts-rail-user">
             <span class="ts-rail-name">@DisplayName</span>
             @if (Session.IsAdmin)
             {
                 <span class="ts-rail-role">Admin</span>
             }
+            <NavLink class="ts-rail-link" href="/account/notifications" Match="NavLinkMatch.Prefix">@ShellCopy.MySettingsLink</NavLink>
             <SignOutForm />
         </div>
     }

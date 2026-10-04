@@ -18,6 +18,7 @@ public partial class ConfirmDialog : IAsyncDisposable
     private ElementReference _title;
     private ElementReference _input;
     private IJSObjectReference? _module;
+    private DotNetObjectReference<ConfirmDialog>? _self;
     private bool _shown;
     private bool _openSeen;
     private string _typed = string.Empty;
@@ -64,6 +65,13 @@ public partial class ConfirmDialog : IAsyncDisposable
     [Parameter]
     public string? Error { get; set; }
 
+    /// <summary>
+    /// False while the owner refuses to be dismissed (the show-once API key before "stored" is ticked): Esc and a stray native close can never close the
+    /// browser's dialog, though Esc and Cancel still raise <see cref="OnCancel"/> so the owner can explain. <see cref="Busy"/> locks it the same way, silently.
+    /// </summary>
+    [Parameter]
+    public bool Dismissable { get; set; } = true;
+
     [Parameter]
     public EventCallback OnConfirm { get; set; }
 
@@ -75,6 +83,8 @@ public partial class ConfirmDialog : IAsyncDisposable
     private string BodyId => $"ts-dialog-body-{_id}";
 
     private string InputId => $"ts-dialog-input-{_id}";
+
+    private string? Lock => Busy ? "busy" : Dismissable ? null : "hold";
 
     private string CssClass => Danger ? "ts-dialog ts-dialog--danger" : "ts-dialog";
 
@@ -105,7 +115,8 @@ public partial class ConfirmDialog : IAsyncDisposable
         _module ??= await Js.InvokeAsync<IJSObjectReference>("import", ModulePath);
         if (wantOpen)
         {
-            await _module.InvokeVoidAsync("open", _dialog, RequiredText is null ? _title : _input);
+            _self ??= DotNetObjectReference.Create(this);
+            await _module.InvokeVoidAsync("open", _dialog, RequiredText is null ? _title : _input, _self);
         }
         else
         {
@@ -116,6 +127,32 @@ public partial class ConfirmDialog : IAsyncDisposable
         _shown = wantOpen;
     }
 
+    /// <summary>Called by <c>dialog.js</c> when the browser closed the dialog and the owner may dismiss it: that is a cancel. If the owner leaves it open, it is shown again.</summary>
+    [JSInvokable]
+    public async Task NativeClosed()
+    {
+        await InvokeAsync(async () =>
+        {
+            if (!Open)
+            {
+                // The owner already closed it (its OnCancel ran for the Esc that raised this close): a second cancel would repeat the owner's work.
+                return;
+            }
+
+            await CancelAsync();
+            if (Open)
+            {
+                // The browser's dialog is closed but .NET still wants it open: forget that it was shown, so the next render opens it again.
+                _shown = false;
+                StateHasChanged();
+            }
+        });
+    }
+
+    /// <summary>Called by <c>dialog.js</c> for an Esc it stopped on a held dialog, so the owner can say why the dialog stays.</summary>
+    [JSInvokable]
+    public Task EscapePressed() => InvokeAsync(CancelAsync);
+
     private void OnTyped(ChangeEventArgs e) => _typed = e.Value as string ?? string.Empty;
 
     private Task ConfirmAsync() => CanConfirm ? OnConfirm.InvokeAsync() : Task.CompletedTask;
@@ -124,6 +161,7 @@ public partial class ConfirmDialog : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        _self?.Dispose();
         if (_module is null)
         {
             return;

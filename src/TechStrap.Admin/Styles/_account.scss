@@ -1,0 +1,41 @@
+// My settings (PHASE-07b): the toggle lists and the public display name preview.
+
+.ts-account {
+  section {
+    margin-bottom: 8px;
+  }
+}
+
+.ts-toggle-list {
+  padding: 0;
+  margin: 8px 0;
+  list-style: none;
+
+  li {
+    margin-bottom: 6px;
+  }
+}
+
+.ts-theme-choice {
+  min-width: 0;
+  padding: 0;
+  margin: 8px 0;
+  border: 0;
+}
+
+.ts-public-name {
+  max-width: 560px;
+}
+
+.ts-public-name-preview {
+  margin: 6px 0 0;
+  font: 500 .8125rem var(--ts-font-mono);
+  overflow-wrap: anywhere;
+}
+
+.ts-field-saved {
+  margin: 4px 0 0;
+  padding-left: 8px;
+  font-size: .8125rem;
+  border-left: 3px solid var(--st-open);
+}

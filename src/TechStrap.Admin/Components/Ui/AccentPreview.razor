@@ -1,0 +1,17 @@
+<div class="ts-accent-preview" style="@_style">
+    <div class="ts-accent-preview-bar">
+        @if (!string.IsNullOrEmpty(LogoUrl))
+        {
+            <img class="ts-accent-preview-logo" src="@LogoUrl" alt="" referrerpolicy="no-referrer" />
+        }
+        <span class="ts-accent-preview-name">@DisplayName</span>
+    </div>
+    <p class="ts-accent-preview-sample">
+        <span class="ts-accent-preview-button">@AccentPreviewCopy.SampleButton</span>
+        <span class="ts-accent-preview-link">@AccentPreviewCopy.SampleLink</span>
+    </p>
+</div>
+@if (_note is not null)
+{
+    <p class="ts-field-note" role="note">@_note</p>
+}

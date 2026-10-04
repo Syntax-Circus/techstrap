@@ -44,6 +44,16 @@ internal sealed class TagRepository(TechStrapDbContext context) : ITagRepository
         return [.. records.Select(t => t.ToDomain())];
     }
 
+    public async Task<IReadOnlyList<TagUsage>> ListWithTicketCountsAsync(CancellationToken cancellationToken)
+    {
+        // One query: a correlated count over the join table, so a tag with no tickets reports 0 and no ticket rows are loaded.
+        var rows = await context.Set<TagRecord>().AsNoTracking()
+            .OrderBy(t => t.Name).ThenBy(t => t.Id)
+            .Select(t => new { Tag = t, TicketCount = context.Set<TicketTagRecord>().Count(link => link.TagId == t.Id) })
+            .ToListAsync(cancellationToken);
+        return [.. rows.Select(row => new TagUsage(row.Tag.ToDomain(), row.TicketCount))];
+    }
+
     public void Add(Tag tag) => context.Set<TagRecord>().Add(tag.ToRecord());
 
     public void Update(Tag tag) => tag.CopyTo(context.FindLoaded<TagRecord>(tag.Id));

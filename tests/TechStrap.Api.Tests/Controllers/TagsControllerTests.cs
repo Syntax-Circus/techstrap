@@ -67,4 +67,18 @@ public sealed class TagsControllerTests
         result.ShouldBeOfType<NoContentResult>();
         await handler.Received(1).HandleAsync(Tag.Id, true, cancellation.Token);
     }
+
+    [Fact]
+    public async Task ListSummaries_DelegatesAndPassesCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        IReadOnlyList<TagSummaryDto> summaries = [new TagSummaryDto(Tag.Id, "bug", "Bug", "#DC2626", 7)];
+        var handler = Substitute.For<IListTagSummariesRequestHandler>();
+        handler.HandleAsync(cancellation.Token).Returns(Result<IReadOnlyList<TagSummaryDto>>.Success(summaries));
+
+        var result = await ControllerTestContext.For<TagsController>().ListSummaries(handler, cancellation.Token);
+
+        result.ShouldBeOfType<OkObjectResult>().Value.ShouldBe(summaries);
+        await handler.Received(1).HandleAsync(cancellation.Token);
+    }
 }

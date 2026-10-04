@@ -1,0 +1,81 @@
+@page "/account/notifications"
+@attribute [Authorize]
+
+<PageTitle>@MySettingsCopy.Heading</PageTitle>
+<div class="ts-settings ts-account">
+    <h1>@MySettingsCopy.Heading</h1>
+
+    <section aria-labelledby="ts-alerts-heading">
+        <h2 id="ts-alerts-heading">@MySettingsCopy.AlertsHeading</h2>
+        <p class="ts-field-help">@MySettingsCopy.AlertsHelp</p>
+        @if (_loadingPrefs)
+        {
+            <LoadingState Rows="2" Label="@MySettingsCopy.AlertsLoading" />
+        }
+        else if (_prefsError is not null)
+        {
+            <ErrorState Message="@_prefsError" OnRetry="LoadPreferencesAsync" />
+        }
+        else if (_prefs.Count == 0)
+        {
+            <EmptyState Heading="@MySettingsCopy.NoProducts" />
+        }
+        else
+        {
+            @if (_saveError is not null)
+            {
+                <div class="ts-conflict" role="alert">
+                    <p>@_saveError</p>
+                    @if (_saveUncertain)
+                    {
+                        <button type="button" class="btn btn-outline-secondary" @onclick="LoadPreferencesAsync">@MySettingsCopy.Reload</button>
+                    }
+                </div>
+            }
+            <ul class="ts-toggle-list">
+                @foreach (var pref in _prefs)
+                {
+                    <li @key="(pref.ProductId, _version)" class="form-check">
+                        <input id="@($"ts-alert-{pref.ProductId}")" class="form-check-input" type="checkbox" checked="@pref.NotifyNewTicket" disabled="@(_saving || _saveUncertain)"
+                               @onchange="e => ToggleAsync(pref, e.Value is true)" />
+                        <label class="form-check-label" for="@($"ts-alert-{pref.ProductId}")">@MySettingsCopy.AlertLabel(pref.ProductName)</label>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <section aria-labelledby="ts-keyboard-heading">
+        <h2 id="ts-keyboard-heading">@MySettingsCopy.KeyboardHeading</h2>
+        <div class="form-check">
+            <input id="ts-keyboard" class="form-check-input" type="checkbox" checked="@Preferences.SingleKeyShortcuts" @onchange="OnKeyboardChangedAsync" />
+            <label class="form-check-label" for="ts-keyboard">@MySettingsCopy.KeyboardLabel</label>
+        </div>
+        <p class="ts-field-help">@MySettingsCopy.KeyboardHelp</p>
+    </section>
+
+    <section aria-labelledby="ts-theme-heading">
+        <h2 id="ts-theme-heading">@MySettingsCopy.ThemeHeading</h2>
+        <fieldset class="ts-theme-choice">
+            <legend class="visually-hidden">@MySettingsCopy.ThemeHeading</legend>
+            @foreach (var (value, label) in Themes)
+            {
+                <div class="form-check">
+                    <input id="@($"ts-theme-{ThemeId(value)}")" class="form-check-input" type="radio" name="ts-theme" value="@ThemeId(value)" checked="@(Preferences.Theme == value)"
+                           @onchange="() => OnThemeChangedAsync(value)" />
+                    <label class="form-check-label" for="@($"ts-theme-{ThemeId(value)}")">@label</label>
+                </div>
+            }
+        </fieldset>
+        <p class="ts-field-help">@MySettingsCopy.ThemeHelp</p>
+    </section>
+
+    <section aria-labelledby="ts-name-heading">
+        <h2 id="ts-name-heading">@MySettingsCopy.NameHeading</h2>
+        <PublicDisplayNameField ProductDisplayName="@_productDisplayName" />
+    </section>
+</div>
+
+@code {
+    private static string ThemeId(ThemeChoice theme) => theme.ToString().ToLowerInvariant();
+}

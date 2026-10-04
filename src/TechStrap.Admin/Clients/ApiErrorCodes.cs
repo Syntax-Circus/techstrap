@@ -34,6 +34,19 @@ public static class ApiErrorCodes
     public const string AgentIdentityInvalid = "agent-identity-invalid";
     public const string AgentNotProvisioned = "agent-not-provisioned";
     public const string AdminAccessRequired = "admin-access-required";
+    public const string TagSlugTaken = "tag-slug-taken";
+    public const string TagInUse = "tag-in-use";
+    public const string LastActiveAdmin = "last-active-admin";
+    public const string ProductKeyTaken = "product-key-taken";
+    public const string ApiKeyKindInvalid = "api-key-kind-invalid";
+    public const string ApiKeyNotFound = "api-key-not-found";
+    public const string ApiKeyRevoked = "api-key-revoked";
+    public const string OutboxNotFound = "outbox-not-found";
+    public const string OutboxNotDeadLettered = "outbox-not-dead-lettered";
+    public const string AdminEventSubjectTypeInvalid = "admin-event-subject-type-invalid";
+    public const string PublicDisplayNameTooLong = "public-display-name-too-long";
+    public const string PublicDisplayNameInvalid = "public-display-name-invalid";
+    public const string LogoPathInvalid = "logo-path-invalid";
 
     /// <summary>A write that failed (any 5xx, transport error, timeout or unreadable answer) this way may still have been applied (the answer was lost, late or unreadable): say so and offer a reload, never a bare retry.</summary>
     public static bool IsUncertainWrite(string code) => code is ApiTimeout or ApiUnavailable or UnexpectedResponse or ApiError;

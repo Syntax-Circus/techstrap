@@ -60,6 +60,9 @@ builder.Services.AddBlazorTokenForwarding(builder.Configuration, AdminOptionsReg
 
 builder.Services.AddAdminAuthentication();
 builder.Services.AddCascadingAuthenticationState();
+// The default HttpClient logging handler writes raw request header values into structured log state at Trace (an OTLP exporter's x-api-key, an Authorization header). No factory client keeps it:
+// this default applies to every client the factory creates, the OTLP exporters' included, and removes only the logging handlers (auth, forwarded-IP and resilience handlers are untouched).
+builder.Services.ConfigureHttpClientDefaults(http => http.RemoveAllLoggers());
 // The named API clients, the typed clients over them and the scoped AgentSession (the layout's AgentGate asks it who is signed in).
 builder.Services.AddTechStrapApiClients();
 builder.Services.AddShell();

@@ -1,0 +1,146 @@
+<PageTitle>@TagsCopy.Heading &middot; Settings</PageTitle>
+    <div class="ts-settings ts-tags">
+        <h1>@TagsCopy.Heading</h1>
+
+        <form class="ts-form ts-tag-create" novalidate @onsubmit="CreateAsync">
+            <h2>@TagsCopy.NewHeading</h2>
+            <fieldset disabled="@_creating">
+                <div class="ts-field">
+                    <label for="ts-tag-name" class="form-label">@TagsCopy.NameLabel</label>
+                    <input id="ts-tag-name" type="text" class="form-control @(Err(_createErrors, ApiFields.Name) is null ? null : "is-invalid")" value="@_newName" autocomplete="off" @oninput="OnNewNameInput" @onblur="() => CheckCreate(ApiFields.Name)" />
+                    @ErrorLine("ts-tag-name-error", Err(_createErrors, ApiFields.Name))
+                </div>
+                <div class="ts-field">
+                    <label for="ts-tag-slug" class="form-label">@TagsCopy.SlugLabel</label>
+                    <input id="ts-tag-slug" type="text" class="form-control @(Err(_createErrors, ApiFields.Slug) is null ? null : "is-invalid")" value="@_newSlug" autocomplete="off" spellcheck="false" @oninput="OnNewSlugInput" @onblur="() => CheckCreate(ApiFields.Slug)" />
+                    <p class="ts-field-help">@TagsCopy.SlugHelp</p>
+                    @ErrorLine("ts-tag-slug-error", Err(_createErrors, ApiFields.Slug))
+                </div>
+                <div class="ts-field">
+                    <label for="ts-tag-colour" class="form-label">@TagsCopy.ColourLabel</label>
+                    <div class="ts-colour-row">
+                        <input id="ts-tag-colour" type="text" class="form-control @(Err(_createErrors, ApiFields.Colour) is null ? null : "is-invalid")" value="@_newColour" autocomplete="off" spellcheck="false" @oninput="OnNewColourInput" @onblur="() => CheckCreate(ApiFields.Colour)" />
+                        <span class="ts-colour-preview"><TagChip Name="@(string.IsNullOrWhiteSpace(_newName) ? TagsCopy.NewHeading : _newName.Trim())" Colour="@_newColour" /></span>
+                    </div>
+                    <p class="ts-field-help">@TagsCopy.ColourHelp</p>
+                    @ErrorLine("ts-tag-colour-error", Err(_createErrors, ApiFields.Colour))
+                </div>
+            </fieldset>
+            @if (_createFormError is not null)
+            {
+                <p class="ts-form-error" role="alert">@_createFormError</p>
+            }
+            <div class="ts-form-actions">
+                <button type="submit" class="btn btn-primary" disabled="@_creating">@(_creating ? TagsCopy.Creating : TagsCopy.Create)</button>
+            </div>
+        </form>
+
+        @if (_rowError is not null)
+        {
+            <div class="ts-conflict" role="alert">
+                <p>@_rowError</p>
+                @if (_rowUncertain)
+                {
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ReloadAsync">@TagsCopy.Reload</button>
+                }
+            </div>
+        }
+
+        @if (_loading && _rows.Count == 0)
+        {
+            <LoadingState Rows="4" Label="@TagsCopy.Loading" />
+        }
+        else if (_error is not null)
+        {
+            <ErrorState Message="@_error" OnRetry="ReloadAsync" />
+        }
+        else if (_rows.Count == 0)
+        {
+            <EmptyState Heading="@TagsCopy.NoTags"><p>@TagsCopy.NoTagsHint</p></EmptyState>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table ts-ledger ts-settings-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">@TagsCopy.ColumnTag</th>
+                            <th scope="col">@TagsCopy.ColumnSlug</th>
+                            <th scope="col">@TagsCopy.ColumnTickets</th>
+                            <th scope="col"><span class="visually-hidden">@TagsCopy.ColumnActions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in _rows)
+                        {
+                            @if (_editing == row.Id)
+                            {
+                                <tr @key="row.Id" class="ts-tag-editing" data-tag="@row.Slug">
+                                    <td>
+                                        <label for="ts-edit-name" class="visually-hidden">@TagsCopy.NameLabel</label>
+                                        <input id="ts-edit-name" type="text" class="form-control @(Err(_editErrors, ApiFields.Name) is null ? null : "is-invalid")" value="@_editName" autocomplete="off" @oninput="e => _editName = e.Value?.ToString() ?? string.Empty" />
+                                        @ErrorLine("ts-edit-name-error", Err(_editErrors, ApiFields.Name))
+                                        <label for="ts-edit-colour" class="visually-hidden">@TagsCopy.ColourLabel</label>
+                                        <input id="ts-edit-colour" type="text" class="form-control @(Err(_editErrors, ApiFields.Colour) is null ? null : "is-invalid")" value="@_editColour" autocomplete="off" spellcheck="false" @oninput="e => _editColour = e.Value?.ToString() ?? string.Empty" />
+                                        @ErrorLine("ts-edit-colour-error", Err(_editErrors, ApiFields.Colour))
+                                    </td>
+                                    <td><code>@row.Slug</code></td>
+                                    <td>@row.TicketCount</td>
+                                    <td class="ts-settings-actions">
+                                        <button type="button" class="btn btn-primary ts-save" disabled="@_busy" @onclick="SaveEditAsync">@TagsCopy.Save</button>
+                                        <button type="button" class="btn btn-outline-secondary ts-cancel" disabled="@_busy" @onclick="CancelEdit">@TagsCopy.Cancel</button>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                <tr @key="row.Id" data-tag="@row.Slug">
+                                    <td><TagChip Name="@row.Name" Colour="@row.Colour" /></td>
+                                    <td><code>@row.Slug</code></td>
+                                    <td class="ts-tag-count">@row.TicketCount</td>
+                                    <td class="ts-settings-actions">
+                                        <button type="button" class="btn btn-outline-secondary ts-edit" disabled="@_busy" @onclick="() => BeginEdit(row)">@TagsCopy.Edit</button>
+                                        <button type="button" class="btn btn-outline-secondary ts-delete" disabled="@_busy" @onclick="() => AskDelete(row)">@TagsCopy.Delete</button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <ConfirmDialog Open="@(Deleting is not null)" Title="@(Deleting is null ? string.Empty : TagsCopy.DeleteTitle(Deleting.Name))" ConfirmLabel="@TagsCopy.DeleteConfirm"
+                       Danger="@(Deleting is { TicketCount: > 0 })" RequiredText="@(Deleting is { TicketCount: > 0 } ? Deleting.Name : null)"
+                       Busy="_deleteBusy" ConfirmDisabled="_deleteUncertain" Error="@_deleteError" OnConfirm="ConfirmDeleteAsync" OnCancel="CancelDelete">
+            @if (Deleting is { } tag)
+            {
+                @if (tag.TicketCount > 0)
+                {
+                    <p class="ts-delete-count"><strong>@TagsCopy.Tickets(tag.TicketCount)</strong></p>
+                    <p>@TagsCopy.DeleteInUseBody(tag.TicketCount)</p>
+                }
+                else
+                {
+                    <p>@TagsCopy.DeleteUnusedBody</p>
+                }
+                @if (_deleteUncertain)
+                {
+                    <div class="ts-dialog-recovery">
+                        <button type="button" class="btn btn-link" @onclick="ReloadAfterUncertainAsync">@TagsCopy.Reload</button>
+                    </div>
+                }
+            }
+        </ConfirmDialog>
+    </div>
+
+@code {
+    private static string? Err(Dictionary<string, string> errors, string field) => errors.GetValueOrDefault(field);
+
+    private RenderFragment ErrorLine(string id, string? message) => @<text>
+        @if (message is not null)
+        {
+            <p id="@id" class="ts-field-error" role="alert">@message</p>
+        }
+    </text>;
+}

@@ -1,0 +1,141 @@
+@using TechStrap.Contracts.ApiKeys
+<section class="ts-keys" aria-labelledby="ts-keys-heading">
+    <h2 id="ts-keys-heading">@ApiKeysCopy.Heading</h2>
+
+    <form class="ts-key-create ts-form" novalidate @onsubmit="CreateAsync">
+        <fieldset disabled="@(_busy || _createUncertain)">
+            <div class="ts-field">
+                <label for="ts-key-kind" class="form-label">@ApiKeysCopy.KindLabel</label>
+                <select id="ts-key-kind" class="form-select @(_kindError is null ? null : "is-invalid")" @onchange="OnKindChanged">
+                    <option value="" selected="@(_kind.Length == 0)">@ApiKeysCopy.KindPlaceholder</option>
+                    <option value="@ApiKeyKinds.Trusted" selected="@(_kind == ApiKeyKinds.Trusted)">@ApiKeyKinds.Trusted</option>
+                    <option value="@ApiKeyKinds.Public" selected="@(_kind == ApiKeyKinds.Public)">@ApiKeyKinds.Public</option>
+                </select>
+                <ul class="ts-kind-explained">
+                    <li>@ApiKeysCopy.TrustedLine</li>
+                    <li>@ApiKeysCopy.PublicLine</li>
+                </ul>
+                @if (_kindError is not null)
+                {
+                    <p id="ts-key-kind-error" class="ts-field-error" role="alert">@_kindError</p>
+                }
+            </div>
+            <div class="ts-field">
+                <label for="ts-key-label" class="form-label">@ApiKeysCopy.LabelLabel</label>
+                <input id="ts-key-label" type="text" class="form-control @(_labelError is null ? null : "is-invalid")" value="@_label" autocomplete="off" @oninput="OnLabelInput" />
+                <p class="ts-field-help">@ApiKeysCopy.LabelHelp</p>
+                @if (_labelError is not null)
+                {
+                    <p id="ts-key-label-error" class="ts-field-error" role="alert">@_labelError</p>
+                }
+            </div>
+        </fieldset>
+        <div class="ts-form-actions">
+            <button type="submit" class="btn btn-primary" disabled="@(_busy || _createUncertain || _kind.Length == 0)">@(_busy ? ApiKeysCopy.Creating : ApiKeysCopy.Create)</button>
+        </div>
+    </form>
+
+    @if (_formError is not null)
+    {
+        <p class="ts-form-error" role="alert">@_formError</p>
+    }
+    @if (_createUncertain)
+    {
+        <div class="ts-conflict" role="alert">
+            <p>@ApiKeysCopy.CreateUncertain</p>
+            <button type="button" class="btn btn-outline-secondary" @onclick="ReloadAsync">@ApiKeysCopy.ReloadList</button>
+        </div>
+    }
+
+    @if (_loading)
+    {
+        <LoadingState Rows="3" Label="@ApiKeysCopy.Loading" />
+    }
+    else if (_loadError is not null)
+    {
+        <ErrorState Message="@_loadError" OnRetry="ReloadAsync" />
+    }
+    else if (_rows.Count == 0)
+    {
+        <EmptyState Heading="@ApiKeysCopy.NoKeys">
+            <p>@ApiKeysCopy.NoKeysHint</p>
+            <ul class="ts-kind-explained">
+                <li>@ApiKeysCopy.TrustedLine</li>
+                <li>@ApiKeysCopy.PublicLine</li>
+            </ul>
+        </EmptyState>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table ts-ledger ts-settings-table ts-key-table">
+                <thead>
+                    <tr>
+                        <th scope="col">@ApiKeysCopy.ColumnLabel</th>
+                        <th scope="col">@ApiKeysCopy.ColumnKind</th>
+                        <th scope="col">@ApiKeysCopy.ColumnKey</th>
+                        <th scope="col">@ApiKeysCopy.ColumnCreated</th>
+                        <th scope="col">@ApiKeysCopy.ColumnLastUsed</th>
+                        <th scope="col">@ApiKeysCopy.ColumnStatus</th>
+                        <th scope="col"><span class="visually-hidden">@ApiKeysCopy.ColumnActions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in _rows)
+                    {
+                        <tr @key="row.Id" class="@(row.IsRevoked ? "ts-key--revoked" : null)" data-key-id="@row.Id">
+                            <td>@(string.IsNullOrWhiteSpace(row.Label) ? ApiKeysCopy.NoLabel : row.Label)</td>
+                            <td><ApiKeyKindBadge Kind="@row.Kind" /></td>
+                            <td><code>@row.KeyPrefix</code></td>
+                            <td><RelativeTime When="row.CreatedAt" /></td>
+                            <td>
+                                @if (row.LastUsedAt is { } used)
+                                {
+                                    <RelativeTime When="used" />
+                                }
+                                else
+                                {
+                                    @ApiKeysCopy.NeverUsed
+                                }
+                            </td>
+                            <td>
+                                @if (row.RevokedAt is { } revoked)
+                                {
+                                    <span class="ts-pill ts-pill--off">@ApiKeysCopy.Revoked</span>
+                                    <RelativeTime When="revoked" />
+                                }
+                                else
+                                {
+                                    <span class="ts-pill ts-pill--on">@ApiKeysCopy.Active</span>
+                                }
+                            </td>
+                            <td class="ts-settings-actions">
+                                @if (!row.IsRevoked)
+                                {
+                                    <button type="button" class="btn btn-outline-secondary ts-revoke" @onclick="() => AskRevoke(row)">@ApiKeysCopy.Revoke</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <ConfirmDialog Open="@(_revoking is not null)" Title="@(_revoking is null ? string.Empty : ApiKeysCopy.RevokeTitle(_revoking.Name))" ConfirmLabel="@ApiKeysCopy.RevokeConfirm" Danger="true"
+                   Busy="_revokeBusy" ConfirmDisabled="_revokeUncertain" Error="@_revokeError" OnConfirm="ConfirmRevokeAsync" OnCancel="CancelRevoke">
+        @if (_revoking is not null)
+        {
+            <p>@ApiKeysCopy.RevokeSubject(_revoking.Name, _revoking.KeyPrefix, _revoking.Kind, ProductName)</p>
+            <p>@ApiKeysCopy.RevokeBody @ApiKeysCopy.RevokeIrreversible</p>
+            @if (_revokeUncertain)
+            {
+                <div class="ts-dialog-recovery">
+                    <button type="button" class="btn btn-link" @onclick="ReloadAfterUncertainAsync">@ApiKeysCopy.ReloadList</button>
+                </div>
+            }
+        }
+    </ConfirmDialog>
+
+    <NewApiKeyDialog @ref="_dialog" ProductName="@ProductName" />
+</section>

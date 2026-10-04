@@ -1,0 +1,15 @@
+@if (Session.State == AgentSessionState.Ready)
+{
+    if (Session.IsAdmin)
+    {
+        @ChildContent
+    }
+    else
+    {
+        <NoAccessPage ThisPageOnly="true" />
+    }
+}
+else if (Session.State == AgentSessionState.NotLoaded)
+{
+    <p class="ts-gate" role="status">@GateCopy.Checking</p>
+}

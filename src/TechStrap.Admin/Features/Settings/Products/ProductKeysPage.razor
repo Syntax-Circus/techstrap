@@ -1,0 +1,11 @@
+@page "/settings/products/{Id:guid}/keys"
+@attribute [Authorize]
+
+<AdminOnly>
+    <ProductKeysContent Id="Id" />
+</AdminOnly>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+}

@@ -1,4 +1,5 @@
 using SyntaxCircus.Common;
+using TechStrap.Application.Persistence;
 using TechStrap.Contracts.Tags;
 using TechStrap.Domain.Tickets;
 
@@ -7,6 +8,8 @@ namespace TechStrap.Application.Tags;
 internal static class TagMapping
 {
     public static TagDto ToDto(Tag tag) => new(tag.Id, tag.Slug, tag.Name, tag.Colour);
+
+    public static TagSummaryDto ToSummaryDto(TagUsage usage) => new(usage.Tag.Id, usage.Tag.Slug, usage.Tag.Name, usage.Tag.Colour, usage.TicketCount);
 }
 
 internal static class TagErrors

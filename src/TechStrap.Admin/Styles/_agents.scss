@@ -1,0 +1,20 @@
+// Agents page (PHASE-07b): the read-only role badge. The role is the word; the border style only repeats it (solid for Admin, dashed for Agent).
+
+.ts-role {
+  display: inline-block;
+  padding: 1px 8px;
+  font: 600 .6875rem var(--ts-font-mono);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--sheet);
+  border: 2px solid var(--ink);
+}
+
+.ts-role--agent {
+  border-style: dashed;
+}
+
+.ts-you {
+  color: var(--ink-2);
+}

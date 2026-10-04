@@ -72,7 +72,7 @@
     erase a requester: those destructive privacy actions are Admin only (D-022).
 - **Persona: Admin** (usually the owner or a lead; occasional, high-stakes)
   - **Goals:** onboard a product (name, branding, from-address), mint and revoke
-    API keys correctly (trusted vs public), grant/revoke agent access and roles,
+    API keys correctly (trusted vs public), activate or deactivate agents (roles come from the IdP groups, D-029 and D-041),
     curate tags, watch operational health (dead-lettered emails), audit who
     changed configuration.
   - **Pain points:** fear of exposing a secret or choosing the wrong key kind;
@@ -185,7 +185,7 @@
 - **Trigger:** a new product needs a portal and/or in-app support.
 - **Steps:**
   1. [ ] Create the product: key (URL-safe, immutable once tickets exist), name,
-     branding (display name, logo, accent colour, email from-address, reply-to),
+     branding (display name, logo URL, accent colour, email from-address, reply-to),
      active flag.
   2. [ ] Preview how the branding looks in the portal header and email (live
      preview with the entered accent colour, including a contrast warning).
@@ -195,7 +195,7 @@
      explicit "I have stored this key" confirmation before it can be dismissed.
 - **Success state:** product active; key listed by label, kind, created date,
   last used, prefix only; secret never retrievable again.
-- **Failure, loading, and empty states:** duplicate key or invalid logo upload
+- **Failure, loading, and empty states:** duplicate key or invalid logo URL
   surface at the field; a product with no keys shows an empty state explaining
   the two key kinds; revoke is confirmed (see destructive actions).
 
@@ -225,7 +225,7 @@
 - **Steps:**
   1. [ ] Open a row: recipient, template type, ticket link, last error, attempts,
      timestamps.
-  2. [ ] **Retry** (re-queues) or **Discard** (confirmed; reason optional).
+  2. [ ] **Retry** (re-queues) or **Discard** (confirmed; the API takes no reason).
 - **Success state:** row leaves the list; an admin event is recorded.
 - **Failure, loading, and empty states:** empty = "No failed emails" (positive).
   Retry that fails again reappears with an updated error.
@@ -278,7 +278,7 @@ inventory, not the URLs.
 - **Screen/route:** Products `/settings/products`, `/settings/products/{id}`
   (branding), `/settings/products/{id}/keys` (API keys)
   - **Purpose:** configure products, branding and integrations.
-  - **Primary actions:** create/edit product and branding, upload logo, pick accent
+  - **Primary actions:** create/edit product and branding, set the logo URL (https, with a preview), pick accent
     colour (with contrast check), activate/deactivate, create/revoke API keys.
   - **Data/state:** product and key lists; secret held in memory only for the
     one-time reveal.
@@ -286,12 +286,12 @@ inventory, not the URLs.
     for filters (D-022).
 - **Screen/route:** Agents `/settings/agents`
   - **Purpose:** see who has access and what role they have.
-  - **Primary actions:** change role (Agent/Admin), deactivate/reactivate.
+  - **Primary actions:** deactivate/reactivate; the role is a read-only badge with the note "Roles come from your identity provider's groups." (D-029, D-041).
   - **Data/state:** agent list (name, email, role, active, last seen); agents appear
     by signing in (provisioned on first call); no manual invite. Agents read only
     the active-agent list (for assignment); this screen is Admin only (D-022).
-  - **Authorization:** Admin; an admin cannot demote or deactivate the last
-    admin (UI prevents it, API enforces it).
+  - **Authorization:** Admin; the API refuses to deactivate the last active
+    admin (409 last-active-admin) and the screen shows its message inline (D-041).
 - **Screen/route:** Tags `/settings/tags`
   - **Purpose:** curate the global tag set.
   - **Primary actions:** create, rename, recolour, delete (with usage count).
@@ -317,7 +317,7 @@ inventory, not the URLs.
   - **Authorization:** Admin.
 - **Screen/route:** Audit log `/settings/audit`
   - **Purpose:** who changed configuration (products, keys, agents, tags) and who ran privacy and operations actions (erase requester, delete ticket, dead-letter retry or discard).
-  - **Primary actions:** filter by actor, entity type, date; read-only.
+  - **Primary actions:** filter by actor and subject type; read-only (the API has no date or event-type filter, D-041).
   - **Data/state:** `ListAdminEventsRequestHandler`, paged, newest first. Ticket
     history lives on the ticket timeline, not here.
   - **Authorization:** Admin.
@@ -405,7 +405,7 @@ lifecycle work, state, callbacks or JS interop are paired `.razor` /
 - **Navigation and information hierarchy:**
   - Persistent left navigation (collapsible) with: Queue (with view counts),
     KB, and for Admins a Settings group (Products, Agents, Tags) and Operations
-    group (Dead letters with badge, Audit log). Current agent menu holds My
+    group (Failed emails with a count badge, Audit; in 07b the five admin links sit in one group, D-041). Current agent menu holds My
     settings and Sign out.
   - The queue and ticket detail are the product; everything else is secondary
     chrome. Ticket detail is a two-region layout: conversation (timeline plus

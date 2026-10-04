@@ -4,9 +4,9 @@
 signed-in agent. This page is for people who run it and people who extend it. What agents can do to a ticket through the API is in
 [TICKET-OPERATIONS.md](TICKET-OPERATIONS.md); how the API checks tokens is in [AGENT-AUTHENTICATION.md](../self-hosting/AGENT-AUTHENTICATION.md).
 
-PHASE-07 is delivered in three pull requests. **07a (this page)**: sign-in, the shell, the queue, ticket detail, the reply composer, the sidebar, spam, delete and
-erase. **07b**: settings (products, API keys, agents, tags, My settings, public display name), dead letters and the audit log. **07c**: polish, the command
-palette, compose and architecture rules, CSP.
+PHASE-07 is delivered in three pull requests. **07a**: sign-in, the shell, the queue, ticket detail, the reply composer, the sidebar, spam, delete and
+erase. **07b**: settings (products and their branding, API keys, agents, tags, My settings with the public display name), failed emails and the audit log.
+**07c**: polish, the command palette, compose and architecture rules, CSP. This page describes the app as it is once 07b is merged; the 07b parts say so.
 
 ## Run it locally
 
@@ -59,7 +59,9 @@ The Admin refuses to start with a message that names the missing variable. Value
    - refused (403): the **no-access page** with the reason (not in the agent group, deactivated, no email claim, identity not matched);
    - the token was rejected (401): "Your session has expired" with a sign-in button;
    - the API could not be reached: an alert with Retry, and still no page content.
-3. Delete and erase (and, in 07b, settings, dead letters and the audit log) show **only to an Admin** (`AgentDto.Role`). The API enforces the same rule, so hiding is a courtesy.
+3. Delete and erase, and the 07b pages (products, agents, tags, the audit log, failed emails), are **for an Admin only** (`AgentDto.Role`). A plain agent who types the address of one gets the
+   page-level no-access page ("You don't have access to this page.") and the page makes no API call; the navigation shows them no admin links. While the session is still loading the page shows
+   "Checking your access...", never the page and never a refusal. The API enforces the same rule (403 `admin-access-required`), so hiding is a courtesy. My settings is for every agent.
 4. Sign out is a POST to `/signout` with an antiforgery token; it ends the cookie session and the provider session.
 5. The Admin forwards the agent's **access token** to the API on every call, through named HTTP clients created per circuit (`IBlazorCircuitHttpClientFactory`). Reads are retried
    at most twice, with a short backoff, on a transport error, a timeout, 408, 502, 503 or 504 (never on 500, and there is no circuit breaker); **writes are never retried** (a retried reply would send twice).
@@ -73,6 +75,14 @@ The Admin refuses to start with a message that names the missing variable. Value
 | Queue, ticket detail, reply, note, status, assignee, priority, product, tags | yes | yes |
 | Mark as spam, Not spam | yes | yes |
 | Delete a ticket, erase a requester | no (not rendered) | yes, with a typed confirmation |
+| My settings (email alerts, keyboard shortcuts, theme, public display name) | yes | yes |
+| Products, branding, API keys | no (page-level no-access) | yes |
+| Agents: see the list, activate, deactivate | no | yes |
+| Tags: create, rename, recolour, delete | no | yes |
+| Audit log, failed emails (retry, discard) | no | yes |
+
+**Roles are read-only here (D-041).** The agents page shows each role as a badge, with the note "Roles come from your identity provider's groups." An admin can only activate or deactivate an
+agent. To make someone an admin, or an agent, change their group in the identity provider; the API reads it at their next sign-in.
 
 ## Authentik setup note
 
@@ -104,16 +114,20 @@ reads that one), and `TECHSTRAP_AGENT_GROUP` on **both** the API and the Admin.
 ```text
 src/TechStrap.Admin/
   Auth/           cookie + OIDC wiring, /signin and /signout endpoints, AgentSession (the API's answer to /me)
-  Clients/        ApiConnection and the typed clients (IAgentsClient, IProductsClient, ITagsClient, ITicketsClient, IRequestersClient), the /attachments/{id} pass-through
+  Clients/        ApiConnection and the typed clients (IAgentsClient, IProductsClient, ITagsClient, ITicketsClient, IRequestersClient, IAdminEventsClient, IDeadLettersClient), the /attachments/{id} pass-through
   Components/
-    Ui/           reusable primitives: LoadingState, ErrorState, EmptyState, ConfirmDialog, PagerControl, TagChip, RelativeTime, StatusStamp, PriorityMark, ...
+    Ui/           reusable primitives: LoadingState, ErrorState, EmptyState, ConfirmDialog, PagerControl, TagChip, RelativeTime, StatusStamp, PriorityMark, AdminOnly (the admin page guard), AccentPreview, ...
     Layout/       MainLayout, NavMenu, StatusBar, AgentGate, ShortcutHelpDialog
     Pages/        sign-in landing, no-access, not found, error, style guide (Development only)
   Features/
     Shell/        StatusMessageService, ShortcutService, ShortcutCatalog
     Queue/        TicketQueuePage and its filter bar, tabs and row
     Tickets/      TicketDetailPage, presenter, timeline factory, ReplyComposer, TicketSidebar, TagPicker, TicketActions
-  wwwroot/js/     ES modules only: dialog.js, shortcuts.js, queue.js (no inline script anywhere)
+    Settings/     Admin only. Products/ (ProductsPage, ProductEditorPage, ProductKeysPage, ApiKeysPanel, NewApiKeyDialog; the logo rule is `BrandingRules.IsAcceptableLogoUrl` in Contracts.Branding), Agents/ (AgentsPage), Tags/ (TagsPage),
+                  Audit/ (AdminEventsPage, AdminEventSummaryFactory), EmailKinds
+    Ops/          Admin only. DeadLetters/ (DeadLettersPage)
+    Account/      My settings for every agent: NotificationPreferencesPage, PublicDisplayNameField, PublicNamePreview
+  wwwroot/js/     ES modules only: dialog.js, shortcuts.js, queue.js, preferences.js (browser preferences and the theme), clipboard.js (copy the new API key) (no inline script anywhere)
   Styles/         SCSS partials over the brand tokens (docs/BRAND.md)
 ```
 
@@ -121,7 +135,7 @@ Rules the code follows (and the reviewers check):
 
 - The Admin references **Contracts and Hosting only**: never Application, Infrastructure or Domain. DTOs are never renamed; view models are feature-local.
 - **Components never inject `HttpClient`.** They inject the `I*Client` interfaces, which return `Result<T>`; the clients map the API's ProblemDetails (the error `type` is the code).
-- Every read takes the component's `CancellationToken`. Writes (reply, note, sidebar changes, spam, delete, erase) deliberately pass `CancellationToken.None`: the server may commit a write after the agent has left the screen, so cancelling the call would only hide the outcome.
+- Every read takes the component's `CancellationToken`. Writes (reply, note, sidebar changes, spam, delete, erase, and every settings write) deliberately pass `CancellationToken.None`: the server may commit a write after the agent has left the screen, so cancelling the call would only hide the outcome.
 - Razor components are always public classes, so a type used as a component parameter is public (a view model cannot be `internal`).
 - A component beyond a few plain parameters and one forwarder has a `.razor.cs`; a factory or presenter exists only for non-trivial assembly (`TicketDetailPresenter`, `TimelineEntryFactory`).
 - The single `MarkupString` is the message body in `MessageBubble` (the API sanitises it). Everything else is encoded.
@@ -131,14 +145,14 @@ Rules the code follows (and the reviewers check):
 
 1. Add the method to the client interface and implementation in `Clients/`, returning `Result<T>` and taking a `CancellationToken` last. A GET goes through the read client, anything that changes
    data through the write client (never retried).
-2. Put the page under `Features/<Area>/` with `@page`, `@attribute [Authorize]`, a paired code-behind, and load in `OnParametersSetAsync` with a cancellable token.
+2. Put the page under `Features/<Area>/` with `@page`, `@attribute [Authorize]`, a paired code-behind, and load in `OnParametersSetAsync` with a cancellable token. An admin page is a thin shell, `<AdminOnly><XxxContent /></AdminOnly>`, and the content component (which makes the API calls) is only created for an Admin, so a plain agent's page load calls nothing the API would refuse.
 3. Render the four states with `LoadingState`, `ErrorState` (with Retry), `EmptyState` and the content. Keep the previous content when a refresh fails.
 4. Send the ticket's `RowVersion` on every write and replace the local state from the returned `TicketStateDto`. Raise the page's conflict callback on `concurrency-conflict`.
 5. Test it with bUnit and a substitute client; add a host test only for what bUnit cannot see.
 
 ## Keyboard shortcuts
 
-Single-key shortcuts are off while you type in a text field, select or editable area and while a dialog is open. `?` lists them in the app. A My settings switch to turn them off arrives in 07b.
+Single-key shortcuts are off while you type in a text field, select or editable area and while a dialog is open. `?` lists them in the app. My settings has a Keyboard shortcuts switch that turns them off; it is remembered in this browser.
 The command palette (Ctrl+K) arrives in 07c.
 
 | Key | Where | What |
@@ -164,6 +178,37 @@ The command palette (Ctrl+K) arrives in 07c.
   "This ticket changed since you opened it": press Reload, your draft is kept.
 - **Spam, delete, erase**: Mark as spam asks first. Delete and erase (Admins) need the ticket number or the requester's email typed, and say so plainly; erase covers every ticket from that requester.
 
+## What an admin can do here (07b)
+
+Everything in this section needs the Admin role. The API refuses the same calls to anyone else.
+
+- **Products** (`/settings/products`, `/settings/products/new`, `/settings/products/{id}`): a list of every product, active or not, and an editor for the name and the branding (display name, logo, accent colour,
+  email from address and reply-to). The key and the ticket number prefix are permanent: they are asked for when the product is created and shown read-only afterwards. The logo is an **address, not an upload**:
+  only a full `https://` address is accepted (`http://localhost` or `http://127.0.0.1` too, in every environment), a blank value means no logo, and the API refuses the same addresses, so `javascript:`, `data:`, relative paths and other
+  schemes never reach an email or the portal. The accent colour is checked with the same pattern as the API (`#RRGGBB`); a low-contrast colour only shows a note, because TechStrap darkens it wherever it is used
+  for text. A live preview shows the name, the logo and the accent. Saving always sends the product's current Active setting and the version the editor was opened on: if someone else saved first you see "This
+  product changed since you opened it", your edits stay on screen, and Reload shows the saved version. A failed or lost save never clears the form.
+- **API keys** (`/settings/products/{id}/keys`): the keys of a product by label, kind (a Trusted or a Public badge, always the word), prefix, created and last-used time, and status. Creating one asks for the kind
+  and an optional label, then shows the key **once**, in a dialog with a Copy button. The dialog cannot be closed (Cancel and Esc do nothing) until you tick "I have stored this key"; closing it clears the key from
+  the page, and nothing can show it again. If the answer to a create is lost, the page says the key may exist but its secret cannot be shown: revoke it and create another. Revoking asks first ("Apps using this key
+  will stop working.") and a revoked key stays in the list, marked Revoked.
+- **Agents** (`/settings/agents`): everyone who has signed in, with role badge, active or not, and last seen, 25 to a page. Activate needs no confirmation; Deactivate asks first. Deactivating the only active admin
+  is refused by the API, and the page shows its message inside the dialog. Deactivating yourself warns you, and then shows the no-access page.
+- **Tags** (`/settings/tags`): every tag with a **ticket count**, create (the slug follows the name until you edit it), rename and recolour in the row, and delete. Deleting an unused tag asks first. Deleting a tag
+  that is in use shows its count ("12 tickets"), asks you to type the tag's name, and only then removes it from every ticket and deletes it.
+- **Audit log** (`/settings/audit`): who changed what, newest first, 25 to a page. Filter by what changed (product, API key, agent, tag, requester, ticket, email) and by who; both stay in the address so a view can
+  be linked. Every event is one sentence built from the ids, slugs, prefixes and counts in its payload. The raw payload is never shown. The first page fixes a point in time, so events recorded while you read do
+  not push rows onto the next page.
+- **Failed emails** (`/ops/dead-letters`): emails that used up their retries, with the recipient masked, the kind, a link to the ticket, the tries and the last error as a plain category. Retry puts one back in the
+  queue with no confirmation; Discard asks first. After either, the list and the count beside "Failed emails" in the navigation are read again. An empty list says "No failed emails".
+
+Every agent, not only an admin, has **My settings** (`/account/notifications`):
+
+- **Email alerts**: a switch per active product for "a new ticket arrived". Each change sends every product's setting, so nothing is left for the API to guess.
+- **Keyboard shortcuts** and **theme** (Auto, Light or Dark): kept in this browser only, so they follow the browser, not the account.
+- **Public display name**: optional, plain text, up to 60 characters, no `@`. A live line shows what customers will see ("Customers see: Sam from Orbitly Support"); clearing the field returns to the first name from
+  your profile. It saves when you leave the field or press Enter, and customers never see your email address.
+
 ## Known limits
 
 - **Pages render twice.** Blazor Server prerenders each page on the server, then renders it again in the circuit, so every page loads its data twice (two calls to the API for the same screen). The first render is what a plain HTTP request sees, which is why the host tests can read the data in the HTML. Making the second load reuse the first (persistent component state) is not done in 07a.
@@ -182,7 +227,12 @@ The command palette (Ctrl+K) arrives in 07c.
 | "Your session has expired" shortly after signing in | No `offline_access` scope, or a very short refresh token validity. |
 | The queue shows "Couldn't load tickets" with the API's message | The API answered an error; the message is the API's own. |
 | Attachments open as a page instead of downloading | Report it: the pass-through must force a download. |
-| Keyboard shortcuts do nothing | Focus is in a field, a dialog is open, or `shortcuts.js` was blocked. Check the browser console. |
+| Keyboard shortcuts do nothing | Focus is in a field, a dialog is open, My settings has Keyboard shortcuts switched off, or `shortcuts.js` was blocked. Check the browser console. |
+| A settings page says "You don't have access to this page." | The signed-in agent is not an Admin. Roles come from the identity provider's groups, and the API decides. |
+| The new API key dialog will not close | Tick "I have stored this key" first. The key is shown once and cannot be shown again; if you lost it, revoke the key and create another. |
+| Copy does nothing in the new API key dialog | The browser refused the clipboard (a page that is not https, or blocked). The key is selected: press Ctrl+C. |
+| A product's logo is refused | Only a full https:// address is accepted (and http://localhost or http://127.0.0.1, in every environment). There is no upload. |
+| The theme does not change | The choice is kept in this browser: private windows and cleared site data forget it, and Auto follows the device. |
 
 ## Tests
 
@@ -191,7 +241,9 @@ dotnet test --project tests/TechStrap.Admin.Tests -c Release                    
 dotnet test --project tests/TechStrap.Api.Tests -c Release --filter-class "*Admin*" --filter-class "*ShellHostTests"
 ```
 
-bUnit notes that cost time once: JS interop runs in strict mode, so set up `./js/dialog.js` and `./js/shortcuts.js` (the `AdminComponentTest` base class does); the element reference of an element is blanked after the next
+bUnit notes that cost time once: JS interop runs in strict mode, so set up `./js/dialog.js`, `./js/shortcuts.js` and `./js/preferences.js` (the `AdminComponentTest` base class does; a test that copies an API key sets up
+`./js/clipboard.js` itself); the settings pages derive from `AdminPageTest`, which gives them a session (an Admin unless the test calls `AsAgent()` before it renders), what `NoAccessPage` needs and a host environment;
+the element reference of an element is blanked after the next
 render, so read it before the action; services cannot be added after the first render; `InputFile` has no `MaxAllowedSize` and bUnit does not enforce stream limits, so the composer checks files itself.
 
 ## Known gaps in 07a
@@ -199,3 +251,24 @@ render, so read it before the action; services cannot be added after the first r
 Recorded in D-040 and tracked for later phases: no counts in the erase and delete dialogs and no list of a ticket's follow-ups (the API offers neither); the requester card has no ticket count or first-seen date;
 times are shown in UTC (the agent's zone needs the browser); "Apply my change again" after a conflict is not built (Reload only); a lost circuit loses an unsent draft (the leave-warning covers a reload);
 no knowledge-base article picker (PHASE-08); no presence or live updates (PHASE-10); no command palette (07c); the manual sign-in check against a real Authentik is outstanding.
+
+## Decisions that changed during 07b
+
+- **Logo addresses are stored normalised.** The API saves the logo as `uri.AbsoluteUri` (so `HTTPS://Example.com` comes back as `https://example.com/`), and it rejects an address that holds a Unicode format character (such as a right-to-left override) as well as whitespace and control characters. The editor shows the saved form after a save.
+- **`ConfirmDialog` has `Dismissable`** (default true). The show-once API key dialog sets it to false until "I have stored this key" is ticked: Esc and a stray native close cannot close the browser's dialog, Esc still reaches the owner so it can explain, and when the browser closed the dialog anyway the component resyncs and shows it again.
+- **`AgentSession.ReloadAsync` keeps the session Ready** when the API answers with a server error, a timeout or cannot be reached, so a failed refresh (a transient failure while the page is open) never turns a working page into an error screen. A refusal (403, for example after the admin deactivates their own account) or an inactive account still changes the state to no access.
+- **No factory client has HttpClient logging.** The default `IHttpClientFactory` logging writes each request header, `Authorization` included, at Trace (event 102), and an OTLP exporter's `x-api-key` the same way. `Program.cs` calls `ConfigureHttpClientDefaults(http => http.RemoveAllLoggers())`, so this is a default for every client the factory creates (the two API clients, the OTLP exporters' clients and any future one); only the logging handlers are removed, the auth, forwarded-IP and retry handlers are untouched. `ApiClientRegistration` still calls `RemoveAllLoggers()` on the two API clients. `AdminLeakTests` runs with every Serilog level at Verbose and fails if a token, a new API key or an OTLP header secret reaches any log line.
+
+## Known gaps in 07b
+
+Recorded in D-041 and tracked for later phases:
+
+- Roles cannot be changed here (use the identity provider's groups), and there is no invite: an agent appears by signing in.
+- The logo is an address, not an upload. The preview loads it from the address you typed, so a slow host shows a slow preview.
+- The editors do not warn about unsaved changes when you leave the page; a conflict banner keeps your edits and offers Reload, but "Apply my change again" is not built (as in 07a).
+- Ticket counts on the tags page, and the count in the delete dialog, are read when the list loads. A tag that gains tickets meanwhile is caught by the API (409 `tag-in-use`) and shown again with its new count.
+- The audit log filters by what changed and by who only: the API has no event-type or date filter. Events show ids, slugs, prefixes and counts and never names, because a payload carries none.
+- My settings has the new-ticket alerts only: the UX brief's assignment-alert switch has no API field yet.
+- Discard on a failed email takes no reason (the API has none). The failed-emails count in the navigation is read when the shell loads and after you act on the page; it is not live (PHASE-10).
+- Times are shown in UTC, as in 07a.
+- The OpenAPI bearer scheme, the CSP and the responsive and accessibility pass remain 07c.

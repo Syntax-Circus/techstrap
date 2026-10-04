@@ -26,6 +26,7 @@ public static class ControllerActions
         ["ProductsController.CreateApiKey"] = 201,
         ["ProductsController.RevokeApiKey"] = 204,
         ["TagsController.List"] = 200,
+        ["TagsController.ListSummaries"] = 200,
         ["TagsController.Create"] = 201,
         ["TagsController.Update"] = 200,
         ["TagsController.Delete"] = 204,

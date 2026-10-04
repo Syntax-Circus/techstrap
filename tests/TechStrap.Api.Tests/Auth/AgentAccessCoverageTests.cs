@@ -105,7 +105,7 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
             .ToList();
         var adminOnly = endpoints.Where(item => IsAdminOnly(item.Action.MethodInfo)).ToList();
 
-        adminOnly.Count.ShouldBeGreaterThanOrEqualTo(15); // 15 admin-only routes today; the floor catches IsAdminOnly silently matching fewer
+        adminOnly.Count.ShouldBeGreaterThanOrEqualTo(16); // 16 admin-only routes today (15 + the 07b tag summary); the floor catches IsAdminOnly silently matching fewer
         foreach (var (endpoint, _) in adminOnly)
         {
             var path = "/" + string.Join('/', endpoint.RoutePattern.PathSegments.Select(segment =>
@@ -139,6 +139,22 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
             "GET api/dead-letters", "POST api/dead-letters/{id:guid}/retry", "DELETE api/dead-letters/{id:guid}",
         ];
         expected.Except(adminOnly).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task The_07b_tag_summary_route_is_admin_only()
+    {
+        var database = await ApiTestDatabase.CreateAsync(postgres);
+        await using var factory = new ApiFactory(settings: database.Settings);
+        var adminOnly = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("api/", StringComparison.Ordinal) == true)
+            .Where(endpoint => IsAdminOnly(endpoint.Metadata.GetMetadata<ControllerActionDescriptor>()!.MethodInfo))
+            .SelectMany(endpoint => (endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? ["GET"]).Select(method => $"{method} {endpoint.RoutePattern.RawText}"))
+            .ToHashSet();
+
+        // GET api/tags stays Agent (the tag picker and the queue filters); only the summary with ticket counts is Admin.
+        adminOnly.ShouldContain("GET api/tags/summary");
+        adminOnly.ShouldNotContain("GET api/tags");
     }
 
     private static bool IsAdminOnly(MethodInfo action) =>

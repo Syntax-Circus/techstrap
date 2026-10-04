@@ -17,6 +17,12 @@ public sealed class TagsController : ControllerBase
     public async Task<IActionResult> List([FromServices] IListTagsRequestHandler listTags, CancellationToken cancellationToken) =>
         (await listTags.HandleAsync(cancellationToken)).ToActionResult(this, Ok);
 
+    /// <summary>Every tag with the number of tickets that carry it (Admin). The tag picker keeps using <see cref="List"/>.</summary>
+    [HttpGet("summary")]
+    [Authorize(Policy = AuthorizationPolicies.Admin)]
+    public async Task<IActionResult> ListSummaries([FromServices] IListTagSummariesRequestHandler listSummaries, CancellationToken cancellationToken) =>
+        (await listSummaries.HandleAsync(cancellationToken)).ToActionResult(this, Ok);
+
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.Admin)]
     public async Task<IActionResult> Create(CreateTagRequest request, [FromServices] ICreateTagRequestHandler createTag, CancellationToken cancellationToken) =>
