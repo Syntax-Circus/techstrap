@@ -30,7 +30,9 @@ if (telemetry.Options.Sentry.IsEnabled)
     {
         telemetry.ConfigureSentry(options, context =>
             context.TransactionContext.Name.Contains("/health", StringComparison.OrdinalIgnoreCase) ? 0d : null);
-        options.AddEventProcessor(new SensitiveHeaderSentryProcessor());
+        var headerProcessor = new SensitiveHeaderSentryProcessor();
+        options.AddEventProcessor(headerProcessor);
+        options.AddTransactionProcessor(headerProcessor);
         options.AutoSessionTracking = false;
     });
 }
