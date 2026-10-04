@@ -124,10 +124,11 @@ public sealed class AdminFactory : HostFactory<TechStrap.Admin.Program>
             services =>
             {
                 services.AddAdminTestAuthentication();
+                services.AddStubApi(api);
                 configureServices?.Invoke(services);
             }) => Api = api;
 
-    /// <summary>The stub behind the Admin's API clients. The tasks that add the clients and the sign-in wire it in.</summary>
+    /// <summary>The stub behind the Admin's API clients. By default it answers GET /api/agents/me for the three test principals.</summary>
     public StubApiHandler Api { get; }
 }
 

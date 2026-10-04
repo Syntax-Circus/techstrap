@@ -1,4 +1,6 @@
 using Bunit;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Components.Authorization;
 using NSubstitute;
@@ -99,6 +101,25 @@ public sealed class AgentGateTests : BunitContext
 
         cut.FindAll("#content").ShouldBeEmpty();
         cut.Find("[role=status]").TextContent.ShouldBe(GateCopy.Checking);
+        _agents.DidNotReceiveWithAnyArgs().GetMeAsync(Xunit.TestContext.Current.CancellationToken);
+    }
+
+    // Carried ruling: on a static page the Retry button would be inert (no circuit), so the gate shows the content and asks nothing.
+    [Fact]
+    public void A_signed_in_user_on_a_static_page_sees_the_content_never_a_retry_button_and_the_api_is_not_called()
+    {
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(Refused(ApiErrorCodes.ApiUnavailable, ResultErrorKind.Failure));
+
+        var staticPage = new DefaultHttpContext();
+        staticPage.SetEndpoint(new Endpoint(null, new EndpointMetadataCollection(new ExcludeFromInteractiveRoutingAttribute()), "static page"));
+
+        var cut = Render<AgentGate>(p => p
+            .SignedIn()
+            .AddCascadingValue(staticPage)
+            .AddChildContent("<p id='content'>ticket data</p>"));
+
+        cut.Find("#content").TextContent.ShouldBe("ticket data");
+        cut.FindAll("button").ShouldBeEmpty();
         _agents.DidNotReceiveWithAnyArgs().GetMeAsync(Xunit.TestContext.Current.CancellationToken);
     }
 

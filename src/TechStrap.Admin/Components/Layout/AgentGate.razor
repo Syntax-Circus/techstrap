@@ -3,9 +3,10 @@
     @* Fail closed: until the authentication state is known (or when no router provides one) nothing of the page is shown. *@
     <p class="ts-gate" role="status">@GateCopy.Checking</p>
 }
-else if (_authenticated == false)
+else if (_authenticated == false || IsStaticPage)
 {
-    @* A visitor known to be anonymous: only the anonymous pages (error, not found) get this far, the router blocks every other page. *@
+    @* A visitor known to be anonymous: only the anonymous pages (error, not found) get this far, the router blocks every other page.
+       A static page (no circuit) renders its content directly for a signed-in user too: the Retry button below could not do anything there. *@
     @ChildContent
 }
 else

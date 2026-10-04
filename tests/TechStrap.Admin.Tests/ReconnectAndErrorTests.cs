@@ -20,6 +20,7 @@ public sealed class ReconnectAndErrorTests
         using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
 
         var html = await client.GetStringAsync("/", TestContext.Current.CancellationToken);
+        factory.Api.AssertEveryCallBore(AdminTestPrincipal.Agent);
         var page = await new HtmlParser().ParseDocumentAsync(html, TestContext.Current.CancellationToken);
 
         var dialogs = page.QuerySelectorAll("dialog#components-reconnect-modal");

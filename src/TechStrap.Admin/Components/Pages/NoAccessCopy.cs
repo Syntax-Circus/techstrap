@@ -7,6 +7,12 @@ public static class NoAccessCopy
 {
     public const string Title = "You don't have access to TechStrap.";
 
+    /// <summary>For a signed-in user refused one page only (the router's not-authorized case): the rest of the app still works for them.</summary>
+    public const string PageTitle = "You don't have access to this page.";
+
+    public const string PageReason = "You are signed in, but you are not allowed to open this page.";
+    public const string BackToQueue = "Back to the queue";
+
     public static string Reason(string? code, string? apiMessage, string agentGroup) => code switch
     {
         ApiErrorCodes.AgentAccessRequired => $"You are signed in, but your account is not in the {agentGroup} group. Ask an administrator to add you, then sign in again.",

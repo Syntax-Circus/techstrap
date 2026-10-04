@@ -1,15 +1,12 @@
-@using TechStrap.Admin.Clients
 @inject NavigationManager Navigation
 
 @if (_signedIn)
 {
     @* A signed-in user the router refused: sending them to the sign-in page would loop with a single-sign-on provider that signs them straight back in. *@
-    <NoAccessPage Code="@ApiErrorCodes.Forbidden" Message="@NotAllowedMessage" />
+    <NoAccessPage ThisPageOnly="true" />
 }
 
 @code {
-    private const string NotAllowedMessage = "You are signed in, but you are not allowed to open this page.";
-
     private bool _signedIn;
 
     [CascadingParameter]

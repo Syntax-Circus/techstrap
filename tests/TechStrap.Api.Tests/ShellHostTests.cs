@@ -18,6 +18,7 @@ public sealed class ShellHostTests
         using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
 
         await AssertShellAsync(client, "TechStrap Admin");
+        factory.Api.AssertEveryCallBore(AdminTestPrincipal.Agent);
     }
 
     [Fact]

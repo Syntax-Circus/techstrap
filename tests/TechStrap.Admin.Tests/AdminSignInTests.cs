@@ -148,6 +148,7 @@ public sealed class AdminSignInTests
         }
 
         (await agent.GetStringAsync("/", TestContext.Current.CancellationToken)).ShouldContain("\"type\":\"server\"");
+        factory.Api.AssertEveryCallBore(AdminTestPrincipal.Agent);
     }
 
     [Fact]
@@ -160,6 +161,7 @@ public sealed class AdminSignInTests
         (await cache.GetAsync(key, TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         var shell = await client.GetAsync("/", TestContext.Current.CancellationToken);
+        factory.Api.AssertEveryCallBore(AdminTestPrincipal.Agent);
         var page = await new HtmlParser().ParseDocumentAsync(await shell.Content.ReadAsStringAsync(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
         var token = page.QuerySelector("form[action='/signout'] input[name=__RequestVerificationToken]")!.GetAttribute("value")!;
         using var post = new HttpRequestMessage(HttpMethod.Post, "/signout") { Content = new FormUrlEncodedContent([new("__RequestVerificationToken", token)]) };
@@ -192,6 +194,7 @@ public sealed class AdminSignInTests
         using var client = NoRedirectClient(factory).SignedInAs(AdminTestPrincipal.Agent);
 
         var shell = await client.GetAsync("/", TestContext.Current.CancellationToken);
+        factory.Api.AssertEveryCallBore(AdminTestPrincipal.Agent);
         var page = await new HtmlParser().ParseDocumentAsync(await shell.Content.ReadAsStringAsync(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
         var form = page.QuerySelector("form[action='/signout'][method=post]").ShouldNotBeNull();
         var token = form.QuerySelector("input[name=__RequestVerificationToken]")!.GetAttribute("value")!;

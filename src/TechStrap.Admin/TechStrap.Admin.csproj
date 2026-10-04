@@ -19,7 +19,9 @@
     <PackageReference Include="SyntaxCircus.AspNetCore.Serilog" />
     <PackageReference Include="SyntaxCircus.Blazor.Auth" />
     <PackageReference Include="SyntaxCircus.Blazor.Components" />
+    <PackageReference Include="SyntaxCircus.Common" />
     <PackageReference Include="SyntaxCircus.DotEnv" />
+    <PackageReference Include="SyntaxCircus.Http.Resilience" />
     <PackageReference Include="SyntaxCircus.Observability" />
   </ItemGroup>
 

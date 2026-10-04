@@ -13,6 +13,7 @@ public sealed class LayoutHostTests
 
         var home = await client.GetAsync("/", TestContext.Current.CancellationToken);
         var html = await home.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        factory.Api.AssertEveryCallBore(AdminTestPrincipal.Agent);
 
         home.StatusCode.ShouldBe(HttpStatusCode.OK);
         html.ShouldContain("TechStrap Admin");

@@ -7,6 +7,7 @@ using SyntaxCircus.Blazor.Auth;
 using SyntaxCircus.DotEnv;
 using SyntaxCircus.Observability;
 using TechStrap.Admin.Auth;
+using TechStrap.Admin.Clients;
 using TechStrap.Admin.Components;
 using TechStrap.Admin.Options;
 using TechStrap.Hosting.Logging;
@@ -57,8 +58,8 @@ builder.Services.AddBlazorTokenForwarding(builder.Configuration, AdminOptionsReg
 
 builder.Services.AddAdminAuthentication();
 builder.Services.AddCascadingAuthenticationState();
-// Task 5 registers AgentSession (scoped) together with IAgentsClient and wraps the layout body in AgentGate; scope validation
-// rejects AgentSession while IAgentsClient has no implementation.
+// The named API clients, the typed clients over them and the scoped AgentSession (the layout's AgentGate asks it who is signed in).
+builder.Services.AddTechStrapApiClients();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

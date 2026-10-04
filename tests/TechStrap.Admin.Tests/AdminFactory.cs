@@ -25,7 +25,7 @@ internal sealed class AdminFactory(
         Environment.SetEnvironmentVariable("TRUSTEDPROXY__TRUSTEDNETWORKS__0", "192.0.2.0/24");
     }
 
-    /// <summary>The stub behind the Admin's API clients. The tasks that add the clients and the sign-in wire it in.</summary>
+    /// <summary>The stub behind the Admin's API clients. By default it answers GET /api/agents/me for the three test principals.</summary>
     public StubApiHandler Api { get; } = new StubApiHandler().WithTestAgents();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -35,6 +35,7 @@ internal sealed class AdminFactory(
         builder.ConfigureTestServices(services =>
         {
             services.AddAdminTestAuthentication();
+            services.AddStubApi(Api);
             configureServices?.Invoke(services);
         });
     }
