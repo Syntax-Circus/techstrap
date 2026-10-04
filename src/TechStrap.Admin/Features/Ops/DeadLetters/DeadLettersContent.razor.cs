@@ -57,6 +57,7 @@ public sealed partial class DeadLettersContent : IDisposable
     {
         // Only the latest load may change the screen: a slow answer for an earlier page is ignored.
         var loadId = ++_loadId;
+        var redirecting = false;
         _loading = true;
         _error = null;
         try
@@ -74,6 +75,14 @@ public sealed partial class DeadLettersContent : IDisposable
 
                 // The list already holds the total, so the badge in the navigation follows it without a second call.
                 Failed.Set(_total);
+
+                // A page past the end (the last row of the last page was discarded, or an old address): go to the last page that has rows instead of saying there are none.
+                var lastPage = Math.Max(1, (_total + DeadLettersCopy.PageSize - 1) / DeadLettersCopy.PageSize);
+                if (_rows.Count == 0 && _total > 0 && _page > lastPage)
+                {
+                    redirecting = true;
+                    Navigation.NavigateTo(lastPage <= 1 ? "/ops/dead-letters" : $"/ops/dead-letters?page={lastPage}", replace: true);
+                }
             }
             else
             {
@@ -82,8 +91,9 @@ public sealed partial class DeadLettersContent : IDisposable
         }
         finally
         {
-            if (loadId == _loadId)
+            if (loadId == _loadId && !redirecting)
             {
+                // While redirecting to the last page the next load is already due: keep the loading state, never the empty one.
                 _loading = false;
             }
         }

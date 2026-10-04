@@ -92,7 +92,9 @@ public sealed class DeadLettersPageTests : AdminPageTest
     [InlineData("smtp-unknown", "Unknown SMTP error")]
     [InlineData(null, "No error recorded")]
     [InlineData("", "No error recorded")]
-    [InlineData("Lease expired", "Lease expired")]
+    [InlineData("smtp-transient; worker lease expired", "Temporary SMTP problem")]
+    [InlineData("smtp-timeout; worker lease expired", "SMTP timed out")]
+    [InlineData("worker lease expired", "worker lease expired")]
     public void The_last_error_category_has_plain_words(string? lastError, string expected)
     {
         DeadLettersCopy.ErrorLabel(lastError).ShouldBe(expected);
@@ -405,5 +407,74 @@ public sealed class DeadLettersPageTests : AdminPageTest
         _letters.Received(1).DiscardAsync(_first, Arg.Is<CancellationToken>(t => !t.CanBeCanceled));
         StatusMessages.Current.ShouldBeNull();
         Calls(nameof(IDeadLettersClient.ListAsync)).ShouldBe(1);
+    }
+    // ---- stale loads and pages past the end ----------------------------------------------------------------------
+
+    [Fact]
+    public void A_slow_answer_for_an_earlier_page_never_replaces_the_newest_load_or_the_badge()
+    {
+        var older = new TaskCompletionSource<Result<PagedResponse<DeadLetterDto>>>();
+        var newer = new TaskCompletionSource<Result<PagedResponse<DeadLetterDto>>>();
+        _letters.ListAsync(1, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(older.Task);
+        _letters.ListAsync(2, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(newer.Task);
+        var cut = RenderPage();
+        _navigation.NavigateTo("/ops/dead-letters?page=2");
+        cut.WaitForAssertion(() => Calls(nameof(IDeadLettersClient.ListAsync)).ShouldBe(2));
+
+        newer.SetResult(TestData.Ok(new PagedResponse<DeadLetterDto>([TestData.DeadLetter(id: _second)], 2, 25, 26)));
+        cut.WaitForAssertion(() => cut.FindAll("tr[data-letter]").Count.ShouldBe(1));
+        older.SetResult(TestData.Ok(new PagedResponse<DeadLetterDto>([TestData.DeadLetter(id: _first), TestData.DeadLetter()], 1, 25, 3)));
+
+        cut.FindAll("tr[data-letter]").Select(r => r.GetAttribute("data-letter")).ShouldBe([_second.ToString()]);
+        Counter.Count.ShouldBe(26, "the badge follows the newest load, not the one that finished last");
+    }
+
+    [Fact]
+    public void A_retry_that_finishes_after_the_page_is_gone_is_not_cancelled_and_changes_nothing()
+    {
+        var gate = new TaskCompletionSource<Result>();
+        _letters.RetryAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(gate.Task);
+        var cut = RenderPage();
+        Row(cut, _first).QuerySelector("button.ts-retry")!.Click();
+
+        cut.FindComponent<DeadLettersContent>().Instance.Dispose();
+        gate.SetResult(TestData.Ok());
+
+        _letters.Received(1).RetryAsync(_first, Arg.Is<CancellationToken>(t => !t.CanBeCanceled));
+        StatusMessages.Current.ShouldBeNull();
+        Calls(nameof(IDeadLettersClient.ListAsync)).ShouldBe(1);
+    }
+
+    [Fact]
+    public void A_page_past_the_end_goes_to_the_last_page_with_rows_and_never_says_there_are_no_failed_emails()
+    {
+        _letters.ListAsync(99, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(new PagedResponse<DeadLetterDto>([], 99, 25, 30)));
+        _letters.ListAsync(2, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(new PagedResponse<DeadLetterDto>([TestData.DeadLetter(id: _first)], 2, 25, 30)));
+
+        var cut = RenderPage("?page=99");
+
+        cut.WaitForAssertion(() => cut.FindAll("tr[data-letter]").Count.ShouldBe(1));
+        _navigation.Uri.ShouldEndWith("/ops/dead-letters?page=2");
+        _letters.Received(1).ListAsync(2, 25, Arg.Any<CancellationToken>());
+        cut.Markup.ShouldNotContain("No failed emails");
+        Counter.Count.ShouldBe(30);
+    }
+
+    [Fact]
+    public void Discarding_the_last_row_of_the_last_page_moves_to_the_page_before_it()
+    {
+        _letters.ListAsync(2, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(
+            TestData.Ok(new PagedResponse<DeadLetterDto>([TestData.DeadLetter(id: _first)], 2, 25, 26)),
+            TestData.Ok(new PagedResponse<DeadLetterDto>([], 2, 25, 25)));
+        _letters.ListAsync(1, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(new PagedResponse<DeadLetterDto>([TestData.DeadLetter(id: _second)], 1, 25, 25)));
+        var cut = RenderPage("?page=2");
+        Row(cut, _first).QuerySelector("button.ts-discard")!.Click();
+
+        Confirm(cut).Click();
+
+        cut.WaitForAssertion(() => cut.FindAll("tr[data-letter]").Count.ShouldBe(1));
+        _navigation.Uri.ShouldEndWith("/ops/dead-letters");
+        Row(cut, _second).ShouldNotBeNull();
+        cut.Markup.ShouldNotContain("No failed emails");
     }
 }

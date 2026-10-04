@@ -22,10 +22,22 @@ public sealed class AdminLeakTests
 
     private static string Everything(LogEvent e) => string.Join('\n', [e.RenderMessage(), e.Exception?.ToString() ?? string.Empty, .. e.Properties.Values.Select(v => v.ToString())]);
 
+    // Every level is captured, including the Trace and Debug lines of System.Net.Http and ASP.NET Core: a secret that only shows at Verbose is still a leak.
+    private static AdminFactory VerboseFactory() => new(settings: new Dictionary<string, string?>
+    {
+        ["Serilog:MinimumLevel:Default"] = "Verbose",
+        ["Serilog:MinimumLevel:Override:Microsoft"] = "Verbose",
+        ["Serilog:MinimumLevel:Override:Microsoft.AspNetCore"] = "Verbose",
+        ["Serilog:MinimumLevel:Override:System"] = "Verbose",
+    });
+
+    private static void AssertVerboseWasCaptured(AdminFactory factory) =>
+        factory.LogSink.Events.ShouldContain(e => e.Level <= LogEventLevel.Debug, "the Verbose setting must have taken effect, or these tests only scanned Information and above");
+
     [Fact]
     public async Task The_access_token_appears_in_no_log_event_page_or_download()
     {
-        await using var factory = new AdminFactory();
+        await using var factory = VerboseFactory();
         // The queue and the ticket are not configured, so the stub answers 404 and the pages show their error states. A 5xx here would trip the read client's circuit
         // breaker and the download below would never reach the API.
         factory.Api.On(HttpMethod.Get, $"/api/attachments/{AttachmentId}", _ => new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new ByteArrayContent([1, 2, 3]) });
@@ -47,7 +59,7 @@ public sealed class AdminLeakTests
         pages.ShouldAllBe(html => !html.Contains(token));
         (await download.Content.ReadAsStringAsync(Ct)).ShouldNotContain(token);
         download.Headers.SelectMany(h => h.Value).ShouldAllBe(v => !v.Contains(token));
-        factory.LogSink.Events.ShouldNotBeEmpty();
+        AssertVerboseWasCaptured(factory);
         factory.LogSink.Events.Select(Everything).ShouldAllBe(text => !text.Contains(token) && !text.Contains("Bearer "));
     }
     // A secret shaped so the PII log redactor does not mask it: the test proves the Admin never logs it, not that the redactor hid it.
@@ -59,7 +71,7 @@ public sealed class AdminLeakTests
         var productId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001");
         var key = new ProductApiKeyDto(Guid.Parse("eeeeeeee-0000-0000-0000-000000000001"), productId, ApiKeyKinds.Trusted, "tsk_leakchk", "CI", DateTimeOffset.UtcNow, null, null);
         var product = new ProductDto(productId, "orbitly", "Orbitly", "ORB", true, new ProductBrandingDto("Orbitly", null, "#1D4ED8", "#FFFFFF", "#1D4ED8", null, null), 3);
-        await using var factory = new AdminFactory();
+        await using var factory = VerboseFactory();
         factory.Api
             .OnJson(HttpMethod.Post, $"/api/products/{productId}/api-keys", new CreateProductApiKeyResponse(key, KeySecret), HttpStatusCode.Created)
             .OnJson(HttpMethod.Get, $"/api/products/{productId}/api-keys", (IReadOnlyList<ProductApiKeyDto>)[key])
@@ -94,7 +106,7 @@ public sealed class AdminLeakTests
         factory.Api.Requests.ShouldAllBe(r => !r.Path.Contains(KeySecret) && !r.Query.Contains(KeySecret), "the key is never in a URL");
         factory.Api.Requests.ShouldAllBe(r => r.Body == null || !r.Body.Contains(KeySecret), "nothing the Admin sends carries the key");
         factory.Api.AssertEveryCallBore(AdminTestPrincipal.Admin);
-        factory.LogSink.Events.ShouldNotBeEmpty();
+        AssertVerboseWasCaptured(factory);
         factory.LogSink.Events.Select(Everything).ShouldAllBe(text => !text.Contains(KeySecret) && !text.Contains("Bearer ") && !text.Contains(AdminTestPrincipal.Admin.AccessToken));
     }
 
@@ -102,7 +114,7 @@ public sealed class AdminLeakTests
     public async Task The_access_token_appears_in_no_log_event_or_page_of_any_admin_page_for_an_admin()
     {
         var productId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001");
-        await using var factory = new AdminFactory();
+        await using var factory = VerboseFactory();
         var product = new ProductDto(productId, "orbitly", "Orbitly", "ORB", true, new ProductBrandingDto("Orbitly", null, "#1D4ED8", "#FFFFFF", "#1D4ED8", null, null), 3);
         factory.Api
             .OnJson(HttpMethod.Get, "/api/products", (IReadOnlyList<ProductDto>)[product])
@@ -129,7 +141,7 @@ public sealed class AdminLeakTests
         factory.Api.Requests.ShouldContain(r => r.Authorization == "Bearer " + token, "the token must actually have been used, or this test proves nothing");
         factory.Api.AssertEveryCallBore(AdminTestPrincipal.Admin);
         pages.ShouldAllBe(html => !html.Contains(token));
-        factory.LogSink.Events.ShouldNotBeEmpty();
+        AssertVerboseWasCaptured(factory);
         factory.LogSink.Events.Select(Everything).ShouldAllBe(text => !text.Contains(token) && !text.Contains("Bearer "));
     }
 }

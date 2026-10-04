@@ -30,10 +30,10 @@ public sealed class AdminSettingsHostTests
     private static readonly (string Path, string Expected)[] Pages =
     [
         ("/settings/products", "Orbitly"),
-        ("/settings/products/new", "New product"),
+        ("/settings/products/new", "Create product"),
         ($"/settings/products/{OrbitlyId}", "Orbitly Cloud"),
         ($"/settings/products/{OrbitlyId}/keys", "tsk_ab12"),
-        ("/settings/agents", "Roles come from your identity provider"),
+        ("/settings/agents", "Sam Ortiz"),
         ("/settings/tags", "urgent"),
         ("/settings/audit", "Deleted tag bug, removed from 2 tickets"),
         ("/ops/dead-letters", "a***@example.com"),
@@ -193,6 +193,12 @@ public sealed class AdminSettingsHostTests
         html.ShouldContain(expected);
         html.ShouldNotContain("You don't have access");
         factory.Api.Requests[0].Path.ShouldBe("/api/agents/me");
+        if (!path.EndsWith("/new", StringComparison.Ordinal))
+        {
+            // The page's own data came from its admin endpoint, not from static text. (The new-product form reads nothing.)
+            factory.Api.Requests.ShouldContain(r => r.Path != "/api/agents/me" && r.Path.StartsWith("/api/", StringComparison.Ordinal));
+        }
+
         factory.Api.AssertEveryCallBore(AdminTestPrincipal.Admin);
     }
 

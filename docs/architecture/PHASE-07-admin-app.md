@@ -163,11 +163,11 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 - [ ] **P07-T05** [07a] Implement typed clients (`IAgentsClient`, `IProductsClient`, `ITagsClient`, `IAdminEventsClient`) over `ApiConnection` with ProblemDetails -> `Result` mapping, a retrying read client and a never-retrying write client (D-040)
   - **Depends on:** P07-T02
   - **Validation:** Unit tests with stub `HttpMessageHandler`: success, 400 field errors, 403, 409, 503 retry on GET only, cancellation token propagated.
-  - **07a evidence:** 07a: agents, products and tags clients (`ApiConnectionTests`, `ReferenceDataClientTests`); `IAdminEventsClient` arrives in 07b
+  - **07a evidence:** 07a: agents, products and tags clients (`ApiConnectionTests`, `ReferenceDataClientTests`); `IAdminEventsClient` is in the app (07b)
 - [ ] **P07-T06** [07a] Implement `ITicketsClient`, `IAttachmentsClient`, `IDeadLettersClient` (including `RowVersion` in the request body; replace local state with the returned `TicketStateDto` (D-036) and multipart reply submit (D-036))
   - **Depends on:** P07-T05
   - **Validation:** Same stub-handler suite; 409 maps to a distinct `Result` error code constant used by components.
-  - **07a evidence:** 07a: `ITicketsClient`, `IRequestersClient`, the attachment pass-through (`TicketsClientTests`, `AttachmentPassThroughTests`); there is no `IAttachmentsClient` (the pass-through is an endpoint, D-017) and `IDeadLettersClient` arrives in 07b
+  - **07a evidence:** 07a: `ITicketsClient`, `IRequestersClient`, the attachment pass-through (`TicketsClientTests`, `AttachmentPassThroughTests`); there is no `IAttachmentsClient` (the pass-through is an endpoint, D-017) and `IDeadLettersClient` is in the app (07b)
 - [x] **P07-T07** [07a] Build `TicketQueuePage`, `QueueViewTabs`, `QueueFilterBar`, `TicketRow`, paging, with query-string state
   - **Depends on:** P07-T06, P07-T03
   - **Validation:** bUnit with fake `ITicketsClient`: each view tab requests the right filter; search debounce issues one call; empty/error/loading render; page change preserves filters.
@@ -241,9 +241,9 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 - [x] An agent in the configured group signs in, sees the queue with all five views plus the Spam view, filters and searches, pages results, and opens a ticket. (07a evidence: `TicketQueuePageTests`, `AdminHostSmokeTests`; the host tests sign in with the test scheme, the real provider is pending T02)
 - [x] From ticket detail an agent can reply publicly, add an internal note, change status/assignee/priority/product, tag, mark spam, delete, and erase the requester; every action is reflected in the timeline after reload. (07a evidence: `ReplyComposerTests`, `TicketSidebarTests`, `DestructiveActionTests`)
 - [x] A non-agent user is rejected by the API and sees the no-access page; an expired session prompts re-sign-in instead of a blank error. (07a evidence: `AgentSessionTests`, `AgentGateTests`, `AgentAccessHostTests`; test scheme, real provider pending T02)
-- [ ] Admin can create/edit products with branding, create (show-once) and revoke Trusted/Public keys, manage agents/tags/notification preferences, and retry/discard dead letters.
+- [x] Admin can create/edit products with branding, create (show-once) and revoke Trusted/Public keys, manage agents/tags/notification preferences, and retry/discard dead letters. (07b evidence: `ProductEditorTests`, `NewApiKeyDialogTests`, `RevokeApiKeyTests`, `AgentsPageTests`, `TagsPageTests`, `NotificationPreferencesPageTests`, `DeadLettersPageTests`, `AdminSettingsHostTests`, `AdminLeakTests`)
 - [x] The Spam view lists flagged tickets and `u` restores one (Not spam) without a dialog; normal views never show spam (D-024). (07a evidence: `NotSpamQueueTests`)
-- [ ] An agent can set a public display name in My settings and sees the live preview "Customers see: ..." (D-024).
+- [x] An agent can set a public display name in My settings and sees the live preview "Customers see: ..." (D-024). (07b evidence: `PublicDisplayNameFieldTests`, `PublicNamePreviewTests`, `AdminSettingsHostTests`)
 - [x] A 409 concurrency conflict never loses a typed reply draft. (07a evidence: `ReplyComposerTests`, `TicketDetailConflictTests`)
 - [ ] `dotnet build`, `dotnet test` (including bUnit and architecture tests) are green; admin container is healthy under compose.
 - [ ] Admin project references only Contracts and Hosting (plus packages; D-040), never Application, Infrastructure or Domain, verified by the architecture test (`ProjectReferenceDirectionTests`).

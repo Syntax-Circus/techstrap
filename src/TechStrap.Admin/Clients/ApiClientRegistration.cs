@@ -31,7 +31,10 @@ public static class ApiClientRegistration
     {
         // Retry only: no circuit breaker. The read client is a singleton per name shared by every agent and every read, so a breaker opened by one
         // failing endpoint would lock every other agent out of /api/agents/me and the pass-through.
+        // The default HttpClient logging writes every request header, Authorization included, at Trace (event 102). The two API clients carry the agent's bearer token,
+        // so their logging is removed; AdminLeakTests scans every level to keep it so.
         services.AddHttpClient(ApiClientNames.Read)
+            .RemoveAllLoggers()
             .ConfigureHttpClient((sp, client) => ConfigureClient(sp, client, minimumTimeoutSeconds: 0))
             .AddHttpMessageHandler<ApiAuthHandler>()
             .AddForwardedClientIp()
@@ -39,6 +42,7 @@ public static class ApiClientRegistration
             .AddResilienceHandler("techstrap-api-read-retry", builder => builder.AddRetry(ReadRetry()));
 
         services.AddHttpClient(ApiClientNames.Write)
+            .RemoveAllLoggers()
             .ConfigureHttpClient((sp, client) => ConfigureClient(sp, client, WriteTimeoutFloorSeconds))
             .AddHttpMessageHandler<ApiAuthHandler>()
             .AddForwardedClientIp()

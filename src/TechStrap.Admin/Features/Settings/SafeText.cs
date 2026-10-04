@@ -7,9 +7,12 @@ internal static class SafeText
 {
     public const int MaxLength = 60;
 
-    public static string Clip(string? value)
+    public static string Clip(string? value) => Clip(value, MaxLength);
+
+    /// <summary>The same cleaning with a longer or shorter limit (the failed-emails last error allows 80).</summary>
+    public static string Clip(string? value, int maxLength)
     {
         var clean = new string([.. (value ?? string.Empty).Select(c => char.IsControl(c) || char.GetUnicodeCategory(c) == UnicodeCategory.Format ? ' ' : c)]).Trim();
-        return clean.Length <= MaxLength ? clean : string.Concat(clean.AsSpan(0, MaxLength - 1), "\u2026");
+        return clean.Length <= maxLength ? clean : string.Concat(clean.AsSpan(0, maxLength - 1), "\u2026");
     }
 }

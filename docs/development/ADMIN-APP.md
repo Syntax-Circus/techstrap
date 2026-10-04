@@ -123,7 +123,7 @@ src/TechStrap.Admin/
     Shell/        StatusMessageService, ShortcutService, ShortcutCatalog
     Queue/        TicketQueuePage and its filter bar, tabs and row
     Tickets/      TicketDetailPage, presenter, timeline factory, ReplyComposer, TicketSidebar, TagPicker, TicketActions
-    Settings/     Admin only. Products/ (ProductsPage, ProductEditorPage, ProductKeysPage, ApiKeysPanel, NewApiKeyDialog, LogoUrlRule), Agents/ (AgentsPage), Tags/ (TagsPage),
+    Settings/     Admin only. Products/ (ProductsPage, ProductEditorPage, ProductKeysPage, ApiKeysPanel, NewApiKeyDialog; the logo rule is `BrandingRules.IsAcceptableLogoUrl` in Contracts.Branding), Agents/ (AgentsPage), Tags/ (TagsPage),
                   Audit/ (AdminEventsPage, AdminEventSummaryFactory), EmailKinds
     Ops/          Admin only. DeadLetters/ (DeadLettersPage)
     Account/      My settings for every agent: NotificationPreferencesPage, PublicDisplayNameField, PublicNamePreview
@@ -145,7 +145,7 @@ Rules the code follows (and the reviewers check):
 
 1. Add the method to the client interface and implementation in `Clients/`, returning `Result<T>` and taking a `CancellationToken` last. A GET goes through the read client, anything that changes
    data through the write client (never retried).
-2. Put the page under `Features/<Area>/` with `@page`, `@attribute [Authorize]`, a paired code-behind, and load in `OnParametersSetAsync` with a cancellable token.
+2. Put the page under `Features/<Area>/` with `@page`, `@attribute [Authorize]`, a paired code-behind, and load in `OnParametersSetAsync` with a cancellable token. An admin page is a thin shell, `<AdminOnly><XxxContent /></AdminOnly>`, and the content component (which makes the API calls) is only created for an Admin, so a plain agent's page load calls nothing the API would refuse.
 3. Render the four states with `LoadingState`, `ErrorState` (with Retry), `EmptyState` and the content. Keep the previous content when a refresh fails.
 4. Send the ticket's `RowVersion` on every write and replace the local state from the returned `TicketStateDto`. Raise the page's conflict callback on `concurrency-conflict`.
 5. Test it with bUnit and a substitute client; add a host test only for what bUnit cannot see.
@@ -256,7 +256,8 @@ no knowledge-base article picker (PHASE-08); no presence or live updates (PHASE-
 
 - **Logo addresses are stored normalised.** The API saves the logo as `uri.AbsoluteUri` (so `HTTPS://Example.com` comes back as `https://example.com/`), and it rejects an address that holds a Unicode format character (such as a right-to-left override) as well as whitespace and control characters. The editor shows the saved form after a save.
 - **`ConfirmDialog` has `Dismissable`** (default true). The show-once API key dialog sets it to false until "I have stored this key" is ticked: Esc and a stray native close cannot close the browser's dialog, Esc still reaches the owner so it can explain, and when the browser closed the dialog anyway the component resyncs and shows it again.
-- **`AgentSession.ReloadAsync` keeps the session Ready** when the API answers with a server error, a timeout or cannot be reached, so a failed refresh (for example after the admin deactivates their own account) never turns a working page into an error screen. A refusal or an inactive account still changes the state.
+- **`AgentSession.ReloadAsync` keeps the session Ready** when the API answers with a server error, a timeout or cannot be reached, so a failed refresh (a transient failure while the page is open) never turns a working page into an error screen. A refusal (403, for example after the admin deactivates their own account) or an inactive account still changes the state to no access.
+- **The API clients have no HttpClient logging.** The default `IHttpClientFactory` logging writes each request header, `Authorization` included, at Trace (event 102). Both named API clients carry the agent's bearer token, so `ApiClientRegistration` calls `RemoveAllLoggers()` on them (the auth, forwarded-IP and retry handlers are untouched). `AdminLeakTests` runs with every Serilog level at Verbose and fails if a token or a new API key reaches any log line.
 
 ## Known gaps in 07b
 

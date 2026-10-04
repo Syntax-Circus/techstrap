@@ -1,4 +1,3 @@
-using System.Globalization;
 using TechStrap.Admin.Features.Settings;
 
 namespace TechStrap.Admin.Features.Ops.DeadLetters;
@@ -44,7 +43,7 @@ public static class DeadLettersCopy
     public const string ErrorUnknown = "Unknown SMTP error";
 
     /// <summary>The words for the API's last-error category (<c>smtp-transient</c> and its siblings). Anything else is free text from the API: it is shortened and shown as text, never as markup.</summary>
-    public static string ErrorLabel(string? lastError) => lastError switch
+    public static string ErrorLabel(string? lastError) => CategoryOf(lastError) switch
     {
         null or "" => ErrorNone,
         "smtp-transient" => ErrorTransient,
@@ -52,13 +51,14 @@ public static class DeadLettersCopy
         "smtp-authentication" => ErrorAuthentication,
         "smtp-timeout" => ErrorTimeout,
         "smtp-unknown" => ErrorUnknown,
-        _ => Clip(lastError),
+        _ => SafeText.Clip(lastError, MaxErrorLength),
     };
 
-    public static string Clip(string text)
+    // The API may append a reason to the category ("smtp-transient; worker lease expired"): the category before the first semicolon is what the page words.
+    private static string? CategoryOf(string? lastError)
     {
-        var clean = new string([.. text.Select(c => char.IsControl(c) || char.GetUnicodeCategory(c) == UnicodeCategory.Format ? ' ' : c)]).Trim();
-        return clean.Length <= MaxErrorLength ? clean : string.Concat(clean.AsSpan(0, MaxErrorLength - 1), "\u2026");
+        var first = lastError?.Split(';')[0].Trim();
+        return first is "smtp-transient" or "smtp-permanent" or "smtp-authentication" or "smtp-timeout" or "smtp-unknown" ? first : lastError;
     }
 
     public static string KindLabel(string kind) => EmailKinds.Label(kind);
