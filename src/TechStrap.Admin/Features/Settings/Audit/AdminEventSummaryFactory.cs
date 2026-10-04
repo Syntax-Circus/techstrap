@@ -13,9 +13,20 @@ namespace TechStrap.Admin.Features.Settings.Audit;
 /// </summary>
 public static class AdminEventSummaryFactory
 {
-    private const int MaxValueLength = 60;
+    public static string Summarize(string? type, string? payload)
+    {
+        try
+        {
+            return SummarizeCore(type ?? string.Empty, payload ?? string.Empty);
+        }
+        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException or FormatException or OverflowException)
+        {
+            // One bad row never takes the page down: the sentence just says less.
+            return Humanize(type);
+        }
+    }
 
-    public static string Summarize(string type, string payload)
+    private static string SummarizeCore(string type, string payload)
     {
         using var document = TryParse(payload);
         var root = document?.RootElement is { ValueKind: JsonValueKind.Object } obj ? obj : (JsonElement?)null;
@@ -44,7 +55,7 @@ public static class AdminEventSummaryFactory
     }
 
     /// <summary>The words for what an event is about. A subject type this app does not know is shown as it came, shortened.</summary>
-    public static string SubjectLabel(string subjectType) => subjectType switch
+    public static string SubjectLabel(string? subjectType) => subjectType switch
     {
         AdminSubjectTypes.Product => "Product",
         AdminSubjectTypes.ApiKey => "API key",
@@ -133,14 +144,27 @@ public static class AdminEventSummaryFactory
         {
             return JsonDocument.Parse(payload);
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException)
         {
             return null;
         }
     }
 
     private static string? Text(JsonElement? root, string name) =>
-        root is { } element && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String && value.GetString() is { Length: > 0 } text ? Clip(text) : null;
+        root is { } element && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String && StringOf(value) is { Length: > 0 } text ? Clip(text) : null;
+
+    // A JSON string with a lone surrogate escape parses but cannot be read as text: it counts as missing.
+    private static string? StringOf(JsonElement value)
+    {
+        try
+        {
+            return value.GetString();
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
 
     private static int? Count(JsonElement? root, string name) =>
         root is { } element && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number) && number >= 0 ? number : null;
@@ -153,7 +177,7 @@ public static class AdminEventSummaryFactory
         var result = new List<string>();
         if (root is { } element && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Array)
         {
-            result.AddRange(value.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => Clip(item.GetString() ?? string.Empty)).Where(text => text.Length > 0).Take(8));
+            result.AddRange(value.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => Clip(StringOf(item))).Where(text => text.Length > 0).Take(8));
         }
 
         return result;
@@ -186,7 +210,7 @@ public static class AdminEventSummaryFactory
     private static string Plural(int count, string singular, string plural) => $"{count.ToString(CultureInfo.InvariantCulture)} {(count == 1 ? singular : plural)}";
 
     /// <summary>"DeadLetterRetried" gives "Dead letter retried": what an event type this app does not know is shown as.</summary>
-    private static string Humanize(string type)
+    private static string Humanize(string? type)
     {
         var text = Clip(type);
         var builder = new StringBuilder();
@@ -203,9 +227,5 @@ public static class AdminEventSummaryFactory
         return builder.Length == 0 ? "Admin event" : builder.ToString();
     }
 
-    private static string Clip(string value)
-    {
-        var clean = new string([.. value.Select(c => char.IsControl(c) ? ' ' : c)]).Trim();
-        return clean.Length <= MaxValueLength ? clean : string.Concat(clean.AsSpan(0, MaxValueLength - 1), "\u2026");
-    }
+    private static string Clip(string? value) => SafeText.Clip(value);
 }

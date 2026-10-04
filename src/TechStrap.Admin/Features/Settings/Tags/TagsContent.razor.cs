@@ -36,6 +36,7 @@ public sealed partial class TagsContent : IDisposable
     private bool _deleteBusy;
     private bool _deleteUncertain;
     private bool _disposed;
+    private int _loadId;
 
     [Inject]
     private ITagsClient Tags { get; set; } = default!;
@@ -51,30 +52,35 @@ public sealed partial class TagsContent : IDisposable
         await LoadAsync();
     }
 
-    private async Task LoadAsync()
+    // True when this call read the list and it is now on screen. Only the latest load may change the screen: a slow answer that was overtaken is ignored.
+    private async Task<bool> LoadAsync()
     {
+        var loadId = ++_loadId;
         _loading = true;
         _error = null;
         try
         {
             var result = await Tags.ListSummaryAsync(_lifetime.Token);
-            if (_lifetime.IsCancellationRequested)
+            if (_lifetime.IsCancellationRequested || loadId != _loadId)
             {
-                return;
+                return false;
             }
 
             if (result.IsSuccess)
             {
                 _rows = Sorted(result.Value.Select(TagRowViewModel.From));
+                return true;
             }
-            else
-            {
-                _error = $"{TagsCopy.LoadFailed} {result.Errors[0].Message}";
-            }
+
+            _error = $"{TagsCopy.LoadFailed} {result.Errors[0].Message}";
+            return false;
         }
         finally
         {
-            _loading = false;
+            if (loadId == _loadId)
+            {
+                _loading = false;
+            }
         }
     }
 
@@ -182,7 +188,7 @@ public sealed partial class TagsContent : IDisposable
     private void ShowFailure(IReadOnlyList<ResultError> errors, Dictionary<string, string> fieldErrors, bool create)
     {
         var first = errors[0];
-        if (first.Code == ApiErrorCodes.TagSlugTaken)
+        if (create && first.Code == ApiErrorCodes.TagSlugTaken)
         {
             fieldErrors[ApiFields.Slug] = TagsCopy.SlugTaken;
             return;
@@ -197,7 +203,8 @@ public sealed partial class TagsContent : IDisposable
 
         foreach (var error in errors)
         {
-            if (error.Target is ApiFields.Name or ApiFields.Slug or ApiFields.Colour)
+            // The edit form shows only the name and the colour: an error for any other field goes above the list, never into a field error that would block Save.
+            if (error.Target is ApiFields.Name or ApiFields.Colour || (create && error.Target is ApiFields.Slug))
             {
                 fieldErrors.TryAdd(error.Target, error.Message);
             }
@@ -339,8 +346,23 @@ public sealed partial class TagsContent : IDisposable
         if (error.Code == ApiErrorCodes.TagInUse)
         {
             // Tickets were tagged after the list was read: show the new count, and the next confirmation is the typed one.
-            await LoadAsync();
-            _deleteError = TagsCopy.NowInUse;
+            if (!await LoadAsync())
+            {
+                // The list could not be read again: a medium confirm must never stay open under in-use copy. The load error is on the page.
+                _deletingId = Guid.Empty;
+            }
+            else if (Deleting is null)
+            {
+                StatusMessages.Show(TagsCopy.TagGone);
+            }
+            else if (Deleting is { TicketCount: > 0 })
+            {
+                _deleteError = TagsCopy.NowInUse;
+            }
+            else
+            {
+                _deleteError = TagsCopy.DeleteFailed(error.Message);
+            }
         }
         else if (error.Code == ApiErrorCodes.TagNotFound)
         {

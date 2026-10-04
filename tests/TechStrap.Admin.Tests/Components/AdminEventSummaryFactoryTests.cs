@@ -76,6 +76,7 @@ public sealed class AdminEventSummaryFactoryTests
             "{\"detachedTicketCount\":\"x\"}", "{\"detachedTicketCount\":99999999999}", "{\"detachedTicketCount\":-3}", "{\"detachedTicketCount\":1.5}",
             "{\"changed\":\"name\"}", "{\"changed\":[1,null,{},[]]}", "{\"isActive\":\"yes\"}", "{\"attempts\":true}",
             "{\"hostile\":\"<script>alert(1)</script>\"}",
+            "{\"slug\":\"a\uD800\"}", "{\"slug\":\"a\\ud800\"}", "{\"changed\":[\"a\\ud800\"],\"kind\":\"b\\udc00\"}", "\uD800",
         ];
 
         foreach (var payload in payloads)
@@ -134,5 +135,26 @@ public sealed class AdminEventSummaryFactoryTests
         labels.ShouldAllBe(l => !string.IsNullOrWhiteSpace(l));
         AdminEventSummaryFactory.SubjectLabel(AdminSubjectTypes.EmailOutbox).ShouldBe("Email");
         AdminEventSummaryFactory.SubjectLabel("Webhook").ShouldBe("Webhook");
+    }
+
+    [Fact]
+    public void A_lone_surrogate_in_the_payload_or_the_type_never_throws()
+    {
+        AdminEventSummaryFactory.Summarize(AdminEventTypes.TagCreated, "{\"slug\":\"a\uD800\"}").ShouldBe("Created a tag");
+        AdminEventSummaryFactory.Summarize(AdminEventTypes.TagCreated, "{\"slug\":\"a\\ud800\"}").ShouldBe("Created a tag");
+        AdminEventSummaryFactory.Summarize("Bad\uD800Type", "{}").ShouldNotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public void Null_inputs_never_throw()
+    {
+        AdminEventSummaryFactory.Summarize(null!, null!).ShouldBe("Admin event");
+        AdminEventSummaryFactory.SubjectLabel(null!).ShouldBe(string.Empty);
+    }
+
+    [Fact]
+    public void A_text_direction_override_in_a_value_is_replaced_like_a_control_character()
+    {
+        AdminEventSummaryFactory.Summarize(AdminEventTypes.TagCreated, "{\"slug\":\"ab\\u202Ecd\\u200Bef\"}").ShouldBe("Created tag ab cd ef");
     }
 }

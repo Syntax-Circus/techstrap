@@ -205,6 +205,25 @@ public sealed class AdminEventsPageTests : AdminPageTest
         cut.Find("#ts-audit-actor").QuerySelectorAll("option").Select(o => o.TextContent).ShouldBe(["Anyone"]);
     }
 
+    [Fact]
+    public void A_slow_answer_for_an_earlier_filter_is_ignored_when_a_later_one_has_already_been_shown()
+    {
+        var slow = new TaskCompletionSource<Result<PagedResponse<AdminEventDto>>>();
+        _events.ListAsync(Arg.Is<AdminEventFilter>(f => f.SubjectType == null), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(slow.Task);
+        _events.ListAsync(Arg.Is<AdminEventFilter>(f => f.SubjectType == "Tag"), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Ok(new PagedResponse<AdminEventDto>([TestData.AdminEvent(AdminEventTypes.TagCreated, "{\"slug\":\"fast\"}")], 1, 25, 1)));
+        var cut = RenderPage();
+
+        _navigation.NavigateTo("/settings/audit?subject=Tag");
+        cut.WaitForAssertion(() => cut.FindAll("tbody tr").Count.ShouldBe(1));
+        slow.SetResult(TestData.Ok(new PagedResponse<AdminEventDto>([TestData.AdminEvent(AdminEventTypes.TagCreated, "{\"slug\":\"slow\"}"), TestData.AdminEvent()], 1, 25, 2)));
+        cut.FindComponent<AdminEventsContent>().Render();
+
+        cut.FindAll("tbody tr").Count.ShouldBe(1);
+        cut.Find("tbody tr").TextContent.ShouldContain("Created tag fast");
+        cut.Markup.ShouldNotContain("slow");
+    }
+
     // ---- paging and asOf -----------------------------------------------------------------------------------------
 
     [Fact]

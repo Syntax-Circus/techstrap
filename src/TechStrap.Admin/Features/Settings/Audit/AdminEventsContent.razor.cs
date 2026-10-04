@@ -26,6 +26,7 @@ public sealed partial class AdminEventsContent : IDisposable
     private int _total;
     private bool _loading = true;
     private bool _agentsLoaded;
+    private int _loadId;
 
     [Inject]
     private IAdminEventsClient Events { get; set; } = default!;
@@ -87,12 +88,14 @@ public sealed partial class AdminEventsContent : IDisposable
             _filterOfAsOf = filter;
         }
 
+        // Only the latest load may change the screen: a slow answer for an earlier filter or page is ignored.
+        var loadId = ++_loadId;
         _loading = true;
         _error = null;
         try
         {
             var result = await Events.ListAsync(new AdminEventFilter(_subject, _actor, _asOf), _page, AuditCopy.PageSize, _lifetime.Token);
-            if (_lifetime.IsCancellationRequested)
+            if (_lifetime.IsCancellationRequested || loadId != _loadId)
             {
                 return;
             }
@@ -110,7 +113,10 @@ public sealed partial class AdminEventsContent : IDisposable
         }
         finally
         {
-            _loading = false;
+            if (loadId == _loadId)
+            {
+                _loading = false;
+            }
         }
     }
 

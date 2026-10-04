@@ -212,6 +212,39 @@ public sealed class DeleteTagTests : AdminPageTest
     }
 
     [Fact]
+    public void A_409_whose_reload_fails_closes_the_dialog_and_shows_the_load_error_never_a_medium_confirm_under_in_use_copy()
+    {
+        _tags.DeleteAsync(_unusedId, false, Arg.Any<CancellationToken>()).Returns(TestData.Fail(ApiErrorCodes.TagInUse, "In use.", ResultErrorKind.Conflict));
+        _tags.ListSummaryAsync(Arg.Any<CancellationToken>()).Returns(
+            TestData.Ok<IReadOnlyList<TagSummaryDto>>([TestData.TagSummary("Old idea", 0, "old-idea", id: _unusedId)]),
+            TestData.Fail<IReadOnlyList<TagSummaryDto>>("api-error", "The API is unavailable."));
+        var cut = RenderPage();
+        AskToDelete(cut, "old-idea");
+
+        Confirm(cut).Click();
+
+        cut.FindAll("dialog").Any(d => d.QuerySelector("h2")?.TextContent.StartsWith("Delete the tag ", StringComparison.Ordinal) == true).ShouldBeFalse();
+        cut.Find(".ts-state--error").TextContent.ShouldContain("The API is unavailable.");
+        Deletes().ShouldBe([(_unusedId, false)]);
+    }
+
+    [Fact]
+    public void A_409_whose_reload_shows_the_tag_gone_closes_the_dialog_and_says_so()
+    {
+        _tags.DeleteAsync(_unusedId, false, Arg.Any<CancellationToken>()).Returns(TestData.Fail(ApiErrorCodes.TagInUse, "In use.", ResultErrorKind.Conflict));
+        _tags.ListSummaryAsync(Arg.Any<CancellationToken>()).Returns(
+            TestData.Ok<IReadOnlyList<TagSummaryDto>>([TestData.TagSummary("Old idea", 0, "old-idea", id: _unusedId)]),
+            TestData.Ok<IReadOnlyList<TagSummaryDto>>([TestData.TagSummary("urgent", 12, id: _urgentId)]));
+        var cut = RenderPage();
+        AskToDelete(cut, "old-idea");
+
+        Confirm(cut).Click();
+
+        cut.FindAll("dialog").Any(d => d.QuerySelector("h2")?.TextContent.StartsWith("Delete the tag ", StringComparison.Ordinal) == true).ShouldBeFalse();
+        StatusMessages.Current.ShouldBe("That tag no longer exists.");
+    }
+
+    [Fact]
     public void A_tag_that_is_already_gone_closes_the_dialog_says_so_and_reloads_the_list()
     {
         _tags.DeleteAsync(Arg.Any<Guid>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail(ApiErrorCodes.TagNotFound, "No such tag.", ResultErrorKind.NotFound));

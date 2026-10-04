@@ -24,6 +24,6 @@ public static class EmailKinds
         CustomerReplyAlert => "Customer reply alert",
         AccessLinks => "Access links",
         null or "" => "Email",
-        _ => kind,
+        _ => SafeText.Clip(kind),
     };
 }

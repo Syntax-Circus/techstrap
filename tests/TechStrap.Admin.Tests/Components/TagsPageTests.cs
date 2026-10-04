@@ -290,4 +290,37 @@ public sealed class TagsPageTests : AdminPageTest
         _tags.Received(2).ListSummaryAsync(Arg.Any<CancellationToken>());
         cut.FindAll("tr.ts-tag-editing").ShouldBeEmpty();
     }
+
+    [Fact]
+    public void A_slow_list_that_was_overtaken_by_a_reload_does_not_replace_the_newer_list()
+    {
+        var slow = new TaskCompletionSource<Result<IReadOnlyList<TagSummaryDto>>>();
+        _tags.ListSummaryAsync(Arg.Any<CancellationToken>()).Returns(slow.Task, Task.FromResult(TestData.Ok<IReadOnlyList<TagSummaryDto>>([TestData.TagSummary("fresh", 2), TestData.TagSummary("newer", 3)])));
+        _tags.CreateAsync(Arg.Any<CreateTagRequest>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail<TagDto>(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again."));
+        var cut = RenderPage();
+        cut.Find("#ts-tag-name").Input("Refund");
+        cut.Find("form.ts-tag-create").Submit();
+        cut.Find(".ts-conflict[role=alert] button").Click();
+        cut.FindAll("tbody tr").Count.ShouldBe(2);
+
+        slow.SetResult(TestData.Ok<IReadOnlyList<TagSummaryDto>>([TestData.TagSummary("stale", 1)]));
+        cut.FindComponent<TagsContent>().Render();
+
+        cut.FindAll("tbody tr").Select(r => r.Children[0].TextContent.Trim()).ShouldBe(["fresh", "newer"]);
+    }
+
+    [Fact]
+    public void A_400_for_the_slug_while_editing_goes_above_the_list_and_does_not_block_the_next_save()
+    {
+        _tags.UpdateAsync(Arg.Any<Guid>(), Arg.Any<UpdateTagRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Result<TagDto>.Failure(new ResultError("x-invalid", "The slug is wrong.", ResultErrorKind.Validation, "slug")));
+        var cut = RenderPage();
+        Row(cut, "urgent").QuerySelector("button.ts-edit")!.Click();
+
+        cut.Find("button.ts-save").Click();
+
+        cut.Find(".ts-conflict[role=alert]").TextContent.ShouldContain("The slug is wrong.");
+        cut.Find("button.ts-save").Click();
+        Updates().Count.ShouldBe(2);
+    }
 }
