@@ -438,4 +438,58 @@ public sealed class DestructiveActionTests : AdminComponentTest
         seen.CanBeCanceled.ShouldBeFalse();
         gate.SetResult(TestData.Ok());
     }
+
+    [Fact]
+    public void A_second_menu_restore_while_the_first_runs_is_ignored_by_the_runner_itself()
+    {
+        var gate = new TaskCompletionSource<Result<TicketStateDto>>();
+        _tickets.SetSpamAsync(Arg.Any<Guid>(), Arg.Any<MarkTicketSpamRequest>(), Arg.Any<CancellationToken>()).Returns(gate.Task);
+        var cut = RenderActions(admin: false, TestData.Model(isSpam: true));
+
+        cut.Find("ul.ts-menu button").Click();
+        cut.Find("ul.ts-menu button").Click();
+
+        _tickets.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(ITicketsClient.SetSpamAsync)).ShouldBe(1);
+        gate.SetResult(TestData.Ok(TestData.State(isSpam: false)));
+    }
+
+    [Theory]
+    [InlineData(ApiErrorCodes.Forbidden)]
+    [InlineData(ApiErrorCodes.AdminAccessRequired)]
+    public void A_403_from_delete_or_erase_is_a_plain_failure_not_an_uncertain_one(string code)
+    {
+        _tickets.DeleteAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail(code, "Admins only.", ResultErrorKind.Forbidden));
+        _requesters.EraseAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail(code, "Admins only.", ResultErrorKind.Forbidden));
+        var cut = RenderActions(admin: true);
+
+        OpenDialog(cut, "Delete ticket");
+        Type(Dialog(cut, "Delete ORB-42"), "ORB-42");
+        Confirm(Dialog(cut, "Delete ORB-42")).Click();
+        Dialog(cut, "Delete ORB-42").QuerySelector("[role=alert]")!.TextContent.ShouldBe("Couldn't delete the ticket. Nothing was changed. Admins only.");
+        Dialog(cut, "Delete ORB-42").QuerySelector("button.btn-outline-secondary")!.Click();
+
+        OpenDialog(cut, "Erase requester");
+        Type(Dialog(cut, "Erase this requester"), "ada@example.com");
+        Confirm(Dialog(cut, "Erase this requester")).Click();
+        Dialog(cut, "Erase this requester").QuerySelector("[role=alert]")!.TextContent.ShouldBe("Couldn't erase the requester. Nothing was changed. Admins only.");
+
+        _navigation.Uri.ShouldEndWith("/tickets/ORB-42");
+        cut.Markup.ShouldNotContain("may already");
+    }
+
+    [Fact]
+    public void After_an_uncertain_failure_confirm_stays_disabled_so_only_reload_or_the_queue_remain()
+    {
+        _tickets.DeleteAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail(ApiErrorCodes.ApiTimeout, "Slow."));
+        var cut = RenderActions(admin: true);
+        OpenDialog(cut, "Delete ticket");
+        Type(Dialog(cut, "Delete ORB-42"), "ORB-42");
+        Confirm(Dialog(cut, "Delete ORB-42")).Click();
+
+        Confirm(Dialog(cut, "Delete ORB-42")).HasAttribute("disabled").ShouldBeTrue();
+        Confirm(Dialog(cut, "Delete ORB-42")).Click();
+
+        _tickets.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(ITicketsClient.DeleteAsync)).ShouldBe(1);
+        Dialog(cut, "Delete ORB-42").QuerySelector("button.btn-outline-secondary")!.HasAttribute("disabled").ShouldBeFalse();
+    }
 }

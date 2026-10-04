@@ -36,7 +36,8 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
     private bool _lookupsLoaded;
     private bool _scrollSelected;
     private bool _notSpamBusy;
-    private bool _errorUncertain;
+    private bool _notSpamError;
+    private bool _disposed;
     private int _selected = -1;
 
     [Inject]
@@ -177,6 +178,7 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
         var filter = _filter;
         _loading = true;
         _error = null;
+        _notSpamError = false;
 
         try
         {
@@ -303,23 +305,31 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
         }
 
         _notSpamBusy = true;
-        _errorUncertain = false;
+        _notSpamError = false;
         try
         {
             var ticket = await Tickets.GetAsync(row.Number, _lifetime.Token);
             if (ticket.IsFailure)
             {
+                _notSpamError = true;
                 _error = ActionsCopy.NotSpamFailed(ticket.Errors[0].Message);
                 return;
             }
 
             var state = await Tickets.SetSpamAsync(row.Id, new MarkTicketSpamRequest(false, ticket.Value.RowVersion), CancellationToken.None);
+            if (_disposed)
+            {
+                // The write went through (or not) after the page was closed: nothing here may touch the page's lifetime or state any more.
+                return;
+            }
+
             if (state.IsFailure)
             {
                 var error = state.Errors[0];
-                _errorUncertain = error.Code is ApiErrorCodes.ApiTimeout or ApiErrorCodes.ApiUnavailable or ApiErrorCodes.UnexpectedResponse or ApiErrorCodes.ApiError;
+                // The shared error button only reloads the list, so it says "Reload" for every Not spam failure.
+                _notSpamError = true;
                 _error = error.Code == ApiErrorCodes.ConcurrencyConflict ? ActionsCopy.ChangedMeanwhile(row.Number)
-                    : _errorUncertain ? ActionsCopy.RestoreUncertain
+                    : ApiErrorCodes.IsUncertainWrite(error.Code) ? ActionsCopy.RestoreUncertain
                     : ActionsCopy.NotSpamFailed(error.Message);
                 return;
             }
@@ -368,6 +378,7 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         Shortcuts.Pressed -= OnShortcutAsync;
         _lifetime.Cancel();
         _cts?.Dispose();

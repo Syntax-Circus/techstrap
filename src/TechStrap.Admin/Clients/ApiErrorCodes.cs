@@ -32,4 +32,7 @@ public static class ApiErrorCodes
     public const string AgentIdentityInvalid = "agent-identity-invalid";
     public const string AgentNotProvisioned = "agent-not-provisioned";
     public const string AdminAccessRequired = "admin-access-required";
+
+    /// <summary>A write that failed this way may still have been applied (the answer was lost, late or unreadable): say so and offer a reload, never a bare retry.</summary>
+    public static bool IsUncertainWrite(string code) => code is ApiTimeout or ApiUnavailable or UnexpectedResponse or ApiError;
 }

@@ -220,4 +220,38 @@ public sealed class NotSpamQueueTests : AdminComponentTest
 
         seen.CanBeCanceled.ShouldBeFalse();
     }
+
+    [Fact]
+    public async Task Disposing_the_page_mid_write_then_completing_it_throws_nothing_and_calls_nothing_more()
+    {
+        var gate = new TaskCompletionSource<Result<TicketStateDto>>();
+        _tickets.SetSpamAsync(Arg.Any<Guid>(), Arg.Any<MarkTicketSpamRequest>(), Arg.Any<CancellationToken>()).Returns(gate.Task);
+        var cut = RenderQueue("spam");
+        await PressAsync("j");
+        var first = PressAsync("u");
+        var countsBefore = _tickets.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(ITicketsClient.GetCountsAsync));
+
+        await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
+        gate.SetResult(TestData.Ok(TestData.State(isSpam: false)));
+        await first;
+
+        _tickets.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(ITicketsClient.GetCountsAsync)).ShouldBe(countsBefore);
+    }
+
+    [Fact]
+    public async Task A_Not_spam_failure_labels_the_shared_button_Reload_and_a_later_load_failure_goes_back_to_Retry()
+    {
+        _tickets.SetSpamAsync(Arg.Any<Guid>(), Arg.Any<MarkTicketSpamRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Fail<TicketStateDto>(ApiErrorCodes.ConcurrencyConflict, "Stale.", ResultErrorKind.Conflict));
+        var cut = RenderQueue("spam");
+        await PressAsync("j");
+        await PressAsync("u");
+
+        cut.Find("[role=alert] button").TextContent.ShouldBe(ActionsCopy.Reload);
+
+        _tickets.ListAsync(Arg.Any<ListTicketsRequest>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail<TechStrap.Contracts.Paging.PagedResponse<TicketSummaryDto>>("boom", "Down."));
+        cut.Find("[role=alert] button").Click();
+
+        cut.WaitForAssertion(() => cut.Find("[role=alert] button").TextContent.ShouldBe("Retry"));
+    }
 }

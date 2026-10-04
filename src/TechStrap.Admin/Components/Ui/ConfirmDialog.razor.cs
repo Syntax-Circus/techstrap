@@ -56,6 +56,10 @@ public partial class ConfirmDialog : IAsyncDisposable
     [Parameter]
     public bool Busy { get; set; }
 
+    /// <summary>Keeps Confirm disabled without making the rest of the dialog inert (Cancel and Esc still work). Used after a write whose outcome is unknown.</summary>
+    [Parameter]
+    public bool ConfirmDisabled { get; set; }
+
     /// <summary>The failure from the last confirm. The dialog stays open and nothing else changes.</summary>
     [Parameter]
     public string? Error { get; set; }
@@ -78,7 +82,7 @@ public partial class ConfirmDialog : IAsyncDisposable
 
     private string ConfirmPrompt => $"Type {RequiredText} to confirm";
 
-    private bool CanConfirm => !Busy && (RequiredText is null || string.Equals(_typed.Trim(), RequiredText, StringComparison.OrdinalIgnoreCase));
+    private bool CanConfirm => !Busy && !ConfirmDisabled && (RequiredText is null || string.Equals(_typed.Trim(), RequiredText, StringComparison.OrdinalIgnoreCase));
 
     protected override void OnParametersSet()
     {

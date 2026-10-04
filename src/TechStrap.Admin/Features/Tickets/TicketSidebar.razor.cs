@@ -188,7 +188,7 @@ public sealed partial class TicketSidebar : IDisposable
         {
             await OnGone.InvokeAsync();
         }
-        else if (error.Code is ApiErrorCodes.ApiTimeout or ApiErrorCodes.ApiUnavailable or ApiErrorCodes.UnexpectedResponse or ApiErrorCodes.ApiError)
+        else if (ApiErrorCodes.IsUncertainWrite(error.Code))
         {
             // The write may have been saved before the answer was lost: never a bare "try again", the agent reloads to see the current state.
             _errors[field] = SidebarCopy.ChangeUncertain;

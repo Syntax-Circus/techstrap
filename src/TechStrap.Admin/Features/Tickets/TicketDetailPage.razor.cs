@@ -83,6 +83,12 @@ public sealed partial class TicketDetailPage : IDisposable
     /// <returns>False when the load was cancelled or superseded and nothing was applied.</returns>
     private async Task<bool> LoadCoreAsync(bool silent)
     {
+        if (_disposed)
+        {
+            // A write finished after the page was closed; the lifetime source is gone and there is nothing left to refresh.
+            return false;
+        }
+
         _load?.Cancel();
         _load?.Dispose();
         var cts = _load = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);

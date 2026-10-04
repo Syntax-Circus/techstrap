@@ -258,7 +258,7 @@ public sealed partial class ReplyComposer : IDisposable
     }
 
     private static bool IsUncertain(string code) =>
-        code is ApiErrorCodes.ApiTimeout or ApiErrorCodes.ApiUnavailable or ApiErrorCodes.UnexpectedResponse or ApiErrorCodes.ApiError;
+        ApiErrorCodes.IsUncertainWrite(code);
 
     // Runs after the write finished, possibly after this component was disposed: the shared draft is settled first, and the UI callbacks only run while alive.
     private async Task HandleResultAsync(ComposerMode mode, ComposerDraft draft, string number, string sentText, Result<AgentMessageResponse> result)

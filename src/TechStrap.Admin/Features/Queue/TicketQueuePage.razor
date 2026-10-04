@@ -18,7 +18,7 @@
     {
         @if (_error is not null)
         {
-            <ErrorState Message="@_error" OnRetry="RetryAsync" RetryLabel="@(_errorUncertain ? ActionsCopy.Reload : UiCopy.RetryLabel)" />
+            <ErrorState Message="@_error" OnRetry="RetryAsync" RetryLabel="@(_notSpamError ? ActionsCopy.Reload : UiCopy.RetryLabel)" />
         }
 
         @if (_rows.Count > 0)

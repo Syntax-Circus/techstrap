@@ -31,7 +31,7 @@
     @if (CanMarkSpam)
     {
         <ConfirmDialog Open="@(_dialog == ActionDialog.Spam)" Title="@ActionsCopy.SpamTitle(Ticket.Number)" ConfirmLabel="@ActionsCopy.SpamConfirm"
-                       Busy="_busy" Error="@_error" OnConfirm="ConfirmSpamAsync" OnCancel="Close">
+                       Busy="_busy" ConfirmDisabled="_uncertain" Error="@_error" OnConfirm="ConfirmSpamAsync" OnCancel="Close">
             <p>@ActionsCopy.SpamBody(Ticket.Number)</p>
             @Recovery(ActionDialog.Spam)
         </ConfirmDialog>
@@ -40,12 +40,12 @@
     @if (Session.IsAdmin)
     {
         <ConfirmDialog Open="@(_dialog == ActionDialog.Delete)" Title="@ActionsCopy.DeleteTitle(Ticket.Number)" ConfirmLabel="@ActionsCopy.DeleteConfirm" Danger="true"
-                       RequiredText="@Ticket.Number" Busy="_busy" Error="@_error" OnConfirm="ConfirmDeleteAsync" OnCancel="Close">
+                       RequiredText="@Ticket.Number" Busy="_busy" ConfirmDisabled="_uncertain" Error="@_error" OnConfirm="ConfirmDeleteAsync" OnCancel="Close">
             <p>@ActionsCopy.DeleteBody</p>
             @Recovery(ActionDialog.Delete)
         </ConfirmDialog>
         <ConfirmDialog Open="@(_dialog == ActionDialog.Erase)" Title="@ActionsCopy.EraseTitle" ConfirmLabel="@ActionsCopy.EraseConfirm" Danger="true"
-                       RequiredText="@Ticket.Requester.Email" Busy="_busy" Error="@_error" OnConfirm="ConfirmEraseAsync" OnCancel="Close">
+                       RequiredText="@Ticket.Requester.Email" Busy="_busy" ConfirmDisabled="_uncertain" Error="@_error" OnConfirm="ConfirmEraseAsync" OnCancel="Close">
             <p>@ActionsCopy.EraseBody(Ticket.Requester.Email)</p>
             @Recovery(ActionDialog.Erase)
         </ConfirmDialog>

@@ -194,7 +194,7 @@ public sealed partial class TicketActions : IDisposable
             _dialog = ActionDialog.None;
             await OnGone.InvokeAsync();
         }
-        else if (error.Code is ApiErrorCodes.ApiTimeout or ApiErrorCodes.ApiUnavailable or ApiErrorCodes.UnexpectedResponse or ApiErrorCodes.ApiError)
+        else if (ApiErrorCodes.IsUncertainWrite(error.Code))
         {
             // The write may have been applied before the answer was lost: never a bare "try again", and nothing claims it was left unchanged.
             if (dialogOpen)
