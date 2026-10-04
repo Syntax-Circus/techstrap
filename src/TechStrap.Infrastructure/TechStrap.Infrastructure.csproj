@@ -16,6 +16,7 @@
     <PackageReference Include="Markdig" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="SyntaxCircus.AspNetCore.Serilog" />
     <PackageReference Include="SyntaxCircus.Email" />
     <PackageReference Include="SyntaxCircus.EntityFrameworkCore.Postgres" />
     <PackageReference Include="SyntaxCircus.Storage" />

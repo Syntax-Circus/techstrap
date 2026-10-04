@@ -9,6 +9,7 @@ using TechStrap.Api.Options;
 using TechStrap.Api.Security;
 using TechStrap.Api.Startup;
 using TechStrap.Infrastructure.Intake;
+using TechStrap.Infrastructure.Logging;
 using TechStrap.Infrastructure.Persistence;
 using TechStrap.Infrastructure.Security;
 using TechStrap.Infrastructure.Seeding;
@@ -23,7 +24,11 @@ if (builder.Configuration.ShouldLoadDotEnv(builder.Environment))
 }
 
 var telemetry = builder.AddSyntaxCircusObservability(ServiceName);
-builder.AddStandardSerilog(configureEnrichment: telemetry.ConfigureSerilog);
+builder.AddStandardSerilog(configureEnrichment: logger =>
+{
+    telemetry.ConfigureSerilog(logger);
+    logger.Enrich.With<PiiRedactionEnricher>();
+});
 if (telemetry.Options.Sentry.IsEnabled)
 {
     builder.WebHost.UseSentry(options =>

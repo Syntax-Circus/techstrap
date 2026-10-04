@@ -5,6 +5,7 @@ using SyntaxCircus.DotEnv;
 using SyntaxCircus.Observability;
 using TechStrap.Infrastructure.AutoClose;
 using TechStrap.Infrastructure.Email;
+using TechStrap.Infrastructure.Logging;
 using TechStrap.Infrastructure.Persistence;
 using TechStrap.Worker.AutoClose;
 using TechStrap.Worker.Outbox;
@@ -21,7 +22,11 @@ if (builder.Configuration.ShouldLoadDotEnv(builder.Environment))
 }
 
 var telemetry = builder.AddSyntaxCircusObservability(ServiceName);
-builder.AddStandardSerilog(configureEnrichment: telemetry.ConfigureSerilog);
+builder.AddStandardSerilog(configureEnrichment: logger =>
+{
+    telemetry.ConfigureSerilog(logger);
+    logger.Enrich.With<PiiRedactionEnricher>();
+});
 if (telemetry.Options.Sentry.IsEnabled)
 {
     builder.WebHost.UseSentry(options =>
