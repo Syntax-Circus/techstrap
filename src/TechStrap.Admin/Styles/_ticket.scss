@@ -288,3 +288,17 @@
     order: -1;
   }
 }
+
+.ts-actions-uncertain {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border: 2px solid var(--st-spam);
+
+  p {
+    margin: 0;
+  }
+}

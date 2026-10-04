@@ -23,6 +23,8 @@ public sealed class ShortcutServiceTests : AdminComponentTest
     [InlineData("r", ShortcutAction.Reply)]
     [InlineData("n", ShortcutAction.Note)]
     [InlineData("e", ShortcutAction.FocusAssignee)]
+    [InlineData("u", ShortcutAction.NotSpam)]
+    [InlineData("U", ShortcutAction.NotSpam)]
     [InlineData("?", ShortcutAction.Help)]
     [InlineData("Escape", ShortcutAction.Escape)]
     public void A_single_key_maps_to_its_action_when_the_user_is_not_typing(string key, ShortcutAction expected) =>
@@ -32,6 +34,7 @@ public sealed class ShortcutServiceTests : AdminComponentTest
     [InlineData("j")]
     [InlineData("/")]
     [InlineData("r")]
+    [InlineData("u")]
     [InlineData("Enter")]
     [InlineData("Escape")]
     public void While_typing_no_single_key_is_a_shortcut(string key) =>
@@ -177,7 +180,7 @@ public sealed class ShortcutServiceTests : AdminComponentTest
     {
         var listed = ShortcutCatalog.All.SelectMany(entry => entry.Keys.Split(" / ")).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var key in new[] { "j", "k", "Enter", "/", "r", "n", "e", "?", "Esc", "Ctrl+Enter" })
+        foreach (var key in new[] { "j", "k", "Enter", "/", "r", "n", "e", "u", "?", "Esc", "Ctrl+Enter" })
         {
             listed.ShouldContain(key);
         }

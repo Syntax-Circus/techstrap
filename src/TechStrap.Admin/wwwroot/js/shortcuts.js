@@ -7,8 +7,7 @@
 const NON_TEXT_INPUTS = new Set(['button', 'checkbox', 'radio', 'submit', 'reset', 'file', 'range', 'color', 'image']);
 const EDITABLE_VALUES = new Set(['', 'true', 'plaintext-only']);
 
-// The keys ShortcutService maps; any other key is never sent. 'u' (Not spam) is listed ahead of its mapping: Task 12 adds it to ShortcutService.Map,
-// and until then the service simply ignores it.
+// The keys ShortcutService maps; any other key is never sent.
 const RELEVANT = new Set(['j', 'k', 'ArrowDown', 'ArrowUp', 'Enter', '/', 'r', 'n', 'e', 'u', '?', 'Escape']);
 
 let reference = null;

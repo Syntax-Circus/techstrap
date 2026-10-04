@@ -14,6 +14,7 @@ public static class ShortcutCatalog
         new("r", "Ticket", "Public reply: open the tab and focus the box"),
         new("n", "Ticket", "Internal note: open the tab and focus the box"),
         new("e", "Ticket", "Focus the assignee control"),
+        new("u", "Spam view, flagged ticket", "Not spam: restore the selected ticket from spam, no dialog"),
         new("Ctrl+Enter", "Reply box", "Send in the current mode"),
         new("Esc", "Anywhere", "Leave a field (your text is kept), close a dialog, or go back to the queue"),
         new("?", "Anywhere", "Show this list"),

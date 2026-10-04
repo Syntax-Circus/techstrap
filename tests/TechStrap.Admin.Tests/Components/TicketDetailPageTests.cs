@@ -32,6 +32,7 @@ public sealed class TicketDetailPageTests : AdminComponentTest
         Services.AddSingleton(tags);
         Services.AddTicketFeatures();
         Services.AddSingleton(AgentSessions.SignedIn());
+        Services.AddSingleton(Substitute.For<IRequestersClient>());
         ShowTicket(TestData.Detail());
         _navigation = Services.GetRequiredService<NavigationManager>();
     }

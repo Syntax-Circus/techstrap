@@ -11,6 +11,7 @@ public enum ShortcutAction
     Reply,
     Note,
     FocusAssignee,
+    NotSpam,
     Send,
     Escape,
     Help,
@@ -81,6 +82,7 @@ public sealed class ShortcutService(IJSRuntime js) : IAsyncDisposable
             "r" => ShortcutAction.Reply,
             "n" => ShortcutAction.Note,
             "e" => ShortcutAction.FocusAssignee,
+            "u" => ShortcutAction.NotSpam,
             "?" => ShortcutAction.Help,
             _ => null,
         };

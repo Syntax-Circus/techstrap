@@ -65,6 +65,13 @@ describe('decide', () => {
         assert.equal(result.payload.onBody, true);
     });
 
+    it('reports u (Not spam) in either case when nothing is focused, and nothing while typing or in a dialog', () => {
+        assert.equal(decide(event('u'), env()).payload.key, 'u');
+        assert.equal(decide(event('U'), env()).payload.key, 'U');
+        assert.equal(decide(event('u'), env({ active: element('TEXTAREA') })), null);
+        assert.equal(decide(event('u'), env({ dialogOpen: true })), null);
+    });
+
     it('reports nothing for an unmapped key', () => assert.equal(decide(event('a'), env()), null));
 
     it('reports nothing while the user types, and blurs on Escape instead', () => {

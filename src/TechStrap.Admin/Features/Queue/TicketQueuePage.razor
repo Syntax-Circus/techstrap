@@ -1,3 +1,4 @@
+@using TechStrap.Admin.Features.Tickets
 @page "/"
 @page "/queue/{View?}"
 @attribute [Authorize]
@@ -17,7 +18,7 @@
     {
         @if (_error is not null)
         {
-            <ErrorState Message="@_error" OnRetry="RetryAsync" />
+            <ErrorState Message="@_error" OnRetry="RetryAsync" RetryLabel="@(_errorUncertain ? ActionsCopy.Reload : UiCopy.RetryLabel)" />
         }
 
         @if (_rows.Count > 0)
@@ -35,12 +36,16 @@
                             <th scope="col">Priority</th>
                             <th scope="col">Assignee</th>
                             <th scope="col">Last activity</th>
+                            @if (IsSpamView)
+                            {
+                                <th scope="col"><span class="visually-hidden">Actions</span></th>
+                            }
                         </tr>
                     </thead>
                     <tbody>
                         @for (var i = 0; i < _rows.Count; i++)
                         {
-                            <TicketRow @key="_rows[i].Id" Row="_rows[i]" Selected="@(i == _selected)" />
+                            <TicketRow @key="_rows[i].Id" Row="_rows[i]" Selected="@(i == _selected)" ShowNotSpam="IsSpamView" OnNotSpam="NotSpamAsync" />
                         }
                     </tbody>
                 </table>

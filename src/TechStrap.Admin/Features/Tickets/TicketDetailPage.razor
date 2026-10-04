@@ -22,6 +22,7 @@ else
         {
             <ErrorState Message="@_error" OnRetry="RefreshAsync" />
         }
+        <TicketActions Ticket="_model" OnState="OnStateChangedAsync" OnConflict="OnConflictAsync" OnGone="RefreshAsync" OnReload="ReloadAfterConflictAsync" />
         <ConflictBanner State="_conflict" LatestChange="@_latestChange" Reloading="_reloading" OnReload="ReloadAfterConflictAsync" OnDismiss="DismissConflict" />
         <div class="ts-ticket-layout">
             <section class="ts-conversation" aria-label="@TicketCopy.ConversationLabel">

@@ -144,7 +144,8 @@ public sealed class ShellComponentTests : AdminComponentTest
         cut.WaitForAssertion(() => Dialogs.VerifyInvoke("open", 1));
 
         cut.Find("dialog.ts-dialog h2").TextContent.ShouldBe("Keyboard shortcuts");
-        cut.FindAll(".ts-shortcut-table tbody tr").Count.ShouldBe(9);
+        cut.FindAll(".ts-shortcut-table tbody tr").Count.ShouldBe(10);
+        cut.FindAll(".ts-shortcut-table kbd").Select(k => k.TextContent).ShouldContain("u");
 
         cut.Find("dialog button").Click();
 

@@ -33,6 +33,7 @@ public sealed class TicketDetailConflictTests : AdminComponentTest
         Services.AddSingleton(tags);
         Services.AddTicketFeatures();
         Services.AddSingleton(AgentSessions.SignedIn());
+        Services.AddSingleton(Substitute.For<IRequestersClient>());
         ShowTicket(TestData.Detail());
     }
 

@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using TechStrap.Admin.Clients;
+using TechStrap.Admin.Components.Ui;
 using TechStrap.Admin.Features.Shell;
+using TechStrap.Admin.Features.Tickets;
 using TechStrap.Contracts.Tickets;
 using TechStrap.Contracts.Paging;
 using TechStrap.Contracts.Products;
@@ -33,6 +35,8 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
     private bool _loading;
     private bool _lookupsLoaded;
     private bool _scrollSelected;
+    private bool _notSpamBusy;
+    private bool _errorUncertain;
     private int _selected = -1;
 
     [Inject]
@@ -49,6 +53,9 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
 
     [Inject]
     private ShortcutService Shortcuts { get; set; } = default!;
+
+    [Inject]
+    private StatusMessageService StatusMessages { get; set; } = default!;
 
     [Inject]
     private IJSRuntime Js { get; set; } = default!;
@@ -74,6 +81,8 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
 
     [SupplyParameterFromQuery(Name = QueueQueryKeys.Page)]
     public string? PageNumber { get; set; }
+
+    private bool IsSpamView => _filter.View == TicketViews.Spam;
 
     private bool IsCaughtUpView => _filter.View is TicketViews.Unassigned or TicketViews.Mine or TicketViews.Open;
 
@@ -272,10 +281,78 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
                 case ShortcutAction.FocusSearch when _filterBar is not null:
                     await _filterBar.FocusSearchAsync();
                     break;
+                case ShortcutAction.NotSpam when IsSpamView && _selected >= 0 && _selected < _rows.Count:
+                    await NotSpamAsync(_rows[_selected]);
+                    break;
             }
 
             StateHasChanged();
         });
+    }
+
+    /// <summary>
+    /// Not spam from the Spam view (the <c>u</c> key or the row button): no dialog, the status is unchanged. A queue row carries no RowVersion (the summary DTO has none) and the API
+    /// requires one for this write, so the ticket is read first and the write is made against what was read; a 409 means it changed since and the agent should open it. The write is never
+    /// cancelled when the page closes (it may already be applied); a failure with an unknown outcome says so and offers a reload.
+    /// </summary>
+    private async Task NotSpamAsync(TicketRowViewModel row)
+    {
+        if (_notSpamBusy)
+        {
+            return;
+        }
+
+        _notSpamBusy = true;
+        _errorUncertain = false;
+        try
+        {
+            var ticket = await Tickets.GetAsync(row.Number, _lifetime.Token);
+            if (ticket.IsFailure)
+            {
+                _error = ActionsCopy.NotSpamFailed(ticket.Errors[0].Message);
+                return;
+            }
+
+            var state = await Tickets.SetSpamAsync(row.Id, new MarkTicketSpamRequest(false, ticket.Value.RowVersion), CancellationToken.None);
+            if (state.IsFailure)
+            {
+                var error = state.Errors[0];
+                _errorUncertain = error.Code is ApiErrorCodes.ApiTimeout or ApiErrorCodes.ApiUnavailable or ApiErrorCodes.UnexpectedResponse or ApiErrorCodes.ApiError;
+                _error = error.Code == ApiErrorCodes.ConcurrencyConflict ? ActionsCopy.ChangedMeanwhile(row.Number)
+                    : _errorUncertain ? ActionsCopy.RestoreUncertain
+                    : ActionsCopy.NotSpamFailed(error.Message);
+                return;
+            }
+
+            _error = null;
+            RemoveRow(row);
+            StatusMessages.Show(ActionsCopy.Restored(row.Number));
+            var counts = await Tickets.GetCountsAsync(_lifetime.Token);
+            if (counts.IsSuccess)
+            {
+                _counts = counts.Value;
+            }
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // The page was closed mid-request.
+        }
+        finally
+        {
+            _notSpamBusy = false;
+        }
+    }
+
+    private void RemoveRow(TicketRowViewModel row)
+    {
+        _rows = _rows.Where(r => r.Id != row.Id).ToList();
+        if (_page is not null)
+        {
+            _page = _page with { Items = _page.Items.Where(t => t.Id != row.Id).ToList(), TotalCount = Math.Max(0, _page.TotalCount - 1) };
+        }
+
+        _selected = Math.Min(_selected, _rows.Count - 1);
+        _announcement = $"{_rows.Count} of {_page?.TotalCount ?? 0} tickets";
     }
 
     private void Select(int index)
