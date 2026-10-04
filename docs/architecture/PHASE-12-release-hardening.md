@@ -212,7 +212,7 @@ phase verifies configuration and upgrades only for security fixes.
 ## Handoff
 
 `v1.0.0` is tagged, published and running on UAT; the release notes list known
-limitations (single API instance, no inbound email, no retention automation,
+limitations (single API instance, no inbound email, no retention automation beyond the email outbox,
 no passkeys). The follow-on sub-projects (inbound email, extras, workflows,
 passkeys) each start with their own spec cycle using
 `99-IMPLEMENTATION-ROADMAP.md` as the entry point; this phase is the last in

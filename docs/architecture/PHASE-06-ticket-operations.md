@@ -107,10 +107,10 @@ Record the exact package version in the linked package map. In the foundation ph
 
 Write the named handler test class first for every handler task (substitutes for repositories and fake `TimeProvider`), then implement.
 
-- [ ] **P06-T01** Add Contracts DTOs and request types; extend `ContractNamingTests`
+- [x] **P06-T01** Add Contracts DTOs and request types; extend `ContractNamingTests`
   - **Depends on:** none (inside this phase)
   - **Validation:** `ContractNamingTests` pass; DTO round-trip serialisation tests pass; no internal-only field (note bodies, hashes) in `Customer*` DTOs (`CustomerDtoShapeTests`)
-  - **06a part done:** TicketDtoSerializationTests, ContractNamingTests (ticket DTOs and requests); **06b done:** customer DTOs (CustomerDtoShapeTests); **06c remaining:** dead-letter DTOs (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
+  - **06a part done:** TicketDtoSerializationTests, ContractNamingTests (ticket DTOs and requests); **06b done:** customer DTOs (CustomerDtoShapeTests); **06c done:** dead-letter DTOs (DeadLetterDto, DeadLetterDtoShapeTests; plan: `docs/superpowers/plans/2026-10-03-phase-06c-delete-erase-dead-letters.md`)
 - [x] **P06-T02** Implement `ITicketNotificationPlanner` with `TicketNotificationPlannerTests` (recipient rules per case, opt-in preferences, no email to the acting agent, no internal notes sent, branding of the ticket's current product) and `TicketNotificationPlanner` over `IEmailOutbox`, staging template data only (D-033); add the new templates
   - **Depends on:** P06-T01
   - **Validation:** `TicketNotificationPlannerTests` pass; template snapshot tests for all new templates; outbox rows are created in the caller's transaction (integration test with rollback)
@@ -144,13 +144,14 @@ Write the named handler test class first for every handler task (substitutes for
   - **Depends on:** P06-T04
   - **Validation:** tags are idempotent (D-036): adding a tag the ticket has, or removing one it lacks, is 200 with no event; an unknown tag id is 404; `TagAdded`/`TagRemoved` events written
   - **06a evidence:** AddTicketTagRequestHandlerTests, RemoveTicketTagRequestHandlerTests, TicketTagAndSpamEndpointTests (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
-- [ ] **P06-T10** `MarkTicketSpamRequestHandlerTests` and `DeleteTicketRequestHandlerTests` plus handlers (`DeleteTicketIntegrationTests`: messages, events, attachment rows and files, and pending outbox rows are removed; follow-ups survive unlinked; an `AdminEvent` without ticket content is written)
+- [x] **P06-T10** `MarkTicketSpamRequestHandlerTests` and `DeleteTicketRequestHandlerTests` plus handlers (`DeleteTicketIntegrationTests`: messages, events, attachment rows and files, and pending outbox rows are removed; follow-ups survive unlinked; an `AdminEvent` without ticket content is written)
   - **Depends on:** P06-T04
-  - **Validation:** spam sets and clears the flag and hides from the normal views; delete leaves no rows or files for the ticket; delete is Admin-only and spam is available to Agents (`TicketAuthorizationTests`, D-022)
-  - **06a part done:** mark spam (MarkTicketSpamRequestHandlerTests, TicketTagAndSpamEndpointTests); **06c remaining:** delete-ticket (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
-- [ ] **P06-T11** `EraseRequesterRequestHandlerTests` and handler; `EraseRequesterIntegrationTests` (subject, metadata, outbox rows by address and by ticket, D-039)
+  - **Validation:** spam sets and clears the flag and hides from the normal views; delete leaves no rows or files for the ticket and removes its outbox rows in any status (D-039); delete is Admin-only and spam is available to Agents (`TicketAuthorizationTests`, D-022)
+  - **06a part done:** mark spam (MarkTicketSpamRequestHandlerTests, TicketTagAndSpamEndpointTests); **06c done:** delete-ticket (DeleteTicketRequestHandlerTests, DeleteTicketIntegrationTests, TicketLifecycleEndToEndTests; plan: `docs/superpowers/plans/2026-10-03-phase-06c-delete-erase-dead-letters.md`)
+- [x] **P06-T11** `EraseRequesterRequestHandlerTests` and handler; `EraseRequesterIntegrationTests` (subject, metadata, outbox rows by address and by ticket, D-039)
   - **Depends on:** P06-T10
-  - **Validation:** after erase no message body, name, email or attachment file for that requester remains; ticket numbers and event ids survive; tokens revoked; `AdminEvent` written; a search for the old email finds nothing
+  - **Validation:** after erase no message body, name, email or attachment file for that requester remains; ticket numbers and event ids survive; tokens revoked; `AdminEvent` written; a search for the old email finds nothing; the subject, ticket metadata and outbox rows are erased too (D-039)
+  - **06c evidence:** EraseRequesterRequestHandlerTests, EraseRequesterIntegrationTests (Nothing_personal_remains_after_erase), TicketLifecycleEndToEndTests (plan: `docs/superpowers/plans/2026-10-03-phase-06c-delete-erase-dead-letters.md`)
 - [x] **P06-T12** `GetAttachmentRequestHandlerTests` and handler with `AttachmentsController` (agent route `GET /api/attachments/{id}` in 06a; the customer route `GET /api/customer/attachments/{id}` with `GetCustomerAttachmentRequestHandler` lands in 06b, D-038); safe headers (`Content-Disposition: attachment`, `X-Content-Type-Options: nosniff`)
   - **Depends on:** P06-T05
   - **Validation:** agent can download any ticket's attachment; customer token only that ticket's public attachments; internal-note attachments denied (404 uniform); forged or expired token gets 404
@@ -167,9 +168,10 @@ Write the named handler test class first for every handler task (substitutes for
   - **Depends on:** P06-T02
   - **Validation:** known and unknown addresses return identical status, body and approximate timing (`LostLinkUniformityTests` compare responses); email goes only to the requester's own address; `CustomerRateLimitTests` return 429 after the limit
   - **06b evidence:** RequestNewAccessLinkRequestHandlerTests, LostLinkUniformityTests, CustomerRateLimitTests (plan: `docs/superpowers/plans/2026-10-03-phase-06b-customer-access-alerts-autoclose.md`)
-- [ ] **P06-T16** `ListDeadLettersRequestHandlerTests`, `RetryDeadLetterRequestHandlerTests`, `DiscardDeadLetterRequestHandlerTests` and handlers with `DeadLettersController`
+- [x] **P06-T16** `ListDeadLettersRequestHandlerTests`, `RetryDeadLetterRequestHandlerTests`, `DiscardDeadLetterRequestHandlerTests` and handlers with `DeadLettersController`
   - **Depends on:** P06-T01
   - **Validation:** retry makes the row claimable by the Worker (integration test drains it); discard removes it from the list; both write `AdminEvent`; Admin-only
+  - **06c evidence:** ListDeadLettersRequestHandlerTests, RetryDeadLetterRequestHandlerTests, DiscardDeadLetterRequestHandlerTests, the dead-letter integration tests, TicketLifecycleEndToEndTests (plan: `docs/superpowers/plans/2026-10-03-phase-06c-delete-erase-dead-letters.md`)
 - [x] **P06-T17** `AutoCloseSolvedTicketsHandlerTests` and handler; Worker `AutoCloseWorker` scheduled loop with `AutoCloseOptions` (days, interval, batch size) validated on start
   - **Depends on:** P06-T02, P06-T07
   - **Validation:** only tickets Solved at least N days are closed; spam and already-Closed skipped; running twice is a no-op; `StatusChanged` event has actor `System`; `AutoCloseWorkerTests` check the loop passes the stopping token; integration test with a fake clock closes a seeded ticket
@@ -178,14 +180,14 @@ Write the named handler test class first for every handler task (substitutes for
   - **Depends on:** P06-T02
   - **Validation:** updated `SubmitTicketRequestHandlerTests` assert alerts go only to agents opted in for that product; PHASE-05 tests still pass
   - **06b evidence:** SubmitTicketRequestHandlerTests, SubmitTicketIntegrationTests (plan: `docs/superpowers/plans/2026-10-03-phase-06b-customer-access-alerts-autoclose.md`)
-- [ ] **P06-T19** Configure Serilog PII redaction (requester email, names, tokens) and rate limits for customer routes; add `LogRedactionTests` and options validation tests
+- [x] **P06-T19** Configure Serilog PII redaction (requester email, names, tokens) and rate limits for customer routes; add `LogRedactionTests` and options validation tests
   - **Depends on:** P06-T13
   - **Validation:** a fixture email and token submitted through the API never appear in captured log output; bad limit options fail startup
-  - **06b part done:** customer rate limits with options validation (CustomerRateLimitTests), the Api Sentry header scrub (SensitiveHeaderSentryProcessorTests) and the no-token-in-logs checks (SensitiveDataLeakTests); **06c remaining:** Serilog PII redaction (`LogRedactionTests`) and the Portal Sentry scrub (06c or PHASE-09)
-- [ ] **P06-T20** Extend architecture tests (controller delegation, handler constructor rules, `Customer*` DTO shape, no handler returns transport types) and add `TicketLifecycleEndToEndTests` (submit, list, reply, customer reply, solve, auto-close, customer reply creating a follow-up) plus OpenAPI surface and `.env.example` updates
+  - **06b part done:** customer rate limits with options validation (CustomerRateLimitTests), the Api Sentry header scrub (SensitiveHeaderSentryProcessorTests) and the no-token-in-logs checks (SensitiveDataLeakTests); **06c done:** Serilog PII redaction (LogRedactionTests, LoggingSafetyTests). The Portal Sentry scrub is deferred to PHASE-09 (D-039): the Portal proxies no tokens yet.
+- [x] **P06-T20** Extend architecture tests (controller delegation, handler constructor rules, `Customer*` DTO shape, no handler returns transport types) and add `TicketLifecycleEndToEndTests` (submit, list, reply, customer reply, solve, auto-close, customer reply creating a follow-up) plus OpenAPI surface and `.env.example` updates
   - **Depends on:** P06-T05, P06-T11, P06-T14, P06-T16, P06-T17
   - **Validation:** `dotnet test` green; the end-to-end test passes on Testcontainers with a fake clock; `OpenApiSurfaceTests` lists every route in the table
-  - **06a part done:** TicketLifecycleEndToEndTests submit-to-Solved, OpenApiSurfaceTests; **06b done:** customer reply, auto-close and follow-up in the lifecycle test (TicketLifecycleEndToEndTests, with a FakeTimeProvider), the customer-route architecture tests (ControllerBoundaryTests); **06c remaining:** the delete, erase and dead-letter parts of the lifecycle (plan: `docs/superpowers/plans/2026-10-03-phase-06b-customer-access-alerts-autoclose.md`)
+  - **06a part done:** TicketLifecycleEndToEndTests submit-to-Solved, OpenApiSurfaceTests; **06b done:** customer reply, auto-close and follow-up in the lifecycle test (TicketLifecycleEndToEndTests, with a FakeTimeProvider), the customer-route architecture tests (ControllerBoundaryTests); **06c done:** the delete, erase and dead-letter parts of the lifecycle (TicketLifecycleEndToEndTests)
 - [x] **P06-T21** (D-024) Add `TicketView.Spam` to `ListTicketsRequestHandler` (all statuses with `is_spam = true`; every other view excludes spam) and extend `MarkTicketSpamRequestHandler` and `PUT /api/tickets/{id}/spam` to take `IsSpam` so Not spam is idempotent
   - **Depends on:** P06-T03, P06-T10
   - **Validation:** `ListTicketsRequestHandlerTests` and `ListTicketsIntegrationTests`: a spam ticket appears only in the Spam view and in none of the five; after Not spam it returns to its normal views with its status unchanged; the partial `is_spam` index is used (`EXPLAIN`); Agents may set and clear the flag; the event is written and no outbox row is created; a repeat call is a no-op
@@ -194,24 +196,25 @@ Write the named handler test class first for every handler task (substitutes for
   - **Depends on:** P06-T05, P06-T13, P03-T17, P05-T18
   - **Validation:** tests: default gives "Sam from Orbitly Support", an override gives "Samantha from Orbitly Support"; the serialized customer DTO and the agent-reply outbox row contain the resolved name and no agent email; changing the override affects later replies, not already queued rows (`SensitiveDataLeakTests` extended)
   - **06a part done:** agent-reply half (AddAgentReplyRequestHandlerTests, SensitiveDataLeakTests agent-reply case); **06b done:** customer DTO author name (GetCustomerTicketRequestHandlerTests, SensitiveDataLeakTests customer-view case)
-- [ ] **P06-T23** `OutboxRetentionOptions`, `PurgeEmailOutboxHandler` and `OutboxRetentionWorker`: the Worker deletes `Sent` and `Discarded` outbox rows older than N days (D-039)
+- [x] **P06-T23** `OutboxRetentionOptions`, `PurgeEmailOutboxHandler` and `OutboxRetentionWorker`: the Worker deletes `Sent` and `Discarded` outbox rows older than N days (D-039)
   - **Depends on:** P06-T16
   - **Validation:** `PurgeEmailOutboxIntegrationTests` (dead letters and unfinished rows are never deleted)
+  - **06c evidence:** PurgeEmailOutboxHandlerTests, PurgeEmailOutboxIntegrationTests, OutboxRetentionWorkerTests (plan: `docs/superpowers/plans/2026-10-03-phase-06c-delete-erase-dead-letters.md`)
 
 
 ## Success Criteria
 
-- [ ] All 22 handlers in the boundary table exist with interfaces and each controller action or Worker loop delegates to exactly one of them (`ControllerBoundaryTests`).
+- [x] All 22 handlers in the boundary table exist with interfaces and each controller action or Worker loop delegates to exactly one of them (`ControllerBoundaryTests`).
 - [x] `TicketLifecycleEndToEndTests` pass: submit, triage, reply, customer reply, solve, auto-close, reply-after-close creating a follow-up with `parent_ticket_id` (06b; delete and erase join it in 06c).
 - [ ] Ticket number is unchanged across a product move; Closed tickets reject every agent mutation.
 - [x] Customer endpoints return a uniform 404 for invalid, expired and revoked tokens and a uniform 202 for lost-link requests; customers never receive internal notes, tags or other requesters' data (06b: CustomerUniformNotFoundTests, LostLinkUniformityTests, SensitiveDataLeakTests).
-- [ ] Erase requester leaves no personal data behind (message bodies, names, emails, attachment files) and ticket history remains consistent; hard delete removes all ticket data and files.
+- [x] Erase requester leaves no personal data behind (message bodies, names, emails, attachment files, and also the subject, metadata and outbox rows, D-039) and ticket history remains consistent; hard delete removes all ticket data and files. (06c: EraseRequesterIntegrationTests, TicketLifecycleEndToEndTests)
 - [ ] The Spam view lists exactly the spam tickets, the five normal views exclude them, and Not spam restores a ticket with its status unchanged (D-024).
 - [x] Customers see agents only as the resolved public name in the ticket DTO and agent-reply emails (D-024).
 - [x] Assignee, new-ticket and requester alerts reach the outbox in the same transaction and are delivered by the Worker.
-- [ ] Dead letters can be listed, retried and discarded by an Admin only.
-- [ ] Logs contain no requester email, name or token (`LogRedactionTests`). 06b: tokens and keys are proven absent from logs and every column but the outbox payload (SensitiveDataLeakTests); **06c remaining:** Serilog PII redaction.
-- [ ] CI is green; `/openapi/v1.json` lists all new routes.
+- [x] Dead letters can be listed, retried and discarded by an Admin only. (06c: dead-letter handler and integration tests, AgentAccessCoverageTests)
+- [x] Logs contain no requester email, name or token (`LogRedactionTests`). 06b: tokens and keys are proven absent from logs and every column but the outbox payload (SensitiveDataLeakTests). (06c: PiiRedactionEnricher on the Api and the Worker; the Portal and Admin hosts follow in PHASE-09 and PHASE-07, D-039).
+- [x] CI is green; `/openapi/v1.json` lists all new routes. (06c: OpenApiSurfaceTests lists the five new routes and documents the multipart bodies)
 
 ## Boundary Validation
 
@@ -243,7 +246,7 @@ Write the named handler test class first for every handler task (substitutes for
 - [ ] The handler count is large; keep each task small and merge handler-by-handler to avoid a monolithic PR.
 - [ ] Uniform lost-link timing is hard to guarantee; enqueue work off the response path or do constant-work steps, and test coarse timing only.
 - [x] Follow-up ticket idempotency on double submit. Resolved (D-037: 2-minute window).
-- [ ] Erase versus audit trail: event payloads must not contain PII (confirm in PHASE-03 events and add a test here).
+- [x] Erase versus audit trail: event payloads must not contain PII (confirm in PHASE-03 events and add a test here). Resolved (06c: the AdminEvent payload guard plus the counts-only payloads asserted in EraseRequesterIntegrationTests and DeleteTicketIntegrationTests).
 - [ ] Who may delete or erase: Admin only (D-022, resolved).
 - [x] Whether Solved sends a requester email: Resolved (D-035).
 - [x] Reply bodies accept Markdown: Resolved (D-035).
@@ -253,13 +256,13 @@ Write the named handler test class first for every handler task (substitutes for
 - [ ] Spam on a Closed ticket is rejected with `ticket-closed` (Domain rule; known limit, D-036).
 - [ ] Date-range filter dropped from v1 (D-036).
 - [x] Carried forward from the PHASE-03 final review: Customer DTOs (with PHASE-09) never carry `LastActivityAt`, the agent email or internal events; `ITicketRepository.GetEventsAsync` is agent-only (D-024). (Done in 06b: CustomerDtoShapeTests, SensitiveDataLeakTests)
-- [ ] Carried forward from the PHASE-03 final review: The full erase-requester cascade: messages, attachments, access tokens and the outbox `ToAddress` of that requester, not only the requester row; PHASE-03 only proved it is feasible. (06c)
-- [ ] Carried forward from the PHASE-03 final review: A ticket hard-delete repository method (D-006) is not in `ITicketRepository`; add it with the delete-ticket handler (the schema cascade already exists). (06c)
-- [ ] Carried forward from the PHASE-06b final review: an `email_outbox` index on (`kind`, `to_address`, `created_at`) and outbox retention (06c, D-039).
+- [x] Carried forward from the PHASE-03 final review: The full erase-requester cascade: messages, attachments, access tokens and the outbox `ToAddress` of that requester, not only the requester row; PHASE-03 only proved it is feasible. (06c, done: EraseRequesterIntegrationTests)
+- [x] Carried forward from the PHASE-03 final review: A ticket hard-delete repository method (D-006) is not in `ITicketRepository`; add it with the delete-ticket handler (the schema cascade already exists). (06c, done: DeleteTicketIntegrationTests)
+- [x] Carried forward from the PHASE-06b final review: an `email_outbox` index on (`kind`, `to_address`, `created_at`) and outbox retention (06c, D-039; done: the Task 2 schema test and PurgeEmailOutboxIntegrationTests).
 - [ ] Carried forward from the PHASE-06b final review: the Portal Sentry header scrub (`X-Ticket-Token` and the like), as the Api already has. (PHASE-09, D-039)
-- [ ] Carried forward from the PHASE-06b final review: a truncated multipart body on the customer reply route (an `IOException`) answers 500 instead of 400; walk the exception chain as `IntakeHosting` does. (06c)
-- [ ] Carried forward from the PHASE-06b final review: follow-up dedupe compares incoming file names with stored (sanitised) names, so a name the store rewrites never replays and a double submit creates two follow-ups; compare sanitised names. (06c)
-- [ ] Carried forward from the PHASE-06b final review: a non-multipart body on the customer reply route answers the fallback policy's 401, not 415 (`[Consumes]` mismatch has no endpoint metadata). Cosmetic. (06c or PHASE-09)
+- [x] Carried forward from the PHASE-06b final review: a truncated multipart body on the customer reply route (an `IOException`) answers 500 instead of 400; walk the exception chain as `IntakeHosting` does. (06c, done: ReadFormBeforeBindingTests)
+- [x] Carried forward from the PHASE-06b final review: follow-up dedupe compares incoming file names with stored (sanitised) names, so a name the store rewrites never replays and a double submit creates two follow-ups; compare sanitised names. (06c, done: AddCustomerReplyRequestHandlerTests)
+- [x] Carried forward from the PHASE-06b final review: a non-multipart body on the customer reply route answers the fallback policy's 401, not 415 (`[Consumes]` mismatch has no endpoint metadata). Cosmetic. (06c, done: MultipartRouteContractTests)
 - [ ] Carried forward from the PHASE-03 final review: Ticket search: confirm the plan and shape of the GIN-backed search query on realistic data (with PHASE-12). (PHASE-12)
 
 ## Handoff

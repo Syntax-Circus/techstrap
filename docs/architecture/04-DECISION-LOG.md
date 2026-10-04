@@ -1021,7 +1021,7 @@ There is also a layering problem. The architecture rules let Application referen
 - **What the outbox stores.** Each outbox row stores template data: a `kind`, such as `ticket-confirmation`, and a small JSON payload, such as the ticket number, subject, requester name and portal link.
 - **Rendering and sending.** `DrainEmailOutboxHandler` loads the product's branding, renders with `IEmailTemplateRenderer` and sends through `IOutboundEmailSender`. Both interfaces belong to Application. Infrastructure's `SmtpOutboundEmailSender` adapts the second to `SyntaxCircus.Email.IEmailSender`.
 - **Branding at send time.** Branding is read when the email is sent, so a branding change between queueing and sending shows the new branding.
-- **The portal link.** The plaintext access token exists only when the email is queued, so the link is captured in the payload. A sent row's payload therefore holds a working link until a retention sweep removes it, carried forward to PHASE-12.
+- **The portal link.** The plaintext access token exists only when the email is queued, so the link is captured in the payload. A sent row's payload therefore holds a working link until a retention sweep removes it, carried forward to PHASE-12 (see D-039).
 - **Nowhere else.** `email_outbox.payload` is the only column that may hold a plaintext token. The idempotency store (D-020) keeps the response without the link; a replay issues a fresh access token for the original ticket and returns a new link.
 
 ### Alternatives Considered

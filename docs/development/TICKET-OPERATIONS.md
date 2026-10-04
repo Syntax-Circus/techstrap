@@ -174,9 +174,44 @@ ticket alone, which is re-evaluated on the next run.
 
 ### Sentry
 
-The Api scrubs `X-Ticket-Token`, `X-Api-Key`, `Authorization` and `Cookie` from Sentry events before they leave the process.
-**06c remaining:** the same scrub for the Portal (deferred to 06c or PHASE-09), plus hard delete, erase requester, dead letters and
-Serilog PII redaction.
+The Api scrubs `X-Ticket-Token`, `X-Api-Key`, `Authorization` and `Cookie` from Sentry events before they leave the process. The Portal
+makes no API calls yet, so its scrub moves to PHASE-09 with its first proxied token (D-039).
+
+## Admin operations (06c)
+
+All of these are Admin-only (D-022) and write an `AdminEvent` whose payload holds ids and counts, never ticket content or personal data.
+
+```bash
+# Hard-delete a ticket: its messages, attachment rows and files, events, tokens, tags and outbox rows go. 204, or 404 for an unknown id.
+curl -s -X DELETE -H "$ADMIN_AUTH" "$API/api/tickets/$TICKET_ID"
+
+# Erase a requester (GDPR). 204; running it again is safe and also 204.
+curl -s -X POST -H "$ADMIN_AUTH" "$API/api/requesters/$REQUESTER_ID/erase"
+
+# Dead letters: list (paged), retry, discard.
+curl -s -H "$ADMIN_AUTH" "$API/api/dead-letters?page=1&pageSize=25"
+curl -s -X POST -H "$ADMIN_AUTH" "$API/api/dead-letters/$OUTBOX_ID/retry"
+curl -s -X DELETE -H "$ADMIN_AUTH" "$API/api/dead-letters/$OUTBOX_ID"
+```
+
+- **Delete.** A follow-up of the deleted ticket survives with its parent link cleared. Its own `Created` event still records the old parent id. Files are removed after the commit, best effort; a failure is logged by storage key only.
+- **Erase.** The requester row stays as a tombstone, so ticket numbers and event ids survive. Erase replaces the subject of every ticket the requester opened, and the body of every message the requester wrote, with `[erased]`. It clears the tickets' `metadata` and `custom_fields`, deletes the attachments on the requester's messages (rows and files), revokes every access token, and deletes every `email_outbox` row addressed to the requester or belonging to one of their tickets, in any status. Agent replies and internal notes stay. Agents holding an old row version of those tickets get a 409 and must reload.
+- **Dead letters.** `Recipient` is masked (`a***@example.com`) and the payload is never returned. Retry makes the row `Pending` with no attempts, and the Worker sends it on its next poll. Discard marks it `Discarded`. Either answers 409 `outbox-not-dead-lettered` for a row that is not a dead letter.
+
+### Outbox retention
+
+The Worker deletes `Sent` and `Discarded` outbox rows older than N days, measured from `created_at`, in batches. Dead letters, `Pending` and `Sending` rows are never deleted.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `OutboxRetention__Enabled` (`TECHSTRAP_OUTBOX_RETENTION_ENABLED` in compose) | true | Turns the sweep off |
+| `OutboxRetention__Days` (`TECHSTRAP_OUTBOX_RETENTION_DAYS` in compose) | 90 | Age at which a finished row is deleted (1 to 3650) |
+| `OutboxRetention__IntervalMinutes` | 60 | Delay between sweeps |
+| `OutboxRetention__BatchSize` | 500 | Rows deleted per statement; a full batch runs again at once |
+
+### Logging and personal data
+
+Every Serilog event in the Api and the Worker passes through `PiiRedactionEnricher` before any sink: email addresses become `[email]`, 43-character access tokens `[token]` and `sha256:` hashes `[hash]`, in every property, including nested ones. It cannot rewrite an attached exception or recognise a name, so application code logs ids and exception type names only, and nothing may enable `EnableSensitiveDataLogging` or `Include Error Detail` (`LoggingSafetyTests` fails the build if one does). The Admin and Portal hosts handle no requester data yet; they join in PHASE-07 and PHASE-09.
 
 ## Try it end to end
 
@@ -185,5 +220,7 @@ attachment, priority, tag, product move, Solved, then the timeline and the downl
 
 `TicketLifecycleEndToEndTests` also covers the customer side: the emailed link, a customer view, an agent reply, a customer reply
 that reopens the ticket and alerts the assignee, Solved then auto-close with an advanced clock, a reply on the Closed ticket that creates a
-follow-up, and a lost-link request. `SensitiveDataLeakTests` checks that the customer view and customer emails carry no internal or
-agent-private data.
+follow-up, and a lost-link request. `SensitiveDataLeakTests` checks that the customer view and customer emails carry no internal or agent-private data. Three more
+`TicketLifecycleEndToEndTests` cover the admin side: deleting a Closed ticket whose follow-up survives, erasing a requester (nothing
+personal left in rows, files, search or the customer link), and listing, retrying and discarding dead letters. `LogRedactionTests` runs the
+intake, customer view and lost-link flow and scans every captured log event.
