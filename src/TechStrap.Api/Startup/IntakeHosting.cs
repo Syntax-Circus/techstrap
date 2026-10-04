@@ -1,4 +1,7 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using TechStrap.Contracts.Intake;
 
 namespace TechStrap.Api.Startup;
@@ -35,7 +38,7 @@ internal sealed class RequestTooLargeMiddleware(RequestDelegate next)
     }
 
     // MVC wraps form-read failures (BadHttpRequestException is an IOException) in ValueProviderException; walk the chain.
-    private static bool IsTooLarge(Exception? ex)
+    internal static bool IsTooLarge(Exception? ex)
     {
         for (; ex is not null; ex = ex.InnerException)
         {
@@ -54,29 +57,51 @@ internal sealed class RequestTooLargeMiddleware(RequestDelegate next)
 /// the 413 BadHttpRequestException reach <see cref="RequestTooLargeMiddleware"/>. The parsed form is cached, so binding reuses it.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
-internal sealed class ReadFormBeforeBindingAttribute : Attribute, IAsyncResourceFilter, IOrderedFilter
+internal sealed class ReadFormBeforeBindingAttribute : Attribute, IAsyncResourceFilter, IOrderedFilter, IApiRequestMetadataProvider
 {
+    public const string MalformedCode = "request-malformed";
+    public const string UnsupportedMediaTypeCode = "unsupported-media-type";
+
     // RequestFormLimits (and RequestSizeLimit) filters default to Order 900 and lower Order runs first. This must run after them, or the
     // form is parsed under Kestrel's 30 MB / 128 MB defaults instead of the endpoint limits.
     public int Order => 1000;
 
+    /// <summary>Documents the body as multipart/form-data in OpenAPI without [Consumes], which would hide the route's authorization policy behind a 401.</summary>
+    public void SetContentTypes(MediaTypeCollection contentTypes)
+    {
+        contentTypes.Clear();
+        contentTypes.Add("multipart/form-data");
+    }
+
     public async Task OnResourceExecutionAsync(ResourceExecutingContext context, ResourceExecutionDelegate next)
     {
         var request = context.HttpContext.Request;
-        if (request.HasFormContentType)
+        if (!request.HasFormContentType)
         {
-            try
-            {
-                await request.ReadFormAsync(context.HttpContext.RequestAborted);
-            }
-            catch (InvalidDataException)
-            {
-                // Malformed multipart: model binding reports it as a 400.
-            }
+            context.Result = Problem(StatusCodes.Status415UnsupportedMediaType, UnsupportedMediaTypeCode, "Unsupported media type", "This endpoint accepts multipart/form-data.");
+            return;
+        }
+
+        try
+        {
+            await request.ReadFormAsync(context.HttpContext.RequestAborted);
+        }
+        catch (InvalidDataException)
+        {
+            // Malformed multipart: model binding reports it as a 400.
+        }
+        catch (IOException ex) when (!RequestTooLargeMiddleware.IsTooLarge(ex))
+        {
+            // A body cut short (BadHttpRequestException is an IOException) is the client's fault, not a 500. A 413 is left to RequestTooLargeMiddleware.
+            context.Result = Problem(StatusCodes.Status400BadRequest, MalformedCode, "Malformed request", "The request body could not be read.");
+            return;
         }
 
         await next();
     }
+
+    private static ObjectResult Problem(int status, string code, string title, string detail) =>
+        new(new ProblemDetails { Status = status, Type = code, Title = title, Detail = detail }) { StatusCode = status };
 }
 
 public static class IntakeHosting

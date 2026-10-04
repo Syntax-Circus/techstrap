@@ -101,7 +101,6 @@ public sealed class TicketsController : ControllerBase
 
     /// <summary>A public reply to the customer: Markdown body, optional files and linked articles, optionally solving the ticket.</summary>
     [HttpPost("{id:guid}/replies")]
-    [Consumes("multipart/form-data")]
     [ReadFormBeforeBinding]
     [RequestSizeLimit(IntakeRequestLimits.FormBodyBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = IntakeRequestLimits.FormBodyBytes * 2)] // Kestrel's limit must trip first, as a 413

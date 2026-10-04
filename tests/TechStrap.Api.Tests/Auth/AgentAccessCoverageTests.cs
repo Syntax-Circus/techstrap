@@ -25,10 +25,10 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
                         ? literal.Content
                         : Guid.CreateVersion7().ToString())), IsMultipart(endpoint))))];
 
-    /// <summary>True when the action consumes multipart/form-data: a JSON probe would be answered 415 before authorization runs.</summary>
+    /// <summary>True when the action reads multipart/form-data (it carries ReadFormBeforeBinding). Authorization runs before that filter, so a JSON probe would also reach 401/403; the multipart body keeps the probe realistic.</summary>
     private static bool IsMultipart(RouteEndpoint endpoint) =>
-        endpoint.Metadata.GetOrderedMetadata<IAcceptsMetadata>().Any(accepts =>
-            accepts.ContentTypes.Any(type => type.Equals("multipart/form-data", StringComparison.OrdinalIgnoreCase)));
+        endpoint.Metadata.GetMetadata<ControllerActionDescriptor>()?.MethodInfo
+            .IsDefined(typeof(TechStrap.Api.Startup.ReadFormBeforeBindingAttribute), inherit: false) == true;
 
     private static async Task<HttpResponseMessage> SendAsync(HttpClient client, string method, string path, bool multipart = false)
     {

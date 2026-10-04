@@ -13,9 +13,8 @@ public sealed class CustomerErrorPathCacheTests(TestPostgres postgres)
     private static readonly CancellationToken Ct = TestContext.Current.CancellationToken;
 
     [Theory]
-    // [Consumes] rejects a non-multipart body with an endpoint that carries no authorization metadata, so the fallback policy answers 401 first.
-    // The status is incidental here; what matters is that the uncacheable header is still set.
-    [InlineData("reply-415", HttpStatusCode.Unauthorized)]
+    // The filter answers a non-multipart body with 415 after the route's own (Public) policy has run.
+    [InlineData("reply-415", HttpStatusCode.UnsupportedMediaType)]
     [InlineData("reply-413", HttpStatusCode.RequestEntityTooLarge)]
     [InlineData("reply-malformed-multipart", HttpStatusCode.BadRequest)]
     [InlineData("lost-link-malformed-json", HttpStatusCode.BadRequest)]

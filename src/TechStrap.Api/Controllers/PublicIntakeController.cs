@@ -19,7 +19,6 @@ namespace TechStrap.Api.Controllers;
 public sealed class PublicIntakeController : ControllerBase
 {
     [HttpPost]
-    [Consumes("multipart/form-data")]
     [ReadFormBeforeBinding]
     [RequestSizeLimit(IntakeRequestLimits.FormBodyBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = IntakeRequestLimits.FormBodyBytes * 2)] // Kestrel's limit must trip first, as a 413

@@ -31,4 +31,19 @@ public sealed partial class OpenApiSurfaceTests
         routed.Count.ShouldBeGreaterThanOrEqualTo(18);
         documented.ShouldBe(routed, ignoreOrder: true);
     }
+
+    [Theory]
+    [InlineData("/api/customer/ticket/replies")]
+    [InlineData("/api/public/products/{productKey}/tickets")]
+    [InlineData("/api/tickets/{id}/replies")]
+    public async Task The_multipart_routes_document_a_multipart_request_body(string path)
+    {
+        await using var factory = new ApiFactory();
+        using var client = factory.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync("/openapi/v1.json", TestContext.Current.CancellationToken));
+
+        var content = document.RootElement.GetProperty("paths").GetProperty(path).GetProperty("post").GetProperty("requestBody").GetProperty("content");
+
+        content.EnumerateObject().Select(media => media.Name).ShouldBe(["multipart/form-data"]);
+    }
 }
