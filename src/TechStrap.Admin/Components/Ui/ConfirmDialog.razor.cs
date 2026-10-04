@@ -133,6 +133,12 @@ public partial class ConfirmDialog : IAsyncDisposable
     {
         await InvokeAsync(async () =>
         {
+            if (!Open)
+            {
+                // The owner already closed it (its OnCancel ran for the Esc that raised this close): a second cancel would repeat the owner's work.
+                return;
+            }
+
             await CancelAsync();
             if (Open)
             {

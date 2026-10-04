@@ -1,7 +1,24 @@
 // Runs with `node --test`: the dialog module takes the native <dialog> and the .NET handle as arguments, so a fake of each is enough.
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { beforeEach, describe, it } from 'node:test';
 import { open, close } from '../../../src/TechStrap.Admin/wwwroot/js/dialog.js';
+
+// A fake document: the module listens on it (capture phase) while a dialog is open, so Esc is seen even when focus has fallen to <body>.
+function fakeDocument() {
+    const listeners = [];
+    const doc = {
+        listeners,
+        addEventListener: (name, handler, capture) => { listeners.push({ name, handler, capture }); },
+        removeEventListener: (name, handler) => {
+            const at = listeners.findIndex((l) => l.name === name && l.handler === handler);
+            if (at >= 0) { listeners.splice(at, 1); }
+        },
+        fire(name, event = {}) { [...listeners].filter((l) => l.name === name).forEach((l) => l.handler(event)); },
+    };
+    return doc;
+}
+
+beforeEach(() => { globalThis.document = fakeDocument(); });
 
 function fakeDialog(lock) {
     const listeners = {};
@@ -120,5 +137,76 @@ describe('an unexpected native close', () => {
         dialog.fire('keydown', escape());
 
         assert.deepEqual(handle.calls, ['EscapePressed']);
+    });
+});
+
+describe('Escape with focus outside the dialog (a disabled button hands focus to <body>)', () => {
+    it('is prevented at the document capture phase while the dialog is locked', () => {
+        for (const lock of ['busy', 'hold']) {
+            const dialog = fakeDialog(lock);
+            const handle = fakeHandle();
+            open(dialog, null, handle);
+            const event = escape();
+
+            assert.equal(document.listeners.every((l) => l.capture === true), true, lock);
+            document.fire('keydown', event);
+
+            assert.equal(event.prevented, true, lock);
+        }
+    });
+
+    it('tells .NET once for a held dialog, never for a busy one, even when the dialog sees the same event too', () => {
+        const held = fakeDialog('hold');
+        const heldHandle = fakeHandle();
+        open(held, null, heldHandle);
+        const event = escape();
+        document.fire('keydown', event);
+        held.fire('keydown', event);
+        assert.deepEqual(heldHandle.calls, ['EscapePressed']);
+
+        const busy = fakeDialog('busy');
+        const busyHandle = fakeHandle();
+        open(busy, null, busyHandle);
+        document.fire('keydown', escape());
+        assert.deepEqual(busyHandle.calls, []);
+    });
+
+    it('does not interfere while the dialog is unlocked, or for other keys', () => {
+        const dialog = fakeDialog();
+        open(dialog, null, fakeHandle());
+        const event = escape();
+        const other = { key: 'a', prevented: false, preventDefault() { other.prevented = true; } };
+
+        document.fire('keydown', event);
+        document.fire('keydown', other);
+
+        assert.equal(event.prevented, false);
+        assert.equal(other.prevented, false);
+    });
+
+    it('stops listening after the dialog is closed, and opening twice adds one listener', () => {
+        const dialog = fakeDialog('busy');
+        open(dialog, null, fakeHandle());
+        open(dialog, null, fakeHandle());
+        assert.equal(document.listeners.length, 1);
+
+        close(dialog);
+
+        assert.equal(document.listeners.length, 0);
+        const event = escape();
+        document.fire('keydown', event);
+        assert.equal(event.prevented, false);
+    });
+});
+
+describe('a stray close event', () => {
+    it('is ignored when the dialog is already open again', () => {
+        const dialog = fakeDialog();
+        const handle = fakeHandle();
+        open(dialog, null, handle);
+
+        dialog.fire('close'); // dialog.open is still true: the close belongs to an earlier cycle
+
+        assert.deepEqual(handle.calls, []);
     });
 });

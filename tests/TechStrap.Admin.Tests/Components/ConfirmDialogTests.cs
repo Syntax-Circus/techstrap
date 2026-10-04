@@ -239,6 +239,19 @@ public sealed class ConfirmDialogTests : AdminComponentTest
     }
 
     [Fact]
+    public async Task A_non_cancelable_cancel_then_the_stray_close_raises_OnCancel_exactly_once()
+    {
+        var cut = RenderDialog();
+        cut.Render(p => p.Add(c => c.OnCancel, EventCallback.Factory.Create(this, () => { _cancelled++; cut.Render(q => q.Add(c => c.Open, false)); })));
+
+        // Blazor's @oncancel first, then the close event the browser fires for the same Esc reaches NativeClosed after the owner closed the dialog.
+        cut.Find("dialog").TriggerEvent("oncancel", EventArgs.Empty);
+        await cut.InvokeAsync(() => cut.Instance.NativeClosed());
+
+        _cancelled.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Esc_pressed_on_a_held_dialog_reaches_the_owner_but_never_while_busy()
     {
         var cut = RenderDialog(p => p.Add(c => c.Dismissable, false));
