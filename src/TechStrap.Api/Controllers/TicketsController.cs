@@ -40,6 +40,12 @@ public sealed class TicketsController : ControllerBase
     public async Task<IActionResult> Get(string reference, [FromServices] IGetTicketRequestHandler handler, CancellationToken cancellationToken) =>
         (await handler.HandleAsync(reference, cancellationToken)).ToActionResult(this, Ok);
 
+    /// <summary>Hard-deletes a ticket, its outbox rows and its files (Admin only, D-006, D-022, D-039). Follow-ups survive, unlinked.</summary>
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Admin)]
+    public async Task<IActionResult> Delete(Guid id, [FromServices] IDeleteTicketRequestHandler handler, CancellationToken cancellationToken) =>
+        (await handler.HandleAsync(id, cancellationToken)).ToActionResult(this, NoContent);
+
     /// <summary>The number on each queue tab.</summary>
     [HttpGet("counts")]
     public async Task<IActionResult> Counts([FromServices] ICountTicketViewsRequestHandler handler, CancellationToken cancellationToken) =>
