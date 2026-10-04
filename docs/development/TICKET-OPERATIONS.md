@@ -2,8 +2,8 @@
 
 What an agent can do to a ticket through the API: list, read, reply, note, change status, assignee, priority, product,
 tags and spam, and download attachments. Submission is covered in [INTAKE.md](INTAKE.md); sign-in is covered in
-[AGENT-AUTHENTICATION.md](../self-hosting/AGENT-AUTHENTICATION.md). The customer routes, delete and erase, dead letters and
-auto-close arrive with PHASE-06b.
+[AGENT-AUTHENTICATION.md](../self-hosting/AGENT-AUTHENTICATION.md). The customer routes (read, reply, lost link, attachments) and auto-close are covered under [Customer access](#customer-access).
+Delete and erase and dead letters arrive with PHASE-06c.
 
 All routes below need an agent bearer token (a member of the agent group). Set it once, together with a ticket id:
 
@@ -113,10 +113,76 @@ Rows are written to `email_outbox` in the same transaction as the change; the Wo
 | `agent-reply` | An agent sends a public reply | The requester, signed with the agent's public name, never the agent's email or surname |
 | `ticket-solved` | The status route sets Solved. Send-and-solve queues no separate notice: the agent-reply email is marked `Solved = true` instead | The requester |
 | `ticket-assigned` | A ticket is assigned to another agent | The new assignee. Self-assignment sends nothing |
+| `new-ticket-alert` | A ticket or follow-up is created | Agents opted in for the product. No Powered-by line |
+| `customer-reply-alert` | A customer replies | The active assignee, else the opted-in agents. Not sent for spam tickets |
+| `access-links` | A lost-link request matches an address | That requester's own address only |
 
 Notes, priority, tags, product moves and spam send nothing. Tickets flagged as spam never email the customer: replies and Solved notices are saved but not emailed (owner decision, D-035); agent assignment alerts are unaffected. The customer's access link exists only in the outbox payload.
+
+## Customer access
+
+The customer view is a separate surface from the agent API. Every `/api/customer` route uses the `Public` policy, authorises by the
+ticket token inside the handler, and answers with `Cache-Control: no-store`. The token travels only in the `X-Ticket-Token` header, never
+in the path, so it stays out of access logs.
+
+```bash
+TICKET_TOKEN="<the token from the emailed link: https://portal/t/{token}>"
+
+# Read the ticket: public messages only. Slides the token's expiry.
+curl -s -H "X-Ticket-Token: $TICKET_TOKEN" "$API/api/customer/ticket"
+
+# Reply (multipart: body plus optional attachments). Slides the expiry.
+curl -s -H "X-Ticket-Token: $TICKET_TOKEN" -F "body=Still failing" "$API/api/customer/ticket/replies"
+
+# Download a public attachment. A read: it does not slide the expiry.
+curl -s -H "X-Ticket-Token: $TICKET_TOKEN" -o file.bin "$API/api/customer/attachments/$ATTACHMENT_ID"
+
+# Lost link: always 202 for a well-formed address, 400 email-invalid otherwise.
+curl -s -H 'Content-Type: application/json' -X POST "$API/api/customer/access-link" -d '{"email":"ada@example.com"}'
+```
+
+- **Uniform 404.** An unknown, expired or revoked token, a token for another ticket, an erased requester and an attachment that is
+  not public all return code `not-found`, byte-identical apart from the echoed `instance`. A caller cannot tell which case it hit.
+- **What the customer sees.** Public messages, attachments on them and the agent's public name ("Sam from Orbitly Support"). Never tags,
+  internal notes, events, agent ids, emails or surnames, `lastActivityAt`, `rowVersion` or another requester's data (D-024).
+  Attachments are sent with `nosniff` and a sandboxing Content-Security-Policy.
+- **Replying.** A reply on a Pending or Solved ticket reopens it and alerts the assignee. A reply on a Closed ticket creates a
+  follow-up ticket (new number, linked to the parent, a `FollowUpCreated` event on the parent, a confirmation email) and returns its
+  view link in the response (`followUpCreated`, `followUpViewUrl`); the parent stays read-only. The same text sent again within
+  2 minutes replays the existing follow-up with a fresh link and no email, and concurrent duplicates produce one follow-up.
+  A follow-up of a spam ticket is spam itself and sends no email or alert.
+- **Lost link.** `POST /api/customer/access-link` answers 202 with an identical body whether or not the address matched. Matching
+  requesters get one `access-links` email to their own address listing up to 5 of their tickets, each with a fresh link. Earlier
+  links are not revoked. The accepted residual risks are recorded in [D-038](../architecture/04-DECISION-LOG.md#d-038-customer-api-public-routes-with-in-handler-token-auth-uniform-404-separate-customer-attachment-route-lost-link-rules-alert-recipients-reopen-window-from-autocloseoptions-per-ticket-auto-close).
+- **Rate limits.** Per client IP: 60 requests per 60 seconds on the token routes (`RateLimiting:Customer:TokenAccessPermitLimit`,
+  `TokenAccessWindowSeconds`), 5 per hour on the lost-link route (`LostLinkPermitLimit`, `LostLinkWindowSeconds`). On top of that
+  each address gets at most 3 lost-link emails per hour (`LostLink:PerAddressLimit`, `PerAddressWindowMinutes`). Over the limit is 429.
+
+### Auto-close
+
+The Worker (never the Api) closes tickets that have been Solved for at least N days, one unit of work per ticket, as the `System` actor
+(`StatusChanged` event). It skips spam and Closed tickets, sends no email (D-037), and a customer reply that races a close conflicts that
+ticket alone, which is re-evaluated on the next run.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `TECHSTRAP_AUTOCLOSE_DAYS` | 7 | Days a ticket stays Solved before it is closed (1 to 365) |
+| `AutoClose__Enabled` | true | Turns the loop off |
+| `AutoClose__IntervalMinutes` | 15 | Delay between runs |
+| `AutoClose__BatchSize` | 50 | Tickets examined per run |
+
+### Sentry
+
+The Api scrubs `X-Ticket-Token`, `X-Api-Key`, `Authorization` and `Cookie` from Sentry events before they leave the process.
+**06c remaining:** the same scrub for the Portal (deferred to 06c or PHASE-09), plus hard delete, erase requester, dead letters and
+Serilog PII redaction.
 
 ## Try it end to end
 
 `TicketLifecycleEndToEndTests` runs the whole path against a real database: a form submission, assign, note, reply with an
 attachment, priority, tag, product move, Solved, then the timeline and the download.
+
+`TicketLifecycleEndToEndTests` also covers the customer side: the emailed link, a customer view, an agent reply, a customer reply
+that reopens the ticket and alerts the assignee, Solved then auto-close with an advanced clock, a reply on the Closed ticket that creates a
+follow-up, and a lost-link request. `SensitiveDataLeakTests` checks that the customer view and customer emails carry no internal or
+agent-private data.

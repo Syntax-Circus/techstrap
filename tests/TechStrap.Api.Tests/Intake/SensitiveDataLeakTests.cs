@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using TechStrap.Api.Tests.Auth;
 using TechStrap.Contracts.Http;
@@ -142,6 +143,151 @@ public sealed class SensitiveDataLeakTests(TestPostgres postgres) : IAsyncLifeti
 
         hashValues.ShouldNotBeEmpty();
         hashValues.ShouldAllBe(h => h.StartsWith("sha256:", StringComparison.Ordinal) && h != firstToken && h != replayToken);
+    }
+
+    [Fact]
+    public async Task The_customer_view_and_customer_emails_carry_no_internal_or_agent_private_data()
+    {
+        const string internalCanary = "INTERNAL-CANARY";
+        const string tagCanary = "TAG-CANARY";
+        const string agentEmail = "sam.private@example.com";
+        const string ada = "ada@example.com";
+        const string bob = "bob.other@example.com";
+        var ct = TestContext.Current.CancellationToken;
+        var (factory, database, _) = await StartAsync();
+        await using var _f = factory;
+        using var anonymous = factory.CreateClient();
+
+        async Task SubmitAsync(string email, string name, string subject)
+        {
+            using var form = new MultipartFormDataContent
+            {
+                { new StringContent(email), "email" }, { new StringContent(name), "name" },
+                { new StringContent(subject), "subject" }, { new StringContent("Please help"), "body" },
+            };
+            using var response = await anonymous.PostAsync("/api/public/products/orbitly/tickets", form, ct);
+            response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        }
+
+        await SubmitAsync(ada, "Ada", "Cannot log in");
+        await SubmitAsync(bob, "Bob", "Other problem");
+
+        Guid tagId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var tag = TechStrap.Domain.Tickets.Tag.Create("canary", tagCanary, "#DC2626", scope.ServiceProvider.GetRequiredService<TimeProvider>()).Value;
+            tagId = tag.Id;
+            await using var work = await scope.ServiceProvider.GetRequiredService<TechStrap.Application.Persistence.IUnitOfWork>().BeginAsync(ct);
+            scope.ServiceProvider.GetRequiredService<TechStrap.Application.Persistence.ITagRepository>().Add(tag);
+            (await work.CommitAsync(ct)).IsSuccess.ShouldBeTrue();
+        }
+
+        using var sam = factory.CreateClient().Bearer(TestJwt.Token("sam", [TestJwt.AgentGroup], email: agentEmail, name: "Sam Hargreaves"));
+        (await sam.GetAsync("/api/agents/me", ct)).EnsureSuccessStatusCode();
+        var detail = (await sam.GetFromJsonAsync<TechStrap.Contracts.Tickets.TicketDetailDto>("/api/tickets/ORB-1", ct))!;
+        var id = detail.Id;
+
+        using (var noted = await sam.PostAsJsonAsync($"/api/tickets/{id}/notes", new TechStrap.Contracts.Tickets.AddInternalNoteRequest(internalCanary, null), ct))
+        {
+            noted.StatusCode.ShouldBe(HttpStatusCode.Created);
+        }
+
+        using (var tagged = await sam.PostAsJsonAsync(
+            $"/api/tickets/{id}/tags", new TechStrap.Contracts.Tickets.AddTicketTagRequest(tagId, await Tickets.TicketTestData.VersionAsync(sam, id)), ct))
+        {
+            tagged.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using (var form = new MultipartFormDataContent { { new StringContent("We are looking into it"), "body" } })
+        using (var replied = await sam.PostAsync($"/api/tickets/{id}/replies", form, ct))
+        {
+            replied.StatusCode.ShouldBe(HttpStatusCode.Created);
+        }
+
+        foreach (var status in new[] { "Solved", "Closed" })
+        {
+            using var changed = await sam.PutAsJsonAsync(
+                $"/api/tickets/{id}/status", new TechStrap.Contracts.Tickets.ChangeTicketStatusRequest(status, await Tickets.TicketTestData.VersionAsync(sam, id)), ct);
+            changed.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        var firstPayload = await database.ScalarAsync<string>(
+            "SELECT payload::text FROM email_outbox WHERE kind = 'ticket-confirmation' AND to_address = 'ada@example.com'");
+        using var firstJson = System.Text.Json.JsonDocument.Parse(firstPayload);
+        var token = TokenOf(firstJson.RootElement.GetProperty("portalLink").GetString()!);
+
+        async Task<string> ViewAsync(string viewToken)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/api/customer/ticket");
+            request.Headers.TryAddWithoutValidation(HeaderNames.TicketToken, viewToken);
+            using var response = await anonymous.SendAsync(request, ct);
+            response.StatusCode.ShouldBe(HttpStatusCode.OK);
+            return await response.Content.ReadAsStringAsync(ct);
+        }
+
+        // The reply on the Closed ticket creates the follow-up.
+        string followUpToken;
+        using (var form = new MultipartFormDataContent { { new StringContent("It broke again"), "body" } })
+        using (var request = new HttpRequestMessage(HttpMethod.Post, "/api/customer/ticket/replies") { Content = form })
+        {
+            request.Headers.TryAddWithoutValidation(HeaderNames.TicketToken, token);
+            using var followUp = await anonymous.SendAsync(request, ct);
+            followUp.StatusCode.ShouldBe(HttpStatusCode.Created);
+            var body = (await followUp.Content.ReadFromJsonAsync<TechStrap.Contracts.Tickets.CustomerReplyResponse>(ct))!;
+            body.FollowUpCreated.ShouldBeTrue();
+            followUpToken = TokenOf(body.FollowUpViewUrl!);
+        }
+
+        using (var lost = await anonymous.PostAsJsonAsync("/api/customer/access-link", new TechStrap.Contracts.Tickets.RequestNewAccessLinkRequest(ada), ct))
+        {
+            lost.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        }
+
+        // 1. The serialized customer views (parent and follow-up) carry none of the private data.
+        string[] forbidden = [internalCanary, "Hargreaves", agentEmail, tagCanary, bob, "lastActivityAt", "rowVersion"];
+        var parentView = await ViewAsync(token);
+        parentView.ShouldContain("Sam from Orbitly Support");
+        foreach (var json in new[] { parentView, await ViewAsync(followUpToken) })
+        {
+            foreach (var needle in forbidden)
+            {
+                json.ShouldNotContain(needle, Case.Insensitive);
+            }
+        }
+
+        // 2. Every customer-facing email for this requester goes to the requester's own address only.
+        (await database.ScalarAsync<long>("SELECT count(*) FROM email_outbox WHERE kind = 'access-links'")).ShouldBe(1L);
+        (await database.ScalarAsync<long>("SELECT count(*) FROM email_outbox WHERE kind = 'access-links' AND to_address <> 'ada@example.com'")).ShouldBe(0L);
+        (await database.ScalarAsync<long>("SELECT count(*) FROM email_outbox WHERE kind = 'ticket-confirmation' AND to_address = 'ada@example.com'"))
+            .ShouldBe(2L, "the original and the follow-up confirmation both go to the requester");
+        (await database.ScalarAsync<long>(
+            "SELECT count(*) FROM email_outbox WHERE kind IN ('ticket-confirmation', 'agent-reply', 'ticket-solved', 'access-links') " +
+            "AND to_address NOT IN ('ada@example.com', 'bob.other@example.com')")).ShouldBe(0L);
+        (await database.ScalarAsync<long>(
+            "SELECT count(*) FROM email_outbox WHERE kind IN ('agent-reply', 'ticket-solved', 'access-links') AND to_address = 'bob.other@example.com'"))
+            .ShouldBe(0L, "the other requester receives nothing about this ticket");
+
+        // 3. Plaintext tokens live only in email_outbox.payload (and the follow-up response, which carries one to the client).
+        await using var connection = new NpgsqlConnection(database.ConnectionString);
+        await connection.OpenAsync(ct);
+        foreach (var (table, column) in await TextColumnsAsync(connection))
+        {
+            foreach (var needle in new[] { token, followUpToken })
+            {
+                await using var count = new NpgsqlCommand($"SELECT count(*) FROM \"{table}\" WHERE \"{column}\"::text LIKE '%' || @needle || '%'", connection);
+                count.Parameters.AddWithValue("needle", needle);
+                var found = (long)(await count.ExecuteScalarAsync(ct))!;
+                if (table == "email_outbox" && column == "payload")
+                {
+                    // The follow-up response token is a separate issue from the one in the confirmation email, so only the first is guaranteed here.
+                    (needle == token ? found > 0 : true).ShouldBeTrue();
+                }
+                else
+                {
+                    found.ShouldBe(0L, $"{table}.{column}");
+                }
+            }
+        }
     }
 
     [Fact]
