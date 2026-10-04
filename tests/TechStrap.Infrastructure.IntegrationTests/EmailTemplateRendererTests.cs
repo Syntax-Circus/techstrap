@@ -183,6 +183,21 @@ public sealed class EmailTemplateRendererTests
         var email = Renderer().RenderAgentReply(Reply(solved: true) with { ReopenDays = 0 }, "<p>Done</p>", Orbitly);
 
         email.Text.ShouldContain("Reply within 7 days");
+        email.Html.ShouldContain("Reply within 7 days");
+    }
+
+    [Fact]
+    public void A_one_day_reopen_window_is_singular_in_the_reply_and_solved_emails()
+    {
+        var reply = Renderer().RenderAgentReply(Reply(solved: true) with { ReopenDays = 1 }, "<p>Done</p>", Orbitly);
+        var solved = Renderer().RenderTicketSolved(new("ORB-42", "Printer jam", "Ann", "https://help.test/t/abc", 1), Orbitly);
+
+        reply.Html.ShouldContain("Reply within 1 day if");
+        reply.Text.ShouldContain("Reply within 1 day if");
+        reply.Text.ShouldNotContain("1 days");
+        solved.Html.ShouldContain("reply within 1 day,");
+        solved.Text.ShouldContain("reply within 1 day,");
+        solved.Text.ShouldNotContain("1 days");
     }
 
     [Fact]

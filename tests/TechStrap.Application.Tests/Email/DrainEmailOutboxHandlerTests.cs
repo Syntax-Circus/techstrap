@@ -245,6 +245,22 @@ public sealed class DrainEmailOutboxHandlerTests
         result.Value.ShouldBe(new DrainResult(1, 1, 0));
     }
 
+    [Fact]
+    public async Task A_pre_06b_agent_reply_payload_without_reopen_days_deserialises_to_zero_and_is_rendered()
+    {
+        var payload = $$"""{"ticketNumber":"ORB-1","subject":"S","requesterName":"Ann","portalLink":"https://help.example/t/abc","agentPublicName":"Sam","messageId":"{{MessageId}}","solved":true}""";
+        var item = Item(EmailTemplates.AgentReply, payload);
+        Claims(item);
+        _tickets.GetMessageAsync(MessageId, Arg.Any<CancellationToken>()).Returns(AgentMessage(MessageVisibility.Public));
+        _renderer.RenderAgentReply(Arg.Any<AgentReplyEmail>(), Arg.Any<string>(), Arg.Any<EmailBranding>()).Returns(Rendered);
+
+        var result = await _handler.HandleAsync("w1", CancellationToken.None);
+
+        // Zero is the marker the renderer turns into TicketNotices.DefaultReopenDays (see the renderer tests).
+        _renderer.Received(1).RenderAgentReply(Arg.Is<AgentReplyEmail>(m => m.ReopenDays == 0 && m.Solved), Arg.Any<string>(), Arg.Any<EmailBranding>());
+        result.Value.ShouldBe(new DrainResult(1, 1, 0));
+    }
+
     [Theory]
     [InlineData("new-ticket-alert")]
     [InlineData("customer-reply-alert")]

@@ -69,7 +69,7 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
         var showPoweredBy = options.Value.ShowPoweredBy;
         var subject = $"[{model.TicketNumber}] Re: {model.Subject}";
         var link = Encode(model.PortalLink);
-        var solvedLine = $"We've marked this request as solved. Reply within {(model.ReopenDays > 0 ? model.ReopenDays : TicketNotices.DefaultReopenDays)} days if you need anything else.";
+        var solvedLine = $"We've marked this request as solved. Reply within {Days(model.ReopenDays > 0 ? model.ReopenDays : TicketNotices.DefaultReopenDays)} if you need anything else.";
 
         var text = new StringBuilder();
         text.Append(Greeting(model.RequesterName)).Append("\n\n");
@@ -105,7 +105,7 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
         var showPoweredBy = options.Value.ShowPoweredBy;
         var subject = $"[{model.TicketNumber}] Solved: {model.Subject}";
         var link = Encode(model.PortalLink);
-        var line = $"We've marked your request as solved. If you need anything else, reply within {model.ReopenDays} days, or use the link below.";
+        var line = $"We've marked your request as solved. If you need anything else, reply within {Days(model.ReopenDays)}, or use the link below.";
 
         var text = new StringBuilder();
         text.Append(Greeting(model.RequesterName)).Append("\n\n");
@@ -246,6 +246,8 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
         body.Append($"<p style=\"margin:0;\">The {Encode(branding.DisplayName)} team</p>");
         return Build(subject, text.ToString(), Layout(branding, colors, body.ToString(), showPoweredBy), branding);
     }
+
+    private static string Days(int count) => count == 1 ? "1 day" : $"{count} days";
 
     private static string? WebLinkOrNull(string? link) => link is { } candidate && IsWebUrl(candidate) ? candidate : null;
 
