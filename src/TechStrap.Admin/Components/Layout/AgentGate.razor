@@ -1,6 +1,11 @@
-@if (_authenticated != true)
+@if (_authenticated is null)
 {
-    @* Anonymous pages (error, not found) and the moment before the authentication state is known. *@
+    @* Fail closed: until the authentication state is known (or when no router provides one) nothing of the page is shown. *@
+    <p class="ts-gate" role="status">@GateCopy.Checking</p>
+}
+else if (_authenticated == false)
+{
+    @* A visitor known to be anonymous: only the anonymous pages (error, not found) get this far, the router blocks every other page. *@
     @ChildContent
 }
 else

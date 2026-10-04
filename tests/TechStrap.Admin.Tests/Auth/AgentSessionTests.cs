@@ -145,6 +145,23 @@ public sealed class AgentSessionTests
     }
 
     [Fact]
+    public async Task A_waiter_whose_shared_load_was_cancelled_loads_for_itself()
+    {
+        var gate = new TaskCompletionSource<Result<AgentDto>>();
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(_ => gate.Task, _ => Task.FromResult(Result<AgentDto>.Success(Agent())));
+        var session = Session();
+        using var owner = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+
+        var first = session.EnsureLoadedAsync(owner.Token);
+        var second = session.EnsureLoadedAsync(Ct);
+        gate.SetException(new OperationCanceledException());
+
+        await Should.ThrowAsync<OperationCanceledException>(() => first);
+        await second;
+        session.State.ShouldBe(AgentSessionState.Ready);
+    }
+
+    [Fact]
     public async Task Reload_asks_again_and_a_change_is_announced()
     {
         _agents.GetMeAsync(Ct).Returns(Refused(ApiErrorCodes.AgentInactive), Result<AgentDto>.Success(Agent()));

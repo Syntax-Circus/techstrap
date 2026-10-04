@@ -26,8 +26,13 @@ public sealed partial class AgentGate : ComponentBase, IDisposable
     protected override async Task OnInitializedAsync()
     {
         Session.Changed += OnSessionChanged;
-        var state = AuthenticationState is null ? null : await AuthenticationState;
-        _authenticated = state?.User.Identity?.IsAuthenticated == true;
+        if (AuthenticationState is null)
+        {
+            return;
+        }
+
+        var state = await AuthenticationState;
+        _authenticated = state.User.Identity?.IsAuthenticated == true;
         if (_authenticated == true)
         {
             await Session.EnsureLoadedAsync(_lifetime.Token);

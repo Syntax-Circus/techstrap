@@ -1,10 +1,31 @@
+@using TechStrap.Admin.Clients
 @inject NavigationManager Navigation
 
+@if (_signedIn)
+{
+    @* A signed-in user the router refused: sending them to the sign-in page would loop with a single-sign-on provider that signs them straight back in. *@
+    <NoAccessPage Code="@ApiErrorCodes.Forbidden" Message="@NotAllowedMessage" />
+}
+
 @code {
+    private const string NotAllowedMessage = "You are signed in, but you are not allowed to open this page.";
+
+    private bool _signedIn;
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
     // A full load (forceLoad) because /signin is an endpoint, not a route of this router. During prerendering the framework turns the
     // navigation into a 302; in a circuit it is a browser navigation. Only a path and query is ever sent: LocalReturnUrl.Sanitize checks it again.
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        var state = AuthenticationState is null ? null : await AuthenticationState;
+        if (state?.User.Identity?.IsAuthenticated == true)
+        {
+            _signedIn = true;
+            return;
+        }
+
         var returnUrl = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
         Navigation.NavigateTo(
             $"{AdminAuthentication.SignInPath}?{AdminAuthentication.ReturnUrlParameter}={Uri.EscapeDataString(returnUrl)}",

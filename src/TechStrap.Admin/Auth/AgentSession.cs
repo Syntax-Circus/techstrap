@@ -55,19 +55,31 @@ public sealed class AgentSession(IAgentsClient agents)
     /// </summary>
     public async Task EnsureLoadedAsync(CancellationToken cancellationToken)
     {
-        if (State is AgentSessionState.Ready or AgentSessionState.NoAccess)
+        while (true)
         {
-            return;
-        }
+            if (State is AgentSessionState.Ready or AgentSessionState.NoAccess)
+            {
+                return;
+            }
 
-        var source = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (Interlocked.CompareExchange(ref _loading, source.Task, null) is { } running)
-        {
-            // Someone else is already asking; share their answer (their cancellation is theirs alone: the state tells the outcome).
+            var source = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (Interlocked.CompareExchange(ref _loading, source.Task, null) is not { } running)
+            {
+                await LoadAsync(source, cancellationToken);
+                return;
+            }
+
+            // Someone else is already asking; share their answer. If their load ended without one (they were cancelled), ask again ourselves.
             await running;
-            return;
+            if (State != AgentSessionState.NotLoaded)
+            {
+                return;
+            }
         }
+    }
 
+    private async Task LoadAsync(TaskCompletionSource source, CancellationToken cancellationToken)
+    {
         try
         {
             Apply(await agents.GetMeAsync(cancellationToken));

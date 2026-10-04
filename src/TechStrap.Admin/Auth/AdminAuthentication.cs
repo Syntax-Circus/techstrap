@@ -49,6 +49,11 @@ public static class AdminAuthentication
             })
             .AddOpenIdConnect(OidcScheme, _ => { });
 
+        // Secure cookies everywhere except local development over plain http.
+        services.AddOptions<CookieAuthenticationOptions>(CookieScheme)
+            .Configure<IHostEnvironment>((options, environment) =>
+                options.Cookie.SecurePolicy = environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always);
+
         // Read lazily from the validated options, so test factories can supply the values through in-memory configuration.
         services.AddOptions<OpenIdConnectOptions>(OidcScheme)
             .Configure<IOptions<AuthOptions>, IHostEnvironment>((options, auth, environment) =>
@@ -68,6 +73,9 @@ public static class AdminAuthentication
                 options.TokenValidationParameters.NameClaimType = "name";
                 options.CallbackPath = OidcCallbackPath;
                 options.SignedOutCallbackPath = OidcSignedOutCallbackPath;
+                // Front-channel logout from the provider is not used in 07a. The default /signout-oidc answers a plain GET by signing the
+                // user out, so any cross-site link could log an agent out (the cookie is SameSite=Lax). An empty path disables the endpoint.
+                options.RemoteSignOutPath = PathString.Empty;
                 options.Scope.Clear();
                 foreach (var scope in settings.Scopes)
                 {
@@ -99,8 +107,16 @@ public static class AdminAuthentication
             .AllowAnonymous();
 
         // POST only. Binding the form makes minimal APIs reject a request without a valid antiforgery token (400); signs out of the cookie and of the provider.
-        endpoints.MapPost(SignOutPath, (IFormCollection form) =>
-                TypedResults.SignOut(new AuthenticationProperties { RedirectUri = SignInPath }, [CookieScheme, OidcScheme]));
+        endpoints.MapPost(SignOutPath, async (IFormCollection form, HttpContext context, IServerTokenCache tokens, IUserTokenCacheKeyProvider keys) =>
+        {
+            // The server token cache is keyed per user and outlives the cookie: drop this user's tokens so a signed-out session leaves none behind.
+            if (keys.GetCacheKey(context.User) is { } key)
+            {
+                await tokens.RemoveAsync(key, context.RequestAborted);
+            }
+
+            return TypedResults.SignOut(new AuthenticationProperties { RedirectUri = SignInPath }, [CookieScheme, OidcScheme]);
+        });
         return endpoints;
     }
 }

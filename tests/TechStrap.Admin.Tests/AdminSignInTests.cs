@@ -1,6 +1,11 @@
 using System.Net;
 using AngleSharp.Html.Parser;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using SyntaxCircus.Blazor.Auth;
 using TechStrap.Tests.Shared.AdminHost;
 
 namespace TechStrap.Admin.Tests;
@@ -93,6 +98,80 @@ public sealed class AdminSignInTests
         using var response = await client.PostAsync("/signout", new FormUrlEncodedContent([]), TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task A_plain_get_to_the_provider_remote_sign_out_address_does_not_sign_anyone_out()
+    {
+        await using var factory = new AdminFactory();
+
+        foreach (var principal in new AdminTestPrincipal?[] { null, AdminTestPrincipal.Agent })
+        {
+            using var client = NoRedirectClient(factory);
+            if (principal is not null)
+            {
+                client.SignedInAs(principal);
+            }
+
+            using var response = await client.GetAsync("/signout-oidc", TestContext.Current.CancellationToken);
+
+            var cookies = response.Headers.TryGetValues("Set-Cookie", out var values) ? values : [];
+            cookies.ShouldNotContain(c => c.Contains("techstrap.admin"));
+            response.StatusCode.ShouldNotBe(HttpStatusCode.OK);
+        }
+    }
+
+    [Theory]
+    [InlineData("Development", CookieSecurePolicy.SameAsRequest)]
+    [InlineData("Production", CookieSecurePolicy.Always)]
+    public async Task The_session_cookie_is_secure_outside_development(string environment, CookieSecurePolicy expected)
+    {
+        await using var factory = new AdminFactory(environment);
+        _ = factory.Server;
+
+        var options = factory.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>().Get("Cookies");
+
+        options.Cookie.SecurePolicy.ShouldBe(expected);
+        options.Cookie.HttpOnly.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Anonymous_not_found_and_error_pages_are_static_and_start_no_circuit_while_a_page_for_an_agent_does()
+    {
+        await using var factory = new AdminFactory();
+        using var anonymous = NoRedirectClient(factory);
+        using var agent = NoRedirectClient(factory).SignedInAs(AdminTestPrincipal.Agent);
+
+        foreach (var path in new[] { "/not-found", "/error" })
+        {
+            (await anonymous.GetStringAsync(path, TestContext.Current.CancellationToken)).ShouldNotContain("\"type\":\"server\"", customMessage: path);
+        }
+
+        (await agent.GetStringAsync("/", TestContext.Current.CancellationToken)).ShouldContain("\"type\":\"server\"");
+    }
+
+    [Fact]
+    public async Task Signing_out_removes_the_agent_tokens_from_the_server_cache()
+    {
+        await using var factory = new AdminFactory();
+        using var client = NoRedirectClient(factory).SignedInAs(AdminTestPrincipal.Agent);
+        var cache = factory.Services.GetRequiredService<IServerTokenCache>();
+        var key = factory.Services.GetRequiredService<IUserTokenCacheKeyProvider>().GetCacheKey(AdminTestPrincipal.Agent.Subject)!;
+        (await cache.GetAsync(key, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        var shell = await client.GetAsync("/", TestContext.Current.CancellationToken);
+        var page = await new HtmlParser().ParseDocumentAsync(await shell.Content.ReadAsStringAsync(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
+        var token = page.QuerySelector("form[action='/signout'] input[name=__RequestVerificationToken]")!.GetAttribute("value")!;
+        using var post = new HttpRequestMessage(HttpMethod.Post, "/signout") { Content = new FormUrlEncodedContent([new("__RequestVerificationToken", token)]) };
+        foreach (var cookie in shell.Headers.GetValues("Set-Cookie").Select(c => c.Split(';')[0]))
+        {
+            post.Headers.Add("Cookie", cookie);
+        }
+
+        using var response = await client.SendAsync(post, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        (await cache.GetAsync(key, TestContext.Current.CancellationToken)).ShouldBeNull();
     }
 
     [Fact]

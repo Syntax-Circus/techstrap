@@ -1,4 +1,6 @@
 using Bunit;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Components.Authorization;
 using NSubstitute;
 using SyntaxCircus.Common;
 using TechStrap.Admin.Auth;
@@ -87,11 +89,43 @@ public sealed class AgentGateTests : BunitContext
     }
 
     [Fact]
+    public void While_the_authentication_state_is_pending_the_content_is_hidden_and_the_api_is_not_called()
+    {
+        var pending = new TaskCompletionSource<AuthenticationState>();
+
+        var cut = Render<AgentGate>(p => p
+            .AddCascadingValue(pending.Task)
+            .AddChildContent("<p id='content'>ticket data</p>"));
+
+        cut.FindAll("#content").ShouldBeEmpty();
+        cut.Find("[role=status]").TextContent.ShouldBe(GateCopy.Checking);
+        _agents.DidNotReceiveWithAnyArgs().GetMeAsync(Xunit.TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public void An_anonymous_visitor_sees_the_content_and_the_api_is_not_called()
     {
         var cut = RenderGate(signedIn: false);
 
         cut.Find("#content").TextContent.ShouldBe("ticket data");
         _agents.DidNotReceiveWithAnyArgs().GetMeAsync(Xunit.TestContext.Current.CancellationToken);
+    }
+}
+
+/// <summary>A gate rendered where no router provides the authentication state (no authorization services at all) must fail closed.</summary>
+public sealed class AgentGateWithoutAuthenticationStateTests : BunitContext
+{
+    [Fact]
+    public void Without_a_cascaded_authentication_state_the_content_is_hidden_and_the_api_is_not_called()
+    {
+        var agents = Substitute.For<IAgentsClient>();
+        Services.AddSingleton(agents);
+        Services.AddSingleton<AgentSession>();
+
+        var cut = Render<AgentGate>(p => p.AddChildContent("<p id='content'>ticket data</p>"));
+
+        cut.FindAll("#content").ShouldBeEmpty();
+        cut.Find("[role=status]").TextContent.ShouldBe(GateCopy.Checking);
+        agents.DidNotReceiveWithAnyArgs().GetMeAsync(Xunit.TestContext.Current.CancellationToken);
     }
 }
