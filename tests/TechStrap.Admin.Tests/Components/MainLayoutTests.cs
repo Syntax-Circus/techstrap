@@ -6,10 +6,12 @@ namespace TechStrap.Admin.Tests.Components;
 
 public sealed class MainLayoutTests : BunitContext
 {
+    public MainLayoutTests() => this.AddAgentShell();
+
     [Fact]
     public void Header_shows_the_SVG_head_mark_and_no_mascot_copy()
     {
-        var cut = Render<MainLayout>(p => p.Add(l => l.Body, b => b.AddMarkupContent(0, "<p id=\"page\">page</p>")));
+        var cut = Render<MainLayout>(p => p.SignedIn().Add(l => l.Body, b => b.AddMarkupContent(0, "<p id=\"page\">page</p>")));
 
         var mark = cut.Find(".ts-brand img");
         mark.GetAttribute("src").ShouldBe("brand/mark.svg");
@@ -20,7 +22,7 @@ public sealed class MainLayoutTests : BunitContext
     [Fact]
     public void Page_content_renders_inside_main_under_an_error_boundary()
     {
-        var cut = Render<MainLayout>(p => p.Add(l => l.Body, b => b.AddMarkupContent(0, "<p id=\"page\">page</p>")));
+        var cut = Render<MainLayout>(p => p.SignedIn().Add(l => l.Body, b => b.AddMarkupContent(0, "<p id=\"page\">page</p>")));
 
         cut.Find("main.ts-main #page").TextContent.ShouldBe("page");
         cut.Find("nav[aria-label='Admin navigation']").ShouldNotBeNull();
@@ -35,7 +37,7 @@ public sealed class MainLayoutTests : BunitContext
             builder.CloseComponent();
         };
 
-        var cut = Render<MainLayout>(p => p.Add(l => l.Body, throwing));
+        var cut = Render<MainLayout>(p => p.SignedIn().Add(l => l.Body, throwing));
 
         var error = cut.Find("section.ts-error");
         error.QuerySelector("h1")!.TextContent.ShouldBe("Couldn't load this screen.");

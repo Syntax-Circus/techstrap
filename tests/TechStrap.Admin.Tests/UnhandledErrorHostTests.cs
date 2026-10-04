@@ -1,3 +1,4 @@
+using TechStrap.Tests.Shared.AdminHost;
 using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -24,7 +25,7 @@ public sealed class UnhandledErrorHostTests
     {
         await using var factory = new AdminFactory("Production").WithWebHostBuilder(builder =>
             builder.ConfigureTestServices(services => services.AddSingleton<IStartupFilter, ThrowingStartupFilter>()));
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
 
         using var response = await client.GetAsync("/__test/throw", TestContext.Current.CancellationToken);
         var html = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);

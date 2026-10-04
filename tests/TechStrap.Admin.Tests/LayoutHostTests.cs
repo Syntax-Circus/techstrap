@@ -1,3 +1,4 @@
+using TechStrap.Tests.Shared.AdminHost;
 using System.Net;
 
 namespace TechStrap.Admin.Tests;
@@ -8,7 +9,7 @@ public sealed class LayoutHostTests
     public async Task Home_page_uses_the_layout_with_the_head_mark_and_the_mark_is_served_as_SVG()
     {
         await using var factory = new AdminFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
 
         var home = await client.GetAsync("/", TestContext.Current.CancellationToken);
         var html = await home.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);

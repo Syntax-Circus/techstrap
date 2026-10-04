@@ -1,3 +1,4 @@
+using TechStrap.Tests.Shared.AdminHost;
 using System.Net;
 
 namespace TechStrap.Api.Tests;
@@ -14,7 +15,7 @@ public sealed class ShellHostTests
     public async Task Admin_serves_the_placeholder_page_icons_and_compiled_css()
     {
         await using var factory = new AdminFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
 
         await AssertShellAsync(client, "TechStrap Admin");
     }

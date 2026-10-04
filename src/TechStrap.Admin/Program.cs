@@ -6,6 +6,7 @@ using SyntaxCircus.AspNetCore.Serilog;
 using SyntaxCircus.Blazor.Auth;
 using SyntaxCircus.DotEnv;
 using SyntaxCircus.Observability;
+using TechStrap.Admin.Auth;
 using TechStrap.Admin.Components;
 using TechStrap.Admin.Options;
 using TechStrap.Hosting.Logging;
@@ -54,6 +55,11 @@ if (!string.IsNullOrWhiteSpace(keyRingPath))
 builder.Services.AddAdminOptions(builder.Configuration);
 builder.Services.AddBlazorTokenForwarding(builder.Configuration, AdminOptionsRegistration.AuthSection);
 
+builder.Services.AddAdminAuthentication();
+builder.Services.AddCascadingAuthenticationState();
+// Task 5 registers AgentSession (scoped) together with IAgentsClient and wraps the layout body in AgentGate; scope validation
+// rejects AgentSession while IAgentsClient has no implementation.
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -79,9 +85,18 @@ app.Use(async (context, next) =>
         context.Features.Get<IStatusCodePagesFeature>()?.Enabled = false;
     }
 });
+// Order matters: the token cache middleware needs the authenticated user and must run before antiforgery (SyntaxCircus.Blazor.Auth).
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseBlazorTokenCache();
 app.UseAntiforgery();
-app.MapStandardHealthChecks();
-app.MapRazorComponentsWithStaticAssets<App>()
+
+// Health checks and static assets stay anonymous; the fallback policy requires a signed-in agent for everything else.
+var anonymous = app.MapGroup(string.Empty).AllowAnonymous();
+anonymous.MapStandardHealthChecks();
+anonymous.MapStaticAssets();
+app.MapAdminAuthEndpoints();
+app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();

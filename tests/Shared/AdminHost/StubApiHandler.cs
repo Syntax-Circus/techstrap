@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using TechStrap.Contracts.Agents;
 
 namespace TechStrap.Tests.Shared.AdminHost;
 
@@ -56,6 +57,27 @@ public sealed class StubApiHandler : HttpMessageHandler
     /// <summary>An RFC 7807 answer in the shape the API produces: <c>type</c> is the error code, <c>detail</c> the message.</summary>
     public StubApiHandler OnProblem(HttpMethod method, string path, HttpStatusCode status, string type, string detail) =>
         On(method, path, _ => Problem(status, type, detail));
+
+    /// <summary>
+    /// The default answer to <c>GET /api/agents/me</c>: the token decides who is calling (see <see cref="AdminTestPrincipal.AccessToken"/>).
+    /// The agent and the admin are 200 with their role; the outsider is 403 agent-access-required; no token is 401.
+    /// </summary>
+    public StubApiHandler WithTestAgents() => On(HttpMethod.Get, "/api/agents/me", request =>
+    {
+        var principal = AdminTestPrincipal.All.FirstOrDefault(p => request.Authorization == "Bearer " + p.AccessToken);
+        if (principal is null)
+        {
+            return new HttpResponseMessage(HttpStatusCode.Unauthorized);
+        }
+
+        if (principal == AdminTestPrincipal.Outsider)
+        {
+            return Problem(HttpStatusCode.Forbidden, "agent-access-required", "Your account is not in an agent group.");
+        }
+
+        var role = principal == AdminTestPrincipal.Admin ? AgentRoles.Admin : AgentRoles.Agent;
+        return JsonResponse(HttpStatusCode.OK, new AgentDto(Guid.NewGuid(), principal.DisplayName, principal.Email, role, true, null, null));
+    });
 
     public static HttpResponseMessage JsonResponse<T>(HttpStatusCode status, T body) => new(status) { Content = JsonContent.Create(body, options: Json) };
 

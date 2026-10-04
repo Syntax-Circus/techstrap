@@ -109,7 +109,7 @@ public sealed class AdminFactory : HostFactory<TechStrap.Admin.Program>
         string environment = "Development",
         IReadOnlyDictionary<string, string?>? settings = null,
         Action<IServiceCollection>? configureServices = null)
-        : this(environment, settings, configureServices, new StubApiHandler())
+        : this(environment, settings, configureServices, new StubApiHandler().WithTestAgents())
     {
     }
 
@@ -118,7 +118,14 @@ public sealed class AdminFactory : HostFactory<TechStrap.Admin.Program>
         IReadOnlyDictionary<string, string?>? settings,
         Action<IServiceCollection>? configureServices,
         StubApiHandler api)
-        : base(environment, AdminTestSettings.With(settings), services => configureServices?.Invoke(services)) => Api = api;
+        : base(
+            environment,
+            AdminTestSettings.With(settings),
+            services =>
+            {
+                services.AddAdminTestAuthentication();
+                configureServices?.Invoke(services);
+            }) => Api = api;
 
     /// <summary>The stub behind the Admin's API clients. The tasks that add the clients and the sign-in wire it in.</summary>
     public StubApiHandler Api { get; }

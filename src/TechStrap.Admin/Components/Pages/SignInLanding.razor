@@ -1,0 +1,44 @@
+@* The signed-out landing page, rendered by the GET /signin endpoint (not routable: no @page). It is a whole document because it runs outside App.razor,
+   with no router and no circuit, so an anonymous visitor never opens a connection. *@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <title>Sign in - TechStrap Admin</title>
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="stylesheet" href="@Assets["css/app.css"]" />
+</head>
+
+<body>
+    <main class="ts-window-page">
+        <BrandWindow Title="@SignInCopy.WindowTitle" Heading="@SignInCopy.Heading">
+            <p>@SignInCopy.Body</p>
+            @if (Failed)
+            {
+                <p class="ts-signin-failed" role="alert">@SignInCopy.FailedBody</p>
+            }
+            @* A plain GET form: the browser submits it natively, so no router or circuit is involved. *@
+            <form method="get" action="@AdminAuthentication.SignInStartPath" class="ts-window-action">
+                <input type="hidden" name="@AdminAuthentication.ReturnUrlParameter" value="@ReturnUrl" />
+                <button type="submit" class="ts-window-button">@SignInCopy.Button</button>
+            </form>
+        </BrandWindow>
+    </main>
+</body>
+
+</html>
+
+@code {
+    /// <summary>A local path, already sanitised by the endpoint (see LocalReturnUrl).</summary>
+    [Parameter]
+    public string ReturnUrl { get; set; } = LocalReturnUrl.Home;
+
+    /// <summary>True when the provider sign-in failed and the agent was sent back here.</summary>
+    [Parameter]
+    public bool Failed { get; set; }
+}

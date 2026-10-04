@@ -1,0 +1,36 @@
+@if (_authenticated != true)
+{
+    @* Anonymous pages (error, not found) and the moment before the authentication state is known. *@
+    @ChildContent
+}
+else
+{
+    switch (Session.State)
+    {
+        case AgentSessionState.Ready:
+            @ChildContent
+            break;
+        case AgentSessionState.NoAccess:
+            <NoAccessPage Code="@Session.ErrorCode" Message="@Session.ErrorMessage" />
+            break;
+        case AgentSessionState.SessionExpired:
+            <section class="ts-gate" role="alert">
+                <h1>@GateCopy.SessionExpiredTitle</h1>
+                <p>@GateCopy.SessionExpiredBody</p>
+                <form method="get" action="@AdminAuthentication.SignInStartPath">
+                    <button type="submit">@GateCopy.SignInAgain</button>
+                </form>
+            </section>
+            break;
+        case AgentSessionState.Unavailable:
+            <section class="ts-gate" role="alert">
+                <h1>@GateCopy.UnavailableTitle</h1>
+                <p>@Session.ErrorMessage</p>
+                <button type="button" @onclick="RetryAsync">@UiCopy.RetryLabel</button>
+            </section>
+            break;
+        default:
+            <p class="ts-gate" role="status">@GateCopy.Checking</p>
+            break;
+    }
+}

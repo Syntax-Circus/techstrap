@@ -1,0 +1,22 @@
+@* Not routable: AgentGate shows it in place of the page content. Plain, no mascot (UX-BRIEF-admin). *@
+<section class="ts-no-access" role="alert">
+    <h1>@NoAccessCopy.Title</h1>
+    <p>@NoAccessCopy.Reason(Code, Message, Groups.Value.AgentGroup)</p>
+    <form method="post" action="@AdminAuthentication.SignOutPath">
+        <AntiforgeryToken />
+        <button type="submit">@SignOutForm.SignOutLabel</button>
+    </form>
+</section>
+
+@code {
+    [Inject]
+    private Microsoft.Extensions.Options.IOptions<TechStrap.Admin.Options.AgentGroupOptions> Groups { get; set; } = default!;
+
+    /// <summary>The API's error code (agent-access-required, agent-inactive, agent-email-required, agent-identity-invalid, ...).</summary>
+    [Parameter]
+    public string? Code { get; set; }
+
+    /// <summary>The API's own message, shown only for a code this page has no copy for.</summary>
+    [Parameter]
+    public string? Message { get; set; }
+}

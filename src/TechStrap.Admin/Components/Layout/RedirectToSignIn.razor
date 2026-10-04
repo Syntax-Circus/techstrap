@@ -1,0 +1,13 @@
+@inject NavigationManager Navigation
+
+@code {
+    // A full load (forceLoad) because /signin is an endpoint, not a route of this router. During prerendering the framework turns the
+    // navigation into a 302; in a circuit it is a browser navigation. Only a path and query is ever sent: LocalReturnUrl.Sanitize checks it again.
+    protected override void OnInitialized()
+    {
+        var returnUrl = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+        Navigation.NavigateTo(
+            $"{AdminAuthentication.SignInPath}?{AdminAuthentication.ReturnUrlParameter}={Uri.EscapeDataString(returnUrl)}",
+            forceLoad: true);
+    }
+}
