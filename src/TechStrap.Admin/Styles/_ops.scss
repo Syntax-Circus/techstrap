@@ -1,0 +1,6 @@
+// Failed emails (PHASE-07b): the last error is short text from the API and wraps like any other outside text.
+
+.ts-last-error {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

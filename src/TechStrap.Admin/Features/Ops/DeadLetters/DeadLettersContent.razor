@@ -1,0 +1,89 @@
+<PageTitle>@DeadLettersCopy.Heading &middot; Operations</PageTitle>
+    <div class="ts-settings ts-dead-letters">
+        <h1>@DeadLettersCopy.Heading</h1>
+        <p class="ts-field-help">@DeadLettersCopy.Intro</p>
+
+        @if (_rowError is not null)
+        {
+            <div class="ts-conflict" role="alert">
+                <p>@_rowError</p>
+                @if (_rowUncertain)
+                {
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ReloadAsync">@DeadLettersCopy.ReloadList</button>
+                }
+            </div>
+        }
+
+        @if (_loading && _rows.Count == 0)
+        {
+            <LoadingState Rows="4" Label="@DeadLettersCopy.Loading" />
+        }
+        else if (_error is not null)
+        {
+            <ErrorState Message="@_error" OnRetry="ReloadAsync" />
+        }
+        else if (_rows.Count == 0)
+        {
+            <EmptyState Heading="@DeadLettersCopy.Empty" />
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table ts-ledger ts-settings-table" aria-busy="@(_loading ? "true" : null)">
+                    <thead>
+                        <tr>
+                            <th scope="col">@DeadLettersCopy.ColumnRecipient</th>
+                            <th scope="col">@DeadLettersCopy.ColumnEmail</th>
+                            <th scope="col">@DeadLettersCopy.ColumnTicket</th>
+                            <th scope="col">@DeadLettersCopy.ColumnAttempts</th>
+                            <th scope="col">@DeadLettersCopy.ColumnError</th>
+                            <th scope="col">@DeadLettersCopy.ColumnCreated</th>
+                            <th scope="col"><span class="visually-hidden">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in _rows)
+                        {
+                            <tr @key="row.Id" data-letter="@row.Id">
+                                <td><code>@row.Recipient</code></td>
+                                <td>@DeadLettersCopy.KindLabel(row.Kind)</td>
+                                <td>
+                                    @if (row.TicketId is { } ticket)
+                                    {
+                                        <a href="/tickets/@ticket">@DeadLettersCopy.OpenTicket</a>
+                                    }
+                                    else
+                                    {
+                                        @DeadLettersCopy.NoTicket
+                                    }
+                                </td>
+                                <td>@row.Attempts</td>
+                                <td class="ts-last-error">@row.LastError</td>
+                                <td><RelativeTime When="row.CreatedAt" /></td>
+                                <td class="ts-settings-actions">
+                                    <button type="button" class="btn btn-outline-secondary ts-retry" disabled="@_busy" @onclick="() => RetryAsync(row)">@DeadLettersCopy.Retry</button>
+                                    <button type="button" class="btn btn-outline-secondary ts-discard" disabled="@_busy" @onclick="() => AskDiscard(row)">@DeadLettersCopy.Discard</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <PagerControl Page="_page" PageSize="DeadLettersCopy.PageSize" TotalCount="_total" OnPageChanged="OnPageChanged" />
+        }
+
+        <ConfirmDialog Open="@(_discarding is not null)" Title="@DeadLettersCopy.DiscardTitle" ConfirmLabel="@DeadLettersCopy.DiscardConfirm" Danger="true"
+                       Busy="_busy" ConfirmDisabled="_uncertain" Error="@_dialogError" OnConfirm="ConfirmDiscardAsync" OnCancel="CancelDiscard">
+            @if (_discarding is not null)
+            {
+                <p>@DeadLettersCopy.DiscardSubject(_discarding.Kind, _discarding.Recipient)</p>
+                <p>@DeadLettersCopy.DiscardBody</p>
+                @if (_uncertain)
+                {
+                    <div class="ts-dialog-recovery">
+                        <button type="button" class="btn btn-link" @onclick="ReloadAfterUncertainAsync">@DeadLettersCopy.ReloadList</button>
+                    </div>
+                }
+            }
+        </ConfirmDialog>
+    </div>

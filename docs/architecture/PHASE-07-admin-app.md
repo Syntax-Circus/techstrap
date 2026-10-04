@@ -196,21 +196,26 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
   - **Depends on:** P07-T12, P07-T03
   - **Validation:** bUnit: confirm button disabled until the email matches; success navigates to the queue; cancel makes no call; delete and erase are absent for an Agent principal and present for an Admin, spam is present for both.
   - **07a evidence:** `DestructiveActionTests`
-- [ ] **P07-T14** [07b] Build `ProductsPage` and `ProductEditorPage` including branding fields and accent-colour validation
+- [x] **P07-T14** [07b] Build `ProductsPage` and `ProductEditorPage` including branding fields and accent-colour validation
   - **Depends on:** P07-T05, P07-T03
   - **Validation:** bUnit: an invalid accent is rejected client-side with `BrandingRules.ColourPattern` (the server pattern, pinned by a parity test); a logo URL that is not https (or http for localhost) is rejected client-side and by the API; server 400 errors map to fields by their kebab-case target; the page sits inside `AdminOnly`, so a plain agent sees the no-access page.
-- [ ] **P07-T15** [07b] Build `ApiKeysPanel` + `NewApiKeyDialog` (kind selection Trusted/Public, show-once secret, revoke with confirm)
+  - **07b evidence:** `ProductEditorTests`, `ProductEditorRealApiTests`, `AccentPreviewTests`, `ProductsPageTests`, `AdminSettingsHostTests`
+- [x] **P07-T15** [07b] Build `ApiKeysPanel` + `NewApiKeyDialog` (kind selection Trusted/Public, show-once secret, revoke with confirm)
   - **Depends on:** P07-T14
   - **Validation:** bUnit: secret visible only in the dialog and gone after close; revoked keys render as revoked; public/trusted badges distinct.
-- [ ] **P07-T16** [07b] Build `AgentsPage` and `NotificationPreferencesPage`
+  - **07b evidence:** `NewApiKeyDialogTests`, `ApiKeysPanelTests`, `RevokeApiKeyTests`, `ProductKeysPageTests`, `AdminLeakTests`
+- [x] **P07-T16** [07b] Build `AgentsPage` and `NotificationPreferencesPage`
   - **Depends on:** P07-T05, P07-T03
   - **Validation:** bUnit: the agents page shows the role as a read-only badge with the note "Roles come from your identity provider's groups." and has no role control; activate calls `SetActiveAsync(id, true)` without a confirm, deactivate calls `SetActiveAsync(id, false)` after a confirm, and a 409 `last-active-admin` shows inline; a plain agent sees the no-access page; the preferences save posts the full toggle set.
-- [ ] **P07-T17** [07b] Build `TagsPage` (CRUD with colour) and `AdminEventsPage` + `AdminEventSummaryFactory`
+  - **07b evidence:** `AgentsPageTests`, `NotificationPreferencesPageTests`, `AdminOnlyTests`, `AdminSettingsHostTests`
+- [x] **P07-T17** [07b] Build `TagsPage` (CRUD with colour) and `AdminEventsPage` + `AdminEventSummaryFactory`
   - **Depends on:** P07-T05, P07-T03
   - **Validation:** bUnit: duplicate-slug 409 shows a field error; factory theory covers every admin-event type constant.
-- [ ] **P07-T18** [07b] Build `DeadLettersPage` (retry/discard with confirm, last-error preview)
+  - **07b evidence:** `TagsPageTests`, `DeleteTagTests`, `AdminEventSummaryFactoryTests`, `AdminEventsPageTests`
+- [x] **P07-T18** [07b] Build `DeadLettersPage` (retry/discard with confirm, last-error preview)
   - **Depends on:** P07-T06, P07-T03
   - **Validation:** bUnit: retry/discard call the matching client method and refresh; empty state shown when none.
+  - **07b evidence:** `DeadLettersPageTests`, `AdminSettingsHostTests`
 - [ ] **P07-T19** [07c] Apply BRAND.md tokens/SCSS, responsive layout and accessibility pass per `UX-BRIEF-admin.md` (focus order, ARIA on dialogs/badges, contrast)
   - **Depends on:** P07-T07, P07-T08, P07-T14
   - **Validation:** Manual checklist from UX-BRIEF-admin completed; keyboard-only run through queue -> reply -> solve; axe (browser extension) run has no critical findings (record in PR).
@@ -225,9 +230,10 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
   - **Depends on:** P07-T07, P07-T13, P06-T21
   - **Validation:** bUnit with fake `ITicketsClient`: the Spam tab requests the Spam view and the five normal tabs never request it; `u` sends `IsSpam = false` once, removes the row and shows the status message; `u` does nothing while typing, with shortcuts off, or on a ticket that is not flagged; Not spam is present for an Agent principal; the help dialog lists `u`; no clash with `j`, `k`, `r`, `n`, `e`, `/`
   - **07a evidence:** `TicketQueuePageTests`, `NotSpamQueueTests`, `DestructiveActionTests`, `ShortcutServiceTests` (the palette command is part of the 07c palette)
-- [ ] **P07-T23** [07b] (D-024) Add the optional **Public display name** field to My settings (`PublicDisplayNameField`, `MyProfileViewModel`, `IAgentsClient.UpdateMyProfile`) with the live preview line "Customers see: Sam from Orbitly Support", helper text that email is never shown, and inline save confirmation
+- [x] **P07-T23** [07b] (D-024) Add the optional **Public display name** field to My settings (`PublicDisplayNameField`, `MyProfileViewModel`, `IAgentsClient.UpdateMyProfile`) with the live preview line "Customers see: Sam from Orbitly Support", helper text that email is never shown, and inline save confirmation
   - **Depends on:** P07-T16, P04-T15
   - **Validation:** bUnit: the preview shows "Sam from Orbitly Support" by default, "Samantha from Orbitly Support" while typing "Samantha", and returns to the default when cleared; save calls `UpdateMyProfile` once and shows confirmation; an over-long name or one containing `@` shows the field error from a 400 (target public-display-name); the field is optional
+  - **07b evidence:** `PublicDisplayNameFieldTests`, `PublicNamePreviewTests`, `NotificationPreferencesPageTests`
 
 
 ## Success Criteria
@@ -267,8 +273,8 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 - [ ] Blazor Server circuit memory with many open tabs; keep component state small and dispose subscriptions.
 - [ ] Agent token lifetime vs. long-lived circuits: relies on Blazor.Auth refresh; verify behavior with Authentik's access-token lifetime in UAT.
 - [x] Carried forward from the PHASE-04 final review: Mark the Admin `/error` page `[AllowAnonymous]` when Admin auth lands. (done in PHASE-07a)
-- [ ] [07b] Carried forward from the PHASE-04 final review: Return the `tag-in-use` count as a structured field, not only in the message text.
-- [ ] [07b] Carried forward from the PHASE-04 final review: Add an endpoint test for the admin agent-list fields (`Email`, `Role`, `IsActive`, `LastSeenAt`).
+- [x] [07b] Carried forward from the PHASE-04 final review: Return the `tag-in-use` count as a structured field, not only in the message text. (done in PHASE-07b, D-041)
+- [x] [07b] Carried forward from the PHASE-04 final review: Add an endpoint test for the admin agent-list fields (`Email`, `Role`, `IsActive`, `LastSeenAt`). (done in PHASE-07b, D-041)
 - [ ] Carried forward from the PHASE-04 final review: Add an OpenAPI bearer security scheme so generated clients know the endpoints need a token (also needed by PHASE-11).
 - [x] Carried forward from PHASE-06c (D-039): wire `PiiRedactionEnricher` into the Admin host's `AddStandardSerilog` call once the Admin handles requester data (done in PHASE-07a through TechStrap.Hosting, D-040; the Sentry header scrub is wired too).
 
