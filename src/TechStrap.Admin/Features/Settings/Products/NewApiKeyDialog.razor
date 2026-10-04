@@ -1,0 +1,20 @@
+@implements IAsyncDisposable
+
+<ConfirmDialog Open="_open" Title="@ApiKeysCopy.NewKeyTitle" ConfirmLabel="@ApiKeysCopy.Done" CancelLabel="@ShellCopy.Close"
+               ConfirmDisabled="@(!_stored)" Error="@_hint" OnConfirm="CloseAsync" OnCancel="TryCloseAsync">
+    @if (_plaintext is not null)
+    {
+        <p>@ApiKeysCopy.ShownOnce(ProductName)</p>
+        <p class="ts-key-kind-line"><ApiKeyKindBadge Kind="@(_kind ?? string.Empty)" /> @ApiKeysCopy.Kind(_kind ?? string.Empty)</p>
+        <div class="ts-key-secret">
+            <input @ref="_secret" id="ts-key-secret" class="form-control ts-key-secret-input" type="text" readonly value="@_plaintext"
+                   aria-label="@ApiKeysCopy.SecretLabel" autocomplete="off" spellcheck="false" />
+            <button type="button" class="btn btn-outline-secondary" @onclick="CopyAsync">@ApiKeysCopy.Copy</button>
+        </div>
+        <p class="ts-key-copy-status" role="status">@_copyStatus</p>
+        <div class="form-check">
+            <input id="ts-key-stored" class="form-check-input" type="checkbox" checked="@_stored" @onchange="OnStoredChanged" />
+            <label class="form-check-label" for="ts-key-stored">@ApiKeysCopy.Stored</label>
+        </div>
+    }
+</ConfirmDialog>

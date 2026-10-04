@@ -1,0 +1,7 @@
+<span class="@("ts-kind ts-kind--" + Kind.ToLowerInvariant())">@Kind</span>
+
+@code {
+    /// <summary>Trusted or Public. Always shown as the word; the style only repeats it.</summary>
+    [Parameter, EditorRequired]
+    public string Kind { get; set; } = string.Empty;
+}
