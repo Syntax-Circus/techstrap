@@ -13,7 +13,7 @@
 | [01-REQUIREMENTS.md](01-REQUIREMENTS.md) | Problem, goals, personas, scope, functional and non-functional requirements |
 | [02-ARCHITECTURE.md](02-ARCHITECTURE.md) | Topology, data model, flows, application and presentation boundary tables |
 | [03-PACKAGE-MAP.md](03-PACKAGE-MAP.md) | SyntaxCircus and third-party packages with exact versions |
-| [04-DECISION-LOG.md](04-DECISION-LOG.md) | Material decisions D-001 to D-022 |
+| [04-DECISION-LOG.md](04-DECISION-LOG.md) | Material decisions D-001 to D-040 |
 | [UX-BRIEF-admin.md](UX-BRIEF-admin.md) | Designer handoff: agent/admin app |
 | [UX-BRIEF-portal.md](UX-BRIEF-portal.md) | Designer handoff: public portal and customer emails |
 | [99-IMPLEMENTATION-ROADMAP.md](99-IMPLEMENTATION-ROADMAP.md) | Phase order, task index, validation commands |
@@ -24,11 +24,11 @@
 | --- | --- | --- | --- | --- |
 | 01 | [Foundation](PHASE-01-foundation.md) | — | all | Complete (CI/release verification pending) |
 | 02 | [Brand & UX](PHASE-02-brand-and-ux.md) | 01 | 07, 09 | Complete |
-| 03 | [Domain & persistence](PHASE-03-domain-and-persistence.md) | 01 | 04 | Not started |
-| 04 | [Agent auth & admin config](PHASE-04-agent-auth-and-admin-config.md) | 03 | 05 | Not started |
+| 03 | [Domain & persistence](PHASE-03-domain-and-persistence.md) | 01 | 04 | Complete |
+| 04 | [Agent auth & admin config](PHASE-04-agent-auth-and-admin-config.md) | 03 | 05 | Complete |
 | 05 | [Intake, email & worker](PHASE-05-intake-email-worker.md) | 04 | 06, 11 | Complete (PR #5 merged) |
-| 06 | [Ticket operations](PHASE-06-ticket-operations.md) | 05 | 07, 08, 09 | 06a and 06b complete; 06c implemented (pending merge) |
-| 07 | [Admin app](PHASE-07-admin-app.md) | 02, 06 | 08 (editor UI), 10 | Not started |
+| 06 | [Ticket operations](PHASE-06-ticket-operations.md) | 05 | 07, 08, 09 | Complete |
+| 07 | [Admin app](PHASE-07-admin-app.md) | 02, 06 | 08 (editor UI), 10 | 07a in progress; 07b and 07c not started |
 | 08 | [Knowledge base](PHASE-08-knowledge-base.md) | 06 (07 for the editor UI) | 09 | Not started |
 | 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 | Not started |
 | 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | Not started |
@@ -66,7 +66,7 @@ Inbound email (IMAP, threading) · Extras (custom fields, saved replies, folders
 
 ## Open decisions
 
-See the "Open questions" sections in [01-REQUIREMENTS.md](01-REQUIREMENTS.md) and the decisions in [04-DECISION-LOG.md](04-DECISION-LOG.md). All decisions D-001 to D-022 are approved.
+See the "Open questions" sections in [01-REQUIREMENTS.md](01-REQUIREMENTS.md) and the decisions in [04-DECISION-LOG.md](04-DECISION-LOG.md). All decisions D-001 to D-040 are approved.
 
 ## Approval
 

@@ -211,7 +211,7 @@ The Worker deletes `Sent` and `Discarded` outbox rows older than N days, measure
 
 ### Logging and personal data
 
-Every Serilog event in the Api and the Worker passes through `PiiRedactionEnricher` before any sink: email addresses become `[email]`, 43-character access tokens (with or without a `tsk_` or `tsp_` API key prefix, so API keys too) `[token]` and `sha256:` hashes `[hash]`, in every property, including nested ones. It cannot rewrite an attached exception or recognise a name, so application code logs ids and exception type names only, and nothing may enable `EnableSensitiveDataLogging` or `Include Error Detail` (`LoggingSafetyTests` fails the build if one does). The Admin and Portal hosts handle no requester data yet; they join in PHASE-07 and PHASE-09.
+Every Serilog event in the Api and the Worker passes through `PiiRedactionEnricher` before any sink: email addresses become `[email]`, 43-character access tokens (with or without a `tsk_` or `tsp_` API key prefix, so API keys too) `[token]` and `sha256:` hashes `[hash]`, in every property, including nested ones. It cannot rewrite an attached exception or recognise a name, so application code logs ids and exception type names only, and nothing may enable `EnableSensitiveDataLogging` or `Include Error Detail` (`LoggingSafetyTests` fails the build if one does). The Admin host has joined since PHASE-07a, through the shared `TechStrap.Hosting` project (D-040); the Portal joins in PHASE-09.
 
 ## Try it end to end
 

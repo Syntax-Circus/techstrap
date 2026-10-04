@@ -743,10 +743,11 @@ the three brand moments and never wrap working content.
     (queue, ticket with both composer states, caught-up, brand moments,
     portal sample; light and dark). The other mockups in
     `docs/design/mockups/` are superseded explorations.
-  - Still expected from PHASE-02 (tracked there, not by this brief): the final
-    `docs/BRAND.md`, the token sheet for the SCSS overrides, and mockups for
+  - Delivered by PHASE-02: the final `docs/BRAND.md` and the token sheet for
+    the SCSS overrides. Still open (tracked in PHASE-07, D-040): mockups for
     states the v2 file does not cover (conflict banner, API-key secret reveal,
-    KB editor, dead letters, tablet width).
+    KB editor, dead letters, tablet width). PHASE-07a builds the conflict
+    banner from the text of this brief; the 07c review covers the rest.
   - Comparable products to study, not copy: FreeScout (the stated "light
     helpdesk" reference).
 - **Acceptance criteria for design review:**

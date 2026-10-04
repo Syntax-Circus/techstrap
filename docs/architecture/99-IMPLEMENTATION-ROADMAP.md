@@ -11,7 +11,7 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 - Routes, handler names and Contracts type names come from `02-ARCHITECTURE.md` section 7 and 8.
 - Header names are Contracts constants and are the same everywhere: `X-Api-Key`, `X-Ticket-Token`, `Idempotency-Key`.
 - The portal base URL variable is `TECHSTRAP_PORTAL_PUBLIC_URL`; the storage mount is `/app/storage` (volume `techstrap-storage`), shared by the API and the Worker.
-- Handlers accept `TechStrap.Contracts` request records directly (D-016); Admin and Portal reference only Contracts.
+- Handlers accept `TechStrap.Contracts` request records directly (D-016); Admin and Portal reference only Contracts and Hosting (D-040).
 
 ## 2. Phase order
 
@@ -22,8 +22,8 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 | 03 | [Domain and persistence](PHASE-03-domain-and-persistence.md) | 01 | 04 | Alongside 02 | D-009, D-010, D-011, D-026, D-027, D-028 | Complete |
 | 04 | [Agent auth and admin config](PHASE-04-agent-auth-and-admin-config.md) | 03 | 05 | Alongside 02 | D-001, D-004, D-016, D-022, D-029 (roles from IdP groups only), D-030 (tag delete), D-031 (accent format only) | Complete |
 | 05 | [Intake, email and worker](PHASE-05-intake-email-worker.md) | 04 | 06, 11 | Alongside 02 | D-001, D-010, D-012, D-014, D-019, D-020 | Complete (PR #5 merged) |
-| 06 | [Ticket operations](PHASE-06-ticket-operations.md) | 05 | 07, 08, 09 | Alongside 02 and 11 | D-006, D-008, D-009, D-022, D-035, D-036, D-037, D-038, D-039 | 06a and 06b complete; 06c implemented (pending merge) |
-| 07 | [Admin app](PHASE-07-admin-app.md) | 02, 06 | 08 (editor UI), 10 | 11 alongside; 08 API work alongside | D-017, D-022 | Not started |
+| 06 | [Ticket operations](PHASE-06-ticket-operations.md) | 05 | 07, 08, 09 | Alongside 02 and 11 | D-006, D-008, D-009, D-022, D-035, D-036, D-037, D-038, D-039 | Complete (PRs #6, #7 and #8 merged) |
+| 07 | [Admin app](PHASE-07-admin-app.md) | 02, 06 | 08 (editor UI), 10 | 11 alongside; 08 API work alongside | D-017, D-022, D-040 | 07a in progress; 07b and 07c not started (D-040) |
 | 08 | [Knowledge base](PHASE-08-knowledge-base.md) | 06 (07 for the editor UI) | 09 | API tasks T01 to T12 alongside 07; editor tasks wait for 07 | D-011, D-014, D-021 | Not started |
 | 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 | 10 and 11 alongside | D-002, D-017, D-019 | Not started |
 | 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | 08, 09, 11 alongside | D-007, D-018 | Not started |
@@ -356,7 +356,7 @@ Run from the repository root. PHASE-01 creates the files these commands need; be
 A phase is done only when all three groups below are satisfied and the evidence (command output) is in the PR description.
 
 1. **Success criteria:** every item in the phase's "Success Criteria" section is ticked, and `dotnet build TechStrap.slnx -warnaserror` and `dotnet test` are green in CI.
-2. **Boundary validation:** every item in the phase's "Boundary Validation" checklist is ticked or marked N/A with the reason already written in the document. In particular: each entry point delegates to exactly one named handler, handler constructors take only approved abstractions, cancellation reaches dependencies, expected outcomes have focused tests, and Admin and Portal reference only Contracts.
+2. **Boundary validation:** every item in the phase's "Boundary Validation" checklist is ticked or marked N/A with the reason already written in the document. In particular: each entry point delegates to exactly one named handler, handler constructors take only approved abstractions, cancellation reaches dependencies, expected outcomes have focused tests, and Admin and Portal reference only Contracts and Hosting (D-040).
 3. **Docs updated:** the PHASE document's task checkboxes are ticked; `02-ARCHITECTURE.md` reflects any changed route, handler, abstraction or Contracts type; `03-PACKAGE-MAP.md` and `Directory.Packages.props` change together; any new or changed decision is in `04-DECISION-LOG.md` before the code relies on it; `.env.example` files and the OpenAPI document are current; the status column in section 2 and `00-DISCOVERY-INDEX.md` are updated.
 
 Phase-specific gates (in addition to the phase's own criteria):
@@ -369,7 +369,7 @@ Phase-specific gates (in addition to the phase's own criteria):
 | 04 | JWT policies work against a test issuer; both key kinds can be created through the API; `ResultMappingTests` and `ControllerBoundaryTests` green |
 | 05 | Intake by all three routes yields a branded confirmation through the Worker; two Workers never double-claim; idempotency tests green if D-020 is approved |
 | 06 | `TicketLifecycleEndToEndTests` pass; customer endpoints give uniform 404 and 202; delete and erase are Admin-only, mark spam is Agent |
-| 07 | Admin references only Contracts (architecture test); a 409 never loses a reply draft; component tests in `TechStrap.Admin.Tests` green |
+| 07 | Admin references only Contracts and Hosting (architecture test); a 409 never loses a reply draft; component tests in `TechStrap.Admin.Tests` green |
 | 08 | XSS corpus passes through publish and preview paths; drafts and archived articles never leak publicly; image rules enforced |
 | 09 | Token pages send `no-store`, `no-referrer`, `noindex`; rate limits see the real client IP; no-JS contact and reply flows work |
 | 10 | A worker-originated change reaches an open admin queue; rollbacks never broadcast; hub rejects unauthenticated callers |

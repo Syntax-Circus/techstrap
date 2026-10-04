@@ -37,6 +37,7 @@ techstrap/
     TechStrap.Infrastructure  EF Core (DbContext, migrations), repositories, outbox store, storage,
                               hashing, sanitizer, Markdown, email templates, notification planner
     TechStrap.Contracts       DTOs/Request/Response shared by Api, Admin, Portal, Client, tests; wire constants
+    TechStrap.Hosting         log redaction (PiiRedactionEnricher) and Sentry header scrubbing shared by Api, Worker, Admin and Portal
     TechStrap.Api             Controllers, TicketHub, LISTEN hosted service, auth, rate limits, OpenAPI
     TechStrap.Admin           Blazor Server, typed clients, ViewModels, SCSS
     TechStrap.Portal          Blazor SSR, typed clients, ViewModels, SCSS
@@ -57,14 +58,17 @@ Allowed project references (enforced by `TechStrap.Architecture.Tests`, PHASE-01
 | --- | --- |
 | Domain | none (BCL only) |
 | Contracts | none (BCL only; no MVC, no EF) |
+| Hosting | none (packages only: Serilog and Observability) |
 | Application | Domain, Contracts |
 | Infrastructure | Application, Domain, Contracts |
-| Api | Application, Infrastructure (composition root only), Contracts |
-| Worker | Application, Infrastructure (composition root only), Contracts |
-| Admin | Contracts |
-| Portal | Contracts |
+| Api | Application, Infrastructure (composition root only), Contracts, Hosting |
+| Worker | Application, Infrastructure (composition root only), Contracts, Hosting |
+| Admin | Contracts, Hosting |
+| Portal | Contracts, Hosting |
 | Client | Contracts |
 | Client.Maui | Client, Contracts |
+
+`TechStrap.Hosting` is a leaf with the log redactor and the Sentry header scrubber that every request-serving host shares (D-039, D-040). It references no TechStrap project. Admin and Portal still never reference Application, Infrastructure or Domain.
 
 `TechStrap.Contracts` is a dependency-free leaf: no MVC, EF or ASP.NET references and no attributes. Handlers accept Contracts request records directly; transport-only details (multipart files, `X-Api-Key`, `X-Ticket-Token`, `Idempotency-Key`, honeypot, channel and trust level) are mapped at the controller into the request record or a small Application-owned model (D-016, resolves A-15).
 

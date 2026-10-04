@@ -17,11 +17,24 @@ pure API consumer: every operation goes through typed clients over
 - **Unblocks:** [PHASE-08](PHASE-08-knowledge-base.md) (admin editor part), [PHASE-10](PHASE-10-live-updates.md), [PHASE-12](PHASE-12-release-hardening.md).
 - **External prerequisites:** An OIDC client for the admin (confidential, code + PKCE, `offline_access`, group claim in the id token and the access token) in the owner's Authentik; `TECHSTRAP_AGENT_GROUP` / `TECHSTRAP_ADMIN_GROUP` configured; a running API from P06 with seed/demo data.
 
+## Delivery split (D-040)
+
+PHASE-07 lands in three PRs. Each task id below carries its PR in brackets.
+
+| PR | Tasks | Content |
+| :-- | :---- | :------ |
+| 07a | P07-T01 to T13, T22 | Options, sign-in, shell and primitives, typed clients (agents, products, tags, tickets, requesters), queue with the Spam view, ticket detail, reply composer, sidebar, spam/delete/erase, the attachment pass-through |
+| 07b | P07-T14 to T18, T23 | Products, API keys, agents and my settings, tags and the audit log, dead letters |
+| 07c | P07-T19, T20 | Brand, responsive and accessibility pass, compose and Dockerfile verification, Admin architecture rules, CSP, shared host wiring, OpenAPI bearer scheme, the command palette |
+| PHASE-12 | P07-T21 | Playwright smoke tests (dropped from PHASE-07) |
+
+07a deviations from the text below, all recorded in D-040: the typed clients sit on a small `ApiConnection` (not `ApiClientBase`); there is no `IAttachmentsClient`; the folders are `Auth/`, `Clients/`, `Options/`, `Features/Queue/`, `Features/Tickets/` with primitives in `Components/Ui`; `StatusStamp` and `PriorityMark` are the badges; the sidebar is optimistic-free; the Admin references Contracts and Hosting; the no-access page follows the API's answer to `GET /api/agents/me`.
+
 ## Architecture Decisions
 
-- **No new server entry points.** Admin never touches the database and does not reference `TechStrap.Application` or `TechStrap.Infrastructure`; it references `TechStrap.Contracts` only (enforced by the P01 architecture test, see [02-ARCHITECTURE.md](02-ARCHITECTURE.md)).
+- **No new server entry points.** Admin never touches the database and does not reference `TechStrap.Application` or `TechStrap.Infrastructure`; it references `TechStrap.Contracts` and `TechStrap.Hosting` only (enforced by the P01 architecture test, see [02-ARCHITECTURE.md](02-ARCHITECTURE.md)).
 - **Sign-in is app-owned**, per `SyntaxCircus.Blazor.Auth`: cookie + OIDC with `SaveTokens = true` and `offline_access`; `AddBlazorTokenForwarding` + `UseBlazorTokenCache` supply the bearer token to the API. Users without the agent group claim see a "no access" page (the API also rejects them, so this is UX only). Redis token cache is **not** used (single admin instance, [03-PACKAGE-MAP.md](03-PACKAGE-MAP.md)). **Assumption.**
-- **Typed clients**: one client per API area (`IAgentsClient`, `IProductsClient`, `ITagsClient`, `ITicketsClient`, `IDeadLettersClient`, `IAdminEventsClient`) in `TechStrap.Admin/Clients/`, built on `SyntaxCircus.Http.Resilience` `ApiClientBase`, registered with `AddResilientHttpClient(...)` + `AddHttpMessageHandler<ApiAuthHandler>()`. Component state classes obtain the HttpClient through `IBlazorCircuitHttpClientFactory` (circuit-safe). Clients return `Result<T>`/DTOs; ProblemDetails (RFC 7807) are mapped to `Result` failures so components never catch HTTP exceptions.
+- **Typed clients**: one client per API area (`IAgentsClient`, `IProductsClient`, `ITagsClient`, `ITicketsClient`, `IDeadLettersClient`, `IAdminEventsClient`) in `TechStrap.Admin/Clients/`, built on `SyntaxCircus.Http.Resilience` `ApiClientBase`, registered with `AddResilientHttpClient(...)` + `AddHttpMessageHandler<ApiAuthHandler>()`. Component state classes obtain the HttpClient through `IBlazorCircuitHttpClientFactory` (circuit-safe). Clients return `Result<T>`/DTOs; ProblemDetails (RFC 7807) are mapped to `Result` failures so components never catch HTTP exceptions. 07a builds them on an Admin ApiConnection with two named clients (read: retried; write: never retried), see D-040.
 - **Resilience budget**: GETs retry (3, backoff+jitter); every mutating call is registered with **no automatic retry** (non-idempotent; per Http.Resilience production notes). **Assumption.**
 - **Optimistic concurrency**: ticket mutations send the ticket's concurrency token (`RowVersion` in `TicketDetailDto`); a 409 renders a "this ticket changed, reload" banner and keeps the agent's unsent reply draft.
 - **Presentation layering** follows _template RAZOR_COMPONENT_ARCHITECTURE.md: Razor markup -> code-behind -> feature-local state/presentation service -> typed client. ViewModels are `internal` records in the owning feature folder (`Features/Tickets`, `Features/Settings`, ...); DTOs from Contracts are never renamed to ViewModels.
@@ -129,74 +142,74 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 
 ## Actionable Tasks
 
-- [ ] **P07-T01** Add `TechStrap.Admin/.env.example` keys and options classes (OIDC authority/client id/secret, API base URL, group names, cookie settings) with constants for config section names
+- [ ] **P07-T01** [07a] Add `TechStrap.Admin/.env.example` keys and options classes (OIDC authority/client id/secret, API base URL, group names, cookie settings) with constants for config section names
   - **Depends on:** P01 (host skeleton)
   - **Validation:** App fails fast with a clear message when a required key is missing (unit test on options validation); `.env.example` lists every key.
-- [ ] **P07-T02** Wire cookie + OIDC sign-in with `SaveTokens`, `offline_access`, `AddBlazorTokenForwarding`, `UseBlazorTokenCache` in the documented middleware order
+- [ ] **P07-T02** [07a] Wire cookie + OIDC sign-in with `SaveTokens`, `offline_access`, `AddBlazorTokenForwarding`, `UseBlazorTokenCache` in the documented middleware order
   - **Depends on:** P07-T01
   - **Validation:** Manual sign-in against UAT/local Authentik reaches the shell; `GET /api/agents/me` succeeds with the forwarded token; request log shows no token values.
-- [ ] **P07-T03** Extend the `tests/TechStrap.Admin.Tests` project (skeleton created in PHASE-02; add bUnit) and the `Shared/` primitives: `LoadingState`, `ErrorState`, `EmptyState`, `ConfirmDialog`, `StatusBadge`, `PriorityBadge`, `TagChip`, `PagerControl`
+- [ ] **P07-T03** [07a] Extend the `tests/TechStrap.Admin.Tests` project (skeleton created in PHASE-02; add bUnit) and the `Shared/` primitives: `LoadingState`, `ErrorState`, `EmptyState`, `ConfirmDialog`, `StatusBadge`, `PriorityBadge`, `TagChip`, `PagerControl`
   - **Depends on:** P07-T02, P02 SCSS tokens
   - **Validation:** bUnit tests per component (render states, callback fires once, focus lands in dialog); no component beyond the inline ceiling lacks a `.razor.cs`.
-- [ ] **P07-T04** Build `App.razor`, `Routes.razor`, `MainLayout`, `NavMenu`, `NotFoundPage`, `NoAccessPage` with `GlobalErrorBoundary` and `ReconnectModal`
+- [ ] **P07-T04** [07a] Build `App.razor`, `Routes.razor`, `MainLayout`, `NavMenu`, `NotFoundPage`, `NoAccessPage` with `GlobalErrorBoundary` and `ReconnectModal`
   - **Depends on:** P07-T03
   - **Validation:** bUnit: throwing child shows fallback and "Try again" recovers; unknown route renders not-found; non-agent principal sees no-access page.
-- [ ] **P07-T05** Implement typed clients (`IAgentsClient`, `IProductsClient`, `ITagsClient`, `IAdminEventsClient`) over `ApiClientBase` with ProblemDetails -> `Result` mapping and per-client resilience config
+- [ ] **P07-T05** [07a] Implement typed clients (`IAgentsClient`, `IProductsClient`, `ITagsClient`, `IAdminEventsClient`) over `ApiClientBase` with ProblemDetails -> `Result` mapping and per-client resilience config
   - **Depends on:** P07-T02
   - **Validation:** Unit tests with stub `HttpMessageHandler`: success, 400 field errors, 403, 409, 503 retry on GET only, cancellation token propagated.
-- [ ] **P07-T06** Implement `ITicketsClient`, `IAttachmentsClient`, `IDeadLettersClient` (including `RowVersion` in the request body; replace local state with the returned `TicketStateDto` (D-036) and multipart reply submit (D-036))
+- [ ] **P07-T06** [07a] Implement `ITicketsClient`, `IAttachmentsClient`, `IDeadLettersClient` (including `RowVersion` in the request body; replace local state with the returned `TicketStateDto` (D-036) and multipart reply submit (D-036))
   - **Depends on:** P07-T05
   - **Validation:** Same stub-handler suite; 409 maps to a distinct `Result` error code constant used by components.
-- [ ] **P07-T07** Build `TicketQueuePage`, `QueueViewTabs`, `QueueFilterBar`, `TicketRow`, paging, with query-string state
+- [ ] **P07-T07** [07a] Build `TicketQueuePage`, `QueueViewTabs`, `QueueFilterBar`, `TicketRow`, paging, with query-string state
   - **Depends on:** P07-T06, P07-T03
   - **Validation:** bUnit with fake `ITicketsClient`: each view tab requests the right filter; search debounce issues one call; empty/error/loading render; page change preserves filters.
-- [ ] **P07-T08** Build `TicketDetailPage` and `TicketDetailPresenter` (async assembly of detail + lookups) with loading/NotFound/error states and concurrency-token handling
+- [ ] **P07-T08** [07a] Build `TicketDetailPage` and `TicketDetailPresenter` (async assembly of detail + lookups) with loading/NotFound/error states and concurrency-token handling
   - **Depends on:** P07-T06, P07-T03
   - **Validation:** bUnit: 404 shows NotFound view; presenter unit test maps a `TicketDetailDto` fixture to the view model; closed ticket renders read-only (no composer/actions).
-- [ ] **P07-T09** Build `TicketTimeline` + `TimelineEntryFactory` covering every `TicketEvent` type (Created, MessageAdded, StatusChanged, Assigned, ProductChanged, PriorityChanged, TagAdded, TagRemoved, plus spam/follow-up events defined in P06)
+- [ ] **P07-T09** [07a] Build `TicketTimeline` + `TimelineEntryFactory` covering every `TicketEvent` type (Created, MessageAdded, StatusChanged, Assigned, ProductChanged, PriorityChanged, TagAdded, TagRemoved, plus spam/follow-up events defined in P06)
   - **Depends on:** P07-T08
   - **Validation:** Unit test is a theory over every event-type constant; unknown type renders a generic entry rather than throwing.
-- [ ] **P07-T10** Build `MessageThread`/`MessageBubble`/`AttachmentList` and the admin-hosted `GET /attachments/{id}` pass-through
+- [ ] **P07-T10** [07a] Build `MessageThread`/`MessageBubble`/`AttachmentList` and the admin-hosted `GET /attachments/{id}` pass-through
   - **Depends on:** P07-T08
   - **Validation:** bUnit: internal notes visually distinct; the only `MarkupString` site renders the sanitized body; host test: pass-through streams bytes, sets `Content-Disposition: attachment` and `X-Content-Type-Options: nosniff`, returns 404 for an unknown id and never reaches the DB (no Infrastructure reference).
-- [ ] **P07-T11** Build `ReplyComposer` (public reply / internal note) with draft preservation and validation
+- [ ] **P07-T11** [07a] Build `ReplyComposer` (public reply / internal note) with draft preservation and validation
   - **Depends on:** P07-T08
   - **Validation:** bUnit: submit calls the correct client method per mode; double-submit prevented; draft kept on 409/failed submit; cleared on success.
-- [ ] **P07-T12** Build `TicketSidebar` and `TagPicker` for status/assignee/priority/product/tags, honoring legal transitions from the API error response
+- [ ] **P07-T12** [07a] Build `TicketSidebar` and `TagPicker` for status/assignee/priority/product/tags, honoring legal transitions from the API error response
   - **Depends on:** P07-T08
   - **Validation:** bUnit: each action calls its client method with the current concurrency token; failure shows inline error and reverts display; Closed hides actions.
-- [ ] **P07-T13** Build spam/delete ticket and `EraseRequesterDialog` flows (typed-email confirmation); spam is available to Agents, delete and erase are shown to Admins only (D-022)
+- [ ] **P07-T13** [07a] Build spam/delete ticket and `EraseRequesterDialog` flows (typed-email confirmation); spam is available to Agents, delete and erase are shown to Admins only (D-022)
   - **Depends on:** P07-T12, P07-T03
   - **Validation:** bUnit: confirm button disabled until the email matches; success navigates to the queue; cancel makes no call; delete and erase are absent for an Agent principal and present for an Admin, spam is present for both.
-- [ ] **P07-T14** Build `ProductsPage` and `ProductEditorPage` including branding fields and accent-colour validation
+- [ ] **P07-T14** [07b] Build `ProductsPage` and `ProductEditorPage` including branding fields and accent-colour validation
   - **Depends on:** P07-T05, P07-T03
   - **Validation:** bUnit: invalid accent rejected client-side with the same constant as the server regex; server 400 errors map to fields; Admin-only actions hidden for Agent role.
-- [ ] **P07-T15** Build `ApiKeysPanel` + `NewApiKeyDialog` (kind selection Trusted/Public, show-once secret, revoke with confirm)
+- [ ] **P07-T15** [07b] Build `ApiKeysPanel` + `NewApiKeyDialog` (kind selection Trusted/Public, show-once secret, revoke with confirm)
   - **Depends on:** P07-T14
   - **Validation:** bUnit: secret visible only in the dialog and gone after close; revoked keys render as revoked; public/trusted badges distinct.
-- [ ] **P07-T16** Build `AgentsPage` and `NotificationPreferencesPage`
+- [ ] **P07-T16** [07b] Build `AgentsPage` and `NotificationPreferencesPage`
   - **Depends on:** P07-T05, P07-T03
   - **Validation:** bUnit: role/active change calls `UpdateAgentRequest`; Agent role cannot see the page; preferences save posts the full toggle set.
-- [ ] **P07-T17** Build `TagsPage` (CRUD with colour) and `AdminEventsPage` + `AdminEventSummaryFactory`
+- [ ] **P07-T17** [07b] Build `TagsPage` (CRUD with colour) and `AdminEventsPage` + `AdminEventSummaryFactory`
   - **Depends on:** P07-T05, P07-T03
   - **Validation:** bUnit: duplicate-slug 409 shows a field error; factory theory covers every admin-event type constant.
-- [ ] **P07-T18** Build `DeadLettersPage` (retry/discard with confirm, last-error preview)
+- [ ] **P07-T18** [07b] Build `DeadLettersPage` (retry/discard with confirm, last-error preview)
   - **Depends on:** P07-T06, P07-T03
   - **Validation:** bUnit: retry/discard call the matching client method and refresh; empty state shown when none.
-- [ ] **P07-T19** Apply BRAND.md tokens/SCSS, responsive layout and accessibility pass per `UX-BRIEF-admin.md` (focus order, ARIA on dialogs/badges, contrast)
+- [ ] **P07-T19** [07c] Apply BRAND.md tokens/SCSS, responsive layout and accessibility pass per `UX-BRIEF-admin.md` (focus order, ARIA on dialogs/badges, contrast)
   - **Depends on:** P07-T07, P07-T08, P07-T14
   - **Validation:** Manual checklist from UX-BRIEF-admin completed; keyboard-only run through queue -> reply -> solve; axe (browser extension) run has no critical findings (record in PR).
   - **Validation (PHASE-02 carry-over):** Admin must not use semantic `.text-{color}` or `.link-{color}` utilities in dark mode (they fail contrast there); use brand tokens or `.text-*-emphasis`. Add a `BrandWindow` heading-level parameter so standalone brand pages (404, sign-in) render an `h1`. The keyboard walk-through deferred from PHASE-02 happens here.
-- [ ] **P07-T20** Add Admin to compose and verify Dockerfile run; add admin architecture rules (no reference to Application/Infrastructure/EF; no `HttpClient` use in `.razor` files)
+- [ ] **P07-T20** [07c] Add Admin to compose and verify Dockerfile run; add admin architecture rules (no reference to Application/Infrastructure/EF; no `HttpClient` use in `.razor` files)
   - **Depends on:** P07-T02
   - **Validation:** `docker compose up` -> `/health/ready` 200; Architecture.Tests fail when a forbidden reference or `[Inject] HttpClient` in a component is introduced (verified by a deliberate failing sample).
-- [ ] **P07-T21** (Optional, **Assumption**) Add Playwright smoke tests for sign-in-free paths via a test auth handler: queue loads, open ticket, send reply
+- [ ] **P07-T21** Moved to PHASE-12 (D-040): optional Playwright smoke tests for sign-in-free paths.
   - **Depends on:** P07-T11, P07-T20
   - **Validation:** Smoke run passes against compose with seed data in CI nightly (not blocking PRs).
-- [ ] **P07-T22** (D-024) Add the **Spam** view to the rail and `QueueViewTabs` (requests `TicketView.Spam`; plain "No spam" empty state; muted count) and the **Not spam** action: key `u` on the selected Spam-view row or an open flagged ticket, plus the overflow menu and palette command; status-bar hint, status message "Restored ACME-142 from spam" and shortcut help entry. `u` follows the typing guard and the My settings shortcut toggle
+- [ ] **P07-T22** [07a] (D-024) Add the **Spam** view to the rail and `QueueViewTabs` (requests `TicketView.Spam`; plain "No spam" empty state; muted count) and the **Not spam** action: key `u` on the selected Spam-view row or an open flagged ticket, plus the overflow menu and palette command; status-bar hint, status message "Restored ACME-142 from spam" and shortcut help entry. `u` follows the typing guard and the My settings shortcut toggle
   - **Depends on:** P07-T07, P07-T13, P06-T21
   - **Validation:** bUnit with fake `ITicketsClient`: the Spam tab requests the Spam view and the five normal tabs never request it; `u` sends `IsSpam = false` once, removes the row and shows the status message; `u` does nothing while typing, with shortcuts off, or on a ticket that is not flagged; Not spam is present for an Agent principal; the help dialog lists `u`; no clash with `j`, `k`, `r`, `n`, `e`, `/`
-- [ ] **P07-T23** (D-024) Add the optional **Public display name** field to My settings (`PublicDisplayNameField`, `MyProfileViewModel`, `IAgentsClient.UpdateMyProfile`) with the live preview line "Customers see: Sam from Orbitly Support", helper text that email is never shown, and inline save confirmation
+- [ ] **P07-T23** [07b] (D-024) Add the optional **Public display name** field to My settings (`PublicDisplayNameField`, `MyProfileViewModel`, `IAgentsClient.UpdateMyProfile`) with the live preview line "Customers see: Sam from Orbitly Support", helper text that email is never shown, and inline save confirmation
   - **Depends on:** P07-T16, P04-T15
   - **Validation:** bUnit: the preview shows "Sam from Orbitly Support" by default, "Samantha from Orbitly Support" while typing "Samantha", and returns to the default when cleared; save calls `UpdateMyProfile` once and shows confirmation; an over-long name or one containing `@` shows the field error from a 422; the field is optional
 
