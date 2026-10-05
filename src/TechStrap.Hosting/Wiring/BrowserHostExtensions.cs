@@ -53,7 +53,7 @@ public static class BrowserHostExtensions
     /// error page carry them too.
     /// </summary>
     /// <param name="downloadPathPrefixes">
-    /// Paths that stream a user's file (the Admin's <c>/attachments</c>). Their responses get <c>sandbox</c> appended to the Content-Security-Policy, so a file that is
+    /// Paths that stream a user's file (the Admin's <c>/attachments</c>). Their successful (2xx) responses get <c>sandbox</c> appended to the Content-Security-Policy, so a file that is
     /// opened rather than saved cannot run script in the app's origin. The shared security-headers middleware sets the policy when the response starts and would
     /// overwrite a value the endpoint set itself; this step is registered before it, and start callbacks run last-registered-first, so it runs after it and appends.
     /// </param>
@@ -71,8 +71,14 @@ public static class BrowserHostExtensions
                 {
                     context.Response.OnStarting(() =>
                     {
-                        var headers = context.Response.Headers;
-                        headers.ContentSecurityPolicy = WithSandbox(headers.ContentSecurityPolicy.ToString());
+                        // Only a delivered file (2xx) is sandboxed, as in the Api's AttachmentSandbox. An error answer (the 404 page is re-executed on this path) is an ordinary app page
+                        // that needs its script, and the full page policy still applies to it.
+                        if (context.Response.StatusCode is >= StatusCodes.Status200OK and < StatusCodes.Status300MultipleChoices)
+                        {
+                            var headers = context.Response.Headers;
+                            headers.ContentSecurityPolicy = WithSandbox(headers.ContentSecurityPolicy.ToString());
+                        }
+
                         return Task.CompletedTask;
                     });
                 }

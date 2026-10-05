@@ -109,8 +109,9 @@ public sealed class SecurityHeadersHostTests
     }
 
     [Fact]
-    public async Task The_sandbox_is_kept_when_the_API_has_no_such_attachment_and_the_404_page_is_re_executed()
+    public async Task The_404_page_that_replaces_a_missing_attachment_is_not_sandboxed_but_keeps_the_full_page_policy()
     {
+        // Like the Api's AttachmentSandbox, only a 2xx download is sandboxed: the re-executed not-found page is an ordinary app page that needs its script, and the full CSP still applies.
         await using var factory = new AdminFactory();
         var id = Guid.NewGuid();
         factory.Api.On(HttpMethod.Get, $"/api/attachments/{id}", _ => new HttpResponseMessage(HttpStatusCode.NotFound));
@@ -120,7 +121,8 @@ public sealed class SecurityHeadersHostTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         var policy = response.Headers.GetValues("Content-Security-Policy").Single().Split(';', StringSplitOptions.TrimEntries);
-        policy.ShouldContain("sandbox");
+        policy.ShouldNotContain("sandbox");
+        policy.ShouldContain("script-src 'self'");
         policy.ShouldContain("frame-ancestors 'none'");
         factory.Api.AssertEveryCallBore(AdminTestPrincipal.Agent);
     }

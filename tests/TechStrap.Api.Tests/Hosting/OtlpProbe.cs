@@ -14,6 +14,8 @@ public sealed class OtlpProbe : IAsyncDisposable
 {
     private const string HeaderEnd = "\r\n\r\n";
 
+    private static readonly byte[] Continue = Encoding.ASCII.GetBytes("HTTP/1.1 100 Continue\r\n\r\n");
+
     private static readonly byte[] Response = Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
 
     private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
@@ -67,7 +69,10 @@ public sealed class OtlpProbe : IAsyncDisposable
         }
     }
 
-    /// <summary>Reads one request (the headers, then a body of the declared length, or to the end of a chunked body), answers 200 and closes the connection.</summary>
+    /// <summary>
+    /// Reads one request, answers 200 and closes the connection. The body is read exactly: by its declared <c>Content-Length</c>, or chunk by chunk from the chunk sizes (never by what
+    /// the data happens to end with). A request that says <c>Expect: 100-continue</c> gets <c>100 Continue</c> first, because its sender waits for it before sending the body.
+    /// </summary>
     private async Task AnswerAsync(TcpClient client)
     {
         try
@@ -75,45 +80,117 @@ public sealed class OtlpProbe : IAsyncDisposable
             using (client)
             {
                 var stream = client.GetStream();
-                var received = new List<byte>();
-                var buffer = new byte[8192];
-                var headerEnd = -1;
-                var chunked = false;
-                var needed = int.MaxValue;
-                while (received.Count < needed)
+                var pending = new List<byte>();
+
+                string headers;
+                while (!TryTakeHeaders(pending, out headers))
                 {
-                    var read = await stream.ReadAsync(buffer, _stop.Token);
-                    if (read == 0)
+                    if (!await FillAsync(stream, pending))
                     {
-                        break;
+                        return;
                     }
+                }
 
-                    received.AddRange(buffer.AsSpan(0, read).ToArray());
-                    if (headerEnd < 0)
-                    {
-                        var text = Encoding.ASCII.GetString([.. received]);
-                        var end = text.IndexOf(HeaderEnd, StringComparison.Ordinal);
-                        if (end >= 0)
-                        {
-                            headerEnd = end + HeaderEnd.Length;
-                            chunked = text[..end].Contains("Transfer-Encoding: chunked", StringComparison.OrdinalIgnoreCase);
-                            needed = chunked ? int.MaxValue : headerEnd + ContentLength(text[..end]);
-                        }
-                    }
+                if (headers.Contains("Expect: 100-continue", StringComparison.OrdinalIgnoreCase))
+                {
+                    await stream.WriteAsync(Continue, _stop.Token);
+                }
 
-                    if (chunked && Encoding.ASCII.GetString([.. received], headerEnd, received.Count - headerEnd).EndsWith("0\r\n\r\n", StringComparison.Ordinal))
-                    {
-                        break;
-                    }
+                if (headers.Contains("Transfer-Encoding: chunked", StringComparison.OrdinalIgnoreCase))
+                {
+                    await SkipChunkedBodyAsync(stream, pending);
+                }
+                else
+                {
+                    await SkipAsync(stream, pending, ContentLength(headers));
                 }
 
                 await stream.WriteAsync(Response, _stop.Token);
                 await stream.FlushAsync(_stop.Token);
             }
         }
-        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException or IOException or SocketException)
+        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException or IOException or SocketException or EndOfStreamException)
         {
             // The client went away, or the probe was disposed.
+        }
+    }
+
+    /// <summary>Takes the header block (up to the blank line) off the front of <paramref name="pending"/>; false when it has not all arrived yet.</summary>
+    private static bool TryTakeHeaders(List<byte> pending, out string headers)
+    {
+        var text = Encoding.ASCII.GetString([.. pending]);
+        var end = text.IndexOf(HeaderEnd, StringComparison.Ordinal);
+        headers = end < 0 ? string.Empty : text[..end];
+        if (end >= 0)
+        {
+            pending.RemoveRange(0, end + HeaderEnd.Length);
+        }
+
+        return end >= 0;
+    }
+
+    private async Task<bool> FillAsync(NetworkStream stream, List<byte> pending)
+    {
+        var buffer = new byte[8192];
+        var read = await stream.ReadAsync(buffer, _stop.Token);
+        pending.AddRange(buffer.AsSpan(0, read).ToArray());
+        return read > 0;
+    }
+
+    /// <summary>Discards <paramref name="count"/> bytes, reading more from the stream as needed.</summary>
+    private async Task SkipAsync(NetworkStream stream, List<byte> pending, int count)
+    {
+        while (pending.Count < count)
+        {
+            if (!await FillAsync(stream, pending))
+            {
+                throw new EndOfStreamException();
+            }
+        }
+
+        pending.RemoveRange(0, count);
+    }
+
+    /// <summary>Takes one CRLF-terminated line off the front of <paramref name="pending"/>, reading more from the stream as needed.</summary>
+    private async Task<string> ReadLineAsync(NetworkStream stream, List<byte> pending)
+    {
+        while (true)
+        {
+            for (var i = 0; i + 1 < pending.Count; i++)
+            {
+                if (pending[i] == '\r' && pending[i + 1] == '\n')
+                {
+                    var line = Encoding.ASCII.GetString([.. pending.Take(i)]);
+                    pending.RemoveRange(0, i + 2);
+                    return line;
+                }
+            }
+
+            if (!await FillAsync(stream, pending))
+            {
+                throw new EndOfStreamException();
+            }
+        }
+    }
+
+    /// <summary>Each chunk is a hexadecimal size line (any extension after <c>;</c> is ignored), that many bytes and a CRLF; a size of 0 is followed by optional trailers and a blank line.</summary>
+    private async Task SkipChunkedBodyAsync(NetworkStream stream, List<byte> pending)
+    {
+        while (true)
+        {
+            var sizeLine = await ReadLineAsync(stream, pending);
+            var size = int.Parse(sizeLine.Split(';')[0].Trim(), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
+            if (size == 0)
+            {
+                while (await ReadLineAsync(stream, pending) is { Length: > 0 })
+                {
+                    // A trailer header: not needed.
+                }
+
+                return;
+            }
+
+            await SkipAsync(stream, pending, size + 2);
         }
     }
 

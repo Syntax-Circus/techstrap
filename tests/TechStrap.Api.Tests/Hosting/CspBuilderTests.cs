@@ -93,6 +93,10 @@ public sealed class CspBuilderTests
     [InlineData("https://@idp.test/")]
     [InlineData("https://:@idp.test/")]
     [InlineData("https://idp.test@evil.test/")]
+    [InlineData("https:\\\\@idp.test")]
+    [InlineData("https:\\@idp.test")]
+    [InlineData("https:/\\@idp.test/")]
+    [InlineData("https:@idp.test")]
     public void OriginOf_refuses_anything_that_is_not_an_absolute_http_or_https_URL_without_user_info(string? url)
     {
         TechStrapCsp.OriginOf(url).ShouldBeNull();

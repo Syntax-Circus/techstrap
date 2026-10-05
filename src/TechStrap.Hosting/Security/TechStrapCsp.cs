@@ -86,10 +86,17 @@ public static class TechStrapCsp
         return $"{uri.Scheme}://{host}{(uri.IsDefaultPort ? string.Empty : ":" + uri.Port)}";
     }
 
-    // "https://@idp.test/" has an empty user info, which Uri.UserInfo reports as empty: an "@" in the authority part is refused whatever precedes it.
+    // "https://@idp.test/" has an empty user info, which Uri.UserInfo reports as empty: an "@" in the authority part is refused whatever precedes it. The authority starts after the scheme's
+    // colon and any run of slashes or backslashes (a browser reads "https:\\@idp.test" as the authority "@idp.test", and "://" need not be there at all), and ends at the next
+    // slash, backslash, question mark or hash.
     private static bool HasUserInfoMarker(string url)
     {
-        var start = url.IndexOf("://", StringComparison.Ordinal) + 3;
+        var start = url.IndexOf(':', StringComparison.Ordinal) + 1;
+        while (start < url.Length && url[start] is '/' or '\\')
+        {
+            start++;
+        }
+
         var end = url.IndexOfAny(['/', '?', '#', '\\'], start);
         return url[start..(end < 0 ? url.Length : end)].Contains('@', StringComparison.Ordinal);
     }
