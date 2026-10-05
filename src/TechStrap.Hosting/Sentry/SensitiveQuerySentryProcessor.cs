@@ -17,7 +17,7 @@ public sealed partial class SensitiveQuerySentryProcessor : ISentryEventProcesso
 
     // Any "name=value" pair at the start of a text or after "?" or "&"; the value runs up to the next "&", "#", a space or a quote. Whether the name is a sensitive one is decided after decoding it
     // (see Scrub), so "?%73earch=x" and "?Search=x" are masked, while "research", "faq" and a "/queue/search" path are not.
-    [GeneratedRegex(@"(?<=^|[?&])(?<name>[^=&#?\s""']+)=[^&#\s""']*", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?<=^|[?&])(?<name>[^=&#?\s""']+)=(?<value>[^&#\s""']*)", RegexOptions.CultureInvariant)]
     private static partial Regex Parameter();
 
     private static bool IsSensitiveName(string name)
@@ -39,7 +39,12 @@ public sealed partial class SensitiveQuerySentryProcessor : ISentryEventProcesso
     public static string? Scrub(string? text) =>
         string.IsNullOrEmpty(text)
             ? text
-            : Parameter().Replace(text, match => IsSensitiveName(match.Groups["name"].Value) ? $"{match.Groups["name"].Value}={Mask}" : match.Value);
+            : Parameter().Replace(text, match =>
+            {
+                // A value that is not itself sensitive can still hold an address with a search in it (a cookie "last=/queue/mine?search=x"), so it is scrubbed in its turn.
+                var name = match.Groups["name"].Value;
+                return IsSensitiveName(name) ? $"{name}={Mask}" : $"{name}={Scrub(match.Groups["value"].Value)}";
+            });
 
     public SentryEvent? Process(SentryEvent @event)
     {
@@ -48,6 +53,10 @@ public sealed partial class SensitiveQuerySentryProcessor : ISentryEventProcesso
         {
             message.Message = Scrub(message.Message);
             message.Formatted = Scrub(message.Formatted);
+            if (message.Params is { } parameters)
+            {
+                message.Params = [.. parameters.Select(parameter => parameter is string text ? Scrub(text)! : parameter)];
+            }
         }
 
         foreach (var (key, value) in @event.Extra.ToList())
@@ -119,6 +128,12 @@ public sealed partial class SensitiveQuerySentryProcessor : ISentryEventProcesso
     {
         request.QueryString = Scrub(request.QueryString);
         request.Url = Scrub(request.Url);
+        request.Cookies = Scrub(request.Cookies);
+        if (request.Data is string body)
+        {
+            request.Data = Scrub(body);
+        }
+
         foreach (var (name, value) in request.Headers.ToList())
         {
             var scrubbed = Scrub(value);

@@ -30,6 +30,7 @@ public sealed class SensitiveQuerySentryProcessorTests
     [InlineData("?%73earch=ada%40x.test", "?%73earch=[redacted]")]
     [InlineData("?%53earch=x&%71=y", "?%53earch=[redacted]&%71=[redacted]")]
     [InlineData("?Search=x", "?Search=[redacted]")]
+    [InlineData("theme=dark; last=/queue/mine?search=ada%40x.test", "theme=dark; last=/queue/mine?search=[redacted]")]
     [InlineData("https://admin.test/queue/mine?status=Open&%73earch=x", "https://admin.test/queue/mine?status=Open&%73earch=[redacted]")]
     public void The_value_of_search_and_q_is_masked_and_the_rest_of_the_address_is_kept(string text, string expected) =>
         SensitiveQuerySentryProcessor.Scrub(text).ShouldBe(expected);
@@ -41,6 +42,7 @@ public sealed class SensitiveQuerySentryProcessorTests
     [InlineData("?rese%61rch=1&f%61q=2")]
     [InlineData("https://admin.test/queue/search?status=Open")]
     [InlineData("search")]
+    [InlineData("text/html;q=0.9")]
     [InlineData("a message that says search=nothing but is not a query")]
     [InlineData("")]
     public void Anything_that_is_not_a_search_parameter_is_left_alone(string text)
@@ -155,6 +157,47 @@ public sealed class SensitiveQuerySentryProcessorTests
         result.Extra["url"].ShouldBe("/queue/mine?search=[redacted]");
         result.Extra["count"].ShouldBe(3);
         result.SentryExceptions!.Single().Value.ShouldBe("GET /api/tickets?search=[redacted] failed");
+    }
+
+    [Fact]
+    public void An_event_loses_the_search_from_its_message_parameters_request_body_and_cookies_and_keeps_what_is_not_text()
+    {
+        var sentryEvent = new SentryEvent { Message = new SentryMessage { Message = "failed %s %d", Params = [$"/queue/mine?search={Needle}", 7] } };
+        sentryEvent.Request.Data = $"search={Needle}&page=2";
+        sentryEvent.Request.Cookies = $"theme=dark; last=/queue/mine?status=Open&search={Needle}";
+
+        var result = new SensitiveQuerySentryProcessor().Process(sentryEvent);
+
+        result.ShouldNotBeNull();
+        result.Message!.Params.ShouldBe(["/queue/mine?search=[redacted]", 7]);
+        result.Request.Data.ShouldBe("search=[redacted]&page=2");
+        result.Request.Cookies.ShouldBe("theme=dark; last=/queue/mine?status=Open&search=[redacted]");
+    }
+
+    [Fact]
+    public void A_request_body_that_is_not_text_is_left_alone()
+    {
+        var body = new { page = 2 };
+        var sentryEvent = new SentryEvent();
+        sentryEvent.Request.Data = body;
+
+        var result = new SensitiveQuerySentryProcessor().Process(sentryEvent);
+
+        result!.Request.Data.ShouldBeSameAs(body);
+    }
+
+    [Fact]
+    public void A_transaction_loses_the_search_from_its_request_body_and_cookies()
+    {
+        var tracer = new TransactionTracer(DisabledHub.Instance, new TransactionContext("GET /queue/{view}", "http.server", null, null, null, "", null, null, true, TransactionNameSource.Route));
+        tracer.Request.Data = $"search={Needle}";
+        tracer.Request.Cookies = $"last=/queue/mine?search={Needle}";
+
+        var result = new SensitiveQuerySentryProcessor().Process(new SentryTransaction(tracer));
+
+        result.ShouldNotBeNull();
+        result.Request.Data.ShouldBe("search=[redacted]");
+        result.Request.Cookies.ShouldBe("last=/queue/mine?search=[redacted]");
     }
 
     [Fact]

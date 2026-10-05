@@ -59,7 +59,8 @@ public sealed class NotificationPreferencesPageTests : AdminPageTest
 #pragma warning disable BL0006 // The render tree frames are the only place a key can be read: bUnit's DOM carries none.
     private List<object> ListKeys(IRenderedComponent<NotificationPreferencesPage> cut)
     {
-        var method = typeof(Microsoft.AspNetCore.Components.RenderTree.Renderer).GetMethod("GetCurrentRenderTreeFrames", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var method = typeof(Microsoft.AspNetCore.Components.RenderTree.Renderer).GetMethod("GetCurrentRenderTreeFrames", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            ?? throw new InvalidOperationException("Renderer.GetCurrentRenderTreeFrames was not found: the framework changed this internal method, so the @key helper of this test needs a new way to read the render tree.");
         var frames = (Microsoft.AspNetCore.Components.RenderTree.ArrayRange<Microsoft.AspNetCore.Components.RenderTree.RenderTreeFrame>)method.Invoke(Renderer, [cut.ComponentId])!;
         var keys = new List<object>();
         for (var i = 0; i < frames.Count; i++)

@@ -4,6 +4,7 @@ using SyntaxCircus.AspNetCore.Serilog;
 using SyntaxCircus.DotEnv;
 using SyntaxCircus.Observability;
 using TechStrap.Hosting.Logging;
+using TechStrap.Hosting.Sentry;
 using TechStrap.Hosting.Wiring;
 using TechStrap.Infrastructure.AutoClose;
 using TechStrap.Infrastructure.Email;
@@ -34,6 +35,8 @@ if (telemetry.Options.Sentry.IsEnabled)
     {
         telemetry.ConfigureSentry(options, context =>
             context.TransactionContext.Name.Contains("/health", StringComparison.OrdinalIgnoreCase) ? 0d : null);
+        // The same scrubbers as every other host: the Worker serves only health checks, but an exception message or breadcrumb it sends must not carry a credential or a search either.
+        options.AddSensitiveHeaderScrubbing();
         options.AutoSessionTracking = false;
     });
 }
