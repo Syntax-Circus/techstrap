@@ -131,7 +131,7 @@ Describe 'font endpoints manifest assertion' {
 Describe 'clean publish copy list' {
     It '<Project> copies itself and every project it references, and no other TechStrap project' -ForEach @(
         @{ Project = 'TechStrap.Admin'; Expected = @('TechStrap.Admin', 'TechStrap.Contracts', 'TechStrap.Hosting') }
-        @{ Project = 'TechStrap.Portal'; Expected = @('TechStrap.Contracts', 'TechStrap.Portal') }
+        @{ Project = 'TechStrap.Portal'; Expected = @('TechStrap.Contracts', 'TechStrap.Hosting', 'TechStrap.Portal') }
     ) {
         Get-ProjectReferenceClosure -Project $Project | Should -Be $Expected
     }

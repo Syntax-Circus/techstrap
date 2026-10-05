@@ -167,43 +167,30 @@ public sealed class AdminLeakTests
     }
 
     // The OTLP exporter makes its HTTP calls through IHttpClientFactory. The factory's default logging handler writes raw header values into structured log state at Trace, which would put an
-    // OTLP "x-api-key" in the logs. The Admin removes the default logging handler from every factory client, so the secret never reaches a log event.
-    private const string OtlpSecret = "otlp-secret-0123456789abcdef0123456789abcdef";
-
+    // OTLP "x-api-key" in the logs. Every host removes the default logging handler from every factory client (TechStrap.Hosting), so the secret never reaches a log event. The probe is the
+    // positive control: the exporter must really have connected, or this test proves nothing. The Api and the Portal have the same test in OtlpLeakTests.
     [Fact]
     public async Task An_OTLP_header_secret_appears_in_no_log_event_even_at_Verbose()
     {
-        // The observability options are read while Program.cs builds the host, before the factory's in-memory settings exist, so they arrive as environment variables (like the test issuer does).
-        var variables = new Dictionary<string, string>
+        await using var probe = new Hosting.OtlpProbe();
+        CollectingSink sink = null!;
+        await Hosting.OtlpLeakTests.WithOtlpAsync(probe, async () =>
         {
-            ["OpenTelemetry__Enabled"] = "true",
-            ["OpenTelemetry__OtlpEndpoint"] = "http://127.0.0.1:1/",
-            ["OpenTelemetry__OtlpProtocol"] = "http/protobuf",
-            ["OpenTelemetry__Headers"] = $"x-api-key={OtlpSecret}",
-        };
-        foreach (var (key, value) in variables)
-        {
-            Environment.SetEnvironmentVariable(key, value);
-        }
-
-        var factory = VerboseFactory();
-        try
-        {
-            using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
-            (await client.GetStringAsync("/", Ct)).ShouldNotContain(OtlpSecret);
-            (await client.GetStringAsync("/queue/spam", Ct)).ShouldNotContain(OtlpSecret);
-        }
-        finally
-        {
-            // Disposing the host flushes the trace exporter, which sends (and fails against the closed port) through the factory's HTTP client.
-            await factory.DisposeAsync();
-            foreach (var key in variables.Keys)
+            var factory = VerboseFactory();
+            sink = factory.LogSink;
+            try
             {
-                Environment.SetEnvironmentVariable(key, null);
+                using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
+                (await client.GetStringAsync("/", Ct)).ShouldNotContain(Hosting.OtlpLeakTests.Secret);
+                (await client.GetStringAsync("/queue/spam", Ct)).ShouldNotContain(Hosting.OtlpLeakTests.Secret);
+                await Hosting.OtlpLeakTests.WaitForExportAsync(probe, Ct);
             }
-        }
+            finally
+            {
+                await factory.DisposeAsync();
+            }
+        });
 
-        AssertVerboseWasCaptured(factory);
-        factory.LogSink.Events.Select(Everything).ShouldAllBe(text => !text.Contains(OtlpSecret));
+        await Hosting.OtlpLeakTests.AssertNoLeakAsync(probe, sink, Ct);
     }
 }

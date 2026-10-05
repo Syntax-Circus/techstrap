@@ -13,6 +13,9 @@ public static class AttachmentPassThrough
 {
     public const string Route = "/attachments/{id:guid}";
 
+    /// <summary>The path every download is under. The host adds <c>sandbox</c> to the Content-Security-Policy of these responses (the shared security headers would overwrite a value set here).</summary>
+    public const string Prefix = "/attachments";
+
     public static IEndpointRouteBuilder MapAttachmentPassThrough(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet(Route, StreamAsync);

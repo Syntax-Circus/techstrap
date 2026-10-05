@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../TechStrap.Contracts/TechStrap.Contracts.csproj" />
+    <ProjectReference Include="../TechStrap.Hosting/TechStrap.Hosting.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -4,6 +4,7 @@ using SyntaxCircus.AspNetCore.Serilog;
 using SyntaxCircus.DotEnv;
 using SyntaxCircus.Observability;
 using TechStrap.Hosting.Logging;
+using TechStrap.Hosting.Wiring;
 using TechStrap.Infrastructure.AutoClose;
 using TechStrap.Infrastructure.Email;
 using TechStrap.Infrastructure.Persistence;
@@ -38,6 +39,8 @@ if (telemetry.Options.Sentry.IsEnabled)
 }
 
 builder.Services.AddCorrelationId();
+// No HttpClient the factory creates (the OTLP exporters' included) logs its request headers: the default logging writes Authorization and x-api-key at Trace.
+builder.Services.AddTechStrapHttpClientDefaults();
 builder.Services.AddTechStrapPersistence();
 builder.Services.AddTechStrapEmail(builder.Configuration);
 builder.Services.AddHostedService<EmailOutboxWorker>();

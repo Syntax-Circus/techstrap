@@ -34,6 +34,9 @@ public sealed class AttachmentPassThroughTests
         response.Content.Headers.ContentDisposition!.DispositionType.ShouldBe("attachment");
         response.Content.Headers.ContentDisposition.FileName.ShouldBe("logo.svg");
         response.Headers.GetValues("X-Content-Type-Options").ShouldBe(["nosniff"]);
+
+        // The shared security headers must not replace this: a download is sandboxed, whatever the page policy is.
+        response.Headers.GetValues("Content-Security-Policy").Single().Split(';', StringSplitOptions.TrimEntries).ShouldContain("sandbox");
         response.Headers.CacheControl!.NoStore.ShouldBeTrue();
         response.Headers.CacheControl.Private.ShouldBeTrue();
         // The agent's bearer token went to the API, and nowhere in the answer.
