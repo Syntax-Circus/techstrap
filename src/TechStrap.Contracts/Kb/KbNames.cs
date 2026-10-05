@@ -38,4 +38,7 @@ public static class KbLimits
 
     /// <summary>The most characters of a search query the public search reads; longer text is cut.</summary>
     public const int MaxSearchTextChars = 200;
+
+    /// <summary>The most entries one sitemap lists (the newest updates first); the sitemap protocol allows 50,000.</summary>
+    public const int MaxSitemapEntries = 10_000;
 }

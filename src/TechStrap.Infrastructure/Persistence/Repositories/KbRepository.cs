@@ -8,7 +8,7 @@ using TechStrap.Infrastructure.Persistence.Records;
 
 namespace TechStrap.Infrastructure.Persistence.Repositories;
 
-internal sealed class KbRepository(TechStrapDbContext context) : IKbRepository
+internal sealed partial class KbRepository(TechStrapDbContext context) : IKbRepository
 {
     public async Task<KbArticle?> GetArticleAsync(Guid id, CancellationToken cancellationToken) =>
         (await context.Set<KbArticleRecord>().FirstOrDefaultAsync(a => a.Id == id, cancellationToken))?.ToDomain();

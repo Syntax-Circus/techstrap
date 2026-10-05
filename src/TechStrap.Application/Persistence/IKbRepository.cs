@@ -46,6 +46,24 @@ public interface IKbRepository
     void UpdateArticle(KbArticle article);
 
     /// <summary>
+    /// Portal search (D-044): only Published articles of the product and the shared space, best match first, with a <c>ts_headline</c> snippet cut from the
+    /// summary (never the body, which is costly). Blank text returns an empty page. A category slug narrows to that category.
+    /// </summary>
+    Task<PagedResult<PublicKbSearchHit>> SearchPublicAsync(PublicKbSearchQuery query, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Portal article lookup: a Published article visible to the product (its own, else a shared one with the slug) whose category has the given slug
+    /// and is itself visible to the product. Null for anything else, so a draft, an archived article, another product's article and a wrong category look alike.
+    /// </summary>
+    Task<PublicKbArticleView?> GetPublicArticleAsync(Guid productId, string categorySlug, string slug, CancellationToken cancellationToken);
+
+    /// <summary>Categories visible to the product (its own and the shared ones) with their Published article counts, empty ones left out, sort order then name.</summary>
+    Task<IReadOnlyList<PublicKbCategoryCount>> ListPublicCategoriesAsync(Guid productId, CancellationToken cancellationToken);
+
+    /// <summary>Published articles visible to the product, newest update first, at most <c>KbLimits.MaxSitemapEntries</c>.</summary>
+    Task<IReadOnlyList<PublicKbSitemapRow>> ListPublicSitemapAsync(Guid productId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// The cross-scope slug rule (D-044). With a product: true when that product or the shared space already has an article with the slug.
     /// With no product (a shared article): true when any article of any scope has it. Any status counts. Callers pass the normalised slug
     /// (the <c>Guard.Slug</c> output); the method does not normalise it. A create handler asks this first. Two concurrent creates of the same slug in
