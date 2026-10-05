@@ -1,8 +1,10 @@
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using SyntaxCircus.Blazor.Auth;
 using SyntaxCircus.Common;
+using TechStrap.Admin.Auth;
 
 namespace TechStrap.Admin.Clients;
 
@@ -12,7 +14,7 @@ namespace TechStrap.Admin.Clients;
 /// <see cref="Result"/>. It does not use ApiClientBase because that drops the <c>errorCodes</c> the API sends and has no Result mapping. Cancellation by the
 /// caller propagates as <see cref="OperationCanceledException"/>; it is never turned into a Result. One instance per scope (circuit).
 /// </summary>
-internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
+internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients, SessionExpiry expiry)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -52,13 +54,14 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
         return await SendAsync<T>(WriteClient, request, cancellationToken);
     }
 
-    private static async Task<Result<T>> SendAsync<T>(HttpClient client, HttpRequestMessage request, CancellationToken cancellationToken)
+    private async Task<Result<T>> SendAsync<T>(HttpClient client, HttpRequestMessage request, CancellationToken cancellationToken)
     {
         try
         {
             using var response = await client.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
+                ReportIfUnauthenticated(response);
                 var errors = ProblemMapping.Map(response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken));
                 return Result<T>.Failure(errors[0], [.. errors.Skip(1)]);
             }
@@ -77,7 +80,7 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
         }
     }
 
-    private static async Task<Result> SendAsync(HttpClient client, HttpRequestMessage request, CancellationToken cancellationToken)
+    private async Task<Result> SendAsync(HttpClient client, HttpRequestMessage request, CancellationToken cancellationToken)
     {
         try
         {
@@ -87,6 +90,7 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
                 return Result.Success();
             }
 
+            ReportIfUnauthenticated(response);
             var errors = ProblemMapping.Map(response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken));
             return Result.Failure(errors[0], [.. errors.Skip(1)]);
         }
@@ -97,6 +101,18 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
         catch (Exception ex) when (Transport(ex, cancellationToken) is { } error)
         {
             return Result.Failure(error);
+        }
+    }
+
+    /// <summary>
+    /// A 401 means the agent's session is over (the access token was refused and could not be renewed). Every call passes here, so one report moves
+    /// <see cref="AgentSession"/> to SessionExpired and no page needs code of its own. Only the status is looked at; nothing about the request is reported.
+    /// </summary>
+    private void ReportIfUnauthenticated(HttpResponseMessage response)
+    {
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            expiry.Report();
         }
     }
 

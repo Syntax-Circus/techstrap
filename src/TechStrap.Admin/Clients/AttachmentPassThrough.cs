@@ -28,7 +28,7 @@ public static class AttachmentPassThrough
         {
             upstream = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TimeoutException or Polly.CircuitBreaker.BrokenCircuitException
+        catch (Exception ex) when (ex is HttpRequestException or TimeoutException
                                        || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
         {
             http.Response.StatusCode = StatusCodes.Status502BadGateway;

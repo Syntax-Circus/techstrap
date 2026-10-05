@@ -40,8 +40,8 @@ public sealed class AdminLeakTests
     public async Task The_access_token_appears_in_no_log_event_page_or_download()
     {
         await using var factory = VerboseFactory();
-        // The queue and the ticket are not configured, so the stub answers 404 and the pages show their error states. A 5xx here would trip the read client's circuit
-        // breaker and the download below would never reach the API.
+        // The queue and the ticket are not configured, so the stub answers 404 and the pages show their error states. The read client has no circuit breaker (D-040), so
+        // nothing here can stop the download below reaching the API.
         factory.Api.On(HttpMethod.Get, $"/api/attachments/{AttachmentId}", _ => new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new ByteArrayContent([1, 2, 3]) });
         var token = AdminTestPrincipal.Agent.AccessToken;
         using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);

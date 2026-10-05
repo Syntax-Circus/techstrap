@@ -3,7 +3,7 @@
         <img src="brand/mark.svg" alt="" width="36" height="36" />
         <span>TechStrap<small>Call log / admin</small></span>
     </a>
-    @if (Session.State == AgentSessionState.Ready)
+    @if (Session.IsAdmitted)
     {
         <NavLink class="ts-rail-link" href="/queue" Match="NavLinkMatch.Prefix">@ShellCopy.QueueLink</NavLink>
         @if (Session.IsAdmin)

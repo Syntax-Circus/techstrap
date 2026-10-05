@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Logging;
 using TechStrap.Admin.Auth;
 using TechStrap.Admin.Components.Ui;
 using TechStrap.Admin.Features.Shell;
@@ -20,6 +21,9 @@ public sealed partial class NavMenu : IDisposable
 
     [Inject]
     private AgentSession Session { get; set; } = default!;
+
+    [Inject]
+    private ILogger<NavMenu> Logger { get; set; } = default!;
 
     [Inject]
     private FailedEmailCounter Failed { get; set; } = default!;
@@ -48,6 +52,12 @@ public sealed partial class NavMenu : IDisposable
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
             // The circuit or the layout went away while the read was in flight.
+        }
+        catch (Exception ex)
+        {
+            // The rail sits outside every error boundary, so an exception out of OnAfterRenderAsync would end the circuit. A badge is not worth that: the count stays
+            // as it was and the rail keeps working. Only the type is logged, never the message.
+            Logger.LogWarning("The failed-email badge could not be refreshed ({ExceptionType}).", ex.GetType().Name);
         }
     }
 

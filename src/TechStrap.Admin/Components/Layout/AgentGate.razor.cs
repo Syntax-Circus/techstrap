@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using TechStrap.Admin.Auth;
 
 namespace TechStrap.Admin.Components.Layout;
@@ -18,6 +19,9 @@ public sealed partial class AgentGate : ComponentBase, IDisposable
 
     [Inject]
     private AgentSession Session { get; set; } = default!;
+
+    [Inject]
+    private ILogger<AgentGate> Logger { get; set; } = default!;
 
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
@@ -47,7 +51,21 @@ public sealed partial class AgentGate : ComponentBase, IDisposable
         _authenticated = state.User.Identity?.IsAuthenticated == true;
         if (_authenticated == true && !IsStaticPage)
         {
-            await Session.EnsureLoadedAsync(_lifetime.Token);
+            try
+            {
+                await Session.EnsureLoadedAsync(_lifetime.Token);
+            }
+            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+            {
+                // The circuit or the layout went away while the read was in flight.
+            }
+            catch (Exception ex)
+            {
+                // An unexpected fault (not an API answer, which the session already maps): degrade to the Unavailable state with its Retry button. Only the type
+                // is logged, never the message, which can carry an address or a name.
+                Logger.LogWarning("The agent session could not be loaded ({ExceptionType}).", ex.GetType().Name);
+                Session.MarkUnavailable();
+            }
         }
     }
 

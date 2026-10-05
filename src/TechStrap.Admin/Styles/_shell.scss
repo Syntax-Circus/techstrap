@@ -123,3 +123,38 @@
     border-bottom: 3px solid transparent;
   }
 }
+
+// The notice over a page that stays mounted after the session expired (AgentGate, PHASE-07c). Plain and calm, like every state that blocks work (BRAND.md section 3);
+// brand tokens only, so both themes keep their contrast. The action is a link, at least 24px tall (WCAG 2.2 target size).
+.ts-session-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  margin: 0 0 12px;
+  color: var(--ink);
+  background: var(--sheet);
+  border: 2px solid var(--st-spam);
+  box-shadow: 3px 3px 0 var(--shadow);
+
+  p {
+    flex: 1 1 280px;
+    margin: 0;
+  }
+}
+
+.ts-session-banner-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 14px;
+  font: 600 .75rem var(--ts-font-mono);
+  letter-spacing: .05em;
+  color: var(--paper);
+  text-decoration: none;
+  text-transform: uppercase;
+  background: var(--ink);
+  border: 2px solid var(--ink);
+}

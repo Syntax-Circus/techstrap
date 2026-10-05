@@ -27,6 +27,7 @@ internal static class ShellTestServices
         var deadLetters = Substitute.For<IDeadLettersClient>();
         deadLetters.CountAsync(Arg.Any<CancellationToken>()).Returns(Result<int>.Success(0));
         context.Services.AddSingleton(deadLetters);
+        context.Services.AddSingleton<SessionExpiry>();
         context.Services.AddSingleton<AgentSession>();
         context.Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(new AgentGroupOptions()));
         context.Services.AddSingleton<AntiforgeryStateProvider, NoTokenAntiforgeryStateProvider>();

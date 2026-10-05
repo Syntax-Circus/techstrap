@@ -153,4 +153,30 @@ public sealed class AttachmentPassThroughTests
         public override void SetLength(long value) => throw new NotSupportedException();
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
+
+    // The read client has no circuit breaker (ReadClientIsolationTests), so a transport failure or a timeout is all the pass-through can see.
+    [Theory]
+    [InlineData("transport")]
+    [InlineData("timeout")]
+    public async Task A_transport_failure_or_a_timeout_is_a_502_and_never_an_unhandled_error(string failure)
+    {
+        await using var factory = new AdminFactory();
+        var id = Guid.NewGuid();
+        factory.Api.On(HttpMethod.Get, $"/api/attachments/{id}", _ => failure == "transport" ? throw new HttpRequestException("connection refused") : throw new TimeoutException());
+        using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
+
+        using var response = await client.GetAsync($"/attachments/{id}", Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        (await response.Content.ReadAsStringAsync(Ct)).ShouldNotContain("connection refused");
+    }
+
+    [Fact]
+    public void The_pass_through_does_not_name_a_circuit_breaker_the_read_client_cannot_throw()
+    {
+        var source = System.IO.File.ReadAllText(TechStrap.Tests.Shared.RepositoryRoot.Combine("src", "TechStrap.Admin", "Clients", "AttachmentPassThrough.cs"));
+
+        source.ShouldNotContain("BrokenCircuitException", Case.Sensitive, "D-040: the read client has no circuit breaker, so that catch clause is dead code");
+        source.ShouldNotContain("Polly", Case.Sensitive);
+    }
 }

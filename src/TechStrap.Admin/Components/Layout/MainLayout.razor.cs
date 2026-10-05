@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Logging;
 using TechStrap.Admin.Features.Shell;
 
 namespace TechStrap.Admin.Components.Layout;
@@ -15,6 +16,9 @@ public partial class MainLayout : IDisposable
 
     [Inject]
     private ShortcutService Shortcuts { get; set; } = default!;
+
+    [Inject]
+    private ILogger<MainLayout> Logger { get; set; } = default!;
 
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
@@ -49,8 +53,17 @@ public partial class MainLayout : IDisposable
         if (firstRender)
         {
             // The stored preferences first: they set the theme and whether single-key shortcuts act. Neither call throws for a script or storage failure.
-            await Preferences.LoadAsync();
-            await Shortcuts.StartAsync();
+            try
+            {
+                await Preferences.LoadAsync();
+                await Shortcuts.StartAsync();
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // The layout sits outside every error boundary, so an exception out of OnAfterRenderAsync would end the circuit. Without the listener the keyboard layer
+                // is off but every page still works; the next start attempt may succeed. Only the type is logged, never the message.
+                Logger.LogWarning("The keyboard shortcuts could not be started ({ExceptionType}).", ex.GetType().Name);
+            }
         }
     }
 
