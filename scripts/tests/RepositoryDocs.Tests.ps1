@@ -94,6 +94,17 @@ Describe 'D-044 (the knowledge base)' {
         }
     }
 
+    It 'lists the as-built KB routes in PHASE-08 and the architecture, and not the old public routes' {
+        foreach ($name in 'docs/architecture/PHASE-08-knowledge-base.md', 'docs/architecture/02-ARCHITECTURE.md') {
+            $text = Get-RepoText $name
+            foreach ($route in '/api/public/kb/{productKey}/search', '/api/public/kb/{productKey}/categories', '/api/public/kb/{productKey}/articles/{categorySlug}/{slug}', '/api/public/kb/{productKey}/sitemap', '/api/kb/articles/{id}/publish') {
+                $text | Should -Match ([regex]::Escape($route)) -Because "$name lists $route"
+            }
+            $text | Should -Not -Match ([regex]::Escape('/api/public/sitemap')) -Because "$name must not list the old sitemap route"
+            $text | Should -Not -Match ([regex]::Escape('/api/public/kb/search?product=')) -Because "$name must not list the old search route"
+        }
+    }
+
     It 'tells the operator about the Api public URL and the /kb-images/ proxy route' {
         $runbook = Get-RepoText 'docs/self-hosting/DEPLOYMENT.md'
         $runbook | Should -Match 'TECHSTRAP_API_PUBLIC_URL'

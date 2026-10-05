@@ -64,6 +64,17 @@ public sealed class UploadKbImageRequestHandlerTests
         await _store.DidNotReceiveWithAnyArgs().SaveAsync(default!, Ct);
     }
 
+    [Fact]
+    public async Task A_request_with_no_file_is_a_validation_error_on_file_and_reaches_nothing()
+    {
+        var result = await Handler().HandleAsync(null, Ct);
+
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Code.ShouldBe("file-required");
+        error.Target.ShouldBe("file");
+        await _store.DidNotReceiveWithAnyArgs().SaveAsync(default!, Ct);
+    }
+
     [Theory]
     [InlineData("0123456789abcdef0123456789abcdef.png", true)]
     [InlineData("0123456789abcdef0123456789abcdef.jpg", true)]

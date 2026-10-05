@@ -36,6 +36,7 @@ public sealed partial class OpenApiSurfaceTests
     [InlineData("/api/customer/ticket/replies")]
     [InlineData("/api/public/products/{productKey}/tickets")]
     [InlineData("/api/tickets/{id}/replies")]
+    [InlineData("/api/kb/images")]
     public async Task The_multipart_routes_document_a_multipart_request_body(string path)
     {
         await using var factory = new ApiFactory();

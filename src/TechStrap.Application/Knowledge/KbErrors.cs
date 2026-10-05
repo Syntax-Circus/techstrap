@@ -13,6 +13,9 @@ internal static class KbErrors
     public static ResultError PreviewTooLong() =>
         new("body-too-long", $"The text is longer than {KbLimits.MaxPreviewChars:N0} characters and cannot be previewed.", ResultErrorKind.Validation, "body");
 
+    public static ResultError FileRequired() =>
+        new("file-required", "Choose an image to upload.", ResultErrorKind.Validation, "file");
+
     public static ResultError BodyTooComplex() =>
         new("kb-body-too-complex", $"The text has too many elements (more than {KbLimits.MaxRenderedElements:N0} paragraphs, list items, table cells and similar). Split it into several articles or shorten the table or list.", ResultErrorKind.Validation, "body");
 
