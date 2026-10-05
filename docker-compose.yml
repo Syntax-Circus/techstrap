@@ -1,7 +1,11 @@
 # Local stack: Postgres 17, Mailpit (SMTP capture) plus the four TechStrap images built from this checkout.
 #   docker compose up -d --build
-# Optional per-host overrides go in src/TechStrap.<Host>/.env.local (gitignored, see .env.example).
-# The reverse proxy and TLS are not part of compose.
+# Per-host settings go in src/TechStrap.<Host>/.env.local (gitignored; copy the .env.example next to it); without one, the checked-in
+# appsettings.json and appsettings.Development.json defaults apply (the Admin signs in against a placeholder identity provider).
+# Compose inputs (all optional, see the root .env.example): TECHSTRAP_SUBNET, REVERSE_PROXY_CIDR, TECHSTRAP_MAILPIT_PORT and TECHSTRAP_SEED_DEV_DATA.
+# The environment: entries below are the wiring compose owns (the local Postgres, the Api address, volume paths, the proxy trust and Mailpit);
+# everything else a host reads comes from its .env.local or its appsettings. The reverse proxy and TLS are not part of compose.
+# The image-only UAT and production stack is deploy/docker-compose.yml (docs/self-hosting/DEPLOYMENT.md).
 name: techstrap
 
 services:
@@ -46,7 +50,6 @@ services:
       TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${TECHSTRAP_SUBNET:-172.16.31.0/24}
       TECHSTRAP_PORTAL_PUBLIC_URL: http://localhost:8082
       TECHSTRAP_SEED_DEV_DATA: ${TECHSTRAP_SEED_DEV_DATA:-false}
-      Storage__Provider: Local
       Storage__Local__RootPath: /app/storage
     depends_on:
       postgres:
@@ -76,14 +79,8 @@ services:
       # Admin trusts only the reverse proxy. 192.0.2.0/24 is a placeholder; set REVERSE_PROXY_CIDR.
       TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${REVERSE_PROXY_CIDR:-192.0.2.0/24}
       DataProtection__KeyRingPath: /app/dataprotection-keys
-      # The Admin will not start without an OIDC client. These placeholders let the container start without an identity provider;
-      # signing in then fails until OIDC_AUTHORITY, OIDC_ADMIN_CLIENT_ID and OIDC_ADMIN_CLIENT_SECRET are set in the root .env (docs/development/ADMIN-APP.md).
-      Auth__Authority: ${OIDC_AUTHORITY:-https://authentik.invalid/application/o/techstrap-admin/}
-      Auth__ClientId: ${OIDC_ADMIN_CLIENT_ID:-techstrap-admin}
-      Auth__ClientSecret: ${OIDC_ADMIN_CLIENT_SECRET:-not-configured}
-      TECHSTRAP_AGENT_GROUP: ${TECHSTRAP_AGENT_GROUP:-techstrap-agents}
-      TECHSTRAP_ADMIN_GROUP: ${TECHSTRAP_ADMIN_GROUP:-techstrap-admins}
-      TECHSTRAP_GROUP_CLAIM_TYPE: ${TECHSTRAP_GROUP_CLAIM_TYPE:-groups}
+      # The sign-in settings (Auth__*) are not set here: appsettings.Development.json holds placeholders so the container starts without an identity provider,
+      # and src/TechStrap.Admin/.env.local replaces them (docs/development/ADMIN-APP.md).
     depends_on:
       api:
         condition: service_healthy
@@ -108,10 +105,9 @@ services:
         required: false
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      Api__BaseUrl: http://api/
       # Portal trusts only the reverse proxy. 192.0.2.0/24 is a placeholder; set REVERSE_PROXY_CIDR.
+      # The Portal reads no Api address or public URL yet; PHASE-09 adds Api__BaseUrl and TECHSTRAP_PORTAL_PUBLIC_URL here.
       TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${REVERSE_PROXY_CIDR:-192.0.2.0/24}
-      TECHSTRAP_PORTAL_PUBLIC_URL: http://localhost:8082
       DataProtection__KeyRingPath: /app/dataprotection-keys
     depends_on:
       api:
@@ -138,9 +134,6 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__TechStrap: Host=postgres;Port=5432;Database=techstrap;Username=techstrap;Password=techstrap-local
-      TECHSTRAP_PORTAL_PUBLIC_URL: http://localhost:8082
-      Storage__Provider: Local
-      Storage__Local__RootPath: /app/storage
       Email__Smtp__Host: mailpit
       Email__Smtp__Port: "1025"
       Email__Smtp__TlsMode: None
@@ -148,14 +141,11 @@ services:
       Email__Smtp__RetryMode: TransientOnly
       Email__Smtp__TotalSendTimeout: "00:00:30"
       Email__Smtp__DefaultFrom: support@techstrap.localhost
-      TECHSTRAP_PORTAL_SHOW_POWERED_BY: ${TECHSTRAP_PORTAL_SHOW_POWERED_BY:-true}
     depends_on:
       api:
         condition: service_healthy
       mailpit:
         condition: service_healthy
-    volumes:
-      - techstrap-storage:/app/storage
     ports:
       - "127.0.0.1:8083:80"
     healthcheck:

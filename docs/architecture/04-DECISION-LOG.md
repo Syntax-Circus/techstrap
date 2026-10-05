@@ -16,6 +16,7 @@ Approval basis:
 - **Owner decision (2026-10-04, PHASE-07 planning):** D-040, the owner decisions on the PHASE-07 split, the identity provider and the shared hosting project. Its technical decisions were proposed in the PHASE-07a plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-04, PHASE-07b planning):** D-041, the owner decisions on read-only roles in the Admin, the logo URL field, the tag ticket count and the single PR. Its technical decisions were proposed in the PHASE-07b plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-04, PHASE-07c planning):** D-042, the owner decisions on the CSP, the theme flash, the time zone source, the shared host wiring and the single PR. Its defaults were proposed in the PHASE-07c plan and approved when the owner approved the plan.
+- **Owner decision (2026-10-05, scoped configuration and deployment, before PHASE-08):** D-043, the owner decisions on one image-only deploy compose, scoped env files on the host, a separate Postgres and explicit image tags. Its technical decisions were proposed in the plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -67,6 +68,7 @@ Approval basis:
 | D-040 | PHASE-07 lands as 07a/07b/07c; Authentik set up later; TechStrap.Hosting project; Admin sign-in, API clients and ticket-handling decisions | Approved (owner 2026-10-04; technical decisions at PHASE-07a plan review) | 2026-10-04 | PHASE-07, PHASE-08, PHASE-09, PHASE-12 |
 | D-041 | PHASE-07b: roles are read-only in the Admin; the product logo is a validated URL; the tag list shows ticket counts; Admin guard, browser preferences and client decisions | Approved (owner 2026-10-04; technical decisions at PHASE-07b plan review) | 2026-10-04 | PHASE-07, PHASE-08, PHASE-12 |
 | D-042 | PHASE-07c: CSP with `style-src-attr`, theme init script, browser time zone, shared host wiring, command palette, responsive rail, session-expired banner, Sentry search scrub, OpenAPI security schemes | Approved (owner 2026-10-04; defaults at PHASE-07c plan review) | 2026-10-04 | PHASE-07, PHASE-09, PHASE-11, PHASE-12 |
+| D-043 | Scoped per-project configuration (every key in `appsettings.json`, a `.env.example` and a deploy env template per host) and one image-only deploy compose for UAT and production, with a separate Postgres | Approved (owner 2026-10-05; technical decisions at plan review) | 2026-10-05 | PHASE-12, PHASE-08, PHASE-09 |
 
 ---
 
@@ -1503,3 +1505,53 @@ Reading the code for the plan found these facts:
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-07c planning)
 - **Approved on:** 2026-10-04
+
+---
+
+## D-043: Scoped per-project configuration and one image-only deployment compose
+
+- **Status:** Approved (owner 2026-10-05; technical decisions at plan review)
+- **Date:** 2026-10-05
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-019, D-024, D-029, D-040, D-042, `docs/architecture/02-ARCHITECTURE.md` section 11, `docs/self-hosting/DEPLOYMENT.md`, `deploy/docker-compose.yml`, `docs/superpowers/plans/2026-10-05-deploy-config.md`
+
+### Context
+PHASE-07 is merged. Before PHASE-08 (the knowledge base) the owner wants TechStrap's configuration and deployment to follow the sibling repositories (`sinforgiver`, `who-flung-pu`). Reading the code found these facts:
+- **Settings.** Each host's `appsettings.json` held only Sentry, OpenTelemetry, Serilog and `AllowedHosts`. ConnectionStrings, Auth, Api, Email, Storage, RateLimiting and the other sections came only from environment variables, so no file listed what a host reads.
+- **Deployment.** `docker-compose.production.yml` and `docker-compose.uat.yml` were near copies. They bundled Postgres, had no `env_file`, interpolated every setting from one root `.env.production`, defaulted the image tag to `latest`, and could not set many keys the code reads (Sentry, OpenTelemetry, rate limits, `Api__TimeoutSeconds`, `TECHSTRAP_ADMIN_PUBLIC_URL`, LostLink). A blank `OIDC_*` passed `docker compose config` and then failed `ValidateOnStart` at boot.
+- **Examples.** The Worker `.env.example` listed `TECHSTRAP_PORTAL_PUBLIC_URL` and `STORAGE__*`, which the Worker never reads. The Portal `.env.example` listed `API__BASEURL` and the public URL, which it does not read until PHASE-09. The local compose overrode the Admin's `AUTH__*` from a root `.env` that had no example, so `.env.local` clashed with it.
+- **Binding.** A blank number, flag or enum fails configuration binding ("Failed to convert configuration value '' ..."); a blank nullable (`Email:Smtp:TlsMode`, `TotalSendTimeout`) binds as null. Binding an array appends to a non-empty default, so listing the defaults of `Auth:Scopes` would duplicate them. A blank array element still counts: `TrustedProxy` with one blank network passes the Production check.
+
+### Decision
+**Owner decisions (2026-10-05)**
+- **One deploy compose.** `deploy/docker-compose.yml` serves UAT and production. It is image-only: no `build:` and no Postgres. A small compose-inputs file chooses the environment: the committed templates `deploy/.env.uat.example` and `deploy/.env.production.example`, copied to `deploy/.env.<env>.local` on the host. They hold the project name, the image references, the env directory, the loopback ports, the app subnet, the reverse-proxy CIDR and the Postgres network name, and no secret.
+- **Scoped env files on the host.** `${TECHSTRAP_ENV_DIR}` (for example `/etc/techstrap/uat/`) holds `.env.api`, `.env.worker`, `.env.admin` and `.env.portal`, root-owned and mode 0600, loaded per service through `env_file`. The committed key-only templates `deploy/.env.<app>.example` are kept in sync with each project's `appsettings.json` and `.env.example`.
+- **Separate Postgres.** It runs as its own instance, reached through an existing external Docker network named by `TECHSTRAP_DB_NETWORK`. Only the Api and the Worker join it.
+- **Images.** GHCR stays (`ghcr.io/syntax-circus/techstrap-*`). The compose requires an explicit image reference per service: there is no `latest` default.
+- **Delivery.** Its own PR before PHASE-08.
+
+**Technical decisions (proposed in the plan; approved when the owner approves it)**
+- **Every key in `appsettings.json`, with a real default or blank.** A value equals today's code default or is blank, so behaviour does not change. A blank is allowed only where the setting is a string (or a nullable) whose blank form is the default or the required-and-missing state. Every number, flag and enum carries its real default, because its blank form fails binding. The allowed blanks are an explicit list in the contract test. An array is `[]` in `appsettings.json` and its element key is commented out in the `.env` files, because a blank element is a configured element.
+- **Production still fails fast.** Given only the blank deploy template, each host fails to start and names the missing keys; `ProductionBlankTemplateTests` pins it per host. The Portal has no required key yet (PHASE-09 adds them), so only the trusted proxies stop it.
+- **What compose owns.** `environment:` sets only `ASPNETCORE_ENVIRONMENT`, `DOTENV__ENABLED=false`, `API__BASEURL` (Admin), the key-ring path (Admin, Portal), the storage path (Api) and the trusted networks (Api: subnet then `REVERSE_PROXY_CIDR`; Admin and Portal: `REVERSE_PROXY_CIDR`). These override the env file, so the deploy templates do not list them. `REVERSE_PROXY_CIDR` stays a compose input, which keeps the old entry layout.
+- **Local compose.** It keeps only its own wiring in `environment:` (the local Postgres, the Api address, volume paths, the proxy trust, the portal URL it publishes and the Mailpit settings). The Admin's `Auth__*` and the group keys no longer come from compose: `appsettings.Development.json` holds clearly fake placeholders (`.invalid`, `not-configured`) and `.env.local` replaces them. The Worker loses its storage volume and the stale keys. A root `.env.example` documents the four compose inputs.
+- **Contract test.** `scripts/tests/ConfigContract.Tests.ps1` compares keys case-insensitively as `SECTION__KEY`. It excludes `SassCompiler`, `Serilog:Using`, `WriteTo` and `MinimumLevel:Override`, and it does not list the keys set in code or owned by a library (`SecurityHeaders:ContentSecurityPolicy`, `Auth:Scopes`, `Auth:TokenCache`, `Storage:S3`, `AutoClose:Days`). A key whose name contains Password, Secret, Dsn, Token or Key (not `KeyRingPath`), and the OTLP headers, must be blank in a committed file unless its value is a number or a flag; the Development placeholders must be clearly fake. UAT and production inputs must set the same names.
+- **Postgres password.** The connection string is a single value, so the deploy templates say to use only letters, digits and `- _ . ~` (`openssl rand -hex 24`). This closes the roadmap carry-forward.
+
+### Alternatives Considered
+- **Keep two compose files.** Rejected: they differed by a name and default ports, and drifted.
+- **Interpolate secrets from one root env file** (the old way). Rejected: it cannot carry every key, passes blank secrets silently and puts all four apps' secrets in every container's compose environment.
+- **Bundle Postgres in the deploy compose.** Rejected by the owner: the database has its own lifecycle and backups.
+- **List the library defaults of `Auth:Scopes`.** Rejected: array binding appends, so the defaults would duplicate.
+- **Make `.env.local` blank keys win in Development.** Rejected: a blank `AUTH__*` would replace the placeholders and stop the Admin, so the example keeps those three commented out.
+
+### Consequences
+- **The old files are gone.** `docker-compose.production.yml`, `docker-compose.uat.yml` and `.env.production.example` are deleted; PHASE-12 T14 deploys UAT with `deploy/docker-compose.yml`.
+- **A deploy needs the scoped env files to exist.** `docker compose config` fails while one is missing, so a typo in `TECHSTRAP_ENV_DIR` stops before `pull`.
+- **A new setting is four edits** (`appsettings.json`, `.env.example`, `deploy/.env.<app>.example` and, if compose owns it, the compose file), and the contract test fails until they agree.
+- **The Worker no longer mounts the storage volume.** It never registered attachments.
+- **Still open (owner):** create `/etc/techstrap/uat/` from the templates and run `config --quiet`, `pull` and `up -d --wait` against the external Postgres.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, scoped configuration and deploy compose planning)
+- **Approved on:** 2026-10-05

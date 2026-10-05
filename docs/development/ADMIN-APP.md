@@ -19,16 +19,18 @@ cp src/TechStrap.Admin/.env.example src/TechStrap.Admin/.env.local     # then ed
 dotnet run --project src/TechStrap.Admin --urls http://localhost:8081
 ```
 
-`.env.local` is read in Development only and is git-ignored. With Docker Compose the Admin listens on `http://127.0.0.1:8081`. Compose reads the three provider
-values from the root `.env` (not from `src/TechStrap.Admin/.env.local`, whose `AUTH__*` keys would clash with the compose ones):
+`.env.local` is read in Development only and is git-ignored. With Docker Compose the Admin listens on `http://127.0.0.1:8081` and reads the same
+`src/TechStrap.Admin/.env.local`: compose no longer sets the sign-in values itself, so there is one place to put them. Uncomment and fill the three keys in that file:
 
 ```bash
-OIDC_AUTHORITY=https://auth.example.com/application/o/techstrap-admin/
-OIDC_ADMIN_CLIENT_ID=techstrap-admin
-OIDC_ADMIN_CLIENT_SECRET=...
+AUTH__AUTHORITY=https://auth.example.com/application/o/techstrap-admin/
+AUTH__CLIENTID=techstrap-admin
+AUTH__CLIENTSECRET=...
 ```
 
-Without them the container starts on placeholder values and the sign-in page works, but the redirect to the provider fails.
+Without them the Admin starts on the placeholders in `src/TechStrap.Admin/appsettings.Development.json` (`https://authentik.invalid/...`, `techstrap-admin`, `not-configured`)
+and the sign-in page works, but the redirect to the provider fails. Leave the three keys commented out rather than blank: a blank value replaces the placeholder and the Admin stops at start.
+Every setting the Admin reads is listed, with its default, in `src/TechStrap.Admin/appsettings.json`.
 
 ### Configuration
 
@@ -41,7 +43,7 @@ The Admin refuses to start with a message that names the missing variable. Value
 | `AUTH__AUTHORITY` | yes | | The provider's issuer URL (https outside Development), with its trailing slash. |
 | `AUTH__CLIENTID` | yes | | The OIDC client id of the Admin. |
 | `AUTH__CLIENTSECRET` | yes | | The client secret. The Admin client is confidential. |
-| `AUTH__SCOPES__0`, `AUTH__SCOPES__1`, ... | no | `openid profile email offline_access` | Must keep `openid` and `offline_access` (the API token is refreshed with the refresh token). |
+| `AUTH__SCOPES__0`, `AUTH__SCOPES__1`, ... | no | `openid profile email offline_access` | Added to the defaults, not a replacement (array binding appends), so leave them out unless you need another scope. `openid` and `offline_access` must stay (the API token is refreshed with the refresh token). |
 | `TECHSTRAP_AGENT_GROUP` | no | `techstrap-agents` | Same key and default as the API. The API decides who has access; the Admin only shows what the API allows. |
 | `TECHSTRAP_ADMIN_GROUP` | no | `techstrap-admins` | Same. |
 | `TECHSTRAP_GROUP_CLAIM_TYPE` | no | `groups` | Same. |
@@ -111,7 +113,7 @@ Authentik up, configure the following; any OIDC provider that supports the same 
    [AGENT-AUTHENTICATION.md](../self-hosting/AGENT-AUTHENTICATION.md)). So the access token must carry `sub`, `email`, the groups claim, and an audience equal to the API's configured
    audience. In Authentik the audience of an access token is the client id of the provider that issued it, so the simplest setup is to set the API audience to the Admin's client id.
    `sub` and `email` are **required**: the API matches the agent by them, and without `email` the no-access page says so. Decode a real access token at the first sign-in and check those four claims (this is not verified yet).
-5. **Local compose uses placeholder values.** Without `OIDC_AUTHORITY`, `OIDC_ADMIN_CLIENT_ID` and `OIDC_ADMIN_CLIENT_SECRET` in the root `.env`, the Admin container starts on `https://authentik.invalid/...`, the sign-in page renders, and sign-in fails. That is expected until Authentik exists.
+5. **Local runs use placeholder values.** Without `AUTH__AUTHORITY`, `AUTH__CLIENTID` and `AUTH__CLIENTSECRET` in `src/TechStrap.Admin/.env.local`, the Admin (in compose or under `dotnet run`) starts on the placeholders of `appsettings.Development.json`, the sign-in page renders, and sign-in fails. That is expected until Authentik exists.
 6. **Behind a reverse proxy**, set the trusted proxy keys so the Admin builds `https` redirect URIs, and make sure the provider can be reached from the Admin container at the authority URL.
 
 If sign-in loops or the no-access page shows "not in the agent group" for someone who is, check in this order: the groups claim name, whether the claim is in the **access** token (the API

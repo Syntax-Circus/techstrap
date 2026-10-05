@@ -10,12 +10,19 @@ port chosen by Docker instead of 8080 to 8082 and 8025, and stops only that proj
 key-ring volumes of the smoke project stay for the next run (they are named techstrap-smoke_*; remove them yourself when you want them gone).
 
 The Admin starts with placeholder OIDC settings (docker-compose.yml), so nothing here signs in; it checks the container's health and its /health/ready endpoint.
+
+With -CheckDeployCompose it also resolves deploy/docker-compose.yml (the image-only UAT and production stack) with the committed UAT input template and dummy scoped env files:
+"docker compose config --quiet" only. It never pulls an image and never starts that stack, which needs real images and an external Postgres.
 .PARAMETER ProjectName
 The compose project name. "techstrap" is refused, because that is the name of the stack you may be running.
 .PARAMETER NoBuild
 Do not rebuild the images; use the ones that exist (techstrap-smoke-*:local, left by an earlier run).
 .PARAMETER KeepRunning
 Leave the stack running after the checks (for looking at it); stop it later with: docker compose -p techstrap-smoke down
+.PARAMETER CheckDeployCompose
+Also run "docker compose config --quiet" on deploy/docker-compose.yml against a temporary copy of the UAT input template and dummy env files. Needs no images and no network.
+.PARAMETER DeployComposeOnly
+Run only the deploy compose check and nothing else: no build, no stack. Implies -CheckDeployCompose.
 .PARAMETER DryRun
 Print the commands and the override file and run nothing.
 .EXAMPLE
@@ -30,6 +37,8 @@ param(
     [int] $TimeoutSeconds = 900,
     [switch] $NoBuild,
     [switch] $KeepRunning,
+    [switch] $CheckDeployCompose,
+    [switch] $DeployComposeOnly,
     [switch] $DryRun
 )
 
@@ -100,6 +109,49 @@ function Assert-Ready {
     Write-Output "ok   $Name $uri -> 200"
 }
 
+# The deploy compose is only ever resolved here, never started: it needs real GHCR images and an external Postgres. The scoped env files are dummy copies of the committed
+# templates in a temporary directory, which is also what makes "required: true" resolve.
+function Test-DeployCompose {
+    $deployFile = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..' 'deploy' 'docker-compose.yml')).Path
+    $deployDirectory = Split-Path -Parent $deployFile
+    $envDirectory = Join-Path ([System.IO.Path]::GetTempPath()) "techstrap-deploy-check-$([guid]::NewGuid().ToString('N'))"
+    New-Item -ItemType Directory -Path $envDirectory | Out-Null
+    try {
+        foreach ($app in 'api', 'worker', 'admin', 'portal') {
+            Copy-Item -LiteralPath (Join-Path $deployDirectory ".env.$app.example") -Destination (Join-Path $envDirectory ".env.$app")
+        }
+
+        $portable = $envDirectory -replace '\\', '/'
+        $inputs = Join-Path $envDirectory 'inputs.env'
+        Get-Content -LiteralPath (Join-Path $deployDirectory '.env.uat.example') |
+            ForEach-Object { if ($_ -like 'TECHSTRAP_ENV_DIR=*') { "TECHSTRAP_ENV_DIR=$portable" } else { $_ } } |
+            Set-Content -LiteralPath $inputs
+        $output = & docker compose --env-file $inputs -f $deployFile config --quiet 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) {
+            throw "deploy/docker-compose.yml does not resolve with the UAT input template ($LASTEXITCODE):`n$output"
+        }
+
+        Write-Output 'ok   deploy/docker-compose.yml resolves (config only; nothing pulled or started)'
+    }
+    finally {
+        Remove-Item -LiteralPath $envDirectory -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+if ($DeployComposeOnly) {
+    if ($DryRun) {
+        Write-Output 'docker compose --env-file <UAT input template with dummy env files> -f deploy/docker-compose.yml config --quiet   (config only: no pull, no up)'
+        return
+    }
+
+    if (-not (Get-Command docker -ErrorAction SilentlyContinue) -or ((& docker compose version 2>&1 | Out-String) -notmatch 'Docker Compose')) {
+        throw 'Docker with the compose plugin is required.'
+    }
+
+    Test-DeployCompose
+    return
+}
+
 # The four images are built one after another, never by "up --build": compose builds them in parallel, and four restores into the one shared NuGet cache mount
 # (Dockerfile --mount=type=cache,id=techstrap-nuget) can corrupt each other ("Could not find file .../markdig/...").
 $services = @('api', 'worker', 'admin', 'portal')
@@ -115,6 +167,10 @@ if ($DryRun) {
     }
 
     Write-Output "docker $($composeArguments -join ' ') $($upArguments -join ' ')"
+    if ($CheckDeployCompose) {
+        Write-Output "docker compose --env-file <UAT input template with dummy env files> -f deploy/docker-compose.yml config --quiet   (config only: no pull, no up)"
+    }
+
     Write-Output "docker $($composeArguments -join ' ') port api 80"
     Write-Output "docker $($composeArguments -join ' ') port admin 80"
     Write-Output "GET /health/ready on the Api and on the Admin, expecting 200"
@@ -128,6 +184,10 @@ if ($DryRun) {
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue) -or ((& docker compose version 2>&1 | Out-String) -notmatch 'Docker Compose')) {
     throw 'Docker with the compose plugin is required.'
+}
+
+if ($CheckDeployCompose) {
+    Test-DeployCompose
 }
 
 Set-Content -LiteralPath $overridePath -Value $overrideText -Encoding utf8

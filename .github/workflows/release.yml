@@ -38,6 +38,6 @@ jobs:
             throw "Tag '$env:TAG_NAME' is not a SemVer release tag (vMAJOR.MINOR.PATCH[-prerelease])."
           }
           $version = $env:TAG_NAME.TrimStart('v')
-          # Prereleases must not move :latest, which unpinned compose files pull.
+          # Prereleases must not move :latest, the floating tag for stable releases. The deploy compose names an explicit tag and never relies on it.
           $stable = $version -notmatch '-'
           ./Build-TechStrapDocker.ps1 -Push -PushLatest:$stable -Registry ghcr.io/syntax-circus -ImageTag $version -SemVerTag $version

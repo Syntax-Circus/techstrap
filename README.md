@@ -49,11 +49,17 @@ curl http://127.0.0.1:8080/health/ready
 
 The API applies the database migrations on startup. Stop the stack with `docker compose down` (add `-v` to delete the data).
 
+Compose reads a few optional inputs (`TECHSTRAP_SUBNET`, `REVERSE_PROXY_CIDR`, `TECHSTRAP_MAILPIT_PORT`, `TECHSTRAP_SEED_DEV_DATA`) from a root `.env`; copy [.env.example](.env.example) to change them.
+Every other setting comes from the host's `appsettings.json` and, if you add one, its `src/TechStrap.<Host>/.env.local`.
+
 Troubleshooting: if compose reports `Pool overlaps with other one on this address space`, another Docker network already uses
 the pinned subnet `172.16.31.0/24`. Pick a free one for this stack, for example `TECHSTRAP_SUBNET=10.245.31.0/24 docker compose up -d --build`.
 
 For production, `REVERSE_PROXY_CIDR` must be the address the containers see the reverse proxy from. With the loopback-only
 published ports and a proxy on the same host, that is the compose gateway (`172.16.31.1/32`), never a wide range.
+
+UAT and production run from one image-only compose, `deploy/docker-compose.yml`: pinned GHCR image tags (one tag for all four), a scoped env file per service under `/etc/techstrap/<env>/`,
+a required and per-environment `TECHSTRAP_PROJECT`, and a separate Postgres on an external Docker network. The runbook is [DEPLOYMENT.md](docs/self-hosting/DEPLOYMENT.md).
 
 ### Submit a test ticket
 
@@ -69,7 +75,8 @@ dotnet build TechStrap.slnx
 dotnet test --solution TechStrap.slnx   # needs Docker running; Testcontainers starts Postgres 17
 ```
 
-Per-host settings for `dotnet run` go in `src/TechStrap.<Host>/.env.local` (gitignored; copy the `.env.example` next to it).
+Each project's `appsettings.json` lists every setting the host reads, with its default (secrets are blank). Per-host settings for `dotnet run` go in
+`src/TechStrap.<Host>/.env.local` (gitignored; copy the `.env.example` next to it, which documents the same keys as `SECTION__KEY`).
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [SECURITY.md](SECURITY.md) to report a vulnerability.
 
 ## Documentation

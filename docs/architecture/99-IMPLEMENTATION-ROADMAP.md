@@ -10,7 +10,7 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 
 - Routes, handler names and Contracts type names come from `02-ARCHITECTURE.md` section 7 and 8.
 - Header names are Contracts constants and are the same everywhere: `X-Api-Key`, `X-Ticket-Token`, `Idempotency-Key`.
-- The portal base URL variable is `TECHSTRAP_PORTAL_PUBLIC_URL`; the storage mount is `/app/storage` (volume `techstrap-storage`), shared by the API and the Worker.
+- The portal base URL variable is `TECHSTRAP_PORTAL_PUBLIC_URL`; the storage mount is `/app/storage` (volume `techstrap-storage`), mounted by the API only (D-043).
 - Handlers accept `TechStrap.Contracts` request records directly (D-016); Admin and Portal reference only Contracts and Hosting (D-040).
 
 ## 2. Phase order
@@ -399,11 +399,11 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 | 1 | ~~Confirm decisions~~ Done: D-001 to D-022 approved on 2026-10-02 | — |
 | 2 | Verify the installed NCrunch version for the `xunit.v3` pin: if it predates the fix, pin `xunit.v3` 3.2.2 and `xunit.runner.visualstudio` 3.1.5 with a comment in `Directory.Packages.props` (D-013) | P01-T03 |
 | 3 | ~~Create the GitHub repository with GHCR enabled~~ Done: `Syntax-Circus/techstrap` exists; enable GHCR package write permission for `GITHUB_TOKEN` | PHASE-01 |
-| 4 | Open the cross-repo PR registering subnet `172.16.31.0/24` in the `_template` `CLIENT_IP_RATE_LIMITING.md` registry, and confirm it is free on the UAT host (D-019) | P01-T16 |
+| 4 | Open the cross-repo PR registering subnet `172.16.31.0/24` in the `_template` `CLIENT_IP_RATE_LIMITING.md` registry, and confirm it is free on the UAT host (the `TECHSTRAP_SUBNET` input of `deploy/docker-compose.yml`, D-019, D-043) | P01-T16 |
 | 5 | Choose the `SECURITY.md` private reporting address | P01-T19 |
 | 6 | Choose the visual direction and approve `docs/BRAND.md` | P02-T01 to P02-T03 |
 | 7 | Set up the Authentik application and groups per the `syntax-circus-authentik` repo: a confidential OIDC client for Admin (code plus PKCE, `offline_access`, group claim in the id and access tokens), a provider for the API audience, and groups mapped to `TECHSTRAP_AGENT_GROUP` and `TECHSTRAP_ADMIN_GROUP`; the first admin is whoever is in the admin group (D-029) | P04-T14, P07-T02, P12-T17 |
-| 8 | Supply the reverse-proxy address and trusted network values for UAT and production (Q-08) and an SMTP relay for UAT | P01-T16, P12-T14 |
+| 8 | Supply the reverse-proxy address and trusted network values for UAT and production (Q-08: the `REVERSE_PROXY_CIDR` input of `deploy/.env.<env>.local`), create the shared Postgres Docker network and the scoped env files under `/etc/techstrap/<env>/` (D-043), and an SMTP relay for UAT | P01-T16, P12-T14 |
 | 9 | Create the nuget.org publishing setup: reserve the `TechStrap.*` package IDs, create a Trusted Publishing policy per package, add the repository secret `NUGET_USER` (fallback `NUGET_API_KEY`) and a GitHub environment `release` with required reviewers | P11-T15 |
 | 10 | Provide a macOS runner (or approve the macOS CI cost) for the MAUI workload build | P11-T07 |
 | 11 | Provide a scratch environment for the restore drill and agree load-test scheduling on the shared UAT host | P12-T12, P12-T15 |
@@ -430,4 +430,4 @@ Items found during PHASE-01 reviews that later phases own. Fold each into the na
 | `SyntaxCircus.AspNetCore.Common` echoes inbound `X-Correlation-Id` with no length/charset cap (upstream fix) | PHASE-12 |
 | Release: CI gate before publishing; hotfix tags must not move `latest` backwards; SHA-pin actions / Dependabot | before first stable tag / PHASE-12 |
 | Runtime images: app binaries owned by uid 10001 (only mount points need it) | PHASE-12 |
-| Warn in `.env.production.example` that the Postgres password must be connection-string safe | first UAT deploy |
+| ~~Warn in `.env.production.example` that the Postgres password must be connection-string safe~~ | Done in D-043: `deploy/.env.api.example` and `deploy/.env.worker.example` say so |

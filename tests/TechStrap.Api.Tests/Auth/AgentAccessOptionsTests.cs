@@ -45,7 +45,7 @@ public sealed class AgentAccessOptionsTests
     {
         await using var factory = new ApiFactory(
             environment: "Production",
-            settings: new Dictionary<string, string?> { ["Authentication:JwtBearer:Audiences:0"] = "" });
+            settings: new Dictionary<string, string?> { ["ConnectionStrings:TechStrap"] = "Host=localhost;Database=unused;Username=u;Password=p", ["Authentication:JwtBearer:Audiences:0"] = "" });
 
         Should.Throw<OptionsValidationException>(() => factory.CreateClient());
     }
@@ -55,7 +55,7 @@ public sealed class AgentAccessOptionsTests
     {
         await using var factory = new ApiFactory(
             environment: "Production",
-            settings: new Dictionary<string, string?> { ["Authentication:JwtBearer:Authority"] = "" });
+            settings: new Dictionary<string, string?> { ["ConnectionStrings:TechStrap"] = "Host=localhost;Database=unused;Username=u;Password=p", ["Authentication:JwtBearer:Authority"] = "" });
 
         Should.Throw<OptionsValidationException>(() => factory.CreateClient());
     }

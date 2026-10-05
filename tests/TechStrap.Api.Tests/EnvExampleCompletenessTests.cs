@@ -98,8 +98,6 @@ public sealed partial class EnvExampleCompletenessTests
                 "EMAIL__SMTP__RETRYMODE",
                 "EMAIL__SMTP__TOTALSENDTIMEOUT",
                 .. OptionKeys(typeof(EmailOutboxWorkerOptions), EmailOutboxWorkerOptions.SectionName),
-                "STORAGE__LOCAL__ROOTPATH",
-                "TECHSTRAP_PORTAL_PUBLIC_URL",
                 "TECHSTRAP_PORTAL_SHOW_POWERED_BY",
                 AutoCloseOptions.DaysKey,
                 .. OptionKeys(typeof(AutoCloseOptions), AutoCloseOptions.SectionName).Where(k => k != "AUTOCLOSE__DAYS"),
@@ -127,8 +125,7 @@ public sealed partial class EnvExampleCompletenessTests
             [
                 .. ObservabilityKeys(),
                 .. TrustedProxyKeys(),
-                "API__BASEURL",
-                "TECHSTRAP_PORTAL_PUBLIC_URL",
+                "TECHSTRAP_PORTAL_SHOW_POWERED_BY",
                 "DATAPROTECTION__KEYRINGPATH",
             ]
         },
@@ -155,6 +152,17 @@ public sealed partial class EnvExampleCompletenessTests
         var missing = requiredKeys.Select(k => k.ToUpperInvariant()).Where(k => !documented.Contains(k)).Order().ToList();
 
         missing.ShouldBeEmpty($"{host}/.env.example is missing: {string.Join(", ", missing)}");
+    }
+
+    [Theory]
+    [InlineData("TechStrap.Worker", "STORAGE__LOCAL__ROOTPATH")]
+    [InlineData("TechStrap.Worker", "TECHSTRAP_PORTAL_PUBLIC_URL")]
+    [InlineData("TechStrap.Portal", "API__BASEURL")]
+    [InlineData("TechStrap.Portal", "TECHSTRAP_PORTAL_PUBLIC_URL")]
+    public void Env_example_does_not_document_a_key_the_host_never_reads(string host, string staleKey)
+    {
+        // The Worker registers no attachment storage and builds no portal links; the Portal reads no Api address or public URL until PHASE-09 adds them.
+        DocumentedKeys(host).ShouldNotContain(staleKey);
     }
 
     [Fact]

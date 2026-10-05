@@ -20,6 +20,12 @@ appsettings.uat.json
 .env.*
 !.env.example
 !.env.*.example
+# Deploy compose inputs and scoped env files filled in on a host (never committed; the .example templates are)
+deploy/.env.*.local
+deploy/.env.api
+deploy/.env.worker
+deploy/.env.admin
+deploy/.env.portal
 
 # Local docker data
 local/
