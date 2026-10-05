@@ -123,6 +123,9 @@ internal sealed class KbRepository(TechStrapDbContext context) : IKbRepository
             ? context.Set<KbCategoryRecord>().AnyAsync(c => c.Slug == slug && (c.ProductId == product || c.ProductId == null), cancellationToken)
             : context.Set<KbCategoryRecord>().AnyAsync(c => c.Slug == slug, cancellationToken);
 
+    public Task<bool> CategoryHasArticlesAsync(Guid categoryId, CancellationToken cancellationToken) =>
+        context.Set<KbArticleRecord>().AnyAsync(a => a.CategoryId == categoryId, cancellationToken);
+
     public async Task<KbCategory?> GetCategoryAsync(Guid id, CancellationToken cancellationToken) =>
         (await context.Set<KbCategoryRecord>().FirstOrDefaultAsync(c => c.Id == id, cancellationToken))?.ToDomain();
 

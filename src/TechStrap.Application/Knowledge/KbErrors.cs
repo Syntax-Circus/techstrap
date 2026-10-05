@@ -42,6 +42,9 @@ internal static class KbErrors
             ResultErrorKind.Validation,
             "categoryId");
 
+    public static ResultError CategoryInUse() =>
+        new("kb-category-in-use", "This category still holds articles. Move its articles to another category first.", ResultErrorKind.Conflict);
+
     public static ResultError Stale(string what) =>
         new(PersistenceErrorCodes.ConcurrencyConflict, $"This {what} changed since you opened it. Reload it and apply your change again.", ResultErrorKind.Conflict);
 }

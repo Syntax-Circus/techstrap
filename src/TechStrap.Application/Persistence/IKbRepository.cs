@@ -57,6 +57,9 @@ public interface IKbRepository
     /// <summary>The same cross-scope rule for category slugs (D-044), so a portal category address is never ambiguous. Callers pass the normalised slug (the <c>Guard.Slug</c> output).</summary>
     Task<bool> CategorySlugTakenAsync(Guid? productId, string slug, CancellationToken cancellationToken);
 
+    /// <summary>True when any article, in any status, uses the category. The category delete handler asks this before removing it (the foreign key is the backstop).</summary>
+    Task<bool> CategoryHasArticlesAsync(Guid categoryId, CancellationToken cancellationToken);
+
     Task<KbCategory?> GetCategoryAsync(Guid id, CancellationToken cancellationToken);
 
     /// <summary>Ordered by sort order then name. With a product, <paramref name="includeShared"/> adds the shared categories; without one, every category is returned.</summary>
