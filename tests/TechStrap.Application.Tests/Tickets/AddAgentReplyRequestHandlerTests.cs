@@ -71,9 +71,14 @@ public sealed class AddAgentReplyRequestHandlerTests
 
     private static IncomingAttachment Png(string name = "shot.png", long length = 12) => new(name, "image/png", length, new MemoryStream([1, 2, 3]));
 
-    private KbArticle GivenArticle(string slug)
+    // A Published article with a category: the only kind a reply may link (D-044). The product and the category's product default to shared.
+    private KbArticle GivenArticle(string slug, Guid? productId = null, Guid? categoryProductId = null, KbArticleStatus status = KbArticleStatus.Published, bool withCategory = true)
     {
-        var article = KbArticle.Create(null, null, slug, "Reset your password", null, "Steps.", _sam.Id, _clock).Value;
+        var category = KbCategory.Restore(Guid.CreateVersion7(), categoryProductId, "Account", "account", null, 1, 1);
+        _kb.GetCategoryAsync(category.Id, Arg.Any<CancellationToken>()).Returns(category);
+        var article = KbArticle.Restore(
+            Guid.CreateVersion7(), productId, withCategory ? category.Id : null, slug, "Reset your password", null, "Steps.", status, _sam.Id, _clock.GetUtcNow(), _clock.GetUtcNow(),
+            status == KbArticleStatus.Draft ? null : _clock.GetUtcNow(), 1);
         _kb.GetArticleAsync(article.Id, Arg.Any<CancellationToken>()).Returns(article);
         return article;
     }
@@ -88,7 +93,7 @@ public sealed class AddAgentReplyRequestHandlerTests
         _sanitizer.Received(1).Sanitize("<p>Hi **Ann**</p>");
         _tickets.Received(1).Update(_ticket);
         await _planner.Received(1).PlanAgentReplyAsync(
-            _ticket, Arg.Is<Message>(m => m.Visibility == MessageVisibility.Public && m.Body == "<p>Hi **Ann**</p>"), _sam, false, Ct);
+            _ticket, Arg.Is<Message>(m => m.Visibility == MessageVisibility.Public && m.Body == "<p>Hi **Ann**</p>"), _sam, false, Arg.Any<IReadOnlyList<ReplyArticleLink>>(), Ct);
         result.Value.Message.ShouldSatisfyAllConditions(
             m => m.BodyHtml.ShouldBe("<p>Hi **Ann**</p>"),
             m => m.AuthorName.ShouldBe("Sam"),
@@ -130,7 +135,7 @@ public sealed class AddAgentReplyRequestHandlerTests
         _stagedEvents.Select(e => e.Type).ShouldBe([TicketEventType.MessageAdded, TicketEventType.StatusChanged, TicketEventType.StatusChanged]);
         _stagedEvents[1].Payload.ShouldContain("Pending");
         _stagedEvents[2].Payload.ShouldContain("Solved");
-        await _planner.Received(1).PlanAgentReplyAsync(ticket, Arg.Any<Message>(), _sam, true, Ct);
+        await _planner.Received(1).PlanAgentReplyAsync(ticket, Arg.Any<Message>(), _sam, true, Arg.Any<IReadOnlyList<ReplyArticleLink>>(), Ct);
         await _planner.DidNotReceive().PlanSolvedAsync(Arg.Any<Ticket>(), Arg.Any<CancellationToken>());
     }
 
@@ -148,7 +153,7 @@ public sealed class AddAgentReplyRequestHandlerTests
             e => e.Code.ShouldBe("ticket-closed"));
         await _store.DidNotReceiveWithAnyArgs().SaveAsync(default, default!, Ct);
         _tickets.DidNotReceiveWithAnyArgs().Update(default!);
-        await _planner.DidNotReceiveWithAnyArgs().PlanAgentReplyAsync(default!, default!, default!, default, Ct);
+        await _planner.DidNotReceiveWithAnyArgs().PlanAgentReplyAsync(default!, default!, default!, default, default!, Ct);
     }
 
     [Theory]
@@ -200,6 +205,69 @@ public sealed class AddAgentReplyRequestHandlerTests
             e => e.Target.ShouldBe("linkedArticleIds"));
         await _store.DidNotReceiveWithAnyArgs().SaveAsync(default, default!, Ct);
         _tickets.DidNotReceiveWithAnyArgs().Update(default!);
+    }
+
+    [Theory]
+    [InlineData(KbArticleStatus.Draft)]
+    [InlineData(KbArticleStatus.Archived)]
+    public async Task A_draft_or_archived_article_is_not_linkable_and_nothing_is_stored_or_planned(KbArticleStatus status)
+    {
+        var article = GivenArticle("reset", status: status);
+
+        var result = await Reply(Request(articles: [article.Id]), [Png()]);
+
+        result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            e => e.Kind.ShouldBe(ResultErrorKind.Validation),
+            e => e.Code.ShouldBe("kb-article-not-linkable"),
+            e => e.Target.ShouldBe("linkedArticleIds"));
+        await _store.DidNotReceiveWithAnyArgs().SaveAsync(default, default!, Ct);
+        _tickets.DidNotReceiveWithAnyArgs().Update(default!);
+        _kb.DidNotReceiveWithAnyArgs().AddTicketArticle(default!);
+        await _planner.DidNotReceiveWithAnyArgs().PlanAgentReplyAsync(default!, default!, default!, default, default!, Ct);
+    }
+
+    [Fact]
+    public async Task An_article_of_another_product_is_not_linkable_but_the_tickets_own_product_and_shared_articles_are()
+    {
+        var other = GivenArticle("other", productId: Guid.NewGuid());
+        var own = GivenArticle("own", productId: _ticket.ProductId, categoryProductId: _ticket.ProductId);
+        var shared = GivenArticle("shared");
+
+        var refused = await Reply(Request(articles: [shared.Id, other.Id]));
+        var accepted = await Reply(Request(articles: [own.Id, shared.Id]));
+
+        refused.Errors.ShouldHaveSingleItem().Code.ShouldBe("kb-article-not-linkable");
+        accepted.IsSuccess.ShouldBeTrue();
+        accepted.Value.Message.LinkedArticles.Select(a => a.Slug).ShouldBe(["own", "shared"]);
+    }
+
+    [Fact]
+    public async Task An_article_with_no_category_or_a_category_of_another_product_cannot_get_a_portal_link_so_it_is_not_linkable()
+    {
+        var uncategorised = GivenArticle("bare", withCategory: false);
+        var misfiled = GivenArticle("misfiled", categoryProductId: Guid.NewGuid());
+
+        (await Reply(Request(articles: [uncategorised.Id]))).Errors.ShouldHaveSingleItem().Code.ShouldBe("kb-article-not-linkable");
+        (await Reply(Request(articles: [misfiled.Id]))).Errors.ShouldHaveSingleItem().Code.ShouldBe("kb-article-not-linkable");
+    }
+
+    [Fact]
+    public async Task The_planner_gets_each_linked_articles_title_category_and_slug_in_the_order_given()
+    {
+        var first = GivenArticle("first");
+        var second = GivenArticle("second");
+
+        var result = await Reply(Request(articles: [second.Id, first.Id]));
+
+        result.IsSuccess.ShouldBeTrue();
+        await _planner.Received(1).PlanAgentReplyAsync(
+            _ticket, Arg.Any<Message>(), _sam, false,
+            Arg.Is<IReadOnlyList<ReplyArticleLink>>(links => links.SequenceEqual(new[]
+            {
+                new ReplyArticleLink("Reset your password", "account", "second", second.Id),
+                new ReplyArticleLink("Reset your password", "account", "first", first.Id),
+            })),
+            Ct);
     }
 
     [Fact]
@@ -371,7 +439,7 @@ public sealed class AddAgentReplyRequestHandlerTests
     [Fact]
     public async Task An_exception_after_saving_deletes_the_stored_attachments_and_rethrows()
     {
-        _planner.PlanAgentReplyAsync(default!, default!, default!, default, Ct).ThrowsAsyncForAnyArgs(new InvalidOperationException("boom"));
+        _planner.PlanAgentReplyAsync(default!, default!, default!, default, default!, Ct).ThrowsAsyncForAnyArgs(new InvalidOperationException("boom"));
 
         await Should.ThrowAsync<InvalidOperationException>(() => Reply(Request(), [Png()]));
 
@@ -386,7 +454,7 @@ public sealed class AddAgentReplyRequestHandlerTests
         var result = await Reply(Request());
 
         result.IsSuccess.ShouldBeTrue();
-        await _planner.Received(1).PlanAgentReplyAsync(_ticket, Arg.Any<Message>(), _sam, false, Ct);
+        await _planner.Received(1).PlanAgentReplyAsync(_ticket, Arg.Any<Message>(), _sam, false, Arg.Any<IReadOnlyList<ReplyArticleLink>>(), Ct);
         _tickets.Received(1).Update(_ticket);
     }
 
@@ -405,6 +473,6 @@ public sealed class AddAgentReplyRequestHandlerTests
         await _tickets.Received().GetStateAsync(_ticket.Id, CancellationToken.None);
         await _kb.Received().GetArticleAsync(article.Id, token);
         await _store.Received().SaveAsync(_ticket.Id, Arg.Any<IncomingAttachment>(), token);
-        await _planner.Received().PlanAgentReplyAsync(_ticket, Arg.Any<Message>(), _sam, false, token);
+        await _planner.Received().PlanAgentReplyAsync(_ticket, Arg.Any<Message>(), _sam, false, Arg.Any<IReadOnlyList<ReplyArticleLink>>(), token);
     }
 }

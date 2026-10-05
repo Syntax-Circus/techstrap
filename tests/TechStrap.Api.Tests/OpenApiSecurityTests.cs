@@ -62,6 +62,11 @@ public sealed partial class OpenApiSecurityTests
     [InlineData("/api/products", "post", "Bearer")]
     [InlineData("/api/products/{id}/api-keys", "post", "Bearer")]
     [InlineData("/api/attachments/{id}", "get", "Bearer")]
+    [InlineData("/api/kb/articles", "get", "Bearer")]
+    [InlineData("/api/kb/articles/{id}/publish", "post", "Bearer")]
+    [InlineData("/api/kb/preview", "post", "Bearer")]
+    [InlineData("/api/kb/images", "post", "Bearer")]
+    [InlineData("/api/kb/categories/{id}", "delete", "Bearer")]
     [InlineData("/api/intake/tickets", "post", "ApiKey")]
     [InlineData("/api/customer/ticket", "get", "TicketToken")]
     [InlineData("/api/customer/ticket/replies", "post", "TicketToken")]
@@ -78,6 +83,10 @@ public sealed partial class OpenApiSecurityTests
     [InlineData("/api/customer/access-link", "post")]
     [InlineData("/api/public/products/{productKey}", "get")]
     [InlineData("/api/public/products/{productKey}/tickets", "post")]
+    [InlineData("/api/public/kb/{productKey}/search", "get")]
+    [InlineData("/api/public/kb/{productKey}/categories", "get")]
+    [InlineData("/api/public/kb/{productKey}/articles/{categorySlug}/{slug}", "get")]
+    [InlineData("/api/public/kb/{productKey}/sitemap", "get")]
     public async Task A_public_operation_names_no_scheme(string path, string method)
     {
         await using var factory = new ApiFactory();

@@ -78,6 +78,66 @@ Describe 'D-043 (scoped configuration and one image-only deploy compose)' {
     }
 }
 
+Describe 'D-044 (the knowledge base)' {
+    BeforeAll { $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md' }
+
+    It 'is in the decision log with its date, its status, a header bullet and an index row' {
+        $script:Log | Should -Match '(?m)^## D-044: PHASE-08: the knowledge base'
+        $script:Log | Should -Match '(?s)## D-044:.*?- \*\*Status:\*\* Approved \(owner 2026-10-05.*?- \*\*Date:\*\* 2026-10-05'
+        $script:Log | Should -Match '(?m)^\| D-044 \|.*\| 2026-10-05 \|'
+        $script:Log | Should -Match '(?m)^- \*\*Owner decision \(2026-10-05, PHASE-08 planning\):\*\* D-044'
+    }
+
+    It 'records the owner decisions and the technical decisions the API tasks rely on' {
+        foreach ($phrase in 'Slug uniqueness is blocked across scopes', 'TECHSTRAP_API_PUBLIC_URL', 'No audit', 'kb-publish-incomplete', 'IKbContentRenderer', 'api/public/kb/{productKey}/search', 'No render cache') {
+            $script:Log | Should -Match ([regex]::Escape($phrase))
+        }
+    }
+
+    It 'lists the as-built KB routes in PHASE-08 and the architecture, and not the old public routes' {
+        foreach ($name in 'docs/architecture/PHASE-08-knowledge-base.md', 'docs/architecture/02-ARCHITECTURE.md') {
+            $text = Get-RepoText $name
+            foreach ($route in '/api/public/kb/{productKey}/search', '/api/public/kb/{productKey}/categories', '/api/public/kb/{productKey}/articles/{categorySlug}/{slug}', '/api/public/kb/{productKey}/sitemap', '/api/kb/articles/{id}/publish') {
+                $text | Should -Match ([regex]::Escape($route)) -Because "$name lists $route"
+            }
+            $text | Should -Not -Match ([regex]::Escape('/api/public/sitemap')) -Because "$name must not list the old sitemap route"
+            $text | Should -Not -Match ([regex]::Escape('/api/public/kb/search?product=')) -Because "$name must not list the old search route"
+        }
+    }
+
+    It 'ticks every PHASE-08 task P08-T01 to P08-T20 and the Admin deliverable, and the roadmap row says the phase is complete, pending merge' {
+        $phase = Get-RepoText 'docs/architecture/PHASE-08-knowledge-base.md'
+        foreach ($number in 1..20) {
+            $id = 'P08-T{0:00}' -f $number
+            $phase | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is done"
+        }
+        $phase | Should -Match '(?m)^- \[x\] Admin KB list, editor with live preview and image upload, categories page, article picker in the reply composer\.'
+        $phase | Should -Match '(?m)^- \[x\] Reply-article linking validated and surfaced in the timeline\.'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 08 \|.*D-044.*\| PHASE-08 complete \(pending merge\)'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 08 \|.*\| PHASE-08 complete \(pending merge\)'
+        (Get-RepoText 'docs/development/ADMIN-APP.md') | Should -Match '(?m)^## Knowledge base \(08\)'
+    }
+
+    It 'describes the dev knowledge base seed and the reply link rule' {
+        (Get-RepoText 'docs/development/DEV-DATA.md') | Should -Match 'using-dark-mode'
+        $operations = Get-RepoText 'docs/development/TICKET-OPERATIONS.md'
+        $operations | Should -Match 'kb-article-not-linkable'
+        $operations | Should -Match ([regex]::Escape('/p/{product key}/kb/{category slug}/{article slug}'))
+    }
+
+    It 'tells the operator about the Api public URL and the /kb-images/ proxy route' {
+        $runbook = Get-RepoText 'docs/self-hosting/DEPLOYMENT.md'
+        $runbook | Should -Match 'TECHSTRAP_API_PUBLIC_URL'
+        $runbook | Should -Match ([regex]::Escape('/kb-images/'))
+    }
+
+    It 'documents the category description and version in the schema doc' {
+        $schema = Get-RepoText 'docs/architecture/05-SCHEMA.md'
+        $schema | Should -Match '(?s)kb_categories \{.*?text description "nullable".*?xid xmin "concurrency token".*?\}'
+        $schema | Should -Match '\| `AddKbCategoryVersionAndDescription` \|'
+    }
+}
+
 Describe 'the deployment runbook' {
     BeforeAll { $script:Runbook = Get-RepoText 'docs/self-hosting/DEPLOYMENT.md' }
 

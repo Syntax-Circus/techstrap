@@ -117,7 +117,8 @@ Interfaces live in `TechStrap.Application`; implementations in `TechStrap.Infras
 | `ITicketNotificationPlanner` | `TicketNotificationPlanner` over `IEmailOutbox` | Stages outbox template data in the caller's transaction; the Worker renders at send time (D-033). Recipient rules (PHASE-06) |
 | `IMarkdownRenderer` | Markdig renderer | Markdig, raw HTML off, always followed by `IHtmlSanitizer` (D-035) |
 | `IAttachmentStore` | Over `SyntaxCircus.Storage` | Ticket attachments: size and type checks, streams, deletion |
-| `IKbImageStore` | Over `SyntaxCircus.Storage` | KB images under the public-read `kb-images/` prefix (PHASE-08) |
+| `IKbImageStore` | Over `SyntaxCircus.Storage` | KB images under the public-read `kb-images/` prefix, served by `GET /kb-images/{name}` (PHASE-08, D-044) |
+| `IKbContentRenderer` | KB Markdig profile and sanitiser | The KB preview and the public article page share it; agent replies keep `IMarkdownRenderer` and `IHtmlSanitizer` (D-044) |
 | `IApiKeyHasher` | `ApiKeyHasher` (Infrastructure, PHASE-04) | Generate, hash, verify (constant time). `IAccessTokenService` follows in PHASE-05 |
 | `IIntakeIdempotencyStore` | EF store | `Idempotency-Key` lookups, 24 h retention (D-020) |
 | `IHtmlSanitizer` | HtmlSanitizer | D-014 |
@@ -298,22 +299,22 @@ Conventions:
 
 | Entry point/use case | Named handler | Application dependencies | Infrastructure implementations | Outcome mapping | Tests | Decision |
 | --- | --- | --- | --- | --- | --- | --- |
-| `GET /api/kb/articles` (Agent) | `ListKbArticlesRequestHandler` | `IKbRepository` | EF repos (FTS) | 200 paged `KbArticleSummaryDto` | H, C, I | D-011 |
+| `GET /api/kb/articles` (Agent) | `ListKbArticlesRequestHandler` | `IKbRepository` | EF repos (FTS) | 200 paged `KbArticleListItemDto`; 400 `status-invalid` | H, C, I | D-011 |
 | `GET /api/kb/articles/{id}` (Agent) | `GetKbArticleRequestHandler` | `IKbRepository` | EF repos | 200 `KbArticleDto` (Markdown source); 404 | H, C | none |
-| `POST /api/kb/articles` (Agent) | `CreateKbArticleRequestHandler` | `IKbRepository`, `IMarkdownRenderer` (validate), `ICurrentUserService` | EF repos, Markdig renderer | 201 `KbArticleDto`; 400; 409 duplicate slug | H, C, I | D-014 |
-| `PUT /api/kb/articles/{id}` (Agent) | `UpdateKbArticleRequestHandler` | `IKbRepository`, `IMarkdownRenderer`, `ICurrentUserService` | EF repos, Markdig renderer | 200 `KbArticleDto`; 404; 409 | H, C, I | D-014 |
-| `POST /api/kb/articles/{id}/publish` (Agent) | `PublishKbArticleRequestHandler` | `IKbRepository`, `ICurrentUserService` | EF repos | 204; 404; 409 | H, C | none |
-| `POST /api/kb/articles/{id}/archive` (Agent) | `ArchiveKbArticleRequestHandler` | `IKbRepository`, `ICurrentUserService` | EF repos | 204; 404 | H, C | none |
-| `POST /api/kb/preview` (Agent) | `RenderKbPreviewRequestHandler` | `IMarkdownRenderer`, `IHtmlSanitizer` | Markdig renderer, sanitizer | 200 `KbPreviewResponse` (sanitized HTML); 400 oversize | H, C | D-021 |
-| `POST /api/kb/images` (Agent; multipart) | `UploadKbImageRequestHandler` | `IKbImageStore`, `ICurrentUserService` | KB image store (public-read `kb-images/` prefix) | 201 `KbImageDto` (URL); 400 type or size (SVG rejected) | H, C, I | none |
+| `POST /api/kb/articles` (Agent) | `CreateKbArticleRequestHandler` | `IKbRepository`, `IProductRepository`, `ICurrentAgentClaims` | EF repos | 201 `KbArticleDto`; 400; 409 `kb-slug-taken` (slugs are unique across scopes, D-044) | H, C, I | D-044 |
+| `PUT /api/kb/articles/{id}` (Agent) | `UpdateKbArticleRequestHandler` | `IKbRepository` | EF repos | 200 `KbArticleDto` (an Archived article returns to Draft); 404; 409 `concurrency-conflict` | H, C, I | D-044 |
+| `POST /api/kb/articles/{id}/publish` (Agent) | `PublishKbArticleRequestHandler` | `IKbRepository` | EF repos | 200 `KbArticleDto`; 400 `kb-publish-incomplete`; 404; 409 | H, C | D-044 |
+| `POST /api/kb/articles/{id}/archive` (Agent) | `ArchiveKbArticleRequestHandler` | `IKbRepository` | EF repos | 200 `KbArticleDto`; 404; 409 | H, C | none |
+| `POST /api/kb/preview` (Agent) | `RenderKbPreviewRequestHandler` | `IKbContentRenderer` | KB Markdig profile, KB sanitiser | 200 `KbPreviewResponse` (sanitized HTML); 400 oversize | H, C | D-021, D-044 |
+| `POST /api/kb/images` (Agent; multipart) | `UploadKbImageRequestHandler` | `IKbImageStore`, `IKbImageUrls` | KB image store (public-read `kb-images/` prefix) | 201 `KbImageUploadResponse` (key and URL); 400 type or size (SVG rejected) | H, C, I | D-044 |
 | `GET /api/kb/categories` (Agent) | `ListKbCategoriesRequestHandler` | `IKbRepository` | EF repos | 200 `KbCategoryDto[]` | H, C | none |
 | `POST /api/kb/categories` (Agent) | `CreateKbCategoryRequestHandler` | `IKbRepository` | EF repos | 201 `KbCategoryDto`; 409 | H, C | none |
 | `PUT /api/kb/categories/{id}` (Agent) | `UpdateKbCategoryRequestHandler` | `IKbRepository` | EF repos | 200 `KbCategoryDto`; 404; 409 | H, C | none |
 | `DELETE /api/kb/categories/{id}` (Admin) | `DeleteKbCategoryRequestHandler` | `IKbRepository` | EF repos | 204; 404; 409 not empty | H, C | none |
-| `GET /api/public/kb/search?product={key}&q=&category=` (anonymous, `public` limit; also deflection) | `SearchPublicKbArticlesRequestHandler` | `IKbRepository`, `IProductRepository` | EF repos (FTS) | 200 `KbSearchResponse` with short `Cache-Control` | H, C, I | D-011 |
-| `GET /api/public/kb/articles/{product}/{slug}` (anonymous, `public` limit) | `GetPublishedKbArticleRequestHandler` | `IKbRepository`, `IMarkdownRenderer`, `IHtmlSanitizer` | EF repos, Markdig renderer, sanitizer | 200 `PublishedKbArticleDto` (sanitized HTML) with `Cache-Control: public`; 404 `no-store` | H, C, I | D-014 |
-| `GET /api/public/kb/categories?product={key}` (anonymous, `public` limit) | `ListPublicKbCategoriesRequestHandler` | `IKbRepository`, `IProductRepository` | EF repos | 200 `PublicKbCategoryDto[]` | H, C | none |
-| `GET /api/public/sitemap` (anonymous) | `GetSitemapEntriesRequestHandler` | `IKbRepository`, `IProductRepository` | EF repos | 200 `SitemapEntryDto[]` | H, C | none |
+| `GET /api/public/kb/{productKey}/search?q=&category=` (anonymous, `public` limit; also deflection) | `SearchPublicKbArticlesRequestHandler` | `IKbRepository`, `IProductRepository` | EF repos (FTS) | 200 `PagedResponse<PublicKbSearchResultDto>` with `Cache-Control: public, max-age=60` | H, C, I | D-011, D-044 |
+| `GET /api/public/kb/{productKey}/articles/{categorySlug}/{slug}` (anonymous, `public` limit) | `GetPublishedKbArticleRequestHandler` | `IKbRepository`, `IProductRepository`, `IKbContentRenderer` | EF repos, KB Markdig profile and sanitiser | 200 `PublishedKbArticleDto` (sanitized HTML) with `Cache-Control: public, max-age=60`; 404 `no-store` | H, C, I | D-014, D-044 |
+| `GET /api/public/kb/{productKey}/categories` (anonymous, `public` limit) | `ListPublicKbCategoriesRequestHandler` | `IKbRepository`, `IProductRepository` | EF repos | 200 `PublicKbCategoryDto[]` | H, C | none |
+| `GET /api/public/kb/{productKey}/sitemap` (anonymous, `public` limit) | `GetKbSitemapRequestHandler` | `IKbRepository`, `IProductRepository` | EF repos | 200 `KbSitemapEntryDto[]` | H, C | none |
 
 ### 7.5 Live updates (PHASE-10)
 

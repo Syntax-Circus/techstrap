@@ -80,9 +80,9 @@ Keep a filled env file out of the repository. A new setting is added to `appsett
 
    | File | Required | Notes |
    | --- | --- | --- |
-   | `.env.api` | `ConnectionStrings__TechStrap`, `AUTHENTICATION__JWTBEARER__AUTHORITY`, `AUTHENTICATION__JWTBEARER__AUDIENCES__0` (present and blank in the template: fill it), `TECHSTRAP_PORTAL_PUBLIC_URL` | The Api trusts the compose subnet and `REVERSE_PROXY_CIDR`. `TECHSTRAP_ADMIN_PUBLIC_URL` is optional. |
+   | `.env.api` | `ConnectionStrings__TechStrap`, `AUTHENTICATION__JWTBEARER__AUTHORITY`, `AUTHENTICATION__JWTBEARER__AUDIENCES__0` (present and blank in the template: fill it), `TECHSTRAP_PORTAL_PUBLIC_URL`, `TECHSTRAP_API_PUBLIC_URL` | The Api trusts the compose subnet and `REVERSE_PROXY_CIDR`. `TECHSTRAP_ADMIN_PUBLIC_URL` is optional. `TECHSTRAP_API_PUBLIC_URL` is the Api address as portal readers reach it (D-044): knowledge-base images load from `{url}/kb-images/{name}`, so the reverse proxy must route `/kb-images/` to the Api and the Api refuses to start without the setting. |
    | `.env.worker` | `ConnectionStrings__TechStrap`, `EMAIL__SMTP__HOST`, `EMAIL__SMTP__DEFAULTFROM` | To run without email set `EMAILOUTBOX__ENABLED=false`. Keep `TECHSTRAP_AUTOCLOSE_DAYS` equal to the Api value. |
-   | `.env.admin` | `AUTH__AUTHORITY` (https), `AUTH__CLIENTID`, `AUTH__CLIENTSECRET` | See [ADMIN-APP.md](../development/ADMIN-APP.md) and [AGENT-AUTHENTICATION.md](AGENT-AUTHENTICATION.md). The group keys must match the Api. |
+   | `.env.admin` | `AUTH__AUTHORITY` (https), `AUTH__CLIENTID`, `AUTH__CLIENTSECRET` | See [ADMIN-APP.md](../development/ADMIN-APP.md) and [AGENT-AUTHENTICATION.md](AGENT-AUTHENTICATION.md). The group keys must match the Api. Optional: `TECHSTRAP_PORTAL_PUBLIC_URL` (the same value as in `.env.api`), which turns on the "View on portal" link of a published article; blank hides the link. A public URL with a path prefix needs the reverse proxy to strip that prefix before it reaches the portal. |
    | `.env.portal` | none yet | PHASE-09 adds the Api address and the public URL. |
 
    Set `ALLOWEDHOSTS` in each file to the real public host names if you want host filtering (keep the health-probe hosts `localhost`). Sentry and OpenTelemetry are optional and disabled by default; their DSN and OTLP headers are secrets.

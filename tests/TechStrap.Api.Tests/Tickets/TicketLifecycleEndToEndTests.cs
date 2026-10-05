@@ -81,12 +81,14 @@ public sealed class TicketLifecycleEndToEndTests(TestPostgres postgres) : IDispo
             var provider = scope.ServiceProvider;
             var clock = provider.GetRequiredService<TimeProvider>();
             var tag = Tag.Create("billing", "Billing", "#DC2626", clock).Value;
-            var article = KbArticle.Create(null, null, "reset-password", "Reset your password", null, "Steps.", me.Id, clock).Value;
+            var category = KbCategory.Create(null, "general", "General", 1, clock).Value;
+            var article = KbArticle.Create(null, category.Id, "reset-password", "Reset your password", null, "Steps.", me.Id, clock).Value;
             article.Publish(clock).IsSuccess.ShouldBeTrue();
             tagId = tag.Id;
             articleId = article.Id;
             await using var work = await provider.GetRequiredService<IUnitOfWork>().BeginAsync(Ct);
             provider.GetRequiredService<ITagRepository>().Add(tag);
+            provider.GetRequiredService<IKbRepository>().AddCategory(category);
             provider.GetRequiredService<IKbRepository>().AddArticle(article);
             (await work.CommitAsync(Ct)).IsSuccess.ShouldBeTrue();
         }

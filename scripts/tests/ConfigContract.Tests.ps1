@@ -40,9 +40,9 @@ BeforeAll {
     # value fails binding ("Failed to convert configuration value '' to type Int32"); the nullable settings TlsMode and TotalSendTimeout bind a blank as null.
     $script:CommonBlank = @('SENTRY__DSN', 'SENTRY__ENVIRONMENT', 'OPENTELEMETRY__OTLPENDPOINT', 'OPENTELEMETRY__HEADERS', 'OPENTELEMETRY__SERVICENAME', 'OPENTELEMETRY__SERVICEVERSION', 'OPENTELEMETRY__ENVIRONMENT')
     $script:BlankKeys = @{
-        Api    = $script:CommonBlank + @('SECURITYHEADERS__ROBOTSTAG', 'CONNECTIONSTRINGS__TECHSTRAP', 'AUTHENTICATION__JWTBEARER__AUTHORITY', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TECHSTRAP_ADMIN_PUBLIC_URL', 'STORAGE__LOCAL__ROOTPATH')
+        Api    = $script:CommonBlank + @('SECURITYHEADERS__ROBOTSTAG', 'CONNECTIONSTRINGS__TECHSTRAP', 'AUTHENTICATION__JWTBEARER__AUTHORITY', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TECHSTRAP_API_PUBLIC_URL', 'TECHSTRAP_ADMIN_PUBLIC_URL', 'STORAGE__LOCAL__ROOTPATH')
         Worker = $script:CommonBlank + @('CONNECTIONSTRINGS__TECHSTRAP', 'EMAIL__SMTP__HOST', 'EMAIL__SMTP__USERNAME', 'EMAIL__SMTP__PASSWORD', 'EMAIL__SMTP__DEFAULTFROM', 'EMAIL__SMTP__TLSMODE', 'EMAIL__SMTP__TOTALSENDTIMEOUT', 'EMAILOUTBOX__WORKERID')
-        Admin  = $script:CommonBlank + @('SECURITYHEADERS__ROBOTSTAG', 'API__BASEURL', 'AUTH__AUTHORITY', 'AUTH__CLIENTID', 'AUTH__CLIENTSECRET', 'DATAPROTECTION__KEYRINGPATH')
+        Admin  = $script:CommonBlank + @('SECURITYHEADERS__ROBOTSTAG', 'API__BASEURL', 'AUTH__AUTHORITY', 'AUTH__CLIENTID', 'AUTH__CLIENTSECRET', 'DATAPROTECTION__KEYRINGPATH', 'TECHSTRAP_PORTAL_PUBLIC_URL')
         Portal = $script:CommonBlank + @('SECURITYHEADERS__ROBOTSTAG', 'DATAPROTECTION__KEYRINGPATH')
     }
     # A key containing one of these words is secret-shaped: its committed value must be blank, whatever the value looks like (a numeric password is still a password).
@@ -339,10 +339,15 @@ Describe 'the config contract of the local compose' {
         }
     }
 
+    It 'the local compose gives the Api a browser-reachable public URL (KB image links built from an upload over http://api/ would not load)' {
+        (Get-ComposeEnvironmentKeys -File 'docker-compose.yml')['api'] | Should -Contain 'TECHSTRAP_API_PUBLIC_URL'
+        (Get-Content -LiteralPath (Join-Path $script:RepoRoot 'docker-compose.yml') -Raw) | Should -Match 'TECHSTRAP_API_PUBLIC_URL: http://localhost:8080'
+    }
+
     It 'the local compose no longer overrides the Admin sign-in or the group keys (the clash between .env.local and compose is gone)' {
         $admin = (Get-ComposeEnvironmentKeys -File 'docker-compose.yml')['admin']
         @($admin | Where-Object { $_ -like 'AUTH__*' -or $_ -like 'TECHSTRAP_*GROUP*' -or $_ -like 'TECHSTRAP_GROUP_CLAIM_TYPE' }) | Should -BeNullOrEmpty
-        @($admin | Sort-Object) | Should -Be @('API__BASEURL', 'ASPNETCORE_ENVIRONMENT', 'DATAPROTECTION__KEYRINGPATH', 'TRUSTEDPROXY__TRUSTEDNETWORKS__0')
+        @($admin | Sort-Object) | Should -Be @('API__BASEURL', 'ASPNETCORE_ENVIRONMENT', 'DATAPROTECTION__KEYRINGPATH', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TRUSTEDPROXY__TRUSTEDNETWORKS__0')
     }
 
     It 'the root .env.example documents the local compose inputs and nothing else' {

@@ -9,6 +9,7 @@
         <button @ref="_toggle" type="button" class="ts-rail-toggle" aria-expanded="@(_railOpen ? "true" : "false")" aria-controls="@PanelId" @onclick="ToggleRail">@ShellCopy.MenuToggle</button>
         <div @ref="_panel" id="@PanelId" class="ts-rail-panel" data-open="@(_railOpen ? "true" : "false")">
             <RailLink Href="/queue">@ShellCopy.QueueLink</RailLink>
+            <RailLink Href="/kb">@ShellCopy.KbLink</RailLink>
             @if (Session.IsAdmin)
             {
                 <div class="ts-rail-group" role="group" aria-label="@ShellCopy.AdminLinksLabel">

@@ -25,6 +25,10 @@ public static class DomainLimits
     public const int KbTitleMaxLength = 200;
     public const int KbSummaryMaxLength = 500;
     public const int KbBodyMaxLength = 200_000;
+    public const int KbCategoryDescriptionMaxLength = 300;
+
+    /// <summary>The category slug the portal uses for KB search (<c>/p/{key}/kb/search</c>), so no category may take it (D-044).</summary>
+    public const string KbReservedCategorySlug = "search";
     public const int KeyPrefixMinLength = 4;
     public const int KeyPrefixMaxLength = 16;
     public const int HashMaxLength = 200;

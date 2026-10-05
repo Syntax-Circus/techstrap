@@ -104,6 +104,16 @@ builder.Services.AddTechStrapTicketOperations(builder.Configuration);
 builder.Services.AddResultProblemDetails();
 builder.Services.AddApplicationHandlers();
 
+// KB images (D-044): the Api's own public address builds each image URL. Required outside Development; blank there means the request origin.
+builder.Services.AddOptions<ApiPublicUrlOptions>()
+    .Configure<IConfiguration>((options, configuration) => options.PublicUrl = configuration[ApiPublicUrlOptions.Key]?.Trim() ?? string.Empty)
+    .Validate<IHostEnvironment>(
+        (options, environment) => ApiPublicUrlOptions.IsAcceptable(options.PublicUrl, environment.IsDevelopment()),
+        $"{ApiPublicUrlOptions.Key} must be an absolute http or https URL without user info, query or fragment (it is required outside Development).")
+    .ValidateOnStart();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<TechStrap.Application.Knowledge.IKbImageUrls, KbImageUrls>();
+
 var app = builder.Build();
 telemetry.LogStartupWarning(app.Logger);
 
@@ -111,10 +121,12 @@ await ApiStartupTasks.RunAsync(app.Services, app.Environment, app.Configuration)
 
 app.UseForwardedHeaders();
 app.UseCorrelationId();
-// Every customer response (200, uniform 404, 429 from the limiter) is uncacheable. Registered before UseRateLimiter so the 429 is covered.
+// Every customer response (200, uniform 404, 429 from the limiter) and every agent KB response (drafts, Markdown) is uncacheable. Registered before UseRateLimiter so the 429 is covered.
+// "/api/kb" does not match "/api/public/kb" (public caching) and "/kb-images" keeps its immutable cache.
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/api/customer", StringComparison.OrdinalIgnoreCase))
+    if (context.Request.Path.StartsWithSegments("/api/customer", StringComparison.OrdinalIgnoreCase)
+        || context.Request.Path.StartsWithSegments("/api/kb", StringComparison.OrdinalIgnoreCase))
     {
         context.Response.OnStarting(() =>
         {
@@ -152,6 +164,7 @@ app.MapGroup(string.Empty).AllowAnonymous().MapStandardHealthChecks();
 app.MapOpenApi().AllowAnonymous().RequireRateLimiting(PublicRateLimitOptions.PolicyName);
 
 app.MapControllers();
+app.MapKbImages();
 
 app.Run();
 

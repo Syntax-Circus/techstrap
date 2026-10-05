@@ -155,7 +155,9 @@ Describe 'the local docker-compose.yml' -Skip:(-not $script:DockerAvailable) {
     It 'local compose leaves the Admin sign-in and the group keys to .env.local and appsettings.Development.json, so the two no longer clash' {
         $admin = (Get-ComposeConfig -File 'docker-compose.yml').Config.services.admin
         $names = @($admin.environment.PSObject.Properties.Name)
-        @($names | Where-Object { $_ -like 'Auth__*' -or $_ -like 'TECHSTRAP_*' }) | Should -BeNullOrEmpty
+        # The one TECHSTRAP_ key is the portal's local address, for the "View on portal" link (the portal is published on 8082).
+        @($names | Where-Object { $_ -like 'Auth__*' -or ($_ -like 'TECHSTRAP_*' -and $_ -ne 'TECHSTRAP_PORTAL_PUBLIC_URL') }) | Should -BeNullOrEmpty
+        $admin.environment.TECHSTRAP_PORTAL_PUBLIC_URL | Should -Be 'http://localhost:8082'
         $admin.environment.Api__BaseUrl | Should -Be 'http://api/'
     }
 }

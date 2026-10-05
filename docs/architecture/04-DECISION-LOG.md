@@ -17,6 +17,7 @@ Approval basis:
 - **Owner decision (2026-10-04, PHASE-07b planning):** D-041, the owner decisions on read-only roles in the Admin, the logo URL field, the tag ticket count and the single PR. Its technical decisions were proposed in the PHASE-07b plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-04, PHASE-07c planning):** D-042, the owner decisions on the CSP, the theme flash, the time zone source, the shared host wiring and the single PR. Its defaults were proposed in the PHASE-07c plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-05, scoped configuration and deployment, before PHASE-08):** D-043, the owner decisions on one image-only deploy compose, scoped env files on the host, a separate Postgres and explicit image tags. Its technical decisions were proposed in the plan and approved when the owner approved the plan.
+- **Owner decision (2026-10-05, PHASE-08 planning):** D-044, the owner decisions on slugs across scopes, the image URL setting, no KB audit and the single PR. Its defaults and technical decisions were proposed in the PHASE-08 plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -69,6 +70,7 @@ Approval basis:
 | D-041 | PHASE-07b: roles are read-only in the Admin; the product logo is a validated URL; the tag list shows ticket counts; Admin guard, browser preferences and client decisions | Approved (owner 2026-10-04; technical decisions at PHASE-07b plan review) | 2026-10-04 | PHASE-07, PHASE-08, PHASE-12 |
 | D-042 | PHASE-07c: CSP with `style-src-attr`, theme init script, browser time zone, shared host wiring, command palette, responsive rail, session-expired banner, Sentry search scrub, OpenAPI security schemes | Approved (owner 2026-10-04; defaults at PHASE-07c plan review) | 2026-10-04 | PHASE-07, PHASE-09, PHASE-11, PHASE-12 |
 | D-043 | Scoped per-project configuration (every key in `appsettings.json`, a `.env.example` and a deploy env template per host) and one image-only deploy compose for UAT and production, with a separate Postgres | Approved (owner 2026-10-05; technical decisions at plan review) | 2026-10-05 | PHASE-12, PHASE-08, PHASE-09 |
+| D-044 | PHASE-08: slugs unique across scopes, a separate KB Markdown profile, image URLs from `TECHSTRAP_API_PUBLIC_URL`, 400 outcomes for publish and image errors, public routes with the product key, reply-link validation and email links | Approved (owner 2026-10-05; defaults at PHASE-08 plan review) | 2026-10-05 | PHASE-08, PHASE-09, PHASE-12 |
 
 ---
 
@@ -1554,4 +1556,71 @@ PHASE-07 is merged. Before PHASE-08 (the knowledge base) the owner wants TechStr
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, scoped configuration and deploy compose planning)
+- **Approved on:** 2026-10-05
+
+---
+
+## D-044: PHASE-08: the knowledge base (scope, slugs, Markdown profile, images, public API, reply links)
+
+- **Status:** Approved (owner 2026-10-05; defaults at PHASE-08 plan review)
+- **Date:** 2026-10-05
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-011, D-014, D-017, D-021, D-026, D-027, D-035, D-043, `docs/architecture/PHASE-08-knowledge-base.md`, `docs/architecture/UX-BRIEF-admin.md`, `docs/architecture/PHASE-09-public-portal.md`, `docs/superpowers/plans/2026-10-05-phase-08-knowledge-base.md`
+
+### Context
+PHASE-03 already delivered the KB tables, the unique `(product_id, slug)` indexes, the weighted `search_vector` and the dev seed, and PHASE-06a delivered `IMarkdownRenderer` and `IHtmlSanitizer`. Reading the code before PHASE-08 found these gaps:
+- **Domain.** An Archived article could not be edited, `Publish` validated nothing, and `KbCategory` had no concurrency version.
+- **Markdown.** The sanitiser allow-list had no `img` or table tags, and Markdig had no pipe tables. The same sanitiser renders agent replies that customers read in email and in the portal.
+- **API.** There were no KB handlers or controllers, no image store, no public image route, no setting for the API's own public address, no `ts_headline` snippet and no cache headers.
+- **Reply links.** The reply handler only checked that a linked article exists, and the customer email carried no article links.
+- **Slugs.** The database lets a product article and a shared article use the same slug, so `/p/{key}/kb/{category}/{slug}` could be ambiguous.
+
+### Decision
+**Owner decisions (2026-10-05)**
+- **Slug uniqueness is blocked across scopes.** A product article cannot reuse a shared article's slug, and a shared article cannot reuse any product's slug. It is one extra repository check on create; there is no index change.
+- **Image URLs.** A new setting `TECHSTRAP_API_PUBLIC_URL`; images live at `https://<api public host>/kb-images/<key>`. It is blank in Development (the request's own origin is used) and required in Production. The owner's reverse proxy exposes `/kb-images/` publicly.
+- **No audit.** KB changes stay out of the audit log in this phase; articles carry an author and timestamps.
+- **Delivery.** One PR.
+
+**Defaults (proposed in the plan; approved when the owner approves it)**
+- **Scope model.** An article with a null `ProductId` is shared. `ProductId` and `Slug` are immutable after create. Categories are single-level and either product-scoped or shared; a shared article may use only a shared category. The category slug `search` is reserved (the portal's `/p/{key}/kb/search` page).
+- **Lifecycle.** Draft, then Published, then Archived. Updating an Archived article returns it to Draft. Edits to a Published article are live immediately. There is no revision history and no hard delete.
+- **Publish validation.** Title, slug, body and category must all be set. A failure is a 400 with the code `kb-publish-incomplete` and the missing field as the target.
+- **Roles.** Agents manage articles, previews, images, and category create and update. Category delete is Admin only and is refused with a 409 while the category holds articles.
+- **Markdown.** Raw HTML stays off. The knowledge base gets its own content profile: pipe tables, `img` (http and https only, with `alt`) and the table tags. Agent replies keep the existing pipeline unchanged.
+- **Images.** 5 MB limit; png, jpeg, gif and webp only, recognised by their first bytes; SVG is rejected. The key is `kb-images/{guid}.{ext}`. The first 1024 bytes are scanned (case-insensitively) for markup such as `<script` and `<svg`; the scan is a leading-window speed bump only, because it covers what a browser content-sniffs and a whole-file scan refuses about 1.25% of genuine high-entropy 5 MB images. The real defences are the sniffed `image/*` type, `nosniff`, the sandbox CSP and the Api origin. There is no rate limit on `/kb-images`; rely on the reverse proxy or CDN, because per-IP limits would break image-heavy pages. There is no database row and no orphan cleanup. They are served anonymously with `nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cache-Control: public, max-age=31536000, immutable`.
+- **Public API.** Anonymous, with the existing `Public` rate limiter. `Cache-Control: public, max-age=60` on a hit and `no-store` on a 404; the sitemap uses `max-age=300`. Search uses `websearch_to_tsquery` and `ts_rank`, page size 10, at most 25. The snippet comes from `ts_headline` over the summary and is PLAIN TEXT (no highlight markup; `ts_headline` does not sanitise, so it can still hold characters such as `<`). Public DTO text fields are plain text; only `PublishedKbArticleDto.Html` is HTML; PHASE-09 must encode every text field it shows. Route and query values (product key, category slug, article slug) must have the slug shape and search text has control characters and unpaired surrogates removed, so a NUL or a lone surrogate never reaches the database or the UTF-8 encoder. An unknown or inactive product returns an empty result. An article lookup checks the product's own scope first, then the shared one. The DTOs carry no author and no ids of unpublished items.
+- **Reply linking.** At most 10 links. Each article must be Published and either shared or in the ticket's product. The customer email lists links of the form `{PortalPublicUrl}/p/{key}/kb/{category}/{slug}`. The Admin picker offers Published articles only.
+- **Admin.** A rail link "Knowledge base" for every agent and the palette command `go-kb`. Routes `/kb`, `/kb/new`, `/kb/{id}` and `/kb/categories`. A toolbar with bold, italic, link, list, code and image. A live preview with a 300 ms debounce through one sanitised preview pane, which is the one new `MarkupString` site. Image upload uses the file picker and appends the snippet (no caret insertion, paste or drag-and-drop yet). `NavigationLock` guards unsaved changes, a 409 keeps the draft and shows a banner, and `ConfirmDialog` guards archive and category delete.
+- **Config (D-043).** `TECHSTRAP_API_PUBLIC_URL` goes through the four D-043 edits for the Api. An optional Admin setting `TECHSTRAP_PORTAL_PUBLIC_URL`, blank by default, powers a "View on portal" link that hides when it is unset.
+- **Seed.** One Paperplane category and one published Paperplane article.
+
+**Technical decisions (proposed in the plan; approved when the owner approves it)**
+- **A separate KB content profile, not a wider shared sanitiser.** `IKbContentRenderer` (Markdig with pipe tables, then a KB sanitiser) serves the preview and the public article. `IMarkdownRenderer` and `IHtmlSanitizer` are untouched, so a tracking image or a table in an agent reply is still removed. A corpus test pins that the message pipeline output is unchanged. Both profiles keep raw HTML off.
+- **No `422`, `415` or `413` from a handler.** `Result` has no such kinds, so an incomplete publish, a wrong image type and an oversize image inside the request limit are 400 with their own codes (`kb-publish-incomplete`, `kb-image-type-not-allowed`, `kb-image-too-large`). A body beyond the request limit is still stopped by Kestrel as 413.
+- **Cross-scope slugs for categories too.** The same rule applies to category slugs (`kb-category-slug-taken`), so a category address is never ambiguous. The `search` slug is `kb-category-reserved-slug`.
+- **A category gets a description and a version.** `kb_categories` gains a nullable `description` (300 characters) and the `xmin` concurrency token, in one generated migration. An update with a stale version is a 409 `concurrency-conflict`.
+- **Public routes carry the product key.** `GET api/public/kb/{productKey}/search`, `/categories`, `/articles/{categorySlug}/{slug}` and `/sitemap`, plus `GET kb-images/{key}` at the root of the Api. The article route carries the category slug because the portal URL does.
+- **Archiving hides, editing reopens.** Archive keeps the row and its first publication date. Publishing an Archived article goes straight to Published, subject to the publish validation.
+- **No render cache.** The article is rendered on each read; a cache is added only if a measurement asks for one.
+- **A render complexity cap.** The sanitiser is roughly quadratic in element count and pipe tables turn each character into about two elements (measured: a 200,000-character table took 152 s). `KbLimits.MaxRenderedElements` is 5,000 blocks plus inlines, counted after a Markdig parse in one linear pass (`IKbContentRenderer.IsTooComplex`). The preview, and article create, update and publish (Task 3), refuse a body over the cap with a 400 `kb-body-too-complex` (target `body`), so it is never stored. `Render` never sanitises an over-cap body: it returns the text HTML-encoded in one paragraph, so a public read cannot be made expensive.
+
+### Alternatives Considered
+- **Widen the shared sanitiser.** Rejected: agent replies reach customers by email and in the portal, so a widened list would let a reply carry a tracking image or a table.
+- **Per-scope slugs with the product winning at read time.** Rejected by the owner: a shared article could be hidden silently.
+- **Relative `/kb-images/<key>` served on the portal origin.** Rejected by the owner: it needs a proxy route or a new Portal adapter that PHASE-09 does not plan.
+- **Audit publish, archive and category changes.** Rejected for this phase (owner).
+- **Return `422` for an incomplete publish.** Rejected: `Result` cannot produce it, and the Admin already maps 400 to field errors.
+
+### Consequences
+- **The API needs one new setting in Production.** `TECHSTRAP_API_PUBLIC_URL` is required; the Api refuses to start without it. The owner must route `/kb-images/` through the reverse proxy.
+- **Existing tests that published a category-less article now need a category.** Publishing validates it.
+- **Two concurrent creates of one slug in different scopes can both succeed.** The unique index separates the scopes, so only the create-time check blocks a cross-scope duplicate; the owner accepts this narrow race.
+- **Images may point at any http or https address.** That includes internal-network hosts and mixed-content `http://` sources. A KB article is written by agents only, so this is part of the accepted tracking-pixel risk; the sanitiser adds `referrerpolicy="no-referrer"` and `loading="lazy"`.
+- **Public DTO text is plain text.** The portal must HTML-encode the search snippet, titles and names; only the article `Html` is markup that is already safe.
+- **Still open (owner):** the reverse proxy route for `/kb-images/`, and checking an uploaded image loads from the API public URL.
+- **Admin as built.** Publish and archive send the loaded version, so publishing text another agent has changed is a 409. A write whose answer is lost is held until a reload, except a picture upload, which changes no article until its address is added, so the agent just picks it again. The picker is behind a button and searches only Published articles of the ticket's product and the shared ones. "View on portal" is built from the Admin's own optional `TECHSTRAP_PORTAL_PUBLIC_URL` (the same key and four edits as the Api's; blank hides the link) and uses the first active product by name for a shared article. The Admin CSP needed no change: its Development `img-src` already allows loopback on any port and Production allows https.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-08 planning)
 - **Approved on:** 2026-10-05

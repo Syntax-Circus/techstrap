@@ -1,0 +1,15 @@
+@* The status in words first (never colour alone); the border style only repeats it. A status the Admin does not know is shown as the API sent it, as a plain pill. *@
+<span class="@CssClass" data-status="@Status">@Status</span>
+
+@code {
+    /// <summary>One of the article statuses of the API: Draft, Published or Archived.</summary>
+    [Parameter, EditorRequired]
+    public string Status { get; set; } = string.Empty;
+
+    private string CssClass => Status switch
+    {
+        KbArticleStatuses.Published => "ts-pill ts-pill--on",
+        KbArticleStatuses.Archived => "ts-pill ts-pill--off",
+        _ => "ts-pill",
+    };
+}

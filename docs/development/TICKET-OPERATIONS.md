@@ -48,7 +48,10 @@ Spam tickets appear only in the `spam` view.
 ## Reply and note
 
 A reply is multipart so files can travel with it. The body is Markdown, rendered and sanitised on the server.
-`statusAfter` is empty or `Pending` (the default) or `Solved` ("send and solve"). `linkedArticleIds` may repeat.
+`statusAfter` is empty or `Pending` (the default) or `Solved` ("send and solve"). `linkedArticleIds` may repeat (at most 10).
+Each linked article must be Published and either shared or in the ticket's product, and it must have a category; anything else is a 400
+`kb-article-not-linkable` and nothing is stored or emailed (D-044). The customer email lists each one as
+`{TECHSTRAP_PORTAL_PUBLIC_URL}/p/{product key}/kb/{category slug}/{article slug}`.
 
 ```bash
 curl -s -H "$AUTH" -X POST "$API/api/tickets/$ID/replies" \

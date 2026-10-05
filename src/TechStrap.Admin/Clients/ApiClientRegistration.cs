@@ -63,6 +63,7 @@ public static class ApiClientRegistration
         services.AddScoped<IRequestersClient, RequestersClient>();
         services.AddScoped<IAdminEventsClient, AdminEventsClient>();
         services.AddScoped<IDeadLettersClient, DeadLettersClient>();
+        services.AddScoped<IKbClient, KbClient>();
         services.AddScoped<AgentSession>();
         return services;
     }

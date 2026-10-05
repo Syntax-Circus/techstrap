@@ -1,0 +1,179 @@
+@page "/kb/new"
+@page "/kb/{Id:guid}"
+@attribute [Authorize]
+
+<PageTitle>@Heading &middot; @KbCopy.Heading</PageTitle>
+<NavigationLock OnBeforeInternalNavigation="OnBeforeNavigationAsync" ConfirmExternalNavigation="@IsDirty" />
+<div class="ts-settings ts-kb-editor">
+    <p class="ts-settings-back"><a href="/kb">&larr; @KbEditorCopy.BackToList</a></p>
+    <h1>@Heading</h1>
+
+    @if (_loading)
+    {
+        <LoadingState Rows="8" Label="@KbEditorCopy.Loading" />
+    }
+    else if (_gone)
+    {
+        <ErrorState Message="@KbEditorCopy.Gone" />
+    }
+    else if (_loadError is not null)
+    {
+        <ErrorState Message="@_loadError" OnRetry="LoadAsync" />
+    }
+    else
+    {
+        <div class="ts-kb-status">
+            @if (!_creating)
+            {
+                <KbStatusBadge Status="@_model.Status" />
+            }
+            @if (PortalUrl is { } portalUrl)
+            {
+                <a class="ts-kb-portal-link" href="@portalUrl" target="_blank" rel="noopener noreferrer">@KbEditorCopy.ViewOnPortal</a>
+            }
+            @if (IsDirty && !_creating)
+            {
+                <span class="ts-dirty" role="status">@KbEditorCopy.Unsaved</span>
+            }
+        </div>
+
+        @if (_conflict)
+        {
+            <div class="ts-conflict" role="alert">
+                <p><strong>@KbEditorCopy.ConflictTitle</strong> @KbEditorCopy.ConflictKept</p>
+                <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="AskReload">@KbEditorCopy.Reload</button>
+            </div>
+        }
+        @if (_uncertainNote is not null)
+        {
+            <div class="ts-conflict" role="alert">
+                <p>@_uncertainNote</p>
+                @if (_creating)
+                {
+                    <a href="/kb">@KbEditorCopy.OpenList</a>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="AskReload">@KbEditorCopy.Reload</button>
+                }
+            </div>
+        }
+        @if (_formError is not null)
+        {
+            <p class="ts-form-error" role="alert">@_formError</p>
+        }
+
+        <form class="ts-form ts-kb-form" novalidate @onsubmit="SaveAsync">
+            <fieldset disabled="@_busy">
+                @if (_creating)
+                {
+                    <div class="ts-field">
+                        <label for="ts-kb-product" class="form-label">@KbEditorCopy.ProductLabel</label>
+                        <select id="ts-kb-product" class="form-select" aria-describedby="ts-kb-product-help" @onchange="OnProductChanged">
+                            <option value="" selected="@(_model.ProductId is null)">@KbEditorCopy.SharedOption</option>
+                            @foreach (var product in _lookups.Products)
+                            {
+                                <option value="@product.Id" selected="@(_model.ProductId == product.Id)">@product.Name</option>
+                            }
+                        </select>
+                        <p id="ts-kb-product-help" class="ts-field-help">@KbEditorCopy.ProductHelp</p>
+                    </div>
+                }
+                else
+                {
+                    <dl class="ts-readonly">
+                        <dt>@KbEditorCopy.ProductLabel</dt>
+                        <dd>@_lookups.ProductName(_model.ProductId)</dd>
+                        <dt>@KbEditorCopy.SlugLabel</dt>
+                        <dd><code>@_model.Slug</code></dd>
+                    </dl>
+                }
+
+                <div class="ts-field">
+                    <label for="ts-kb-category" class="form-label">@KbEditorCopy.CategoryLabel</label>
+                    <select id="ts-kb-category" class="form-select @(_errors.ContainsKey(ApiFields.Category) ? "is-invalid" : null)" aria-describedby="ts-kb-category-help" @onchange="OnCategoryChanged">
+                        <option value="" selected="@(_model.CategoryId is null)">@KbEditorCopy.NoCategoryOption</option>
+                        @foreach (var category in _lookups.CategoriesFor(_model.ProductId))
+                        {
+                            <option value="@category.Id" selected="@(_model.CategoryId == category.Id)">@category.Name</option>
+                        }
+                    </select>
+                    <p id="ts-kb-category-help" class="ts-field-help">@KbEditorCopy.CategoryHelp</p>
+                    @if (_errors.TryGetValue(ApiFields.Category, out var categoryError))
+                    {
+                        <p class="ts-field-error" role="alert">@categoryError</p>
+                    }
+                </div>
+
+                @Field("ts-kb-title", KbEditorCopy.TitleLabel, ApiFields.Title, _model.Title, OnTitleInput)
+                @if (_creating)
+                {
+                    @Field("ts-kb-slug", KbEditorCopy.SlugLabel, ApiFields.Slug, _model.Slug, OnSlugInput, KbEditorCopy.SlugHelp)
+                }
+
+                <div class="ts-field">
+                    <label for="ts-kb-summary" class="form-label">@KbEditorCopy.SummaryLabel</label>
+                    <textarea id="ts-kb-summary" class="form-control @(_errors.ContainsKey(ApiFields.Summary) ? "is-invalid" : null)" rows="3" aria-describedby="ts-kb-summary-help"
+                              value="@_model.Summary" @oninput="OnSummaryInput" @onblur="() => CheckField(ApiFields.Summary)"></textarea>
+                    <p id="ts-kb-summary-help" class="ts-field-help">@KbEditorCopy.SummaryHelp</p>
+                    @if (_errors.TryGetValue(ApiFields.Summary, out var summaryError))
+                    {
+                        <p class="ts-field-error" role="alert">@summaryError</p>
+                    }
+                </div>
+
+                <MarkdownEditor Id="ts-kb-body" Value="@_model.Body" ValueChanged="OnBodyChanged" Disabled="_busy" ErrorMessage="@(_errors.GetValueOrDefault(ApiFields.Body))"
+                                OnBlur="() => CheckField(ApiFields.Body)" OnTooComplex="OnBodyTooComplex" OnUploadingChanged="OnUploadingChanged" UploadScope="_epoch" />
+            </fieldset>
+
+            <div class="ts-form-actions ts-kb-actions">
+                <button type="submit" class="btn btn-primary" disabled="@(!CanSave)">@(_saving ? KbEditorCopy.Saving : _creating ? KbEditorCopy.SaveNew : KbEditorCopy.Save)</button>
+                @if (!_creating && !_model.IsPublished)
+                {
+                    <button type="button" class="btn btn-outline-secondary" disabled="@(!CanPublish)" aria-describedby="ts-kb-publish-hint" @onclick="PublishAsync">@(_publishing ? KbEditorCopy.Publishing : KbEditorCopy.Publish)</button>
+                }
+                @if (!_creating && _model.Status != KbArticleStatuses.Archived)
+                {
+                    <button type="button" class="btn btn-outline-secondary" disabled="@(!CanArchive)" @onclick="AskArchive">@KbEditorCopy.Archive</button>
+                }
+            </div>
+            @if (PublishHint is { } hint)
+            {
+                <p id="ts-kb-publish-hint" class="ts-field-help">@hint</p>
+            }
+        </form>
+    }
+
+    <ConfirmDialog Open="_reloadOpen" Title="@KbEditorCopy.ReloadDiscardTitle" ConfirmLabel="@KbEditorCopy.ReloadDiscardConfirm" CancelLabel="@KbEditorCopy.ReloadDiscardStay"
+                   Danger="true" OnConfirm="ConfirmReloadAsync" OnCancel="CancelReload">
+        <p>@KbEditorCopy.ReloadDiscardBody</p>
+    </ConfirmDialog>
+
+    <ConfirmDialog Open="_archiveOpen" Title="@KbEditorCopy.ArchiveTitle" ConfirmLabel="@KbEditorCopy.ArchiveConfirm" Busy="_archiving"
+                   OnConfirm="ConfirmArchiveAsync" OnCancel="CancelArchive">
+        <p>@KbEditorCopy.ArchiveBody</p>
+    </ConfirmDialog>
+
+    <ConfirmDialog Open="@(_leaveTarget is not null)" Title="@KbEditorCopy.LeaveTitle" ConfirmLabel="@KbEditorCopy.LeaveConfirm" CancelLabel="@KbEditorCopy.LeaveStay"
+                   Danger="true" OnConfirm="LeaveAsync" OnCancel="StayAsync">
+        <p>@KbEditorCopy.LeaveBody</p>
+    </ConfirmDialog>
+</div>
+
+@code {
+    /// <summary>One labelled text input with its help text and its error; the value is bound on input and checked on blur.</summary>
+    private RenderFragment Field(string id, string label, string field, string value, Action<string> set, string? help = null) => @<div class="ts-field">
+        <label for="@id" class="form-label">@label</label>
+        <input id="@id" type="text" class="form-control @(_errors.ContainsKey(field) ? "is-invalid" : null)" value="@value" autocomplete="off" spellcheck="@(field == ApiFields.Slug ? "false" : "true")"
+               aria-invalid="@(_errors.ContainsKey(field) ? "true" : null)" aria-describedby="@(_errors.ContainsKey(field) ? $"{id}-error" : help is not null ? $"{id}-help" : null)"
+               @oninput="e => set(e.Value?.ToString() ?? string.Empty)" @onblur="() => CheckField(field)" />
+        @if (help is not null)
+        {
+            <p id="@($"{id}-help")" class="ts-field-help">@help</p>
+        }
+        @if (_errors.TryGetValue(field, out var message))
+        {
+            <p id="@($"{id}-error")" class="ts-field-error" role="alert">@message</p>
+        }
+    </div>;
+}

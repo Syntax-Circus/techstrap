@@ -6,6 +6,7 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using SyntaxCircus.Common;
 using TechStrap.Application.Email;
+using TechStrap.Application.Knowledge;
 using TechStrap.Application.Persistence;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
@@ -23,6 +24,7 @@ public sealed class DrainEmailOutboxHandlerTests
     private readonly IProductRepository _products = Substitute.For<IProductRepository>();
     private readonly IEmailTemplateRenderer _renderer = Substitute.For<IEmailTemplateRenderer>();
     private readonly ITicketRepository _tickets = Substitute.For<ITicketRepository>();
+    private readonly IKbRepository _kb = Substitute.For<IKbRepository>();
     private readonly IOutboundEmailSender _sender = Substitute.For<IOutboundEmailSender>();
     private readonly Product _product;
     private readonly DrainEmailOutboxHandler _handler;
@@ -36,7 +38,7 @@ public sealed class DrainEmailOutboxHandlerTests
         _store.MarkFailedAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
         _renderer.RenderTicketConfirmation(Arg.Any<TicketConfirmationEmail>(), Arg.Any<EmailBranding>()).Returns(Rendered);
         _sender.SendAsync(Arg.Any<OutboundEmail>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
-        _handler = new DrainEmailOutboxHandler(_store, _products, _tickets, _renderer, _sender, Options.Create(new EmailOutboxWorkerOptions()), NullLogger<DrainEmailOutboxHandler>.Instance);
+        _handler = new DrainEmailOutboxHandler(_store, _products, _tickets, _kb, _renderer, _sender, Options.Create(new EmailOutboxWorkerOptions()), NullLogger<DrainEmailOutboxHandler>.Instance);
     }
 
     private EmailOutboxItem Item(string kind = EmailTemplates.TicketConfirmation, string? payload = null, Guid? productId = null) =>
@@ -212,6 +214,97 @@ public sealed class DrainEmailOutboxHandlerTests
         _renderer.Received(1).RenderAgentReply(ReplyModel, "<p>Hello</p>", Arg.Any<EmailBranding>());
         await _store.Received(1).MarkSentAsync(item.Id, "w1", CancellationToken.None);
         result.Value.ShouldBe(new DrainResult(1, 1, 0));
+    }
+
+    private static readonly Guid ArticleA = Guid.NewGuid();
+    private static readonly Guid ArticleB = Guid.NewGuid();
+    private const string LinkA = "https://help.example/p/orbitly/kb/account/reset";
+    private const string LinkB = "https://help.example/p/orbitly/kb/general/export";
+
+    private async Task<AgentReplyEmail?> DrainReplyWithArticlesAsync(IReadOnlyList<ArticleLinkEntry> articles, params PublicKbLinkTarget[] current)
+    {
+        var item = Item(EmailTemplates.AgentReply, JsonSerializer.Serialize(ReplyModel with { Articles = articles }, JsonSerializerOptions.Web));
+        Claims(item);
+        _tickets.GetMessageAsync(MessageId, Arg.Any<CancellationToken>()).Returns(AgentMessage(MessageVisibility.Public));
+        _kb.ListPublicLinkTargetsAsync(_product.Id, Arg.Any<IReadOnlyList<Guid>>(), Arg.Any<CancellationToken>()).Returns(current);
+        AgentReplyEmail? rendered = null;
+        _renderer.RenderAgentReply(Arg.Do<AgentReplyEmail>(m => rendered = m), Arg.Any<string>(), Arg.Any<EmailBranding>()).Returns(Rendered);
+
+        await _handler.HandleAsync("w1", CancellationToken.None);
+
+        await _kb.Received(1).ListPublicLinkTargetsAsync(_product.Id, Arg.Any<IReadOnlyList<Guid>>(), Arg.Any<CancellationToken>());
+        return rendered;
+    }
+
+    [Fact]
+    public async Task Review_Focus_5_a_linked_article_that_is_still_published_at_the_same_address_is_kept_and_one_query_serves_the_email()
+    {
+        var rendered = await DrainReplyWithArticlesAsync(
+            [new ArticleLinkEntry("Reset", LinkA, ArticleA), new ArticleLinkEntry("Export", LinkB, ArticleB)],
+            new PublicKbLinkTarget(ArticleA, "account", "reset"), new PublicKbLinkTarget(ArticleB, "general", "export"));
+
+        rendered!.Articles!.Select(a => a.Url).ShouldBe([LinkA, LinkB]);
+    }
+
+    [Fact]
+    public async Task Review_Focus_5_an_article_archived_after_planning_is_dropped_at_send_time()
+    {
+        var rendered = await DrainReplyWithArticlesAsync(
+            [new ArticleLinkEntry("Reset", LinkA, ArticleA), new ArticleLinkEntry("Export", LinkB, ArticleB)],
+            new PublicKbLinkTarget(ArticleB, "general", "export"));
+
+        rendered!.Articles!.ShouldHaveSingleItem().Url.ShouldBe(LinkB);
+    }
+
+    [Fact]
+    public async Task Review_Focus_5_an_article_whose_slug_or_category_changed_is_dropped_and_an_email_with_no_links_left_renders_without_a_list()
+    {
+        var rendered = await DrainReplyWithArticlesAsync(
+            [new ArticleLinkEntry("Reset", LinkA, ArticleA), new ArticleLinkEntry("Export", LinkB, ArticleB)],
+            new PublicKbLinkTarget(ArticleA, "account", "reset-v2"), new PublicKbLinkTarget(ArticleB, "other-category", "export"));
+
+        rendered!.Articles.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Review_Focus_5_a_product_deactivated_after_planning_loses_every_link_at_send_time_and_the_knowledge_base_is_not_asked()
+    {
+        _product.SetActive(false);
+        var item = Item(EmailTemplates.AgentReply, JsonSerializer.Serialize(ReplyModel with { Articles = [new ArticleLinkEntry("Reset", LinkA, ArticleA), new ArticleLinkEntry("Old", LinkB)] }, JsonSerializerOptions.Web));
+        Claims(item);
+        _tickets.GetMessageAsync(MessageId, Arg.Any<CancellationToken>()).Returns(AgentMessage(MessageVisibility.Public));
+        AgentReplyEmail? rendered = null;
+        _renderer.RenderAgentReply(Arg.Do<AgentReplyEmail>(m => rendered = m), Arg.Any<string>(), Arg.Any<EmailBranding>()).Returns(Rendered);
+
+        await _handler.HandleAsync("w1", CancellationToken.None);
+
+        rendered.ShouldNotBeNull().Articles.ShouldBeNull();
+        await _kb.DidNotReceiveWithAnyArgs().ListPublicLinkTargetsAsync(default, default!, TestContext.Current.CancellationToken);
+        await _store.Received(1).MarkSentAsync(item.Id, "w1", CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task An_article_with_an_empty_id_is_dropped_and_never_kept_unchecked()
+    {
+        var rendered = await DrainReplyWithArticlesAsync(
+            [new ArticleLinkEntry("Nobody", LinkA, Guid.Empty), new ArticleLinkEntry("Export", LinkB, ArticleB)],
+            new PublicKbLinkTarget(ArticleB, "general", "export"));
+
+        rendered!.Articles!.ShouldHaveSingleItem().Url.ShouldBe(LinkB);
+    }
+
+    [Fact]
+    public async Task A_row_queued_before_article_ids_existed_is_rendered_as_it_is_without_asking_the_knowledge_base()
+    {
+        var item = Item(EmailTemplates.AgentReply, JsonSerializer.Serialize(ReplyModel with { Articles = [new ArticleLinkEntry("Old", LinkA)] }, JsonSerializerOptions.Web));
+        Claims(item);
+        _tickets.GetMessageAsync(MessageId, Arg.Any<CancellationToken>()).Returns(AgentMessage(MessageVisibility.Public));
+        _renderer.RenderAgentReply(Arg.Any<AgentReplyEmail>(), Arg.Any<string>(), Arg.Any<EmailBranding>()).Returns(Rendered);
+
+        await _handler.HandleAsync("w1", CancellationToken.None);
+
+        _renderer.Received(1).RenderAgentReply(Arg.Is<AgentReplyEmail>(m => m.Articles!.Single().Url == LinkA), Arg.Any<string>(), Arg.Any<EmailBranding>());
+        await _kb.DidNotReceiveWithAnyArgs().ListPublicLinkTargetsAsync(default, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]

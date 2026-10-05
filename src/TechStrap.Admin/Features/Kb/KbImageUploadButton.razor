@@ -1,0 +1,13 @@
+<div class="ts-kb-image">
+    <label for="@_inputId" class="ts-kb-image-label">@KbEditorCopy.ImageButton</label>
+    @* A new input after every pick, so the same picture can be chosen again after a failure. *@
+    <InputFile @key="_inputKey" id="@_inputId" OnChange="OnPickedAsync" accept="@Accept" disabled="@(Disabled || _uploading)" />
+    @if (_uploading)
+    {
+        <span class="ts-kb-image-status" role="status">@KbEditorCopy.ImageUploading</span>
+    }
+    @if (_error is not null)
+    {
+        <p class="ts-field-error" role="alert">@_error</p>
+    }
+</div>

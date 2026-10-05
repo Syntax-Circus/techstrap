@@ -107,6 +107,91 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
         Message.Create(seed.TicketId, AuthorType.Agent, author.Id, MessageVisibility.Public, "<p>Try again.</p>", host.Clock).Value;
 
     [Fact]
+    public async Task A_reply_with_linked_articles_puts_each_portal_link_in_the_payload_with_the_tickets_product_key_and_a_trailing_slash_does_not_double()
+    {
+        await using var host = NewHost(extra: new Dictionary<string, string?> { [PortalLinkOptions.PublicUrlKey] = "https://help.test/" });
+        var seed = await SeedAsync(host);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, (planner, ticket, sam, _) =>
+            planner.PlanAgentReplyAsync(
+                ticket, AgentMessage(host, seed, sam), sam, false,
+                [new ReplyArticleLink("Reset your password", "account", "reset-password"), new ReplyArticleLink("Shared tips", "general", "shared-tips")],
+                Ct)))).IsSuccess.ShouldBeTrue();
+
+        var payload = await TextAsync("SELECT payload::text FROM email_outbox");
+        payload.ShouldContain("https://help.test/p/orbitly/kb/account/reset-password");
+        payload.ShouldContain("https://help.test/p/orbitly/kb/general/shared-tips");
+        payload.ShouldNotContain("//p/");
+        payload.ShouldNotContain("nimbus");
+    }
+
+    [Fact]
+    public async Task Review_Focus_5_long_non_ascii_titles_are_capped_in_the_payload_and_the_ids_travel_with_the_links()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        var id = Guid.NewGuid();
+        var links = Enumerable.Range(0, 10).Select(i => new ReplyArticleLink(new string('\u00e9', 200), "account", "slug-" + i, id)).ToArray();
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, (planner, ticket, sam, _) => planner.PlanAgentReplyAsync(ticket, AgentMessage(host, seed, sam), sam, false, links, Ct))))
+            .IsSuccess.ShouldBeTrue();
+
+        var payload = await TextAsync("SELECT payload::text FROM email_outbox");
+        payload.Length.ShouldBeLessThanOrEqualTo(16_000);
+        using var json = System.Text.Json.JsonDocument.Parse(payload);
+        var articles = json.RootElement.GetProperty("articles").EnumerateArray().ToList();
+        articles.Count.ShouldBe(10);
+        articles.ShouldAllBe(a => a.GetProperty("title").GetString()!.Length == 120 && a.GetProperty("title").GetString()!.EndsWith("...") && a.GetProperty("articleId").GetGuid() == id);
+    }
+
+    [Fact]
+    public async Task A_title_cut_through_a_surrogate_pair_never_ends_in_an_unpaired_surrogate()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        // The pair sits at characters 116 and 117, so the cut at 117 would split it.
+        var title = new string('a', 116) + "\U0001F600" + new string('b', 50);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, (planner, ticket, sam, _) =>
+            planner.PlanAgentReplyAsync(ticket, AgentMessage(host, seed, sam), sam, false, [new ReplyArticleLink(title, "account", "slug", Guid.NewGuid())], Ct))))
+            .IsSuccess.ShouldBeTrue();
+
+        using var json = System.Text.Json.JsonDocument.Parse(await TextAsync("SELECT payload::text FROM email_outbox"));
+        var stored = json.RootElement.GetProperty("articles")[0].GetProperty("title").GetString()!;
+        stored.EndsWith("...").ShouldBeTrue();
+        stored.Any(char.IsSurrogate).ShouldBeFalse();
+        stored.ShouldBe(new string('a', 116) + "...");
+    }
+
+    [Fact]
+    public async Task Review_Focus_5_a_payload_that_would_still_exceed_the_outbox_cap_is_queued_without_the_article_list_never_skipped()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        var links = Enumerable.Range(0, 10).Select(i => new ReplyArticleLink(new string('\u00e9', 200), new string('a', 900), new string('b', 900) + i, Guid.NewGuid())).ToArray();
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, (planner, ticket, sam, _) => planner.PlanAgentReplyAsync(ticket, AgentMessage(host, seed, sam), sam, false, links, Ct))))
+            .IsSuccess.ShouldBeTrue();
+
+        (await TextAsync("SELECT count(*)::text FROM email_outbox WHERE kind = 'agent-reply'")).ShouldBe("1");
+        var payload = await TextAsync("SELECT payload::text FROM email_outbox");
+        payload.Length.ShouldBeLessThanOrEqualTo(16_000);
+        payload.ShouldContain("\"articles\": null");
+    }
+
+    [Fact]
+    public async Task A_reply_without_articles_queues_a_payload_with_no_article_list()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, (planner, ticket, sam, _) => planner.PlanAgentReplyAsync(ticket, AgentMessage(host, seed, sam), sam, false, [], Ct))))
+            .IsSuccess.ShouldBeTrue();
+
+        (await TextAsync("SELECT payload::text FROM email_outbox")).ShouldContain("\"articles\": null");
+    }
+
+    [Fact]
     public async Task A_reply_queues_one_branded_email_to_the_requester_with_a_fresh_link_and_the_public_name()
     {
         await using var host = NewHost();

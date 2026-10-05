@@ -1,0 +1,210 @@
+// Knowledge base (PHASE-08): the article list. Working UI like the queue: compact, no mascot. Titles and category names come from agents and wrap instead of stretching the table.
+
+.ts-kb-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ts-kb-list {
+  max-width: 1100px;
+}
+
+// The article editor. Write and Preview sit side by side from 992px; below that one is shown at a time and the Write / Preview buttons choose. Text that comes from outside (a slug, a title, the
+// article itself) wraps instead of stretching the page, and a picture can never be wider than its pane.
+.ts-kb-editor {
+  max-width: 1280px;
+}
+
+.ts-kb-form {
+  max-width: none;
+
+  .ts-field {
+    max-width: 560px;
+  }
+}
+
+.ts-kb-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  margin: 0 0 12px;
+}
+
+.ts-kb-portal-link {
+  font: 500 .75rem var(--ts-font-mono);
+}
+
+.ts-kb-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+}
+
+.ts-kb-image {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+}
+
+.ts-kb-image-label {
+  margin: 0;
+  cursor: pointer;
+  font: 600 .875rem var(--ts-font-mono);
+  text-decoration: underline;
+}
+
+.ts-kb-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.ts-kb-panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.ts-kb-pane {
+  min-width: 0;
+}
+
+.ts-kb-md[data-pane="write"] .ts-kb-pane--preview,
+.ts-kb-md[data-pane="preview"] .ts-kb-pane--write {
+  display: none;
+}
+
+@media (min-width: 992px) {
+  .ts-kb-tabs {
+    display: none;
+  }
+
+  .ts-kb-panes {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .ts-kb-md[data-pane] .ts-kb-pane {
+    display: block;
+  }
+}
+
+.ts-kb-textarea {
+  min-height: 24rem;
+  font-family: var(--ts-font-mono);
+}
+
+.ts-kb-preview {
+  min-height: 24rem;
+  padding: 8px 12px;
+  overflow-wrap: anywhere;
+  background: var(--sheet);
+  border: 2px solid var(--rule-strong);
+}
+
+.ts-kb-preview-body {
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  pre {
+    overflow-x: auto;
+  }
+
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
+.ts-kb-preview-error {
+  padding-left: 8px;
+  font-size: .8125rem;
+  border-left: 3px solid var(--st-spam);
+}
+
+.ts-kb-preview-empty {
+  color: var(--ink-2);
+}
+
+// The categories page.
+.ts-kb-categories {
+  max-width: 1100px;
+}
+
+.ts-kb-category-description {
+  display: block;
+}
+
+.ts-kb-category-order {
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-kb-category-editing input[type="number"] {
+  max-width: 8rem;
+}
+
+// The article picker and the chips of the reply composer. A chip is a title and a Remove button, never colour alone; long titles wrap.
+.ts-composer-articles {
+  margin: 8px 0;
+}
+
+.ts-kb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding: 0;
+  margin: 0 0 8px;
+  list-style: none;
+}
+
+.ts-kb-chip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  max-width: 100%;
+  padding: 1px 4px 1px 8px;
+  background: var(--sheet);
+  border: 2px solid var(--rule-strong);
+}
+
+.ts-kb-chip-title {
+  font: 500 .8125rem var(--ts-font-mono);
+  overflow-wrap: anywhere;
+}
+
+.ts-kb-picker {
+  margin-top: 8px;
+}
+
+.ts-kb-picker-results {
+  padding: 0;
+  margin: 8px 0 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    align-items: center;
+    padding: 4px 0;
+    border-top: 1px solid var(--rule-strong);
+  }
+}
+
+.ts-kb-picker-title {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ts-kb-picker-state {
+  font-size: .8125rem;
+  color: var(--ink-2);
+}

@@ -4,6 +4,9 @@ using TechStrap.Domain.Tickets;
 
 namespace TechStrap.Application.Tickets.Notifications;
 
+/// <summary>A KB article a reply links: the planner turns it into <c>{portal}/p/{product key}/kb/{category}/{slug}</c> with the ticket's own product key.</summary>
+public sealed record ReplyArticleLink(string Title, string CategorySlug, string Slug, Guid ArticleId = default);
+
 /// <summary>
 /// Decides who is emailed about an agent action and stages outbox rows (template data only, D-033) in the caller's
 /// unit of work. Never throws for an email problem: a skipped or failed notice is logged by code and the action stands.
@@ -11,6 +14,9 @@ namespace TechStrap.Application.Tickets.Notifications;
 public interface ITicketNotificationPlanner
 {
     Task PlanAgentReplyAsync(Ticket ticket, Message message, Agent author, bool solved, CancellationToken cancellationToken);
+
+    /// <summary>The same notice with the linked KB articles the reply carries; each becomes a portal link in the email (D-044). At most <c>TicketOperationLimits.MaxLinkedArticles</c>.</summary>
+    Task PlanAgentReplyAsync(Ticket ticket, Message message, Agent author, bool solved, IReadOnlyList<ReplyArticleLink> articles, CancellationToken cancellationToken);
 
     Task PlanSolvedAsync(Ticket ticket, CancellationToken cancellationToken);
 

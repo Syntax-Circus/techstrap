@@ -1,3 +1,4 @@
+@using TechStrap.Admin.Features.Kb
 <NavigationLock ConfirmExternalNavigation="@HasUnsentText" />
 <section class="@SectionCss" aria-label="Reply composer" data-shortcut-scope="composer">
     <div class="ts-composer-modes" role="group" aria-label="Reply type">
@@ -24,6 +25,34 @@
     <textarea id="@TextId" @ref="_text" class="form-control" rows="6" disabled="@Sending"
               placeholder="@(IsPublic ? ReplyComposerCopy.ReplyPlaceholder : ReplyComposerCopy.NotePlaceholder)"
               @bind="Text" @bind:event="oninput"></textarea>
+
+    @if (IsPublic)
+    {
+        <div class="ts-composer-articles">
+            @if (_draft.LinkedArticles.Count > 0)
+            {
+                <p class="ts-composer-articles-label" id="@LinkedLabelId">@ArticlePickerCopy.LinkedLabel</p>
+                <ul class="ts-kb-chips" aria-labelledby="@LinkedLabelId">
+                    @foreach (var article in _draft.LinkedArticles)
+                    {
+                        <li @key="article.Id" class="ts-kb-chip" data-article="@article.Id">
+                            <span class="ts-kb-chip-title">@article.Title</span>
+                            <button type="button" class="btn btn-link" aria-label="@ArticlePickerCopy.RemoveLabel(article.Title)" disabled="@Sending" @onclick="() => RemoveArticle(article)">@ArticlePickerCopy.Remove</button>
+                        </li>
+                    }
+                </ul>
+            }
+            <button type="button" class="btn btn-outline-secondary ts-composer-link-article" aria-expanded="@(_pickerOpen ? "true" : "false")" aria-controls="@PickerId" disabled="@Sending" @onclick="TogglePicker">
+                @(_pickerOpen ? ArticlePickerCopy.ToggleClose : ArticlePickerCopy.Toggle)
+            </button>
+            @if (_pickerOpen)
+            {
+                <div id="@PickerId">
+                    <ArticlePicker ProductId="ProductId" Selected="_draft.LinkedArticles" Disabled="Sending" OnAdd="AddArticle" />
+                </div>
+            }
+        </div>
+    }
 
     @if (_filesDropped)
     {

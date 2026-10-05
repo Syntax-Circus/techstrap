@@ -2,10 +2,10 @@ namespace TechStrap.Api.Startup;
 
 public static class AttachmentSandbox
 {
-    private static readonly string[] _prefixes = ["/api/attachments", "/api/customer/attachments"];
+    private static readonly string[] _prefixes = ["/api/attachments", "/api/customer/attachments", "/kb-images"];
 
     /// <summary>
-    /// Downloads (agent and customer) get <c>Content-Security-Policy: sandbox</c>. The shared security-headers middleware overwrites the CSP
+    /// Downloads (agent and customer) and the public KB images (<c>/kb-images</c>) get <c>Content-Security-Policy: sandbox</c> appended to the API policy (<c>default-src 'none'</c>). The shared security-headers middleware overwrites the CSP
     /// when the response starts, and start callbacks run last-registered-first, so this must be registered before it to have the final say.
     /// </summary>
     public static IApplicationBuilder UseAttachmentSandbox(this IApplicationBuilder app) =>

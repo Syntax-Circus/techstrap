@@ -12,7 +12,7 @@ public sealed class KbSearchTests(PostgresFixture postgres) : PostgresIntegratio
 
     private static KbArticle Article(TicketScenario scenario, string slug, string title, string summary, string body, Guid? productId, bool publish = true)
     {
-        var article = KbArticle.Create(productId, null, slug, title, summary, body, scenario.Agent.Id, scenario.Host.Clock).Value;
+        var article = KbArticle.Create(productId, KbTestData.SharedCategoryId, slug, title, summary, body, scenario.Agent.Id, scenario.Host.Clock).Value;
         if (publish)
         {
             article.Publish(scenario.Host.Clock);
@@ -23,6 +23,7 @@ public sealed class KbSearchTests(PostgresFixture postgres) : PostgresIntegratio
 
     private static async Task SaveAsync(TicketScenario scenario, params KbArticle[] articles)
     {
+        await KbTestData.EnsureSharedCategoryAsync(scenario.Host);
         var result = await scenario.Host.CommitAsync(sp =>
         {
             foreach (var article in articles)

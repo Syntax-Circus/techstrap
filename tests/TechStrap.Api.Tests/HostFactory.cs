@@ -58,6 +58,7 @@ public class HostFactory<TProgram>(
             {
                 [ApiStartupTasks.MigrateOnStartupKey] = "false",
                 ["TECHSTRAP_PORTAL_PUBLIC_URL"] = "https://portal.test",
+                ["TECHSTRAP_API_PUBLIC_URL"] = "https://api.test",
                 ["Storage:Local:RootPath"] = Path.Combine(Path.GetTempPath(), "techstrap-tests-default-storage"),
             });
             configuration.AddInMemoryCollection(settings ?? new Dictionary<string, string?>());

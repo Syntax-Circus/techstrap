@@ -13,6 +13,7 @@ public static class ShellCopy
     public const string Next = "Next";
     public const string PaginationLabel = "Pagination";
     public const string QueueLink = "Queue";
+    public const string KbLink = "Knowledge base";
     public const string MySettingsLink = "My settings";
     public const string AdminLinksLabel = "Admin";
     public const string ProductsLink = "Products";

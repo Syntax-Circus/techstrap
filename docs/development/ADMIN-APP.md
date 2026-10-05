@@ -7,7 +7,8 @@ signed-in agent. This page is for people who run it and people who extend it. Wh
 PHASE-07 is delivered in three pull requests. **07a**: sign-in, the shell, the queue, ticket detail, the reply composer, the sidebar, spam, delete and
 erase. **07b**: settings (products and their branding, API keys, agents, tags, My settings with the public display name), failed emails and the audit log.
 **07c**: the command palette, local time, the CSP and security headers, the responsive and accessibility pass, session resilience, compose verification and the Admin architecture rules. This page describes
-the app as it is once 07c is merged; the 07b and 07c parts say so.
+the app as it is once 07c is merged; the 07b and 07c parts say so. **PHASE-08** adds the knowledge base screens (the article list, the editor with a live preview and picture upload, the categories
+page) and an article picker in the reply composer; the "Knowledge base (08)" section below describes them.
 
 ## Run it locally
 
@@ -47,6 +48,7 @@ The Admin refuses to start with a message that names the missing variable. Value
 | `TECHSTRAP_AGENT_GROUP` | no | `techstrap-agents` | Same key and default as the API. The API decides who has access; the Admin only shows what the API allows. |
 | `TECHSTRAP_ADMIN_GROUP` | no | `techstrap-admins` | Same. |
 | `TECHSTRAP_GROUP_CLAIM_TYPE` | no | `groups` | Same. |
+| `TECHSTRAP_PORTAL_PUBLIC_URL` | no | | The customer portal's public base URL, the same key the API reads. The Admin uses it only for the "View on portal" link of a published article; blank hides the link. Absolute http or https, no query or fragment (the Admin refuses to start otherwise). |
 | `DATAPROTECTION__KEYRINGPATH` | in containers | | Persistent folder for the cookie and antiforgery keys. |
 | `TRUSTEDPROXY__*`, `ALLOWEDHOSTS` | production | | Trust only your reverse proxy, so the sign-in redirect URI is built with the public scheme and host. |
 | `SENTRY__*`, `OPENTELEMETRY__*`, `SERILOG__MINIMUMLEVEL__DEFAULT` | no | | Observability; see the `.env.example`. |
@@ -90,6 +92,8 @@ package: it logs the request's `PathAndQuery` on an unauthenticated call, which 
 | Agents: see the list, activate, deactivate | no | yes |
 | Tags: create, rename, recolour, delete | no | yes |
 | Audit log, failed emails (retry, discard) | no | yes |
+| Knowledge base: list, write, save, publish and archive articles; preview; upload pictures; create and edit categories; link articles from a reply | yes | yes |
+| Delete a category | no (the button is not drawn) | yes |
 
 **Roles are read-only here (D-041).** The agents page shows each role as a badge, with the note "Roles come from your identity provider's groups." An admin can only activate or deactivate an
 agent. To make someone an admin, or an agent, change their group in the identity provider; the API reads it at their next sign-in.
@@ -124,7 +128,7 @@ reads that one), and `TECHSTRAP_AGENT_GROUP` on **both** the API and the Admin.
 ```text
 src/TechStrap.Admin/
   Auth/           cookie + OIDC wiring, /signin and /signout endpoints, AgentSession (the API's answer to /me)
-  Clients/        ApiConnection and the typed clients (IAgentsClient, IProductsClient, ITagsClient, ITicketsClient, IRequestersClient, IAdminEventsClient, IDeadLettersClient), the /attachments/{id} pass-through
+  Clients/        ApiConnection and the typed clients (IAgentsClient, IProductsClient, ITagsClient, ITicketsClient, IRequestersClient, IAdminEventsClient, IDeadLettersClient, IKbClient), the /attachments/{id} pass-through
   Components/
     Ui/           reusable primitives: LoadingState, ErrorState, EmptyState, ConfirmDialog, PagerControl, TagChip, RelativeTime (local time), ScrollRegion (a table's scroll box), StatusStamp, PriorityMark, AdminOnly (the admin page guard), AccentPreview, ...
     Layout/       MainLayout, NavMenu (the collapsible rail), RailLink, StatusBar, AgentGate, ShortcutHelpDialog, CommandPalette
@@ -136,6 +140,7 @@ src/TechStrap.Admin/
     Settings/     Admin only. Products/ (ProductsPage, ProductEditorPage, ProductKeysPage, ApiKeysPanel, NewApiKeyDialog; the logo rule is `BrandingRules.IsAcceptableLogoUrl` in Contracts.Branding), Agents/ (AgentsPage), Tags/ (TagsPage),
                   Audit/ (AdminEventsPage, AdminEventSummaryFactory), EmailKinds
     Ops/          Admin only. DeadLetters/ (DeadLettersPage)
+    Kb/           Every agent. KbArticleListPage, KbArticleEditorPage (with KbArticleEditorPresenter and the form model), MarkdownEditor, KbPreviewPane, KbImageUploadButton, MarkdownSnippets, KbCategoriesPage, ArticlePicker (mounted by ReplyComposer)
     Account/      My settings for every agent: NotificationPreferencesPage, PublicDisplayNameField, PublicNamePreview
   wwwroot/js/     dialog.js, shortcuts.js, queue.js, preferences.js (browser preferences and the theme), clipboard.js (copy the new API key), tz.js (the browser's time zone), palette.js and menu.js (keys of the command palette and the actions menu)
                   are ES modules; theme-init.js is the one classic script, loaded in the page head. No inline script anywhere
@@ -149,7 +154,8 @@ Rules the code follows (and the reviewers check):
 - Every read takes the component's `CancellationToken`. Writes (reply, note, sidebar changes, spam, delete, erase, and every settings write) deliberately pass `CancellationToken.None`: the server may commit a write after the agent has left the screen, so cancelling the call would only hide the outcome.
 - Razor components are always public classes, so a type used as a component parameter is public (a view model cannot be `internal`).
 - A component beyond a few plain parameters and one forwarder has a `.razor.cs`; a factory or presenter exists only for non-trivial assembly (`TicketDetailPresenter`, `TimelineEntryFactory`).
-- The single `MarkupString` is the message body in `MessageBubble` (the API sanitises it). Everything else is encoded.
+- `MarkupString` is used in exactly two files, and both draw HTML the API sanitised: the message body in `MessageBubble`, and the knowledge base preview in `KbPreviewPane` (the answer of `POST /api/kb/preview`, which runs the same renderer and
+  sanitiser as the portal). `MarkupStringSiteTests` pins the two. Everything else is encoded.
 - Repeated or meaningful literals are named constants (`QueueDefaults.PageSize`, `QueueDefaults.SearchDebounce`, the Contracts constants for views and event types).
 
 ### Add a screen that calls the API
@@ -187,7 +193,7 @@ A command runs once. Ctrl+K never opens over a confirmation dialog, and opens on
 
 | Group | Commands | Who sees them |
 | --- | --- | --- |
-| Go to | Queue: Unassigned, Mine, Open, Pending, All, Spam; My settings | Every agent |
+| Go to | Queue: Unassigned, Mine, Open, Pending, All, Spam; Knowledge base; My settings | Every agent |
 | Admin | Products, Agents, Tags, Audit, Failed emails | Admins only; `AdminOnly` is checked again when the command runs, not only when it is listed |
 | Ticket | Reply to requester, Add internal note, Assign to me (when it is not already yours), Not spam (on a flagged ticket) | While that ticket is on screen and open |
 
@@ -235,6 +241,34 @@ Every agent, not only an admin, has **My settings** (`/account/notifications`):
 - **Keyboard shortcuts** and **theme** (Auto, Light or Dark): kept in this browser only, so they follow the browser, not the account.
 - **Public display name**: optional, plain text, up to 60 characters, no `@`. A live line shows what customers will see ("Customers see: Sam from Orbitly Support"); clearing the field returns to the first name from
   your profile. It saves when you leave the field or press Enter, and customers never see your email address.
+
+## Knowledge base (08)
+
+Every agent can write and publish articles; deleting a category is the one thing that needs the Admin role. The rail has a "Knowledge base" link for everyone, and the palette has "Knowledge base" (`go-kb`). The API behind all of it is in
+[PHASE-08-knowledge-base.md](../architecture/PHASE-08-knowledge-base.md); the decisions are D-044.
+
+- **Articles** (`/kb`): the list, 25 to a page, newest change first. Search the title, summary and text, and filter by product (including "Shared", the articles every product shows), category and status (Draft, Published or Archived). Every filter is in the address, so a
+  view can be linked. Each row shows the title, the product or "Shared", the category, the status as a word, and when it changed. An empty knowledge base invites the first article.
+- **Editor** (`/kb/new`, `/kb/{id}`): product (chosen once, or "Shared by every product"), category, title, slug, summary and the article text. The slug follows the title until you edit it, and like the product it is permanent once the article exists. The category list offers the
+  shared categories and, for a product article, that product's own; a shared article can only use a shared category. The text is Markdown in a plain text box with a toolbar (bold, italic, link, list, code) beside a live preview.
+- **Preview**: 300 ms after you stop typing, the Admin asks the API to render the text (`POST /api/kb/preview`) and draws the answer, which is the same HTML the portal will show (tables and pictures included, anything unsafe removed). A call that a newer keystroke replaced is
+  cancelled and its answer is never drawn; a failed preview keeps your text and the last good preview and says so; an empty text is not previewed. Below 992 px Write and Preview are two buttons and one pane at a time.
+- **Pictures**: "Add image" takes a PNG, JPEG, GIF or WebP file of up to 5 MB (the file is read in the browser and anything else is refused before it is sent), uploads it and adds `![file name](address)` at the **end** of the text. The toolbar buttons also add their Markdown at the end. Blazor cannot read the
+  caret, and paste and drag-and-drop are not built (D-044). If the answer to an upload is lost nothing is added to the text and you pick the picture again; the earlier copy, if the API kept one, is an unreferenced file.
+- **Save, publish, archive**: Save sends the version the article was loaded with, so a stale save is a 409: you see "This article changed since you opened it", your edits stay in the form, saving stays off, and Reload brings in the latest version (and replaces your edits, so copy what you need
+  first). Editing an **archived** article makes it a draft again, and the status line says so. Publish needs the article saved first and a title, slug, text and category (a line under the buttons says which is missing); it sends the loaded version too. Archive asks first ("It is removed from the portal,
+  from search and from the sitemap"). A write whose answer is lost (a timeout, an unreachable API, a 5xx) is held: the page says it may have gone through and nothing more is sent until you reload.
+- **Leaving with unsaved changes**: moving to another page in the Admin asks "Leave without saving?" (Stay or Leave), and closing the tab or following an outside link gets the browser's own prompt. A form that is back to what was saved does not ask.
+- **View on portal**: a published article shows this link, built from `TECHSTRAP_PORTAL_PUBLIC_URL` as `{portal}/p/{product key}/kb/{category slug}/{slug}` (from the saved category, not one you have picked but not saved). A shared article is reachable under every product, so the link uses the
+  first **active** product by name (an inactive product is skipped, and with none active there is no link). With no portal address configured, or for a draft or an archived article, there is no link.
+- **Article text limits**: the knowledge base renders Markdown with its own content profile, separate from the one for messages. A text that renders to more than 5000 elements (paragraphs, list items, table cells) is refused with `kb-body-too-complex` on preview, save, create and
+  publish; the editor says to split the article or shorten the table or list, and the preview keeps the last version that fitted. **Reload** asks first when the form has unsaved changes, because it replaces them.
+- **Categories** (`/kb/categories`): every category with its product (or "Shared"), slug, sort order and description; create one (the slug follows the name until you edit it; the slug `search` is kept for the portal's search page; a slug already used anywhere is refused), rename it,
+  describe it and change its sort order in the row (saved through the update, with the version the list was read with). **Delete** is drawn only for an Admin. A category that still has articles cannot be deleted: the dialog says so and cannot be confirmed; move the articles first.
+- **Linking an article from a reply**: a public reply has "Link a knowledge base article". It opens a search of the **published** articles of the ticket's product and the shared ones (nothing is searched until you type, and a draft or an archived article is never offered); each result has an
+  Add button, and the choices show as chips with Remove. At most 10 articles. The chips belong to the ticket's draft: they survive switching to a note and back, a failed send and leaving the ticket; a note never sends them; an accepted send takes out exactly the ones it sent. If the API
+  refuses a link (an article unpublished or moved to another product meanwhile) the text and the chips stay and you are told to remove the ones you no longer want. The customer's email gets a link to each article. The links are validated when the reply is
+  sent and checked again when the email is sent: an article unpublished in between is dropped from the email. The email's list keeps each title to 120 characters, and the list is left out if the email would still be over its size cap (the reply is always sent).
 
 ## Local time, theme, security headers and layout (07c)
 
@@ -324,13 +358,14 @@ dotnet test --project tests/TechStrap.Api.Tests -c Release --filter-class "*Admi
 bUnit notes that cost time once: JS interop runs in strict mode, so set up `./js/dialog.js`, `./js/shortcuts.js`, `./js/preferences.js`, `./js/tz.js`, `./js/palette.js` and `./js/menu.js` (the `AdminComponentTest` base class does; a test that copies an API key sets up
 `./js/clipboard.js` itself); the settings pages derive from `AdminPageTest`, which gives them a session (an Admin unless the test calls `AsAgent()` before it renders), what `NoAccessPage` needs and a host environment;
 the element reference of an element is blanked after the next
-render, so read it before the action; services cannot be added after the first render; `InputFile` has no `MaxAllowedSize` and bUnit does not enforce stream limits, so the composer checks files itself.
+render, so read it before the action; services cannot be added after the first render; `InputFile` has no `MaxAllowedSize` and bUnit does not enforce stream limits, so the composer and the picture button check files themselves; `UploadFiles` returns only when the change handler has finished, so a test that holds an upload open
+(a pending task) starts the pick on its own thread (`Task.Run`) and awaits it after the answer is released.
 
 ## Known gaps in 07a
 
 Recorded in D-040 and tracked for later phases: no counts in the erase and delete dialogs and no list of a ticket's follow-ups (the API offers neither); the requester card has no ticket count or first-seen date;
 times are shown in UTC (07c shows them in the browser's zone); "Apply my change again" after a conflict is not built (Reload only); a lost circuit loses an unsent draft (the leave-warning covers a reload);
-no knowledge-base article picker (PHASE-08); no presence or live updates (PHASE-10); no command palette (added in 07c); the manual sign-in check against a real Authentik is outstanding.
+no knowledge-base article picker (added in 08); no presence or live updates (PHASE-10); no command palette (added in 07c); the manual sign-in check against a real Authentik is outstanding.
 
 ## Decisions that changed during 07b
 
@@ -364,3 +399,16 @@ Recorded in D-042 and tracked for later phases:
 - After a mid-session 401 the circuit stays expired for good; a sign-in in another tab does not revive it (see above).
 - The palette has navigation and the four ticket commands. "Open a ticket by number", "Cycle theme" and the other commands of the UX brief are not built.
 - The Compose smoke is by hand (or the manual workflow), not on every pull request, because it builds four images.
+
+## Known gaps in 08
+
+Recorded in D-044 and tracked for later phases:
+
+- Pictures and toolbar snippets are added at the end of the text, not at the caret, and there is no paste or drag-and-drop of a picture (Blazor cannot read the caret without script). The alt text is the file name; the Markdown can be edited after.
+- There is no revision history, no hard delete of an article (archiving is the removal), no "create an article from this ticket" and no clean-up of pictures that no article uses.
+- The ticket timeline lists the titles of the linked articles as plain text, not as links: the linked-article DTO has no portal address.
+- "View on portal" for a shared article uses the first active product by name. The canonical address of a shared article under several products is the portal's decision (PHASE-09).
+- The CSP already lets the Admin draw an API picture in Development (`img-src` has `http://localhost:*` and `http://127.0.0.1:*` on any port) and in Production over https; a plain-http `TECHSTRAP_API_PUBLIC_URL` in Production would show no pictures in the preview. `KbImageCspTests` pins both.
+- Pictures (API side, for the operator): an upload is checked by its real type (PNG, JPEG, GIF, WebP) and only the first 1024 bytes are scanned for markup; the defences are the sniffed type, `X-Content-Type-Options: nosniff`, a CSP `sandbox` on the picture and serving it from the API's own origin. `/kb-images/{key}` (GET and HEAD) has no rate limit: rely on the proxy or CDN. Picture addresses are built from `TECHSTRAP_API_PUBLIC_URL` (the local compose sets `http://localhost:8080`); a path prefix in that address needs the proxy to strip it before the API.
+- Public API (for the portal): every text field of the public knowledge base DTOs, snippets included, is **plain text**; only `Html` is HTML, so the portal must HTML-encode the rest. A malformed slug or key answers an empty result or 404, never a 500. The agent `/api/kb` responses carry `Cache-Control: no-store`, and the JSON body limit is 2 MiB. Every mutating knowledge base call checks that the agent is still active.
+- The manual checks (write and publish an article with a picture; the picture loads through the API's public address behind the proxy; a linked article appears in a reply email) are the owner's.

@@ -8,8 +8,10 @@ public sealed class KbArticleTests
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 10, 2, 9, 0, 0, TimeSpan.Zero));
     private readonly Guid _author = Guid.NewGuid();
 
-    private KbArticle Draft(Guid? productId = null) =>
-        KbArticle.Create(productId, null, "reset-password", "Reset your password", "Short summary", "# Steps\n1. Click reset", _author, _clock).Value;
+    private readonly Guid _category = Guid.NewGuid();
+
+    private KbArticle Draft(Guid? productId = null, bool withCategory = true) =>
+        KbArticle.Create(productId, withCategory ? _category : null, "reset-password", "Reset your password", "Short summary", "# Steps\n1. Click reset", _author, _clock).Value;
 
     [Fact]
     public void A_new_article_is_a_draft_with_no_publish_time()
@@ -86,14 +88,115 @@ public sealed class KbArticleTests
     }
 
     [Fact]
-    public void An_archived_article_can_be_published_again_but_not_edited()
+    public void An_archived_article_can_be_published_again()
     {
         var article = Draft();
         article.Archive(_clock);
 
-        article.Update(null, "New", null, "body", _clock).Error!.Code.ShouldBe("article-archived");
         article.Publish(_clock).IsSuccess.ShouldBeTrue();
         article.Status.ShouldBe(KbArticleStatus.Published);
+    }
+
+    [Fact]
+    public void Editing_an_archived_article_returns_it_to_draft_and_keeps_the_first_publish_time()
+    {
+        var article = Draft();
+        article.Publish(_clock);
+        var firstPublished = article.PublishedAt;
+        article.Archive(_clock);
+        _clock.Advance(TimeSpan.FromHours(2));
+
+        article.Update(_category, "New title", null, "new body", _clock).IsSuccess.ShouldBeTrue();
+
+        article.Status.ShouldBe(KbArticleStatus.Draft);
+        article.PublishedAt.ShouldBe(firstPublished);
+        article.Title.ShouldBe("New title");
+        article.UpdatedAt.ShouldBe(_clock.GetUtcNow());
+    }
+
+    [Fact]
+    public void A_failed_edit_leaves_an_archived_article_archived()
+    {
+        var article = Draft();
+        article.Archive(_clock);
+
+        article.Update(_category, " ", null, "body", _clock).Error!.Code.ShouldBe("title-required");
+
+        article.Status.ShouldBe(KbArticleStatus.Archived);
+    }
+
+    [Fact]
+    public void Editing_a_published_article_keeps_it_published()
+    {
+        var article = Draft();
+        article.Publish(_clock);
+
+        article.Update(_category, "Live edit", null, "body", _clock).IsSuccess.ShouldBeTrue();
+
+        article.Status.ShouldBe(KbArticleStatus.Published);
+    }
+
+    [Fact]
+    public void Publishing_without_a_category_is_a_validation_error_on_category_and_changes_nothing()
+    {
+        var article = Draft(withCategory: false);
+
+        var result = article.Publish(_clock);
+
+        result.Error!.ShouldSatisfyAllConditions(
+            error => error.Kind.ShouldBe(DomainErrorKind.Validation),
+            error => error.Code.ShouldBe("kb-publish-incomplete"),
+            error => error.Target.ShouldBe("category"));
+        article.Status.ShouldBe(KbArticleStatus.Draft);
+        article.PublishedAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Updating_a_published_article_with_no_category_is_refused_and_changes_nothing()
+    {
+        var article = Draft();
+        article.Publish(_clock);
+        var updated = article.UpdatedAt;
+        _clock.Advance(TimeSpan.FromHours(1));
+
+        var result = article.Update(null, "New title", null, "new body", _clock);
+
+        result.Error!.ShouldSatisfyAllConditions(
+            error => error.Kind.ShouldBe(DomainErrorKind.Validation),
+            error => error.Code.ShouldBe("kb-publish-incomplete"),
+            error => error.Target.ShouldBe("category"));
+        article.CategoryId.ShouldBe(_category);
+        article.Title.ShouldBe("Reset your password");
+        article.Status.ShouldBe(KbArticleStatus.Published);
+        article.UpdatedAt.ShouldBe(updated);
+    }
+
+    [Fact]
+    public void An_archived_article_may_be_edited_with_no_category_and_goes_back_to_draft()
+    {
+        var article = Draft();
+        article.Archive(_clock);
+
+        article.Update(null, "New title", null, "new body", _clock).IsSuccess.ShouldBeTrue();
+
+        article.Status.ShouldBe(KbArticleStatus.Draft);
+        article.CategoryId.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("title")]
+    [InlineData("slug")]
+    [InlineData("body")]
+    public void Publishing_a_restored_article_that_lacks_a_required_field_names_that_field(string missing)
+    {
+        var article = KbArticle.Restore(
+            Guid.NewGuid(), null, _category, missing == "slug" ? "" : "a-slug", missing == "title" ? " " : "T", null, missing == "body" ? "" : "b",
+            KbArticleStatus.Draft, _author, _clock.GetUtcNow(), _clock.GetUtcNow(), null, 1);
+
+        var result = article.Publish(_clock);
+
+        result.Error!.Code.ShouldBe("kb-publish-incomplete");
+        result.Error.Target.ShouldBe(missing);
     }
 
     [Fact]
@@ -119,9 +222,32 @@ public sealed class KbArticleTests
         category.IsShared.ShouldBeTrue();
         category.SortOrder.ShouldBe(10);
         KbCategory.Create(null, "Getting Started", "x", 0, _clock).Error!.Code.ShouldBe("slug-invalid");
-        category.Update("Start here", 5).IsSuccess.ShouldBeTrue();
+        category.Update("Start here", "  Where to begin  ", 5).IsSuccess.ShouldBeTrue();
         category.Name.ShouldBe("Start here");
+        category.Description.ShouldBe("Where to begin");
         category.Slug.ShouldBe("getting-started");
+    }
+
+    [Fact]
+    public void The_category_slug_search_is_reserved_in_any_scope()
+    {
+        KbCategory.Create(null, "search", "Search", 0, _clock).Error!.ShouldSatisfyAllConditions(
+            error => error.Code.ShouldBe("kb-category-reserved-slug"),
+            error => error.Kind.ShouldBe(DomainErrorKind.Validation),
+            error => error.Target.ShouldBe("slug"));
+        KbCategory.Create(Guid.NewGuid(), "search", "Search", 0, _clock).Error!.Code.ShouldBe("kb-category-reserved-slug");
+        KbCategory.Create(null, "searching", "Searching", 0, _clock).IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void A_category_description_is_optional_and_limited()
+    {
+        KbCategory.Create(null, "faq", "FAQ", 0, _clock).Value.Description.ShouldBeNull();
+        KbCategory.Create(null, "faq", "FAQ", 0, _clock, "Common questions").Value.Description.ShouldBe("Common questions");
+        KbCategory.Create(null, "faq", "FAQ", 0, _clock, new string('x', 301)).Error!.Code.ShouldBe("description-too-long");
+        var category = KbCategory.Create(null, "faq", "FAQ", 0, _clock).Value;
+        category.Update("FAQ", new string('x', 301), 0).Error!.Code.ShouldBe("description-too-long");
+        category.Description.ShouldBeNull();
     }
 
     [Fact]
@@ -152,7 +278,7 @@ public sealed class KbArticleTests
     public void Stored_times_are_whole_microseconds()
     {
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 2, 9, 0, 0, TimeSpan.Zero).AddTicks(3));
-        var article = KbArticle.Create(null, null, "a-slug", "T", null, "b", _author, clock).Value;
+        var article = KbArticle.Create(null, _category, "a-slug", "T", null, "b", _author, clock).Value;
         (article.CreatedAt.Ticks % 10).ShouldBe(0);
         (article.UpdatedAt.Ticks % 10).ShouldBe(0);
 

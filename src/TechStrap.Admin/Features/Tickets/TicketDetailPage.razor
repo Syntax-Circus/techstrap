@@ -34,7 +34,7 @@ else
                 }
                 else
                 {
-                    <ReplyComposer TicketId="_model.Id" TicketNumber="@_model.Number" RequesterEmail="@_model.Requester.Email"
+                    <ReplyComposer TicketId="_model.Id" TicketNumber="@_model.Number" RequesterEmail="@_model.Requester.Email" ProductId="_model.ProductId"
                                    RowVersion="_model.RowVersion" OnSent="OnSentAsync" OnConflict="OnConflictAsync" OnGone="RefreshAsync" />
                 }
             </section>

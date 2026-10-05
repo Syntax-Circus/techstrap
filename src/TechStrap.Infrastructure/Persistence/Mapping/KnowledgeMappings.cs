@@ -37,7 +37,7 @@ internal static class KnowledgeMappings
     }
 
     public static KbCategory ToDomain(this KbCategoryRecord record) =>
-        KbCategory.Restore(record.Id, record.ProductId, record.Name, record.Slug, record.SortOrder);
+        KbCategory.Restore(record.Id, record.ProductId, record.Name, record.Slug, record.Description, record.SortOrder, record.Version);
 
     public static KbCategoryRecord ToRecord(this KbCategory category)
     {
@@ -49,6 +49,7 @@ internal static class KnowledgeMappings
     public static void CopyTo(this KbCategory category, KbCategoryRecord record)
     {
         record.Name = category.Name;
+        record.Description = category.Description;
         record.SortOrder = category.SortOrder;
     }
 

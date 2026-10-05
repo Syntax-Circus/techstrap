@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SyntaxCircus.Common;
 using TechStrap.Application.Knowledge;
 using TechStrap.Application.Persistence;
+using TechStrap.Contracts.Kb;
 using TechStrap.Domain.Knowledge;
 using TechStrap.Domain.Tickets;
 
@@ -12,10 +13,12 @@ public sealed class KbRepositoryTests(PostgresFixture postgres) : PostgresIntegr
     private static readonly CancellationToken Ct = TestContext.Current.CancellationToken;
 
     private static KbArticle Article(TicketScenario scenario, string slug, string title, Guid? productId, Guid? categoryId = null) =>
-        KbArticle.Create(productId, categoryId, slug, title, "summary", "# body", scenario.Agent.Id, scenario.Host.Clock).Value;
+        KbArticle.Create(productId, categoryId ?? KbTestData.SharedCategoryId, slug, title, "summary", "# body", scenario.Agent.Id, scenario.Host.Clock).Value;
 
-    private static Task<Result> AddAsync(TicketScenario scenario, params KbArticle[] articles) =>
-        scenario.Host.CommitAsync(sp =>
+    private static async Task<Result> AddAsync(TicketScenario scenario, params KbArticle[] articles)
+    {
+        await KbTestData.EnsureSharedCategoryAsync(scenario.Host);
+        return await scenario.Host.CommitAsync(sp =>
         {
             var kb = sp.GetRequiredService<IKbRepository>();
             foreach (var article in articles)
@@ -25,6 +28,7 @@ public sealed class KbRepositoryTests(PostgresFixture postgres) : PostgresIntegr
 
             return Task.CompletedTask;
         });
+    }
 
     [Fact]
     public async Task An_article_round_trips_and_is_found_by_id_and_by_slug_in_its_own_product_or_the_shared_space()
@@ -61,7 +65,7 @@ public sealed class KbRepositoryTests(PostgresFixture postgres) : PostgresIntegr
         {
             var kb = sp.GetRequiredService<IKbRepository>();
             var loaded = (await kb.GetArticleAsync(article.Id, Ct))!;
-            loaded.Update(null, "FAQ v2", null, "new body", host.Clock);
+            loaded.Update(KbTestData.SharedCategoryId, "FAQ v2", null, "new body", host.Clock);
             loaded.Publish(host.Clock);
             kb.UpdateArticle(loaded);
         });
@@ -140,6 +144,41 @@ public sealed class KbRepositoryTests(PostgresFixture postgres) : PostgresIntegr
     }
 
     [Fact]
+    public async Task The_agent_list_handler_filters_by_shared_only_include_shared_status_and_text_on_the_real_database()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var scenario = await TicketScenario.CreateAsync(host);
+        var acmeDraft = KbArticle.Create(scenario.Acme.Id, KbTestData.SharedCategoryId, "acme-draft", "Printer setup for Acme", "s", "b", scenario.Agent.Id, host.Clock).Value;
+        var acmePublished = KbArticle.Create(scenario.Acme.Id, KbTestData.SharedCategoryId, "acme-published", "Printer tips for Acme", "s", "b", scenario.Agent.Id, host.Clock).Value;
+        acmePublished.Publish(host.Clock);
+        var orbitly = KbArticle.Create(scenario.Orbitly.Id, KbTestData.SharedCategoryId, "orbitly-guide", "Printer guide for Orbitly", "s", "b", scenario.Agent.Id, host.Clock).Value;
+        var sharedDraft = KbArticle.Create(null, KbTestData.SharedCategoryId, "shared-draft", "Printer basics for everyone", "s", "b", scenario.Agent.Id, host.Clock).Value;
+        var sharedPublished = KbArticle.Create(null, KbTestData.SharedCategoryId, "shared-published", "Account basics for everyone", "s", "b", scenario.Agent.Id, host.Clock).Value;
+        sharedPublished.Publish(host.Clock);
+        (await AddAsync(scenario, acmeDraft, acmePublished, orbitly, sharedDraft, sharedPublished)).IsSuccess.ShouldBeTrue();
+
+        async Task<List<string>> ListAsync(Guid? productId = null, bool sharedOnly = false, bool includeShared = true, string? status = null, string? text = null)
+        {
+            var result = await host.ReadAsync(sp => new ListKbArticlesRequestHandler(sp.GetRequiredService<IKbRepository>())
+                .HandleAsync(new ListKbArticlesRequest(productId, sharedOnly, includeShared, status, null, text, 1, 25), Ct));
+            result.IsSuccess.ShouldBeTrue();
+            return [.. result.Value.Items.Select(item => item.Slug).Order()];
+        }
+
+        // Without text the list reads the table; with text it reads the search index: both paths honour every filter.
+        (await ListAsync(sharedOnly: true)).ShouldBe(["shared-draft", "shared-published"]);
+        (await ListAsync(sharedOnly: true, text: "printer")).ShouldBe(["shared-draft"]);
+        (await ListAsync(scenario.Acme.Id, sharedOnly: true)).ShouldBe(["shared-draft", "shared-published"]);
+        (await ListAsync(scenario.Acme.Id)).ShouldBe(["acme-draft", "acme-published", "shared-draft", "shared-published"]);
+        (await ListAsync(scenario.Acme.Id, includeShared: false)).ShouldBe(["acme-draft", "acme-published"]);
+        (await ListAsync(scenario.Acme.Id, includeShared: false, text: "printer")).ShouldBe(["acme-draft", "acme-published"]);
+        (await ListAsync(scenario.Acme.Id, text: "printer")).ShouldBe(["acme-draft", "acme-published", "shared-draft"]);
+        (await ListAsync(scenario.Acme.Id, status: "Published")).ShouldBe(["acme-published", "shared-published"]);
+        (await ListAsync(scenario.Acme.Id, status: "Draft", text: "printer")).ShouldBe(["acme-draft", "shared-draft"]);
+        (await ListAsync(text: "account")).ShouldBe(["shared-published"]);
+    }
+
+    [Fact]
     public async Task Categories_are_ordered_by_sort_order_and_can_be_updated()
     {
         await using var host = new PersistenceTestHost(Database);
@@ -159,7 +198,7 @@ public sealed class KbRepositoryTests(PostgresFixture postgres) : PostgresIntegr
         {
             var kb = sp.GetRequiredService<IKbRepository>();
             var loaded = (await kb.GetCategoryAsync(late.Id, Ct))!;
-            loaded.Update("Later", 1);
+            loaded.Update("Later", null, 1);
             kb.UpdateCategory(loaded);
         });
 
@@ -202,7 +241,7 @@ public sealed class KbRepositoryTests(PostgresFixture postgres) : PostgresIntegr
 
         blocked.Errors.ShouldHaveSingleItem().Code.ShouldBe(PersistenceErrorCodes.ReferenceViolation);
         removed.IsSuccess.ShouldBeTrue();
-        (await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().ListCategoriesAsync(null, true, Ct))).ShouldHaveSingleItem().Slug.ShouldBe("used");
+        (await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().ListCategoriesAsync(null, true, Ct))).Select(c => c.Slug).ShouldBe([KbTestData.SharedCategorySlug, "used"]);
     }
 
     [Fact]

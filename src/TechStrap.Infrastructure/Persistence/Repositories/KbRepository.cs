@@ -8,7 +8,7 @@ using TechStrap.Infrastructure.Persistence.Records;
 
 namespace TechStrap.Infrastructure.Persistence.Repositories;
 
-internal sealed class KbRepository(TechStrapDbContext context) : IKbRepository
+internal sealed partial class KbRepository(TechStrapDbContext context) : IKbRepository
 {
     public async Task<KbArticle?> GetArticleAsync(Guid id, CancellationToken cancellationToken) =>
         (await context.Set<KbArticleRecord>().FirstOrDefaultAsync(a => a.Id == id, cancellationToken))?.ToDomain();
@@ -24,21 +24,26 @@ internal sealed class KbRepository(TechStrapDbContext context) : IKbRepository
         (await context.Set<KbArticleRecord>().FirstOrDefaultAsync(a => a.Id == id && a.Status == KbArticleStatus.Published, cancellationToken))?.ToDomain();
 
     public Task<PagedResult<KbArticle>> ListArticlesAsync(KbArticleQuery query, CancellationToken cancellationToken) =>
-        ListAsync(query.ProductId, query.IncludeShared, query.Status, query.CategoryId, query.Page, query.PageSize, cancellationToken);
+        ListAsync(query.ProductId, query.IncludeShared, query.SharedOnly, query.Status, query.CategoryId, query.Page, query.PageSize, cancellationToken);
 
     public Task<PagedResult<KbArticle>> ListPublishedArticlesAsync(PublishedKbArticleQuery query, CancellationToken cancellationToken) =>
-        ListAsync(query.ProductId, query.IncludeShared, KbArticleStatus.Published, query.CategoryId, query.Page, query.PageSize, cancellationToken);
+        ListAsync(query.ProductId, query.IncludeShared, false, KbArticleStatus.Published, query.CategoryId, query.Page, query.PageSize, cancellationToken);
 
     public Task<PagedResult<KbArticle>> SearchAsync(KbSearchQuery query, CancellationToken cancellationToken) =>
-        SearchAsync(query.Text, query.ProductId, query.IncludeShared, query.Status, query.CategoryId, query.Page, query.PageSize, cancellationToken);
+        SearchAsync(query.Text, query.ProductId, query.IncludeShared, query.SharedOnly, query.Status, query.CategoryId, query.Page, query.PageSize, cancellationToken);
 
     public Task<PagedResult<KbArticle>> SearchPublishedAsync(PublishedKbSearchQuery query, CancellationToken cancellationToken) =>
-        SearchAsync(query.Text, query.ProductId, query.IncludeShared, KbArticleStatus.Published, query.CategoryId, query.Page, query.PageSize, cancellationToken);
+        SearchAsync(query.Text, query.ProductId, query.IncludeShared, false, KbArticleStatus.Published, query.CategoryId, query.Page, query.PageSize, cancellationToken);
 
     // One filter for the agent and customer entry points, so the two cannot drift apart. Only the public methods above choose the status.
-    private IQueryable<KbArticleRecord> Filter(IQueryable<KbArticleRecord> articles, Guid? productId, bool includeShared, KbArticleStatus? status, Guid? categoryId)
+    private IQueryable<KbArticleRecord> Filter(
+        IQueryable<KbArticleRecord> articles, Guid? productId, bool includeShared, bool sharedOnly, KbArticleStatus? status, Guid? categoryId)
     {
-        if (productId is { } product)
+        if (sharedOnly)
+        {
+            articles = articles.Where(a => a.ProductId == null);
+        }
+        else if (productId is { } product)
         {
             articles = includeShared
                 ? articles.Where(a => a.ProductId == product || a.ProductId == null)
@@ -59,12 +64,12 @@ internal sealed class KbRepository(TechStrapDbContext context) : IKbRepository
     }
 
     private async Task<PagedResult<KbArticle>> ListAsync(
-        Guid? productId, bool includeShared, KbArticleStatus? status, Guid? categoryId, int requestedPage, int requestedPageSize, CancellationToken cancellationToken)
+        Guid? productId, bool includeShared, bool sharedOnly, KbArticleStatus? status, Guid? categoryId, int requestedPage, int requestedPageSize, CancellationToken cancellationToken)
     {
         var page = Paging.NormalizePage(requestedPage);
         var pageSize = Paging.NormalizePageSize(requestedPageSize);
 
-        var articles = Filter(context.Set<KbArticleRecord>().AsNoTracking(), productId, includeShared, status, categoryId);
+        var articles = Filter(context.Set<KbArticleRecord>().AsNoTracking(), productId, includeShared, sharedOnly, status, categoryId);
         var total = await articles.CountAsync(cancellationToken);
         var records = await articles.OrderByDescending(a => a.UpdatedAt).ThenByDescending(a => a.Id)
             .Skip(Paging.Offset(page, pageSize)).Take(pageSize)
@@ -73,7 +78,7 @@ internal sealed class KbRepository(TechStrapDbContext context) : IKbRepository
     }
 
     private async Task<PagedResult<KbArticle>> SearchAsync(
-        string? rawText, Guid? productId, bool includeShared, KbArticleStatus? status, Guid? categoryId, int requestedPage, int requestedPageSize, CancellationToken cancellationToken)
+        string? rawText, Guid? productId, bool includeShared, bool sharedOnly, KbArticleStatus? status, Guid? categoryId, int requestedPage, int requestedPageSize, CancellationToken cancellationToken)
     {
         var page = Paging.NormalizePage(requestedPage);
         var pageSize = Paging.NormalizePageSize(requestedPageSize);
@@ -86,7 +91,7 @@ internal sealed class KbRepository(TechStrapDbContext context) : IKbRepository
         var articles = Filter(
             context.Set<KbArticleRecord>().AsNoTracking()
                 .Where(a => a.SearchVector.Matches(EF.Functions.WebSearchToTsQuery(FullTextSearch.Config, text))),
-            productId, includeShared, status, categoryId);
+            productId, includeShared, sharedOnly, status, categoryId);
         var total = await articles.CountAsync(cancellationToken);
         var records = await articles
             .OrderByDescending(a => a.SearchVector.Rank(EF.Functions.WebSearchToTsQuery(FullTextSearch.Config, text)))
@@ -108,6 +113,19 @@ internal sealed class KbRepository(TechStrapDbContext context) : IKbRepository
         }
     }
 
+    public Task<bool> ArticleSlugTakenAsync(Guid? productId, string slug, CancellationToken cancellationToken) =>
+        productId is { } product
+            ? context.Set<KbArticleRecord>().AnyAsync(a => a.Slug == slug && (a.ProductId == product || a.ProductId == null), cancellationToken)
+            : context.Set<KbArticleRecord>().AnyAsync(a => a.Slug == slug, cancellationToken);
+
+    public Task<bool> CategorySlugTakenAsync(Guid? productId, string slug, CancellationToken cancellationToken) =>
+        productId is { } product
+            ? context.Set<KbCategoryRecord>().AnyAsync(c => c.Slug == slug && (c.ProductId == product || c.ProductId == null), cancellationToken)
+            : context.Set<KbCategoryRecord>().AnyAsync(c => c.Slug == slug, cancellationToken);
+
+    public Task<bool> CategoryHasArticlesAsync(Guid categoryId, CancellationToken cancellationToken) =>
+        context.Set<KbArticleRecord>().AnyAsync(a => a.CategoryId == categoryId, cancellationToken);
+
     public async Task<KbCategory?> GetCategoryAsync(Guid id, CancellationToken cancellationToken) =>
         (await context.Set<KbCategoryRecord>().FirstOrDefaultAsync(c => c.Id == id, cancellationToken))?.ToDomain();
 
@@ -127,7 +145,16 @@ internal sealed class KbRepository(TechStrapDbContext context) : IKbRepository
 
     public void AddCategory(KbCategory category) => context.Set<KbCategoryRecord>().Add(category.ToRecord());
 
-    public void UpdateCategory(KbCategory category) => category.CopyTo(context.FindLoaded<KbCategoryRecord>(category.Id));
+    public void UpdateCategory(KbCategory category)
+    {
+        var record = context.FindLoaded<KbCategoryRecord>(category.Id);
+        category.CopyTo(record);
+        if (context.Entry(record).State != EntityState.Added)
+        {
+            // The check is against the version the caller's Domain object carries, not the one this scope loaded (D-026).
+            context.ApplyOriginalVersion(record, category.Version);
+        }
+    }
 
     public void RemoveCategory(KbCategory category) => context.Set<KbCategoryRecord>().Remove(context.FindLoaded<KbCategoryRecord>(category.Id));
 

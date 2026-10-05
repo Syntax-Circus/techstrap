@@ -10,6 +10,7 @@ public static class ContentServiceCollectionExtensions
     {
         services.TryAddSingleton<IHtmlSanitizer, HtmlSanitizerAdapter>();
         services.TryAddSingleton<IMarkdownRenderer, MarkdigMarkdownRenderer>();
+        services.TryAddSingleton<IKbContentRenderer, KbContentRenderer>();
         return services;
     }
 }

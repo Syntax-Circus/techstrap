@@ -1,0 +1,118 @@
+@page "/kb"
+@attribute [Authorize]
+
+<PageTitle>@KbCopy.Heading</PageTitle>
+<div class="ts-settings ts-kb-list">
+    <div class="ts-settings-head">
+        <h1>@KbCopy.Heading</h1>
+        <div class="ts-kb-head-actions">
+            <a class="btn btn-outline-secondary" href="/kb/categories">@KbCopy.Categories</a>
+            <a class="btn btn-primary" href="/kb/new">@KbCopy.NewArticle</a>
+        </div>
+    </div>
+
+    <form class="ts-filterbar" role="search" @onsubmit="SubmitSearchAsync" @onsubmit:preventDefault>
+        <button type="submit" hidden>@KbCopy.Search</button>
+        <div class="ts-filter ts-filter--search">
+            <label for="kb-search">@KbCopy.SearchLabel</label>
+            <input id="kb-search" type="search" class="form-control" autocomplete="off" spellcheck="false" value="@_text" @oninput="OnSearchInput" />
+        </div>
+        <div class="ts-filter">
+            <label for="kb-product">@KbCopy.ColumnProduct</label>
+            <select id="kb-product" class="form-select" @onchange="OnProductChangedAsync">
+                <option value="" selected="@(_filter.ProductValue.Length == 0)">@KbCopy.AllProducts</option>
+                <option value="@KbListFilter.SharedValue" selected="@_filter.SharedOnly">@KbCopy.Shared</option>
+                @foreach (var product in _products)
+                {
+                    <option value="@product.Id" selected="@(_filter.ProductId == product.Id)">@product.Name</option>
+                }
+            </select>
+        </div>
+        <div class="ts-filter">
+            <label for="kb-category">@KbCopy.ColumnCategory</label>
+            <select id="kb-category" class="form-select" @onchange="OnCategoryChangedAsync">
+                <option value="" selected="@(_filter.CategoryId is null)">@KbCopy.AllCategories</option>
+                @foreach (var category in _categories)
+                {
+                    <option value="@category.Id" selected="@(_filter.CategoryId == category.Id)">@category.Name</option>
+                }
+            </select>
+        </div>
+        <div class="ts-filter">
+            <label for="kb-status">@KbCopy.ColumnStatus</label>
+            <select id="kb-status" class="form-select" @onchange="OnStatusChangedAsync">
+                <option value="" selected="@(_filter.Status is null)">@KbCopy.AllStatuses</option>
+                @foreach (var status in KbDefaults.Statuses)
+                {
+                    <option value="@status" selected="@(_filter.Status == status)">@status</option>
+                }
+            </select>
+        </div>
+        <div class="ts-filter ts-filter--actions">
+            @if (_filter.HasFilters)
+            {
+                <button type="button" class="btn btn-outline-secondary" @onclick="ClearAsync">@KbCopy.ClearFilters</button>
+            }
+            <button type="button" class="btn btn-outline-secondary" @onclick="ReloadAsync">@KbCopy.Refresh</button>
+        </div>
+    </form>
+    <p class="visually-hidden" role="status">@_announcement</p>
+
+    @if ((_loading || _redirecting) && _page is null)
+    {
+        <LoadingState Rows="6" Label="@KbCopy.Loading" />
+    }
+    else
+    {
+        @if (_error is not null)
+        {
+            <ErrorState Message="@_error" OnRetry="ReloadAsync" />
+        }
+
+        @if (_rows.Count > 0)
+        {
+            <ScrollRegion Label="@KbCopy.TableLabel">
+                <table role="table" class="table ts-ledger ts-settings-table" aria-busy="@(_loading ? "true" : null)">
+                    <thead role="rowgroup">
+                        <tr role="row">
+                            <th role="columnheader" scope="col">@KbCopy.ColumnTitle</th>
+                            <th role="columnheader" scope="col">@KbCopy.ColumnProduct</th>
+                            <th role="columnheader" scope="col">@KbCopy.ColumnCategory</th>
+                            <th role="columnheader" scope="col">@KbCopy.ColumnStatus</th>
+                            <th role="columnheader" scope="col">@KbCopy.ColumnUpdated</th>
+                        </tr>
+                    </thead>
+                    <tbody role="rowgroup">
+                        @foreach (var row in _rows)
+                        {
+                            <tr role="row" @key="row.Id" data-article="@row.Slug">
+                                <td role="cell"><a href="@row.Href">@row.Title</a></td>
+                                <td role="cell">@row.ProductName</td>
+                                <td role="cell">@row.CategoryName</td>
+                                <td role="cell"><KbStatusBadge Status="@row.Status" /></td>
+                                <td role="cell"><RelativeTime When="row.UpdatedAt" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </ScrollRegion>
+            <PagerControl Page="_filter.Page" PageSize="KbDefaults.PageSize" TotalCount="_page!.TotalCount" OnPageChanged="OnPageChangedAsync" />
+        }
+        else if (_page is not null && _error is null)
+        {
+            @if (_filter.HasFilters)
+            {
+                <EmptyState Heading="@KbCopy.NoMatchHeading">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ClearAsync">@KbCopy.ClearFilters</button>
+                </EmptyState>
+            }
+            else
+            {
+                <EmptyState Heading="@KbCopy.NoArticlesHeading">
+                    <p>@KbCopy.NoArticlesHint</p>
+                    <a class="btn btn-primary" href="/kb/new">@KbCopy.NewArticle</a>
+                </EmptyState>
+            }
+        }
+    }
+</div>

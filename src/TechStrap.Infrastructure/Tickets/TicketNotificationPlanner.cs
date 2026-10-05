@@ -39,19 +39,61 @@ internal sealed class TicketNotificationPlanner(
     private static readonly JsonSerializerOptions PayloadJson = new(JsonSerializerDefaults.Web);
 
     public Task PlanAgentReplyAsync(Ticket ticket, Message message, Agent author, bool solved, CancellationToken cancellationToken) =>
+        PlanAgentReplyAsync(ticket, message, author, solved, [], cancellationToken);
+
+    public Task PlanAgentReplyAsync(
+        Ticket ticket, Message message, Agent author, bool solved, IReadOnlyList<ReplyArticleLink> articles, CancellationToken cancellationToken) =>
         PlanCustomerAsync(
             ticket,
             EmailTemplates.AgentReply,
-            (requester, product, link) => new AgentReplyEmail(
-                ticket.Number.ToString(),
-                ticket.Subject,
-                requester.Name,
-                link,
-                AgentPublicIdentity.Resolve(author, product.Branding.DisplayName),
-                message.Id,
-                solved,
-                autoClose.Value.Days),
+            (requester, product, link) => BuildAgentReply(ticket, requester, product, link, author, message, solved, articles),
             cancellationToken);
+
+    // The reply email is always queued (D-044): titles are capped, and if the payload still would not fit the outbox cap the article list is left out.
+    private AgentReplyEmail BuildAgentReply(
+        Ticket ticket, Requester requester, Product product, string link, Agent author, Message message, bool solved, IReadOnlyList<ReplyArticleLink> articles)
+    {
+        var reply = new AgentReplyEmail(
+            ticket.Number.ToString(),
+            ticket.Subject,
+            requester.Name,
+            link,
+            AgentPublicIdentity.Resolve(author, product.Branding.DisplayName),
+            message.Id,
+            solved,
+            autoClose.Value.Days,
+            articles.Count == 0
+                ? null
+                : [.. articles.Select(article => new ArticleLinkEntry(
+                    CapTitle(article.Title),
+                    portalOptions.Value.ArticleLink(product.Key, article.CategorySlug, article.Slug),
+                    article.ArticleId))]);
+        if (reply.Articles is not null && JsonSerializer.Serialize(reply, PayloadJson).Length > DomainLimits.OutboxPayloadMaxLength)
+        {
+            logger.LogWarning("Queued {Kind} for ticket {TicketId} without its {Count} article links: payload size cap", EmailTemplates.AgentReply, ticket.Id, reply.Articles.Count);
+            reply = reply with { Articles = null };
+        }
+
+        return reply;
+    }
+
+    private const int MaxTitleLength = 120;
+
+    private static string CapTitle(string title)
+    {
+        if (title.Length <= MaxTitleLength)
+        {
+            return title;
+        }
+
+        var cut = MaxTitleLength - 3;
+        if (char.IsHighSurrogate(title[cut - 1]))
+        {
+            cut--;
+        }
+
+        return title[..cut] + "...";
+    }
 
     public Task PlanSolvedAsync(Ticket ticket, CancellationToken cancellationToken) =>
         PlanCustomerAsync(

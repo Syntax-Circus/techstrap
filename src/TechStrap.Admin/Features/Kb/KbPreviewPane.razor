@@ -1,0 +1,31 @@
+@* The ONE place the Admin renders HTML an agent's text produced. Html is what POST /api/kb/preview answered: the API ran the Markdown through the same renderer and sanitiser as the portal, so nothing
+   the agent typed reaches this markup except through that answer. Nothing else in the Admin may use MarkupString (MarkupStringSiteTests). When the last call failed the previous good preview stays on
+   screen under a fixed message (never the API's text), so a failed refresh never blanks what the agent was reading. *@
+<section class="ts-kb-preview" aria-label="@KbEditorCopy.PreviewLabel" aria-busy="@(Loading ? "true" : null)">
+    @if (ErrorText is not null)
+    {
+        <p class="ts-kb-preview-error" role="status">@ErrorText</p>
+    }
+    @if (!string.IsNullOrEmpty(Html))
+    {
+        <div class="ts-kb-preview-body">@((MarkupString)Html)</div>
+    }
+    else if (ErrorText is null)
+    {
+        <p class="ts-kb-preview-empty">@(Loading ? KbEditorCopy.PreviewWorking : KbEditorCopy.PreviewEmpty)</p>
+    }
+</section>
+
+@code {
+    /// <summary>The sanitised HTML the preview call returned; empty before the first answer and for an empty article.</summary>
+    [Parameter]
+    public string? Html { get; set; }
+
+    /// <summary>A call is in flight.</summary>
+    [Parameter]
+    public bool Loading { get; set; }
+
+    /// <summary>Fixed copy that says why the preview could not be updated (never text from the API); null when it could.</summary>
+    [Parameter]
+    public string? ErrorText { get; set; }
+}

@@ -179,8 +179,10 @@ public sealed class DevelopmentDataSeeder(
 
         var general = Must(KbCategory.Create(null, "getting-started", "Getting started", 1, clock));
         var account = Must(KbCategory.Create(orbitly.Id, "account", "Account", 2, clock));
+        var guides = Must(KbCategory.Create(paperplane.Id, "guides", "Guides", 3, clock));
         knowledgeBase.AddCategory(general);
         knowledgeBase.AddCategory(account);
+        knowledgeBase.AddCategory(guides);
 
         var welcome = Must(KbArticle.Create(null, general.Id, "welcome", "Welcome to support", "How to reach us.", "# Welcome\n\nUse the contact form and we will reply by email.", sam.Id, clock));
         Must(welcome.Publish(clock));
@@ -189,10 +191,13 @@ public sealed class DevelopmentDataSeeder(
         var export = Must(KbArticle.Create(orbitly.Id, null, "export-csv", "Exporting to CSV", null, "# Exporting\n\nDraft in progress.", riley.Id, clock));
         var pricing = Must(KbArticle.Create(orbitly.Id, null, "old-pricing", "Old pricing", null, "# Pricing\n\nReplaced.", sam.Id, clock));
         Must(pricing.Archive(clock));
+        var darkMode = Must(KbArticle.Create(paperplane.Id, guides.Id, "using-dark-mode", "Using dark mode", "Switch Paperplane to the dark theme.", "# Using dark mode\n\nOpen **Settings**, choose **Appearance**, then **Dark**.", riley.Id, clock));
+        Must(darkMode.Publish(clock));
         knowledgeBase.AddArticle(welcome);
         knowledgeBase.AddArticle(reset);
         knowledgeBase.AddArticle(export);
         knowledgeBase.AddArticle(pricing);
+        knowledgeBase.AddArticle(darkMode);
     }
 
     private async Task<Ticket> NewTicketAsync(Product product, Requester requester, string subject, string firstMessage, CancellationToken cancellationToken)

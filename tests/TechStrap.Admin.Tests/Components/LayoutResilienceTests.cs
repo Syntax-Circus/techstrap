@@ -47,7 +47,7 @@ public sealed class LayoutResilienceTests : BunitContext
         var cut = Render<NavMenu>(p => p.SignedIn());
 
         cut.WaitForAssertion(() => _logs.Lines.ShouldContain(line => line.Contains("InvalidOperationException", StringComparison.Ordinal)));
-        cut.FindAll("a.ts-rail-link").Count.ShouldBe(7);
+        cut.FindAll("a.ts-rail-link").Count.ShouldBe(8);
         cut.FindAll(".ts-rail-badge").ShouldBeEmpty();
         NoLeak();
         await deadLetters.Received(1).CountAsync(Arg.Any<CancellationToken>());
@@ -142,12 +142,12 @@ public sealed class LayoutResilienceTests : BunitContext
         await session.EnsureLoadedAsync(Ct);
         var rail = Render<NavMenu>(p => p.SignedIn());
         var guarded = Render<AdminOnly>(p => p.AddChildContent("<p id='admin'>admin content</p>"));
-        rail.FindAll("a.ts-rail-link").Count.ShouldBe(7);
+        rail.FindAll("a.ts-rail-link").Count.ShouldBe(8);
 
         Services.GetRequiredService<SessionExpiry>().Report();
 
         session.ExpiredWhileWorking.ShouldBeTrue();
-        rail.WaitForAssertion(() => rail.FindAll("a.ts-rail-link").Count.ShouldBe(7));
+        rail.WaitForAssertion(() => rail.FindAll("a.ts-rail-link").Count.ShouldBe(8));
         guarded.WaitForAssertion(() => guarded.Find("#admin").TextContent.ShouldBe("admin content"));
     }
 }

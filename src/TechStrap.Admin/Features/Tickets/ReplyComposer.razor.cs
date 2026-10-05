@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using SyntaxCircus.Common;
 using TechStrap.Admin.Clients;
 using TechStrap.Admin.Components.Ui;
+using TechStrap.Admin.Features.Kb;
 using TechStrap.Admin.Features.Shell;
 using TechStrap.Contracts.Intake;
 using TechStrap.Contracts.Tickets;
@@ -22,10 +23,12 @@ public sealed partial class ReplyComposer : IDisposable
     private readonly string _id = Guid.NewGuid().ToString("N")[..8];
     private ComposerDraft _draft = new();
     private Guid _draftTicket;
+    private Guid _draftProduct;
     private ElementReference _text;
     private string? _error;
     private bool _disposed;
     private bool _filesDropped;
+    private bool _pickerOpen;
 
     [Inject]
     private ITicketsClient Tickets { get; set; } = default!;
@@ -50,6 +53,10 @@ public sealed partial class ReplyComposer : IDisposable
 
     [Parameter, EditorRequired]
     public string RequesterEmail { get; set; } = string.Empty;
+
+    /// <summary>The ticket's product: the article picker offers its published articles and the shared ones. A ticket that moves to another product changes it.</summary>
+    [Parameter, EditorRequired]
+    public Guid ProductId { get; set; }
 
     /// <summary>The ticket's current RowVersion, replaced by the page after every write and every reload.</summary>
     [Parameter, EditorRequired]
@@ -86,6 +93,10 @@ public sealed partial class ReplyComposer : IDisposable
 
     private string StatusId => $"ts-composer-status-{_id}";
 
+    private string PickerId => $"ts-composer-picker-{_id}";
+
+    private string LinkedLabelId => $"ts-composer-linked-{_id}";
+
     private string SectionCss => IsPublic ? "ts-composer ts-composer--public" : "ts-composer ts-composer--note";
 
     private bool HasUnsentText => !string.IsNullOrWhiteSpace(_draft.PublicText) || !string.IsNullOrWhiteSpace(_draft.NoteText);
@@ -118,6 +129,13 @@ public sealed partial class ReplyComposer : IDisposable
 
     protected override void OnParametersSet()
     {
+        // A ticket that moves to another product can no longer link that product's own articles (the API refuses them): those chips go and the shared ones stay.
+        if (_draftTicket == TicketId && _draftProduct != Guid.Empty && _draftProduct != ProductId)
+        {
+            _draft.LinkedArticles.RemoveAll(a => !a.IsShared);
+        }
+
+        _draftProduct = ProductId;
         if (_draftTicket != TicketId)
         {
             _draftTicket = TicketId;
@@ -180,6 +198,19 @@ public sealed partial class ReplyComposer : IDisposable
 
     private void RemoveFile(IBrowserFile file) => _files.Remove(file);
 
+    private void TogglePicker() => _pickerOpen = !_pickerOpen;
+
+    // The picker offers published articles only; the draft keeps the choice, in the order it was made, never twice and never beyond the limit the API enforces.
+    private void AddArticle(ArticleChoice article)
+    {
+        if (_draft.LinkedArticles.Count < TicketOperationLimits.MaxLinkedArticles && _draft.LinkedArticles.All(a => a.Id != article.Id))
+        {
+            _draft.LinkedArticles.Add(article);
+        }
+    }
+
+    private void RemoveArticle(ArticleChoice article) => _draft.LinkedArticles.Remove(article);
+
     /// <param name="statusAfterOverride">"Send and solve" passes Solved; otherwise the status choice in the draft applies.</param>
     private async Task SubmitAsync(string? statusAfterOverride = null)
     {
@@ -204,6 +235,9 @@ public sealed partial class ReplyComposer : IDisposable
         var rowVersion = RowVersion;
         var statusAfter = StatusAfterFor(statusAfterOverride);
         var files = Attachments();
+
+        // Only a public reply links articles; a note never does, whatever the draft holds. The ids are taken now, so a change made while the send is on its way is not part of it.
+        IReadOnlyList<Guid> articleIds = mode == ComposerMode.PublicReply ? [.. draft.LinkedArticles.Select(a => a.Id)] : [];
         _error = null;
         draft.UncertainSend = null;
         draft.InFlightMode = mode;
@@ -215,7 +249,7 @@ public sealed partial class ReplyComposer : IDisposable
         try
         {
             result = mode == ComposerMode.PublicReply
-                ? await Tickets.ReplyAsync(ticketId, new AddAgentReplyRequest(text, [], statusAfter, rowVersion), files, CancellationToken.None)
+                ? await Tickets.ReplyAsync(ticketId, new AddAgentReplyRequest(text, articleIds, statusAfter, rowVersion), files, CancellationToken.None)
                 : await Tickets.AddNoteAsync(ticketId, new AddInternalNoteRequest(text, rowVersion), CancellationToken.None);
         }
         catch (Exception ex)
@@ -232,7 +266,7 @@ public sealed partial class ReplyComposer : IDisposable
 
         try
         {
-            await HandleResultAsync(mode, draft, number, text, result);
+            await HandleResultAsync(mode, draft, number, text, articleIds, result);
         }
         finally
         {
@@ -265,7 +299,7 @@ public sealed partial class ReplyComposer : IDisposable
     }
 
     // Runs after the write finished, possibly after this component was disposed: the shared draft is settled first, and the UI callbacks only run while alive.
-    private async Task HandleResultAsync(ComposerMode mode, ComposerDraft draft, string number, string sentText, Result<AgentMessageResponse> result)
+    private async Task HandleResultAsync(ComposerMode mode, ComposerDraft draft, string number, string sentText, IReadOnlyList<Guid> sentArticleIds, Result<AgentMessageResponse> result)
     {
         if (result.IsSuccess)
         {
@@ -277,6 +311,9 @@ public sealed partial class ReplyComposer : IDisposable
                 {
                     draft.PublicText = string.Empty;
                 }
+
+                // The articles that were sent are linked now; one the agent added while the send was on its way stays for the next reply.
+                draft.LinkedArticles.RemoveAll(a => sentArticleIds.Contains(a.Id));
 
                 draft.FilesDropped = false;
                 if (!_disposed)
@@ -333,6 +370,10 @@ public sealed partial class ReplyComposer : IDisposable
         else if (outcome == WriteOutcome.Closed)
         {
             _error = error.Message;
+        }
+        else if (error.Code is ApiErrorCodes.KbArticleNotLinkable or ApiErrorCodes.ArticleNotFound)
+        {
+            _error = ReplyComposerCopy.ArticleNotLinkable;
         }
         else
         {
