@@ -23,7 +23,8 @@ public sealed class KbImagesController : ControllerBase
     [HttpPost]
     [ReadFormBeforeBinding]
     [RequestSizeLimit(KbRequestLimits.ImageFormBytes)]
-    [RequestFormLimits(MultipartBodyLengthLimit = KbRequestLimits.ImageFormBytes * 2)] // Kestrel's limit must trip first, as a 413
+    // The form limit sits above the request-size limit so Kestrel's 413 trips first, not a form-binding error.
+    [RequestFormLimits(MultipartBodyLengthLimit = KbRequestLimits.ImageFormBytes * 2)]
     public async Task<IActionResult> Upload([FromForm] KbImageForm form, [FromServices] IUploadKbImageRequestHandler handler, CancellationToken cancellationToken)
     {
         if (form.File is not { } file)

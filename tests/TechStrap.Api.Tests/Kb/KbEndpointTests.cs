@@ -356,6 +356,7 @@ public sealed class KbEndpointTests(TestPostgres postgres) : IDisposable
         noFile.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await noFile.Content.ReadAsStringAsync(Ct)).ShouldContain("file-required");
         wrongField.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await wrongField.Content.ReadAsStringAsync(Ct)).ShouldContain("file-required");
         json.StatusCode.ShouldBe(HttpStatusCode.UnsupportedMediaType);
         tooLarge.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await tooLarge.Content.ReadAsStringAsync(Ct)).ShouldContain("kb-image-too-large");
@@ -409,6 +410,72 @@ public sealed class KbEndpointTests(TestPostgres postgres) : IDisposable
         uploaded.Key.ShouldEndWith(".png");
         uploaded.Key.ShouldNotContain("evil");
         uploaded.Key.ShouldNotContain("..");
+    }
+
+    [Fact]
+    public async Task Agent_kb_responses_are_no_store_while_the_public_page_and_the_image_keep_their_caches()
+    {
+        await using var started = await StartAsync();
+        var product = await CreateProductAsync(started.Admin, "orbitly", "ORB");
+        var category = await CreateCategoryAsync(started.Agent, product.Id, "account");
+        var article = await CreateArticleAsync(started.Agent, product.Id, category.Id, "cached", "Body");
+        (await started.Agent.PostAsync($"/api/kb/articles/{article.Id}/publish", null, Ct)).EnsureSuccessStatusCode();
+        using var image = await started.Agent.PostAsync("/api/kb/images", Form(Png), Ct);
+        var uploaded = await ReadAsync<KbImageUploadResponse>(image);
+
+        using var agentGet = await started.Agent.GetAsync($"/api/kb/articles/{article.Id}", Ct);
+        using var agentList = await started.Agent.GetAsync("/api/kb/articles", Ct);
+        using var agentCreate = await started.Agent.PostAsJsonAsync("/api/kb/preview", new KbPreviewRequest("x"), Ct);
+        using var publicPage = await started.Anonymous.GetAsync("/api/public/kb/orbitly/articles/account/cached", Ct);
+        using var served = await started.Anonymous.GetAsync("/" + uploaded.Key, Ct);
+
+        agentGet.Headers.GetValues("Cache-Control").Single().ShouldBe("no-store");
+        agentList.Headers.GetValues("Cache-Control").Single().ShouldBe("no-store");
+        agentCreate.Headers.GetValues("Cache-Control").Single().ShouldBe("no-store");
+        image.Headers.GetValues("Cache-Control").Single().ShouldBe("no-store");
+        publicPage.Headers.GetValues("Cache-Control").Single().ShouldBe("public, max-age=60");
+        served.Headers.GetValues("Cache-Control").Single().ShouldBe("public, max-age=31536000, immutable");
+    }
+
+    [Theory]
+    [InlineData("publish", "abc")]
+    [InlineData("publish", "-1")]
+    [InlineData("archive", "abc")]
+    [InlineData("archive", "99999999999")]
+    public async Task A_version_query_that_is_not_an_unsigned_number_is_a_400(string action, string version)
+    {
+        await using var started = await StartAsync();
+        var article = await CreateArticleAsync(started.Agent, null, null, "versioned");
+
+        using var response = await started.Agent.PostAsync($"/api/kb/articles/{article.Id}/{action}?version={version}", null, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Archiving_or_publishing_with_a_stale_version_is_a_conflict()
+    {
+        await using var started = await StartAsync();
+        var category = await CreateCategoryAsync(started.Agent, null, "general");
+        var article = await CreateArticleAsync(started.Agent, null, category.Id, "stale");
+
+        using var stalePublish = await started.Agent.PostAsync($"/api/kb/articles/{article.Id}/publish?version={article.Version + 100}", null, Ct);
+        using var staleArchive = await started.Agent.PostAsync($"/api/kb/articles/{article.Id}/archive?version={article.Version + 100}", null, Ct);
+
+        stalePublish.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        staleArchive.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await staleArchive.Content.ReadAsStringAsync(Ct)).ShouldContain("concurrency-conflict");
+    }
+
+    [Fact]
+    public async Task A_maximum_length_non_ascii_article_is_accepted_not_refused_as_too_large()
+    {
+        await using var started = await StartAsync(kestrel: true);
+        var body = new string('中', 200_000); // 6 bytes each once the default encoder escapes it
+
+        using var response = await started.Agent.PostAsJsonAsync("/api/kb/articles", new CreateKbArticleRequest(null, null, "cjk", "Title", null, body), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
     }
 
     [Fact]

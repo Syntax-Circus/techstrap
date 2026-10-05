@@ -121,10 +121,12 @@ await ApiStartupTasks.RunAsync(app.Services, app.Environment, app.Configuration)
 
 app.UseForwardedHeaders();
 app.UseCorrelationId();
-// Every customer response (200, uniform 404, 429 from the limiter) is uncacheable. Registered before UseRateLimiter so the 429 is covered.
+// Every customer response (200, uniform 404, 429 from the limiter) and every agent KB response (drafts, Markdown) is uncacheable. Registered before UseRateLimiter so the 429 is covered.
+// "/api/kb" does not match "/api/public/kb" (public caching) and "/kb-images" keeps its immutable cache.
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/api/customer", StringComparison.OrdinalIgnoreCase))
+    if (context.Request.Path.StartsWithSegments("/api/customer", StringComparison.OrdinalIgnoreCase)
+        || context.Request.Path.StartsWithSegments("/api/kb", StringComparison.OrdinalIgnoreCase))
     {
         context.Response.OnStarting(() =>
         {
