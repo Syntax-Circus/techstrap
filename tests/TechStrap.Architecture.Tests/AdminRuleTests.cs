@@ -157,7 +157,6 @@ public sealed class AdminRuleTests
         AdminRules.InlineMarkupViolations([("Components/Ok.razor", markup)]).ShouldBeEmpty();
     }
 
-
     [Theory]
     [InlineData("<Microsoft.AspNetCore.Components.ImportMap />")]
     [InlineData("<Components.importmap></Components.importmap>")]

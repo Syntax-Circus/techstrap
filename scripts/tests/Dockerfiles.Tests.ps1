@@ -179,7 +179,12 @@ Describe 'clean publish serves the self-hosted fonts' -Tag 'Network' {
 
 Describe 'Dockerfile.admin time zone data' {
     # The Admin shows every time in the agent's browser zone and finds it with TimeZoneInfo.FindSystemTimeZoneById, which reads /usr/share/zoneinfo on Linux (D-042).
-    It 'installs tzdata in the runtime image' {
-        (Get-DockerfileText -Name 'admin') | Should -Match 'apt-get install -y --no-install-recommends curl tzdata'
+    It 'installs tzdata in the final (runtime) stage, not only in an earlier one' {
+        # Everything from the last FROM line on is the final stage: a tzdata install in the build stage would not reach the image that runs.
+        $text = Get-DockerfileText -Name 'admin'
+        $lastFrom = ($text -split "`n" | Select-String -Pattern '^FROM ' | Select-Object -Last 1).LineNumber
+        $finalStage = ($text -split "`n" | Select-Object -Skip ($lastFrom - 1)) -join "`n"
+        $finalStage | Should -Match 'FROM mcr\.microsoft\.com/dotnet/aspnet:10\.0'
+        $finalStage | Should -Match 'apt-get install -y --no-install-recommends curl tzdata'
     }
 }

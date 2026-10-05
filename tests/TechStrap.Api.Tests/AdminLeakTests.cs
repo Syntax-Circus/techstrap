@@ -64,6 +64,7 @@ public sealed class AdminLeakTests
         AssertVerboseWasCaptured(factory);
         factory.LogSink.Events.Select(Everything).ShouldAllBe(text => !text.Contains(token) && !text.Contains("Bearer "));
     }
+
     [Fact]
     public async Task A_search_term_appears_in_no_log_event_after_a_mid_session_401()
     {

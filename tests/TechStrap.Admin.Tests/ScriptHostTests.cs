@@ -65,7 +65,9 @@ public sealed partial class ScriptHostTests
         tag.Value.ShouldNotContain("async", Case.Insensitive);
         tag.Value.ShouldNotContain("module", Case.Insensitive);
         tag.Value.ShouldNotContain("type=", Case.Insensitive);
-        head.IndexOf(tag.Value, StringComparison.Ordinal).ShouldBeLessThan(head.IndexOf("rel=\"stylesheet\"", StringComparison.Ordinal), "before the first stylesheet, so the theme is set before the first paint");
+        var stylesheet = head.IndexOf("rel=\"stylesheet\"", StringComparison.Ordinal);
+        stylesheet.ShouldBeGreaterThanOrEqualTo(0, "the page must have a stylesheet, or the order below proves nothing");
+        head.IndexOf(tag.Value, StringComparison.Ordinal).ShouldBeLessThan(stylesheet, "before the first stylesheet, so the theme is set before the first paint");
         if (signedIn)
         {
             factory.Api.AssertEveryCallBore(AdminTestPrincipal.Agent);
