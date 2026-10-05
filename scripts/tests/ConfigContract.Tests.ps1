@@ -347,7 +347,7 @@ Describe 'the config contract of the local compose' {
     It 'the local compose no longer overrides the Admin sign-in or the group keys (the clash between .env.local and compose is gone)' {
         $admin = (Get-ComposeEnvironmentKeys -File 'docker-compose.yml')['admin']
         @($admin | Where-Object { $_ -like 'AUTH__*' -or $_ -like 'TECHSTRAP_*GROUP*' -or $_ -like 'TECHSTRAP_GROUP_CLAIM_TYPE' }) | Should -BeNullOrEmpty
-        @($admin | Sort-Object) | Should -Be @('API__BASEURL', 'ASPNETCORE_ENVIRONMENT', 'DATAPROTECTION__KEYRINGPATH', 'TRUSTEDPROXY__TRUSTEDNETWORKS__0')
+        @($admin | Sort-Object) | Should -Be @('API__BASEURL', 'ASPNETCORE_ENVIRONMENT', 'DATAPROTECTION__KEYRINGPATH', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TRUSTEDPROXY__TRUSTEDNETWORKS__0')
     }
 
     It 'the root .env.example documents the local compose inputs and nothing else' {

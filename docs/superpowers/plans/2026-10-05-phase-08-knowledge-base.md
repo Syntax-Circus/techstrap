@@ -48,7 +48,7 @@
   - Served with an immutable long cache.
 - **Public API.**
   - `max-age=60` on hits, `no-store` on 404, `max-age=300` on the sitemap.
-  - Search page size 10 (max 25), with an HTML-encoded `ts_headline` snippet.
+  - Search page size 10 (max 25), with a plain-text `ts_headline` snippet (the consumer encodes it).
   - An unknown or inactive product returns an empty result.
   - Article lookup tries the product first, then shared.
 - **Reply links.**
@@ -773,7 +773,7 @@ Modify `docs/architecture/04-DECISION-LOG.md` (each hunk shows its context; appl
 +- **Roles.** Agents manage articles, previews, images, and category create and update. Category delete is Admin only and is refused with a 409 while the category holds articles.
 +- **Markdown.** Raw HTML stays off. The knowledge base gets its own content profile: pipe tables, `img` (http and https only, with `alt`) and the table tags. Agent replies keep the existing pipeline unchanged.
 +- **Images.** 5 MB limit; png, jpeg, gif and webp only, recognised by their first bytes; SVG is rejected. The key is `kb-images/{guid}.{ext}`. There is no database row and no orphan cleanup. They are served anonymously with `nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cache-Control: public, max-age=31536000, immutable`.
-+- **Public API.** Anonymous, with the existing `Public` rate limiter. `Cache-Control: public, max-age=60` on a hit and `no-store` on a 404; the sitemap uses `max-age=300`. Search uses `websearch_to_tsquery` and `ts_rank`, page size 10, at most 25. The snippet comes from `ts_headline` over the summary and is HTML-encoded. An unknown or inactive product returns an empty result. An article lookup checks the product's own scope first, then the shared one. The DTOs carry no author and no ids of unpublished items.
++- **Public API.** Anonymous, with the existing `Public` rate limiter. `Cache-Control: public, max-age=60` on a hit and `no-store` on a 404; the sitemap uses `max-age=300`. Search uses `websearch_to_tsquery` and `ts_rank`, page size 10, at most 25. The snippet comes from `ts_headline` over the summary and is plain text (the consumer encodes it). An unknown or inactive product returns an empty result. An article lookup checks the product's own scope first, then the shared one. The DTOs carry no author and no ids of unpublished items.
 +- **Reply linking.** At most 10 links. Each article must be Published and either shared or in the ticket's product. The customer email lists links of the form `{PortalPublicUrl}/p/{key}/kb/{category}/{slug}`. The Admin picker offers Published articles only.
 +- **Admin.** A rail link "Knowledge base" for every agent and the palette command `go-kb`. Routes `/kb`, `/kb/new`, `/kb/{id}` and `/kb/categories`. A toolbar with bold, italic, link, list, code and image. A live preview with a 300 ms debounce through one sanitised preview pane, which is the one new `MarkupString` site. Image upload uses the file picker and appends the snippet (no caret insertion, paste or drag-and-drop yet). `NavigationLock` guards unsaved changes, a 409 keeps the draft and shows a banner, and `ConfirmDialog` guards archive and category delete.
 +- **Config (D-043).** `TECHSTRAP_API_PUBLIC_URL` goes through the four D-043 edits for the Api. An optional Admin setting `TECHSTRAP_PORTAL_PUBLIC_URL`, blank by default, powers a "View on portal" link that hides when it is unset.
@@ -5311,7 +5311,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
 
 ### Task 6: Public handlers: search with `ts_headline`, the article page, the categories and the sitemap
 
-**Review Focus pin:** Review Focus 3 (unpublished or wrong-product content leaking publicly). Pinned here by `PublicKbIntegrationTests` over a real Postgres (drafts and archived articles never reach search, the article page, the categories or the sitemap; another product's articles never do; shared ones do; an inactive product looks like an unknown one; the snippet is HTML-encoded and cut from the summary only) and `PublicKbHandlerTests`. Task 7 repeats the flow over HTTP with the cache headers.
+**Review Focus pin:** Review Focus 3 (unpublished or wrong-product content leaking publicly). Pinned here by `PublicKbIntegrationTests` over a real Postgres (drafts and archived articles never reach search, the article page, the categories or the sitemap; another product's articles never do; shared ones do; an inactive product looks like an unknown one; the snippet is plain text, cut from the summary only, and the consumer encodes it) and `PublicKbHandlerTests`. Task 7 repeats the flow over HTTP with the cache headers.
 
 **Files:**
 - Create: `src/TechStrap.Application/Knowledge/GetKbSitemapRequestHandler.cs`
@@ -6104,7 +6104,7 @@ public interface ISearchPublicKbArticlesRequestHandler
 /// <summary>
 /// GET /api/public/kb/{productKey}/search (anonymous, D-044). Published articles of the product and the shared space, best match first, 10 a page and
 /// at most 25. An unknown or inactive product, and blank text, give an empty page, never a 404, so a caller cannot tell which keys exist. The snippet
-/// is cut from the summary by the database and HTML-encoded here, so it is safe in markup as it is. Also used by contact-form deflection.
+/// is cut from the summary by the database as plain text; the consumer encodes it. Also used by contact-form deflection.
 /// </summary>
 public sealed class SearchPublicKbArticlesRequestHandler(IProductRepository products, IKbRepository knowledgeBase) : ISearchPublicKbArticlesRequestHandler
 {
@@ -6280,7 +6280,7 @@ git add src/TechStrap.Application \
   src/TechStrap.Infrastructure \
   tests
 git diff --cached --stat
-git commit -m "feat(kb): public search, article, categories and sitemap handlers" -m "Four anonymous reads for the portal: search (ts_rank over the weighted vector, a ts_headline snippet from the summary only, HTML-encoded, 10 a page and at most 25), the article page (the product's own article, else a shared one, under its category, rendered with the same renderer as the preview), the categories with published-article counts and the sitemap. Only Published articles whose article and category are the product's or shared are ever read; an unknown or inactive product gives an empty list or the one uniform 404. Proven against a real Postgres, including misfiled rows that isolate each scope condition." -m "$(printf '%s\n%s' 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' 'Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi')"
+git commit -m "feat(kb): public search, article, categories and sitemap handlers" -m "Four anonymous reads for the portal: search (ts_rank over the weighted vector, a ts_headline snippet from the summary only, plain text (the consumer encodes it), 10 a page and at most 25), the article page (the product's own article, else a shared one, under its category, rendered with the same renderer as the preview), the categories with published-article counts and the sitemap. Only Published articles whose article and category are the product's or shared are ever read; an unknown or inactive product gives an empty list or the one uniform 404. Proven against a real Postgres, including misfiled rows that isolate each scope condition." -m "$(printf '%s\n%s' 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' 'Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi')"
 ```
 
 The commit message ends with exactly these two lines, and nothing else is staged:

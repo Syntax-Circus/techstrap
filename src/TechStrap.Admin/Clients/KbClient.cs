@@ -29,7 +29,7 @@ public interface IKbClient
 
     /// <summary>
     /// <c>POST /api/kb/articles</c> (201). 409 kb-slug-taken (the slug is used in this product or, across scopes, by a shared article or another product);
-    /// 409 kb-category-scope-mismatch; 400 fields: title, slug, summary, body, category.
+    /// 400 kb-category-scope-mismatch (a Validation error with target <c>categoryId</c>, not a conflict); 400 fields: title, slug, summary, body, category.
     /// </summary>
     Task<Result<KbArticleDto>> CreateAsync(CreateKbArticleRequest request, CancellationToken cancellationToken);
 

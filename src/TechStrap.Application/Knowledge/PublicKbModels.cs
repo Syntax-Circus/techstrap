@@ -9,7 +9,7 @@ namespace TechStrap.Application.Knowledge;
 /// </summary>
 public sealed record PublicKbSearchQuery(string Text, Guid ProductId, string? CategorySlug = null, int Page = 1, int PageSize = 10);
 
-/// <summary>One search hit. <see cref="Snippet"/> is plain text cut from the article summary by <c>ts_headline</c>; it is NOT encoded yet, so a handler must encode it before it leaves the API.</summary>
+/// <summary>One search hit. <see cref="Snippet"/> is plain text cut from the article summary by <c>ts_headline</c>. It is not HTML: the consumer (the portal) encodes it when it shows it, as it does every public text field.</summary>
 public sealed record PublicKbSearchHit(string Slug, string Title, string Snippet, string CategorySlug, string CategoryName, string? ProductKey);
 
 /// <summary>A Published article with the category and product names the portal address needs. <see cref="ProductKey"/> is null for a shared article.</summary>

@@ -78,6 +78,8 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       Api__BaseUrl: http://api/
+      # The "View on portal" link of a published article (the portal's local port, below).
+      TECHSTRAP_PORTAL_PUBLIC_URL: http://localhost:8082
       # Admin trusts only the reverse proxy. 192.0.2.0/24 is a placeholder; set REVERSE_PROXY_CIDR.
       TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${REVERSE_PROXY_CIDR:-192.0.2.0/24}
       DataProtection__KeyRingPath: /app/dataprotection-keys
