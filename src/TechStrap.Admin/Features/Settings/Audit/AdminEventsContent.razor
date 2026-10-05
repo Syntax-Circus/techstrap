@@ -57,23 +57,23 @@
         else
         {
             <ScrollRegion Label="Audit events">
-                <table class="table ts-ledger ts-settings-table" aria-busy="@(_loading ? "true" : null)">
-                    <thead>
-                        <tr>
-                            <th scope="col">@AuditCopy.ColumnWhen</th>
-                            <th scope="col">@AuditCopy.ColumnWho</th>
-                            <th scope="col">@AuditCopy.ColumnWhat</th>
-                            <th scope="col">@AuditCopy.ColumnSummary</th>
+                <table role="table" class="table ts-ledger ts-settings-table" aria-busy="@(_loading ? "true" : null)">
+                    <thead role="rowgroup">
+                        <tr role="row">
+                            <th role="columnheader" scope="col">@AuditCopy.ColumnWhen</th>
+                            <th role="columnheader" scope="col">@AuditCopy.ColumnWho</th>
+                            <th role="columnheader" scope="col">@AuditCopy.ColumnWhat</th>
+                            <th role="columnheader" scope="col">@AuditCopy.ColumnSummary</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                         @foreach (var row in _rows)
                         {
-                            <tr @key="row.Id">
-                                <td><RelativeTime When="row.At" /></td>
-                                <td>@row.Actor</td>
-                                <td>@row.Subject</td>
-                                <td class="ts-audit-summary">@row.Summary</td>
+                            <tr role="row" @key="row.Id">
+                                <td role="cell"><RelativeTime When="row.At" /></td>
+                                <td role="cell">@row.Actor</td>
+                                <td role="cell">@row.Subject</td>
+                                <td role="cell" class="ts-audit-summary">@row.Summary</td>
                             </tr>
                         }
                     </tbody>

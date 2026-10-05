@@ -24,25 +24,25 @@
         @if (_rows.Count > 0)
         {
             <ScrollRegion Label="@QueueCopy.TableLabel">
-                <table class="table ts-ledger ts-ledger--stack" data-shortcut-scope="queue" aria-busy="@(_loading ? "true" : null)">
-                    <thead>
-                        <tr>
-                            <th scope="col"><span class="visually-hidden">Selection</span></th>
-                            <th scope="col">Ticket</th>
-                            <th scope="col">Subject</th>
-                            <th scope="col">Product</th>
-                            <th scope="col">Requester</th>
-                            <th scope="col">Status</th>
-                            <th scope="col">Priority</th>
-                            <th scope="col">Assignee</th>
-                            <th scope="col">Last activity</th>
+                <table role="table" class="table ts-ledger ts-ledger--stack" data-shortcut-scope="queue" aria-busy="@(_loading ? "true" : null)">
+                    <thead role="rowgroup">
+                        <tr role="row">
+                            <th role="columnheader" scope="col"><span class="visually-hidden">Selection</span></th>
+                            <th role="columnheader" scope="col">Ticket</th>
+                            <th role="columnheader" scope="col">Subject</th>
+                            <th role="columnheader" scope="col">Product</th>
+                            <th role="columnheader" scope="col">Requester</th>
+                            <th role="columnheader" scope="col">Status</th>
+                            <th role="columnheader" scope="col">Priority</th>
+                            <th role="columnheader" scope="col">Assignee</th>
+                            <th role="columnheader" scope="col">Last activity</th>
                             @if (IsSpamView)
                             {
-                                <th scope="col"><span class="visually-hidden">Actions</span></th>
+                                <th role="columnheader" scope="col"><span class="visually-hidden">Actions</span></th>
                             }
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                         @for (var i = 0; i < _rows.Count; i++)
                         {
                             <TicketRow @key="_rows[i].Id" Row="_rows[i]" Selected="@(i == _selected)" ShowNotSpam="IsSpamView" OnNotSpam="NotSpamAsync" />

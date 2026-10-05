@@ -11,7 +11,7 @@ namespace TechStrap.Admin.Tests;
 /// </summary>
 public sealed partial class ScrollRegionSiteTests : BunitContext
 {
-    [GeneratedRegex(@"<table class=""table ts-ledger")]
+    [GeneratedRegex(@"<table[^>]*\bts-ledger\b")]
     private static partial Regex LedgerTable();
 
     [Fact]
@@ -28,7 +28,7 @@ public sealed partial class ScrollRegionSiteTests : BunitContext
     }
 
     [Fact]
-    public void Every_ledger_table_in_the_admin_sits_directly_inside_a_scroll_region()
+    public void Every_ledger_table_in_the_admin_sits_directly_inside_a_scroll_region_and_names_its_role()
     {
         var admin = RepositoryRoot.Combine("src", "TechStrap.Admin");
         var separator = Path.DirectorySeparatorChar;
@@ -38,6 +38,7 @@ public sealed partial class ScrollRegionSiteTests : BunitContext
 
         var tables = 0;
         var unwrapped = new List<string>();
+        var withoutRole = new List<string>();
         foreach (var file in files)
         {
             var lines = File.ReadAllLines(file);
@@ -49,6 +50,11 @@ public sealed partial class ScrollRegionSiteTests : BunitContext
                 }
 
                 tables++;
+                if (!lines[i].Contains("role=\"table\"", StringComparison.Ordinal))
+                {
+                    withoutRole.Add($"{Path.GetRelativePath(admin, file).Replace('\\', '/')}:{i + 1}");
+                }
+
                 if (i == 0 || !lines[i - 1].Contains("<ScrollRegion ", StringComparison.Ordinal))
                 {
                     unwrapped.Add($"{Path.GetRelativePath(admin, file).Replace('\\', '/')}:{i + 1}");
@@ -58,5 +64,6 @@ public sealed partial class ScrollRegionSiteTests : BunitContext
 
         tables.ShouldBe(7);
         unwrapped.ShouldBeEmpty();
+        withoutRole.ShouldBeEmpty();
     }
 }

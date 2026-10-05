@@ -1,6 +1,8 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
+using NSubstitute;
 using TechStrap.Admin.Auth;
 using TechStrap.Admin.Components.Layout;
 using TechStrap.Admin.Tests.Support;
@@ -67,6 +69,58 @@ public sealed class RailToggleTests : AdminComponentTest
 
         cut.WaitForAssertion(() => cut.Find("button.ts-rail-toggle").GetAttribute("aria-expanded").ShouldBe("false"));
         cut.Find(".ts-rail-panel").GetAttribute("data-open").ShouldBe("false");
+    }
+
+    [Fact]
+    public async Task Choosing_a_page_hands_focus_to_the_menu_button_when_it_was_inside_the_panel()
+    {
+        var cut = await RenderRailAsync();
+        cut.Find("button.ts-rail-toggle").Click();
+
+        await cut.InvokeAsync(() => Services.GetRequiredService<NavigationManager>().NavigateTo("/account/notifications"));
+
+        cut.WaitForAssertion(() => Menu.VerifyInvoke("focusIfWithin", 1));
+        var call = Menu.Invocations["focusIfWithin"].Single();
+        call.Arguments.Count.ShouldBe(2);
+        cut.WaitForAssertion(() => cut.Find(".ts-rail-panel").GetAttribute("data-open").ShouldBe("false"));
+    }
+
+    [Fact]
+    public async Task A_failing_focus_script_still_folds_the_rail_away()
+    {
+        Menu.SetupVoid("focusIfWithin", _ => true).SetException(new JSException("no script"));
+        var cut = await RenderRailAsync();
+        cut.Find("button.ts-rail-toggle").Click();
+
+        await cut.InvokeAsync(() => Services.GetRequiredService<NavigationManager>().NavigateTo("/account/notifications"));
+
+        cut.WaitForAssertion(() => cut.Find(".ts-rail-panel").GetAttribute("data-open").ShouldBe("false"));
+    }
+
+    [Fact]
+    public async Task A_rail_that_was_already_closed_asks_the_script_nothing()
+    {
+        var cut = await RenderRailAsync();
+
+        await cut.InvokeAsync(() => Services.GetRequiredService<NavigationManager>().NavigateTo("/queue/mine"));
+
+        Menu.VerifyNotInvoke("focusIfWithin");
+    }
+
+    [Fact]
+    public async Task A_refused_agent_sees_the_brand_and_no_menu_button()
+    {
+        var agents = this.AddAgentShell();
+        agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(TestData.Fail<AgentDto>("agent-inactive", "Not an agent.", SyntaxCircus.Common.ResultErrorKind.Forbidden));
+        var session = Services.GetRequiredService<AgentSession>();
+        await session.EnsureLoadedAsync(Ct);
+
+        var cut = Render<NavMenu>(p => p.SignedIn());
+
+        session.State.ShouldBe(AgentSessionState.NoAccess);
+        cut.FindAll("button.ts-rail-toggle").ShouldBeEmpty();
+        cut.FindAll(".ts-rail-panel").ShouldBeEmpty();
+        cut.Find("a.ts-brand").ShouldNotBeNull();
     }
 
     [Fact]

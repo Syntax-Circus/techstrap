@@ -175,6 +175,23 @@ public sealed class TicketQueuePageTests : AdminComponentTest
     }
 
     [Fact]
+    public void The_stacked_table_keeps_its_table_semantics_with_explicit_roles_on_every_part()
+    {
+        // The phone layout turns the table into cards with display: block, which drops the table semantics in some browsers; the roles put them back.
+        _tickets.ListAsync(Arg.Any<ListTicketsRequest>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.Page([TestData.Summary("ORB-42", assignee: "Sam Ortiz"), TestData.Summary("ORB-43")])));
+
+        var cut = RenderQueue("open");
+
+        cut.Find("table.ts-ledger").GetAttribute("role").ShouldBe("table");
+        cut.FindAll("table.ts-ledger > thead, table.ts-ledger > tbody").ShouldAllBe(group => group.GetAttribute("role") == "rowgroup");
+        cut.FindAll("table.ts-ledger tr").Count.ShouldBe(3);
+        cut.FindAll("table.ts-ledger tr").ShouldAllBe(row => row.GetAttribute("role") == "row");
+        cut.FindAll("table.ts-ledger th").ShouldAllBe(header => header.GetAttribute("role") == "columnheader");
+        cut.FindAll("table.ts-ledger tbody td").Count.ShouldBeGreaterThan(0);
+        cut.FindAll("table.ts-ledger tbody td").ShouldAllBe(cell => cell.GetAttribute("role") == "cell");
+    }
+
+    [Fact]
     public void A_row_without_an_assignee_or_requester_name_falls_back_and_a_spam_row_wears_the_spam_stamp()
     {
         _tickets.ListAsync(Arg.Any<ListTicketsRequest>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.Page(

@@ -112,3 +112,10 @@ export function focusFirst(menu) {
         first.focus();
     }
 }
+
+/** Called before the rail panel folds away after a navigation: when focus is inside the panel (the chosen link), moves it to the Menu button; focus elsewhere is left alone. */
+export function focusIfWithin(container, target) {
+    if (container && target && container.contains(document.activeElement)) {
+        target.focus();
+    }
+}

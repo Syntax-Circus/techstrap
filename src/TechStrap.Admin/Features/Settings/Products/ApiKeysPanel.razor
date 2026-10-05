@@ -68,27 +68,27 @@
     else
     {
         <ScrollRegion Label="API keys">
-            <table class="table ts-ledger ts-settings-table ts-key-table">
-                <thead>
-                    <tr>
-                        <th scope="col">@ApiKeysCopy.ColumnLabel</th>
-                        <th scope="col">@ApiKeysCopy.ColumnKind</th>
-                        <th scope="col">@ApiKeysCopy.ColumnKey</th>
-                        <th scope="col">@ApiKeysCopy.ColumnCreated</th>
-                        <th scope="col">@ApiKeysCopy.ColumnLastUsed</th>
-                        <th scope="col">@ApiKeysCopy.ColumnStatus</th>
-                        <th scope="col"><span class="visually-hidden">@ApiKeysCopy.ColumnActions</span></th>
+            <table role="table" class="table ts-ledger ts-settings-table ts-key-table">
+                <thead role="rowgroup">
+                    <tr role="row">
+                        <th role="columnheader" scope="col">@ApiKeysCopy.ColumnLabel</th>
+                        <th role="columnheader" scope="col">@ApiKeysCopy.ColumnKind</th>
+                        <th role="columnheader" scope="col">@ApiKeysCopy.ColumnKey</th>
+                        <th role="columnheader" scope="col">@ApiKeysCopy.ColumnCreated</th>
+                        <th role="columnheader" scope="col">@ApiKeysCopy.ColumnLastUsed</th>
+                        <th role="columnheader" scope="col">@ApiKeysCopy.ColumnStatus</th>
+                        <th role="columnheader" scope="col"><span class="visually-hidden">@ApiKeysCopy.ColumnActions</span></th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody role="rowgroup">
                     @foreach (var row in _rows)
                     {
-                        <tr @key="row.Id" class="@(row.IsRevoked ? "ts-key--revoked" : null)" data-key-id="@row.Id">
-                            <td>@(string.IsNullOrWhiteSpace(row.Label) ? ApiKeysCopy.NoLabel : row.Label)</td>
-                            <td><ApiKeyKindBadge Kind="@row.Kind" /></td>
-                            <td><code>@row.KeyPrefix</code></td>
-                            <td><RelativeTime When="row.CreatedAt" /></td>
-                            <td>
+                        <tr role="row" @key="row.Id" class="@(row.IsRevoked ? "ts-key--revoked" : null)" data-key-id="@row.Id">
+                            <td role="cell">@(string.IsNullOrWhiteSpace(row.Label) ? ApiKeysCopy.NoLabel : row.Label)</td>
+                            <td role="cell"><ApiKeyKindBadge Kind="@row.Kind" /></td>
+                            <td role="cell"><code>@row.KeyPrefix</code></td>
+                            <td role="cell"><RelativeTime When="row.CreatedAt" /></td>
+                            <td role="cell">
                                 @if (row.LastUsedAt is { } used)
                                 {
                                     <RelativeTime When="used" />
@@ -98,7 +98,7 @@
                                     @ApiKeysCopy.NeverUsed
                                 }
                             </td>
-                            <td>
+                            <td role="cell">
                                 @if (row.RevokedAt is { } revoked)
                                 {
                                     <span class="ts-pill ts-pill--off">@ApiKeysCopy.Revoked</span>
@@ -109,7 +109,7 @@
                                     <span class="ts-pill ts-pill--on">@ApiKeysCopy.Active</span>
                                 }
                             </td>
-                            <td class="ts-settings-actions">
+                            <td role="cell" class="ts-settings-actions">
                                 @if (!row.IsRevoked)
                                 {
                                     <button type="button" class="btn btn-outline-secondary ts-revoke" @onclick="() => AskRevoke(row)">@ApiKeysCopy.Revoke</button>

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Logging;
+using Microsoft.JSInterop;
 using TechStrap.Admin.Auth;
 using TechStrap.Admin.Components.Ui;
 using TechStrap.Admin.Features.Shell;
@@ -13,12 +14,15 @@ namespace TechStrap.Admin.Components.Layout;
 /// answer (D-040, D-041). Hiding a link is not access control: each admin page is wrapped in <c>AdminOnly</c> and the API answers 403 to every admin call. The badge call
 /// is made only for an admin, after the first render (never while prerendering), and only once. Sign out is the shared <c>SignOutForm</c>.
 /// </summary>
-public sealed partial class NavMenu : IDisposable
+public sealed partial class NavMenu : IDisposable, IAsyncDisposable
 {
     private readonly CancellationTokenSource _lifetime = new();
     private bool _badgeRequested;
     private bool _disposed;
     private bool _railOpen;
+    private ElementReference _toggle;
+    private ElementReference _panel;
+    private IJSObjectReference? _menuScript;
 
     [Inject]
     private AgentSession Session { get; set; } = default!;
@@ -30,7 +34,12 @@ public sealed partial class NavMenu : IDisposable
     private FailedEmailCounter Failed { get; set; } = default!;
 
     [Inject]
+    private IJSRuntime Js { get; set; } = default!;
+
+    [Inject]
     private NavigationManager Navigation { get; set; } = default!;
+
+    private const string MenuModule = "./js/menu.js";
 
     private static string PanelId => "ts-rail-panel";
 
@@ -49,6 +58,29 @@ public sealed partial class NavMenu : IDisposable
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
         if (_railOpen)
+        {
+            _ = CloseRailAfterNavigationAsync();
+        }
+    }
+
+    /// <summary>
+    /// The panel is hidden when it folds away, and a hidden element cannot keep focus, so the browser would drop it on the page. When focus is inside the panel (the link that was chosen)
+    /// it is handed to the Menu button first; focus that is somewhere else is left alone. The rail folds even when the script cannot run.
+    /// </summary>
+    private async Task CloseRailAfterNavigationAsync()
+    {
+        try
+        {
+            _menuScript ??= await Js.InvokeAsync<IJSObjectReference>("import", MenuModule);
+            await _menuScript.InvokeVoidAsync("focusIfWithin", _panel, _toggle);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or TaskCanceledException)
+        {
+            // Focus is a courtesy, not worth an error; log the type only.
+            Logger.LogWarning("The menu button could not take focus ({ExceptionType}).", ex.GetType().Name);
+        }
+
+        if (!_disposed && _railOpen)
         {
             _railOpen = false;
             OnChanged();
@@ -96,5 +128,23 @@ public sealed partial class NavMenu : IDisposable
         Navigation.LocationChanged -= OnLocationChanged;
         _lifetime.Cancel();
         _lifetime.Dispose();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        if (_menuScript is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _menuScript.DisposeAsync();
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or JSException or TaskCanceledException)
+        {
+            // The circuit is already gone.
+        }
     }
 }

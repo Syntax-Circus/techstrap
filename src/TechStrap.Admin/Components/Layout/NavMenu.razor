@@ -6,8 +6,8 @@
     @if (Session.IsAdmitted)
     {
         @* Below 992 px the links fold away behind this button (_shell.scss); from 992 px up the button is hidden and the panel is always shown. *@
-        <button type="button" class="ts-rail-toggle" aria-expanded="@(_railOpen ? "true" : "false")" aria-controls="@PanelId" @onclick="ToggleRail">@ShellCopy.MenuToggle</button>
-        <div id="@PanelId" class="ts-rail-panel" data-open="@(_railOpen ? "true" : "false")">
+        <button @ref="_toggle" type="button" class="ts-rail-toggle" aria-expanded="@(_railOpen ? "true" : "false")" aria-controls="@PanelId" @onclick="ToggleRail">@ShellCopy.MenuToggle</button>
+        <div @ref="_panel" id="@PanelId" class="ts-rail-panel" data-open="@(_railOpen ? "true" : "false")">
             <RailLink Href="/queue">@ShellCopy.QueueLink</RailLink>
             @if (Session.IsAdmin)
             {

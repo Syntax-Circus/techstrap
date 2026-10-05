@@ -42,6 +42,7 @@ public abstract class AdminComponentTest : BunitContext
         Menu = JSInterop.SetupModule("./js/menu.js");
         Menu.SetupVoid("attach", _ => true).SetVoidResult();
         Menu.SetupVoid("focusFirst", _ => true).SetVoidResult();
+        Menu.SetupVoid("focusIfWithin", _ => true).SetVoidResult();
     }
 
     protected FakeTimeProvider Time { get; }
@@ -61,7 +62,7 @@ public abstract class AdminComponentTest : BunitContext
     /// <summary>The <c>palette.js</c> module double: <c>attach</c>, <c>detach</c> and <c>reveal</c> succeed.</summary>
     protected BunitJSModuleInterop Palette { get; }
 
-    /// <summary>The <c>menu.js</c> module double: <c>attach</c> and <c>focusFirst</c> succeed.</summary>
+    /// <summary>The <c>menu.js</c> module double: <c>attach</c>, <c>focusFirst</c> and <c>focusIfWithin</c> succeed.</summary>
     protected BunitJSModuleInterop Menu { get; }
 
     protected ShortcutService ShortcutService => Services.GetRequiredService<ShortcutService>();

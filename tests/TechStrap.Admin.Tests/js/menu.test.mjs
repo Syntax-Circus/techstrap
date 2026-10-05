@@ -1,7 +1,7 @@
 // Runs with `node --test` (no browser): decideKey in menu.js takes plain objects.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { decideKey } from '../../../src/TechStrap.Admin/wwwroot/js/menu.js';
+import { decideKey, focusIfWithin } from '../../../src/TechStrap.Admin/wwwroot/js/menu.js';
 
 const event = (key, extra = {}) => ({ key, isComposing: false, altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, ...extra });
 const closed = (extra = {}) => ({ open: false, onButton: true, count: 3, current: -1, ...extra });
@@ -71,5 +71,30 @@ describe('chords and composition', () => {
             assert.equal(decideKey(event('Escape', extra), open()), null, JSON.stringify(extra));
             assert.equal(decideKey(event('ArrowDown', extra), closed()), null, JSON.stringify(extra));
         }
+    });
+});
+
+describe('focusIfWithin', () => {
+    const focusable = () => ({ focused: 0, focus() { this.focused++; } });
+
+    it('moves focus to the target when focus is inside the container', () => {
+        const link = {};
+        const target = focusable();
+        globalThis.document = { activeElement: link };
+
+        focusIfWithin({ contains: (element) => element === link }, target);
+
+        assert.equal(target.focused, 1);
+    });
+
+    it('leaves focus alone when it is somewhere else or the elements are missing', () => {
+        const target = focusable();
+        globalThis.document = { activeElement: {} };
+
+        focusIfWithin({ contains: () => false }, target);
+        focusIfWithin(null, target);
+        focusIfWithin({ contains: () => true }, null);
+
+        assert.equal(target.focused, 0);
     });
 });
