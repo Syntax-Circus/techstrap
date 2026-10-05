@@ -131,6 +131,12 @@ public sealed class KbArticle
             return error;
         }
 
+        if (Status == KbArticleStatus.Published && categoryId is null)
+        {
+            // A published article needs a category: the public DTOs, the sitemap and the portal URL all carry its slug (D-044).
+            return DomainErrors.Validation(PublishIncompleteCode, "A published article cannot be left without a category.", "category");
+        }
+
         CategoryId = categoryId;
         Title = articleTitle.Value;
         Summary = articleSummary.Value;

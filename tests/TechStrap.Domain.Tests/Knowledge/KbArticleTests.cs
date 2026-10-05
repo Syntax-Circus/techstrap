@@ -151,6 +151,38 @@ public sealed class KbArticleTests
         article.PublishedAt.ShouldBeNull();
     }
 
+    [Fact]
+    public void Updating_a_published_article_with_no_category_is_refused_and_changes_nothing()
+    {
+        var article = Draft();
+        article.Publish(_clock);
+        var updated = article.UpdatedAt;
+        _clock.Advance(TimeSpan.FromHours(1));
+
+        var result = article.Update(null, "New title", null, "new body", _clock);
+
+        result.Error!.ShouldSatisfyAllConditions(
+            error => error.Kind.ShouldBe(DomainErrorKind.Validation),
+            error => error.Code.ShouldBe("kb-publish-incomplete"),
+            error => error.Target.ShouldBe("category"));
+        article.CategoryId.ShouldBe(_category);
+        article.Title.ShouldBe("Reset your password");
+        article.Status.ShouldBe(KbArticleStatus.Published);
+        article.UpdatedAt.ShouldBe(updated);
+    }
+
+    [Fact]
+    public void An_archived_article_may_be_edited_with_no_category_and_goes_back_to_draft()
+    {
+        var article = Draft();
+        article.Archive(_clock);
+
+        article.Update(null, "New title", null, "new body", _clock).IsSuccess.ShouldBeTrue();
+
+        article.Status.ShouldBe(KbArticleStatus.Draft);
+        article.CategoryId.ShouldBeNull();
+    }
+
     [Theory]
     [InlineData("title")]
     [InlineData("slug")]

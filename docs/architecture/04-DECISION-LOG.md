@@ -1614,6 +1614,7 @@ PHASE-03 already delivered the KB tables, the unique `(product_id, slug)` indexe
 ### Consequences
 - **The API needs one new setting in Production.** `TECHSTRAP_API_PUBLIC_URL` is required; the Api refuses to start without it. The owner must route `/kb-images/` through the reverse proxy.
 - **Existing tests that published a category-less article now need a category.** Publishing validates it.
+- **Two concurrent creates of one slug in different scopes can both succeed.** The unique index separates the scopes, so only the create-time check blocks a cross-scope duplicate; the owner accepts this narrow race.
 - **A search snippet is encoded text.** The portal must show it as markup that is already safe, not encode it again.
 - **Still open (owner):** the reverse proxy route for `/kb-images/`, and checking an uploaded image loads from the API public URL.
 
