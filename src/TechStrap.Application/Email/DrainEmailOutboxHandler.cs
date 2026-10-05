@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SyntaxCircus.Common;
 using TechStrap.Application.Intake;
+using TechStrap.Application.Knowledge;
 using TechStrap.Application.Persistence;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
@@ -149,13 +150,14 @@ public sealed class DrainEmailOutboxHandler(
             return reply;
         }
 
-        var ids = articles.Where(a => a?.ArticleId is not null).Select(a => a.ArticleId!.Value).ToList();
-        if (ids.Count == 0)
+        if (!articles.Any(a => a?.ArticleId is not null))
         {
             return reply;
         }
 
-        var current = (await knowledgeBase.ListPublicLinkTargetsAsync(productId, ids, cancellationToken)).ToDictionary(t => t.ArticleId);
+        // An empty id can never match an article, so it is dropped (never kept unchecked) and is not sent to the query.
+        var ids = articles.Where(a => a?.ArticleId is { } id && id != Guid.Empty).Select(a => a.ArticleId!.Value).ToList();
+        var current = ids.Count == 0 ? new Dictionary<Guid, PublicKbLinkTarget>() : (await knowledgeBase.ListPublicLinkTargetsAsync(productId, ids, cancellationToken)).ToDictionary(t => t.ArticleId);
         var kept = articles
             .Where(a => a is not null && (a.ArticleId is not { } id
                 || (current.TryGetValue(id, out var target) && a.Url.EndsWith(PortalLinkOptions.ArticlePath(product.Key, target.CategorySlug, target.Slug), StringComparison.Ordinal))))

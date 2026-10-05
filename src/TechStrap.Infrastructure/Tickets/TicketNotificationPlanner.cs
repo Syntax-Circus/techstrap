@@ -67,7 +67,7 @@ internal sealed class TicketNotificationPlanner(
                 : [.. articles.Select(article => new ArticleLinkEntry(
                     CapTitle(article.Title),
                     portalOptions.Value.ArticleLink(product.Key, article.CategorySlug, article.Slug),
-                    article.ArticleId == Guid.Empty ? null : article.ArticleId))]);
+                    article.ArticleId))]);
         if (reply.Articles is not null && JsonSerializer.Serialize(reply, PayloadJson).Length > DomainLimits.OutboxPayloadMaxLength)
         {
             logger.LogWarning("Queued {Kind} for ticket {TicketId} without its {Count} article links: payload size cap", EmailTemplates.AgentReply, ticket.Id, reply.Articles.Count);

@@ -145,6 +145,25 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
     }
 
     [Fact]
+    public async Task A_title_cut_through_a_surrogate_pair_never_ends_in_an_unpaired_surrogate()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        // The pair sits at characters 116 and 117, so the cut at 117 would split it.
+        var title = new string('a', 116) + "\U0001F600" + new string('b', 50);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, (planner, ticket, sam, _) =>
+            planner.PlanAgentReplyAsync(ticket, AgentMessage(host, seed, sam), sam, false, [new ReplyArticleLink(title, "account", "slug", Guid.NewGuid())], Ct))))
+            .IsSuccess.ShouldBeTrue();
+
+        using var json = System.Text.Json.JsonDocument.Parse(await TextAsync("SELECT payload::text FROM email_outbox"));
+        var stored = json.RootElement.GetProperty("articles")[0].GetProperty("title").GetString()!;
+        stored.EndsWith("...").ShouldBeTrue();
+        stored.Any(char.IsSurrogate).ShouldBeFalse();
+        stored.ShouldBe(new string('a', 116) + "...");
+    }
+
+    [Fact]
     public async Task Review_Focus_5_a_payload_that_would_still_exceed_the_outbox_cap_is_queued_without_the_article_list_never_skipped()
     {
         await using var host = NewHost();

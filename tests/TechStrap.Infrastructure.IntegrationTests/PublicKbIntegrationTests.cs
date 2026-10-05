@@ -77,6 +77,24 @@ public sealed class PublicKbIntegrationTests(PostgresFixture postgres) : Postgre
         }
     }
 
+    [Fact]
+    public async Task Review_Focus_5_the_link_recheck_query_returns_only_published_articles_visible_to_the_product_with_their_current_category_and_slug()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var world = await SeedAsync(host);
+        var ids = world.Articles.Values.Select(article => article.Id).ToList();
+
+        var targets = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().ListPublicLinkTargetsAsync(world.Scenario.Acme.Id, ids, Ct));
+
+        // Excluded: the draft, the archived article, Orbitly's article, the shared draft, an Orbitly article in an Acme category and an Acme article in an Orbitly category.
+        targets.OrderBy(target => target.Slug).ShouldBe(
+        [
+            new PublicKbLinkTarget(world.Articles["acme-published"].Id, "acme-cat", "acme-published"),
+            new PublicKbLinkTarget(world.Articles["shared-published"].Id, "general", "shared-published"),
+        ]);
+        (await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().ListPublicLinkTargetsAsync(world.Scenario.Acme.Id, [], Ct))).ShouldBeEmpty();
+    }
+
     private static Task<T> WithHandlersAsync<T>(World world, Func<IServiceProvider, Task<T>> work) => world.Host.ReadAsync(work);
 
     private static ISearchPublicKbArticlesRequestHandler Search(IServiceProvider sp) =>

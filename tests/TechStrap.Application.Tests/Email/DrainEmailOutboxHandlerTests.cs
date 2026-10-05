@@ -267,6 +267,16 @@ public sealed class DrainEmailOutboxHandlerTests
     }
 
     [Fact]
+    public async Task An_article_with_an_empty_id_is_dropped_and_never_kept_unchecked()
+    {
+        var rendered = await DrainReplyWithArticlesAsync(
+            [new ArticleLinkEntry("Nobody", LinkA, Guid.Empty), new ArticleLinkEntry("Export", LinkB, ArticleB)],
+            new PublicKbLinkTarget(ArticleB, "general", "export"));
+
+        rendered!.Articles!.ShouldHaveSingleItem().Url.ShouldBe(LinkB);
+    }
+
+    [Fact]
     public async Task A_row_queued_before_article_ids_existed_is_rendered_as_it_is_without_asking_the_knowledge_base()
     {
         var item = Item(EmailTemplates.AgentReply, JsonSerializer.Serialize(ReplyModel with { Articles = [new ArticleLinkEntry("Old", LinkA)] }, JsonSerializerOptions.Web));
