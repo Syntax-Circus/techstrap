@@ -1,0 +1,33 @@
+<div class="ts-kb-md" data-pane="@(_showPreview ? "preview" : "write")">
+    <div class="ts-kb-toolbar" role="toolbar" aria-label="@KbEditorCopy.ToolbarLabel" aria-controls="@Id">
+        <button type="button" class="btn btn-outline-secondary" disabled="@Disabled" @onclick="() => Add(MarkdownSnippets.Bold, inline: true)"><strong>B</strong><span class="visually-hidden">@KbEditorCopy.BoldButton</span></button>
+        <button type="button" class="btn btn-outline-secondary" disabled="@Disabled" @onclick="() => Add(MarkdownSnippets.Italic, inline: true)"><em>I</em><span class="visually-hidden">@KbEditorCopy.ItalicButton</span></button>
+        <button type="button" class="btn btn-outline-secondary" disabled="@Disabled" @onclick="() => Add(MarkdownSnippets.Link, inline: true)">@KbEditorCopy.LinkButton</button>
+        <button type="button" class="btn btn-outline-secondary" disabled="@Disabled" @onclick="() => Add(MarkdownSnippets.List, inline: false)">@KbEditorCopy.ListButton</button>
+        <button type="button" class="btn btn-outline-secondary" disabled="@Disabled" @onclick="() => Add(MarkdownSnippets.Code, inline: false)">@KbEditorCopy.CodeButton</button>
+        <KbImageUploadButton Disabled="Disabled" OnUploaded="OnImageUploadedAsync" />
+    </div>
+    <p class="ts-field-help">@KbEditorCopy.ToolbarHint</p>
+
+    @* Below 992 px the two panes share the width, so one is shown at a time (_kb.scss); from 992 px up both are always shown. *@
+    <div class="ts-kb-tabs" role="group" aria-label="@KbEditorCopy.BodyLabel">
+        <button type="button" class="btn btn-outline-secondary" aria-pressed="@(_showPreview ? "false" : "true")" @onclick="() => ShowPreview(false)">@KbEditorCopy.WriteTab</button>
+        <button type="button" class="btn btn-outline-secondary" aria-pressed="@(_showPreview ? "true" : "false")" @onclick="() => ShowPreview(true)">@KbEditorCopy.PreviewTab</button>
+    </div>
+
+    <div class="ts-kb-panes">
+        <div class="ts-kb-pane ts-kb-pane--write">
+            <label for="@Id" class="form-label">@KbEditorCopy.BodyLabel</label>
+            <textarea id="@Id" class="form-control ts-kb-textarea @(ErrorMessage is null ? null : "is-invalid")" rows="20" spellcheck="true" disabled="@Disabled"
+                      aria-invalid="@(ErrorMessage is null ? null : "true")" aria-describedby="@(ErrorMessage is null ? null : $"{Id}-error")"
+                      value="@Value" @oninput="OnInputAsync" @onblur="OnBlur"></textarea>
+            @if (ErrorMessage is not null)
+            {
+                <p id="@($"{Id}-error")" class="ts-field-error" role="alert">@ErrorMessage</p>
+            }
+        </div>
+        <div class="ts-kb-pane ts-kb-pane--preview">
+            <KbPreviewPane Html="@_html" Loading="_previewing" ErrorText="@_previewError" />
+        </div>
+    </div>
+</div>

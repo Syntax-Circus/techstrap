@@ -10,3 +10,125 @@
 .ts-kb-list {
   max-width: 1100px;
 }
+
+// The article editor. Write and Preview sit side by side from 992px; below that one is shown at a time and the Write / Preview buttons choose. Text that comes from outside (a slug, a title, the
+// article itself) wraps instead of stretching the page, and a picture can never be wider than its pane.
+.ts-kb-editor {
+  max-width: 1280px;
+}
+
+.ts-kb-form {
+  max-width: none;
+
+  .ts-field {
+    max-width: 560px;
+  }
+}
+
+.ts-kb-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  margin: 0 0 12px;
+}
+
+.ts-kb-portal-link {
+  font: 500 .75rem var(--ts-font-mono);
+}
+
+.ts-kb-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+}
+
+.ts-kb-image {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+}
+
+.ts-kb-image-label {
+  margin: 0;
+  cursor: pointer;
+  font: 600 .875rem var(--ts-font-mono);
+  text-decoration: underline;
+}
+
+.ts-kb-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.ts-kb-panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.ts-kb-pane {
+  min-width: 0;
+}
+
+.ts-kb-md[data-pane="write"] .ts-kb-pane--preview,
+.ts-kb-md[data-pane="preview"] .ts-kb-pane--write {
+  display: none;
+}
+
+@media (min-width: 992px) {
+  .ts-kb-tabs {
+    display: none;
+  }
+
+  .ts-kb-panes {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .ts-kb-md[data-pane] .ts-kb-pane {
+    display: block;
+  }
+}
+
+.ts-kb-textarea {
+  min-height: 24rem;
+  font-family: var(--ts-font-mono);
+}
+
+.ts-kb-preview {
+  min-height: 24rem;
+  padding: 8px 12px;
+  overflow-wrap: anywhere;
+  background: var(--sheet);
+  border: 2px solid var(--rule-strong);
+}
+
+.ts-kb-preview-body {
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  pre {
+    overflow-x: auto;
+  }
+
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
+.ts-kb-preview-error {
+  padding-left: 8px;
+  font-size: .8125rem;
+  border-left: 3px solid var(--st-spam);
+}
+
+.ts-kb-preview-empty {
+  color: var(--ink-2);
+}

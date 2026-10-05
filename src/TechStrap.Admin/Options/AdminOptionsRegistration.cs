@@ -21,6 +21,12 @@ public static class AdminOptionsRegistration
 
         services.AddOptions<AuthOptions>().ValidateOnStart();
         services.AddOptions<ApiOptions>().ValidateOnStart();
+        services.AddOptions<PortalUrlOptions>()
+            .Configure(options => options.PublicUrl = configuration[PortalUrlOptions.PublicUrlKey]?.Trim())
+            .Validate(
+                options => PortalUrlOptions.IsValidBase(options.PublicUrl),
+                $"{PortalUrlOptions.PublicUrlKey} must be an absolute http or https URL without a query or fragment when set.")
+            .ValidateOnStart();
         services.AddOptions<AgentGroupOptions>()
             .Configure(options =>
             {

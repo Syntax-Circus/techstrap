@@ -4,6 +4,7 @@ using SyntaxCircus.DotEnv;
 using TechStrap.Admin.Auth;
 using TechStrap.Admin.Clients;
 using TechStrap.Admin.Components;
+using TechStrap.Admin.Features.Kb;
 using TechStrap.Admin.Features.Shell;
 using TechStrap.Admin.Features.Tickets;
 using TechStrap.Admin.Options;
@@ -39,6 +40,7 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddTechStrapApiClients();
 builder.Services.AddShell();
 builder.Services.AddTicketFeatures();
+builder.Services.AddKbFeatures();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
