@@ -113,6 +113,69 @@ public sealed class KbContentRendererTests
         html.ShouldStartWith("<p>");
     }
 
+    private static string PipeTable(int rows) =>
+        "| a | b |\n|---|---|\n" + string.Concat(Enumerable.Repeat("| 1 | 2 |\n", rows));
+
+    [Fact]
+    public void A_200k_character_pipe_table_is_refused_before_sanitising_and_is_fast()
+    {
+        var markdown = PipeTable(20_000);
+        markdown.Length.ShouldBeGreaterThanOrEqualTo(190_000);
+
+        var tooComplex = _renderer.IsTooComplex(markdown);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var html = _renderer.Render(markdown);
+        watch.Stop();
+
+        tooComplex.ShouldBeTrue();
+        html.ShouldNotContain("<table");
+        watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public void A_list_of_50k_items_is_refused_before_sanitising_and_is_fast()
+    {
+        var markdown = string.Concat(Enumerable.Repeat("- x\n", 50_000));
+
+        var tooComplex = _renderer.IsTooComplex(markdown);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var html = _renderer.Render(markdown);
+        watch.Stop();
+
+        tooComplex.ShouldBeTrue();
+        html.ShouldNotContain("<li>");
+        watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public void A_legitimate_table_under_the_cap_still_renders_as_a_table_quickly()
+    {
+        var markdown = PipeTable(600);
+
+        var tooComplex = _renderer.IsTooComplex(markdown);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var html = _renderer.Render(markdown);
+        watch.Stop();
+
+        tooComplex.ShouldBeFalse();
+        html.ShouldContain("<table>");
+        html.ShouldContain("<td>2</td>");
+        watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public void An_over_the_cap_body_is_shown_as_encoded_text_never_as_markup()
+    {
+        var html = _renderer.Render(PipeTable(20_000) + "<script>alert(1)</script>");
+
+        html.ShouldStartWith("<p>");
+        html.ShouldNotContain("<script");
+        html.ShouldNotContain("<table");
+    }
+
+    [Fact]
+    public void An_empty_source_is_not_too_complex() => _renderer.IsTooComplex(string.Empty).ShouldBeFalse();
+
     [Fact]
     public void An_empty_source_renders_nothing()
     {

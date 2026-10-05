@@ -46,6 +46,31 @@ public sealed class RenderKbPreviewRequestHandlerTests
     }
 
     [Fact]
+    public async Task A_body_over_the_complexity_cap_is_a_validation_error_on_body_and_is_never_rendered()
+    {
+        _renderer.IsTooComplex("| a |").Returns(true);
+
+        var result = await Handler().HandleAsync(new KbPreviewRequest("| a |"), TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            error => error.Kind.ShouldBe(ResultErrorKind.Validation),
+            error => error.Code.ShouldBe("kb-body-too-complex"),
+            error => error.Target.ShouldBe("body"));
+        _renderer.DidNotReceiveWithAnyArgs().Render(default!);
+    }
+
+    [Fact]
+    public async Task A_cancelled_preview_is_not_rendered()
+    {
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(() => Handler().HandleAsync(new KbPreviewRequest("# Hi"), cts.Token));
+
+        _renderer.DidNotReceiveWithAnyArgs().Render(default!);
+    }
+
+    [Fact]
     public async Task A_source_over_the_limit_is_a_validation_error_on_body_and_is_never_rendered()
     {
         var result = await Handler().HandleAsync(new KbPreviewRequest(new string('a', KbLimits.MaxPreviewChars + 1)), TestContext.Current.CancellationToken);

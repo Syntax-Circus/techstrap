@@ -24,6 +24,14 @@ public sealed class RenderKbPreviewRequestHandler(IKbContentRenderer renderer) :
             return Task.FromResult(Result<KbPreviewResponse>.Failure(KbErrors.PreviewTooLong()));
         }
 
+        // The complexity check parses but never sanitises; the sanitiser is the expensive step. Check the token between the steps.
+        cancellationToken.ThrowIfCancellationRequested();
+        if (markdown.Length > 0 && renderer.IsTooComplex(markdown))
+        {
+            return Task.FromResult(Result<KbPreviewResponse>.Failure(KbErrors.BodyTooComplex()));
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(Result<KbPreviewResponse>.Success(new KbPreviewResponse(markdown.Length == 0 ? string.Empty : renderer.Render(markdown))));
     }
 }

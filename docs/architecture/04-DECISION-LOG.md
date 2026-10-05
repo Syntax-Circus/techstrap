@@ -1603,6 +1603,7 @@ PHASE-03 already delivered the KB tables, the unique `(product_id, slug)` indexe
 - **Public routes carry the product key.** `GET api/public/kb/{productKey}/search`, `/categories`, `/articles/{categorySlug}/{slug}` and `/sitemap`, plus `GET kb-images/{key}` at the root of the Api. The article route carries the category slug because the portal URL does.
 - **Archiving hides, editing reopens.** Archive keeps the row and its first publication date. Publishing an Archived article goes straight to Published, subject to the publish validation.
 - **No render cache.** The article is rendered on each read; a cache is added only if a measurement asks for one.
+- **A render complexity cap.** The sanitiser is roughly quadratic in element count and pipe tables turn each character into about two elements (measured: a 200,000-character table took 152 s). `KbLimits.MaxRenderedElements` is 5,000 blocks plus inlines, counted after a Markdig parse in one linear pass (`IKbContentRenderer.IsTooComplex`). The preview, and article create, update and publish (Task 3), refuse a body over the cap with a 400 `kb-body-too-complex` (target `body`), so it is never stored. `Render` never sanitises an over-cap body: it returns the text HTML-encoded in one paragraph, so a public read cannot be made expensive.
 
 ### Alternatives Considered
 - **Widen the shared sanitiser.** Rejected: agent replies reach customers by email and in the portal, so a widened list would let a reply carry a tracking image or a table.
@@ -1615,6 +1616,7 @@ PHASE-03 already delivered the KB tables, the unique `(product_id, slug)` indexe
 - **The API needs one new setting in Production.** `TECHSTRAP_API_PUBLIC_URL` is required; the Api refuses to start without it. The owner must route `/kb-images/` through the reverse proxy.
 - **Existing tests that published a category-less article now need a category.** Publishing validates it.
 - **Two concurrent creates of one slug in different scopes can both succeed.** The unique index separates the scopes, so only the create-time check blocks a cross-scope duplicate; the owner accepts this narrow race.
+- **Images may point at any http or https address.** That includes internal-network hosts and mixed-content `http://` sources. A KB article is written by agents only, so this is part of the accepted tracking-pixel risk; the sanitiser adds `referrerpolicy="no-referrer"` and `loading="lazy"`.
 - **A search snippet is encoded text.** The portal must show it as markup that is already safe, not encode it again.
 - **Still open (owner):** the reverse proxy route for `/kb-images/`, and checking an uploaded image loads from the API public URL.
 

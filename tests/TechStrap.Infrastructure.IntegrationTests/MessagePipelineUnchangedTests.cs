@@ -39,4 +39,16 @@ public sealed class MessagePipelineUnchangedTests
     [Fact]
     public void Headings_lists_and_code_in_a_reply_are_unchanged() =>
         Render("# Title\n\n- one\n- two\n\n`code`").ShouldBe("<h1>Title</h1>\n<ul>\n<li>one</li>\n<li>two</li>\n</ul>\n<p><code>code</code></p>\n");
+
+    [Fact]
+    public void A_javascript_link_in_a_reply_is_still_stripped_to_a_bare_anchor_without_href() =>
+        Render("[x](javascript:alert(1))").ShouldBe("<p><a rel=\"noopener noreferrer nofollow\">x</a></p>\n");
+
+    [Fact]
+    public void Strikethrough_in_a_reply_is_still_del() =>
+        Render("~~gone~~").ShouldBe("<p><del>gone</del></p>\n");
+
+    [Fact]
+    public void An_angle_bracket_email_in_a_reply_is_still_linked_and_a_bare_one_is_not() =>
+        Render("write to a@example.com or <b@example.com>").ShouldBe("<p>write to a@example.com or <a href=\"mailto:b@example.com\" rel=\"noopener noreferrer nofollow\">b@example.com</a></p>\n");
 }

@@ -23,6 +23,12 @@ public static class KbLimits
     /// <summary>The longest Markdown source the preview endpoint renders. It equals the article body limit, so a body that can be saved can be previewed.</summary>
     public const int MaxPreviewChars = 200_000;
 
+    /// <summary>
+    /// The most Markdown elements (blocks plus inlines, table cells and list items included) one article body may parse to. The sanitiser is
+    /// roughly quadratic in element count, so a body over this is refused on save and preview (<c>kb-body-too-complex</c>) and never sanitised (D-044).
+    /// </summary>
+    public const int MaxRenderedElements = 5_000;
+
     public const int DefaultPublicSearchPageSize = 10;
 
     public const int MaxPublicSearchPageSize = 25;

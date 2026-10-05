@@ -14,6 +14,9 @@ internal static class KbSafeHtml
 
     private static readonly string[] _allowedAttributes = ["href", "src", "alt", "rel", "loading", "referrerpolicy"];
 
+    // An attribute that is allowed on one tag only (the sanitiser adds these itself).
+    private static readonly Dictionary<string, string> _attributeOwner = new() { ["rel"] = "a", ["loading"] = "img", ["referrerpolicy"] = "img" };
+
     public static void ShouldBeSafe(string html)
     {
         var document = new HtmlParser().ParseDocument(html);
@@ -23,6 +26,10 @@ internal static class KbSafeHtml
             foreach (var attribute in element.Attributes)
             {
                 _allowedAttributes.ShouldContain(attribute.Name, $"attribute {attribute.Name} survived in: {html}");
+                if (_attributeOwner.TryGetValue(attribute.Name, out var owner))
+                {
+                    element.LocalName.ShouldBe(owner, $"attribute {attribute.Name} on <{element.LocalName}> in: {html}");
+                }
             }
 
             if (element.LocalName == "a" && element.GetAttribute("href") is { } href)
@@ -35,7 +42,7 @@ internal static class KbSafeHtml
             if (element.LocalName == "img")
             {
                 var src = element.GetAttribute("src");
-                (src is not null && (src.StartsWith("http://", StringComparison.Ordinal) || src.StartsWith("https://", StringComparison.Ordinal)))
+                (src is not null && (src.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || src.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
                     .ShouldBeTrue($"img src {src} is not http or https in: {html}");
             }
         }
