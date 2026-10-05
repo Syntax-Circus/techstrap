@@ -191,6 +191,6 @@ public sealed class AdminLeakTests
             }
         });
 
-        await Hosting.OtlpLeakTests.AssertNoLeakAsync(probe, sink, Ct);
+        Hosting.OtlpLeakTests.AssertNoLeak(sink);
     }
 }

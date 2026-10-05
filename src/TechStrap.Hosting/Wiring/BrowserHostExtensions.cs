@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Net.Http.Headers;
 using SyntaxCircus.AspNetCore.Common;
 
 namespace TechStrap.Hosting.Wiring;
@@ -71,12 +72,7 @@ public static class BrowserHostExtensions
                     context.Response.OnStarting(() =>
                     {
                         var headers = context.Response.Headers;
-                        var existing = headers.ContentSecurityPolicy.ToString();
-                        if (!existing.Contains("sandbox", StringComparison.Ordinal))
-                        {
-                            headers.ContentSecurityPolicy = string.IsNullOrEmpty(existing) ? "sandbox" : $"{existing}; sandbox";
-                        }
-
+                        headers.ContentSecurityPolicy = WithSandbox(headers.ContentSecurityPolicy.ToString());
                         return Task.CompletedTask;
                     });
                 }
@@ -85,8 +81,43 @@ public static class BrowserHostExtensions
             });
         }
 
+        if (app.Environment.IsDevelopment())
+        {
+            // The package sets Strict-Transport-Security on every response (an empty option value still sends an empty header). A browser that was sent it for localhost would refuse
+            // plain http on that host for the length of the policy, so in Development this start callback, registered before the package's and therefore run after it, removes it.
+            app.Use(async (context, next) =>
+            {
+                context.Response.OnStarting(() =>
+                {
+                    context.Response.Headers.Remove(HeaderNames.StrictTransportSecurity);
+                    return Task.CompletedTask;
+                });
+                await next();
+            });
+        }
+
         app.UseSecurityHeaders();
         return app;
+    }
+
+    /// <summary>
+    /// The policy with a bare <c>sandbox</c> directive. A directive counts only when its whole name is <c>sandbox</c> (a source such as <c>sandbox.example.com</c> in another
+    /// directive does not), compared without regard to case. A <c>sandbox</c> directive that lists allowed capabilities (<c>sandbox allow-scripts</c>) is weaker than the
+    /// download needs, and a browser honours only the first <c>sandbox</c> directive, so it is replaced rather than left in front of an appended one.
+    /// </summary>
+    internal static string WithSandbox(string policy)
+    {
+        var directives = policy.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList();
+        var hasBare = directives.Any(directive => directive.Equals("sandbox", StringComparison.OrdinalIgnoreCase));
+        directives.RemoveAll(directive => directive.Length > "sandbox".Length
+            && directive.StartsWith("sandbox", StringComparison.OrdinalIgnoreCase)
+            && char.IsWhiteSpace(directive["sandbox".Length]));
+        if (!hasBare)
+        {
+            directives.Add("sandbox");
+        }
+
+        return string.Join("; ", directives);
     }
 
     /// <summary>

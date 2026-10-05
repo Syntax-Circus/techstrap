@@ -1,4 +1,5 @@
 using System.Net;
+using TechStrap.Hosting.Wiring;
 using TechStrap.Tests.Shared.AdminHost;
 
 namespace TechStrap.Api.Tests.Hosting;
@@ -73,16 +74,65 @@ public sealed class SecurityHeadersHostTests
     }
 
     [Theory]
-    [InlineData("/")]
-    [InlineData("/no-such-page")]
-    public async Task The_Portal_pages_carry_the_headers(string path)
+    [InlineData("/", HttpStatusCode.OK)]
+    [InlineData("/no-such-page", HttpStatusCode.NotFound)]
+    public async Task The_Portal_pages_carry_the_headers(string path, HttpStatusCode status)
     {
         await using var factory = new PortalFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(path, Ct);
 
+        response.StatusCode.ShouldBe(status);
         AssertCommonHeaders(response, "Portal " + path);
+    }
+
+    [Theory]
+    [InlineData("/attachments/{0}", HttpStatusCode.OK, true)]
+    [InlineData("/ATTACHMENTS/{0}", HttpStatusCode.OK, true)]
+    [InlineData("/attachments-x", HttpStatusCode.NotFound, false)]
+    public async Task The_download_sandbox_follows_the_attachments_path_segment_exactly(string pathFormat, HttpStatusCode status, bool sandboxed)
+    {
+        await using var factory = new AdminFactory();
+        var id = Guid.NewGuid();
+        factory.Api.On(HttpMethod.Get, $"/api/attachments/{id}", _ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent([1, 2, 3]) });
+        using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
+
+        using var response = await client.GetAsync(string.Format(pathFormat, id), Ct);
+
+        response.StatusCode.ShouldBe(status);
+        var policy = response.Headers.GetValues("Content-Security-Policy").Single().Split(';', StringSplitOptions.TrimEntries);
+        policy.Contains("sandbox").ShouldBe(sandboxed);
+        policy.ShouldContain("frame-ancestors 'none'");
+    }
+
+    [Fact]
+    public async Task The_sandbox_is_kept_when_the_API_has_no_such_attachment_and_the_404_page_is_re_executed()
+    {
+        await using var factory = new AdminFactory();
+        var id = Guid.NewGuid();
+        factory.Api.On(HttpMethod.Get, $"/api/attachments/{id}", _ => new HttpResponseMessage(HttpStatusCode.NotFound));
+        using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
+
+        using var response = await client.GetAsync($"/attachments/{id}", Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        var policy = response.Headers.GetValues("Content-Security-Policy").Single().Split(';', StringSplitOptions.TrimEntries);
+        policy.ShouldContain("sandbox");
+        policy.ShouldContain("frame-ancestors 'none'");
+        factory.Api.AssertEveryCallBore(AdminTestPrincipal.Agent);
+    }
+
+    [Theory]
+    [InlineData("", "sandbox")]
+    [InlineData("frame-ancestors 'none'", "frame-ancestors 'none'; sandbox")]
+    [InlineData("frame-ancestors 'none'; sandbox", "frame-ancestors 'none'; sandbox")]
+    [InlineData("frame-ancestors 'none'; SANDBOX", "frame-ancestors 'none'; SANDBOX")]
+    [InlineData("script-src 'self' sandbox.example.com", "script-src 'self' sandbox.example.com; sandbox")]
+    [InlineData("frame-ancestors 'none'; sandbox allow-scripts", "frame-ancestors 'none'; sandbox")]
+    public void The_sandbox_directive_is_matched_as_a_whole_directive_and_a_weaker_one_is_replaced(string existing, string expected)
+    {
+        BrowserHostExtensions.WithSandbox(existing).ShouldBe(expected);
     }
 
     [Theory]

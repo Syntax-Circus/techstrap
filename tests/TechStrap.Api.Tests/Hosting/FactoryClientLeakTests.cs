@@ -16,17 +16,21 @@ public sealed class FactoryClientLeakTests
 
     private static string Everything(LogEvent e) => string.Join('\n', [e.RenderMessage(), e.Exception?.ToString() ?? string.Empty, .. e.Properties.Values.Select(v => v.ToString())]);
 
-    /// <summary>Sends one request with the secret header to the probe, which accepts the connection and never answers, so the request is abandoned after a moment.</summary>
+    /// <summary>Sends one request with the secret header to the probe, which answers 200, so the request goes all the way out and back through the factory's pipeline.</summary>
     private static async Task SendAsync(IHttpClientFactory factory, OtlpProbe probe, CancellationToken cancellationToken)
     {
         var client = factory.CreateClient("secret-header-probe");
         client.DefaultRequestHeaders.Add("x-api-key", Secret);
         using var request = new HttpRequestMessage(HttpMethod.Post, probe.Endpoint) { Content = new ByteArrayContent([1, 2, 3]) };
-        using var abandon = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        abandon.CancelAfter(TimeSpan.FromSeconds(2));
-        await Should.ThrowAsync<OperationCanceledException>(() => client.SendAsync(request, abandon.Token));
-        (await probe.WaitForConnectionAsync(TimeSpan.FromSeconds(10), cancellationToken)).ShouldBeTrue("nothing connected, so no request was sent and this test proves nothing");
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(10));
+        using var response = await client.SendAsync(request, timeout.Token);
+        response.IsSuccessStatusCode.ShouldBeTrue("the probe answers 200, so a failure here means the request never completed");
+        probe.Connections.ShouldBeGreaterThan(0, "nothing connected, so no request was sent and this test proves nothing");
     }
+
+    private static string SourceContext(LogEvent e) =>
+        e.Properties.TryGetValue("SourceContext", out var value) && value is ScalarValue { Value: string context } ? context : string.Empty;
 
     [Fact]
     public async Task Control_a_plain_factory_with_the_default_logging_puts_the_header_value_in_the_log_state_at_Trace()
@@ -45,6 +49,21 @@ public sealed class FactoryClientLeakTests
         {
             lines.ShouldContain(line => line.Contains(Secret, StringComparison.Ordinal), "the factory's default logging must leak here, or the host checks below cannot fail");
         }
+    }
+
+    [Fact]
+    public async Task Control_a_real_host_with_the_logging_default_put_back_leaks_the_header_into_the_Serilog_sink()
+    {
+        // The same Admin host, Verbose, with the default HttpClient logging added back after the shared default removed it: the Serilog sink must now hold the secret, and the
+        // HttpClient category's Debug-or-lower (Verbose) events must be there. That proves the host scan below can see this leak, through the real sink, if the default is ever lost.
+        await using var factory = new AdminFactory(settings: OtlpLeakTests.VerboseLogging, configureServices: services => services.ConfigureHttpClientDefaults(http => http.AddDefaultLogger()));
+        var ct = TestContext.Current.CancellationToken;
+        await using var probe = new OtlpProbe();
+
+        await SendAsync(factory.Services.GetRequiredService<IHttpClientFactory>(), probe, ct);
+
+        factory.LogSink.Events.ShouldContain(e => SourceContext(e).StartsWith("System.Net.Http.HttpClient", StringComparison.Ordinal) && e.Level <= LogEventLevel.Debug, "no Debug-or-lower HttpClient event was captured (the factory writes its header values at Trace, which Serilog calls Verbose), so the scan could not see this client");
+        factory.LogSink.Events.Select(Everything).ShouldContain(text => text.Contains(Secret, StringComparison.Ordinal), "the sink must see the header value when the default logging is present");
     }
 
     [Fact]

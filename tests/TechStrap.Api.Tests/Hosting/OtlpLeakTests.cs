@@ -68,11 +68,9 @@ public sealed class OtlpLeakTests
         await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
     }
 
-    /// <summary>The checks every host shares, run after the host was disposed.</summary>
-    internal static async Task AssertNoLeakAsync(OtlpProbe probe, CollectingSink sink, CancellationToken cancellationToken)
+    /// <summary>The scan, run after the host was disposed. The positive control (the exporter connected) was asserted by <see cref="WaitForExportAsync"/> while the host was still running.</summary>
+    internal static void AssertNoLeak(CollectingSink sink)
     {
-        (await probe.WaitForConnectionAsync(TimeSpan.FromSeconds(20), cancellationToken))
-            .ShouldBeTrue("the host never connected to the OTLP endpoint, so this test would pass without exercising the exporter's HttpClient");
         sink.Events.ShouldContain(e => e.Level <= LogEventLevel.Debug, "the Verbose setting must have taken effect, or the scan only saw Information and above");
         sink.Events.Select(Everything).ShouldAllBe(text => !text.Contains(Secret));
     }
@@ -99,7 +97,7 @@ public sealed class OtlpLeakTests
             }
         });
 
-        await AssertNoLeakAsync(probe, sink, ct);
+        AssertNoLeak(sink);
     }
 
     [Fact]
@@ -124,6 +122,6 @@ public sealed class OtlpLeakTests
             }
         });
 
-        await AssertNoLeakAsync(probe, sink, ct);
+        AssertNoLeak(sink);
     }
 }
