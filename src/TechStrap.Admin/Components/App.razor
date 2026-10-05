@@ -10,6 +10,8 @@
     <link rel="icon" href="favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    @* A classic, blocking script (never a module, never deferred): it sets data-bs-theme from the stored choice before the stylesheet paints, so a light or dark choice does not flash. *@
+    <script src="@Assets["js/theme-init.js"]"></script>
     <link rel="stylesheet" href="@Assets["css/app.css"]" />
     <HeadOutlet @rendermode="PageRenderMode" />
 </head>

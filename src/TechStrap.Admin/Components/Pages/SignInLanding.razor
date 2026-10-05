@@ -11,6 +11,8 @@
     <link rel="icon" href="favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    @* The sign-in page is its own document (outside App.razor), so it loads the early theme script too, before the stylesheet. *@
+    <script src="@Assets["js/theme-init.js"]"></script>
     <link rel="stylesheet" href="@Assets["css/app.css"]" />
 </head>
 

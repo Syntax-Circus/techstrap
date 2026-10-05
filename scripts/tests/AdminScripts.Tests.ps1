@@ -30,6 +30,19 @@ Describe 'Admin browser scripts' {
         $LASTEXITCODE | Should -Be 0 -Because $output
     }
 
+    It 'passes the node:test suite for the early theme script (never throws, same key and meaning as preferences.js)' {
+        if (-not $script:Node) {
+            Set-ItResult -Skipped -Because 'node is not installed, so the theme-init.js tests cannot run'
+            return
+        }
+
+        $testFile = Join-Path $script:RepoRoot 'tests/TechStrap.Admin.Tests/js/theme-init.test.mjs'
+
+        $output = & node --test $testFile 2>&1 | Out-String
+
+        $LASTEXITCODE | Should -Be 0 -Because $output
+    }
+
     It 'passes the node:test suite for the clipboard helpers' {
         if (-not $script:Node) {
             Set-ItResult -Skipped -Because 'node is not installed, so the clipboard.js tests cannot run'
