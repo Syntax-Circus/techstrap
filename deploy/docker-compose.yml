@@ -1,0 +1,144 @@
+# Image-only deployment stack for UAT and production (D-043). One file serves both: the compose inputs file chooses the environment.
+# It builds nothing and runs no database: Postgres is a separate instance reached over an external Docker network. TLS and the reverse
+# proxy stay outside compose; the services publish on loopback only for the proxy to reach.
+#
+#   cp deploy/.env.<uat|production>.example deploy/.env.<uat|production>.local   # compose inputs (not secrets), then edit
+#   sudo install -d -m 0700 /etc/techstrap/<uat|production>                         # copy each deploy/.env.<app>.example to
+#                                                                                   # /etc/techstrap/<env>/.env.<app>: root-owned, mode 0600
+#   docker compose --env-file deploy/.env.<env>.local -f deploy/docker-compose.yml config --quiet
+#   docker compose --env-file deploy/.env.<env>.local -f deploy/docker-compose.yml pull
+#   docker compose --env-file deploy/.env.<env>.local -f deploy/docker-compose.yml up -d --wait
+#
+# Settings reach each container from its own scoped env file (env_file, format raw: no interpolation and no quote handling). The
+# environment: entries below are the values compose itself owns; they override the env file. docs/self-hosting/DEPLOYMENT.md is the runbook.
+# Client IPs: ports publish on 127.0.0.1 only, so a same-host reverse proxy appears to the containers as the compose gateway (172.16.31.1).
+# Set REVERSE_PROXY_CIDR=172.16.31.1/32 for that setup, or the proxy's own address if it runs on another machine (never a wide range).
+name: ${TECHSTRAP_PROJECT:-techstrap}
+
+services:
+  api:
+    image: ${TECHSTRAP_API_IMAGE:?set TECHSTRAP_API_IMAGE to an explicit image reference, for example ghcr.io/syntax-circus/techstrap-api:1.2.3}
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - path: ${TECHSTRAP_ENV_DIR:?set TECHSTRAP_ENV_DIR to the host directory that holds .env.api, .env.worker, .env.admin and .env.portal}/.env.api
+        required: true
+        format: raw
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DOTENV__ENABLED: "false"
+      STORAGE__LOCAL__ROOTPATH: /app/storage
+      # Trust the pinned compose subnet (the Portal hop) and the reverse proxy. Both are required, so entry 1 is always the proxy.
+      TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${TECHSTRAP_SUBNET:?set TECHSTRAP_SUBNET to the pinned compose subnet, for example 172.16.31.0/24}
+      TRUSTEDPROXY__TRUSTEDNETWORKS__1: ${REVERSE_PROXY_CIDR:?set REVERSE_PROXY_CIDR to the reverse proxy address, for example 172.16.31.1/32}
+    networks:
+      - default
+      - db
+    volumes:
+      - techstrap-storage:/app/storage
+    ports:
+      - "127.0.0.1:${TECHSTRAP_API_PORT:?set TECHSTRAP_API_PORT}:80"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  admin:
+    image: ${TECHSTRAP_ADMIN_IMAGE:?set TECHSTRAP_ADMIN_IMAGE to an explicit image reference, for example ghcr.io/syntax-circus/techstrap-admin:1.2.3}
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - path: ${TECHSTRAP_ENV_DIR:?set TECHSTRAP_ENV_DIR to the host directory that holds .env.api, .env.worker, .env.admin and .env.portal}/.env.admin
+        required: true
+        format: raw
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DOTENV__ENABLED: "false"
+      API__BASEURL: http://api/
+      DATAPROTECTION__KEYRINGPATH: /app/dataprotection-keys
+      # Admin trusts only the reverse proxy.
+      TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${REVERSE_PROXY_CIDR:?set REVERSE_PROXY_CIDR to the reverse proxy address, for example 172.16.31.1/32}
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - admin-keys:/app/dataprotection-keys
+    ports:
+      - "127.0.0.1:${TECHSTRAP_ADMIN_PORT:?set TECHSTRAP_ADMIN_PORT}:80"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  portal:
+    image: ${TECHSTRAP_PORTAL_IMAGE:?set TECHSTRAP_PORTAL_IMAGE to an explicit image reference, for example ghcr.io/syntax-circus/techstrap-portal:1.2.3}
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - path: ${TECHSTRAP_ENV_DIR:?set TECHSTRAP_ENV_DIR to the host directory that holds .env.api, .env.worker, .env.admin and .env.portal}/.env.portal
+        required: true
+        format: raw
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DOTENV__ENABLED: "false"
+      DATAPROTECTION__KEYRINGPATH: /app/dataprotection-keys
+      # Portal trusts only the reverse proxy.
+      TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${REVERSE_PROXY_CIDR:?set REVERSE_PROXY_CIDR to the reverse proxy address, for example 172.16.31.1/32}
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - portal-keys:/app/dataprotection-keys
+    ports:
+      - "127.0.0.1:${TECHSTRAP_PORTAL_PORT:?set TECHSTRAP_PORTAL_PORT}:80"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    image: ${TECHSTRAP_WORKER_IMAGE:?set TECHSTRAP_WORKER_IMAGE to an explicit image reference, for example ghcr.io/syntax-circus/techstrap-worker:1.2.3}
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - path: ${TECHSTRAP_ENV_DIR:?set TECHSTRAP_ENV_DIR to the host directory that holds .env.api, .env.worker, .env.admin and .env.portal}/.env.worker
+        required: true
+        format: raw
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DOTENV__ENABLED: "false"
+    networks:
+      - default
+      - db
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+networks:
+  default:
+    ipam:
+      config:
+        # Product-unique pinned subnet (D-019), registered in _template CLIENT_IP_RATE_LIMITING.md.
+        # Change TECHSTRAP_SUBNET only if another network on this host already uses it (UAT and production on one host need two subnets).
+        - subnet: ${TECHSTRAP_SUBNET:?set TECHSTRAP_SUBNET to the pinned compose subnet, for example 172.16.31.0/24}
+  db:
+    # Pre-existing shared network owned by the separate Postgres compose project; only the api and the worker join it.
+    name: ${TECHSTRAP_DB_NETWORK:?set TECHSTRAP_DB_NETWORK to the name of the Docker network the Postgres container is on}
+    external: true
+
+volumes:
+  techstrap-storage:
+  admin-keys:
+  portal-keys:

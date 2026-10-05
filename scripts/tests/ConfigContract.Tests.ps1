@@ -352,3 +352,61 @@ Describe 'the config contract of the local compose' {
         foreach ($key in $keys) { $compose | Should -Match ('\$\{' + $key + ':-') }
     }
 }
+
+Describe 'the config contract of the deploy compose' {
+    It 'the deploy compose environment: lists exactly what compose owns for each host, and every key is a known setting' {
+        $environment = Get-ComposeEnvironmentKeys -File 'deploy/docker-compose.yml'
+        foreach ($name in 'Api', 'Worker', 'Admin', 'Portal') {
+            $service = $name.ToLowerInvariant()
+            $keys = @($environment[$service] | ForEach-Object { ConvertTo-IndexlessKey $_ } | Sort-Object -Unique)
+            $expected = @($script:ComposeOwned[$name] + $script:ComposeNonSettings | Sort-Object -Unique)
+            $keys | Should -Be $expected -Because "deploy/docker-compose.yml $service environment:"
+            $known = Get-AppsettingsKeys -HostName $name
+            @($keys | Where-Object { $_ -notin $known -and $_ -notin $script:ComposeNonSettings }) | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'the UAT and production compose input templates set the same variable names' {
+        $uat = @(Get-EnvEntries -Path (Join-Path $script:RepoRoot 'deploy' '.env.uat.example') | Where-Object { -not $_.Commented } | ForEach-Object { $_.Key } | Sort-Object)
+        $production = @(Get-EnvEntries -Path (Join-Path $script:RepoRoot 'deploy' '.env.production.example') | Where-Object { -not $_.Commented } | ForEach-Object { $_.Key } | Sort-Object)
+        $uat.Count | Should -BeGreaterThan 10
+        $uat | Should -Be $production
+    }
+
+    It 'the compose input templates set every variable the deploy compose requires, and never latest' {
+        $compose = Get-Content -LiteralPath (Join-Path $script:RepoRoot 'deploy' 'docker-compose.yml') -Raw
+        $required = [regex]::Matches($compose, '\$\{(?<name>[A-Z][A-Z0-9_]*):\?') | ForEach-Object { $_.Groups['name'].Value } | Sort-Object -Unique
+        $required.Count | Should -BeGreaterThan 8
+        foreach ($file in '.env.uat.example', '.env.production.example') {
+            $entries = Get-EnvEntries -Path (Join-Path $script:RepoRoot 'deploy' $file) | Where-Object { -not $_.Commented }
+            foreach ($name in $required) { $entries.Key | Should -Contain $name -Because "$file must set $name" }
+            foreach ($image in ($entries | Where-Object { $_.Key -like 'TECHSTRAP_*_IMAGE' })) {
+                $image.Value | Should -Match '^ghcr\.io/syntax-circus/techstrap-(api|worker|admin|portal):\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$' -Because "$file pins an explicit release tag"
+            }
+        }
+    }
+
+    It 'git ignores a filled env file and tracks every example' -ForEach @(
+        @{ Path = 'deploy/.env.uat.local'; Ignored = $true }
+        @{ Path = 'deploy/.env.production.local'; Ignored = $true }
+        @{ Path = 'deploy/.env.api'; Ignored = $true }
+        @{ Path = '.env'; Ignored = $true }
+        @{ Path = 'src/TechStrap.Api/.env.local'; Ignored = $true }
+        @{ Path = '.env.example'; Ignored = $false }
+        @{ Path = 'deploy/.env.uat.example'; Ignored = $false }
+        @{ Path = 'deploy/.env.production.example'; Ignored = $false }
+        @{ Path = 'deploy/.env.api.example'; Ignored = $false }
+        @{ Path = 'deploy/.env.worker.example'; Ignored = $false }
+        @{ Path = 'deploy/.env.admin.example'; Ignored = $false }
+        @{ Path = 'deploy/.env.portal.example'; Ignored = $false }
+        @{ Path = 'src/TechStrap.Portal/.env.example'; Ignored = $false }
+    ) {
+        Test-GitIgnored $Path | Should -Be $Ignored
+    }
+
+    It 'the old root production compose files and env example are gone' {
+        foreach ($file in 'docker-compose.production.yml', 'docker-compose.uat.yml', '.env.production.example') {
+            Test-Path (Join-Path $script:RepoRoot $file) | Should -BeFalse
+        }
+    }
+}
