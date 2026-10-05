@@ -29,6 +29,10 @@ public abstract class AdminComponentTest : BunitContext
         Preferences = JSInterop.SetupModule("./js/preferences.js");
         Preferences.Setup<StoredPreferences>("load", _ => true).SetResult(new StoredPreferences(SingleKeyShortcuts: true, Theme: "auto"));
         Preferences.Setup<bool>("save", _ => true).SetResult(true);
+
+        // MainLayout also asks the browser for its time zone on the first render; by default it answers UTC. A test sets it up again to try another zone.
+        Tz = JSInterop.SetupModule("./js/tz.js");
+        Tz.Setup<string?>("zone", _ => true).SetResult("UTC");
     }
 
     protected FakeTimeProvider Time { get; }
@@ -41,6 +45,9 @@ public abstract class AdminComponentTest : BunitContext
 
     /// <summary>The <c>preferences.js</c> module double: <c>load</c> answers the defaults and <c>save</c> succeeds; read the arguments from <c>Invocations["save"]</c>.</summary>
     protected BunitJSModuleInterop Preferences { get; }
+
+    /// <summary>The <c>tz.js</c> module double: <c>zone</c> answers "UTC"; set it up again to answer another zone or to fail.</summary>
+    protected BunitJSModuleInterop Tz { get; }
 
     protected ShortcutService ShortcutService => Services.GetRequiredService<ShortcutService>();
 

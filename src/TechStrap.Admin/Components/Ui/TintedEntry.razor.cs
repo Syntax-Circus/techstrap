@@ -16,9 +16,13 @@ public partial class TintedEntry
     [Parameter, EditorRequired]
     public string Author { get; set; } = string.Empty;
 
-    /// <summary>The time as the caller wants it shown (already formatted).</summary>
+    /// <summary>The time as the caller wants it shown (already formatted). Ignored when <see cref="When"/> is set.</summary>
     [Parameter]
     public string Time { get; set; } = string.Empty;
+
+    /// <summary>The instant, shown as a <see cref="RelativeTime"/> (local time, UTC in the tooltip). Messages use this; the style guide's fixed sample times use <see cref="Time"/>.</summary>
+    [Parameter]
+    public DateTimeOffset? When { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }

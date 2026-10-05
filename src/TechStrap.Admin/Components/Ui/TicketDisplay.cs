@@ -60,8 +60,11 @@ internal static class TicketDisplay
         }
     }
 
-    /// <summary>"just now", "5 min ago", "3 h ago", "2 d ago", then the UTC date. The caller supplies <paramref name="now"/> (a <see cref="TimeProvider"/>), so tests control it.</summary>
-    public static string Relative(DateTimeOffset when, DateTimeOffset now)
+    /// <summary>
+    /// "just now", "5 min ago", "3 h ago", "2 d ago", then the date in <paramref name="zone"/> (UTC when it is null). The caller supplies <paramref name="now"/> (a <see cref="TimeProvider"/>), so tests control it.
+    /// Only the date depends on the zone: how long ago something happened is the same instant everywhere.
+    /// </summary>
+    public static string Relative(DateTimeOffset when, DateTimeOffset now, TimeZoneInfo? zone = null)
     {
         var delta = now - when;
         if (delta < TimeSpan.FromMinutes(1))
@@ -81,11 +84,24 @@ internal static class TicketDisplay
 
         return delta.TotalDays < DaysPerWeek
             ? string.Create(CultureInfo.InvariantCulture, $"{(int)delta.TotalDays} d ago")
-            : when.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            : TimeZoneInfo.ConvertTime(when, zone ?? TimeZoneInfo.Utc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     }
 
-    /// <summary>The absolute time for a tooltip. Always UTC and labelled so: converting to the agent's zone needs the browser's zone (recorded gap, PHASE-07c).</summary>
-    public static string Absolute(DateTimeOffset when) => when.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture);
+    /// <summary>
+    /// The absolute time for a tooltip. In UTC (or with no zone) it is "2026-10-04 11:55 UTC". In another zone it is the local time first and the UTC time after it, so the instant is never in doubt:
+    /// "2026-10-04 12:55 Europe/London, 2026-10-04 11:55 UTC".
+    /// </summary>
+    public static string Absolute(DateTimeOffset when, TimeZoneInfo? zone = null)
+    {
+        var utc = when.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture);
+        if (zone is null || zone.Equals(TimeZoneInfo.Utc))
+        {
+            return utc;
+        }
+
+        var local = TimeZoneInfo.ConvertTime(when, zone).ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+        return string.Create(CultureInfo.InvariantCulture, $"{local} {zone.Id}, {utc}");
+    }
 
     /// <summary>Up to two initials for an avatar: "Sam Ortiz" is "SO", "sam" is "S", nothing is "?".</summary>
     public static string Initials(string? name)

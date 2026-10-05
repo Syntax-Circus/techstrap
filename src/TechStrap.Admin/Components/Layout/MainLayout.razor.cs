@@ -26,6 +26,9 @@ public partial class MainLayout : IDisposable
     [Inject]
     private PreferencesService Preferences { get; set; } = default!;
 
+    [Inject]
+    private LocalTimeService LocalTime { get; set; } = default!;
+
     /// <summary>
     /// The page has <c>&lt;base href="/"&gt;</c>, so a bare <c>#main</c> would resolve to the home page. The link names the current address with the fragment replaced.
     /// <c>main</c> has <c>tabindex="-1"</c>, so following the fragment also moves focus.
@@ -56,6 +59,9 @@ public partial class MainLayout : IDisposable
             try
             {
                 await Preferences.LoadAsync();
+
+                // The browser's time zone, so every time is drawn again in local time. It never throws for a script failure, and until it arrives every time is UTC.
+                await LocalTime.LoadAsync();
                 await Shortcuts.StartAsync();
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

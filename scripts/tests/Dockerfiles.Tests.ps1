@@ -176,3 +176,10 @@ Describe 'clean publish serves the self-hosted fonts' -Tag 'Network' {
         }
     }
 }
+
+Describe 'Dockerfile.admin time zone data' {
+    # The Admin shows every time in the agent's browser zone and finds it with TimeZoneInfo.FindSystemTimeZoneById, which reads /usr/share/zoneinfo on Linux (D-042).
+    It 'installs tzdata in the runtime image' {
+        (Get-DockerfileText -Name 'admin') | Should -Match 'apt-get install -y --no-install-recommends curl tzdata'
+    }
+}

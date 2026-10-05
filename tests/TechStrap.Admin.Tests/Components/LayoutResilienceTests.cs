@@ -61,6 +61,7 @@ public sealed class LayoutResilienceTests : BunitContext
         JSInterop.SetupModule("./js/dialog.js");
         var preferences = JSInterop.SetupModule("./js/preferences.js");
         preferences.Setup<StoredPreferences>("load", _ => true).SetResult(new StoredPreferences(SingleKeyShortcuts: true, Theme: "auto"));
+        JSInterop.SetupModule("./js/tz.js").Setup<string?>("zone", _ => true).SetResult("UTC");
     }
 
     [Fact]
