@@ -154,6 +154,27 @@ public sealed class ProductionBlankTemplateTests
     }
 
     [Fact]
+    public async Task The_Api_template_with_the_Authority_filled_but_the_audience_left_blank_fails_start_naming_the_audience()
+    {
+        using var environment = new ScopedEnvironment(CleanEnvironment);
+        using var composeTrust = new ScopedEnvironment(
+            ("TrustedProxy__TrustedNetworks__0", ComposeSubnet),
+            ("Authentication__JwtBearer__Authority", "https://idp.example.com/application/o/techstrap/"));
+        var settings = BlankTemplate(HostKind.Api);
+        settings["Storage:Local:RootPath"] = Path.Combine(Path.GetTempPath(), "techstrap-blank-audience-storage");
+        foreach (var setting in FilledValues[HostKind.Api].Where(value => !value.StartsWith("Authentication:JwtBearer:Audiences:0=", StringComparison.Ordinal)))
+        {
+            var parts = setting.Split('=', 2);
+            settings[parts[0]] = parts[1];
+        }
+
+        var failure = await ConfigHosts.TryStartAsync(HostKind.Api, "Production", settings);
+
+        failure.ShouldNotBeNull("The Api started in Production with the Authority filled and the audience blank");
+        AssertNames(failure, HostKind.Api, ["Audiences:0"]);
+    }
+
+    [Fact]
     public async Task The_Portal_has_no_required_setting_yet_so_the_blank_template_with_the_compose_trust_starts()
     {
         // PHASE-09 adds API__BASEURL and TECHSTRAP_PORTAL_PUBLIC_URL to the Portal and to this list; until then the Portal reads only optional settings.

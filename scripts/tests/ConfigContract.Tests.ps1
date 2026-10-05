@@ -299,7 +299,7 @@ Describe 'the config contract of <Name>' -ForEach $script:HostCases {
     It 'the .env.example header says to copy it to .env.local, loaded in Development only' {
         $text = Get-Content -LiteralPath $script:Example -Raw
         $text | Should -Match 'Copy to \.env\.local in this directory \(gitignored\)\. SyntaxCircus\.DotEnv loads \.env then \.env\.local in Development only\.'
-        $text | Should -Match 'Use SECTION__KEY \(ALL_CAPS\) naming'
+        $text | Should -Match 'Use SECTION__KEY naming for ASP\.NET Core config binding \(keys are case-insensitive; ALL_CAPS by convention\)\.'
     }
 }
 

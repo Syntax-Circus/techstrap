@@ -95,7 +95,7 @@ with the product's current branding and sends it over SMTP.
 - **SMTP retries are off inside the sender.** The outbox owns retrying, so the SMTP client is set to
   `Email__Smtp__MaxRetryAttempts=1` and `Email__Smtp__RetryMode=TransientOnly`; a client that retried on its own could
   deliver twice while the outbox also retried. `Email__Smtp__TotalSendTimeout` (30 seconds) bounds one send.
-- **Real servers.** Set `SMTP_TLS_MODE` (`StartTls` by default; `None`, `Auto`, `SslOnConnect` and `StartTlsWhenAvailable`
+- **Real servers.** Set `EMAIL__SMTP__TLSMODE` in `/etc/techstrap/<env>/.env.worker` (`StartTls` by default; `None`, `Auto`, `SslOnConnect` and `StartTlsWhenAvailable`
   also work) in the production env file.
 - **Plaintext.** The outbox payload holds the customer link token until retention work in PHASE-12 (D-033). Treat the
   database as sensitive.

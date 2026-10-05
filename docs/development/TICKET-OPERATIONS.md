@@ -205,8 +205,8 @@ The Worker deletes `Sent` and `Discarded` outbox rows older than N days, measure
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `OutboxRetention__Enabled` (`TECHSTRAP_OUTBOX_RETENTION_ENABLED` in compose) | true | Turns the sweep off |
-| `OutboxRetention__Days` (`TECHSTRAP_OUTBOX_RETENTION_DAYS` in compose) | 90 | Age at which a finished row is deleted (1 to 3650) |
+| `OutboxRetention__Enabled` (`OUTBOXRETENTION__ENABLED` in `/etc/techstrap/<env>/.env.worker`) | true | Turns the sweep off |
+| `OutboxRetention__Days` (`OUTBOXRETENTION__DAYS` in `/etc/techstrap/<env>/.env.worker`) | 90 | Age at which a finished row is deleted (1 to 3650) |
 | `OutboxRetention__IntervalMinutes` | 60 | Delay between sweeps |
 | `OutboxRetention__BatchSize` | 500 | Rows deleted per statement; a full batch runs again at once |
 
