@@ -58,6 +58,14 @@ public static class KbEditorCopy
     public const string AlreadyPublished = "Someone published this article already. It has been reloaded.";
     public const string AlreadyArchived = "Someone archived this article already. It has been reloaded.";
 
+    public const string ReloadDiscardTitle = "Discard your edits?";
+    public const string ReloadDiscardBody = "Reloading replaces what is in the form with the latest saved version. Your edits are lost.";
+    public const string ReloadDiscardConfirm = "Reload and discard";
+    public const string ReloadDiscardStay = "Keep editing";
+    public const string PublishNoSlug = "This article has no slug, so it can't be published. Reload the article to see what changed.";
+    public const string PublishIncomplete = "The article is not complete enough to publish. Check the title, the text and the category, save, and try again.";
+    public const string ImageReadFailed = "Couldn't read this file. Nothing was sent; pick the picture again.";
+
     public const string ArchiveTitle = "Archive this article?";
     public const string ArchiveBody = "It is removed from the portal, from search and from the sitemap. You can edit it later, which makes it a draft again, and publish it again.";
     public const string ArchiveConfirm = "Archive article";
@@ -103,8 +111,9 @@ public static class KbEditorCopy
     public static string PublishNeeds(string field) => field switch
     {
         "title" => "Add a title before you publish.",
-        "slug" => "Add a slug before you publish.",
+        "slug" => PublishNoSlug,
         "body" => "Write the article before you publish.",
-        _ => "Choose a category before you publish.",
+        "category" => "Choose a category before you publish.",
+        _ => PublishIncomplete,
     };
 }

@@ -183,4 +183,16 @@ public sealed class KbEditorLookupsTests
         lookups.CategorySlug(Guid.NewGuid()).ShouldBeNull();
         lookups.CategorySlug(null).ShouldBeNull();
     }
+
+    [Fact]
+    public void An_inactive_product_is_never_a_portal_product_so_the_portal_would_not_answer_it()
+    {
+        var inactiveFirst = TestData.Product("Aardvark", Guid.NewGuid());
+        var lookups = new KbEditorLookups([inactiveFirst with { IsActive = false }, TestData.Product("Orbitly", Orbitly), TestData.Product("Paperplane", Paperplane) with { IsActive = false }], []);
+
+        lookups.PortalProductKey(null).ShouldBe("orbitly");
+        lookups.PortalProductKey(Orbitly).ShouldBe("orbitly");
+        lookups.PortalProductKey(Paperplane).ShouldBeNull();
+        lookups.PortalProductKey(inactiveFirst.Id).ShouldBeNull();
+    }
 }

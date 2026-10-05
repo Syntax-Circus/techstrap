@@ -47,13 +47,8 @@ public static partial class MarkdownSnippets
         var encoded = new StringBuilder(url.Length);
         foreach (var c in url.Trim())
         {
-            encoded.Append(c switch
-            {
-                ' ' => "%20",
-                '(' => "%28",
-                ')' => "%29",
-                _ => c.ToString(),
-            });
+            // The characters that would end the link early, start HTML or break the line are percent-encoded.
+            encoded.Append(c is ' ' or '(' or ')' or '<' or '>' or '"' || char.IsControl(c) ? $"%{(int)c:X2}" : c.ToString());
         }
 
         return $"![{CleanAlt(altText)}]({encoded})";

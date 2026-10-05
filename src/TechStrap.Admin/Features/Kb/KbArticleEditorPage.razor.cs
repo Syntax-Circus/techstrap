@@ -36,6 +36,7 @@ public sealed partial class KbArticleEditorPage : IDisposable
     private bool _publishing;
     private bool _archiving;
     private bool _archiveOpen;
+    private bool _reloadOpen;
     private bool _conflict;
     private bool _gone;
     private bool _slugEdited;
@@ -104,6 +105,8 @@ public sealed partial class KbArticleEditorPage : IDisposable
         _publishing = false;
         _archiving = false;
         _archiveOpen = false;
+        _reloadOpen = false;
+        _allowLeave = false;
         ResetMessages();
         _creating = Id is null;
         _gone = false;
@@ -155,6 +158,26 @@ public sealed partial class KbArticleEditorPage : IDisposable
                 _loading = false;
             }
         }
+    }
+
+    // Reload replaces the form with the stored article: when the form holds unsaved edits the agent confirms first, so one click never discards a draft.
+    private async Task AskReload()
+    {
+        if (IsDirty)
+        {
+            _reloadOpen = true;
+            return;
+        }
+
+        await ReloadAsync();
+    }
+
+    private void CancelReload() => _reloadOpen = false;
+
+    private async Task ConfirmReloadAsync()
+    {
+        _reloadOpen = false;
+        await ReloadAsync();
     }
 
     private async Task ReloadAsync()
@@ -441,8 +464,8 @@ public sealed partial class KbArticleEditorPage : IDisposable
         else if (error.Code == ApiErrorCodes.KbPublishIncomplete)
         {
             // The API names the field it missed (title, slug, body or category); the form said so already when it could, this is the case where another agent emptied it meanwhile.
-            _formError = KbEditorCopy.PublishNeeds(error.Target ?? string.Empty);
-            if (FieldOf(error.Target) is { Length: > 0 } target)
+            _formError = KbEditorCopy.PublishNeeds(FieldOf(error.Target) ?? string.Empty);
+            if (FieldOf(error.Target) is { } target && target is ApiFields.Title or ApiFields.Body or ApiFields.Category)
             {
                 _errors[target] = _formError;
             }
@@ -451,7 +474,7 @@ public sealed partial class KbArticleEditorPage : IDisposable
         {
             _gone = true;
         }
-        else if (error.Code == "article-already-published")
+        else if (error.Code == ApiErrorCodes.ArticleAlreadyPublished)
         {
             StatusMessages.Show(KbEditorCopy.AlreadyPublished);
             await RefreshAfterWriteAsync(_epoch);
@@ -541,7 +564,7 @@ public sealed partial class KbArticleEditorPage : IDisposable
         {
             _gone = true;
         }
-        else if (error.Code == "article-already-archived")
+        else if (error.Code == ApiErrorCodes.ArticleAlreadyArchived)
         {
             StatusMessages.Show(KbEditorCopy.AlreadyArchived);
             await RefreshAfterWriteAsync(_epoch);

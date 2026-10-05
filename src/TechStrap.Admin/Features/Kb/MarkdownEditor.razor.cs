@@ -93,6 +93,7 @@ public sealed partial class MarkdownEditor : IDisposable
             _previewing = false;
             _previewError = null;
             StateHasChanged();
+            await OnTooComplex.InvokeAsync(false);
             return;
         }
 
@@ -103,6 +104,7 @@ public sealed partial class MarkdownEditor : IDisposable
             _previewing = false;
             _previewError = KbEditorCopy.PreviewTooLong;
             StateHasChanged();
+            await OnTooComplex.InvokeAsync(false);
             return;
         }
 

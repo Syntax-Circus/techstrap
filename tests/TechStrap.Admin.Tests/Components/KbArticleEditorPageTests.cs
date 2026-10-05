@@ -24,6 +24,7 @@ public sealed class KbArticleEditorPageTests : AdminComponentTest
 {
     private const string LeaveTitle = "Leave without saving?";
     private const string ArchiveTitle = "Archive this article?";
+    private const string ReloadTitle = "Discard your edits?";
     private static readonly Guid PaperplaneId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000002");
     private static readonly Guid OtherArticleId = Guid.Parse("dddddddd-0000-0000-0000-000000000009");
 
@@ -423,6 +424,7 @@ public sealed class KbArticleEditorPageTests : AdminComponentTest
         _stored = TestData.KbArticle(title: "Their title", productId: TestData.OrbitlyId, categoryId: TestData.AccountCategoryId, body: "# Their text", version: 8);
 
         cut.Find(".ts-conflict button").Click();
+        Dialog(cut, ReloadTitle).FindAll(".ts-dialog-actions button")[1].Click();
 
         cut.WaitForAssertion(() => Value(cut, "ts-kb-title").ShouldBe("Their title"));
         cut.Find("#ts-kb-body").GetAttribute("value").ShouldBe("# Their text");
@@ -468,6 +470,7 @@ public sealed class KbArticleEditorPageTests : AdminComponentTest
 
         _stored = TestData.KbArticle(title: "Edited", productId: TestData.OrbitlyId, categoryId: TestData.AccountCategoryId, version: 4);
         cut.Find(".ts-conflict button").Click();
+        Dialog(cut, ReloadTitle).FindAll(".ts-dialog-actions button")[1].Click();
 
         cut.WaitForAssertion(() => cut.FindAll(".ts-conflict").ShouldBeEmpty());
         cut.FindAll(".ts-dirty").ShouldBeEmpty();
@@ -864,5 +867,157 @@ public sealed class KbArticleEditorPageTests : AdminComponentTest
         cut.Find("#ts-kb-category").Change(TestData.GettingStartedId.ToString());
 
         cut.Find("a.ts-kb-portal-link").GetAttribute("href").ShouldBe("https://help.example.com/p/orbitly/kb/account/reset-password");
+    }
+
+    // ---- fix round 1 ---------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void Reload_on_a_dirty_form_asks_before_it_discards_the_draft_and_staying_keeps_it()
+    {
+        _kb.UpdateAsync(TestData.ArticleId, Arg.Any<UpdateKbArticleRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Fail<KbArticleDto>(ApiErrorCodes.ConcurrencyConflict, "changed", ResultErrorKind.Conflict));
+        var cut = RenderStored();
+        cut.Find("#ts-kb-body").Input("# My careful edit");
+        Save(cut);
+        cut.WaitForAssertion(() => cut.Find(".ts-conflict").ShouldNotBeNull());
+
+        cut.Find(".ts-conflict button").Click();
+
+        Dialog(cut, ReloadTitle).Instance.Open.ShouldBeTrue();
+        Calls(nameof(IKbClient.GetAsync)).Count().ShouldBe(1);
+        Dialog(cut, ReloadTitle).FindAll(".ts-dialog-actions button")[0].Click();
+        Dialog(cut, ReloadTitle).Instance.Open.ShouldBeFalse();
+        Calls(nameof(IKbClient.GetAsync)).Count().ShouldBe(1);
+        cut.Find("#ts-kb-body").GetAttribute("value").ShouldBe("# My careful edit");
+    }
+
+    [Fact]
+    public void Reload_on_a_clean_form_reloads_at_once_without_asking()
+    {
+        _kb.PublishAsync(TestData.ArticleId, Arg.Any<uint>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail<KbArticleDto>(ApiErrorCodes.ConcurrencyConflict, "changed", ResultErrorKind.Conflict));
+        var cut = RenderStored();
+        Button(cut, "Publish").Click();
+        cut.WaitForAssertion(() => cut.Find(".ts-conflict").ShouldNotBeNull());
+
+        cut.Find(".ts-conflict button").Click();
+
+        cut.WaitForAssertion(() => cut.FindAll(".ts-conflict").ShouldBeEmpty());
+        Dialog(cut, ReloadTitle).Instance.Open.ShouldBeFalse();
+        Calls(nameof(IKbClient.GetAsync)).Count().ShouldBe(2);
+    }
+
+    [Fact]
+    public void After_leaving_to_another_article_the_guard_is_active_again()
+    {
+        _kb.GetAsync(OtherArticleId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.KbArticle("The other one", "other", id: OtherArticleId, productId: TestData.OrbitlyId, categoryId: TestData.AccountCategoryId)));
+        var cut = RenderStored();
+        cut.Find("#ts-kb-body").Input("# Unsaved");
+        _navigation.NavigateTo($"/kb/{OtherArticleId}");
+        Dialog(cut, LeaveTitle).FindAll(".ts-dialog-actions button")[1].Click();
+        cut.Render(p => p.Add(c => c.Id, OtherArticleId));
+        cut.WaitForAssertion(() => Value(cut, "ts-kb-title").ShouldBe("The other one"));
+
+        cut.Find("#ts-kb-title").Input("Edited again");
+        _navigation.NavigateTo("/queue");
+
+        Dialog(cut, LeaveTitle).Instance.Open.ShouldBeTrue();
+        _navigation.Uri.ShouldEndWith($"/kb/{OtherArticleId}");
+    }
+
+    [Fact]
+    public void A_shared_article_skips_an_inactive_product_that_sorts_first_and_an_inactive_own_product_has_no_link()
+    {
+        _products.ListAsync(Arg.Any<CancellationToken>()).Returns(TestData.Ok<IReadOnlyList<ProductDto>>(
+            [TestData.Product("Aardvark", Guid.NewGuid()) with { IsActive = false }, TestData.Product("Orbitly")]));
+        var shared = RenderStored(TestData.KbArticle("Welcome", "welcome", KbArticleStatuses.Published, productId: null, categoryId: TestData.GettingStartedId));
+        shared.Find("a.ts-kb-portal-link").GetAttribute("href").ShouldBe("https://help.example.com/p/orbitly/kb/getting-started/welcome");
+
+        _products.ListAsync(Arg.Any<CancellationToken>()).Returns(TestData.Ok<IReadOnlyList<ProductDto>>([TestData.Product("Orbitly") with { IsActive = false }]));
+        var own = RenderStored(TestData.KbArticle(status: KbArticleStatuses.Published, productId: TestData.OrbitlyId, categoryId: TestData.AccountCategoryId));
+        own.FindAll("a.ts-kb-portal-link").ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(ApiFields.Title, "#ts-kb-title-error", "Add a title before you publish.")]
+    [InlineData(ApiFields.Body, "#ts-kb-body-error", "Write the article before you publish.")]
+    public void Publish_incomplete_on_title_or_body_lands_on_that_field_and_above_the_form(string target, string selector, string message)
+    {
+        _kb.PublishAsync(TestData.ArticleId, Arg.Any<uint>(), Arg.Any<CancellationToken>())
+            .Returns(Result<KbArticleDto>.Failure(new ResultError(ApiErrorCodes.KbPublishIncomplete, "empty", ResultErrorKind.Validation, target)));
+        var cut = RenderStored();
+
+        Button(cut, "Publish").Click();
+
+        cut.WaitForAssertion(() => cut.Find(selector).TextContent.ShouldBe(message));
+        cut.Find("p.ts-form-error").TextContent.ShouldBe(message);
+    }
+
+    [Fact]
+    public void Publish_incomplete_on_the_slug_of_an_existing_article_says_so_above_the_form_and_does_not_block_saving()
+    {
+        _kb.PublishAsync(TestData.ArticleId, Arg.Any<uint>(), Arg.Any<CancellationToken>())
+            .Returns(Result<KbArticleDto>.Failure(new ResultError(ApiErrorCodes.KbPublishIncomplete, "no slug", ResultErrorKind.Validation, ApiFields.Slug)));
+        _kb.UpdateAsync(TestData.ArticleId, Arg.Any<UpdateKbArticleRequest>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.KbArticle(version: 4)));
+        var cut = RenderStored();
+
+        Button(cut, "Publish").Click();
+
+        cut.WaitForAssertion(() => cut.Find("p.ts-form-error").TextContent.ShouldBe(KbEditorCopy.PublishNoSlug));
+        cut.Find("#ts-kb-title").Input("Edited");
+        Save(cut);
+        cut.WaitForAssertion(() => Updates().Count().ShouldBe(1));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("something-else")]
+    public void Publish_incomplete_with_no_or_an_unknown_target_is_generic_and_never_the_category_message_and_blocks_nothing(string? target)
+    {
+        _kb.PublishAsync(TestData.ArticleId, Arg.Any<uint>(), Arg.Any<CancellationToken>())
+            .Returns(Result<KbArticleDto>.Failure(new ResultError(ApiErrorCodes.KbPublishIncomplete, "x", ResultErrorKind.Validation, target)));
+        _kb.UpdateAsync(TestData.ArticleId, Arg.Any<UpdateKbArticleRequest>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.KbArticle(version: 4)));
+        var cut = RenderStored();
+
+        Button(cut, "Publish").Click();
+
+        cut.WaitForAssertion(() => cut.Find("p.ts-form-error").TextContent.ShouldBe(KbEditorCopy.PublishIncomplete));
+        cut.Markup.ShouldNotContain("Choose a category before you publish.");
+        cut.Find("#ts-kb-title").Input("Edited");
+        Save(cut);
+        cut.WaitForAssertion(() => Updates().Count().ShouldBe(1));
+    }
+
+    [Fact]
+    public void A_preview_that_the_api_calls_too_complex_marks_the_body_and_a_later_success_clears_the_mark()
+    {
+        var cut = RenderStored();
+        _kb.PreviewAsync(Arg.Any<KbPreviewRequest>(), Arg.Any<CancellationToken>()).Returns(
+            Result<KbPreviewResponse>.Failure(new ResultError(ApiErrorCodes.KbBodyTooComplex, "x", ResultErrorKind.Validation, ApiFields.Body)));
+        cut.Find("#ts-kb-body").Input("# Huge");
+        Time.Advance(KbDefaults.PreviewDebounce);
+        cut.WaitForAssertion(() => cut.Find("#ts-kb-body-error").TextContent.ShouldBe(KbEditorCopy.BodyTooComplex));
+
+        _kb.PreviewAsync(Arg.Any<KbPreviewRequest>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(new KbPreviewResponse("<p>ok</p>")));
+        cut.Find("#ts-kb-body").Input("# Smaller");
+        Time.Advance(KbDefaults.PreviewDebounce);
+
+        cut.WaitForAssertion(() => cut.FindAll("#ts-kb-body-error").ShouldBeEmpty());
+    }
+
+    [Fact]
+    public async Task A_second_save_while_the_first_is_pending_sends_nothing()
+    {
+        var pending = new TaskCompletionSource<Result<KbArticleDto>>();
+        _kb.UpdateAsync(TestData.ArticleId, Arg.Any<UpdateKbArticleRequest>(), Arg.Any<CancellationToken>()).Returns(_ => pending.Task);
+        var cut = RenderStored();
+        cut.Find("#ts-kb-title").Input("Edited");
+        var saving = Task.Run(() => Save(cut), Xunit.TestContext.Current.CancellationToken);
+        cut.WaitForAssertion(() => Updates().Count().ShouldBe(1));
+
+        Save(cut);
+
+        Updates().Count().ShouldBe(1);
+        pending.SetResult(TestData.Ok(TestData.KbArticle("Edited", version: 4)));
+        await saving;
     }
 }

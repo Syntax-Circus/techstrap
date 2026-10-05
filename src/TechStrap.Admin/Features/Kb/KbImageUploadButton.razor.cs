@@ -66,7 +66,28 @@ public sealed partial class KbImageUploadButton : IDisposable
         StateHasChanged();
         try
         {
-            var result = await Kb.UploadImageAsync(new KbImageFile(file.Name, file.ContentType, () => file.OpenReadStream(KbLimits.MaxImageBytes)), CancellationToken.None);
+            // The browser's file is read here, before anything is sent, so a read that fails is told apart from an upload whose answer was lost.
+            byte[] bytes;
+            try
+            {
+                await using var source = file.OpenReadStream(KbLimits.MaxImageBytes, CancellationToken.None);
+                using var copy = new MemoryStream();
+                await source.CopyToAsync(copy, CancellationToken.None);
+                bytes = copy.ToArray();
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Only the type is logged, never the file name or the message.
+                Logger.LogWarning("A picture could not be read, {ExceptionType}.", ex.GetType().Name);
+                if (!_disposed)
+                {
+                    _error = KbEditorCopy.ImageReadFailed;
+                }
+
+                return;
+            }
+
+            var result = await Kb.UploadImageAsync(new KbImageFile(file.Name, file.ContentType, () => new MemoryStream(bytes, writable: false)), CancellationToken.None);
             if (_disposed)
             {
                 return;

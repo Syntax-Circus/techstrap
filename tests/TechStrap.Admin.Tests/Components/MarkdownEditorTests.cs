@@ -227,6 +227,36 @@ public sealed class MarkdownEditorTests : AdminComponentTest
     }
 
     [Fact]
+    public void An_empty_text_or_a_text_over_the_limit_clears_the_too_complex_mark_and_so_does_a_later_success()
+    {
+        var cut = RenderEditor();
+        _kb.PreviewAsync(Arg.Any<KbPreviewRequest>(), Arg.Any<CancellationToken>()).Returns(
+            Result<KbPreviewResponse>.Failure(new ResultError(ApiErrorCodes.KbBodyTooComplex, "x", ResultErrorKind.Validation, ApiFields.Body)));
+
+        cut.Find("textarea").Input("huge");
+        Time.Advance(KbDefaults.PreviewDebounce);
+        cut.WaitForAssertion(() => cut.Find("#ts-kb-body-error").ShouldNotBeNull());
+        cut.Find("textarea").Input("   ");
+        Time.Advance(KbDefaults.PreviewDebounce);
+        cut.WaitForAssertion(() => cut.FindAll("#ts-kb-body-error").ShouldBeEmpty());
+
+        cut.Find("textarea").Input("huge again");
+        Time.Advance(KbDefaults.PreviewDebounce);
+        cut.WaitForAssertion(() => cut.Find("#ts-kb-body-error").ShouldNotBeNull());
+        cut.Find("textarea").Input(new string('a', KbEditorLimits.BodyMaxLength + 1));
+        Time.Advance(KbDefaults.PreviewDebounce);
+        cut.WaitForAssertion(() => cut.FindAll("#ts-kb-body-error").ShouldBeEmpty());
+
+        cut.Find("textarea").Input("huge once more");
+        Time.Advance(KbDefaults.PreviewDebounce);
+        cut.WaitForAssertion(() => cut.Find("#ts-kb-body-error").ShouldNotBeNull());
+        _kb.PreviewAsync(Arg.Any<KbPreviewRequest>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(new KbPreviewResponse("<p>ok</p>")));
+        cut.Find("textarea").Input("small");
+        Time.Advance(KbDefaults.PreviewDebounce);
+        cut.WaitForAssertion(() => cut.FindAll("#ts-kb-body-error").ShouldBeEmpty());
+    }
+
+    [Fact]
     public void A_preview_that_throws_is_a_failed_preview_and_never_reaches_the_renderer()
     {
         _kb.PreviewAsync(Arg.Any<KbPreviewRequest>(), Arg.Any<CancellationToken>()).Returns<Task<Result<KbPreviewResponse>>>(_ => throw new InvalidOperationException("secret text from the article"));

@@ -210,4 +210,22 @@ public sealed class KbImageUploadButtonTests : AdminComponentTest
 
         cut.Find("input[type=file]").HasAttribute("disabled").ShouldBeTrue();
     }
+
+    [Fact]
+    public async Task A_file_the_browser_cannot_read_says_so_sends_nothing_and_never_shows_the_exception_text()
+    {
+        var file = Substitute.For<IBrowserFile>();
+        file.Name.Returns("a.png");
+        file.Size.Returns(4L);
+        file.ContentType.Returns("image/png");
+        file.OpenReadStream(Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns<Stream>(_ => throw new IOException("C:\\Users\\agent\\secret.png"));
+        var cut = RenderButton();
+
+        await cut.InvokeAsync(() => cut.FindComponent<InputFile>().Instance.OnChange.InvokeAsync(new InputFileChangeEventArgs([file])));
+
+        cut.Find("[role=alert]").TextContent.ShouldBe(KbEditorCopy.ImageReadFailed);
+        cut.Markup.ShouldNotContain("secret.png");
+        Uploads().ShouldBe(0);
+        _uploaded.ShouldBeEmpty();
+    }
 }

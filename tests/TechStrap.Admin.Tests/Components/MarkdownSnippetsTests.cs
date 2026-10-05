@@ -67,4 +67,10 @@ public sealed class MarkdownSnippetsTests
         image.Count(c => c == ']').ShouldBe(1);
         image.ShouldNotContain("<");
     }
+
+    [Fact]
+    public void An_address_never_carries_angle_brackets_quotes_or_control_characters()
+    {
+        MarkdownSnippets.Image("x", "https://api.example/a<b>\"c\u0007d\u007f.png").ShouldBe("![x](https://api.example/a%3Cb%3E%22c%07d%7F.png)");
+    }
 }

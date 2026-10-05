@@ -41,7 +41,7 @@
         {
             <div class="ts-conflict" role="alert">
                 <p><strong>@KbEditorCopy.ConflictTitle</strong> @KbEditorCopy.ConflictKept</p>
-                <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="ReloadAsync">@KbEditorCopy.Reload</button>
+                <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="AskReload">@KbEditorCopy.Reload</button>
             </div>
         }
         @if (_uncertainNote is not null)
@@ -54,7 +54,7 @@
                 }
                 else
                 {
-                    <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="ReloadAsync">@KbEditorCopy.Reload</button>
+                    <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="AskReload">@KbEditorCopy.Reload</button>
                 }
             </div>
         }
@@ -143,6 +143,11 @@
             }
         </form>
     }
+
+    <ConfirmDialog Open="_reloadOpen" Title="@KbEditorCopy.ReloadDiscardTitle" ConfirmLabel="@KbEditorCopy.ReloadDiscardConfirm" CancelLabel="@KbEditorCopy.ReloadDiscardStay"
+                   Danger="true" OnConfirm="ConfirmReloadAsync" OnCancel="CancelReload">
+        <p>@KbEditorCopy.ReloadDiscardBody</p>
+    </ConfirmDialog>
 
     <ConfirmDialog Open="_archiveOpen" Title="@KbEditorCopy.ArchiveTitle" ConfirmLabel="@KbEditorCopy.ArchiveConfirm" Busy="_archiving"
                    OnConfirm="ConfirmArchiveAsync" OnCancel="CancelArchive">

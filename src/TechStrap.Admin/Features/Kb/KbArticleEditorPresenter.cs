@@ -25,8 +25,8 @@ internal sealed record KbEditorLookups(IReadOnlyList<ProductDto> Products, IRead
     /// stand in (no link is shown then).
     /// </summary>
     public string? PortalProductKey(Guid? productId) => productId is { } id
-        ? Products.FirstOrDefault(p => p.Id == id)?.Key
-        : Products.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).FirstOrDefault()?.Key;
+        ? Products.FirstOrDefault(p => p.Id == id && p.IsActive)?.Key
+        : Products.Where(p => p.IsActive).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).FirstOrDefault()?.Key;
 
     public string? CategorySlug(Guid? categoryId) => categoryId is { } id ? Categories.FirstOrDefault(c => c.Id == id)?.Slug : null;
 }

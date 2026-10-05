@@ -59,6 +59,8 @@ public static class ApiErrorCodes
     public const string KbImageTooLarge = "kb-image-too-large";
     public const string KbArticleNotLinkable = "kb-article-not-linkable";
     public const string KbBodyTooComplex = "kb-body-too-complex";
+    public const string ArticleAlreadyPublished = "article-already-published";
+    public const string ArticleAlreadyArchived = "article-already-archived";
 
     /// <summary>Kestrel answers a request body far over the limit (413) with this problem type before any handler runs; a picture over 5 MB but under the request cap is <see cref="KbImageTooLarge"/>.</summary>
     public const string RequestTooLarge = "request-too-large";
