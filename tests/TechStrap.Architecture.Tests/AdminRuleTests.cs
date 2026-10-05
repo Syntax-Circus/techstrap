@@ -129,15 +129,32 @@ public sealed class AdminRuleTests
     [InlineData("<SCRIPT type=\"text/javascript\">x()</SCRIPT>")]
     [InlineData("<style>.a { color: red }</style>")]
     [InlineData("<style media=\"print\"></style>")]
-    public void An_inline_script_or_style_element_is_flagged(string markup)
+    [InlineData("<ImportMap />")]
+    [InlineData("<ImportMap/>")]
+    [InlineData("<importmap />")]
+    [InlineData("<IMPORTMAP></IMPORTMAP>")]
+    [InlineData("<ImportMap\n/>")]
+    [InlineData("<!-- note -->\n<ImportMap />")]
+    public void An_inline_script_or_style_element_or_the_import_map_is_flagged(string markup)
     {
         AdminRules.InlineMarkupViolations([("Components/Bad.razor", markup)]).Count.ShouldBe(1);
     }
 
     [Fact]
-    public void An_external_script_and_an_import_map_component_are_not_flagged()
+    public void An_external_script_is_not_flagged()
     {
-        AdminRules.InlineMarkupViolations([("Components/App.razor", "<ImportMap />\n<script src=\"@Assets[\"_framework/blazor.web.js\"]\"></script>")]).ShouldBeEmpty();
+        AdminRules.InlineMarkupViolations([("Components/App.razor", "<script src=\"@Assets[\"_framework/blazor.web.js\"]\"></script>")]).ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("<!-- <ImportMap /> -->")]
+    [InlineData("@* <ImportMap /> *@")]
+    [InlineData("<ImportMapper />")]
+    [InlineData("<ImportMap-x />")]
+    [InlineData("<p>ImportMap</p>")]
+    public void An_import_map_in_a_comment_or_a_look_alike_name_is_not_flagged(string markup)
+    {
+        AdminRules.InlineMarkupViolations([("Components/Ok.razor", markup)]).ShouldBeEmpty();
     }
 
     private const string Pages = "src/TechStrap.Admin/Components/Pages/";

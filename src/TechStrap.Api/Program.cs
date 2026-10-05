@@ -9,6 +9,7 @@ using TechStrap.Api.Options;
 using TechStrap.Api.Security;
 using TechStrap.Api.Startup;
 using TechStrap.Hosting.Logging;
+using TechStrap.Hosting.Security;
 using TechStrap.Hosting.Sentry;
 using TechStrap.Hosting.Wiring;
 using TechStrap.Infrastructure.Intake;
@@ -45,7 +46,8 @@ if (telemetry.Options.Sentry.IsEnabled)
 builder.Services.AddCorrelationId();
 // No HttpClient the factory creates (the OTLP exporters' included) logs its request headers: the default logging writes Authorization and x-api-key at Trace.
 builder.Services.AddTechStrapHttpClientDefaults();
-builder.Services.AddSecurityHeaders(builder.Configuration);
+// The API serves JSON and downloads, never a page, so its policy allows nothing; UseAttachmentSandbox adds sandbox to downloads.
+builder.Services.AddTechStrapSecurityHeaders(builder.Configuration, TechStrapCsp.ForApi());
 builder.Services.AddProblemDetailsExceptionHandling();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();

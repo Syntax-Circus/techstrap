@@ -7,6 +7,7 @@ using TechStrap.Admin.Components;
 using TechStrap.Admin.Features.Shell;
 using TechStrap.Admin.Features.Tickets;
 using TechStrap.Admin.Options;
+using TechStrap.Hosting.Security;
 using TechStrap.Hosting.Wiring;
 
 const string ServiceName = "techstrap-admin";
@@ -23,7 +24,10 @@ var telemetry = builder.AddTechStrapObservability(ServiceName);
 
 // Correlation id, health checks, trusted-proxy forwarded headers, the data-protection key ring, the host-wide HttpClient logging default and the security headers,
 // shared with the Portal (TechStrap.Hosting).
-builder.Services.AddTechStrapWebHost(builder.Configuration);
+// The Content-Security-Policy lets the sign-in and sign-out redirects reach the identity provider (form-action) and, in Development only, a product logo on localhost.
+builder.Services.AddTechStrapWebHost(
+    builder.Configuration,
+    TechStrapCsp.ForBlazorApp([TechStrapCsp.OriginOf(builder.Configuration["Auth:Authority"])], allowLoopbackImages: builder.Environment.IsDevelopment()));
 
 // Required settings are validated when the host starts (not read here), so a missing Auth or Api key stops the start with a clear message.
 builder.Services.AddAdminOptions(builder.Configuration);

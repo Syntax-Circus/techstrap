@@ -1,5 +1,6 @@
 using SyntaxCircus.AspNetCore.Common;
 using SyntaxCircus.DotEnv;
+using TechStrap.Hosting.Security;
 using TechStrap.Hosting.Wiring;
 using TechStrap.Portal.Components;
 using TechStrap.Portal.Components.Ui;
@@ -18,7 +19,8 @@ var telemetry = builder.AddTechStrapObservability(ServiceName);
 
 // Correlation id, health checks, trusted-proxy forwarded headers, the data-protection key ring, the host-wide HttpClient logging default and the security headers,
 // shared with the Admin (TechStrap.Hosting).
-builder.Services.AddTechStrapWebHost(builder.Configuration);
+// The Content-Security-Policy; the Portal has no sign-in, so form-action is this origin only. Loopback logos only in Development.
+builder.Services.AddTechStrapWebHost(builder.Configuration, TechStrapCsp.ForBlazorApp(allowLoopbackImages: builder.Environment.IsDevelopment()));
 
 builder.Services.AddRazorComponents();
 // Installation-wide switch for the "Powered by TechStrap" footer (D-024); shown unless set to false.

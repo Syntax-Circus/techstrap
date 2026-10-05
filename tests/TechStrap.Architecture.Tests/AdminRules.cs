@@ -68,6 +68,13 @@ public static partial class AdminRules
     [GeneratedRegex(@"<(?!(?-i:Script|Style)[\s/>])(?<name>style|script)(?=[\s/>])", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex InlineTagStart();
 
+    /// <summary>
+    /// The import map component, as a tag name in any case. It renders an inline script of type importmap whenever the app has fingerprinted assets to map, which the CSP blocks.
+    /// The name must end at whitespace, "/" or ">", so ImportMapper and ImportMap-x are not hits. Comments are stripped before this runs.
+    /// </summary>
+    [GeneratedRegex(@"<importmap(?=[\s/>])", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex ImportMapTag();
+
     public static IReadOnlyList<string> PackageViolations(ProjectNode admin) =>
         [.. admin.PackageReferences
             .Where(package => !AllowedPackages.Contains(package))
@@ -90,7 +97,7 @@ public static partial class AdminRules
             }
             else if (HasInlineElement(clean))
             {
-                violations.Add($"{path} has an inline <script> or a <style> element. The CSP allows neither; use wwwroot/js modules and Styles/_*.scss.");
+                violations.Add($"{path} has an inline <script>, a <style> element or <ImportMap />. The CSP allows none of them; use wwwroot/js modules and Styles/_*.scss.");
             }
         }
 
@@ -561,6 +568,11 @@ public static partial class AdminRules
 
     private static bool HasInlineElement(string markup)
     {
+        if (ImportMapTag().IsMatch(markup))
+        {
+            return true;
+        }
+
         foreach (Match tag in InlineTagStart().Matches(markup))
         {
             if (tag.Groups["name"].Value.Equals("style", StringComparison.OrdinalIgnoreCase) || !ScriptHasSrc(markup, tag.Index + tag.Length))

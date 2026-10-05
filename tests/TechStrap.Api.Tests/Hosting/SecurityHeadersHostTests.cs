@@ -69,6 +69,8 @@ public sealed class SecurityHeadersHostTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var policy = response.Headers.GetValues("Content-Security-Policy").Single().Split(';', StringSplitOptions.TrimEntries);
         policy.ShouldContain("sandbox", "a download must never run script in the Admin's origin");
+        policy.Count(directive => directive.StartsWith("sandbox", StringComparison.Ordinal)).ShouldBe(1, "exactly one bare sandbox directive, on top of the real page policy");
+        policy.ShouldContain("script-src 'self'");
         policy.ShouldContain("frame-ancestors 'none'", "the page policy is still there");
         factory.Api.AssertEveryCallBore(AdminTestPrincipal.Agent);
     }
