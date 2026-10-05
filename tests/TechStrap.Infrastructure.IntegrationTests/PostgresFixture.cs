@@ -20,7 +20,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     private const string TemplateDatabase = "techstrap_template";
     private const string MaintenanceDatabase = "postgres";
 
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(PostgresImage).Build();
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(PostgresImage).WithCommand("-c", "max_connections=300").Build();
 
     public async ValueTask InitializeAsync()
     {
@@ -32,6 +32,9 @@ public sealed class PostgresFixture : IAsyncLifetime
         TechStrapDatabase.Configure(options, ConnectionStringFor(TemplateDatabase));
         await using var context = new TechStrapDbContext(options.Options);
         await context.MigrateWithAdvisoryLockAsync(TechStrapDatabase.MigrationLockKey);
+
+        // CREATE DATABASE ... TEMPLATE needs the template to have no open connections, and pooled ones stay open.
+        NpgsqlConnection.ClearAllPools();
     }
 
     public async ValueTask DisposeAsync() => await _container.DisposeAsync();
@@ -40,7 +43,11 @@ public sealed class PostgresFixture : IAsyncLifetime
         new NpgsqlConnectionStringBuilder(_container.GetConnectionString())
         {
             Database = database,
-            Pooling = false,
+            // Pooling keeps sockets alive instead of leaving thousands in TIME_WAIT on Windows.
+            Pooling = true,
+            MaxPoolSize = 10,
+            ConnectionIdleLifetime = 5,
+            ConnectionPruningInterval = 1,
         }.ConnectionString;
 
     /// <summary>Creates an isolated database. <paramref name="migrated"/> copies the migrated template; otherwise it is empty.</summary>

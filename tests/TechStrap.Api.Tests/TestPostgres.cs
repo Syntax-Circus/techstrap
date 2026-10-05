@@ -13,7 +13,7 @@ public sealed class TestPostgres : IAsyncLifetime
 {
     private const string MaintenanceDatabase = "postgres";
 
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17").Build();
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17").WithCommand("-c", "max_connections=300").Build();
 
     public ValueTask InitializeAsync() => new(_container.StartAsync());
 
@@ -32,5 +32,13 @@ public sealed class TestPostgres : IAsyncLifetime
     }
 
     public string ConnectionStringFor(string database) =>
-        new NpgsqlConnectionStringBuilder(_container.GetConnectionString()) { Database = database, Pooling = false }.ConnectionString;
+        new NpgsqlConnectionStringBuilder(_container.GetConnectionString()) 
+        {
+            Database = database,
+            // Pooling keeps sockets alive instead of leaving thousands in TIME_WAIT on Windows.
+            Pooling = true,
+            MaxPoolSize = 10,
+            ConnectionIdleLifetime = 5,
+            ConnectionPruningInterval = 1,
+        }.ConnectionString;
 }
