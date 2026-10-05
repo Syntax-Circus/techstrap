@@ -261,4 +261,21 @@ public sealed class ArticlePickerTests : AdminComponentTest
         Search(cut, "reset");
         cut.WaitForAssertion(() => Requests().Last().ProductId.ShouldNotBe(TestData.OrbitlyId));
     }
+
+    [Fact]
+    public void A_search_still_on_its_way_when_the_ticket_moves_to_another_product_never_shows_the_old_products_articles()
+    {
+        var slow = new TaskCompletionSource<Result<PagedResponse<KbArticleListItemDto>>>();
+        _kb.ListAsync(Arg.Any<ListKbArticlesRequest>(), Arg.Any<CancellationToken>()).Returns(_ => slow.Task);
+        var cut = RenderPicker();
+        Search(cut, "reset");
+        cut.WaitForAssertion(() => Requests().Count().ShouldBe(1));
+
+        cut.Render(p => p.Add(c => c.ProductId, Guid.NewGuid()).Add(c => c.Selected, []).Add(c => c.OnAdd, choice => _added.Add(choice)));
+        slow.SetResult(TestData.Ok(TestData.KbPage([TestData.KbItem("Old product article", "old", KbArticleStatuses.Published, TestData.OrbitlyId)])));
+
+        cut.WaitForAssertion(() => cut.FindAll(".ts-kb-picker-state").ShouldBeEmpty());
+        cut.FindAll("ul.ts-kb-picker-results").ShouldBeEmpty();
+        cut.Markup.ShouldNotContain("Old product article");
+    }
 }

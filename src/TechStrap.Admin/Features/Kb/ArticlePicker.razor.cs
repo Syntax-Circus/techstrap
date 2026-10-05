@@ -53,11 +53,15 @@ public sealed partial class ArticlePicker : IDisposable
 
     protected override void OnParametersSet()
     {
-        // A ticket moved to another product must not keep offering the old product's articles.
-        if (_searched && _results.Count > 0 && _lastProduct != ProductId)
+        // A ticket moved to another product must not keep offering the old product's articles, nor show a search for them that is still on its way: the next load id makes that answer stale.
+        if (_lastProduct != Guid.Empty && _lastProduct != ProductId)
         {
+            _loadId++;
             _results = [];
             _searched = false;
+            _loading = false;
+            _error = null;
+            _announcement = string.Empty;
         }
 
         _lastProduct = ProductId;

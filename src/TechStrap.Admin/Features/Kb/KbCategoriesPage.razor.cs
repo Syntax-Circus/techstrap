@@ -117,6 +117,16 @@ public sealed partial class KbCategoriesPage : IDisposable
         {
             return false;
         }
+        catch (Exception)
+        {
+            // A read that throws (or whose task faults) is a failed load, not a crash. Fixed copy only: an exception message can carry a host or a port. An overtaken load says nothing.
+            if (loadId == _loadId && !_disposed)
+            {
+                _error = $"{KbCategoriesCopy.LoadFailed} {KbCopy.TryAgain}";
+            }
+
+            return false;
+        }
         finally
         {
             if (loadId == _loadId)

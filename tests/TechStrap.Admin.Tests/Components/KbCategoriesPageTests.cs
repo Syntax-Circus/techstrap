@@ -127,6 +127,22 @@ public sealed class KbCategoriesPageTests : AdminPageTest
     }
 
     [Fact]
+    public void A_read_that_throws_shows_the_load_error_with_fixed_copy_and_retry_loads_again()
+    {
+        _products.ListAsync(Arg.Any<CancellationToken>()).Returns(
+            _ => Task.FromException<Result<IReadOnlyList<ProductDto>>>(new InvalidOperationException("boom at api.internal:5001")),
+            _ => Task.FromResult(TestData.Ok<IReadOnlyList<ProductDto>>([TestData.Product("Orbitly")])));
+
+        var cut = RenderPage();
+
+        cut.Find(".ts-state--error").TextContent.ShouldContain("Couldn't load the categories. Try again in a moment.");
+        cut.Markup.ShouldNotContain("boom");
+        cut.Markup.ShouldNotContain("api.internal");
+        cut.Find(".ts-state--error button").Click();
+        cut.WaitForAssertion(() => cut.FindAll("tbody tr").Count.ShouldBe(3));
+    }
+
+    [Fact]
     public void A_load_that_was_overtaken_by_a_reload_never_replaces_the_newer_list()
     {
         var slow = new TaskCompletionSource<Result<IReadOnlyList<KbCategoryDto>>>();

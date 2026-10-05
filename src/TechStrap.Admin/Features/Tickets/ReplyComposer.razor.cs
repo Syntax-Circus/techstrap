@@ -23,6 +23,7 @@ public sealed partial class ReplyComposer : IDisposable
     private readonly string _id = Guid.NewGuid().ToString("N")[..8];
     private ComposerDraft _draft = new();
     private Guid _draftTicket;
+    private Guid _draftProduct;
     private ElementReference _text;
     private string? _error;
     private bool _disposed;
@@ -128,6 +129,13 @@ public sealed partial class ReplyComposer : IDisposable
 
     protected override void OnParametersSet()
     {
+        // A ticket that moves to another product can no longer link that product's own articles (the API refuses them): those chips go and the shared ones stay.
+        if (_draftTicket == TicketId && _draftProduct != Guid.Empty && _draftProduct != ProductId)
+        {
+            _draft.LinkedArticles.RemoveAll(a => !a.IsShared);
+        }
+
+        _draftProduct = ProductId;
         if (_draftTicket != TicketId)
         {
             _draftTicket = TicketId;

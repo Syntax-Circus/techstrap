@@ -107,6 +107,20 @@ public sealed class ReplyComposerArticleTests : AdminComponentTest
     }
 
     [Fact]
+    public void A_ticket_that_moves_to_another_product_drops_the_chips_only_that_product_could_link_and_keeps_the_shared_ones()
+    {
+        var cut = RenderComposer();
+        OpenPicker(cut);
+        SearchAndAdd(cut, "Reset your password", "Welcome");
+        Chips(cut).ShouldBe(["Reset your password", "Welcome"]);
+
+        cut.Render(p => p.Add(c => c.ProductId, Guid.Parse("aaaaaaaa-0000-0000-0000-0000000000c3")));
+
+        Chips(cut).ShouldBe(["Welcome"]);
+        Drafts.Get(TestData.TicketId).LinkedArticles.Select(a => a.Id).ShouldBe([SecondArticle]);
+    }
+
+    [Fact]
     public void The_picker_searches_the_tickets_product_and_the_shared_articles()
     {
         var productId = Guid.Parse("aaaaaaaa-0000-0000-0000-0000000000c3");
