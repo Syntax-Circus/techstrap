@@ -6,7 +6,8 @@ namespace TechStrap.Architecture.Tests;
 /// <summary>
 /// Rules for the Admin app (PHASE-07 T20). The Admin is a thin client of the API: no data access, no direct HTTP in a component, and a short,
 /// reviewed list of pages that render without a circuit. Every rule is a pure function over text or a parsed project so the tests can feed it a
-/// deliberately bad sample and prove it fails.
+/// deliberately bad sample and prove it fails. The text rules fail closed: a file they cannot parse is a violation, never a skip. The authoritative
+/// static-page check is the reflection test in TechStrap.Admin.Tests (StaticPageReflectionTests); this text rule is the early, readable gate.
 /// </summary>
 public static partial class AdminRules
 {
@@ -44,21 +45,28 @@ public static partial class AdminRules
     [GeneratedRegex(@"\bI?HttpClient(Factory)?\b", RegexOptions.CultureInvariant)]
     private static partial Regex HttpClientUse();
 
-    [GeneratedRegex(@"@attribute[ \t]*\[|^[ \t]*\[", RegexOptions.CultureInvariant | RegexOptions.Multiline)]
-    private static partial Regex AttributeListStart();
+    /// <summary>The attribute name in an attribute list: after "[", "," or a target colon. Matches any spelling, on any line, in any list.</summary>
+    [GeneratedRegex(@"[\[,:]\s*(?:\w+\s*\.\s*)*ExcludeFromInteractiveRouting(?:Attribute)?\b", RegexOptions.CultureInvariant)]
+    private static partial Regex ExcludeToken();
 
-    [GeneratedRegex(@"^(?:\s|\[[^\]]*\])*(?:(?:public|internal|sealed|partial|abstract|static)\s+)*(?:class|record|struct)\s+(?<name>\w+)", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"@attribute[ \t]*(?=\[)", RegexOptions.CultureInvariant)]
+    private static partial Regex AttributeDirective();
+
+    [GeneratedRegex(@"\G\s*(?:(?:public|internal|protected|private|sealed|partial|abstract|static)\s+)*(?:class|record|struct)\s+(?<name>\w+)", RegexOptions.CultureInvariant)]
     private static partial Regex ClassDeclaration();
 
-    [GeneratedRegex(@"<!--.*?-->|@\*.*?\*@|/\*.*?\*/", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
-    private static partial Regex Comments();
+    [GeneratedRegex(@"<!--.*?-->|@\*.*?\*@", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
+    private static partial Regex RazorComments();
+
+    [GeneratedRegex(@"^[ \t]*//.*$", RegexOptions.CultureInvariant | RegexOptions.Multiline)]
+    private static partial Regex WholeLineSlashComments();
 
     /// <summary>
-    /// An element that carries code or style in the page: a script without a src attribute, or any style element. The tag name must be exactly script
-    /// or style (any case except PascalCase, which Razor reads as a component) followed by whitespace, "/" or ">", so script-x and Style are not hits.
+    /// The start of an element that carries code or style: the tag name must be exactly script or style (any case except PascalCase, which Razor reads
+    /// as a component) followed by whitespace, "/" or ">", so script-x and Style are not hits. A script is inline unless it has its own src attribute.
     /// </summary>
-    [GeneratedRegex(@"<(?!(?-i:Script|Style)[\s/>])(?:style(?=[\s/>])|script(?=[\s/>])(?![^>]*(?<![\w:.@-])src\s*=))", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
-    private static partial Regex InlineScriptOrStyle();
+    [GeneratedRegex(@"<(?!(?-i:Script|Style)[\s/>])(?<name>style|script)(?=[\s/>])", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex InlineTagStart();
 
     public static IReadOnlyList<string> PackageViolations(ProjectNode admin) =>
         [.. admin.PackageReferences
@@ -71,25 +79,55 @@ public static partial class AdminRules
             .Where(f => IsComponentFile(f.Path) && HttpClientUse().IsMatch(f.Text))
             .Select(f => $"{f.Path} uses HttpClient or IHttpClientFactory. Components call the API only through a typed client from Clients/.")];
 
-    public static IReadOnlyList<string> InlineMarkupViolations(IEnumerable<(string Path, string Text)> files) =>
-        [.. files
-            .Where(f => f.Path.EndsWith(".razor", StringComparison.OrdinalIgnoreCase) && InlineScriptOrStyle().IsMatch(Comments().Replace(f.Text, " ")))
-            .Select(f => $"{f.Path} has an inline <script> or a <style> element. The CSP allows neither; use wwwroot/js modules and Styles/_*.scss.")];
+    public static IReadOnlyList<string> InlineMarkupViolations(IEnumerable<(string Path, string Text)> files)
+    {
+        var violations = new List<string>();
+        foreach (var (path, text) in files.Where(f => f.Path.EndsWith(".razor", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (!TryStripRazorComments(text, out var clean, out var error))
+            {
+                violations.Add($"could not parse {path}: {error}");
+            }
+            else if (HasInlineElement(clean))
+            {
+                violations.Add($"{path} has an inline <script> or a <style> element. The CSP allows neither; use wwwroot/js modules and Styles/_*.scss.");
+            }
+        }
+
+        return violations;
+    }
 
     public static IReadOnlyList<string> StaticPageViolations(IEnumerable<(string Path, string Text)> files)
     {
         var violations = new List<string>();
-        var excluded = files
-            .Where(f => IsSourceFile(f.Path))
-            .Select(f => (Path: f.Path.Replace('\\', '/'), f.Text))
-            .GroupBy(f => ComponentKey(f.Path), StringComparer.Ordinal)
-            .Select(group => (Key: group.Key, Excluded: group.Any(f => HasExclude(f.Text)), Anonymous: group.Any(f => HasAllowAnonymous(f.Path, f.Text))))
-            .Where(component => component.Excluded)
-            .OrderBy(component => component.Key, StringComparer.Ordinal)
-            .ToList();
+        var analysed = new List<(string Key, bool Excluded, bool Anonymous)>();
+        foreach (var group in files
+                     .Where(f => IsSourceFile(f.Path))
+                     .Select(f => (Path: f.Path.Replace('\\', '/'), f.Text))
+                     .GroupBy(f => ComponentKey(f.Path), StringComparer.Ordinal)
+                     .OrderBy(g => g.Key, StringComparer.Ordinal))
+        {
+            var excluded = false;
+            var anonymous = false;
+            foreach (var (path, text) in group)
+            {
+                var result = Analyse(path, text);
+                excluded |= result.Excluded;
+                anonymous |= result.Anonymous;
+                if (result.Error is not null)
+                {
+                    violations.Add($"could not parse {path}: {result.Error}");
+                }
+            }
+
+            if (excluded)
+            {
+                analysed.Add((group.Key, excluded, anonymous));
+            }
+        }
 
         var expectedKeys = StaticPagePaths.Values.Select(relative => $"src/{ReferenceRules.Admin}/{relative}").ToHashSet(StringComparer.Ordinal);
-        foreach (var (key, _, anonymous) in excluded)
+        foreach (var (key, _, anonymous) in analysed)
         {
             if (!expectedKeys.Contains(key))
             {
@@ -102,7 +140,7 @@ public static partial class AdminRules
             }
         }
 
-        var found = excluded.Select(component => component.Key).ToHashSet(StringComparer.Ordinal);
+        var found = analysed.Select(component => component.Key).ToHashSet(StringComparer.Ordinal);
         foreach (var (name, relative) in StaticPagePaths.OrderBy(entry => entry.Key, StringComparer.Ordinal))
         {
             if (!found.Contains($"src/{ReferenceRules.Admin}/{relative}"))
@@ -135,146 +173,459 @@ public static partial class AdminRules
         : path.EndsWith(".razor", StringComparison.OrdinalIgnoreCase) ? path[..^".razor".Length]
         : path[..^".cs".Length];
 
-    /// <summary>True when any attribute list (an @attribute directive or a line-leading [..] list) names ExcludeFromInteractiveRouting in any spelling.</summary>
-    private static bool HasExclude(string text) =>
-        AttributeLists(Comments().Replace(text, " ")).Any(list => list.Names.Any(name => Simple(name) == "ExcludeFromInteractiveRouting"));
+    // ---- Static-page analysis ---------------------------------------------------------------------------------------------------------------
+
+    private readonly record struct FileAnalysis(bool Excluded, bool Anonymous, string? Error);
+
+    private readonly record struct AttributeList(string? Target, IReadOnlyList<string> Names);
 
     /// <summary>
-    /// True when AllowAnonymous sits where the page's attributes sit: an @attribute directive, or the attribute list directly above the page class in a
-    /// .cs file. A [AllowAnonymous] on a nested type in @code or in a class body is not a hit.
+    /// Excluded: the ExcludeFromInteractiveRouting name appears in any attribute list (a token search after comments are removed, so spelling,
+    /// line breaks and same-line lists cannot hide it). Anonymous: AllowAnonymous sits where the page's own attributes sit: an @attribute directive
+    /// in a .razor file, or an attribute list directly above the class named like the file in a .cs file, with no target other than "type".
+    /// A file that cannot be parsed reports an error and is treated as excluded if the raw text names the attribute, never as clean.
     /// </summary>
-    private static bool HasAllowAnonymous(string path, string text)
+    private static FileAnalysis Analyse(string path, string text) =>
+        path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) ? AnalyseCode(path, text) : AnalyseRazor(text);
+
+    private static FileAnalysis AnalyseCode(string path, string text)
     {
-        var clean = Comments().Replace(text, " ");
-        var isCode = path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase);
+        if (!TryMaskCSharp(text, out var masked, out var error))
+        {
+            return new FileAnalysis(ExcludeToken().IsMatch(text), false, error);
+        }
+
+        var lists = new List<(int Start, int End, AttributeList List)>();
+        for (var i = 0; i < masked.Length; i++)
+        {
+            if (masked[i] != '[')
+            {
+                continue;
+            }
+
+            var close = MatchingBracket(masked, i);
+            if (close < 0)
+            {
+                return new FileAnalysis(ExcludeToken().IsMatch(masked), false, "unbalanced bracket");
+            }
+
+            lists.Add((i, close + 1, ParseList(masked[(i + 1)..close])));
+            i = close;
+        }
+
         var stem = Path.GetFileName(path).Split('.')[0];
-        return AttributeLists(clean).Any(list =>
-            list.Names.Any(IsAllowAnonymous)
-            && (isCode
-                ? !list.IsDirective && ClassDeclaration().Match(clean[list.End..]) is { Success: true } declaration && declaration.Groups["name"].Value == stem
-                : list.IsDirective));
+        var anonymous = false;
+        for (var i = 0; i < lists.Count && !anonymous; i++)
+        {
+            var runEnd = lists[i].End;
+            var last = i;
+            while (last + 1 < lists.Count && string.IsNullOrWhiteSpace(masked[runEnd..lists[last + 1].Start]))
+            {
+                last++;
+                runEnd = lists[last].End;
+            }
+
+            var declaration = ClassDeclaration().Match(masked, runEnd);
+            if (declaration.Success && declaration.Groups["name"].Value == stem)
+            {
+                anonymous = lists.Skip(i).Take(last - i + 1).Any(l => OnTheType(l.List) && l.List.Names.Any(IsAllowAnonymous));
+            }
+
+            i = last;
+        }
+
+        return new FileAnalysis(ExcludeToken().IsMatch(masked), anonymous, null);
     }
+
+    private static FileAnalysis AnalyseRazor(string text)
+    {
+        if (!TryStripRazorComments(text, out var clean, out var error))
+        {
+            return new FileAnalysis(ExcludeToken().IsMatch(text), false, error);
+        }
+
+        clean = WholeLineSlashComments().Replace(clean, string.Empty);
+        var anonymous = false;
+        foreach (Match directive in AttributeDirective().Matches(clean))
+        {
+            var open = directive.Index + directive.Length;
+            var lineEnd = clean.IndexOf('\n', open);
+            var line = lineEnd < 0 ? clean[open..] : clean[open..lineEnd];
+            if (!TryMaskCSharp(line, out var masked, out var lineError))
+            {
+                return new FileAnalysis(ExcludeToken().IsMatch(clean), false, lineError);
+            }
+
+            var close = MatchingBracket(masked, 0);
+            if (close < 0)
+            {
+                return new FileAnalysis(ExcludeToken().IsMatch(clean), false, "unbalanced bracket in @attribute");
+            }
+
+            var list = ParseList(masked[1..close]);
+            anonymous |= OnTheType(list) && list.Names.Any(IsAllowAnonymous);
+        }
+
+        return new FileAnalysis(ExcludeToken().IsMatch(clean), anonymous, null);
+    }
+
+    private static bool OnTheType(AttributeList list) => list.Target is null or "type";
 
     private static bool IsAllowAnonymous(string name) =>
         name is "AllowAnonymous" or "AllowAnonymousAttribute"
             or "Microsoft.AspNetCore.Authorization.AllowAnonymous" or "Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute";
 
-    /// <summary>The attribute name without a namespace qualifier or the Attribute suffix.</summary>
-    private static string Simple(string name)
-    {
-        var simple = name[(name.LastIndexOf('.') + 1)..];
-        return simple.EndsWith("Attribute", StringComparison.Ordinal) ? simple[..^"Attribute".Length] : simple;
-    }
-
-    private static IEnumerable<(IReadOnlyList<string> Names, bool IsDirective, int End)> AttributeLists(string text)
-    {
-        var consumed = 0;
-        foreach (Match start in AttributeListStart().Matches(text))
-        {
-            if (start.Index < consumed)
-            {
-                continue;
-            }
-
-            var open = start.Index + start.Length - 1;
-            var close = MatchingBracket(text, open);
-            if (close < 0)
-            {
-                yield break;
-            }
-
-            consumed = close + 1;
-            yield return (SplitAttributes(text[(open + 1)..close]), start.Value.StartsWith("@attribute", StringComparison.Ordinal), consumed);
-        }
-    }
-
-    private static int MatchingBracket(string text, int open)
+    /// <summary>The index of the "]" that closes the "[" at <paramref name="open"/> in already-masked text, or -1.</summary>
+    private static int MatchingBracket(string masked, int open)
     {
         var depth = 0;
-        for (var i = open; i < text.Length; i++)
+        for (var i = open; i < masked.Length; i++)
         {
-            switch (text[i])
+            if (masked[i] == '[')
             {
-                case '"':
-                    i = SkipString(text, i);
-                    break;
-                case '[':
-                    depth++;
-                    break;
-                case ']':
-                    if (--depth == 0)
-                    {
-                        return i;
-                    }
-
-                    break;
+                depth++;
+            }
+            else if (masked[i] == ']' && --depth == 0)
+            {
+                return i;
             }
         }
 
         return -1;
     }
 
-    private static int SkipString(string text, int quote)
-    {
-        for (var i = quote + 1; i < text.Length; i++)
-        {
-            if (text[i] == '\\')
-            {
-                i++;
-            }
-            else if (text[i] == '"')
-            {
-                return i;
-            }
-        }
-
-        return text.Length;
-    }
-
-    private static List<string> SplitAttributes(string body)
+    /// <summary>Splits the inside of an attribute list ("A, B(1, 2), assembly: C") on top-level commas. Input is masked, so it holds no string contents.</summary>
+    private static AttributeList ParseList(string body)
     {
         var names = new List<string>();
-        var item = new StringBuilder();
+        string? target = null;
         var depth = 0;
+        var start = 0;
         for (var i = 0; i <= body.Length; i++)
         {
-            var c = i < body.Length ? body[i] : ',';
-            if (c == '"')
-            {
-                var end = SkipString(body, i);
-                item.Append(body, i, Math.Min(end + 1, body.Length) - i);
-                i = end;
-                continue;
-            }
-
-            if (c is '(' or '[')
+            if (i < body.Length && body[i] is '(' or '[' or '{')
             {
                 depth++;
             }
-            else if (c is ')' or ']')
+            else if (i < body.Length && body[i] is ')' or ']' or '}')
+            {
+                depth--;
+            }
+            else if (i == body.Length || (body[i] == ',' && depth == 0))
+            {
+                var item = body[start..i].Trim();
+                var colon = item.IndexOf(':', StringComparison.Ordinal);
+                if (colon > 0 && item[..colon].All(char.IsLetter) && !item.StartsWith("::", StringComparison.Ordinal))
+                {
+                    target = item[..colon];
+                    item = item[(colon + 1)..].Trim();
+                }
+
+                var paren = item.IndexOf('(', StringComparison.Ordinal);
+                names.Add((paren >= 0 ? item[..paren] : item).Trim());
+                start = i + 1;
+            }
+        }
+
+        return new AttributeList(target, names);
+    }
+
+    // ---- Lexing -----------------------------------------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Replaces comments with spaces and the contents of string and char literals with "x" (keeping newlines and the delimiters), so brackets and
+    /// attribute names that sit inside a literal or a comment are never seen. Handles regular, verbatim (@"", where "" escapes a quote and \ is literal),
+    /// interpolated (holes are lexed as code), raw strings and char literals such as ']'. Returns false with a reason on an unterminated construct.
+    /// </summary>
+    private static bool TryMaskCSharp(string text, out string masked, out string error)
+    {
+        var output = new StringBuilder(text.Length);
+        var i = 0;
+        var failure = LexCode(text, ref i, output, inHole: false);
+        masked = output.ToString();
+        error = failure ?? string.Empty;
+        return failure is null;
+    }
+
+    private static string? LexCode(string t, ref int i, StringBuilder o, bool inHole)
+    {
+        var depth = 0;
+        while (i < t.Length)
+        {
+            var c = t[i];
+            if (inHole && c == '}' && depth == 0)
+            {
+                return null;
+            }
+
+            if (c == '{')
+            {
+                depth++;
+            }
+            else if (c == '}')
             {
                 depth--;
             }
 
-            if (c == ',' && depth == 0)
+            if (c == '/' && i + 1 < t.Length && t[i + 1] == '/')
             {
-                var name = item.ToString().Trim();
-                var target = name.IndexOf(':', StringComparison.Ordinal);
-                if (target > 0 && name[..target].All(char.IsLetter))
+                while (i < t.Length && t[i] != '\n')
                 {
-                    name = name[(target + 1)..].Trim();
+                    o.Append(' ');
+                    i++;
                 }
 
-                var paren = name.IndexOf('(', StringComparison.Ordinal);
-                names.Add((paren >= 0 ? name[..paren] : name).Trim());
-                item.Clear();
+                continue;
             }
-            else
+
+            if (c == '/' && i + 1 < t.Length && t[i + 1] == '*')
             {
-                item.Append(c);
+                var end = t.IndexOf("*/", i + 2, StringComparison.Ordinal);
+                if (end < 0)
+                {
+                    return "unterminated comment";
+                }
+
+                for (; i < end + 2; i++)
+                {
+                    o.Append(t[i] == '\n' ? '\n' : ' ');
+                }
+
+                continue;
+            }
+
+            if (c is '"' or '$' or '@')
+            {
+                var j = i;
+                var verbatim = false;
+                var interpolated = false;
+                while (j < t.Length && t[j] is '$' or '@')
+                {
+                    verbatim |= t[j] == '@';
+                    interpolated |= t[j] == '$';
+                    j++;
+                }
+
+                if (j < t.Length && t[j] == '"')
+                {
+                    o.Append(t, i, j - i);
+                    i = j;
+                    var failure = LexString(t, ref i, o, verbatim, interpolated);
+                    if (failure is not null)
+                    {
+                        return failure;
+                    }
+
+                    continue;
+                }
+
+                o.Append(t, i, j - i);
+                i = j;
+                continue;
+            }
+
+            if (c == '\'')
+            {
+                var j = i + 1;
+                if (j < t.Length && t[j] == '\\')
+                {
+                    j += 2;
+                    while (j < t.Length && t[j] != '\'' && t[j] != '\n' && j - i < 12)
+                    {
+                        j++;
+                    }
+                }
+                else
+                {
+                    j++;
+                }
+
+                if (j >= t.Length || t[j] != '\'')
+                {
+                    return "bad char literal";
+                }
+
+                o.Append('\'').Append('x', j - i - 1).Append('\'');
+                i = j + 1;
+                continue;
+            }
+
+            o.Append(c);
+            i++;
+        }
+
+        return inHole ? "unterminated interpolation hole" : null;
+    }
+
+    private static string? LexString(string t, ref int i, StringBuilder o, bool verbatim, bool interpolated)
+    {
+        var quotes = 0;
+        while (i + quotes < t.Length && t[i + quotes] == '"')
+        {
+            quotes++;
+        }
+
+        if (quotes >= 3)
+        {
+            var closing = new string('"', quotes);
+            var end = t.IndexOf(closing, i + quotes, StringComparison.Ordinal);
+            if (end < 0)
+            {
+                return "unterminated raw string";
+            }
+
+            o.Append(closing);
+            for (var k = i + quotes; k < end; k++)
+            {
+                o.Append(t[k] == '\n' ? '\n' : 'x');
+            }
+
+            o.Append(closing);
+            i = end + quotes;
+            return null;
+        }
+
+        o.Append('"');
+        i++;
+        while (i < t.Length)
+        {
+            var c = t[i];
+            if (c == '"')
+            {
+                if (verbatim && i + 1 < t.Length && t[i + 1] == '"')
+                {
+                    o.Append("xx");
+                    i += 2;
+                    continue;
+                }
+
+                o.Append('"');
+                i++;
+                return null;
+            }
+
+            if (c == '\n' && !verbatim)
+            {
+                return "unterminated string";
+            }
+
+            if (!verbatim && c == '\\' && i + 1 < t.Length)
+            {
+                o.Append("xx");
+                i += 2;
+                continue;
+            }
+
+            if (interpolated && (c == '{' || c == '}') && i + 1 < t.Length && t[i + 1] == c)
+            {
+                o.Append("xx");
+                i += 2;
+                continue;
+            }
+
+            if (interpolated && c == '{')
+            {
+                o.Append('{');
+                i++;
+                var failure = LexCode(t, ref i, o, inHole: true);
+                if (failure is not null)
+                {
+                    return failure;
+                }
+
+                o.Append('}');
+                i++;
+                continue;
+            }
+
+            o.Append(c == '\n' ? '\n' : 'x');
+            i++;
+        }
+
+        return "unterminated string";
+    }
+
+    /// <summary>Replaces each complete &lt;!-- --&gt; and @* *@ comment with a space. A comment opener left over is an unterminated comment.</summary>
+    private static bool TryStripRazorComments(string text, out string clean, out string error)
+    {
+        clean = RazorComments().Replace(text, " ");
+        error = string.Empty;
+        if (clean.Contains("<!--", StringComparison.Ordinal) || clean.Contains("@*", StringComparison.Ordinal))
+        {
+            error = "unterminated comment";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool HasInlineElement(string markup)
+    {
+        foreach (Match tag in InlineTagStart().Matches(markup))
+        {
+            if (tag.Groups["name"].Value.Equals("style", StringComparison.OrdinalIgnoreCase) || !ScriptHasSrc(markup, tag.Index + tag.Length))
+            {
+                return true;
             }
         }
 
-        return names;
+        return false;
+    }
+
+    /// <summary>Reads the attributes of a script tag, skipping quoted values, and reports whether one of them is named src.</summary>
+    private static bool ScriptHasSrc(string t, int i)
+    {
+        while (i < t.Length)
+        {
+            while (i < t.Length && (char.IsWhiteSpace(t[i]) || t[i] == '/'))
+            {
+                i++;
+            }
+
+            if (i >= t.Length || t[i] == '>')
+            {
+                return false;
+            }
+
+            var nameStart = i;
+            while (i < t.Length && !char.IsWhiteSpace(t[i]) && t[i] is not ('=' or '/' or '>'))
+            {
+                i++;
+            }
+
+            if (t.AsSpan(nameStart, i - nameStart).Equals("src", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            while (i < t.Length && char.IsWhiteSpace(t[i]))
+            {
+                i++;
+            }
+
+            if (i < t.Length && t[i] == '=')
+            {
+                i++;
+                while (i < t.Length && char.IsWhiteSpace(t[i]))
+                {
+                    i++;
+                }
+
+                if (i < t.Length && t[i] is '"' or '\'')
+                {
+                    var close = t.IndexOf(t[i], i + 1);
+                    i = close < 0 ? t.Length : close + 1;
+                }
+                else
+                {
+                    while (i < t.Length && !char.IsWhiteSpace(t[i]) && t[i] != '>')
+                    {
+                        i++;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 }

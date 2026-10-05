@@ -317,4 +317,99 @@ public sealed class AdminRuleTests
     {
         AdminRules.InlineMarkupViolations([("Components/Bad.razor", "<!-- note -->\n@* note *@\n<style>a{}</style>")]).Count.ShouldBe(1);
     }
+
+    [Theory]
+    [InlineData("[A] [ExcludeFromInteractiveRouting]\npublic partial class Queue;")]
+    [InlineData("[A,\n    ExcludeFromInteractiveRouting]\npublic partial class Queue;")]
+    [InlineData("[A(1)] [B] [Foo(new[]{1}), ExcludeFromInteractiveRouting]\npublic partial class Queue;")]
+    [InlineData("[Foo(']'), ExcludeFromInteractiveRouting]\npublic partial class Queue;")]
+    [InlineData("[Foo(@\"a\\\"), ExcludeFromInteractiveRouting]\npublic partial class Queue;")]
+    [InlineData("[Foo(@\"a\"\"]\"), ExcludeFromInteractiveRouting]\npublic partial class Queue;")]
+    [InlineData("[AllowAnonymous] [ExcludeFromInteractiveRouting] public partial class Queue;")]
+    public void Same_line_multi_line_and_tricky_literal_attribute_lists_are_caught(string source)
+    {
+        AdminRules.StaticPageViolations(ThreeStaticPagesPlus((Pages + "Queue.razor.cs", source)))
+            .ShouldContain(v => v.Contains("Queue", StringComparison.Ordinal) && v.Contains("StaticPages", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("[AllowAnonymous] [ExcludeFromInteractiveRouting] public partial class Error;")]
+    [InlineData("[Foo(']')] [AllowAnonymous]\n[ExcludeFromInteractiveRouting]\npublic partial class Error;")]
+    [InlineData("[Foo(@\"a\\\"), AllowAnonymous]\n[ExcludeFromInteractiveRouting]\npublic partial class Error;")]
+    [InlineData("[Foo(@\"a\"\"]\"), AllowAnonymous]\n[ExcludeFromInteractiveRouting]\npublic partial class Error;")]
+    [InlineData("[Foo(new[]{1}), AllowAnonymous]\n[ExcludeFromInteractiveRouting]\npublic partial class Error;")]
+    [InlineData("[A,\n    AllowAnonymous]\n[ExcludeFromInteractiveRouting]\npublic partial class Error;")]
+    [InlineData("// [assembly: nothing]\n/* ] */ [AllowAnonymous, ExcludeFromInteractiveRouting]\npublic partial class Error;")]
+    public void Tricky_but_valid_code_behind_files_satisfy_the_rule(string source)
+    {
+        AdminRules.StaticPageViolations(
+        [
+            (Pages + "Error.razor", "<h1>Error</h1>"),
+            (Pages + "Error.razor.cs", source),
+            (Pages + "NotFound.razor", Both),
+            (Pages + "StyleGuide.razor", Both),
+        ]).ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("[assembly: AllowAnonymous]\n[ExcludeFromInteractiveRouting]\npublic partial class Error;")]
+    [InlineData("[return: AllowAnonymous]\n[ExcludeFromInteractiveRouting]\npublic partial class Error;")]
+    [InlineData("[method: AllowAnonymous]\n[ExcludeFromInteractiveRouting]\npublic partial class Error;")]
+    public void AllowAnonymous_with_an_assembly_or_return_target_does_not_count_as_on_the_page(string source)
+    {
+        AdminRules.StaticPageViolations(
+        [
+            (Pages + "Error.razor", "<h1>Error</h1>"),
+            (Pages + "Error.razor.cs", source),
+            (Pages + "NotFound.razor", Both),
+            (Pages + "StyleGuide.razor", Both),
+        ]).ShouldBe([Pages + "Error is [ExcludeFromInteractiveRouting] but is not [AllowAnonymous]. A static page must hold no agent data."]);
+    }
+
+    [Theory]
+    [InlineData("Queue.razor.cs", "[ExcludeFromInteractiveRouting\npublic partial class Queue;")]
+    [InlineData("Queue.razor.cs", "[A] [AllowAnonymous\npublic partial class Queue;")]
+    [InlineData("Queue.cs", "public partial class Queue { string s = \"abc; }")]
+    [InlineData("Queue.cs", "public partial class Queue { string s = @\"abc; }")]
+    [InlineData("Queue.cs", "public partial class Queue { char c = 'ab'; }")]
+    [InlineData("Queue.cs", "/* never closed\npublic partial class Queue;")]
+    [InlineData("Queue.razor", "@attribute [AllowAnonymous")]
+    [InlineData("Queue.razor", "@attribute [Foo(\"x]\n<h1>x</h1>")]
+    [InlineData("Queue.razor", "<h1>x</h1>\n<!-- never closed")]
+    [InlineData("Queue.razor", "<h1>x</h1>\n@* never closed")]
+    public void A_file_that_cannot_be_parsed_is_a_violation_not_a_skip(string file, string text)
+    {
+        AdminRules.StaticPageViolations(ThreeStaticPagesPlus((Pages + file, text)))
+            .ShouldContain(v => v.StartsWith("could not parse " + Pages + file, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("<!-- never closed\n<script>x()</script>")]
+    [InlineData("@* never closed\n<script>x()</script>")]
+    [InlineData("<script nonce=\"src=1\">x()</script>")]
+    [InlineData("<script nonce='src=1' defer>x()</script>")]
+    [InlineData("<p>a /* b</p>\n<script>x()</script>\n<p>c */</p>")]
+    [InlineData("<p>a /* b</p>\n<style>a{}</style>\n<p>c */</p>")]
+    public void Unterminated_comments_attribute_values_and_a_stray_slash_star_do_not_hide_inline_markup(string markup)
+    {
+        AdminRules.InlineMarkupViolations([("Components/Bad.razor", markup)]).Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public void An_unterminated_comment_is_reported_as_a_parse_failure()
+    {
+        AdminRules.InlineMarkupViolations([("Components/Bad.razor", "<!-- never closed\n<h1>x</h1>")])
+            .ShouldBe(["could not parse Components/Bad.razor: unterminated comment"]);
+    }
+
+    [Theory]
+    [InlineData("<script src=\"@Assets[\"_framework/blazor.web.js\"]\"></script>")]
+    [InlineData("<script defer\n  src=\"a.js\"\n  nonce=\"n\"></script>")]
+    [InlineData("<script nonce=\"n\" src='a.js'></script>")]
+    [InlineData("<script SRC=\"a.js\"/>")]
+    [InlineData("<p>a /* b</p>\n<script src=\"a.js\"></script>")]
+    public void A_script_with_its_own_src_attribute_is_allowed(string markup)
+    {
+        AdminRules.InlineMarkupViolations([("Components/Ok.razor", markup)]).ShouldBeEmpty();
+    }
 }
