@@ -78,6 +78,7 @@ public sealed partial class EnvExampleCompletenessTests
                 "AUTHENTICATION__JWTBEARER__AUTHORITY",
                 "AUTHENTICATION__JWTBEARER__AUDIENCES__0",
                 "TECHSTRAP_PORTAL_PUBLIC_URL",
+                "TECHSTRAP_API_PUBLIC_URL",
                 "TECHSTRAP_ADMIN_PUBLIC_URL",
                 "STORAGE__LOCAL__ROOTPATH",
                 AutoCloseOptions.DaysKey,

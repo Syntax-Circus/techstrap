@@ -94,6 +94,12 @@ Describe 'D-044 (the knowledge base)' {
         }
     }
 
+    It 'tells the operator about the Api public URL and the /kb-images/ proxy route' {
+        $runbook = Get-RepoText 'docs/self-hosting/DEPLOYMENT.md'
+        $runbook | Should -Match 'TECHSTRAP_API_PUBLIC_URL'
+        $runbook | Should -Match ([regex]::Escape('/kb-images/'))
+    }
+
     It 'documents the category description and version in the schema doc' {
         $schema = Get-RepoText 'docs/architecture/05-SCHEMA.md'
         $schema | Should -Match '(?s)kb_categories \{.*?text description "nullable".*?xid xmin "concurrency token".*?\}'

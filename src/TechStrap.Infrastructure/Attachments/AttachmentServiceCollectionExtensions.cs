@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SyntaxCircus.Storage;
 using TechStrap.Application.Attachments;
+using TechStrap.Application.Knowledge;
 
 namespace TechStrap.Infrastructure.Attachments;
 
@@ -18,6 +19,7 @@ public static class AttachmentServiceCollectionExtensions
                 "Storage:Local:RootPath is required for the Local storage provider.")
             .ValidateOnStart();
         services.TryAddScoped<IAttachmentStore, AttachmentStore>();
+        services.TryAddScoped<IKbImageStore, KbImageStore>();
         return services;
     }
 }

@@ -26,7 +26,7 @@ public sealed class ProductionBlankTemplateTests
     // What each host reports when the template is the only configuration. The Portal reads nothing required yet, so only the trusted proxies (which compose supplies) stop it.
     public static TheoryData<HostKind, string[]> HostsAndTheKeysTheyReportAlone() => new()
     {
-        { HostKind.Api, ["ConnectionStrings:TechStrap", "Authentication:JwtBearer:Authority", "TECHSTRAP_PORTAL_PUBLIC_URL", "Storage:Local:RootPath"] },
+        { HostKind.Api, ["ConnectionStrings:TechStrap", "Authentication:JwtBearer:Authority", "TECHSTRAP_PORTAL_PUBLIC_URL", "TECHSTRAP_API_PUBLIC_URL", "Storage:Local:RootPath"] },
         { HostKind.Worker, ["ConnectionStrings:TechStrap", "Email:Smtp:Host", "Email:Smtp:DefaultFrom"] },
         { HostKind.Admin, ["Auth:Authority", "Auth:ClientId", "Auth:ClientSecret", "Api:BaseUrl"] },
         { HostKind.Portal, ["TrustedProxy"] },
@@ -35,7 +35,7 @@ public sealed class ProductionBlankTemplateTests
     // What remains once compose has set its own values: exactly what the operator must fill in.
     public static TheoryData<HostKind, string[]> HostsAndTheKeysTheOperatorMustFill() => new()
     {
-        { HostKind.Api, ["ConnectionStrings:TechStrap", "Authentication:JwtBearer:Authority", "TECHSTRAP_PORTAL_PUBLIC_URL"] },
+        { HostKind.Api, ["ConnectionStrings:TechStrap", "Authentication:JwtBearer:Authority", "TECHSTRAP_PORTAL_PUBLIC_URL", "TECHSTRAP_API_PUBLIC_URL"] },
         { HostKind.Worker, ["ConnectionStrings:TechStrap", "Email:Smtp:Host", "Email:Smtp:DefaultFrom"] },
         { HostKind.Admin, ["Auth:Authority", "Auth:ClientId", "Auth:ClientSecret"] },
     };
@@ -113,6 +113,7 @@ public sealed class ProductionBlankTemplateTests
             "Authentication:JwtBearer:Authority=https://idp.example.com/application/o/techstrap/",
             "Authentication:JwtBearer:Audiences:0=techstrap-api",
             "TECHSTRAP_PORTAL_PUBLIC_URL=https://support.example.com",
+            "TECHSTRAP_API_PUBLIC_URL=https://api.example.com",
         ],
         [HostKind.Worker] =
         [

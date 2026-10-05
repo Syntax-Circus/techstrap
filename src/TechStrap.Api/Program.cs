@@ -104,6 +104,16 @@ builder.Services.AddTechStrapTicketOperations(builder.Configuration);
 builder.Services.AddResultProblemDetails();
 builder.Services.AddApplicationHandlers();
 
+// KB images (D-044): the Api's own public address builds each image URL. Required outside Development; blank there means the request origin.
+builder.Services.AddOptions<ApiPublicUrlOptions>()
+    .Configure<IConfiguration>((options, configuration) => options.PublicUrl = configuration[ApiPublicUrlOptions.Key]?.Trim() ?? string.Empty)
+    .Validate<IHostEnvironment>(
+        (options, environment) => ApiPublicUrlOptions.IsAcceptable(options.PublicUrl, environment.IsDevelopment()),
+        $"{ApiPublicUrlOptions.Key} must be an absolute http or https URL without user info, query or fragment (it is required outside Development).")
+    .ValidateOnStart();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<TechStrap.Application.Knowledge.IKbImageUrls, KbImageUrls>();
+
 var app = builder.Build();
 telemetry.LogStartupWarning(app.Logger);
 
@@ -152,6 +162,7 @@ app.MapGroup(string.Empty).AllowAnonymous().MapStandardHealthChecks();
 app.MapOpenApi().AllowAnonymous().RequireRateLimiting(PublicRateLimitOptions.PolicyName);
 
 app.MapControllers();
+app.MapKbImages();
 
 app.Run();
 
