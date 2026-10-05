@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using SyntaxCircus.Common;
 using TechStrap.Admin.Auth;
@@ -160,7 +161,7 @@ public sealed class SessionExpiryTests
     }
 
     [Fact]
-    public async Task A_reload_after_the_session_expired_does_not_drop_to_checking_while_it_runs()
+    public async Task A_reload_after_the_session_expired_does_not_drop_to_checking_and_never_returns_to_ready()
     {
         var agents = Substitute.For<IAgentsClient>();
         var expiry = new SessionExpiry();
@@ -175,7 +176,76 @@ public sealed class SessionExpiryTests
         session.IsAdmitted.ShouldBeTrue("the page must stay mounted while the reload runs");
         gate.SetResult(Result<AgentDto>.Success(Agent()));
         await reload;
-        session.State.ShouldBe(AgentSessionState.Ready);
+        session.State.ShouldBe(AgentSessionState.SessionExpired, "a lapsed circuit stays lapsed: only a new sign-in (a new circuit) brings the agent back");
+        session.ExpiredWhileWorking.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_late_me_success_after_the_lapse_keeps_the_session_expired()
+    {
+        var agents = Substitute.For<IAgentsClient>();
+        var expiry = new SessionExpiry();
+        var late = new TaskCompletionSource<Result<AgentDto>>();
+        agents.GetMeAsync(Ct).Returns(Task.FromResult(Result<AgentDto>.Success(Agent())), late.Task);
+        var session = new AgentSession(agents, expiry);
+        await session.EnsureLoadedAsync(Ct);
+        var reload = session.ReloadAsync(Ct);
+        expiry.Report();
+
+        late.SetResult(Result<AgentDto>.Success(Agent()));
+        await reload;
+
+        session.State.ShouldBe(AgentSessionState.SessionExpired);
+        session.ExpiredWhileWorking.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task After_a_401_no_further_call_leaves_the_client_and_each_answers_the_expired_failure()
+    {
+        var (api, session) = await ReadyAsync();
+        await using var scope = api;
+        api.Stub.OnStatus(HttpMethod.Get, "/api/thing", HttpStatusCode.Unauthorized);
+        await api.Get<ApiConnection>().GetAsync<int>("api/thing", Ct);
+        var sent = api.Stub.Requests.Count;
+        var connection = api.Get<ApiConnection>();
+
+        var read = await connection.GetAsync<int>("api/tickets?search=ada%40example.com", Ct);
+        var write = await connection.SendAsync(HttpMethod.Post, "api/thing", new { note = "x" }, Ct);
+        var writeWithBody = await connection.SendAsync<int>(HttpMethod.Put, "api/thing", new { note = "x" }, Ct);
+        using var content = new StringContent("x");
+        var multipart = await connection.SendContentAsync<int>(HttpMethod.Post, "api/thing", content, Ct);
+
+        api.Stub.Requests.Count.ShouldBe(sent, "nothing may be sent once the session has lapsed");
+        foreach (var errors in new[] { read.Errors, write.Errors, writeWithBody.Errors, multipart.Errors })
+        {
+            errors[0].Code.ShouldBe(ApiErrorCodes.Unauthenticated);
+            errors[0].Kind.ShouldBe(ResultErrorKind.Unauthenticated);
+            errors[0].Message.ShouldBe(SessionExpiry.ExpiredMessage);
+        }
+
+        session.State.ShouldBe(AgentSessionState.SessionExpired);
+    }
+
+    [Fact]
+    public async Task SessionExpiry_is_scoped_and_the_session_from_the_container_listens_to_its_own_scope()
+    {
+        await using var api = await ApiHarness.CreateAsync();
+        api.Stub.WithTestAgents();
+        var factory = api.Get<IServiceScopeFactory>();
+        await using var one = factory.CreateAsyncScope();
+        await using var two = factory.CreateAsyncScope();
+        var sessionOne = one.ServiceProvider.GetRequiredService<AgentSession>();
+        var sessionTwo = two.ServiceProvider.GetRequiredService<AgentSession>();
+        await sessionOne.EnsureLoadedAsync(Ct);
+        await sessionTwo.EnsureLoadedAsync(Ct);
+
+        var expiryOne = one.ServiceProvider.GetRequiredService<SessionExpiry>();
+        expiryOne.ShouldBeSameAs(one.ServiceProvider.GetRequiredService<SessionExpiry>());
+        expiryOne.ShouldNotBeSameAs(two.ServiceProvider.GetRequiredService<SessionExpiry>());
+        expiryOne.Report();
+
+        sessionOne.ExpiredWhileWorking.ShouldBeTrue();
+        sessionTwo.State.ShouldBe(AgentSessionState.Ready, "another circuit's session is not affected");
     }
 
     [Fact]

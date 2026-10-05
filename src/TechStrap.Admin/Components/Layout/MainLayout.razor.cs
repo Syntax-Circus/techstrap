@@ -52,7 +52,7 @@ public partial class MainLayout : IDisposable
     {
         if (firstRender)
         {
-            // The stored preferences first: they set the theme and whether single-key shortcuts act. Neither call throws for a script or storage failure.
+            // The stored preferences first: they set the theme and whether single-key shortcuts act. A script or storage failure is handled inside them, but anything else is caught below.
             try
             {
                 await Preferences.LoadAsync();
@@ -61,7 +61,7 @@ public partial class MainLayout : IDisposable
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 // The layout sits outside every error boundary, so an exception out of OnAfterRenderAsync would end the circuit. Without the listener the keyboard layer
-                // is off but every page still works; the next start attempt may succeed. Only the type is logged, never the message.
+                // is off but every page still works; it stays off for this circuit (this runs on the first render only). Only the type is logged, never the message.
                 Logger.LogWarning("The keyboard shortcuts could not be started ({ExceptionType}).", ex.GetType().Name);
             }
         }

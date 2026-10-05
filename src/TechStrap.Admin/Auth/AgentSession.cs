@@ -25,13 +25,14 @@ public enum AgentSessionState
 /// <summary>
 /// Who the signed-in user is, according to the API (D-040). The Admin does not parse group claims: the first call of a circuit is <c>GET /api/agents/me</c>,
 /// which also creates the agent row that every ticket call needs, and its answer decides everything. Components that show ticket data sit inside
-/// <c>AgentGate</c>, which renders them only when <see cref="State"/> is <see cref="AgentSessionState.Ready"/>, so NoAccess always wins and no ticket call
+/// <c>AgentGate</c>, which renders them only when <see cref="IsAdmitted"/> (Ready, or expired while working), so NoAccess always wins and no ticket call
 /// precedes a successful <c>/me</c>. Scoped: one per circuit (and one per prerender request).
 /// </summary>
 public sealed class AgentSession
 {
     private readonly IAgentsClient _agents;
     private Task? _loading;
+    private bool _expiredWhileWorking;
 
     /// <param name="agents">The API client that answers <c>GET /api/agents/me</c>.</param>
     /// <param name="expiry">
@@ -48,7 +49,7 @@ public sealed class AgentSession
 
     public AgentSessionState State { get; private set; }
 
-    /// <summary>The signed-in agent when <see cref="State"/> is Ready.</summary>
+    /// <summary>The signed-in agent when <see cref="State"/> is Ready, and still set when the session expired while working (<see cref="ExpiredWhileWorking"/>).</summary>
     public AgentDto? Agent { get; private set; }
 
     /// <summary>The API's error code when the state is NoAccess, SessionExpired or Unavailable (for example agent-inactive).</summary>
@@ -177,17 +178,25 @@ public sealed class AgentSession
     {
         if (State == AgentSessionState.SessionExpired)
         {
+            _expiredWhileWorking = true;
             return;
         }
 
         ErrorCode = ApiErrorCodes.Unauthenticated;
-        ErrorMessage = "Your session has expired. Sign in again.";
+        ErrorMessage = SessionExpiry.ExpiredMessage;
+        _expiredWhileWorking = true;
         State = AgentSessionState.SessionExpired;
         Changed?.Invoke();
     }
 
     private void Apply(Result<AgentDto> result, bool keepReadyOnTransientFailure)
     {
+        if (_expiredWhileWorking)
+        {
+            // Once a working session has lapsed it stays lapsed in this circuit: a late /me answer must not bring the agent back to Ready. A new sign-in is a new circuit.
+            return;
+        }
+
         if (result.IsFailure && result.Errors[0].Kind == ResultErrorKind.Unauthenticated && Agent is not null)
         {
             // A reload of a session that was working: keep the agent (and so the page) and show the banner.

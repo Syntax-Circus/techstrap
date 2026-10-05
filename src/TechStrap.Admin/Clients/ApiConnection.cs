@@ -29,6 +29,11 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients,
     /// <summary>GET through the retrying read client.</summary>
     public async Task<Result<T>> GetAsync<T>(string uri, CancellationToken cancellationToken)
     {
+        if (expiry.IsLapsed)
+        {
+            return Result<T>.Failure(Lapsed());
+        }
+
         using var request = new HttpRequestMessage(HttpMethod.Get, uri);
         return await SendAsync<T>(ReadClient, request, cancellationToken);
     }
@@ -36,6 +41,11 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients,
     /// <summary>A POST, PUT or DELETE with an optional JSON body, through the write client; the answer carries a JSON body.</summary>
     public async Task<Result<T>> SendAsync<T>(HttpMethod method, string uri, object? body, CancellationToken cancellationToken)
     {
+        if (expiry.IsLapsed)
+        {
+            return Result<T>.Failure(Lapsed());
+        }
+
         using var request = new HttpRequestMessage(method, uri) { Content = body is null ? null : JsonContent.Create(body, body.GetType(), options: Json) };
         return await SendAsync<T>(WriteClient, request, cancellationToken);
     }
@@ -43,6 +53,11 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients,
     /// <summary>A POST, PUT or DELETE with an optional JSON body, through the write client; success has no body (204).</summary>
     public async Task<Result> SendAsync(HttpMethod method, string uri, object? body, CancellationToken cancellationToken)
     {
+        if (expiry.IsLapsed)
+        {
+            return Result.Failure(Lapsed());
+        }
+
         using var request = new HttpRequestMessage(method, uri) { Content = body is null ? null : JsonContent.Create(body, body.GetType(), options: Json) };
         return await SendAsync(WriteClient, request, cancellationToken);
     }
@@ -50,9 +65,20 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients,
     /// <summary>A write with a prepared body (the multipart reply). The content is used once: the caller builds a new one for every attempt.</summary>
     public async Task<Result<T>> SendContentAsync<T>(HttpMethod method, string uri, HttpContent content, CancellationToken cancellationToken)
     {
+        if (expiry.IsLapsed)
+        {
+            return Result<T>.Failure(Lapsed());
+        }
+
         using var request = new HttpRequestMessage(method, uri) { Content = content };
         return await SendAsync<T>(WriteClient, request, cancellationToken);
     }
+
+    /// <summary>
+    /// What every call answers once the session has lapsed, without touching the network: the access token was evicted by the 401, so a request could only go out
+    /// unauthenticated (a write that cannot succeed, a log line carrying the path and query). The agent signs in again, which starts a new circuit.
+    /// </summary>
+    private static ResultError Lapsed() => new(ApiErrorCodes.Unauthenticated, SessionExpiry.ExpiredMessage, ResultErrorKind.Unauthenticated);
 
     private async Task<Result<T>> SendAsync<T>(HttpClient client, HttpRequestMessage request, CancellationToken cancellationToken)
     {

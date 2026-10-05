@@ -64,6 +64,25 @@ public sealed class AdminLeakTests
         AssertVerboseWasCaptured(factory);
         factory.LogSink.Events.Select(Everything).ShouldAllBe(text => !text.Contains(token) && !text.Contains("Bearer "));
     }
+    [Fact]
+    public async Task A_search_term_appears_in_no_log_event_after_a_mid_session_401()
+    {
+        // An email-shaped term the PII redactor would not necessarily mask: the test proves the Admin never logs it, not that a redactor hid it.
+        const string term = "leakprobe.ada.lovelace@example.com";
+        await using var factory = VerboseFactory();
+        // The agent is let in by /me, then the first data call answers 401. After that the token is evicted, so every later call of the page must stay local.
+        factory.Api.OnStatus(HttpMethod.Get, "/api/products", HttpStatusCode.Unauthorized);
+        using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
+
+        var html = await client.GetStringAsync($"/queue/all?search={Uri.EscapeDataString(term)}", Ct);
+
+        factory.Api.Requests.ShouldContain(r => r.Path == "/api/products", "the 401 must actually have been answered, or this test proves nothing");
+        html.ShouldNotBeNull();
+        AssertVerboseWasCaptured(factory);
+        factory.LogSink.Events.Select(Everything).ShouldAllBe(text => !text.Contains("leakprobe", StringComparison.OrdinalIgnoreCase) && !text.Contains(term, StringComparison.OrdinalIgnoreCase));
+        factory.Api.Requests.Where(r => r.Path != "/api/agents/me" && r.Path != "/api/products").ShouldBeEmpty("once the session lapsed no request may be sent");
+    }
+
     // A secret shaped so the PII log redactor does not mask it: the test proves the Admin never logs it, not that the redactor hid it.
     private const string KeySecret = "tsk_live_leakcheck_0123456789abcdef0123456789abcdef";
 

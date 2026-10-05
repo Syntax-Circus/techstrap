@@ -7,7 +7,7 @@ using TechStrap.Admin.Features.Shell;
 namespace TechStrap.Admin.Components.Layout;
 
 /// <summary>
-/// The left rail. It shows the agent's links only once <see cref="AgentSession"/> is Ready, so the anonymous pages that share <c>MainLayout</c> (not found, error),
+/// The left rail. It shows the agent's links only once <see cref="AgentSession.IsAdmitted"/> (Ready, or expired while working), so the anonymous pages that share <c>MainLayout</c> (not found, error),
 /// and a user the API refused, see the brand alone. It re-renders when the session changes (the gate loads it after the layout first renders). Every agent sees
 /// Queue and My settings; the admin links (Products, Agents, Tags, Audit, Failed emails with a count badge) show only for <see cref="AgentSession.IsAdmin"/>, the API's
 /// answer (D-040, D-041). Hiding a link is not access control: each admin page is wrapped in <c>AdminOnly</c> and the API answers 403 to every admin call. The badge call

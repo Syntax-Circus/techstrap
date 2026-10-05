@@ -113,6 +113,20 @@ public sealed class AgentGateSessionExpiryTests : BunitContext
         cut.WaitForAssertion(() => cut.Find(".ts-session-banner a").GetAttribute("href").ShouldBe("/signin/start?returnUrl=%2Ftickets%2FORB-7"));
     }
 
+    [Theory]
+    [InlineData("http://localhost//evil.example/x")]
+    [InlineData("http://localhost/\\evil.example/x")]
+    public async Task The_banner_never_carries_a_non_local_address_in_the_return_url(string current)
+    {
+        var cut = RenderGate();
+        await Session.EnsureLoadedAsync(Ct);
+        Services.GetRequiredService<NavigationManager>().NavigateTo(current);
+
+        Services.GetRequiredService<SessionExpiry>().Report();
+
+        cut.WaitForElement(".ts-session-banner a").GetAttribute("href").ShouldBe("/signin/start?returnUrl=%2F");
+    }
+
     [Fact]
     public void A_401_on_the_first_load_is_the_full_page_with_no_content_and_no_banner()
     {
