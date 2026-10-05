@@ -158,6 +158,31 @@ public sealed class CreateKbArticleRequestHandlerTests
     }
 
     [Fact]
+    public async Task The_agent_check_runs_before_any_product_category_or_slug_lookup()
+    {
+        var category = _kb.StoredCategory(_kb.Orbitly.Id);
+        _kb.Agent.SetActive(false);
+
+        var result = await Handler().HandleAsync(Request(_kb.Orbitly.Id, category.Id), Ct);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("agent-inactive");
+        await _kb.Products.DidNotReceiveWithAnyArgs().GetByIdAsync(default, Ct);
+        await _kb.KnowledgeBase.DidNotReceiveWithAnyArgs().GetCategoryAsync(default, Ct);
+        await _kb.KnowledgeBase.DidNotReceiveWithAnyArgs().ArticleSlugTakenAsync(default, default!, Ct);
+    }
+
+    [Fact]
+    public async Task A_reference_violation_at_commit_is_not_a_slug_conflict_and_comes_back_unchanged()
+    {
+        // A product or category that was deleted between the checks and the commit: the persistence conflict is returned as it is, never relabelled as a taken slug.
+        var result = await Handler(UnitOfWorkSubstitute.Conflict(PersistenceErrorCodes.ReferenceViolation)).HandleAsync(Request(), Ct);
+
+        result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            error => error.Code.ShouldBe(PersistenceErrorCodes.ReferenceViolation),
+            error => error.Kind.ShouldBe(ResultErrorKind.Conflict));
+    }
+
+    [Fact]
     public async Task The_cancellation_token_reaches_the_repository_calls()
     {
         using var source = new CancellationTokenSource();

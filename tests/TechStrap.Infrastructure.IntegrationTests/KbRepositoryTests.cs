@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SyntaxCircus.Common;
 using TechStrap.Application.Knowledge;
 using TechStrap.Application.Persistence;
+using TechStrap.Contracts.Kb;
 using TechStrap.Domain.Knowledge;
 using TechStrap.Domain.Tickets;
 
@@ -140,6 +141,41 @@ public sealed class KbRepositoryTests(PostgresFixture postgres) : PostgresIntegr
         var paged = await kb(new KbArticleQuery(Page: 2, PageSize: 3));
         paged.TotalCount.ShouldBe(4);
         paged.Items.ShouldHaveSingleItem().Slug.ShouldBe("a-oldest");
+    }
+
+    [Fact]
+    public async Task The_agent_list_handler_filters_by_shared_only_include_shared_status_and_text_on_the_real_database()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var scenario = await TicketScenario.CreateAsync(host);
+        var acmeDraft = KbArticle.Create(scenario.Acme.Id, KbTestData.SharedCategoryId, "acme-draft", "Printer setup for Acme", "s", "b", scenario.Agent.Id, host.Clock).Value;
+        var acmePublished = KbArticle.Create(scenario.Acme.Id, KbTestData.SharedCategoryId, "acme-published", "Printer tips for Acme", "s", "b", scenario.Agent.Id, host.Clock).Value;
+        acmePublished.Publish(host.Clock);
+        var orbitly = KbArticle.Create(scenario.Orbitly.Id, KbTestData.SharedCategoryId, "orbitly-guide", "Printer guide for Orbitly", "s", "b", scenario.Agent.Id, host.Clock).Value;
+        var sharedDraft = KbArticle.Create(null, KbTestData.SharedCategoryId, "shared-draft", "Printer basics for everyone", "s", "b", scenario.Agent.Id, host.Clock).Value;
+        var sharedPublished = KbArticle.Create(null, KbTestData.SharedCategoryId, "shared-published", "Account basics for everyone", "s", "b", scenario.Agent.Id, host.Clock).Value;
+        sharedPublished.Publish(host.Clock);
+        (await AddAsync(scenario, acmeDraft, acmePublished, orbitly, sharedDraft, sharedPublished)).IsSuccess.ShouldBeTrue();
+
+        async Task<List<string>> ListAsync(Guid? productId = null, bool sharedOnly = false, bool includeShared = true, string? status = null, string? text = null)
+        {
+            var result = await host.ReadAsync(sp => new ListKbArticlesRequestHandler(sp.GetRequiredService<IKbRepository>())
+                .HandleAsync(new ListKbArticlesRequest(productId, sharedOnly, includeShared, status, null, text, 1, 25), Ct));
+            result.IsSuccess.ShouldBeTrue();
+            return [.. result.Value.Items.Select(item => item.Slug).Order()];
+        }
+
+        // Without text the list reads the table; with text it reads the search index: both paths honour every filter.
+        (await ListAsync(sharedOnly: true)).ShouldBe(["shared-draft", "shared-published"]);
+        (await ListAsync(sharedOnly: true, text: "printer")).ShouldBe(["shared-draft"]);
+        (await ListAsync(scenario.Acme.Id, sharedOnly: true)).ShouldBe(["shared-draft", "shared-published"]);
+        (await ListAsync(scenario.Acme.Id)).ShouldBe(["acme-draft", "acme-published", "shared-draft", "shared-published"]);
+        (await ListAsync(scenario.Acme.Id, includeShared: false)).ShouldBe(["acme-draft", "acme-published"]);
+        (await ListAsync(scenario.Acme.Id, includeShared: false, text: "printer")).ShouldBe(["acme-draft", "acme-published"]);
+        (await ListAsync(scenario.Acme.Id, text: "printer")).ShouldBe(["acme-draft", "acme-published", "shared-draft"]);
+        (await ListAsync(scenario.Acme.Id, status: "Published")).ShouldBe(["acme-published", "shared-published"]);
+        (await ListAsync(scenario.Acme.Id, status: "Draft", text: "printer")).ShouldBe(["acme-draft", "shared-draft"]);
+        (await ListAsync(text: "account")).ShouldBe(["shared-published"]);
     }
 
     [Fact]
