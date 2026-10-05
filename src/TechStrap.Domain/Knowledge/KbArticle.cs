@@ -11,11 +11,15 @@ public enum KbArticleStatus
 
 /// <summary>
 /// A knowledge-base article written in Markdown. Draft goes to Published (or Archived); Published goes to Archived; Archived
-/// can be published again. An Archived article cannot be edited. The slug is unique within its product (shared articles have a
-/// null product and their own slug space).
+/// can be published again, and editing an Archived article returns it to Draft (D-044). Publishing needs a title, a slug, a body and a
+/// category, because the portal URL carries the category slug. The slug is unique within its product (shared articles have a
+/// null product and their own slug space); the handlers also block a slug that is taken in the other scope (D-044).
 /// </summary>
 public sealed class KbArticle
 {
+    /// <summary>The code of the Validation error <see cref="Publish"/> returns when a required field is missing; its target names the field (title, slug, body or category).</summary>
+    public const string PublishIncompleteCode = "kb-publish-incomplete";
+
     private KbArticle(
         Guid id,
         Guid? productId,
@@ -119,11 +123,6 @@ public sealed class KbArticle
 
     public DomainResult Update(Guid? categoryId, string? title, string? summary, string? bodyMarkdown, TimeProvider clock)
     {
-        if (Status == KbArticleStatus.Archived)
-        {
-            return DomainErrors.Conflict("article-archived", "An archived article cannot be edited.");
-        }
-
         var articleTitle = Guard.RequiredText(title, DomainLimits.KbTitleMaxLength, "title");
         var articleSummary = Guard.OptionalText(summary, DomainLimits.KbSummaryMaxLength, "summary");
         var body = Guard.RequiredText(bodyMarkdown, DomainLimits.KbBodyMaxLength, "body");
@@ -136,6 +135,12 @@ public sealed class KbArticle
         Title = articleTitle.Value;
         Summary = articleSummary.Value;
         BodyMarkdown = body.Value;
+        if (Status == KbArticleStatus.Archived)
+        {
+            // An edit reopens an archived article as a draft (D-044); the first publication date is kept.
+            Status = KbArticleStatus.Draft;
+        }
+
         UpdatedAt = DomainTime.Now(clock);
         return DomainResult.Ok();
     }
@@ -147,11 +152,36 @@ public sealed class KbArticle
             return DomainErrors.Conflict("article-already-published", "The article is already published.");
         }
 
+        if (FirstMissingForPublish() is { } missing)
+        {
+            return DomainErrors.Validation(PublishIncompleteCode, $"The article cannot be published without a {missing}.", missing);
+        }
+
         var now = DomainTime.Now(clock);
         Status = KbArticleStatus.Published;
         PublishedAt ??= now;
         UpdatedAt = now;
         return DomainResult.Ok();
+    }
+
+    private string? FirstMissingForPublish()
+    {
+        if (string.IsNullOrWhiteSpace(Title))
+        {
+            return "title";
+        }
+
+        if (string.IsNullOrWhiteSpace(Slug))
+        {
+            return "slug";
+        }
+
+        if (string.IsNullOrWhiteSpace(BodyMarkdown))
+        {
+            return "body";
+        }
+
+        return CategoryId is null ? "category" : null;
     }
 
     public DomainResult Archive(TimeProvider clock)

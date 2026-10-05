@@ -14,7 +14,12 @@ internal sealed class KbCategoryRecord
 
     public string Slug { get; set; } = string.Empty;
 
+    public string? Description { get; set; }
+
     public int SortOrder { get; set; }
+
+    /// <summary>Postgres <c>xmin</c>, the optimistic concurrency token.</summary>
+    public uint Version { get; set; }
 }
 
 internal sealed class KbArticleRecord

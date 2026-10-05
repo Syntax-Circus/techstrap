@@ -6,6 +6,7 @@ namespace TechStrap.Application.Knowledge;
 /// <summary>
 /// A knowledge-base full-text search (D-011, D-027): web-search syntax over title (weight A), summary (B) and body (C), best
 /// match first. Public search passes <c>Status = Published</c>. With a product, <see cref="IncludeShared"/> also searches shared articles.
+/// <see cref="SharedOnly"/> searches only the shared articles and wins over <see cref="ProductId"/>.
 /// Implementations normalize <see cref="Page"/> and <see cref="PageSize"/> through <see cref="Paging"/> before querying.
 /// </summary>
 public sealed record KbSearchQuery(
@@ -15,4 +16,5 @@ public sealed record KbSearchQuery(
     KbArticleStatus? Status = null,
     Guid? CategoryId = null,
     int Page = 1,
-    int PageSize = Paging.DefaultPageSize);
+    int PageSize = Paging.DefaultPageSize,
+    bool SharedOnly = false);

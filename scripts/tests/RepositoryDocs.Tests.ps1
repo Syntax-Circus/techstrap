@@ -78,6 +78,29 @@ Describe 'D-043 (scoped configuration and one image-only deploy compose)' {
     }
 }
 
+Describe 'D-044 (the knowledge base)' {
+    BeforeAll { $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md' }
+
+    It 'is in the decision log with its date, its status, a header bullet and an index row' {
+        $script:Log | Should -Match '(?m)^## D-044: PHASE-08: the knowledge base'
+        $script:Log | Should -Match '(?s)## D-044:.*?- \*\*Status:\*\* Approved \(owner 2026-10-05.*?- \*\*Date:\*\* 2026-10-05'
+        $script:Log | Should -Match '(?m)^\| D-044 \|.*\| 2026-10-05 \|'
+        $script:Log | Should -Match '(?m)^- \*\*Owner decision \(2026-10-05, PHASE-08 planning\):\*\* D-044'
+    }
+
+    It 'records the owner decisions and the technical decisions the API tasks rely on' {
+        foreach ($phrase in 'Slug uniqueness is blocked across scopes', 'TECHSTRAP_API_PUBLIC_URL', 'No audit', 'kb-publish-incomplete', 'IKbContentRenderer', 'api/public/kb/{productKey}/search', 'No render cache') {
+            $script:Log | Should -Match ([regex]::Escape($phrase))
+        }
+    }
+
+    It 'documents the category description and version in the schema doc' {
+        $schema = Get-RepoText 'docs/architecture/05-SCHEMA.md'
+        $schema | Should -Match '(?s)kb_categories \{.*?text description "nullable".*?xid xmin "concurrency token".*?\}'
+        $schema | Should -Match '\| `AddKbCategoryVersionAndDescription` \|'
+    }
+}
+
 Describe 'the deployment runbook' {
     BeforeAll { $script:Runbook = Get-RepoText 'docs/self-hosting/DEPLOYMENT.md' }
 

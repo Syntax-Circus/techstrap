@@ -12,10 +12,12 @@ public sealed class KbRepositoryTests(PostgresFixture postgres) : PostgresIntegr
     private static readonly CancellationToken Ct = TestContext.Current.CancellationToken;
 
     private static KbArticle Article(TicketScenario scenario, string slug, string title, Guid? productId, Guid? categoryId = null) =>
-        KbArticle.Create(productId, categoryId, slug, title, "summary", "# body", scenario.Agent.Id, scenario.Host.Clock).Value;
+        KbArticle.Create(productId, categoryId ?? KbTestData.SharedCategoryId, slug, title, "summary", "# body", scenario.Agent.Id, scenario.Host.Clock).Value;
 
-    private static Task<Result> AddAsync(TicketScenario scenario, params KbArticle[] articles) =>
-        scenario.Host.CommitAsync(sp =>
+    private static async Task<Result> AddAsync(TicketScenario scenario, params KbArticle[] articles)
+    {
+        await KbTestData.EnsureSharedCategoryAsync(scenario.Host);
+        return await scenario.Host.CommitAsync(sp =>
         {
             var kb = sp.GetRequiredService<IKbRepository>();
             foreach (var article in articles)
@@ -25,6 +27,7 @@ public sealed class KbRepositoryTests(PostgresFixture postgres) : PostgresIntegr
 
             return Task.CompletedTask;
         });
+    }
 
     [Fact]
     public async Task An_article_round_trips_and_is_found_by_id_and_by_slug_in_its_own_product_or_the_shared_space()
@@ -61,7 +64,7 @@ public sealed class KbRepositoryTests(PostgresFixture postgres) : PostgresIntegr
         {
             var kb = sp.GetRequiredService<IKbRepository>();
             var loaded = (await kb.GetArticleAsync(article.Id, Ct))!;
-            loaded.Update(null, "FAQ v2", null, "new body", host.Clock);
+            loaded.Update(KbTestData.SharedCategoryId, "FAQ v2", null, "new body", host.Clock);
             loaded.Publish(host.Clock);
             kb.UpdateArticle(loaded);
         });
@@ -159,7 +162,7 @@ public sealed class KbRepositoryTests(PostgresFixture postgres) : PostgresIntegr
         {
             var kb = sp.GetRequiredService<IKbRepository>();
             var loaded = (await kb.GetCategoryAsync(late.Id, Ct))!;
-            loaded.Update("Later", 1);
+            loaded.Update("Later", null, 1);
             kb.UpdateCategory(loaded);
         });
 
@@ -202,7 +205,7 @@ public sealed class KbRepositoryTests(PostgresFixture postgres) : PostgresIntegr
 
         blocked.Errors.ShouldHaveSingleItem().Code.ShouldBe(PersistenceErrorCodes.ReferenceViolation);
         removed.IsSuccess.ShouldBeTrue();
-        (await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().ListCategoriesAsync(null, true, Ct))).ShouldHaveSingleItem().Slug.ShouldBe("used");
+        (await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().ListCategoriesAsync(null, true, Ct))).Select(c => c.Slug).ShouldBe([KbTestData.SharedCategorySlug, "used"]);
     }
 
     [Fact]

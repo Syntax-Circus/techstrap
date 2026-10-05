@@ -14,6 +14,8 @@ internal sealed class KbCategoryRecordConfiguration : IEntityTypeConfiguration<K
         builder.Property(c => c.Id).ValueGeneratedNever();
         builder.Property(c => c.Name).HasMaxLength(DomainLimits.NameMaxLength).IsRequired();
         builder.Property(c => c.Slug).HasMaxLength(DomainLimits.KbSlugMaxLength).IsRequired();
+        builder.Property(c => c.Description).HasMaxLength(DomainLimits.KbCategoryDescriptionMaxLength);
+        builder.HasXminConcurrencyToken(c => c.Version);
         builder.HasOne<ProductRecord>().WithMany().HasForeignKey(c => c.ProductId).OnDelete(DeleteBehavior.Restrict);
 
         // Shared categories (null product) share one slug space: nulls count as equal.

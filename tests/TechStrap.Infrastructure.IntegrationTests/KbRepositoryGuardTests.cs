@@ -13,10 +13,12 @@ public sealed class KbRepositoryGuardTests(PostgresFixture postgres) : PostgresI
     private static readonly CancellationToken Ct = TestContext.Current.CancellationToken;
 
     private static KbArticle Article(TicketScenario scenario, string slug, string title, Guid? productId, string body = "body") =>
-        KbArticle.Create(productId, null, slug, title, "summary", body, scenario.Agent.Id, scenario.Host.Clock).Value;
+        KbArticle.Create(productId, KbTestData.SharedCategoryId, slug, title, "summary", body, scenario.Agent.Id, scenario.Host.Clock).Value;
 
-    private static Task<Result> AddAsync(TicketScenario scenario, params KbArticle[] articles) =>
-        scenario.Host.CommitAsync(sp =>
+    private static async Task<Result> AddAsync(TicketScenario scenario, params KbArticle[] articles)
+    {
+        await KbTestData.EnsureSharedCategoryAsync(scenario.Host);
+        return await scenario.Host.CommitAsync(sp =>
         {
             foreach (var article in articles)
             {
@@ -25,6 +27,7 @@ public sealed class KbRepositoryGuardTests(PostgresFixture postgres) : PostgresI
 
             return Task.CompletedTask;
         });
+    }
 
     private static Task<Result> UpdateAsync(PersistenceTestHost host, Guid id, Action<KbArticle> change) =>
         host.CommitAsync(async sp =>
