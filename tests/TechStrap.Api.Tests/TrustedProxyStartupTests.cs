@@ -35,7 +35,10 @@ public sealed class TrustedProxyStartupTests
         Environment.SetEnvironmentVariable(TrustedNetworkVariable, "10.20.30.0/24");
         try
         {
-            await using var factory = new ApiFactory(environment: "Production");
+            // Outside Development the Api also needs a connection string to start; the health probe does not reach the database.
+            await using var factory = new ApiFactory(
+                environment: "Production",
+                settings: new Dictionary<string, string?> { ["ConnectionStrings:TechStrap"] = "Host=localhost;Database=unused;Username=u;Password=p" });
             using var client = factory.CreateClient();
 
             var response = await client.GetAsync("/health/live", TestContext.Current.CancellationToken);

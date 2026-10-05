@@ -45,9 +45,55 @@ BeforeAll {
         Admin  = $script:CommonBlank + @('SECURITYHEADERS__ROBOTSTAG', 'API__BASEURL', 'AUTH__AUTHORITY', 'AUTH__CLIENTID', 'AUTH__CLIENTSECRET', 'DATAPROTECTION__KEYRINGPATH')
         Portal = $script:CommonBlank + @('SECURITYHEADERS__ROBOTSTAG', 'DATAPROTECTION__KEYRINGPATH')
     }
-    # A key containing one of these words is secret-shaped: its committed value must be blank (a number or a flag cannot be a secret, so PublicKeyPermitLimit is fine).
+    # A key containing one of these words is secret-shaped: its committed value must be blank, whatever the value looks like (a numeric password is still a password).
     # OPENTELEMETRY__HEADERS is added because the OTLP headers carry a token. KeyRingPath is a directory, not a key.
     $script:SecretWords = 'password|secret|dsn|token|key|(^|__)headers$'
+    # The only secret-shaped names that carry a plain number: the rate limits (PublicKeyPermitLimit, TokenAccessWindowSeconds), which are named after what they limit.
+    $script:NumericSecretShapedKeys = '^RATELIMITING__.*(PERMITLIMIT|WINDOWSECONDS)$'
+    # An array element that may be blank in a deploy template, because the host validates it itself and rejects a blank value (the Api audience), so it is a required key like
+    # AUTHORITY. A blank TrustedProxy element is different: it counts as configured, so those stay commented out.
+    $script:BlankTemplateElements = @('AUTHENTICATION__JWTBEARER__AUDIENCES__0')
+    # Deploy-template values that intentionally differ from appsettings.json (every other non-blank template value must equal the appsettings value). Each needs a reason.
+    $script:ValueDeviations = @{
+        Api    = @{}
+        Worker = @{
+            EMAIL__SMTP__MAXRETRYATTEMPTS = 'production value from the old compose: one retry (the library default is 3)'
+            EMAIL__SMTP__TLSMODE          = 'production value: explicit StartTls (appsettings leaves it blank, which falls back to the legacy STARTTLS flag)'
+            EMAIL__SMTP__RETRYMODE        = 'production value: retry only transient failures (the library default is Legacy)'
+            EMAIL__SMTP__TOTALSENDTIMEOUT = 'production value: a 30 s overall send deadline (appsettings leaves it blank, meaning none)'
+        }
+        Admin  = @{}
+        Portal = @{}
+    }
+
+    # True when a committed value must not be there: a secret-shaped key with any value (except the numeric rate limits).
+    function Test-SecretValue {
+        param([string]$Key, [string]$Value)
+        if ($Value -eq '') { return $false }
+        if ($Key -match 'KEYRINGPATH') { return $false }
+        if ($Key -match $script:SecretWords) {
+            $isNumberOrFlag = $Value -match '^(\d+(\.\d+)?|true|false)$'
+            if (-not ($isNumberOrFlag -and $Key -match $script:NumericSecretShapedKeys)) { return $true }
+        }
+        return $false
+    }
+
+    # True when every Password or Pwd in a connection string is replace-me, wherever it appears.
+    function Test-ConnectionStringPassword {
+        param([string]$Value)
+        foreach ($match in [regex]::Matches($Value, '(?i)\b(password|pwd)\s*=\s*([^;]*)')) {
+            if ($match.Groups[2].Value.Trim() -ne 'replace-me') { return $false }
+        }
+        return $true
+    }
+
+    function Test-ValuesEqual {
+        param([string]$Left, [string]$Right)
+        $a = 0.0; $b = 0.0
+        $style = [System.Globalization.NumberStyles]::Float
+        if ([double]::TryParse($Left, $style, [cultureinfo]::InvariantCulture, [ref]$a) -and [double]::TryParse($Right, $style, [cultureinfo]::InvariantCulture, [ref]$b)) { return $a -eq $b }
+        return $Left -ieq $Right
+    }
 
     function ConvertTo-KeyName {
         param([string]$Path)
@@ -197,9 +243,9 @@ Describe 'the config contract of <Name>' -ForEach $script:HostCases {
     It 'a blank value in .env.example or the deploy template is on the blank list, and an array element is never left blank' {
         foreach ($path in $script:Example, $script:Template) {
             $blank = @(Get-EnvEntries -Path $path | Where-Object { -not $_.Commented -and $_.Value -eq '' })
-            $unexpected = @($blank | Where-Object { $_.Key -notin $script:BlankKeys[$Name] } | ForEach-Object { $_.Key })
+            $unexpected = @($blank | Where-Object { $_.Key -notin $script:BlankKeys[$Name] -and -not ($path -eq $script:Template -and $_.Key -in $script:BlankTemplateElements) } | ForEach-Object { $_.Key })
             $unexpected | Should -BeNullOrEmpty -Because "$path leaves these blank, but only a blank-valid setting may be: $($unexpected -join ', ')"
-            @($blank | Where-Object { $_.Key -match '__\d+$' }) | Should -BeNullOrEmpty -Because "$path has a blank array element; comment the key out instead"
+            @($blank | Where-Object { $_.Key -match '__\d+$' -and -not ($path -eq $script:Template -and $_.Key -in $script:BlankTemplateElements) }) | Should -BeNullOrEmpty -Because "$path has a blank array element; comment the key out instead"
         }
     }
 
@@ -207,21 +253,38 @@ Describe 'the config contract of <Name>' -ForEach $script:HostCases {
         $problems = @()
         foreach ($path in $script:Example, $script:Template) {
             foreach ($entry in (Get-EnvEntries -Path $path)) {
-                $isNumberOrFlag = $entry.Value -match '^(\d+(\.\d+)?|true|false)$'
-                if ($entry.Key -match $script:SecretWords -and $entry.Key -notmatch 'KEYRINGPATH' -and $entry.Value -ne '' -and -not $isNumberOrFlag) { $problems += "$path $($entry.Key)" }
+                if (Test-SecretValue -Key $entry.Key -Value $entry.Value) { $problems += "$path $($entry.Key)" }
             }
         }
         foreach ($leaf in (Get-AppsettingsLeaves -HostName $Name)) {
-            $isNumberOrFlag = $leaf.Value -match '^(\d+(\.\d+)?|true|false)$'
-            if ($leaf.Key -match $script:SecretWords -and $leaf.Key -notmatch 'KEYRINGPATH' -and $leaf.Value -and -not $isNumberOrFlag) { $problems += "appsettings.json $($leaf.Key)" }
+            if (Test-SecretValue -Key $leaf.Key -Value $leaf.Value) { $problems += "appsettings.json $($leaf.Key)" }
         }
         $problems | Should -BeNullOrEmpty
+    }
+
+    It 'every non-blank value in the deploy template equals the appsettings.json value, except the documented deviations (which must really differ)' {
+        $leaves = @{}
+        foreach ($leaf in (Get-AppsettingsLeaves -HostName $Name)) { $leaves[(ConvertTo-IndexlessKey $leaf.Key)] = $leaf }
+        $deviations = $script:ValueDeviations[$Name]
+        $wrong = @()
+        foreach ($entry in (Get-EnvEntries -Path $script:Template | Where-Object { -not $_.Commented -and $_.Value -ne '' })) {
+            $key = ConvertTo-IndexlessKey $entry.Key
+            if (-not $leaves.ContainsKey($key)) { continue }
+            $same = Test-ValuesEqual -Left $entry.Value -Right $leaves[$key].Value
+            if ($deviations.ContainsKey($key)) { if ($same) { $wrong += "$key is listed as a deviation but equals appsettings.json ($($entry.Value))" } }
+            elseif (-not $same) { $wrong += "$key is '$($entry.Value)' in the template but '$($leaves[$key].Value)' in appsettings.json" }
+        }
+        $wrong | Should -BeNullOrEmpty -Because 'a template value is the code default unless it is on the documented deviation list'
+    }
+
+    It 'every documented deviation has a reason' {
+        foreach ($key in $script:ValueDeviations[$Name].Keys) { $script:ValueDeviations[$Name][$key] | Should -Not -BeNullOrEmpty -Because $key }
     }
 
     It 'a connection string in a committed env file carries no password but replace-me' {
         foreach ($path in $script:Example, $script:Template) {
             foreach ($entry in (Get-EnvEntries -Path $path | Where-Object { $_.Key -eq 'CONNECTIONSTRINGS__TECHSTRAP' })) {
-                if ($entry.Value -ne '') { $entry.Value | Should -Match 'Password=replace-me(;|$)' -Because "$path must not hold a real password" }
+                if ($entry.Value -ne '') { Test-ConnectionStringPassword -Value $entry.Value | Should -BeTrue -Because "$path must hold no Password or Pwd other than replace-me, wherever it appears in the string" }
             }
         }
     }
@@ -248,8 +311,7 @@ Describe 'the config contract of the committed files that belong to no single ho
     }
 
     It 'no Development file holds a secret-shaped value other than a clear placeholder' {
-        foreach ($host_ in 'Api', 'Admin', 'Portal') {
-            $path = Join-Path $script:RepoRoot 'src' "TechStrap.$host_" 'appsettings.Development.json'
+        foreach ($path in (Get-ChildItem -Path (Join-Path $script:RepoRoot 'src') -Filter 'appsettings.Development.json' -Recurse -Depth 2 | ForEach-Object { $_.FullName })) {
             foreach ($leaf in (Get-JsonLeaves -Node (Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -NoEnumerate))) {
                 if ($leaf.Key -match $script:SecretWords -and $leaf.Value) { $leaf.Value | Should -Match '^(not-configured|.*\.invalid.*)$' -Because "$path $($leaf.Key)" }
             }

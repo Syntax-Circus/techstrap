@@ -26,8 +26,8 @@ public sealed class ProductionBlankTemplateTests
     // What each host reports when the template is the only configuration. The Portal reads nothing required yet, so only the trusted proxies (which compose supplies) stop it.
     public static TheoryData<HostKind, string[]> HostsAndTheKeysTheyReportAlone() => new()
     {
-        { HostKind.Api, ["Authentication:JwtBearer:Authority", "TECHSTRAP_PORTAL_PUBLIC_URL", "Storage:Local:RootPath"] },
-        { HostKind.Worker, ["Email:Smtp:Host", "Email:Smtp:DefaultFrom"] },
+        { HostKind.Api, ["ConnectionStrings:TechStrap", "Authentication:JwtBearer:Authority", "TECHSTRAP_PORTAL_PUBLIC_URL", "Storage:Local:RootPath"] },
+        { HostKind.Worker, ["ConnectionStrings:TechStrap", "Email:Smtp:Host", "Email:Smtp:DefaultFrom"] },
         { HostKind.Admin, ["Auth:Authority", "Auth:ClientId", "Auth:ClientSecret", "Api:BaseUrl"] },
         { HostKind.Portal, ["TrustedProxy"] },
     };
@@ -35,8 +35,8 @@ public sealed class ProductionBlankTemplateTests
     // What remains once compose has set its own values: exactly what the operator must fill in.
     public static TheoryData<HostKind, string[]> HostsAndTheKeysTheOperatorMustFill() => new()
     {
-        { HostKind.Api, ["Authentication:JwtBearer:Authority", "TECHSTRAP_PORTAL_PUBLIC_URL"] },
-        { HostKind.Worker, ["Email:Smtp:Host", "Email:Smtp:DefaultFrom"] },
+        { HostKind.Api, ["ConnectionStrings:TechStrap", "Authentication:JwtBearer:Authority", "TECHSTRAP_PORTAL_PUBLIC_URL"] },
+        { HostKind.Worker, ["ConnectionStrings:TechStrap", "Email:Smtp:Host", "Email:Smtp:DefaultFrom"] },
         { HostKind.Admin, ["Auth:Authority", "Auth:ClientId", "Auth:ClientSecret"] },
     };
 
@@ -81,11 +81,76 @@ public sealed class ProductionBlankTemplateTests
 
     private static void AssertNames(Exception failure, HostKind host, string[] keys)
     {
-        var text = failure.ToString();
+        // The messages only (the exception and everything inside it), never the stack frames: a frame must not satisfy a key name. Case-sensitive on purpose.
+        var text = string.Join(Environment.NewLine, Messages(failure));
         foreach (var key in keys)
         {
-            text.ShouldContain(key, customMessage: $"The {host} start-up failure must name {key}:{Environment.NewLine}{text}");
+            text.ShouldContain(key, Case.Sensitive, $"The {host} start-up failure must name {key}:{Environment.NewLine}{text}");
         }
+    }
+
+    private static IEnumerable<string> Messages(Exception? exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            yield return current.Message;
+            if (current is AggregateException aggregate)
+            {
+                foreach (var inner in aggregate.InnerExceptions.SelectMany(Messages))
+                {
+                    yield return inner;
+                }
+            }
+        }
+    }
+
+    // Valid fake values for every key the operator must fill, as they would be in /etc/techstrap/<env>/.env.<app>. The Api reads the issuer eagerly, so it is an environment variable.
+    private static readonly Dictionary<HostKind, string[]> FilledValues = new()
+    {
+        [HostKind.Api] =
+        [
+            "ConnectionStrings:TechStrap=Host=127.0.0.1;Port=1;Database=techstrap;Username=techstrap;Password=replace-me",
+            "Authentication:JwtBearer:Authority=https://idp.example.com/application/o/techstrap/",
+            "Authentication:JwtBearer:Audiences:0=techstrap-api",
+            "TECHSTRAP_PORTAL_PUBLIC_URL=https://support.example.com",
+        ],
+        [HostKind.Worker] =
+        [
+            "ConnectionStrings:TechStrap=Host=127.0.0.1;Port=1;Database=techstrap;Username=techstrap;Password=replace-me",
+            "Email:Smtp:Host=smtp.example.com",
+            "Email:Smtp:DefaultFrom=support@example.com",
+        ],
+        [HostKind.Admin] =
+        [
+            "Auth:Authority=https://idp.example.com/application/o/techstrap-admin/",
+            "Auth:ClientId=techstrap-admin",
+            "Auth:ClientSecret=not-a-real-secret",
+        ],
+    };
+
+    public static TheoryData<HostKind> FilledHosts() => new() { HostKind.Api, HostKind.Worker, HostKind.Admin };
+
+    [Theory]
+    [MemberData(nameof(FilledHosts))]
+    public async Task The_template_with_every_required_key_filled_and_the_compose_values_applied_starts_in_Production(HostKind host)
+    {
+        using var environment = new ScopedEnvironment(CleanEnvironment);
+        using var composeTrust = new ScopedEnvironment(
+            ("TrustedProxy__TrustedNetworks__0", ComposeSubnet),
+            ("Authentication__JwtBearer__Authority", host == HostKind.Api ? "https://idp.example.com/application/o/techstrap/" : null),
+            ("Authentication__JwtBearer__Audiences__0", host == HostKind.Api ? "techstrap-api" : null));
+        var settings = BlankTemplate(host);
+        settings["Storage:Local:RootPath"] = Path.Combine(Path.GetTempPath(), "techstrap-filled-template-storage");
+        settings["Api:BaseUrl"] = "http://api/";
+        foreach (var setting in FilledValues[host])
+        {
+            var parts = setting.Split('=', 2);
+            settings[parts[0]] = parts[1];
+        }
+
+        var failure = await ConfigHosts.TryStartAsync(host, "Production", settings);
+
+        failure.ShouldBeNull($"{host} did not start from the filled template: {failure}");
     }
 
     [Fact]
@@ -105,8 +170,10 @@ public sealed class ProductionBlankTemplateTests
     public void No_deploy_template_leaves_an_array_element_blank(HostKind host)
     {
         // A blank element still counts as configured: TrustedProxy then sees one entry and Production stops failing fast.
+        // The one exception is the Api audience, which the Api validates itself (a blank or whitespace audience is rejected), so it is a required key like any other.
         var blankElements = File.ReadAllLines(ConfigFiles.DeployTemplate(host))
             .Where(line => System.Text.RegularExpressions.Regex.IsMatch(line, @"^[A-Za-z][A-Za-z0-9_]*__\d+=\s*$"))
+            .Where(line => !line.StartsWith("AUTHENTICATION__JWTBEARER__AUDIENCES__0=", StringComparison.Ordinal))
             .ToList();
 
         blankElements.ShouldBeEmpty();
@@ -116,6 +183,8 @@ public sealed class ProductionBlankTemplateTests
     public async Task A_blank_array_element_defeats_the_trusted_proxy_check_which_is_why_the_templates_comment_it_out()
     {
         // Documents the trap: this host starts in Production with a blank trusted network, so the template must never contain one.
+        // The value is " " (one space) because on Windows SetEnvironmentVariable(name, "") deletes the variable; a "KEY=" line in a container's env_file is the real case
+        // (an empty string that still counts as one configured element), and a whitespace string binds the same way.
         using var environment = new ScopedEnvironment(CleanEnvironment);
         using var blankElement = new ScopedEnvironment(("TrustedProxy__TrustedProxies__0", " "));
 

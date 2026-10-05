@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SyntaxCircus.Email;
@@ -17,10 +19,23 @@ public sealed class EmailServiceRegistrationTests
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
+        services.AddSingleton<IHostEnvironment>(new DevelopmentEnvironment());
         services.AddLogging();
         services.AddTechStrapPersistence();
         services.AddTechStrapEmail(configuration);
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = validate, ValidateOnBuild = validate });
+    }
+
+    /// <summary>The persistence registration validates the connection string against the host environment, so a bare provider needs one (every real host has it).</summary>
+    private sealed class DevelopmentEnvironment : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = Environments.Development;
+
+        public string ApplicationName { get; set; } = "TechStrap.Tests";
+
+        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 
     private static Dictionary<string, string?> Smtp() => new()
