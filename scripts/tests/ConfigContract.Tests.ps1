@@ -386,6 +386,30 @@ Describe 'the config contract of the deploy compose' {
         }
     }
 
+    It 'the UAT and production compose input templates name different projects' {
+        $uat = Get-EnvEntries -Path (Join-Path $script:RepoRoot 'deploy' '.env.uat.example') | Where-Object { -not $_.Commented -and $_.Key -eq 'TECHSTRAP_PROJECT' }
+        $production = Get-EnvEntries -Path (Join-Path $script:RepoRoot 'deploy' '.env.production.example') | Where-Object { -not $_.Commented -and $_.Key -eq 'TECHSTRAP_PROJECT' }
+        $uat.Value | Should -Not -BeNullOrEmpty
+        $production.Value | Should -Not -BeNullOrEmpty
+        $uat.Value | Should -Not -Be $production.Value
+    }
+
+    It 'each compose input template pins all four images to one tag (<file>)' -ForEach @(
+        @{ file = '.env.uat.example' }
+        @{ file = '.env.production.example' }
+    ) {
+        $images = @(Get-EnvEntries -Path (Join-Path $script:RepoRoot 'deploy' $file) | Where-Object { -not $_.Commented -and $_.Key -like 'TECHSTRAP_*_IMAGE' })
+        $images.Count | Should -Be 4
+        @($images | ForEach-Object { ($_.Value -split ':')[-1] } | Sort-Object -Unique).Count | Should -Be 1
+    }
+
+    It 'every deploy env example warns that raw format keeps inline comments and quotes' -ForEach @(
+        @{ file = '.env.uat.example' }, @{ file = '.env.production.example' }, @{ file = '.env.api.example' }
+        @{ file = '.env.worker.example' }, @{ file = '.env.admin.example' }, @{ file = '.env.portal.example' }
+    ) {
+        (Get-Content -LiteralPath (Join-Path $script:RepoRoot 'deploy' $file) -Raw) | Should -Match 'No inline comments: with raw format, `# \.\.\.` after a value becomes part of the value\. No surrounding quotes\.'
+    }
+
     It 'git ignores a filled env file and tracks every example' -ForEach @(
         @{ Path = 'deploy/.env.uat.local'; Ignored = $true }
         @{ Path = 'deploy/.env.production.local'; Ignored = $true }

@@ -12,8 +12,11 @@
 # Settings reach each container from its own scoped env file (env_file, format raw: no interpolation and no quote handling). The
 # environment: entries below are the values compose itself owns; they override the env file. docs/self-hosting/DEPLOYMENT.md is the runbook.
 # Client IPs: ports publish on 127.0.0.1 only, so a same-host reverse proxy appears to the containers as the compose gateway (172.16.31.1).
+# The api and the worker also join the external db network. Docker picks the default gateway (which decides the published-port path and the peer address
+# the api sees) by network name, and the db network can sort first, which would put the peer outside the trusted subnet and make the API ignore X-Forwarded-For.
+# gw_priority: 1 on the default network makes the project network the gateway.
 # Set REVERSE_PROXY_CIDR=172.16.31.1/32 for that setup, or the proxy's own address if it runs on another machine (never a wide range).
-name: ${TECHSTRAP_PROJECT:-techstrap}
+name: ${TECHSTRAP_PROJECT:?set TECHSTRAP_PROJECT (techstrap for production, techstrap-uat for UAT)}
 
 services:
   api:
@@ -32,8 +35,9 @@ services:
       TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${TECHSTRAP_SUBNET:?set TECHSTRAP_SUBNET to the pinned compose subnet, for example 172.16.31.0/24}
       TRUSTEDPROXY__TRUSTEDNETWORKS__1: ${REVERSE_PROXY_CIDR:?set REVERSE_PROXY_CIDR to the reverse proxy address, for example 172.16.31.1/32}
     networks:
-      - default
-      - db
+      default:
+        gw_priority: 1
+      db: {}
     volumes:
       - techstrap-storage:/app/storage
     ports:
@@ -114,8 +118,9 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       DOTENV__ENABLED: "false"
     networks:
-      - default
-      - db
+      default:
+        gw_priority: 1
+      db: {}
     depends_on:
       api:
         condition: service_healthy

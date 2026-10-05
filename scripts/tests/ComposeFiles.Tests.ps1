@@ -180,8 +180,10 @@ Describe 'the image-only deploy compose (<envName>)' -Skip:(-not $script:DockerA
         $script:Config.services.admin.environment.API__BASEURL | Should -Be 'http://api/'
 
         # An operator who lists a compose-owned key in the env file does not win: environment: is applied last.
-        Add-Content -LiteralPath (Join-Path $script:Run.EnvDirectory '.env.api') -Value 'STORAGE__LOCAL__ROOTPATH=/somewhere/else'
-        $overridden = (Get-ComposeConfig -File $script:DeployCompose -EnvFile $script:Run.Inputs).Config
+        # Written to a copy of the env directory, so the shared fixture stays as the templates left it.
+        $copy = New-DeployInputs -Directory (Join-Path $TestDrive 'precedence') -Environment $envName
+        Add-Content -LiteralPath (Join-Path $copy.EnvDirectory '.env.api') -Value 'STORAGE__LOCAL__ROOTPATH=/somewhere/else'
+        $overridden = (Get-ComposeConfig -File $script:DeployCompose -EnvFile $copy.Inputs).Config
         $overridden.services.api.environment.STORAGE__LOCAL__ROOTPATH | Should -Be '/app/storage'
     }
 
@@ -208,6 +210,18 @@ Describe 'the image-only deploy compose (<envName>)' -Skip:(-not $script:DockerA
         foreach ($service in 'admin', 'portal') {
             $script:Config.services.$service.networks.PSObject.Properties.Name | Should -Not -Contain 'db'
         }
+    }
+
+    It 'gives the api and the worker the default network as the gateway, so the published port and the peer address stay inside the trusted subnet' {
+        foreach ($service in 'api', 'worker') {
+            $networks = $script:Config.services.$service.networks
+            [int]$networks.default.gw_priority | Should -BeGreaterThan ([int]$networks.db.gw_priority)
+            [int]$networks.default.gw_priority | Should -Be 1
+        }
+        foreach ($service in 'admin', 'portal') {
+            $script:Config.services.$service.networks.PSObject.Properties.Name | Should -Not -Contain 'db'
+        }
+        (Get-Content -LiteralPath (Join-Path $script:RepoRoot $script:DeployCompose) -Raw) | Should -Match '(?s)gw_priority'
     }
 
     It 'publishes the api, admin and portal on loopback only, on the input ports, and the worker nowhere' {
@@ -244,6 +258,7 @@ Describe 'the image-only deploy compose (<envName>)' -Skip:(-not $script:DockerA
     }
 
     It 'refuses to resolve without <variable>, and says which one' -ForEach @(
+        @{ variable = 'TECHSTRAP_PROJECT' }
         @{ variable = 'TECHSTRAP_API_IMAGE' }
         @{ variable = 'TECHSTRAP_WORKER_IMAGE' }
         @{ variable = 'TECHSTRAP_ADMIN_IMAGE' }
@@ -272,6 +287,7 @@ Describe 'the image-only deploy compose (<envName>)' -Skip:(-not $script:DockerA
 
 Describe 'the deploy compose is one file for both environments' -Skip:(-not $script:DockerAvailable) {
     It 'resolves UAT and production inputs to the same service graph' {
+        $script:ProjectNames = @{}
         function ConvertTo-NormalisedModel {
             param([string]$Environment)
 
@@ -279,6 +295,7 @@ Describe 'the deploy compose is one file for both environments' -Skip:(-not $scr
             $result = Get-ComposeConfig -File $script:DeployCompose -EnvFile $run.Inputs
             $result.ExitCode | Should -Be 0 -Because $result.Output
             $model = $result.Config
+            $script:ProjectNames[$Environment] = $model.name
 
             # Legitimate differences, removed before comparing: the project name, the published host ports, the image tags and the project-derived
             # prefix of the network and volume names. Everything else (env, volumes, networks, healthchecks, depends_on) must match.
@@ -292,6 +309,8 @@ Describe 'the deploy compose is one file for both environments' -Skip:(-not $scr
         }
 
         ConvertTo-NormalisedModel -Environment 'uat' | Should -BeExactly (ConvertTo-NormalisedModel -Environment 'production')
+        # The project name is stripped above, so pin that it differs: one name for both would let UAT and production share containers and volumes.
+        $script:ProjectNames['uat'] | Should -Not -Be $script:ProjectNames['production']
     }
 
     It 'is the only deploy compose file' {
