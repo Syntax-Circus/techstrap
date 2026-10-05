@@ -18,6 +18,7 @@ public sealed partial class NavMenu : IDisposable
     private readonly CancellationTokenSource _lifetime = new();
     private bool _badgeRequested;
     private bool _disposed;
+    private bool _railOpen;
 
     [Inject]
     private AgentSession Session { get; set; } = default!;
@@ -28,12 +29,30 @@ public sealed partial class NavMenu : IDisposable
     [Inject]
     private FailedEmailCounter Failed { get; set; } = default!;
 
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+
+    private static string PanelId => "ts-rail-panel";
+
+    private void ToggleRail() => _railOpen = !_railOpen;
+
     private string DisplayName => Session.Agent is { } agent ? (string.IsNullOrWhiteSpace(agent.Name) ? agent.Email : agent.Name) : string.Empty;
 
     protected override void OnInitialized()
     {
         Session.Changed += OnChanged;
         Failed.Changed += OnChanged;
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    // Choosing a link folds the rail away again, so the page that was chosen is not left behind the menu on a phone.
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        if (_railOpen)
+        {
+            _railOpen = false;
+            OnChanged();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -74,6 +93,7 @@ public sealed partial class NavMenu : IDisposable
         _disposed = true;
         Session.Changed -= OnChanged;
         Failed.Changed -= OnChanged;
+        Navigation.LocationChanged -= OnLocationChanged;
         _lifetime.Cancel();
         _lifetime.Dispose();
     }

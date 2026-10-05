@@ -30,6 +30,59 @@ internal sealed partial class CompiledCss
 
     public string Text { get; }
 
+    /// <summary>
+    /// The rules inside every <c>@media</c> block whose condition is exactly <paramref name="condition"/> as the compiler wrote it, for example <c>(max-width: 767.98px)</c>
+    /// (compressed output has no space after <c>@media</c>). Empty when there is no such block, so a test asserting on it fails loudly.
+    /// </summary>
+    public CompiledCss InMedia(string condition)
+    {
+        var opening = "@media" + condition + "{";
+        var inner = new System.Text.StringBuilder();
+        var from = 0;
+        while ((from = Text.IndexOf(opening, from, StringComparison.Ordinal)) >= 0)
+        {
+            var start = from + opening.Length;
+            var depth = 1;
+            var i = start;
+            while (i < Text.Length && depth > 0)
+            {
+                depth += Text[i] == '{' ? 1 : Text[i] == '}' ? -1 : 0;
+                i++;
+            }
+
+            inner.Append(Text, start, i - start - 1).Append(' ');
+            from = i;
+        }
+
+        return new CompiledCss(inner.ToString());
+    }
+
+    /// <summary>Everything except the <c>@media</c> blocks: the rules a screen of any size gets. The base rule a media block then overrides.</summary>
+    public CompiledCss OutsideMedia()
+    {
+        var outside = new System.Text.StringBuilder();
+        var i = 0;
+        while (i < Text.Length)
+        {
+            if (string.CompareOrdinal(Text, i, "@media", 0, "@media".Length) != 0)
+            {
+                outside.Append(Text[i++]);
+                continue;
+            }
+
+            // Skip the whole block: past its opening brace, then to the brace that closes it.
+            var depth = 1;
+            i = Text.IndexOf('{', i) + 1;
+            while (i < Text.Length && depth > 0)
+            {
+                depth += Text[i] == '{' ? 1 : Text[i] == '}' ? -1 : 0;
+                i++;
+            }
+        }
+
+        return new CompiledCss(outside.ToString());
+    }
+
     public static CompiledCss Load(string app)
     {
         var path = RepositoryRoot.Combine("src", app, "wwwroot", "css", "app.css");

@@ -1,0 +1,12 @@
+@* A wide table scrolls sideways inside this box instead of stretching the page (UX-BRIEF-admin, responsive). The box is a named region that the keyboard can reach, because a scroll
+   area that only a mouse can use is a WCAG failure, and it shows a shadow on the edge that has more to see (_responsive.scss). *@
+<div class="table-responsive ts-scroll" role="region" tabindex="0" aria-label="@Label">@ChildContent</div>
+
+@code {
+    /// <summary>What the region holds: "Tickets", "Agents". A screen reader announces it as the name of the region.</summary>
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

@@ -156,6 +156,25 @@ public sealed class TicketQueuePageTests : AdminComponentTest
     }
 
     [Fact]
+    public void Every_detail_cell_of_a_row_names_itself_so_the_phone_card_can_show_the_label_beside_it()
+    {
+        _tickets.ListAsync(Arg.Any<ListTicketsRequest>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.Page([TestData.Summary("ORB-42", assignee: "Sam Ortiz")])));
+
+        var cut = RenderQueue("open");
+
+        var row = cut.Find("tbody tr");
+        row.QuerySelector(".ts-col-product")!.GetAttribute("data-label").ShouldBe("Product");
+        row.QuerySelector(".ts-col-requester")!.GetAttribute("data-label").ShouldBe("Requester");
+        row.QuerySelector(".ts-col-priority")!.GetAttribute("data-label").ShouldBe("Priority");
+        row.QuerySelector(".ts-col-assignee")!.GetAttribute("data-label").ShouldBe("Assignee");
+        row.QuerySelector(".ts-col-activity")!.GetAttribute("data-label").ShouldBe("Last activity");
+        row.QuerySelector(".ts-col-number")!.HasAttribute("data-label").ShouldBeFalse();
+        row.QuerySelector(".ts-col-subject")!.HasAttribute("data-label").ShouldBeFalse();
+        cut.Find("table.ts-ledger").ClassList.ShouldContain("ts-ledger--stack");
+        cut.Find("table.ts-ledger").Closest(".ts-scroll")!.GetAttribute("aria-label").ShouldBe("Tickets");
+    }
+
+    [Fact]
     public void A_row_without_an_assignee_or_requester_name_falls_back_and_a_spam_row_wears_the_spam_stamp()
     {
         _tickets.ListAsync(Arg.Any<ListTicketsRequest>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.Page(

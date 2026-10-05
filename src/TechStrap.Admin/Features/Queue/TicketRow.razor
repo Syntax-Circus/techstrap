@@ -8,11 +8,11 @@
             <TagChip Name="@tag.Name" Colour="@tag.Colour" />
         }
     </td>
-    <td class="ts-col-product"><span class="ts-product">@Row.ProductName</span></td>
-    <td class="ts-col-requester">@Row.Requester</td>
+    <td class="ts-col-product" data-label="Product"><span class="ts-product">@Row.ProductName</span></td>
+    <td class="ts-col-requester" data-label="Requester">@Row.Requester</td>
     <td class="ts-col-status"><StatusStamp Status="Row.Stamp" /></td>
-    <td class="ts-col-priority"><PriorityMark Level="Row.Priority" /></td>
-    <td class="ts-col-assignee">
+    <td class="ts-col-priority" data-label="Priority"><PriorityMark Level="Row.Priority" /></td>
+    <td class="ts-col-assignee" data-label="Assignee">
         @if (Row.AssigneeName is not null)
         {
             <span class="ts-avatar" title="@Row.AssigneeName"><span aria-hidden="true">@Row.AssigneeInitials</span><span class="visually-hidden">@Row.AssigneeName</span></span>
@@ -22,7 +22,7 @@
             <span class="ts-unassigned"><span aria-hidden="true">&mdash;</span><span class="visually-hidden">Unassigned</span></span>
         }
     </td>
-    <td class="ts-col-activity"><RelativeTime When="Row.LastActivity" /></td>
+    <td class="ts-col-activity" data-label="Last activity"><RelativeTime When="Row.LastActivity" /></td>
     @if (ShowNotSpam)
     {
         <td class="ts-col-actions">

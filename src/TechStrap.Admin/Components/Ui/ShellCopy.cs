@@ -21,6 +21,9 @@ public static class ShellCopy
     public const string AuditLink = "Audit";
     public const string FailedEmailsLink = "Failed emails";
     public const string NavigationLabel = "Admin navigation";
+
+    /// <summary>The button that opens and closes the rail below 992 px.</summary>
+    public const string MenuToggle = "Menu";
     public const string ShortcutHelpTitle = "Keyboard shortcuts";
     public const string ShortcutHelpOpen = "Shortcuts";
     public const string StatusBarLabel = "Keyboard hints and messages";

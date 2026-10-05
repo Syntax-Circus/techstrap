@@ -60,7 +60,7 @@
         }
         else
         {
-            <div class="table-responsive">
+            <ScrollRegion Label="Tags">
                 <table class="table ts-ledger ts-settings-table">
                     <thead>
                         <tr>
@@ -107,7 +107,7 @@
                         }
                     </tbody>
                 </table>
-            </div>
+            </ScrollRegion>
         }
 
         <ConfirmDialog Open="@(Deleting is not null)" Title="@(Deleting is null ? string.Empty : TagsCopy.DeleteTitle(Deleting.Name))" ConfirmLabel="@TagsCopy.DeleteConfirm"

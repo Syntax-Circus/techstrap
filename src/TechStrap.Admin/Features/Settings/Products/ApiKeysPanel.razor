@@ -67,7 +67,7 @@
     }
     else
     {
-        <div class="table-responsive">
+        <ScrollRegion Label="API keys">
             <table class="table ts-ledger ts-settings-table ts-key-table">
                 <thead>
                     <tr>
@@ -119,7 +119,7 @@
                     }
                 </tbody>
             </table>
-        </div>
+        </ScrollRegion>
     }
 
     <ConfirmDialog Open="@(_revoking is not null)" Title="@(_revoking is null ? string.Empty : ApiKeysCopy.RevokeTitle(_revoking.Name))" ConfirmLabel="@ApiKeysCopy.RevokeConfirm" Danger="true"

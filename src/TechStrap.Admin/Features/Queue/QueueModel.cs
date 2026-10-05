@@ -133,6 +133,7 @@ public sealed record TicketRowViewModel(
 public static class QueueCopy
 {
     public const string Heading = "Queue";
+    public const string TableLabel = "Tickets";
     public const string LoadFailed = "Couldn't load tickets.";
     public const string TryAgain = "Try again in a moment.";
     public const string Refresh = "Refresh";

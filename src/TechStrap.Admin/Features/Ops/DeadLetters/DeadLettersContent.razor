@@ -28,7 +28,7 @@
         }
         else
         {
-            <div class="table-responsive">
+            <ScrollRegion Label="Failed emails">
                 <table class="table ts-ledger ts-settings-table" aria-busy="@(_loading ? "true" : null)">
                     <thead>
                         <tr>
@@ -68,7 +68,7 @@
                         }
                     </tbody>
                 </table>
-            </div>
+            </ScrollRegion>
             <PagerControl Page="_page" PageSize="DeadLettersCopy.PageSize" TotalCount="_total" OnPageChanged="OnPageChanged" />
         }
 
