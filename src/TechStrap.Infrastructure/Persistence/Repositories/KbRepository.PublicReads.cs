@@ -69,7 +69,7 @@ internal sealed partial class KbRepository
         var idArray = ids.ToArray();
         var snippets = await context.Database.SqlQuery<SnippetRow>($"""
             SELECT a.id AS "Id",
-                   ts_headline('english', coalesce(a.summary, ''), websearch_to_tsquery('english', {text}),
+                   ts_headline({FullTextSearch.Config}::regconfig, coalesce(a.summary, ''), websearch_to_tsquery({FullTextSearch.Config}::regconfig, {text}),
                                'StartSel="", StopSel="", MaxWords=35, MinWords=15, MaxFragments=1, ShortWord=2') AS "Snippet"
             FROM kb_articles a
             WHERE a.id = ANY({idArray})

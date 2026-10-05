@@ -137,7 +137,7 @@ public sealed class PublicKbIntegrationTests(PostgresFixture postgres) : Postgre
     }
 
     [Fact]
-    public async Task A_summary_snippet_is_plain_text_and_every_html_character_in_it_is_encoded()
+    public async Task A_summary_snippet_is_plain_text_with_no_highlight_markup_and_is_not_html_encoded()
     {
         await using var host = new PersistenceTestHost(Database);
         var scenario = await TicketScenario.CreateAsync(host);
@@ -154,10 +154,12 @@ public sealed class PublicKbIntegrationTests(PostgresFixture postgres) : Postgre
         var result = await host.ReadAsync(sp => Search(sp).HandleAsync("acme", "printer", null, 1, 10, Ct));
 
         var snippet = result.Value.Items.ShouldHaveSingleItem().Snippet;
-        snippet.ShouldNotContain("<");
-        snippet.ShouldNotContain(">");
-        snippet.ShouldContain("&amp;");
-        snippet.ShouldContain("&lt;img");
+        // ts_headline drops <script> but keeps other markup such as <img>: the snippet is plain text, never HTML, and the consumer must encode it.
+        snippet.ShouldNotContain("<script");
+        snippet.ShouldContain("& <img");
+        snippet.ShouldNotContain("<b>");
+        snippet.ShouldNotContain("&amp;");
+        snippet.ShouldNotContain("&lt;");
     }
 
     [Fact]
@@ -265,6 +267,126 @@ public sealed class PublicKbIntegrationTests(PostgresFixture postgres) : Postgre
 
         sitemap.Value.Select(entry => (entry.ProductKey, entry.CategorySlug, entry.Slug)).Order().ShouldBe(
             [((string?)null, "general", "shared-published"), ("acme", "acme-cat", "acme-published")]);
+    }
+
+    [Theory]
+    [InlineData("printer\0")]
+    [InlineData("\0")]
+    [InlineData("print\0er")]
+    [InlineData("printer{HI}")]
+    [InlineData("{LO}printer")]
+    [InlineData("{HI}{HI}")]
+    [InlineData("printer\u0007\u001B")]
+    public async Task Search_text_with_a_nul_a_control_character_or_a_lone_surrogate_never_throws(string text)
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var world = await SeedAsync(host);
+
+        text = text.Replace("{HI}", "\uD800").Replace("{LO}", "\uDC00");
+        var result = await WithHandlersAsync(world, sp => Search(sp).HandleAsync("acme", text, null, 1, 10, Ct));
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Items.ShouldAllBe(item => item.Slug != "acme-draft");
+    }
+
+    [Fact]
+    public async Task Control_characters_are_stripped_so_the_remaining_word_still_matches()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var world = await SeedAsync(host);
+
+        (await SearchSlugsAsync(world, "acme", "router\0")).Order().ShouldBe(["acme-published", "shared-published"]);
+    }
+
+    [Theory]
+    [InlineData("ac\0me", "acme-cat", "acme-published")]
+    [InlineData("acme", "acme-cat\0", "acme-published")]
+    [InlineData("acme", "acme-cat", "acme-published\0")]
+    [InlineData("acme", "acme-cat", "acme-published{HI}")]
+    [InlineData("acme", "ACME-CAT", "acme-published")]
+    public async Task A_nul_or_malformed_key_or_slug_is_the_uniform_not_found_and_never_throws(string product, string category, string slug)
+    {
+        slug = slug.Replace("{HI}", "\uD800");
+        await using var host = new PersistenceTestHost(Database);
+        var world = await SeedAsync(host);
+
+        var page = await WithHandlersAsync(world, sp => new GetPublishedKbArticleRequestHandler(sp.GetRequiredService<IProductRepository>(), sp.GetRequiredService<IKbRepository>(), new KbContentRenderer())
+            .HandleAsync(product, category, slug, Ct));
+        var categories = await WithHandlersAsync(world, sp => new ListPublicKbCategoriesRequestHandler(sp.GetRequiredService<IProductRepository>(), sp.GetRequiredService<IKbRepository>()).HandleAsync(product, Ct));
+        var sitemap = await WithHandlersAsync(world, sp => new GetKbSitemapRequestHandler(sp.GetRequiredService<IProductRepository>(), sp.GetRequiredService<IKbRepository>()).HandleAsync(product, Ct));
+        var search = await WithHandlersAsync(world, sp => Search(sp).HandleAsync(product, "router", category, 1, 10, Ct));
+
+        page.Errors.ShouldHaveSingleItem().Code.ShouldBe("kb-article-not-found");
+        if (product != "acme" || category != "acme-cat")
+        {
+            search.Value.Items.ShouldBeEmpty();
+        }
+
+        if (product != "acme")
+        {
+            categories.Value.ShouldBeEmpty();
+            sitemap.Value.ShouldBeEmpty();
+        }
+    }
+
+    [Fact]
+    public async Task The_sitemap_is_ordered_newest_update_first()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var scenario = await TicketScenario.CreateAsync(host);
+        var category = KbCategory.Create(null, "general", "General", 1, host.Clock).Value;
+        var articles = new List<KbArticle>();
+        foreach (var slug in new[] { "oldest", "middle", "newest" })
+        {
+            host.Clock.Advance(TimeSpan.FromMinutes(10));
+            var article = Article(scenario, host, null, category, slug, slug, "s", "body");
+            Publish(host, article);
+            articles.Add(article);
+        }
+
+        (await host.CommitAsync(sp =>
+        {
+            var kb = sp.GetRequiredService<IKbRepository>();
+            kb.AddCategory(category);
+            articles.ForEach(kb.AddArticle);
+            return Task.CompletedTask;
+        })).IsSuccess.ShouldBeTrue();
+
+        var sitemap = await host.ReadAsync(sp => new GetKbSitemapRequestHandler(sp.GetRequiredService<IProductRepository>(), sp.GetRequiredService<IKbRepository>()).HandleAsync("acme", Ct));
+
+        sitemap.Value.Select(entry => entry.Slug).ShouldBe(["newest", "middle", "oldest"]);
+    }
+
+    [Fact]
+    public async Task The_sitemap_is_capped_at_the_maximum_number_of_entries_keeping_the_newest()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var scenario = await TicketScenario.CreateAsync(host);
+        var category = KbCategory.Create(null, "general", "General", 1, host.Clock).Value;
+        var articles = new List<KbArticle>();
+        for (var i = 0; i <= KbLimits.MaxSitemapEntries; i++)
+        {
+            var article = Article(scenario, host, null, category, $"article-{i}", "t", "s", "b");
+            Publish(host, article);
+            articles.Add(article);
+        }
+
+        host.Clock.Advance(TimeSpan.FromHours(1));
+        var newest = Article(scenario, host, null, category, "the-newest", "t", "s", "b");
+        Publish(host, newest);
+        articles.Add(newest);
+        (await host.CommitAsync(sp =>
+        {
+            var kb = sp.GetRequiredService<IKbRepository>();
+            kb.AddCategory(category);
+            articles.ForEach(kb.AddArticle);
+            return Task.CompletedTask;
+        })).IsSuccess.ShouldBeTrue();
+
+        var sitemap = await host.ReadAsync(sp => new GetKbSitemapRequestHandler(sp.GetRequiredService<IProductRepository>(), sp.GetRequiredService<IKbRepository>()).HandleAsync("acme", Ct));
+
+        sitemap.Value.Count.ShouldBe(KbLimits.MaxSitemapEntries);
+        sitemap.Value[0].Slug.ShouldBe("the-newest");
     }
 
     [Fact]

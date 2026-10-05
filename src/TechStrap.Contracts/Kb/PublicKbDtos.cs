@@ -1,8 +1,8 @@
 namespace TechStrap.Contracts.Kb;
 
 /// <summary>
-/// One public search hit. <paramref name="Snippet"/> is plain text from the article summary with every HTML character encoded, so it is
-/// safe to place in markup as it is. <paramref name="ProductKey"/> is null for a shared article.
+/// One public search hit. Every text field is plain text, the snippet (cut from the article summary) included: the consumer must encode it. 
+/// Only <see cref="PublishedKbArticleDto.Html"/> is HTML. <paramref name="ProductKey"/> is null for a shared article.
 /// </summary>
 public sealed record PublicKbSearchResultDto(string Slug, string Title, string Snippet, string CategorySlug, string CategoryName, string? ProductKey);
 

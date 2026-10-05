@@ -78,16 +78,59 @@ public sealed class PublicKbHandlerTests
     }
 
     [Fact]
-    public async Task The_snippet_is_html_encoded_before_it_leaves_the_handler()
+    public async Task Every_search_field_including_the_snippet_passes_through_as_plain_text()
     {
         _kb.KnowledgeBase.SearchPublicAsync(Arg.Any<PublicKbSearchQuery>(), Arg.Any<CancellationToken>()).Returns(new PagedResult<PublicKbSearchHit>(
-            [new PublicKbSearchHit("reset", "Reset", "Use <script>alert(1)</script> & \"quotes\" 'here'", "general", "General", null)], 1, 10, 1));
+            [new PublicKbSearchHit("reset", "Fish & Chips", "Use it & \"quotes\"", "general", "Q&A", null)], 1, 10, 1));
 
         var result = await Searcher().HandleAsync("orbitly", "reset", null, 1, 10, Ct);
 
         var hit = result.Value.Items.ShouldHaveSingleItem();
-        hit.Snippet.ShouldBe("Use &lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;quotes&quot; &#39;here&#39;");
-        hit.ShouldSatisfyAllConditions(item => item.Slug.ShouldBe("reset"), item => item.CategorySlug.ShouldBe("general"), item => item.ProductKey.ShouldBeNull());
+        hit.Snippet.ShouldBe("Use it & \"quotes\"");
+        hit.ShouldSatisfyAllConditions(item => item.Title.ShouldBe("Fish & Chips"), item => item.CategoryName.ShouldBe("Q&A"), item => item.ProductKey.ShouldBeNull());
+    }
+
+    [Theory]
+    [InlineData("ac\0me", "account", "reset-password")]
+    [InlineData("orbitly", "acc\0ount", "reset-password")]
+    [InlineData("orbitly", "account", "reset\0password")]
+    [InlineData("orbitly", "account", "reset-password{HI}")]
+    [InlineData("orbitly", "Account", "reset-password")]
+    [InlineData("orbitly", "account", "reset password")]
+    [InlineData("orbitly", "account", "../etc")]
+    public async Task A_key_or_slug_that_is_not_a_slug_is_the_uniform_not_found_with_no_repository_call(string product, string category, string slug)
+    {
+        slug = slug.Replace("{HI}", "\uD800");
+        var result = await Reader().HandleAsync(product, category, slug, Ct);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("kb-article-not-found");
+        await _kb.KnowledgeBase.DidNotReceiveWithAnyArgs().GetPublicArticleAsync(default, default!, default!, Ct);
+    }
+
+    [Theory]
+    [InlineData("ac\0me", null)]
+    [InlineData("orbitly", "faq\0")]
+    [InlineData("orbitly", "FAQ")]
+    [InlineData("orbitly", "a b")]
+    public async Task A_malformed_product_key_or_category_slug_gives_an_empty_search_without_a_query(string product, string? category)
+    {
+        var result = await Searcher().HandleAsync(product, "router", category, 1, 10, Ct);
+
+        result.Value.Items.ShouldBeEmpty();
+        await _kb.KnowledgeBase.DidNotReceiveWithAnyArgs().SearchPublicAsync(default!, Ct);
+    }
+
+    [Fact]
+    public async Task A_malformed_product_key_gives_empty_categories_and_sitemap_without_a_query()
+    {
+        var categories = await new ListPublicKbCategoriesRequestHandler(_kb.Products, _kb.KnowledgeBase).HandleAsync("ac\0me", Ct);
+        var sitemap = await new GetKbSitemapRequestHandler(_kb.Products, _kb.KnowledgeBase).HandleAsync("ac\0me", Ct);
+
+        categories.Value.ShouldBeEmpty();
+        sitemap.Value.ShouldBeEmpty();
+        await _kb.Products.DidNotReceiveWithAnyArgs().GetByKeyAsync(default!, Ct);
+        await _kb.KnowledgeBase.DidNotReceiveWithAnyArgs().ListPublicCategoriesAsync(default, Ct);
+        await _kb.KnowledgeBase.DidNotReceiveWithAnyArgs().ListPublicSitemapAsync(default, Ct);
     }
 
     [Fact]

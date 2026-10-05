@@ -2,6 +2,7 @@ using SyntaxCircus.Common;
 using TechStrap.Application.Content;
 using TechStrap.Application.Persistence;
 using TechStrap.Contracts.Kb;
+using TechStrap.Domain.Rules;
 
 namespace TechStrap.Application.Knowledge;
 
@@ -20,12 +21,14 @@ public sealed class GetPublishedKbArticleRequestHandler(IProductRepository produ
     public async Task<Result<PublishedKbArticleDto>> HandleAsync(string? productKey, string? categorySlug, string? slug, CancellationToken cancellationToken)
     {
         var product = await PublicProductScope.ResolveAsync(products, productKey, cancellationToken);
-        if (product is null || string.IsNullOrWhiteSpace(categorySlug) || string.IsNullOrWhiteSpace(slug))
+        if (product is null
+            || !PublicProductScope.IsSlug(categorySlug, DomainLimits.KbSlugMaxLength)
+            || !PublicProductScope.IsSlug(slug, DomainLimits.KbSlugMaxLength))
         {
             return Result<PublishedKbArticleDto>.Failure(KbErrors.ArticleNotFound());
         }
 
-        var view = await knowledgeBase.GetPublicArticleAsync(product.Id, categorySlug.Trim(), slug.Trim(), cancellationToken);
+        var view = await knowledgeBase.GetPublicArticleAsync(product.Id, categorySlug!.Trim(), slug!.Trim(), cancellationToken);
         if (view is null || view.Article.PublishedAt is not { } publishedAt)
         {
             return Result<PublishedKbArticleDto>.Failure(KbErrors.ArticleNotFound());

@@ -41,4 +41,24 @@ public sealed class SearchTextTests
 
         SearchText.Normalize(fits).ShouldBe(fits);
     }
+
+    [Theory]
+    [InlineData("print\0er", "printer")]
+    [InlineData("\0", "")]
+    [InlineData("a\u0007b\u001Bc", "abc")]
+    [InlineData("printer{HI}", "printer")]
+    [InlineData("{LO}printer", "printer")]
+    [InlineData("a{HI}{HI}b", "ab")]
+    [InlineData("a\U0001F600b", "a\U0001F600b")]
+    [InlineData("  \0 printer \0 ", "printer")]
+    public void Control_characters_and_unpaired_surrogates_are_removed_and_valid_pairs_kept(string raw, string expected) =>
+        SearchText.Normalize(raw.Replace("{HI}", "\uD800").Replace("{LO}", "\uDC00")).ShouldBe(expected);
+
+    [Fact]
+    public void Removal_happens_before_the_length_cap_so_stripped_characters_do_not_use_the_budget()
+    {
+        var raw = new string('\0', 50) + new string('a', Max);
+
+        SearchText.Normalize(raw).ShouldBe(new string('a', Max));
+    }
 }
