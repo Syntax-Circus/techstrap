@@ -16,7 +16,7 @@ public sealed partial class AgentsContent : IDisposable
     private readonly CancellationTokenSource _lifetime = new();
 
     // Agents whose activate or deactivate ended with an unknown outcome: held (asking again shows the uncertain copy and sends nothing) until the list has been read again successfully.
-    private readonly HashSet<Guid> _uncertainIds = [];
+    private readonly UncertainMarks _uncertainIds = new();
     private IReadOnlyList<AgentRowViewModel> _rows = [];
     private AgentRowViewModel? _deactivating;
     private string? _error;
@@ -78,7 +78,7 @@ public sealed partial class AgentsContent : IDisposable
             {
                 _rows = [.. result.Value.Items.Select(AgentRowViewModel.From)];
                 _total = result.Value.TotalCount;
-                _uncertainIds.Clear();
+                _uncertainIds.ReleaseForLoad(loadId);
 
                 // A page past the end (an old address, or the last row of the last page went away): go to the last page that has rows instead of saying there are none.
                 var lastPage = Math.Max(1, (_total + AgentsCopy.PageSize - 1) / AgentsCopy.PageSize);
@@ -153,7 +153,7 @@ public sealed partial class AgentsContent : IDisposable
             {
                 _rowError = AgentsCopy.ActivateUncertain(row.DisplayName);
                 _rowUncertain = true;
-                _uncertainIds.Add(row.Id);
+                _uncertainIds.Add(row.Id, _loadId);
             }
             else
             {
@@ -239,7 +239,7 @@ public sealed partial class AgentsContent : IDisposable
         {
             _dialogError = AgentsCopy.DeactivateUncertain;
             _uncertain = true;
-            _uncertainIds.Add(id);
+            _uncertainIds.Add(id, _loadId);
         }
         else if (error.Code == ApiErrorCodes.LastActiveAdmin)
         {

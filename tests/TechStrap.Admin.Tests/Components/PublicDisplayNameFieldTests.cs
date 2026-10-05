@@ -106,6 +106,38 @@ public sealed class PublicDisplayNameFieldTests : AdminPageTest
     }
 
     [Fact]
+    public void Retyping_the_committed_name_after_an_uncertain_save_says_to_reload_instead_of_doing_nothing()
+    {
+        _savedName = "Sam";
+        _agents.UpdateMyProfileAsync(Arg.Any<UpdateMyProfileRequest>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again."));
+        var cut = RenderField();
+        cut.Find("#ts-public-name").Input("Samantha");
+        cut.Find("#ts-public-name").Blur();
+        cut.Find("[role=alert]").TextContent.ShouldContain("The save may have gone through.");
+
+        // The agent types the old name back to undo it. "Sam" may be what is stored, or "Samantha" may be: silence would hide that, and sending would repeat a write that may have landed.
+        cut.Find("#ts-public-name").Input("Sam");
+        cut.Find("#ts-public-name").Blur();
+
+        cut.Find("[role=alert]").TextContent.ShouldBe("The save may have gone through. Reload the page to see what is saved before you try again.");
+        Saves().Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public void Retyping_the_committed_name_when_nothing_is_uncertain_still_does_nothing()
+    {
+        _savedName = "Sam";
+        var cut = RenderField();
+        cut.Find("#ts-public-name").Input("Samantha");
+        cut.Find("#ts-public-name").Input("Sam");
+
+        cut.Find("#ts-public-name").Blur();
+
+        Saves().ShouldBeEmpty();
+        cut.FindAll("[role=alert]").ShouldBeEmpty();
+    }
+
+    [Fact]
     public void Blur_without_a_change_saves_nothing_and_the_field_is_optional()
     {
         var cut = RenderField();

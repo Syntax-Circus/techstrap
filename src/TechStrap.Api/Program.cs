@@ -50,7 +50,7 @@ builder.Services.AddTechStrapHttpClientDefaults();
 builder.Services.AddTechStrapSecurityHeaders(builder.Configuration, TechStrapCsp.ForApi());
 builder.Services.AddProblemDetailsExceptionHandling();
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options => options.AddTechStrapSecuritySchemes());
 builder.Services.AddTechStrapPersistence();
 builder.Services.AddTechStrapSecurity();
 builder.Services.AddTechStrapDevelopmentSeeding();

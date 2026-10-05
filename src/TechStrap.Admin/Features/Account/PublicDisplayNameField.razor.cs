@@ -57,14 +57,22 @@ public sealed partial class PublicDisplayNameField : IDisposable
         }
 
         _error = _model.Check();
-        if (_error is not null || (_model.Normalized ?? string.Empty) == _committed)
+        var typed = _model.Normalized ?? string.Empty;
+        if (_error is not null)
         {
             return;
         }
 
-        if (_uncertainValue is not null && (_model.Normalized ?? string.Empty) == _uncertainValue)
+        // After a save with an unknown outcome the stored name is either the committed one or the uncertain one. Retyping either of them cannot be answered by doing nothing (the field would
+        // show a name the API may not hold) or by sending it again (it may already be stored): the agent is told to reload.
+        if (_uncertainValue is not null && (typed == _uncertainValue || typed == _committed))
         {
             _error = MySettingsCopy.NameUncertain;
+            return;
+        }
+
+        if (typed == _committed)
+        {
             return;
         }
 

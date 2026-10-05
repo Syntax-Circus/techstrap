@@ -383,6 +383,36 @@ public sealed class AgentsPageTests : AdminPageTest
     }
 
     [Fact]
+    public void A_read_that_started_before_the_lost_answer_does_not_release_the_hold_and_one_that_started_after_it_does()
+    {
+        var cut = RenderPage();
+        var gate = new TaskCompletionSource<Result<PagedResponse<AgentListItemDto>>>();
+        _agents.ListPageAsync(2, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(gate.Task);
+        _agents.SetActiveAsync(Arg.Any<Guid>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail<AgentDto>(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again."));
+        _navigation.NavigateTo("/settings/agents?page=2");
+        cut.WaitForAssertion(() => _agents.Received(1).ListPageAsync(2, 25, Arg.Any<CancellationToken>()));
+
+        // The page-2 read is under way (page 1 is still on screen) when the answer to the write is lost.
+        Row(cut, TestData.RaeAgentId).QuerySelector("button.ts-activate")!.Click();
+        Writes().Count().ShouldBe(1);
+
+        // That read finishes. It started before the lost answer, so it may not have seen the write, and the hold stays.
+        gate.SetResult(TestData.Ok(new PagedResponse<AgentListItemDto>([TestData.AgentRow("Rae Quinn", TestData.RaeAgentId, active: false)], 2, 25, 26)));
+        cut.WaitForAssertion(() => cut.FindAll("tr[data-agent]").Count.ShouldBe(1));
+        Row(cut, TestData.RaeAgentId).QuerySelector("button.ts-activate")!.Click();
+
+        Writes().Count().ShouldBe(1);
+        cut.Find(".ts-conflict[role=alert]").TextContent.ShouldContain("The change to Rae Quinn may have gone through.");
+
+        // A read that starts now is after the write: it releases the hold.
+        _agents.ListPageAsync(2, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(new PagedResponse<AgentListItemDto>([TestData.AgentRow("Rae Quinn", TestData.RaeAgentId, active: false)], 2, 25, 26)));
+        cut.Find(".ts-conflict button").Click();
+        Row(cut, TestData.RaeAgentId).QuerySelector("button.ts-activate")!.Click();
+
+        Writes().Count().ShouldBe(2);
+    }
+
+    [Fact]
     public void An_agent_who_is_already_gone_when_activating_says_so_and_reloads_the_list()
     {
         _agents.SetActiveAsync(Arg.Any<Guid>(), true, Arg.Any<CancellationToken>()).Returns(TestData.Fail<AgentDto>(ApiErrorCodes.AgentNotFound, "No such agent.", ResultErrorKind.NotFound));

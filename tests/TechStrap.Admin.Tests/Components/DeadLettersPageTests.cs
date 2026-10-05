@@ -429,6 +429,25 @@ public sealed class DeadLettersPageTests : AdminPageTest
     }
 
     [Fact]
+    public void A_read_that_started_before_the_lost_retry_answer_does_not_release_the_hold()
+    {
+        var gate = new TaskCompletionSource<Result<PagedResponse<DeadLetterDto>>>();
+        _letters.ListAsync(2, Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(gate.Task);
+        _letters.RetryAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again."));
+        var cut = RenderPage();
+        _navigation.NavigateTo("/ops/dead-letters?page=2");
+        cut.WaitForAssertion(() => _letters.Received(1).ListAsync(2, Arg.Any<int>(), Arg.Any<CancellationToken>()));
+
+        Row(cut, _first).QuerySelector("button.ts-retry")!.Click();
+        gate.SetResult(TestData.Ok(new PagedResponse<DeadLetterDto>([TestData.DeadLetter(id: _first)], 2, DeadLettersCopy.PageSize, 26)));
+        cut.WaitForAssertion(() => cut.FindAll("tr[data-letter]").Count.ShouldBe(1));
+        Row(cut, _first).QuerySelector("button.ts-retry")!.Click();
+
+        Calls(nameof(IDeadLettersClient.RetryAsync)).ShouldBe(1);
+        cut.Find(".ts-conflict[role=alert]").TextContent.ShouldContain("The retry may have been queued.");
+    }
+
+    [Fact]
     public void After_a_lost_discard_answer_asking_to_discard_that_row_again_shows_the_uncertain_copy_and_sends_nothing()
     {
         _letters.DiscardAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(TestData.Fail(ApiErrorCodes.ApiTimeout, "TechStrap took too long to answer. Try again."));

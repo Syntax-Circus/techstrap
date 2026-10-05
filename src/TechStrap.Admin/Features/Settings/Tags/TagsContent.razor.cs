@@ -18,7 +18,7 @@ public sealed partial class TagsContent : IDisposable
     private readonly Dictionary<string, string> _editErrors = [];
 
     // Tags whose delete ended with an unknown outcome: held (a second ask shows the uncertain copy and sends nothing) until the list has been read again successfully.
-    private readonly HashSet<Guid> _uncertainDeletes = [];
+    private readonly UncertainMarks _uncertainDeletes = new();
     private IReadOnlyList<TagRowViewModel> _rows = [];
     private Guid _deletingId;
     private Guid _editing;
@@ -72,7 +72,7 @@ public sealed partial class TagsContent : IDisposable
             if (result.IsSuccess)
             {
                 _rows = Sorted(result.Value.Select(TagRowViewModel.From));
-                _uncertainDeletes.Clear();
+                _uncertainDeletes.ReleaseForLoad(loadId);
                 return true;
             }
 
@@ -378,7 +378,7 @@ public sealed partial class TagsContent : IDisposable
         {
             _deleteError = TagsCopy.DeleteUncertain;
             _deleteUncertain = true;
-            _uncertainDeletes.Add(tagId);
+            _uncertainDeletes.Add(tagId, _loadId);
         }
         else
         {

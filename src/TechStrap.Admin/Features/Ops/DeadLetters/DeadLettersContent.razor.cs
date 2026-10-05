@@ -15,7 +15,7 @@ public sealed partial class DeadLettersContent : IDisposable
     private readonly CancellationTokenSource _lifetime = new();
 
     // Emails whose retry or discard ended with an unknown outcome: held (asking again shows the uncertain copy and sends nothing) until the list has been read again successfully.
-    private readonly HashSet<Guid> _uncertainIds = [];
+    private readonly UncertainMarks _uncertainIds = new();
     private IReadOnlyList<DeadLetterRowViewModel> _rows = [];
     private DeadLetterRowViewModel? _discarding;
     private string? _error;
@@ -75,7 +75,7 @@ public sealed partial class DeadLettersContent : IDisposable
             {
                 _rows = [.. result.Value.Items.Select(DeadLetterRowViewModel.From)];
                 _total = result.Value.TotalCount;
-                _uncertainIds.Clear();
+                _uncertainIds.ReleaseForLoad(loadId);
 
                 // The list already holds the total, so the badge in the navigation follows it without a second call.
                 Failed.Set(_total);
@@ -222,7 +222,7 @@ public sealed partial class DeadLettersContent : IDisposable
         {
             _dialogError = DeadLettersCopy.DiscardUncertain;
             _uncertain = true;
-            _uncertainIds.Add(id);
+            _uncertainIds.Add(id, _loadId);
         }
         else
         {
@@ -241,7 +241,7 @@ public sealed partial class DeadLettersContent : IDisposable
         {
             _rowError = DeadLettersCopy.RetryUncertain;
             _rowUncertain = true;
-            _uncertainIds.Add(id);
+            _uncertainIds.Add(id, _loadId);
         }
         else
         {

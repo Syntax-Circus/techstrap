@@ -53,8 +53,8 @@ public sealed class NotificationPreferencesPageTests : AdminPageTest
     private static AngleSharp.Dom.IElement Toggle(IRenderedComponent<NotificationPreferencesPage> cut, string product) =>
         cut.FindAll(".ts-toggle-list li").Single(li => li.TextContent.Contains($"New tickets in {product}")).QuerySelector("input")!;
 
-    private static int ListKey(IRenderedComponent<NotificationPreferencesPage> cut) =>
-        (int)typeof(NotificationPreferencesPage).GetField("_version", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(cut.Instance)!;
+    private static string? Revision(IRenderedComponent<NotificationPreferencesPage> cut) =>
+        cut.FindAll(".ts-toggle-list li").Select(li => li.GetAttribute("data-revision")).Distinct().Single();
 
     private static bool IsOn(AngleSharp.Dom.IElement toggle) => toggle.HasAttribute("checked");
 
@@ -141,12 +141,13 @@ public sealed class NotificationPreferencesPageTests : AdminPageTest
         _agents.UpdateNotificationPreferencesAsync(Arg.Any<UpdateNotificationPreferencesRequest>(), Arg.Any<CancellationToken>()).Returns(gate.Task);
         var cut = Render<NotificationPreferencesPage>();
         Toggle(cut, "Orbitly").Change(true);
-        var before = ListKey(cut);
+        var before = Revision(cut);
 
         Toggle(cut, "Acme").Change(true);
 
-        // A new key makes Blazor replace the list items. bUnit's DOM keeps no tick of its own, so the key is the observable: without a new one the browser keeps a tick that was never saved.
-        ListKey(cut).ShouldBeGreaterThan(before);
+        // The list items are keyed by this revision, and the page shows it as data-revision (as the ticket sidebar does). A new one makes Blazor throw the items away and build new ones,
+        // so the checkbox the agent just ticked is drawn again from what is saved and the browser cannot keep a tick that was never saved.
+        Revision(cut).ShouldNotBe(before);
         Saves().Count.ShouldBe(1);
         gate.SetResult(TestData.Ok());
         cut.WaitForAssertion(() => cut.FindAll(".ts-toggle-list input").ShouldAllBe(i => !i.HasAttribute("disabled")));

@@ -238,6 +238,25 @@ public sealed class AdminEventsPageTests : AdminPageTest
         cut.WaitForAssertion(() => cut.Find("#ts-audit-actor").QuerySelectorAll("option").Count.ShouldBe(2));
     }
 
+    [Fact]
+    public void The_events_render_the_moment_they_arrive_while_the_agent_list_is_still_on_its_way()
+    {
+        var eventsGate = new TaskCompletionSource<Result<PagedResponse<AdminEventDto>>>();
+        var agentsGate = new TaskCompletionSource<Result<IReadOnlyList<AgentListItemDto>>>();
+        _events.ListAsync(Arg.Any<AdminEventFilter>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(eventsGate.Task);
+        _agents.ListAllAsync(Arg.Any<CancellationToken>()).Returns(agentsGate.Task);
+        var cut = RenderPage();
+        cut.FindAll("tbody tr").ShouldBeEmpty();
+
+        eventsGate.SetResult(TestData.Ok(new PagedResponse<AdminEventDto>([TestData.AdminEvent(AdminEventTypes.TagDeleted, "{\"slug\":\"bug\",\"detachedTicketCount\":2}")], 1, 25, 1)));
+
+        // The agent list has not answered: the rows are drawn without waiting for it, and the filter has only "everyone" until it does.
+        cut.WaitForAssertion(() => cut.FindAll("tbody tr").Count.ShouldBe(1));
+        cut.Find("#ts-audit-actor").QuerySelectorAll("option").Count.ShouldBe(1);
+        agentsGate.SetResult(TestData.Ok<IReadOnlyList<AgentListItemDto>>([TestData.AgentRow("Ada Admin", TestData.AdaAgentId, AgentRoles.Admin)]));
+        cut.WaitForAssertion(() => cut.Find("#ts-audit-actor").QuerySelectorAll("option").Count.ShouldBe(2));
+    }
+
     [Theory]
     [InlineData(1, "1 event")]
     [InlineData(2, "2 events")]

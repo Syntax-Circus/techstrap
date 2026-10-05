@@ -55,32 +55,38 @@ public sealed partial class AdminEventsContent : IDisposable
         _actor = Guid.TryParse(Actor, out var actor) ? actor : null;
         _page = int.TryParse(PageNumber, NumberStyles.None, CultureInfo.InvariantCulture, out var page) && page > 1 ? page : 1;
 
-        // Both reads start now and are awaited together: the events never wait for the names of the filter. A failed agent list only means the filter has no names; the stale-load guard in LoadAsync still applies.
-        var agents = Task.CompletedTask;
+        // Both reads start now, but only the events are awaited: they render the moment they arrive and never wait for the names of the filter, which draw when their own read finishes.
         if (!_agentsLoaded)
         {
             _agentsLoaded = true;
-            agents = LoadAgentsAsync();
+            _ = LoadAgentsAsync();
         }
 
-        var events = Task.CompletedTask;
         var key = (_subject, _actor, _page);
         if (_loadedFor != key)
         {
             _loadedFor = key;
-            events = LoadAsync();
+            await LoadAsync();
         }
-
-        await Task.WhenAll(agents, events);
     }
 
-    // The filter's actor list. If it cannot be read the filter simply has no names to offer; the log itself still works.
+    // The filter's actor list, read in the background. If it cannot be read the filter simply has no names to offer; the log itself still works.
     private async Task LoadAgentsAsync()
     {
-        var result = await AgentsClient.ListAllAsync(_lifetime.Token);
-        if (!_lifetime.IsCancellationRequested && result.IsSuccess)
+        try
         {
+            var result = await AgentsClient.ListAllAsync(_lifetime.Token);
+            if (_lifetime.IsCancellationRequested || !result.IsSuccess)
+            {
+                return;
+            }
+
             _agents = [.. result.Value.OrderBy(a => a.Name ?? a.DisplayLabel, StringComparer.OrdinalIgnoreCase)];
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // The page went away while the names were on their way.
         }
     }
 

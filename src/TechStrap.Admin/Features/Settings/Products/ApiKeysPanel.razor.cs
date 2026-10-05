@@ -16,7 +16,7 @@ public sealed partial class ApiKeysPanel : IDisposable
     private readonly CancellationTokenSource _lifetime = new();
 
     // Keys whose revoke ended with an unknown outcome: held (asking again shows the uncertain copy and sends nothing) until the list has been read again successfully.
-    private readonly HashSet<Guid> _uncertainRevokes = [];
+    private readonly UncertainMarks _uncertainRevokes = new();
     private NewApiKeyDialog? _dialog;
     private IReadOnlyList<ApiKeyRowViewModel> _rows = [];
     private ApiKeyRowViewModel? _revoking;
@@ -79,7 +79,7 @@ public sealed partial class ApiKeysPanel : IDisposable
             if (result.IsSuccess)
             {
                 _rows = [.. result.Value.Select(ApiKeyRowViewModel.From).OrderByDescending(r => r.CreatedAt)];
-                _uncertainRevokes.Clear();
+                _uncertainRevokes.ReleaseForLoad(loadId);
                 return true;
             }
 
@@ -259,7 +259,7 @@ public sealed partial class ApiKeysPanel : IDisposable
             // The revoke may have been applied before the answer was lost: never a bare "try again".
             _revokeError = ApiKeysCopy.RevokeUncertain;
             _revokeUncertain = true;
-            _uncertainRevokes.Add(keyId);
+            _uncertainRevokes.Add(keyId, _loadId);
         }
         else
         {
