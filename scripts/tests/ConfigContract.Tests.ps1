@@ -326,3 +326,29 @@ Describe 'the config contract of the committed files that belong to no single ho
         }
     }
 }
+
+Describe 'the config contract of the local compose' {
+    It 'every local compose environment: key is a known setting of its host' {
+        $environment = Get-ComposeEnvironmentKeys -File 'docker-compose.yml'
+        foreach ($name in 'Api', 'Worker', 'Admin', 'Portal') {
+            $service = $name.ToLowerInvariant()
+            $environment[$service] | Should -Not -BeNullOrEmpty
+            $known = Get-AppsettingsKeys -HostName $name
+            $unknown = @($environment[$service] | ForEach-Object { ConvertTo-IndexlessKey $_ } | Where-Object { $_ -notin $known -and $_ -notin $script:ComposeNonSettings })
+            $unknown | Should -BeNullOrEmpty -Because "docker-compose.yml $service sets keys $name does not read: $($unknown -join ', ')"
+        }
+    }
+
+    It 'the local compose no longer overrides the Admin sign-in or the group keys (the clash between .env.local and compose is gone)' {
+        $admin = (Get-ComposeEnvironmentKeys -File 'docker-compose.yml')['admin']
+        @($admin | Where-Object { $_ -like 'AUTH__*' -or $_ -like 'TECHSTRAP_*GROUP*' -or $_ -like 'TECHSTRAP_GROUP_CLAIM_TYPE' }) | Should -BeNullOrEmpty
+        @($admin | Sort-Object) | Should -Be @('API__BASEURL', 'ASPNETCORE_ENVIRONMENT', 'DATAPROTECTION__KEYRINGPATH', 'TRUSTEDPROXY__TRUSTEDNETWORKS__0')
+    }
+
+    It 'the root .env.example documents the local compose inputs and nothing else' {
+        $keys = @(Get-EnvEntries -Path (Join-Path $script:RepoRoot '.env.example') | ForEach-Object { $_.Key } | Sort-Object)
+        $keys | Should -Be @('REVERSE_PROXY_CIDR', 'TECHSTRAP_MAILPIT_PORT', 'TECHSTRAP_SEED_DEV_DATA', 'TECHSTRAP_SUBNET')
+        $compose = Get-Content -LiteralPath (Join-Path $script:RepoRoot 'docker-compose.yml') -Raw
+        foreach ($key in $keys) { $compose | Should -Match ('\$\{' + $key + ':-') }
+    }
+}

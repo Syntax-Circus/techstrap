@@ -8,11 +8,13 @@ BeforeAll {
     $script:PinnedSubnet = '172.16.31.0/24'
 
     function Get-ComposeConfig {
-        param([string]$File, [string]$EnvFile = '')
+        param([string]$File, [string]$EnvFile = '', [switch]$NoEnvResolution)
 
         $arguments = @('compose')
         if ($EnvFile) { $arguments += @('--env-file', $EnvFile) }
-        $arguments += @('-f', (Join-Path $script:RepoRoot $File), 'config', '--format', 'json')
+        $arguments += @('-f', (Join-Path $script:RepoRoot $File), 'config')
+        if ($NoEnvResolution) { $arguments += '--no-env-resolution' }
+        $arguments += @('--format', 'json')
 
         $output = & docker @arguments 2>&1 | Out-String
         return [pscustomobject]@{
@@ -133,18 +135,28 @@ Describe 'docker-compose files' -Skip:(-not $script:DockerAvailable) {
         $result.Output | Should -Match 'set SMTP_HOST in the env file'
     }
 
-    It 'local compose mounts the shared storage volume on api and worker only' {
+    It 'local compose mounts the storage volume on the api only (the worker registers no attachment storage)' {
         $config = (Get-ComposeConfig -File 'docker-compose.yml').Config
-        foreach ($service in 'api', 'worker') {
-            @($config.services.$service.volumes | Where-Object { $_.target -eq '/app/storage' -and $_.source -eq 'techstrap-storage' }).Count | Should -Be 1
-        }
-        foreach ($service in 'admin', 'portal') {
+        @($config.services.api.volumes | Where-Object { $_.target -eq '/app/storage' -and $_.source -eq 'techstrap-storage' }).Count | Should -Be 1
+        foreach ($service in 'worker', 'admin', 'portal') {
             @($config.services.$service.volumes | Where-Object { $_.target -eq '/app/storage' }).Count | Should -Be 0
         }
     }
 
+    It 'local compose builds every app image from this checkout and loads an optional per-host .env.local' {
+        $config = (Get-ComposeConfig -File 'docker-compose.yml' -NoEnvResolution).Config
+        foreach ($service in 'api', 'worker', 'admin', 'portal') {
+            $config.services.$service.build.dockerfile | Should -Be "Dockerfile.$service"
+            @($config.services.$service.env_file | Where-Object { $_.path -match "(?i)src[\\/]TechStrap\.$service[\\/]\.env\.local$" }).Count | Should -Be 1
+            @($config.services.$service.env_file)[0].required | Should -BeFalse
+        }
+    }
+
+    It 'local compose still resolves when every compose input is left out (the dev stack needs no .env)' {
+        (Get-ComposeConfig -File 'docker-compose.yml').ExitCode | Should -Be 0
+    }
+
     It '<file> passes the Admin its OIDC client, the API address and the three group keys' -ForEach @(
-        @{ file = 'docker-compose.yml'; withEnv = $false }
         @{ file = 'docker-compose.uat.yml'; withEnv = $true }
         @{ file = 'docker-compose.production.yml'; withEnv = $true }
     ) {
@@ -180,11 +192,11 @@ Describe 'docker-compose files' -Skip:(-not $script:DockerAvailable) {
         @($admin.volumes | Where-Object { $_.target -eq '/app/dataprotection-keys' }).Count | Should -Be 1
     }
 
-    It 'local compose gives the Admin placeholder OIDC values so the container starts without an identity provider' {
-        $admin = (Get-ComposeConfig -File 'docker-compose.yml').Config.services.admin.environment
-        $admin.Auth__Authority | Should -Match '^https://'
-        $admin.Auth__ClientId | Should -Not -BeNullOrEmpty
-        $admin.Auth__ClientSecret | Should -Not -BeNullOrEmpty
+    It 'local compose leaves the Admin sign-in and the group keys to .env.local and appsettings.Development.json, so the two no longer clash' {
+        $admin = (Get-ComposeConfig -File 'docker-compose.yml').Config.services.admin
+        $names = @($admin.environment.PSObject.Properties.Name)
+        @($names | Where-Object { $_ -like 'Auth__*' -or $_ -like 'TECHSTRAP_*' }) | Should -BeNullOrEmpty
+        $admin.environment.Api__BaseUrl | Should -Be 'http://api/'
     }
 
     It '<file> resolves with the example env file, trusts the proxy in Admin and Portal only, and the API also trusts the subnet' -ForEach @(
