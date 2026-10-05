@@ -222,6 +222,7 @@ public sealed partial class ContentSecurityPolicyHostTests : IDisposable
     [InlineData("/js/queue.js")]
     [InlineData("/js/preferences.js")]
     [InlineData("/js/clipboard.js")]
+    [InlineData("/js/theme-init.js")]
     [InlineData("/_content/SyntaxCircus.Blazor.Components/Components/Feedback/ReconnectModal.razor.js")]
     [InlineData("/_content/SyntaxCircus.Blazor.Components/fileDownload.js")]
     public async Task Every_module_the_Admin_imports_is_served_from_its_plain_path(string path)
