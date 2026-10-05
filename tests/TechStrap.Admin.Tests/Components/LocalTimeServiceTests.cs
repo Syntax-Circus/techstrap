@@ -20,10 +20,9 @@ public sealed class LocalTimeServiceTests : AdminComponentTest
     private void BrowserZone(string? zone) => Tz.Setup<string?>("zone", _ => true).SetResult(zone);
 
     [Fact]
-    public void Before_the_zone_is_loaded_the_service_is_utc_and_not_loaded()
+    public void Before_the_zone_is_loaded_the_service_is_utc()
     {
         Service.Zone.ShouldBe(TimeZoneInfo.Utc);
-        Service.IsLoaded.ShouldBeFalse();
     }
 
     [Fact]
@@ -37,7 +36,6 @@ public sealed class LocalTimeServiceTests : AdminComponentTest
         await Task.WhenAll(service.LoadAsync(), service.LoadAsync());
         await service.LoadAsync();
 
-        service.IsLoaded.ShouldBeTrue();
         service.Zone.Id.ShouldBe("Europe/London");
         Tz.VerifyInvoke("zone", 1);
         changes.ShouldBe(1);
@@ -51,7 +49,9 @@ public sealed class LocalTimeServiceTests : AdminComponentTest
     [InlineData("../../etc/passwd")]
     [InlineData("Europe\\London")]
     [InlineData("Europe/London; DROP")]
-    public async Task A_missing_unknown_or_oddly_shaped_zone_is_utc_and_still_counts_as_loaded(string? zone)
+    [InlineData("Europe/London\n")]
+    [InlineData("Eastern Standard Time")]
+    public async Task A_missing_unknown_or_oddly_shaped_zone_is_utc(string? zone)
     {
         BrowserZone(zone);
         var service = Service;
@@ -59,7 +59,6 @@ public sealed class LocalTimeServiceTests : AdminComponentTest
         await service.LoadAsync();
 
         service.Zone.ShouldBe(TimeZoneInfo.Utc);
-        service.IsLoaded.ShouldBeTrue();
     }
 
     [Fact]
@@ -82,7 +81,6 @@ public sealed class LocalTimeServiceTests : AdminComponentTest
         await service.LoadAsync();
 
         service.Zone.ShouldBe(TimeZoneInfo.Utc);
-        service.IsLoaded.ShouldBeTrue();
     }
 
     [Fact]
@@ -97,20 +95,41 @@ public sealed class LocalTimeServiceTests : AdminComponentTest
     }
 
     [Theory]
-    [InlineData("Europe/London", "2026-01-15T12:00:00Z", "2026-01-15T12:00:00+00:00")]
-    [InlineData("Europe/London", "2026-07-15T12:00:00Z", "2026-07-15T13:00:00+01:00")]
-    [InlineData("America/New_York", "2026-03-08T06:59:00Z", "2026-03-08T01:59:00-05:00")]
-    [InlineData("America/New_York", "2026-03-08T07:00:00Z", "2026-03-08T03:00:00-04:00")]
-    [InlineData("Asia/Kolkata", "2026-10-04T11:55:00Z", "2026-10-04T17:25:00+05:30")]
+    [InlineData("Europe/London", "2026-01-15T12:00:00Z", "2026-01-15 12:00 Europe/London, 2026-01-15 12:00 UTC")]
+    [InlineData("Europe/London", "2026-07-15T12:00:00Z", "2026-07-15 13:00 Europe/London, 2026-07-15 12:00 UTC")]
+    [InlineData("Europe/London", "2026-03-29T00:59:00Z", "2026-03-29 00:59 Europe/London, 2026-03-29 00:59 UTC")]
+    [InlineData("Europe/London", "2026-03-29T01:00:00Z", "2026-03-29 02:00 Europe/London, 2026-03-29 01:00 UTC")]
+    [InlineData("Europe/London", "2026-10-25T00:59:00Z", "2026-10-25 01:59 Europe/London, 2026-10-25 00:59 UTC")]
+    [InlineData("Europe/London", "2026-10-25T01:00:00Z", "2026-10-25 01:00 Europe/London, 2026-10-25 01:00 UTC")]
+    [InlineData("America/New_York", "2026-03-08T06:59:00Z", "2026-03-08 01:59 America/New_York, 2026-03-08 06:59 UTC")]
+    [InlineData("America/New_York", "2026-03-08T07:00:00Z", "2026-03-08 03:00 America/New_York, 2026-03-08 07:00 UTC")]
+    [InlineData("America/New_York", "2026-11-01T05:30:00Z", "2026-11-01 01:30 America/New_York, 2026-11-01 05:30 UTC")]
+    [InlineData("America/New_York", "2026-11-01T06:30:00Z", "2026-11-01 01:30 America/New_York, 2026-11-01 06:30 UTC")]
+    [InlineData("Asia/Kolkata", "2026-10-04T11:55:00Z", "2026-10-04 17:25 Asia/Kolkata, 2026-10-04 11:55 UTC")]
+    [InlineData("Etc/UTC", "2026-10-04T11:55:00Z", "2026-10-04 11:55 UTC")]
     public async Task The_offset_belongs_to_the_instant_so_daylight_saving_is_the_zones_own(string zone, string utc, string expected)
     {
         BrowserZone(zone);
         var service = Service;
         await service.LoadAsync();
 
-        var local = service.ToLocal(DateTimeOffset.Parse(utc, System.Globalization.CultureInfo.InvariantCulture));
+        var when = DateTimeOffset.Parse(utc, System.Globalization.CultureInfo.InvariantCulture);
 
-        local.ToString("yyyy-MM-dd'T'HH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture).ShouldBe(expected);
+        TicketDisplay.Absolute(when, service.Zone).ShouldBe(expected);
+    }
+
+    [Fact]
+    public async Task The_two_one_thirties_of_the_new_york_fall_back_are_two_different_instants_in_the_cell()
+    {
+        BrowserZone("America/New_York");
+        var first = new DateTimeOffset(2026, 11, 1, 5, 30, 0, TimeSpan.Zero);
+        var cut = Render<RelativeTime>(p => p.Add(c => c.When, first));
+        await cut.InvokeAsync(() => Service.LoadAsync());
+        var second = Render<RelativeTime>(p => p.Add(c => c.When, first.AddHours(1)));
+
+        cut.Find("time").GetAttribute("title").ShouldBe("2026-11-01 01:30 America/New_York, 2026-11-01 05:30 UTC");
+        second.Find("time").GetAttribute("title").ShouldBe("2026-11-01 01:30 America/New_York, 2026-11-01 06:30 UTC");
+        cut.Find("time").GetAttribute("datetime").ShouldNotBe(second.Find("time").GetAttribute("datetime"));
     }
 
     [Fact]

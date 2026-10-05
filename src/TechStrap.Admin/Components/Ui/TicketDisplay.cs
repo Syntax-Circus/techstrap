@@ -94,7 +94,7 @@ internal static class TicketDisplay
     public static string Absolute(DateTimeOffset when, TimeZoneInfo? zone = null)
     {
         var utc = when.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture);
-        if (zone is null || zone.Equals(TimeZoneInfo.Utc))
+        if (zone is null || zone.Equals(TimeZoneInfo.Utc) || (zone.BaseUtcOffset == TimeSpan.Zero && !zone.SupportsDaylightSavingTime))
         {
             return utc;
         }

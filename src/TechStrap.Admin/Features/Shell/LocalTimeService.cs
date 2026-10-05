@@ -22,14 +22,8 @@ public sealed partial class LocalTimeService(IJSRuntime js) : IAsyncDisposable
     /// <summary>The agent's zone, or UTC until it is known (and whenever it cannot be known).</summary>
     public TimeZoneInfo Zone { get; private set; } = TimeZoneInfo.Utc;
 
-    /// <summary>True once <see cref="LoadAsync"/> has finished, with the browser's zone or, when there was none, UTC.</summary>
-    public bool IsLoaded { get; private set; }
-
     /// <summary>Raised after the zone was loaded, so every time on screen can draw again.</summary>
     public event Action? Changed;
-
-    /// <summary>The instant in the agent's zone (UTC before the zone is known). Daylight saving is the zone's: the offset belongs to the instant, not to today.</summary>
-    public DateTimeOffset ToLocal(DateTimeOffset when) => TimeZoneInfo.ConvertTime(when, Zone);
 
     /// <summary>Loads once; concurrent and repeated callers share the first call. Never throws for a script failure.</summary>
     public Task LoadAsync() => _loading ??= LoadCoreAsync();
@@ -53,7 +47,6 @@ public sealed partial class LocalTimeService(IJSRuntime js) : IAsyncDisposable
         }
 
         Zone = Resolve(name);
-        IsLoaded = true;
         Changed?.Invoke();
     }
 
@@ -76,7 +69,7 @@ public sealed partial class LocalTimeService(IJSRuntime js) : IAsyncDisposable
     }
 
     // Letters, digits, underscore, hyphen, plus and slash: Europe/London, America/Port-au-Prince, Etc/GMT+5. Never a dot or a backslash.
-    [GeneratedRegex("^[A-Za-z0-9_+/-]+$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^[A-Za-z0-9_+/-]+\\z", RegexOptions.CultureInvariant)]
     private static partial Regex ZoneIdShape();
 
     public async ValueTask DisposeAsync()

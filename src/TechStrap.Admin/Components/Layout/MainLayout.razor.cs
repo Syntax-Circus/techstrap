@@ -59,9 +59,6 @@ public partial class MainLayout : IDisposable
             try
             {
                 await Preferences.LoadAsync();
-
-                // The browser's time zone, so every time is drawn again in local time. It never throws for a script failure, and until it arrives every time is UTC.
-                await LocalTime.LoadAsync();
                 await Shortcuts.StartAsync();
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -69,6 +66,17 @@ public partial class MainLayout : IDisposable
                 // The layout sits outside every error boundary, so an exception out of OnAfterRenderAsync would end the circuit. Without the listener the keyboard layer
                 // is off but every page still works; it stays off for this circuit (this runs on the first render only). Only the type is logged, never the message.
                 Logger.LogWarning("The keyboard shortcuts could not be started ({ExceptionType}).", ex.GetType().Name);
+            }
+
+            // The browser's time zone, so every time is drawn again in local time. It has its own guard: a failure above must not keep the zone from loading, and a zone failure
+            // must not be reported as a shortcut failure. Until the zone arrives every time is UTC.
+            try
+            {
+                await LocalTime.LoadAsync();
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                Logger.LogWarning("The browser time zone could not be read ({ExceptionType}).", ex.GetType().Name);
             }
         }
     }

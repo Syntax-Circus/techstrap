@@ -79,6 +79,49 @@ public sealed class LayoutResilienceTests : BunitContext
     }
 
     [Fact]
+    public void A_failing_preference_read_does_not_stop_the_time_zone_and_logs_only_the_type()
+    {
+        this.AddAgentShell();
+        SetupScripts(module => module.SetupVoid("register", _ => true).SetVoidResult());
+        var preferences = JSInterop.SetupModule("./js/preferences.js");
+        preferences.Setup<StoredPreferences>("load", _ => true).SetException(new NotSupportedException(Secret));
+        JSInterop.SetupModule("./js/tz.js").Setup<string?>("zone", _ => true).SetResult("Europe/London");
+
+        Render<MainLayout>(p => p.SignedIn().Add(l => l.Body, b => b.AddMarkupContent(0, "<p id=\"page\">page</p>")));
+
+        Services.GetRequiredService<LocalTimeService>().Zone.Id.ShouldBe("Europe/London");
+        NoLeak();
+    }
+
+    [Fact]
+    public void A_shortcut_listener_that_cannot_start_does_not_stop_the_time_zone_or_blame_the_zone()
+    {
+        this.AddAgentShell();
+        SetupScripts(module => module.SetupVoid("register", _ => true).SetException(new JSException(Secret)));
+        JSInterop.SetupModule("./js/tz.js").Setup<string?>("zone", _ => true).SetResult("Europe/London");
+
+        var cut = Render<MainLayout>(p => p.SignedIn().Add(l => l.Body, b => b.AddMarkupContent(0, "<p id=\"page\">page</p>")));
+
+        cut.WaitForAssertion(() => Services.GetRequiredService<LocalTimeService>().Zone.Id.ShouldBe("Europe/London"));
+        NoLeak();
+    }
+
+    [Fact]
+    public void A_zone_that_cannot_be_read_does_not_say_the_shortcuts_failed()
+    {
+        this.AddAgentShell();
+        SetupScripts(module => module.SetupVoid("register", _ => true).SetVoidResult());
+        JSInterop.SetupModule("./js/tz.js").Setup<string?>("zone", _ => true).SetException(new NotSupportedException(Secret));
+
+        var cut = Render<MainLayout>(p => p.SignedIn().Add(l => l.Body, b => b.AddMarkupContent(0, "<p id=\"page\">page</p>")));
+
+        cut.WaitForAssertion(() => _logs.Lines.ShouldContain(line => line.Contains("NotSupportedException", StringComparison.Ordinal)));
+        _logs.Lines.ShouldNotContain(line => line.Contains("shortcuts could not be started", StringComparison.Ordinal));
+        cut.Find("main.ts-main #page").TextContent.ShouldBe("page");
+        NoLeak();
+    }
+
+    [Fact]
     public async Task The_rail_and_an_admin_page_stay_complete_when_the_session_expires_while_working()
     {
         this.AddAgentShell(AgentRoles.Admin);
