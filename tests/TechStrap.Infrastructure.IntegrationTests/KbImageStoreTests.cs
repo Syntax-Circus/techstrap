@@ -146,6 +146,22 @@ public sealed class KbImageStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task A_marker_that_ends_on_the_last_byte_of_the_scan_window_is_refused_and_one_that_ends_a_byte_later_is_accepted()
+    {
+        // The window is the first 1024 bytes (a literal here, so the test does not follow the constant it pins): "<svg" at 1020 ends on byte 1023, at 1021 on byte 1024.
+        byte[] WithMarkerAt(int offset)
+        {
+            var bytes = new byte[4096];
+            Png.CopyTo(bytes, 0);
+            "<svg"u8.ToArray().CopyTo(bytes, offset);
+            return bytes;
+        }
+
+        (await _store.SaveAsync(Upload(WithMarkerAt(1020)), Ct)).Errors.ShouldHaveSingleItem().Code.ShouldBe("kb-image-type-not-allowed");
+        (await _store.SaveAsync(Upload(WithMarkerAt(1021)), Ct)).IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task A_file_of_exactly_the_limit_is_accepted()
     {
         var bytes = new byte[KbLimits.MaxImageBytes];

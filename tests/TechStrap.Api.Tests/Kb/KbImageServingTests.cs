@@ -147,6 +147,19 @@ public sealed class KbImageServingTests : IDisposable
     }
 
     [Fact]
+    public async Task A_head_request_for_an_unknown_image_is_a_404_that_is_not_cached_and_has_no_body()
+    {
+        await using var factory = Factory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Head, "/kb-images/0123456789abcdef0123456789abcdef.png"), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.Headers.GetValues("Cache-Control").Single().ShouldBe("no-store");
+        (await response.Content.ReadAsByteArrayAsync(Ct)).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task A_trailing_slash_is_a_404()
     {
         await using var factory = Factory();
