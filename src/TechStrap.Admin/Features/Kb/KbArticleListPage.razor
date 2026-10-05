@@ -12,7 +12,7 @@
     </div>
 
     <form class="ts-filterbar" role="search" @onsubmit="SubmitSearchAsync" @onsubmit:preventDefault>
-        <button type="submit" hidden>Search</button>
+        <button type="submit" hidden>@KbCopy.Search</button>
         <div class="ts-filter ts-filter--search">
             <label for="kb-search">@KbCopy.SearchLabel</label>
             <input id="kb-search" type="search" class="form-control" autocomplete="off" spellcheck="false" value="@_text" @oninput="OnSearchInput" />
@@ -58,7 +58,7 @@
     </form>
     <p class="visually-hidden" role="status">@_announcement</p>
 
-    @if (_loading && _page is null)
+    @if ((_loading || _redirecting) && _page is null)
     {
         <LoadingState Rows="6" Label="@KbCopy.Loading" />
     }

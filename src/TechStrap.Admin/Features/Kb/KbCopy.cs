@@ -11,6 +11,7 @@ public static class KbCopy
     public const string NewArticle = "New article";
     public const string Categories = "Categories";
 
+    public const string Search = "Search";
     public const string SearchLabel = "Search articles";
     public const string AllProducts = "All products";
     public const string AllCategories = "All categories";

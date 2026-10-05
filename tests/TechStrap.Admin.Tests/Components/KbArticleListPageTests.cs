@@ -311,6 +311,43 @@ public sealed class KbArticleListPageTests : AdminComponentTest
     }
 
     [Fact]
+    public void A_filter_change_that_arrives_while_the_lookups_are_still_loading_is_loaded_once_and_remembered_as_that_filter()
+    {
+        var lookups = new TaskCompletionSource<Result<IReadOnlyList<ProductDto>>>();
+        _products.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => lookups.Task);
+        var cut = RenderList();
+
+        _navigation.NavigateTo("/kb?status=Draft");
+        cut.WaitForAssertion(() => Requests().Select(r => r.Status).ShouldBe(["Draft"]));
+        lookups.SetResult(TestData.Ok<IReadOnlyList<ProductDto>>([TestData.Product("Orbitly")]));
+
+        // The first parameter set resumes with its own (older) filter: it must not load again, and must not leave the page believing it already loaded the unfiltered list.
+        cut.WaitForAssertion(() => cut.FindAll("#kb-product option").Count.ShouldBe(3));
+        Requests().Select(r => r.Status).ShouldBe(["Draft"]);
+        _navigation.NavigateTo("/kb");
+        cut.WaitForAssertion(() => Requests().Select(r => r.Status).ShouldBe(["Draft", null]));
+    }
+
+    [Fact]
+    public void A_load_that_was_overtaken_and_then_fails_with_an_exception_is_swallowed_and_the_newer_list_stays()
+    {
+        var slow = new TaskCompletionSource<Result<PagedResponse<KbArticleListItemDto>>>();
+        _kb.ListAsync(Arg.Is<ListKbArticlesRequest>(r => r.Status == null), Arg.Any<CancellationToken>()).Returns(_ => slow.Task);
+        _kb.ListAsync(Arg.Is<ListKbArticlesRequest>(r => r.Status == "Draft"), Arg.Any<CancellationToken>())
+            .Returns(TestData.Ok(TestData.KbPage([TestData.KbItem("Newer", "newer", KbArticleStatuses.Draft)])));
+        var cut = RenderList();
+        _navigation.NavigateTo("/kb?status=Draft");
+        cut.WaitForAssertion(() => cut.Find("tbody tr a").TextContent.ShouldBe("Newer"));
+
+        slow.SetException(new InvalidOperationException("the old answer broke"));
+
+        // The fault must not escape into the render (bUnit rethrows an unhandled lifecycle exception on the next wait) and says nothing on the newer list.
+        cut.WaitForAssertion(() => cut.Find("tbody tr a").TextContent.ShouldBe("Newer"));
+        cut.FindAll("[role=alert]").ShouldBeEmpty();
+        cut.Markup.ShouldNotContain("the old answer broke");
+    }
+
+    [Fact]
     public void The_page_links_to_the_new_article_form_and_the_categories_page()
     {
         var cut = RenderList();

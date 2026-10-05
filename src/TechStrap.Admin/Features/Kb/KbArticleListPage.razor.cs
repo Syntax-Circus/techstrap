@@ -27,6 +27,7 @@ public sealed partial class KbArticleListPage : IDisposable
     private string _announcement = string.Empty;
     private bool _loading;
     private bool _lookupsLoaded;
+    private bool _redirecting;
     private bool _disposed;
     private int _loadId;
 
@@ -83,9 +84,10 @@ public sealed partial class KbArticleListPage : IDisposable
             await LoadLookupsAsync();
         }
 
-        if (filter != _loadedFor)
+        // Read _filter again, not the local: while the lookups were awaited a newer parameter set may have replaced it and already loaded it, and the local would then load (and be remembered as) the older filter.
+        if (_filter != _loadedFor)
         {
-            _loadedFor = filter;
+            _loadedFor = _filter;
             await LoadAsync();
         }
     }
@@ -114,6 +116,7 @@ public sealed partial class KbArticleListPage : IDisposable
         var loadId = ++_loadId;
         var filter = _filter;
         _loading = true;
+        _redirecting = false;
         _error = null;
         try
         {
@@ -137,10 +140,14 @@ public sealed partial class KbArticleListPage : IDisposable
         {
             return;
         }
-        catch (Exception) when (loadId == _loadId)
+        catch (Exception)
         {
-            // Fixed copy only: an exception message can carry a host or a port.
-            _error = $"{KbCopy.LoadFailed} {KbCopy.TryAgain}";
+            // A load that a newer one overtook says nothing, and its fault must not escape either: nothing awaits it but the lifecycle, where it would end the circuit.
+            if (loadId == _loadId && !_disposed)
+            {
+                // Fixed copy only: an exception message can carry a host or a port.
+                _error = $"{KbCopy.LoadFailed} {KbCopy.TryAgain}";
+            }
         }
         finally
         {
@@ -159,6 +166,8 @@ public sealed partial class KbArticleListPage : IDisposable
             var lastPage = page.TotalCount > 0 ? (int)Math.Ceiling(page.TotalCount / (double)KbDefaults.PageSize) : 1;
             if (lastPage != filter.Page)
             {
+                // The list is not drawn for a page that has nothing on it: the loading state stands in until the move lands and loads the last page.
+                _redirecting = true;
                 Navigation.NavigateTo((filter with { Page = lastPage }).Uri(), new NavigationOptions { ReplaceHistoryEntry = true });
                 return;
             }

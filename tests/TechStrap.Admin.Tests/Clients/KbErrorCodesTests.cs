@@ -18,6 +18,7 @@ public sealed class KbErrorCodesTests
     [InlineData(ApiErrorCodes.KbImageTypeNotAllowed, "kb-image-type-not-allowed")]
     [InlineData(ApiErrorCodes.KbImageTooLarge, "kb-image-too-large")]
     [InlineData(ApiErrorCodes.KbArticleNotLinkable, "kb-article-not-linkable")]
+    [InlineData(ApiErrorCodes.KbBodyTooComplex, "kb-body-too-complex")]
     [InlineData(ApiErrorCodes.ArticleNotFound, "article-not-found")]
     [InlineData(ApiErrorCodes.RequestTooLarge, "request-too-large")]
     public void The_knowledge_base_codes_are_the_api_wire_codes(string constant, string wire) => constant.ShouldBe(wire);
