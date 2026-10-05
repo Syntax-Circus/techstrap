@@ -69,11 +69,27 @@ public static partial class AdminRules
     private static partial Regex InlineTagStart();
 
     /// <summary>
-    /// The import map component, as a tag name in any case. It renders an inline script of type importmap whenever the app has fingerprinted assets to map, which the CSP blocks.
-    /// The name must end at whitespace, "/" or ">", so ImportMapper and ImportMap-x are not hits. Comments are stripped before this runs.
+    /// The import map component, as a tag name in any case, with or without a namespace in front (Microsoft.AspNetCore.Components.ImportMap). It renders an inline script of type
+    /// importmap whenever the app has fingerprinted assets to map, which the CSP blocks. The name must end at whitespace, "/" or ">", so ImportMapper and ImportMap-x are not hits.
+    /// Comments are stripped before this runs.
     /// </summary>
-    [GeneratedRegex(@"<importmap(?=[\s/>])", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"<(?:[\w.]+\.)?importmap(?=[\s/>])", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex ImportMapTag();
+
+    /// <summary>
+    /// The import map component named from code: typeof(ImportMap), or as a generic argument (OpenComponent&lt;ImportMap&gt;, Foo&lt;Bar, ImportMap&gt;), qualified or not. Run on
+    /// .cs files after comments and string contents are masked, and on .razor text.
+    /// </summary>
+    [GeneratedRegex(@"\btypeof\s*\(\s*(?:\w+\s*\.\s*)*ImportMap\s*\)|<\s*(?:\w+\s*\.\s*)*ImportMap\s*[>,]|,\s*(?:\w+\s*\.\s*)*ImportMap\s*>", RegexOptions.CultureInvariant)]
+    private static partial Regex ImportMapCodeReference();
+
+    /// <summary>The start of any element or component tag.</summary>
+    [GeneratedRegex(@"<(?<name>[A-Za-z][\w:.-]*)(?=[\s/>])", RegexOptions.CultureInvariant)]
+    private static partial Regex ElementStart();
+
+    /// <summary>An event-handler attribute name: on followed by letters only. A Blazor directive starts with "@" and never matches.</summary>
+    [GeneratedRegex(@"^on[a-z]+$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex EventHandlerName();
 
     public static IReadOnlyList<string> PackageViolations(ProjectNode admin) =>
         [.. admin.PackageReferences
@@ -89,15 +105,29 @@ public static partial class AdminRules
     public static IReadOnlyList<string> InlineMarkupViolations(IEnumerable<(string Path, string Text)> files)
     {
         var violations = new List<string>();
-        foreach (var (path, text) in files.Where(f => f.Path.EndsWith(".razor", StringComparison.OrdinalIgnoreCase)))
+        foreach (var (path, text) in files)
         {
-            if (!TryStripRazorComments(text, out var clean, out var error))
+            if (path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
             {
-                violations.Add($"could not parse {path}: {error}");
+                if (!TryMaskCSharp(text, out var masked, out var codeError))
+                {
+                    violations.Add($"could not parse {path}: {codeError}");
+                }
+                else if (ImportMapCodeReference().IsMatch(masked))
+                {
+                    violations.Add($"{path} names the ImportMap component. It renders an inline script, which the CSP blocks.");
+                }
             }
-            else if (HasInlineElement(clean))
+            else if (path.EndsWith(".razor", StringComparison.OrdinalIgnoreCase))
             {
-                violations.Add($"{path} has an inline <script>, a <style> element or <ImportMap />. The CSP allows none of them; use wwwroot/js modules and Styles/_*.scss.");
+                if (!TryStripRazorComments(text, out var clean, out var error))
+                {
+                    violations.Add($"could not parse {path}: {error}");
+                }
+                else if (HasInlineElement(clean) || ImportMapCodeReference().IsMatch(clean) || HasEventHandlerAttribute(clean))
+                {
+                    violations.Add($"{path} has an inline <script>, a <style> element, <ImportMap /> or an on* event-handler attribute. The CSP allows none of them; use wwwroot/js modules, Styles/_*.scss and @on... directives.");
+                }
             }
         }
 
@@ -585,8 +615,34 @@ public static partial class AdminRules
     }
 
     /// <summary>Reads the attributes of a script tag, skipping quoted values, and reports whether one of them is named src.</summary>
-    private static bool ScriptHasSrc(string t, int i)
+    private static bool ScriptHasSrc(string t, int i) => AttributeNames(t, i).Any(name => name.Equals("src", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// True when an HTML element carries an event-handler attribute (onclick, onsubmit, ...), which the CSP's script-src blocks. Blazor directives (@onclick, @onsubmit:preventDefault)
+    /// start with "@" and never match. On a lowercase element any case of on-letters is a hit; on a component (PascalCase) only the lower- or upper-case spelling is, so a component
+    /// parameter such as OnClick is not.
+    /// </summary>
+    private static bool HasEventHandlerAttribute(string markup)
     {
+        foreach (Match tag in ElementStart().Matches(markup))
+        {
+            var element = char.IsLower(tag.Groups["name"].Value[0]);
+            foreach (var name in AttributeNames(markup, tag.Index + tag.Length))
+            {
+                if (EventHandlerName().IsMatch(name) && (element || name == name.ToLowerInvariant() || name == name.ToUpperInvariant()))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The attribute names of the tag whose name ended at <paramref name="i"/>, reading past quoted and bare values.</summary>
+    private static List<string> AttributeNames(string t, int i)
+    {
+        var names = new List<string>();
         while (i < t.Length)
         {
             while (i < t.Length && (char.IsWhiteSpace(t[i]) || t[i] == '/'))
@@ -596,7 +652,7 @@ public static partial class AdminRules
 
             if (i >= t.Length || t[i] == '>')
             {
-                return false;
+                return names;
             }
 
             var nameStart = i;
@@ -605,11 +661,7 @@ public static partial class AdminRules
                 i++;
             }
 
-            if (t.AsSpan(nameStart, i - nameStart).Equals("src", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
+            names.Add(t[nameStart..i]);
             while (i < t.Length && char.IsWhiteSpace(t[i]))
             {
                 i++;
@@ -638,6 +690,6 @@ public static partial class AdminRules
             }
         }
 
-        return false;
+        return names;
     }
 }

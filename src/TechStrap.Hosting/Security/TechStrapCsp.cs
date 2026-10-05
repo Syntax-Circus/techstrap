@@ -75,11 +75,22 @@ public static class TechStrapCsp
             || !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri)
             || uri.Scheme is not ("http" or "https")
             || !string.IsNullOrEmpty(uri.UserInfo)
+            || HasUserInfoMarker(url.Trim())
             || string.IsNullOrEmpty(uri.Host))
         {
             return null;
         }
 
-        return uri.GetLeftPart(UriPartial.Authority);
+        // IdnHost is the ASCII (punycode) form of the host, so a non-ASCII authority still gives a source CspBuilder accepts and a browser matches.
+        var host = uri.IdnHost.Contains(':', StringComparison.Ordinal) && !uri.IdnHost.StartsWith('[') ? $"[{uri.IdnHost}]" : uri.IdnHost;
+        return $"{uri.Scheme}://{host}{(uri.IsDefaultPort ? string.Empty : ":" + uri.Port)}";
+    }
+
+    // "https://@idp.test/" has an empty user info, which Uri.UserInfo reports as empty: an "@" in the authority part is refused whatever precedes it.
+    private static bool HasUserInfoMarker(string url)
+    {
+        var start = url.IndexOf("://", StringComparison.Ordinal) + 3;
+        var end = url.IndexOfAny(['/', '?', '#', '\\'], start);
+        return url[start..(end < 0 ? url.Length : end)].Contains('@', StringComparison.Ordinal);
     }
 }

@@ -157,6 +157,68 @@ public sealed class AdminRuleTests
         AdminRules.InlineMarkupViolations([("Components/Ok.razor", markup)]).ShouldBeEmpty();
     }
 
+
+    [Theory]
+    [InlineData("<Microsoft.AspNetCore.Components.ImportMap />")]
+    [InlineData("<Components.importmap></Components.importmap>")]
+    [InlineData("@code { Type t = typeof(ImportMap); }")]
+    [InlineData("@code { Type t = typeof( Microsoft.AspNetCore.Components.ImportMap ); }")]
+    [InlineData("@code { void B(RenderTreeBuilder b) => b.OpenComponent<ImportMap>(0); }")]
+    [InlineData("@code { void B(RenderTreeBuilder b) => b.OpenComponent< Microsoft.AspNetCore.Components.ImportMap >(0); }")]
+    public void The_import_map_component_is_flagged_by_a_qualified_name_typeof_or_a_generic_argument(string markup)
+    {
+        AdminRules.InlineMarkupViolations([("Components/Bad.razor", markup)]).Count.ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData("var t = typeof(ImportMap);")]
+    [InlineData("var t = typeof(Microsoft.AspNetCore.Components.ImportMap);")]
+    [InlineData("builder.OpenComponent<ImportMap>(0);")]
+    [InlineData("builder.OpenComponent<Microsoft.AspNetCore.Components.ImportMap>(0);")]
+    [InlineData("Foo<Bar, ImportMap> x;")]
+    public void The_import_map_component_is_flagged_in_code_files(string code)
+    {
+        AdminRules.InlineMarkupViolations([("Features/Bad.cs", code)]).Count.ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData("// typeof(ImportMap)")]
+    [InlineData("var s = \"typeof(ImportMap)\";")]
+    [InlineData("/* builder.OpenComponent<ImportMap>(0); */")]
+    [InlineData("var t = typeof(ImportMapper);")]
+    [InlineData("builder.OpenComponent<ImportMapper>(0);")]
+    public void A_code_file_that_only_mentions_the_import_map_in_a_comment_or_a_string_is_not_flagged(string code)
+    {
+        AdminRules.InlineMarkupViolations([("Features/Ok.cs", code)]).ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("<button onclick=\"x()\">Go</button>")]
+    [InlineData("<a href=\"#\" ONCLICK='x()'>Go</a>")]
+    [InlineData("<form class=\"a\" onsubmit=\"return false\"></form>")]
+    [InlineData("<div\n  onload=x></div>")]
+    [InlineData("<img src=\"a.png\" onerror=\"x()\" />")]
+    [InlineData("<input @bind=\"Name\" onchange=\"x()\" />")]
+    [InlineData("<body OnLoad=\"x()\">")]
+    public void An_event_handler_attribute_on_an_element_is_flagged(string markup)
+    {
+        AdminRules.InlineMarkupViolations([("Components/Bad.razor", markup)]).Count.ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData("<button @onclick=\"Save\">Go</button>")]
+    [InlineData("<form @onsubmit=\"Save\" @onsubmit:preventDefault></form>")]
+    [InlineData("<input @bind=\"Name\" @bind:after=\"Changed\" />")]
+    [InlineData("<Foo OnClick=\"Save\" />")]
+    [InlineData("<p data-online=\"x\" title=\"onclick=bad\">x</p>")]
+    [InlineData("<a href=\"?a=1&once=2\">x</a>")]
+    [InlineData("<!-- <button onclick=\"x()\"> -->")]
+    [InlineData("@* <button onclick=\"x()\"> *@")]
+    [InlineData("<input @onchange=\"Changed\" />")]
+    public void Blazor_event_directives_component_parameters_and_commented_markup_are_not_event_handler_attributes(string markup)
+    {
+        AdminRules.InlineMarkupViolations([("Components/Ok.razor", markup)]).ShouldBeEmpty();
+    }
     private const string Pages = "src/TechStrap.Admin/Components/Pages/";
     private const string Both = "@attribute [AllowAnonymous]\n@attribute [ExcludeFromInteractiveRouting]";
 

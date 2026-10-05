@@ -39,6 +39,10 @@ public sealed class CspBuilderTests
     [InlineData("https://idp.test\nscript-src *")]
     [InlineData("https://idp.test\t")]
     [InlineData("")]
+    [InlineData("https://b\u00FCcher.example")]
+    [InlineData("https://idp.test\u00A0")]
+    [InlineData("https://idp.test\u200B")]
+    [InlineData("https://idp.test\u007F")]
     public void A_source_that_could_end_the_directive_or_start_another_is_refused(string source)
     {
         Should.Throw<ArgumentException>(() => new CspBuilder().Directive("form-action", source));
@@ -51,6 +55,9 @@ public sealed class CspBuilderTests
     [InlineData("script src")]
     [InlineData("script-src;")]
     [InlineData("1script")]
+    [InlineData("script-src\n")]
+    [InlineData("script-src\r\n")]
+    [InlineData("scr\u00EFpt-src")]
     public void A_directive_name_that_is_not_lower_case_words_is_refused(string name)
     {
         Should.Throw<ArgumentException>(() => new CspBuilder().Directive(name, "'self'"));
@@ -67,6 +74,12 @@ public sealed class CspBuilderTests
         TechStrapCsp.OriginOf(url).ShouldBe(expected);
     }
 
+    [Fact]
+    public void OriginOf_writes_a_non_ASCII_host_as_punycode()
+    {
+        TechStrapCsp.OriginOf("https://b\u00FCcher.example:8443/realms/x").ShouldBe("https://xn--bcher-kva.example:8443");
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -77,6 +90,9 @@ public sealed class CspBuilderTests
     [InlineData("data:text/html,x")]
     [InlineData("ftp://idp.test/")]
     [InlineData("https://user:pass@idp.test/")]
+    [InlineData("https://@idp.test/")]
+    [InlineData("https://:@idp.test/")]
+    [InlineData("https://idp.test@evil.test/")]
     public void OriginOf_refuses_anything_that_is_not_an_absolute_http_or_https_URL_without_user_info(string? url)
     {
         TechStrapCsp.OriginOf(url).ShouldBeNull();

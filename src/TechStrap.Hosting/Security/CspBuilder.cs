@@ -5,15 +5,14 @@ namespace TechStrap.Hosting.Security;
 
 /// <summary>
 /// Builds a Content-Security-Policy header value one directive at a time. A directive name and every source are validated, so a value that comes from configuration
-/// (an identity-provider origin) can never close the directive early and smuggle in another one: a source may not contain a semicolon, a comma, whitespace or a control
-/// character. Directives keep the order they were first added in, so the header is stable and a test can compare it as text.
+/// (an identity-provider origin) can never close the directive early and smuggle in another one: a source may only hold printable ASCII (0x21-0x7E) and no semicolon or comma, so no whitespace, control or non-ASCII character. Directives keep the order they were first added in, so the header is stable and a test can compare it as text.
 /// </summary>
 public sealed partial class CspBuilder
 {
     private readonly List<string> _order = [];
     private readonly Dictionary<string, List<string>> _directives = new(StringComparer.Ordinal);
 
-    [GeneratedRegex("^[a-z][a-z0-9-]*$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\A[a-z][a-z0-9-]*\z", RegexOptions.CultureInvariant)]
     private static partial Regex DirectiveName();
 
     /// <summary>Sets a directive, replacing any earlier sources of the same name. A directive with no source is written as its name alone (<c>upgrade-insecure-requests</c>, <c>sandbox</c>).</summary>
@@ -80,9 +79,9 @@ public sealed partial class CspBuilder
 
         foreach (var source in sources)
         {
-            if (string.IsNullOrEmpty(source) || source.Any(c => c is ';' or ',' || char.IsWhiteSpace(c) || char.IsControl(c)))
+            if (string.IsNullOrEmpty(source) || source.Any(c => c is < '!' or > '~' or ';' or ','))
             {
-                throw new ArgumentException($"A source for '{name}' is empty or holds a semicolon, a comma, whitespace or a control character, which would end the directive or start another.", nameof(sources));
+                throw new ArgumentException($"A source for '{name}' is empty or holds a character other than printable ASCII (0x21-0x7E), or a semicolon or a comma, which would end the directive or start another.", nameof(sources));
             }
         }
     }

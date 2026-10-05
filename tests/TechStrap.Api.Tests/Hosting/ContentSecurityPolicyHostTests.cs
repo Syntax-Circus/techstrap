@@ -25,7 +25,7 @@ public sealed partial class ContentSecurityPolicyHostTests : IDisposable
 
     public void Dispose() => Environment.SetEnvironmentVariable(AuthorityVariable, _previousAuthority);
 
-    [GeneratedRegex(@"<script\b(?![^>]*\bsrc\s*=)[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"<script\b(?![^>]*(?<![\w-])src\s*=)[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex InlineScriptTag();
 
     [GeneratedRegex(@"<style\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
@@ -167,6 +167,7 @@ public sealed partial class ContentSecurityPolicyHostTests : IDisposable
         {
             (await anonymous.GetStringAsync("/signin", Ct), false),
             (await anonymous.GetStringAsync("/error", Ct), true),
+            (await anonymous.GetStringAsync("/_styleguide", Ct), true),
             (await signedIn.GetStringAsync("/", Ct), true),
             (await signedIn.GetStringAsync("/queue/mine", Ct), true),
         };
@@ -201,21 +202,60 @@ public sealed partial class ContentSecurityPolicyHostTests : IDisposable
         EventHandlerAttribute().IsMatch(html).ShouldBeFalse();
     }
 
-    // Without the import map component the modules load from their own paths, so each one must still be served (and not need a fingerprint to be found).
+    [Theory]
+    [InlineData("<script data-src=\"x.js\">alert(1)</script>", 1)]
+    [InlineData("<script nosrc=\"x\"></script>", 1)]
+    [InlineData("<script>alert(1)</script>", 1)]
+    [InlineData("<script src=\"/a.js\"></script>", 0)]
+    [InlineData("<script type=\"module\" src=\"/a.js\"></script>", 0)]
+    [InlineData("<script defer\nsrc=\"/a.js\"></script>", 0)]
+    public void The_inline_script_scan_sees_a_script_whose_attribute_only_ends_in_src(string html, int expected)
+    {
+        InlineScriptTag().Matches(html).Count.ShouldBe(expected);
+    }
+
+    // Without the import map component the modules load from their own paths, so each one must still be served (and not need a fingerprint to be found). The client does not
+    // follow redirects: an anonymous request for a missing file is answered with a redirect to /signin, which a following client would report as 200.
     [Theory]
     [InlineData("/js/dialog.js")]
     [InlineData("/js/shortcuts.js")]
     [InlineData("/js/queue.js")]
     [InlineData("/js/preferences.js")]
     [InlineData("/js/clipboard.js")]
-    [InlineData("/_content/SyntaxCircus.Blazor.Components/ReconnectModal.razor.js")]
+    [InlineData("/_content/SyntaxCircus.Blazor.Components/Components/Feedback/ReconnectModal.razor.js")]
+    [InlineData("/_content/SyntaxCircus.Blazor.Components/fileDownload.js")]
     public async Task Every_module_the_Admin_imports_is_served_from_its_plain_path(string path)
     {
         await using var factory = new AdminFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
 
         using var response = await client.GetAsync(path, Ct);
 
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, path);
+        response.Content.Headers.ContentType!.MediaType.ShouldBeOneOf("text/javascript", "application/javascript");
+    }
+
+    [Fact]
+    public async Task A_static_file_carries_the_decided_policy()
+    {
+        await using var factory = new AdminFactory();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+
+        using var response = await client.GetAsync("/js/dialog.js", Ct);
+
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        AssertBrowserPolicy(Policy(response), ["'self'", new Uri(AdminTestSettings.Authority).GetLeftPart(UriPartial.Authority)], loopbackImages: true);
+    }
+
+    [Fact]
+    public async Task The_circuit_negotiate_endpoint_carries_the_decided_policy()
+    {
+        await using var factory = new AdminFactory();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false }).SignedInAs(AdminTestPrincipal.Agent);
+
+        using var response = await client.PostAsync("/_blazor/negotiate?negotiateVersion=1", null, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        AssertBrowserPolicy(Policy(response), ["'self'", new Uri(AdminTestSettings.Authority).GetLeftPart(UriPartial.Authority)], loopbackImages: true);
     }
 }
