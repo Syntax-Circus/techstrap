@@ -25,6 +25,34 @@ BeforeAll {
         }
     }
 
+    # The env_file entries of each service, read from the compose file itself. 'docker compose config --format json' prints env_file differently
+    # across Compose versions (older ones drop or flatten it under --no-env-resolution), so these checks read the source the operator edits.
+    function Get-ServiceEnvFiles {
+        param([string]$File)
+
+        $result = @{}
+        $service = $null
+        $inServices = $false
+        $inEnvFile = $false
+        foreach ($line in Get-Content -LiteralPath (Join-Path $script:RepoRoot $File)) {
+            if ($line -match '^services:\s*$') { $inServices = $true; continue }
+            if ($line -match '^\S') { $inServices = $false; $inEnvFile = $false; continue }
+            if (-not $inServices) { continue }
+            if ($line -match '^  ([A-Za-z0-9_-]+):\s*$') { $service = $Matches[1]; $result[$service] = @(); $inEnvFile = $false; continue }
+            if ($line -match '^    env_file:\s*$') { $inEnvFile = $true; continue }
+            if ($line -match '^    \S') { $inEnvFile = $false; continue }
+            if (-not $inEnvFile) { continue }
+            if ($line -match '^      - path:\s*(.+?)\s*$') {
+                $result[$service] += [pscustomobject]@{ path = $Matches[1]; required = $null; format = $null }
+                continue
+            }
+            if ($line -match '^        (required|format):\s*(\S+)\s*$') {
+                $result[$service][-1].($Matches[1]) = $Matches[2]
+            }
+        }
+        return $result
+    }
+
     # A host directory of scoped env files (copies of the committed templates, which is what an operator starts from) and a compose inputs file that points at it.
     # The compose inputs come from deploy/.env.<env>.example with TECHSTRAP_ENV_DIR replaced; -Without drops one variable so a test can show that compose refuses.
     function New-DeployInputs {
@@ -102,10 +130,13 @@ Describe 'the local docker-compose.yml' -Skip:(-not $script:DockerAvailable) {
 
     It 'local compose builds every app image from this checkout and loads an optional per-host .env.local' {
         $config = (Get-ComposeConfig -File 'docker-compose.yml' -NoEnvResolution).Config
+        $envFiles = Get-ServiceEnvFiles -File 'docker-compose.yml'
         foreach ($service in 'api', 'worker', 'admin', 'portal') {
             $config.services.$service.build.dockerfile | Should -Be "Dockerfile.$service"
-            @($config.services.$service.env_file | Where-Object { $_.path -match "(?i)src[\\/]TechStrap\.$service[\\/]\.env\.local$" }).Count | Should -Be 1
-            @($config.services.$service.env_file)[0].required | Should -BeFalse
+            $files = @($envFiles[$service])
+            $files.Count | Should -Be 1
+            $files[0].path | Should -Match "(?i)^\./src/TechStrap\.$service/\.env\.local$"
+            $files[0].required | Should -Be 'false'
         }
     }
 
@@ -160,11 +191,12 @@ Describe 'the image-only deploy compose (<envName>)' -Skip:(-not $script:DockerA
     }
 
     It 'loads every service from its own scoped env file under TECHSTRAP_ENV_DIR, raw and required' {
-        $unresolved = (Get-ComposeConfig -File $script:DeployCompose -EnvFile $script:Run.Inputs -NoEnvResolution).Config
+        $envFiles = Get-ServiceEnvFiles -File $script:DeployCompose
         foreach ($app in 'api', 'worker', 'admin', 'portal') {
-            $files = @($unresolved.services.$app.env_file)
+            $files = @($envFiles[$app])
             $files.Count | Should -Be 1
-            $files[0].path | Should -Be "$($script:Run.PortableDirectory)/.env.$app"
+            $files[0].path | Should -Match ('^\$\{TECHSTRAP_ENV_DIR:\?[^}]+\}/\.env\.' + $app + '$')
+            $files[0].required | Should -Be 'true'
             $files[0].format | Should -Be 'raw'
         }
         ([regex]::Matches((Get-Content -LiteralPath (Join-Path $script:RepoRoot $script:DeployCompose) -Raw), '(?m)^        required: true\r?$')).Count | Should -Be 4
