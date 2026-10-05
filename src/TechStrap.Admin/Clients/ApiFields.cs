@@ -26,4 +26,16 @@ public static class ApiFields
 
     // Agents.
     public const string PublicDisplayName = "public-display-name";
+
+    // Knowledge base. The publish check names title, slug, body or category; a category has a name, a description and a sort order; an upload has its file.
+    public const string Title = "title";
+    public const string Summary = "summary";
+    public const string Body = "body";
+    public const string Category = "category";
+
+    /// <summary>The name the API gives a category error on a request (kb-category-not-found, kb-category-scope-mismatch): the request property, not the publish check's <c>category</c>.</summary>
+    public const string CategoryId = "categoryId";
+    public const string Description = "description";
+    public const string SortOrder = "sort-order";
+    public const string File = "file";
 }

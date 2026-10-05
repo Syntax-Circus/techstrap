@@ -47,6 +47,24 @@ public static class ApiErrorCodes
     public const string PublicDisplayNameTooLong = "public-display-name-too-long";
     public const string PublicDisplayNameInvalid = "public-display-name-invalid";
     public const string LogoPathInvalid = "logo-path-invalid";
+    public const string KbSlugTaken = "kb-slug-taken";
+    public const string KbCategorySlugTaken = "kb-category-slug-taken";
+    public const string KbCategoryReservedSlug = "kb-category-reserved-slug";
+    public const string KbCategoryInUse = "kb-category-in-use";
+    public const string KbCategoryScopeMismatch = "kb-category-scope-mismatch";
+    public const string KbArticleNotFound = "kb-article-not-found";
+    public const string KbCategoryNotFound = "kb-category-not-found";
+    public const string KbPublishIncomplete = "kb-publish-incomplete";
+    public const string KbImageTypeNotAllowed = "kb-image-type-not-allowed";
+    public const string KbImageTooLarge = "kb-image-too-large";
+    public const string KbArticleNotLinkable = "kb-article-not-linkable";
+    public const string KbBodyTooComplex = "kb-body-too-complex";
+
+    /// <summary>Kestrel answers a request body far over the limit (413) with this problem type before any handler runs; a picture over 5 MB but under the request cap is <see cref="KbImageTooLarge"/>.</summary>
+    public const string RequestTooLarge = "request-too-large";
+
+    /// <summary>A reply that links an article id the API does not know (404). Linking an unpublished or other-product article is <see cref="KbArticleNotLinkable"/>.</summary>
+    public const string ArticleNotFound = "article-not-found";
 
     /// <summary>A write that failed (any 5xx, transport error, timeout or unreadable answer) this way may still have been applied (the answer was lost, late or unreadable): say so and offer a reload, never a bare retry.</summary>
     public static bool IsUncertainWrite(string code) => code is ApiTimeout or ApiUnavailable or UnexpectedResponse or ApiError;

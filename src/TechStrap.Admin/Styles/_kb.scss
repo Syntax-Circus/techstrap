@@ -1,0 +1,12 @@
+// Knowledge base (PHASE-08): the article list. Working UI like the queue: compact, no mascot. Titles and category names come from agents and wrap instead of stretching the table.
+
+.ts-kb-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ts-kb-list {
+  max-width: 1100px;
+}

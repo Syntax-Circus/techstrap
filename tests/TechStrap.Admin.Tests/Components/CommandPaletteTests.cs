@@ -98,7 +98,7 @@ public sealed class CommandPaletteTests : AdminComponentTest
         Options(cut).ShouldBe(
         [
             "Queue: Unassigned", "Queue: Mine", "Queue: Open", "Queue: Pending", "Queue: All", "Queue: Spam",
-            "My settings",
+            "Knowledge base", "My settings",
         ]);
         var palette = cut.Find("dialog[data-palette]").InnerHtml;
         foreach (var admin in new[] { "Products", "Agents", "Tags", "Audit", "Failed emails", "/settings", "/ops" })
@@ -126,7 +126,7 @@ public sealed class CommandPaletteTests : AdminComponentTest
 
         Options(cut).ShouldContain("Products");
         Options(cut).ShouldContain("Failed emails");
-        Options(cut).Count.ShouldBe(12);
+        Options(cut).Count.ShouldBe(13);
         cut.FindAll(".ts-palette-group").Select(g => g.TextContent).Distinct().ShouldBe(["Go to", "Admin"]);
     }
 
@@ -286,7 +286,7 @@ public sealed class CommandPaletteTests : AdminComponentTest
         await PressCtrlKAsync();
         cut.WaitForAssertion(() => Dialogs.VerifyInvoke("open", 2));
         cut.Find("dialog[data-palette] input").GetAttribute("value").ShouldBeNullOrEmpty();
-        Options(cut).Count.ShouldBe(7);
+        Options(cut).Count.ShouldBe(8);
     }
 
     [Fact]

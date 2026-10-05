@@ -62,7 +62,7 @@ public sealed partial class ScrollRegionSiteTests : BunitContext
             }
         }
 
-        tables.ShouldBe(7);
+        tables.ShouldBe(8);
         unwrapped.ShouldBeEmpty();
         withoutRole.ShouldBeEmpty();
     }

@@ -23,7 +23,7 @@ public sealed class CommandRegistryTests : AdminComponentTest
         labels.ShouldBe(
         [
             "Queue: Unassigned", "Queue: Mine", "Queue: Open", "Queue: Pending", "Queue: All", "Queue: Spam",
-            "My settings",
+            "Knowledge base", "My settings",
         ]);
         Registry.Available(isAdmin: false).ShouldAllBe(c => !c.AdminOnly);
     }
