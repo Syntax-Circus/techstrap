@@ -29,7 +29,7 @@ Rules:
 techstrap/
   TechStrap.slnx  Directory.Build.props/targets  Directory.Packages.props  global.json  GitVersion.yml
   Build-TechStrapDocker.ps1  Dockerfile.{api,admin,portal,worker}
-  docker-compose.yml  docker-compose.uat.yml  docker-compose.production.yml  .env.*.example
+  docker-compose.yml  .env.example  deploy/{docker-compose.yml,.env.*.example}
   docs/  (architecture/, BRAND.md, runbooks/)
   src/
     TechStrap.Domain          entities, enums, status transition rules, domain constants
@@ -394,13 +394,14 @@ Rules applied (_template RAZOR_COMPONENT_ARCHITECTURE.md): any injection, lifecy
 
 ### 11.1 Compose and environments
 
-- Files: `docker-compose.yml` (local), `docker-compose.uat.yml`, `docker-compose.production.yml`, `.env.production.example`, plus `.env.example` per host (`api`, `admin`, `portal`, `worker`) and gitignored `.env.local`, loaded by `SyntaxCircus.DotEnv`.
+- Files (D-043): `docker-compose.yml` (local: builds the four images, Postgres 17 and Mailpit) with a root `.env.example` for its inputs (`TECHSTRAP_SUBNET`, `REVERSE_PROXY_CIDR`, `TECHSTRAP_MAILPIT_PORT`, `TECHSTRAP_SEED_DEV_DATA`); `deploy/docker-compose.yml`, one image-only compose for UAT and production, with the compose-input templates `deploy/.env.uat.example` and `deploy/.env.production.example` and the key-only app templates `deploy/.env.{api,worker,admin,portal}.example`; and per project an `appsettings.json` that lists every setting the host reads (real non-secret defaults, blank secrets), an `appsettings.Development.json` with the local overrides, a `.env.example` and a gitignored `.env.local`, loaded by `SyntaxCircus.DotEnv` in Development only. `scripts/tests/ConfigContract.Tests.ps1` keeps the four in sync.
 - Dockerfiles at repo root (`Dockerfile.{api,admin,portal,worker}`), full source copy before restore, BuildKit NuGet cache mount, base `mcr.microsoft.com/dotnet/aspnet:10.0`, non-root uid 10001, pre-created writable mounts (`storage`, `logs`, `dataprotection-keys`), `curl` for health checks, `ASPNETCORE_URLS=http://+:80`.
 - `Build-TechStrapDocker.ps1`: `-Targets`, `-ImageTag`, `-SemVerTag`, `-Registry` (default `ghcr.io/syntax-circus`), `-Push`, `-PushLatest`, `-NoCache`, `-Platforms` (default `linux/amd64,linux/arm64`), `-VersionProjectPath`; GitVersion SemVer tags (D-003). GitHub Actions: build and test on PR; push to GHCR and pack NuGet on tag.
 - Public URL: `TECHSTRAP_PORTAL_PUBLIC_URL` is the single portal base URL (API and Worker for `/t/{token}` links in responses and emails, Portal for canonical URLs and sitemap).
 - Portal configuration, "Powered by TechStrap" (D-024): `TECHSTRAP_PORTAL_SHOW_POWERED_BY` (default `true`) shows the mark, linked to https://github.com/Syntax-Circus/techstrap, on every Portal page and in customer emails; `false` hides it installation-wide. Read by the Portal host and by email rendering in the Worker (both `.env.example` files); no per-product override.
-- Volumes: `pgdata`, `techstrap-storage` (API and Worker, mounted at `/app/storage`), `dataprotection-keys` per ASP.NET host (shared key ring needs only matter within one app; Admin and Portal have separate rings).
-- Startup order: `postgres` healthy, `api` healthy (runs migrations), then `admin`, `portal`, `worker`.
+- Volumes: `techstrap-storage` (API only, mounted at `/app/storage`; the Worker registers no attachment storage), `admin-keys` and `portal-keys` (the ASP.NET data protection key ring of each Blazor host, mounted at `/app/dataprotection-keys`); the local compose adds `pgdata`.
+- Startup order: `api` healthy (it runs migrations against the Postgres that is already up), then `admin`, `portal` and `worker`. The local compose waits for its own `postgres` first.
+- Deployment (D-043): `deploy/docker-compose.yml` is image-only: GHCR images, each named in full by an input (no `latest`), `pull_policy: always`, loopback ports, a pinned app subnet. Each service loads its own scoped env file, `${TECHSTRAP_ENV_DIR}/.env.<app>` (root-owned, mode 0600, `format: raw`), and `environment:` holds only what compose owns (`ASPNETCORE_ENVIRONMENT`, `DOTENV__ENABLED`, the Api address, the key-ring and storage paths, the trusted networks). Postgres is a separate instance on an external Docker network (`TECHSTRAP_DB_NETWORK`) that only the Api and the Worker join. The runbook is `docs/self-hosting/DEPLOYMENT.md`.
 - Admin link: `TECHSTRAP_ADMIN_PUBLIC_URL`: optional; when set, agent assignment emails link to `{url}/tickets/{number}`.
 - Postgres 17 tuned for the small footprint (`shared_buffers` about 256 MB, **Assumption**).
 
@@ -408,7 +409,7 @@ Rules applied (_template RAZOR_COMPONENT_ARCHITECTURE.md): any injection, lifecy
 
 Per _template pattern CLIENT_IP_RATE_LIMITING.md (reverse proxy in front of Dockerized containers with an anonymous public API surface):
 
-- **Pinned subnet:** `docker-compose.yml` network `default` uses `ipam` subnet `172.16.31.0/24` (A-09). Registering this subnet in the pattern's subnet registry is a cross-repo owner action in the _template, recorded as a PHASE-01 compose task (D-019).
+- **Pinned subnet:** the `default` network of `docker-compose.yml` and of `deploy/docker-compose.yml` uses `ipam` subnet `172.16.31.0/24` (A-09; `TECHSTRAP_SUBNET`). Registering this subnet in the pattern's subnet registry is a cross-repo owner action in the _template, recorded as a PHASE-01 compose task (D-019).
 - **API trusted proxies (D-019):** the API trusts the pinned subnet `172.16.31.0/24` (`TRUSTEDPROXY__TRUSTEDNETWORKS__0`, the Portal hop) and adds `TRUSTEDPROXY__TRUSTEDNETWORKS__1=<caddy-ip>/32` only when Caddy runs outside that subnet. **Admin and Portal trust only the proxy** (`...__0` only). Never trust `172.16.0.0/12` or `0.0.0.0/0`. The proxy address is deployment-specific (Q-08).
 - **Portal and Admin to API (D-019):** every typed `HttpClient` that calls the API uses `.AddForwardedClientIp()`; the Portal forwards the original client IP in `X-Forwarded-For` so the API rate-limits real visitors, not the Portal container.
 - **Policies** (named, bound under `RateLimiting:*`, validated with `ValidateOnStart` so bad values fail boot; defaults per A-08):

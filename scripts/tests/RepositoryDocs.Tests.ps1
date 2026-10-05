@@ -54,3 +54,26 @@ Describe 'README.md' {
         }
     }
 }
+
+Describe 'D-043 (scoped configuration and one image-only deploy compose)' {
+    It 'is in the decision log with its date, its status and an index row' {
+        $log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md'
+        $log | Should -Match '(?m)^## D-043: Scoped per-project configuration and one image-only deployment compose'
+        $log | Should -Match '(?s)## D-043:.*?- \*\*Status:\*\* Approved \(owner 2026-10-05.*?- \*\*Date:\*\* 2026-10-05'
+        $log | Should -Match '(?m)^\| D-043 \|.*\| 2026-10-05 \|'
+    }
+
+    It 'replaces the old deployment files in the architecture, the roadmap and PHASE-12' {
+        $architecture = Get-RepoText 'docs/architecture/02-ARCHITECTURE.md'
+        $architecture | Should -Match 'deploy/docker-compose\.yml'
+        $phase12 = Get-RepoText 'docs/architecture/PHASE-12-release-hardening.md'
+        $phase12 | Should -Match '\*\*P12-T14\*\*.*deploy/docker-compose\.yml'
+        foreach ($text in $architecture, $phase12) {
+            $text | Should -Not -Match 'docker-compose\.(uat|production)\.yml'
+            $text | Should -Not -Match '(?<!deploy/)\.env\.production\.example'
+        }
+        $roadmap = Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md'
+        $roadmap | Should -Match '~~Warn in `\.env\.production\.example` that the Postgres password must be connection-string safe~~'
+        $roadmap | Should -Match '\| 8 \|.*deploy/\.env\.<env>\.local'
+    }
+}
