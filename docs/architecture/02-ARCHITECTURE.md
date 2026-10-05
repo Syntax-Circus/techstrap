@@ -20,8 +20,8 @@ Rules:
 
 - Admin and Portal never reference Application, Infrastructure or Domain and never touch the database. They call the API through typed clients over `TechStrap.Contracts` (D-005 for the SDK reuse of Contracts). Their only server-hosted API pass-throughs are the two attachment download adapters (D-017).
 - Worker and API both compose Application + Infrastructure. Neither calls the other over HTTP; the worker notifies the API through Postgres only (D-007).
-- Only the API container migrates the database. Worker and API start order: Postgres healthy, then API healthy, then others (compose `depends_on`).
-- The storage volume (`techstrap-storage`, mounted at `/app/storage`) is mounted by both the API and the Worker (A-19). The API is the only writer of intake attachments and KB images; the Worker mounts it for attachment cleanup and later inbound-email work.
+- Only the API container migrates the database. Start order: API healthy, then the others (compose `depends_on`). In the local compose the API also waits for its Postgres; the deploy compose uses a separate Postgres (D-043).
+- The storage volume (`techstrap-storage`, mounted at `/app/storage`) is mounted by the API only (D-043; A-19 amended). The API is the only reader and writer of intake attachments and KB images; the Worker mounts it again when it needs files (inbound email, PHASE-11).
 
 ## 2. Project layout and reference direction
 

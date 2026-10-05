@@ -72,10 +72,6 @@ Approval basis:
 
 ---
 
-## D-042:
-
----
-
 ## D-001: Two API key kinds: trusted and public
 
 - **Status:** Approved
@@ -1529,7 +1525,7 @@ PHASE-07 is merged. Before PHASE-08 (the knowledge base) the owner wants TechStr
 ### Decision
 **Owner decisions (2026-10-05)**
 - **One deploy compose.** `deploy/docker-compose.yml` serves UAT and production. It is image-only: no `build:` and no Postgres. A small compose-inputs file chooses the environment: the committed templates `deploy/.env.uat.example` and `deploy/.env.production.example`, copied to `deploy/.env.<env>.local` on the host. They hold the project name, the image references, the env directory, the loopback ports, the app subnet, the reverse-proxy CIDR and the Postgres network name, and no secret.
-- **Scoped env files on the host.** `{TECHSTRAP_ENV_DIR}` (for example `/etc/techstrap/uat/`) holds `.env.api`, `.env.worker`, `.env.admin` and `.env.portal`, root-owned and mode 0600, loaded per service through `env_file`. The committed key-only templates `deploy/.env.<app>.example` are kept in sync with each project's `appsettings.json` and `.env.example`.
+- **Scoped env files on the host.** `${TECHSTRAP_ENV_DIR}` (for example `/etc/techstrap/uat/`) holds `.env.api`, `.env.worker`, `.env.admin` and `.env.portal`, root-owned and mode 0600, loaded per service through `env_file`. The committed key-only templates `deploy/.env.<app>.example` are kept in sync with each project's `appsettings.json` and `.env.example`.
 - **Separate Postgres.** It runs as its own instance, reached through an existing external Docker network named by `TECHSTRAP_DB_NETWORK`. Only the Api and the Worker join it.
 - **Images.** GHCR stays (`ghcr.io/syntax-circus/techstrap-*`). The compose requires an explicit image reference per service: there is no `latest` default.
 - **Delivery.** Its own PR before PHASE-08.
