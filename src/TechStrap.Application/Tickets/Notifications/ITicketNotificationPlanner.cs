@@ -5,7 +5,7 @@ using TechStrap.Domain.Tickets;
 namespace TechStrap.Application.Tickets.Notifications;
 
 /// <summary>A KB article a reply links: the planner turns it into <c>{portal}/p/{product key}/kb/{category}/{slug}</c> with the ticket's own product key.</summary>
-public sealed record ReplyArticleLink(string Title, string CategorySlug, string Slug);
+public sealed record ReplyArticleLink(string Title, string CategorySlug, string Slug, Guid ArticleId = default);
 
 /// <summary>
 /// Decides who is emailed about an agent action and stages outbox rows (template data only, D-033) in the caller's

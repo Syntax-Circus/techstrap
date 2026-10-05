@@ -126,6 +126,41 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
     }
 
     [Fact]
+    public async Task Review_Focus_5_long_non_ascii_titles_are_capped_in_the_payload_and_the_ids_travel_with_the_links()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        var id = Guid.NewGuid();
+        var links = Enumerable.Range(0, 10).Select(i => new ReplyArticleLink(new string('\u00e9', 200), "account", "slug-" + i, id)).ToArray();
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, (planner, ticket, sam, _) => planner.PlanAgentReplyAsync(ticket, AgentMessage(host, seed, sam), sam, false, links, Ct))))
+            .IsSuccess.ShouldBeTrue();
+
+        var payload = await TextAsync("SELECT payload::text FROM email_outbox");
+        payload.Length.ShouldBeLessThanOrEqualTo(16_000);
+        using var json = System.Text.Json.JsonDocument.Parse(payload);
+        var articles = json.RootElement.GetProperty("articles").EnumerateArray().ToList();
+        articles.Count.ShouldBe(10);
+        articles.ShouldAllBe(a => a.GetProperty("title").GetString()!.Length == 120 && a.GetProperty("title").GetString()!.EndsWith("...") && a.GetProperty("articleId").GetGuid() == id);
+    }
+
+    [Fact]
+    public async Task Review_Focus_5_a_payload_that_would_still_exceed_the_outbox_cap_is_queued_without_the_article_list_never_skipped()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+        var links = Enumerable.Range(0, 10).Select(i => new ReplyArticleLink(new string('\u00e9', 200), new string('a', 900), new string('b', 900) + i, Guid.NewGuid())).ToArray();
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, (planner, ticket, sam, _) => planner.PlanAgentReplyAsync(ticket, AgentMessage(host, seed, sam), sam, false, links, Ct))))
+            .IsSuccess.ShouldBeTrue();
+
+        (await TextAsync("SELECT count(*)::text FROM email_outbox WHERE kind = 'agent-reply'")).ShouldBe("1");
+        var payload = await TextAsync("SELECT payload::text FROM email_outbox");
+        payload.Length.ShouldBeLessThanOrEqualTo(16_000);
+        payload.ShouldContain("\"articles\": null");
+    }
+
+    [Fact]
     public async Task A_reply_without_articles_queues_a_payload_with_no_article_list()
     {
         await using var host = NewHost();

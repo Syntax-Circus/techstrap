@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SyntaxCircus.Common;
+using TechStrap.Application.Intake;
 using TechStrap.Application.Persistence;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
@@ -30,6 +31,7 @@ public sealed class DrainEmailOutboxHandler(
     IEmailOutboxStore store,
     IProductRepository products,
     ITicketRepository tickets,
+    IKbRepository knowledgeBase,
     IEmailTemplateRenderer renderer,
     IOutboundEmailSender sender,
     IOptions<EmailOutboxWorkerOptions> options,
@@ -106,6 +108,7 @@ public sealed class DrainEmailOutboxHandler(
             }
 
             messageHtml = message.Body;
+            model = await DropStaleArticlesAsync(reply, product, productId, cancellationToken);
         }
 
         RenderedEmail rendered;
@@ -135,6 +138,34 @@ public sealed class DrainEmailOutboxHandler(
             new OutboundEmail(item.ToAddress, rendered.Subject, rendered.Text, rendered.Html, rendered.From, rendered.ReplyTo, OutboundMessageIds.For(item.Id)),
             cancellationToken);
         return result.IsFailure ? result.Errors[0].Code : null;
+    }
+
+    // D-044, Review Focus 5: the links were frozen when the reply was planned. Before sending, keep only the articles that are still Published, visible to
+    // the ticket's product and at the same portal address (one query per email). An entry without an article id (queued before this check) is kept as it is.
+    private async Task<AgentReplyEmail> DropStaleArticlesAsync(AgentReplyEmail reply, Product product, Guid productId, CancellationToken cancellationToken)
+    {
+        if (reply.Articles is not { Count: > 0 } articles)
+        {
+            return reply;
+        }
+
+        var ids = articles.Where(a => a?.ArticleId is not null).Select(a => a.ArticleId!.Value).ToList();
+        if (ids.Count == 0)
+        {
+            return reply;
+        }
+
+        var current = (await knowledgeBase.ListPublicLinkTargetsAsync(productId, ids, cancellationToken)).ToDictionary(t => t.ArticleId);
+        var kept = articles
+            .Where(a => a is not null && (a.ArticleId is not { } id
+                || (current.TryGetValue(id, out var target) && a.Url.EndsWith(PortalLinkOptions.ArticlePath(product.Key, target.CategorySlug, target.Slug), StringComparison.Ordinal))))
+            .ToList();
+        if (kept.Count < articles.Count)
+        {
+            logger.LogInformation("Dropped {Dropped} stale article links from an agent reply before sending.", articles.Count - kept.Count);
+        }
+
+        return reply with { Articles = kept.Count == 0 ? null : kept };
     }
 
     /// <summary>The one place that knows the kinds: deserialises and validates a payload, or names why it cannot be sent.</summary>

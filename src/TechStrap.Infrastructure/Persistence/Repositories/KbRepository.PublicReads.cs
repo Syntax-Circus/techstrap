@@ -103,6 +103,20 @@ internal sealed partial class KbRepository
         return new PublicKbArticleView(article.ToDomain(), category.Slug, category.Name, productKey);
     }
 
+    public async Task<IReadOnlyList<PublicKbLinkTarget>> ListPublicLinkTargetsAsync(Guid productId, IReadOnlyList<Guid> articleIds, CancellationToken cancellationToken)
+    {
+        if (articleIds.Count == 0)
+        {
+            return [];
+        }
+
+        var ids = articleIds.Distinct().ToList();
+        return await PublishedIn(productId)
+            .Where(article => ids.Contains(article.Id))
+            .Join(context.Set<KbCategoryRecord>(), article => article.CategoryId, category => category.Id, (article, category) => new PublicKbLinkTarget(article.Id, category.Slug, article.Slug))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<PublicKbCategoryCount>> ListPublicCategoriesAsync(Guid productId, CancellationToken cancellationToken)
     {
         var counts = await PublishedIn(productId)

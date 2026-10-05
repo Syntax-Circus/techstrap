@@ -153,6 +153,15 @@ public sealed class EmailTemplateRendererTests
     }
 
     [Fact]
+    public void A_title_with_line_breaks_is_one_line_in_the_text_part_and_a_null_entry_is_skipped()
+    {
+        var email = Renderer().RenderAgentReply(
+            ReplyWith(null!, new ArticleLinkEntry("Two\r\n  lines\tand tab", "https://help.test/p/orbitly/kb/a/b")), "<p>See</p>", Orbitly);
+
+        email.Text.ShouldContain("- Two lines and tab: https://help.test/p/orbitly/kb/a/b\n");
+    }
+
+    [Fact]
     public void At_most_ten_articles_are_listed()
     {
         var articles = Enumerable.Range(1, 14).Select(i => new ArticleLinkEntry("Article " + i, $"https://help.test/p/orbitly/kb/a/slug-{i}")).ToArray();

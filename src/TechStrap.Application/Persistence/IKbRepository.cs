@@ -57,6 +57,13 @@ public interface IKbRepository
     /// </summary>
     Task<PublicKbArticleView?> GetPublicArticleAsync(Guid productId, string categorySlug, string slug, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// One query for a set of article ids: the Published ones visible to the product, filed in a category visible to the product, with their current category
+    /// slug and slug. An id missing from the result (draft, archived, deleted, another product, no category) must not be linked. The email drain uses it to
+    /// re-check links at send time (D-044).
+    /// </summary>
+    Task<IReadOnlyList<PublicKbLinkTarget>> ListPublicLinkTargetsAsync(Guid productId, IReadOnlyList<Guid> articleIds, CancellationToken cancellationToken);
+
     /// <summary>Categories visible to the product (its own and the shared ones) with their Published article counts, empty ones left out, sort order then name.</summary>
     Task<IReadOnlyList<PublicKbCategoryCount>> ListPublicCategoriesAsync(Guid productId, CancellationToken cancellationToken);
 

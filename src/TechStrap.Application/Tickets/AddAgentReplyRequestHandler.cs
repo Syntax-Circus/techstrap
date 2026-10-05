@@ -96,14 +96,14 @@ public sealed class AddAgentReplyRequestHandler(
             }
 
             var category = article.CategoryId is { } categoryId ? await kb.GetCategoryAsync(categoryId, cancellationToken) : null;
-            if (!IsLinkable(article, category, ticket.ProductId))
+            if (category is null || !IsLinkable(article, category, ticket.ProductId))
             {
                 return Fail(TicketErrors.Invalid(
                     "linkedArticleIds", "kb-article-not-linkable", "One of the linked articles is not published for this ticket's product. Remove it and try again."));
             }
 
             linked.Add(new LinkedArticleDto(article.Id, article.Title, article.Slug));
-            emailLinks.Add(new ReplyArticleLink(article.Title, category!.Slug, article.Slug));
+            emailLinks.Add(new ReplyArticleLink(article.Title, category.Slug, article.Slug, article.Id));
         }
 
         var html = sanitizer.Sanitize(markdown.ToHtml(request.Body ?? string.Empty));

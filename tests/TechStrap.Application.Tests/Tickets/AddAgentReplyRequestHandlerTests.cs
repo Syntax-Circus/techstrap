@@ -264,8 +264,8 @@ public sealed class AddAgentReplyRequestHandlerTests
             _ticket, Arg.Any<Message>(), _sam, false,
             Arg.Is<IReadOnlyList<ReplyArticleLink>>(links => links.SequenceEqual(new[]
             {
-                new ReplyArticleLink("Reset your password", "account", "second"),
-                new ReplyArticleLink("Reset your password", "account", "first"),
+                new ReplyArticleLink("Reset your password", "account", "second", second.Id),
+                new ReplyArticleLink("Reset your password", "account", "first", first.Id),
             })),
             Ct);
     }

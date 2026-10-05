@@ -18,4 +18,7 @@ public sealed record PublicKbArticleView(KbArticle Article, string CategorySlug,
 /// <summary>A category with the number of Published articles a product can see in it.</summary>
 public sealed record PublicKbCategoryCount(KbCategory Category, int ArticleCount);
 
+/// <summary>The current portal address parts of a Published article visible to a product, for re-checking a link queued earlier.</summary>
+public sealed record PublicKbLinkTarget(Guid ArticleId, string CategorySlug, string Slug);
+
 public sealed record PublicKbSitemapRow(string? ProductKey, string CategorySlug, string Slug, DateTimeOffset UpdatedAt);

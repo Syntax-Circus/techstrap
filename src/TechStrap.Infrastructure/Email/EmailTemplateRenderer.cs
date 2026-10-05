@@ -82,7 +82,7 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
             text.Append("Related articles:").Append('\n');
             foreach (var article in articles)
             {
-                text.Append($"- {article.Title}: {article.Url}").Append('\n');
+                text.Append($"- {OneLine(article.Title)}: {article.Url}").Append('\n');
             }
 
             text.Append('\n');
@@ -124,9 +124,11 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
         return Build(subject, text.ToString(), Layout(branding, colors, body.ToString(), showPoweredBy), branding);
     }
 
+    private static string OneLine(string value) => System.Text.RegularExpressions.Regex.Replace(value, @"\s+", " ").Trim();
+
     // At most the reply limit, and only absolute http or https addresses: a link that is not one is dropped rather than emailed broken (D-044).
     private static List<ArticleLinkEntry> WebArticleLinks(IReadOnlyList<ArticleLinkEntry>? articles) =>
-        [.. (articles ?? []).Where(article => IsWebUrl(article.Url) && !string.IsNullOrWhiteSpace(article.Title)).Take(TicketOperationLimits.MaxLinkedArticles)];
+        [.. (articles ?? []).Where(article => article is not null && IsWebUrl(article.Url) && !string.IsNullOrWhiteSpace(article.Title)).Take(TicketOperationLimits.MaxLinkedArticles)];
 
     public RenderedEmail RenderTicketSolved(TicketSolvedEmail model, EmailBranding branding)
     {
