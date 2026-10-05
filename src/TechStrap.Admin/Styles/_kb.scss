@@ -132,3 +132,79 @@
 .ts-kb-preview-empty {
   color: var(--ink-2);
 }
+
+// The categories page.
+.ts-kb-categories {
+  max-width: 1100px;
+}
+
+.ts-kb-category-description {
+  display: block;
+}
+
+.ts-kb-category-order {
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-kb-category-editing input[type="number"] {
+  max-width: 8rem;
+}
+
+// The article picker and the chips of the reply composer. A chip is a title and a Remove button, never colour alone; long titles wrap.
+.ts-composer-articles {
+  margin: 8px 0;
+}
+
+.ts-kb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding: 0;
+  margin: 0 0 8px;
+  list-style: none;
+}
+
+.ts-kb-chip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  max-width: 100%;
+  padding: 1px 4px 1px 8px;
+  background: var(--sheet);
+  border: 2px solid var(--rule-strong);
+}
+
+.ts-kb-chip-title {
+  font: 500 .8125rem var(--ts-font-mono);
+  overflow-wrap: anywhere;
+}
+
+.ts-kb-picker {
+  margin-top: 8px;
+}
+
+.ts-kb-picker-results {
+  padding: 0;
+  margin: 8px 0 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    align-items: center;
+    padding: 4px 0;
+    border-top: 1px solid var(--rule-strong);
+  }
+}
+
+.ts-kb-picker-title {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ts-kb-picker-state {
+  font-size: .8125rem;
+  color: var(--ink-2);
+}

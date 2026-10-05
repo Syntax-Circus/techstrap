@@ -1619,6 +1619,7 @@ PHASE-03 already delivered the KB tables, the unique `(product_id, slug)` indexe
 - **Images may point at any http or https address.** That includes internal-network hosts and mixed-content `http://` sources. A KB article is written by agents only, so this is part of the accepted tracking-pixel risk; the sanitiser adds `referrerpolicy="no-referrer"` and `loading="lazy"`.
 - **Public DTO text is plain text.** The portal must HTML-encode the search snippet, titles and names; only the article `Html` is markup that is already safe.
 - **Still open (owner):** the reverse proxy route for `/kb-images/`, and checking an uploaded image loads from the API public URL.
+- **Admin as built.** Publish and archive send the loaded version, so publishing text another agent has changed is a 409. A write whose answer is lost is held until a reload, except a picture upload, which changes no article until its address is added, so the agent just picks it again. The picker is behind a button and searches only Published articles of the ticket's product and the shared ones. "View on portal" is built from the Admin's own optional `TECHSTRAP_PORTAL_PUBLIC_URL` (the same key and four edits as the Api's; blank hides the link) and uses the first active product by name for a shared article. The Admin CSP needed no change: its Development `img-src` already allows loopback on any port and Production allows https.
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-08 planning)

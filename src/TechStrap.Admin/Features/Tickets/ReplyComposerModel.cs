@@ -1,4 +1,5 @@
 using System.Globalization;
+using TechStrap.Admin.Features.Kb;
 using TechStrap.Contracts.Tickets;
 
 namespace TechStrap.Admin.Features.Tickets;
@@ -17,6 +18,12 @@ public sealed class ComposerDraft
     public string PublicText { get; set; } = string.Empty;
 
     public string NoteText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The knowledge base articles the public reply will link (at most <see cref="TicketOperationLimits.MaxLinkedArticles"/>). They live in the draft, so switching to a note and back, a conflict reload and a
+    /// failed send all keep them; an accepted send takes out exactly the ones it sent. A note never sends them.
+    /// </summary>
+    public List<ArticleChoice> LinkedArticles { get; } = [];
 
     /// <summary>The status to apply on send: Pending by default, or empty for "leave unchanged". "Send and solve" does not use this.</summary>
     public string StatusAfter { get; set; } = ReplyComposerCopy.PendingValue;
@@ -109,6 +116,9 @@ public static class ReplyComposerCopy
 
     public const string ReplyFailed = $"Couldn't send the reply. {Kept}";
     public const string NoteFailed = "Couldn't add the note. Your text is kept.";
+
+    /// <summary>The API refused a linked article: it is not published, or it belongs to another product, or it is gone. It does not say which one.</summary>
+    public const string ArticleNotLinkable = "One of the linked articles can't be linked: it may have been unpublished, moved to another product or removed. Remove the articles you no longer want, then send again. Your text is kept.";
 
     /// <summary>A write that timed out, could not reach the API or got an unreadable answer may still have been saved: never offer a bare "Try again".</summary>
     public const string ReplyUncertain = $"The reply may already have been sent. {Kept} Check the timeline before sending again.";

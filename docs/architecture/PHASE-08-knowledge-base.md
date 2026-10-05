@@ -79,6 +79,12 @@ pages are in [Phase 09](PHASE-09-public-portal.md)). Feature folder
 | `ReplyComposer` (changed from P07) | Already paired; adds `ArticlePicker` and selected-article chips | `ReplyComposerViewModel` gains `LinkedArticleIds` | Draft preserves selected articles | `AddAgentReplyRequest.LinkedKbArticleIds` |
 | `LinkedArticlesList` (ticket timeline entry) | Inline | `LinkedArticleViewModel` built by timeline factory | Stateless | `MessageDto.LinkedArticles` |
 
+## As built (Admin)
+
+The Admin names follow the Contracts as built: the list row is `KbArticleListItemDto`, the picture answer is `KbImageUploadResponse`, the list query is `ListKbArticlesRequest`, and the reply carries `AddAgentReplyRequest.LinkedArticleIds`. Publish and archive send
+the loaded version (`?version=`) and answer the article. The preview pane (`KbPreviewPane`) and the message body (`MessageBubble`) are the only two `MarkupString` sites. The picker is behind a button, so a reply that links nothing never calls the knowledge base. Details and the gaps are in
+`docs/development/ADMIN-APP.md`, "Knowledge base (08)".
+
 ## Syntax Circus Packages
 
 Versions in [03-PACKAGE-MAP.md](03-PACKAGE-MAP.md). Markdig and HtmlSanitizer
@@ -98,7 +104,7 @@ are third-party NuGet packages (not Syntax Circus) already listed there.
 - [x] `IMarkdownRenderer`, `IHtmlSanitizer`, `IKbImageStore`, `IKbRepository` KB members and Infrastructure implementations.
 - [x] 12 agent handlers (including `RenderKbPreviewRequestHandler`) and 4 public handlers with controllers and DTOs in Contracts.
 - [ ] Reply-article linking validated and surfaced in the timeline.
-- [ ] Admin KB list, editor with live preview and image upload, categories page, article picker in the reply composer.
+- [x] Admin KB list, editor with live preview and image upload, categories page, article picker in the reply composer.
 - [x] Seed/demo KB data for local development.
 
 ## Actionable Tasks
@@ -139,28 +145,28 @@ are third-party NuGet packages (not Syntax Circus) already listed there.
 - [x] **P08-T12** Regenerate/check the OpenAPI document includes all KB operations with security schemes
   - **Depends on:** P08-T09
   - **Validation:** Api.Tests snapshot of `/openapi/v1.json` operation ids; reviewed diff.
-- [ ] **P08-T13** Add `IKbClient` (admin) with ProblemDetails -> `Result`, no retry on mutating calls, multipart image upload
+- [x] **P08-T13** Add `IKbClient` (admin) with ProblemDetails -> `Result`, no retry on mutating calls, multipart image upload
   - **Depends on:** P08-T09, P07 typed-client pattern
   - **Validation:** Stub-handler unit tests per method; multipart content-type and filename asserted.
-- [ ] **P08-T14** Add `IKbClient.PreviewAsync` (`POST /api/kb/preview`, no retry, cancellation on superseded requests) for the editor preview
+- [x] **P08-T14** Add `IKbClient.PreviewAsync` (`POST /api/kb/preview`, no retry, cancellation on superseded requests) for the editor preview
   - **Depends on:** P08-T03, P08-T13
   - **Validation:** Stub-handler tests: success returns the sanitized HTML, 400 maps to a `Result` failure, a superseded call is cancelled; Api.Tests assert the XSS corpus yields no executable output through `POST /api/kb/preview` and that non-agents get 401/403.
-- [ ] **P08-T15** Build `KbArticleListPage` and `KbStatusBadge`
+- [x] **P08-T15** Build `KbArticleListPage` and `KbStatusBadge`
   - **Depends on:** P08-T13
   - **Validation:** bUnit: filters call the client with expected parameters; empty/error states; status badges for each status constant.
-- [ ] **P08-T16** Build `MarkdownEditor` (debounced preview, snippet toolbar) and `KbPreviewPane`
+- [x] **P08-T16** Build `MarkdownEditor` (debounced preview, snippet toolbar) and `KbPreviewPane`
   - **Depends on:** P08-T14
   - **Validation:** bUnit with `FakeTimeProvider` and a fake `IKbClient`: rapid input yields one preview call; the pane renders the API's sanitized HTML as returned; a failed preview shows an inline error without losing the text; timer disposed on teardown.
-- [ ] **P08-T17** Build `KbArticleEditorPage` + `KbArticleEditorPresenter` (save, publish, archive, unsaved-changes guard, 409 handling)
+- [x] **P08-T17** Build `KbArticleEditorPage` + `KbArticleEditorPresenter` (save, publish, archive, unsaved-changes guard, 409 handling)
   - **Depends on:** P08-T15, P08-T16
   - **Validation:** bUnit: save sends concurrency token; publish disabled until required fields valid; 409 keeps the text and shows a banner; presenter unit-tested.
-- [ ] **P08-T18** Build `KbImageUploadButton` and insert returned image Markdown at the caret/end
+- [x] **P08-T18** Build `KbImageUploadButton` and insert returned image Markdown at the caret/end
   - **Depends on:** P08-T16
   - **Validation:** bUnit with `InputFile` test helper: oversize/wrong-type shows error without calling the API; success inserts `![alt](url)`.
-- [ ] **P08-T19** Build `KbCategoriesPage`
+- [x] **P08-T19** Build `KbCategoriesPage`
   - **Depends on:** P08-T13
   - **Validation:** bUnit: delete-blocked message on 409; reorder/sort order persisted via update call.
-- [ ] **P08-T20** Add `ArticlePicker` and linked-article chips to `ReplyComposer`; render linked articles in the timeline
+- [x] **P08-T20** Add `ArticlePicker` and linked-article chips to `ReplyComposer`; render linked articles in the timeline
   - **Depends on:** P08-T10, P08-T13, P07-T11
   - **Validation:** bUnit: selecting an article adds its id to the submit request; only published results offered; draft preserved on failure.
 

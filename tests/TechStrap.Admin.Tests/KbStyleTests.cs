@@ -43,6 +43,23 @@ public sealed class KbStyleTests
     }
 
     [Fact]
+    public void A_chip_and_a_picker_result_wrap_a_long_title_instead_of_stretching_the_composer()
+    {
+        Css.Declarations(".ts-kb-chip")["max-width"].ShouldBe("100%");
+        Css.Declarations(".ts-kb-chip-title")["overflow-wrap"].ShouldBe("anywhere");
+        Css.Declarations(".ts-kb-picker-title")["overflow-wrap"].ShouldBe("anywhere");
+        Css.Declarations(".ts-kb-picker-title")["min-width"].ShouldBe("0");
+        Css.Declarations(".ts-kb-chips")["flex-wrap"].ShouldBe("wrap");
+    }
+
+    [Fact]
+    public void The_sort_order_input_of_a_category_row_stays_narrow_and_the_numbers_line_up()
+    {
+        Css.Declarations(".ts-kb-category-editing input[type=number]")["max-width"].ShouldBe("8rem");
+        Css.Declarations(".ts-kb-category-order")["font-variant-numeric"].ShouldBe("tabular-nums");
+    }
+
+    [Fact]
     public void The_article_text_is_monospace_and_the_two_panes_can_shrink_below_their_content()
     {
         Css.Declarations(".ts-kb-textarea")["font-family"].ShouldBe("var(--ts-font-mono)");

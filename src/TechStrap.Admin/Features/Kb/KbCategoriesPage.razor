@@ -1,0 +1,168 @@
+@page "/kb/categories"
+@attribute [Authorize]
+
+<PageTitle>@KbCategoriesCopy.Heading &middot; @KbCopy.Heading</PageTitle>
+<div class="ts-settings ts-kb-categories">
+    <p class="ts-settings-back"><a href="/kb">&larr; @KbCategoriesCopy.BackToList</a></p>
+    <h1>@KbCategoriesCopy.Heading</h1>
+
+    <form class="ts-form ts-kb-category-create" novalidate @onsubmit="CreateAsync">
+        <h2>@KbCategoriesCopy.NewHeading</h2>
+        <fieldset disabled="@_creating">
+            <div class="ts-field">
+                <label for="ts-cat-product" class="form-label">@KbCategoriesCopy.ProductLabel</label>
+                <select id="ts-cat-product" class="form-select" aria-describedby="ts-cat-product-help" @onchange="OnNewProductChanged">
+                    <option value="" selected="@(_newProductId is null)">@KbCategoriesCopy.SharedOption</option>
+                    @foreach (var product in _products)
+                    {
+                        <option value="@product.Id" selected="@(_newProductId == product.Id)">@product.Name</option>
+                    }
+                </select>
+                <p id="ts-cat-product-help" class="ts-field-help">@KbCategoriesCopy.ProductHelp</p>
+            </div>
+            <div class="ts-field">
+                <label for="ts-cat-name" class="form-label">@KbCategoriesCopy.NameLabel</label>
+                <input id="ts-cat-name" type="text" class="form-control @(Err(_createErrors, ApiFields.Name) is null ? null : "is-invalid")" value="@_newName" autocomplete="off" @oninput="OnNewNameInput" @onblur="() => CheckCreate(ApiFields.Name)" />
+                @ErrorLine("ts-cat-name-error", Err(_createErrors, ApiFields.Name))
+            </div>
+            <div class="ts-field">
+                <label for="ts-cat-slug" class="form-label">@KbCategoriesCopy.SlugLabel</label>
+                <input id="ts-cat-slug" type="text" class="form-control @(Err(_createErrors, ApiFields.Slug) is null ? null : "is-invalid")" value="@_newSlug" autocomplete="off" spellcheck="false" @oninput="OnNewSlugInput" @onblur="() => CheckCreate(ApiFields.Slug)" />
+                <p class="ts-field-help">@KbCategoriesCopy.SlugHelp</p>
+                @ErrorLine("ts-cat-slug-error", Err(_createErrors, ApiFields.Slug))
+            </div>
+            <div class="ts-field">
+                <label for="ts-cat-description" class="form-label">@KbCategoriesCopy.DescriptionLabel</label>
+                <input id="ts-cat-description" type="text" class="form-control @(Err(_createErrors, ApiFields.Description) is null ? null : "is-invalid")" value="@_newDescription" autocomplete="off" @oninput="e => _newDescription = e.Value?.ToString() ?? string.Empty" @onblur="() => CheckCreate(ApiFields.Description)" />
+                <p class="ts-field-help">@KbCategoriesCopy.DescriptionHelp</p>
+                @ErrorLine("ts-cat-description-error", Err(_createErrors, ApiFields.Description))
+            </div>
+            <div class="ts-field">
+                <label for="ts-cat-order" class="form-label">@KbCategoriesCopy.SortOrderLabel</label>
+                <input id="ts-cat-order" type="number" class="form-control @(Err(_createErrors, ApiFields.SortOrder) is null ? null : "is-invalid")" value="@_newSortOrder" autocomplete="off" @oninput="OnNewSortOrderInput" @onblur="() => CheckCreate(ApiFields.SortOrder)" />
+                <p class="ts-field-help">@KbCategoriesCopy.SortOrderHelp</p>
+                @ErrorLine("ts-cat-order-error", Err(_createErrors, ApiFields.SortOrder))
+            </div>
+        </fieldset>
+        @if (_createFormError is not null)
+        {
+            <p class="ts-form-error" role="alert">@_createFormError</p>
+        }
+        <div class="ts-form-actions">
+            <button type="submit" class="btn btn-primary" disabled="@_creating">@(_creating ? KbCategoriesCopy.Creating : KbCategoriesCopy.Create)</button>
+        </div>
+    </form>
+
+    @if (_rowError is not null)
+    {
+        <div class="ts-conflict" role="alert">
+            <p>@_rowError</p>
+            @if (_rowReload)
+            {
+                <button type="button" class="btn btn-outline-secondary" @onclick="ReloadAsync">@KbCategoriesCopy.Reload</button>
+            }
+        </div>
+    }
+
+    @if (_loading && _rows.Count == 0)
+    {
+        <LoadingState Rows="4" Label="@KbCategoriesCopy.Loading" />
+    }
+    else if (_error is not null)
+    {
+        <ErrorState Message="@_error" OnRetry="ReloadAsync" />
+    }
+    else if (_rows.Count == 0)
+    {
+        <EmptyState Heading="@KbCategoriesCopy.NoCategories"><p>@KbCategoriesCopy.NoCategoriesHint</p></EmptyState>
+    }
+    else
+    {
+        <ScrollRegion Label="@KbCategoriesCopy.TableLabel">
+            <table role="table" class="table ts-ledger ts-settings-table">
+                <thead role="rowgroup">
+                    <tr role="row">
+                        <th role="columnheader" scope="col">@KbCategoriesCopy.ColumnName</th>
+                        <th role="columnheader" scope="col">@KbCategoriesCopy.ColumnScope</th>
+                        <th role="columnheader" scope="col">@KbCategoriesCopy.ColumnSlug</th>
+                        <th role="columnheader" scope="col">@KbCategoriesCopy.ColumnOrder</th>
+                        <th role="columnheader" scope="col"><span class="visually-hidden">@KbCategoriesCopy.ColumnActions</span></th>
+                    </tr>
+                </thead>
+                <tbody role="rowgroup">
+                    @foreach (var row in _rows)
+                    {
+                        @if (_editing == row.Id)
+                        {
+                            <tr role="row" @key="row.Id" class="ts-kb-category-editing" data-category="@row.Slug">
+                                <td role="cell">
+                                    <label for="ts-cat-edit-name" class="visually-hidden">@KbCategoriesCopy.NameLabel</label>
+                                    <input id="ts-cat-edit-name" type="text" class="form-control @(Err(_editErrors, ApiFields.Name) is null ? null : "is-invalid")" value="@_editName" autocomplete="off" @oninput="e => _editName = e.Value?.ToString() ?? string.Empty" />
+                                    @ErrorLine("ts-cat-edit-name-error", Err(_editErrors, ApiFields.Name))
+                                    <label for="ts-cat-edit-description" class="visually-hidden">@KbCategoriesCopy.DescriptionLabel</label>
+                                    <input id="ts-cat-edit-description" type="text" class="form-control @(Err(_editErrors, ApiFields.Description) is null ? null : "is-invalid")" value="@_editDescription" autocomplete="off" placeholder="@KbCategoriesCopy.DescriptionLabel" @oninput="e => _editDescription = e.Value?.ToString() ?? string.Empty" />
+                                    @ErrorLine("ts-cat-edit-description-error", Err(_editErrors, ApiFields.Description))
+                                </td>
+                                <td role="cell">@row.ProductName</td>
+                                <td role="cell"><code>@row.Slug</code></td>
+                                <td role="cell">
+                                    <label for="ts-cat-edit-order" class="visually-hidden">@KbCategoriesCopy.SortOrderLabel</label>
+                                    <input id="ts-cat-edit-order" type="number" class="form-control @(Err(_editErrors, ApiFields.SortOrder) is null ? null : "is-invalid")" value="@_editSortOrder" autocomplete="off" @oninput="e => _editSortOrder = e.Value?.ToString() ?? string.Empty" />
+                                    @ErrorLine("ts-cat-edit-order-error", Err(_editErrors, ApiFields.SortOrder))
+                                </td>
+                                <td role="cell" class="ts-settings-actions">
+                                    <button type="button" class="btn btn-primary ts-save" disabled="@_busy" @onclick="SaveEditAsync">@KbCategoriesCopy.Save</button>
+                                    <button type="button" class="btn btn-outline-secondary ts-cancel" disabled="@_busy" @onclick="CancelEdit">@KbCategoriesCopy.Cancel</button>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            <tr role="row" @key="row.Id" data-category="@row.Slug">
+                                <td role="cell">
+                                    @row.Name
+                                    @if (!string.IsNullOrWhiteSpace(row.Description))
+                                    {
+                                        <span class="ts-field-help ts-kb-category-description">@row.Description</span>
+                                    }
+                                </td>
+                                <td role="cell">@row.ProductName</td>
+                                <td role="cell"><code>@row.Slug</code></td>
+                                <td role="cell" class="ts-kb-category-order">@row.SortOrder</td>
+                                <td role="cell" class="ts-settings-actions">
+                                    <button type="button" class="btn btn-outline-secondary ts-edit" disabled="@_busy" @onclick="() => BeginEdit(row)">@KbCategoriesCopy.Edit</button>
+                                    @if (Session.IsAdmin)
+                                    {
+                                        <button type="button" class="btn btn-outline-secondary ts-delete" disabled="@_busy" @onclick="() => AskDelete(row)">@KbCategoriesCopy.Delete</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </ScrollRegion>
+    }
+
+    <ConfirmDialog Open="@(Deleting is not null)" Title="@(Deleting is null ? string.Empty : KbCategoriesCopy.DeleteTitle(Deleting.Name))" ConfirmLabel="@KbCategoriesCopy.DeleteConfirm"
+                   Danger="true" Busy="_deleteBusy" ConfirmDisabled="_deleteBlocked" Error="@_deleteError" OnConfirm="ConfirmDeleteAsync" OnCancel="CancelDelete">
+        <p>@KbCategoriesCopy.DeleteBody</p>
+        @if (_deleteUncertain)
+        {
+            <div class="ts-dialog-recovery">
+                <button type="button" class="btn btn-link" @onclick="ReloadAfterUncertainAsync">@KbCategoriesCopy.Reload</button>
+            </div>
+        }
+    </ConfirmDialog>
+</div>
+
+@code {
+    private static string? Err(Dictionary<string, string> errors, string field) => errors.GetValueOrDefault(field);
+
+    private RenderFragment ErrorLine(string id, string? message) => @<text>
+        @if (message is not null)
+        {
+            <p id="@id" class="ts-field-error" role="alert">@message</p>
+        }
+    </text>;
+}

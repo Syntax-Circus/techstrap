@@ -105,13 +105,15 @@ Describe 'D-044 (the knowledge base)' {
         }
     }
 
-    It 'ticks the API tasks P08-T01 to P08-T12 and the roadmap row says the phase is in progress' {
+    It 'ticks every PHASE-08 task P08-T01 to P08-T20 and the Admin deliverable, and the roadmap row says the phase is complete, pending merge' {
         $phase = Get-RepoText 'docs/architecture/PHASE-08-knowledge-base.md'
-        foreach ($number in 1..12) {
+        foreach ($number in 1..20) {
             $id = 'P08-T{0:00}' -f $number
             $phase | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is done"
         }
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 08 \|.*D-044.*\| In progress'
+        $phase | Should -Match '(?m)^- \[x\] Admin KB list, editor with live preview and image upload, categories page, article picker in the reply composer\.'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 08 \|.*D-044.*\| PHASE-08 complete \(pending merge\)'
+        (Get-RepoText 'docs/development/ADMIN-APP.md') | Should -Match '(?m)^## Knowledge base \(08\)'
     }
 
     It 'describes the dev knowledge base seed and the reply link rule' {

@@ -1,0 +1,41 @@
+<div class="ts-kb-picker">
+    <label for="@InputId" class="form-label">@ArticlePickerCopy.SearchLabel</label>
+    <input id="@InputId" type="search" class="form-control" autocomplete="off" spellcheck="false" disabled="@Disabled" value="@_text" aria-describedby="@($"{InputId}-help")" @oninput="OnInput" />
+    <p id="@($"{InputId}-help")" class="ts-field-help">@ArticlePickerCopy.SearchHelp</p>
+    <p class="visually-hidden" role="status">@_announcement</p>
+
+    @if (_loading)
+    {
+        <p class="ts-kb-picker-state">@ArticlePickerCopy.Searching</p>
+    }
+    @if (_error is not null)
+    {
+        <p class="ts-field-error" role="alert">@_error</p>
+    }
+    else if (_searched && !_loading && _results.Count == 0)
+    {
+        <p class="ts-kb-picker-state">@ArticlePickerCopy.NoResults</p>
+    }
+
+    @if (_results.Count > 0)
+    {
+        <ul class="ts-kb-picker-results" aria-label="@ArticlePickerCopy.ResultsLabel">
+            @foreach (var result in _results)
+            {
+                var added = IsSelected(result);
+                <li @key="result.Id" data-article="@result.Id">
+                    <span class="ts-kb-picker-title">@result.Title</span>
+                    @if (result.IsShared)
+                    {
+                        <span class="ts-pill">@KbCopy.Shared</span>
+                    }
+                    <button type="button" class="btn btn-outline-secondary" disabled="@(Disabled || added || AtLimit)" aria-label="@ArticlePickerCopy.AddLabel(result.Title)" @onclick="() => AddAsync(result)">@(added ? ArticlePickerCopy.Added : ArticlePickerCopy.Add)</button>
+                </li>
+            }
+        </ul>
+    }
+    @if (AtLimit)
+    {
+        <p class="ts-kb-picker-state" role="status">@ArticlePickerCopy.LimitReached(TicketOperationLimits.MaxLinkedArticles)</p>
+    }
+</div>
