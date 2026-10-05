@@ -1,0 +1,29 @@
+<dialog @ref="_dialog" class="ts-dialog ts-palette" data-palette aria-label="@PaletteCopy.Title"
+        @oncancel="CloseAsync" @oncancel:preventDefault="true">
+    <input @ref="_input" id="@InputId" type="text" class="form-control ts-palette-input" role="combobox" aria-expanded="true" aria-autocomplete="list"
+           aria-controls="@ListId" aria-activedescendant="@ActiveOptionId" aria-label="@PaletteCopy.InputLabel" autocomplete="off" spellcheck="false"
+           value="@_query" @oninput="OnQuery" />
+    <ul @ref="_list" id="@ListId" class="ts-palette-list" role="listbox" aria-label="@PaletteCopy.ListLabel">
+        @for (var i = 0; i < Matches.Count; i++)
+        {
+            var index = i;
+            var command = Matches[i];
+            <li @key="command.Id" id="@OptionId(index)" class="ts-palette-option" role="option" aria-selected="@(index == SelectedIndex ? "true" : "false")"
+                @onclick="() => RunAsync(command)">
+                <span class="ts-palette-label">@command.Label</span>
+                <span class="ts-palette-meta">
+                    <span class="ts-palette-group">@command.Group</span>
+                    @if (command.Keys is not null)
+                    {
+                        <Kbd>@command.Keys</Kbd>
+                    }
+                </span>
+            </li>
+        }
+    </ul>
+    @if (Matches.Count == 0)
+    {
+        <p class="ts-palette-empty">@PaletteCopy.Empty</p>
+    }
+    <p class="visually-hidden" role="status">@PaletteCopy.Count(Matches.Count)</p>
+</dialog>

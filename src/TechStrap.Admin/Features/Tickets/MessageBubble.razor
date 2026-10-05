@@ -1,4 +1,4 @@
-<TintedEntry Kind="Message.Kind" Author="@Message.Author" Time="@TicketDisplay.Relative(Message.At, Time.GetUtcNow())">
+<TintedEntry Kind="Message.Kind" Author="@Message.Author" When="Message.At">
     @* The ONE place the Admin renders HTML from the API. MessageDto.BodyHtml is sanitised on the server; nothing else may use MarkupString (MarkupStringSiteTests). *@
     <div class="ts-message-body">@((MarkupString)Message.BodyHtml)</div>
     <AttachmentList Items="Message.Attachments" />

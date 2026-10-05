@@ -34,6 +34,9 @@ public sealed class AttachmentPassThroughTests
         response.Content.Headers.ContentDisposition!.DispositionType.ShouldBe("attachment");
         response.Content.Headers.ContentDisposition.FileName.ShouldBe("logo.svg");
         response.Headers.GetValues("X-Content-Type-Options").ShouldBe(["nosniff"]);
+
+        // The shared security headers must not replace this: a download is sandboxed, whatever the page policy is.
+        response.Headers.GetValues("Content-Security-Policy").Single().Split(';', StringSplitOptions.TrimEntries).ShouldContain("sandbox");
         response.Headers.CacheControl!.NoStore.ShouldBeTrue();
         response.Headers.CacheControl.Private.ShouldBeTrue();
         // The agent's bearer token went to the API, and nowhere in the answer.
@@ -152,5 +155,31 @@ public sealed class AttachmentPassThroughTests
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    // The read client has no circuit breaker (ReadClientIsolationTests), so a transport failure or a timeout is all the pass-through can see.
+    [Theory]
+    [InlineData("transport")]
+    [InlineData("timeout")]
+    public async Task A_transport_failure_or_a_timeout_is_a_502_and_never_an_unhandled_error(string failure)
+    {
+        await using var factory = new AdminFactory();
+        var id = Guid.NewGuid();
+        factory.Api.On(HttpMethod.Get, $"/api/attachments/{id}", _ => failure == "transport" ? throw new HttpRequestException("connection refused") : throw new TimeoutException());
+        using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
+
+        using var response = await client.GetAsync($"/attachments/{id}", Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        (await response.Content.ReadAsStringAsync(Ct)).ShouldNotContain("connection refused");
+    }
+
+    [Fact]
+    public void The_pass_through_does_not_name_a_circuit_breaker_the_read_client_cannot_throw()
+    {
+        var source = System.IO.File.ReadAllText(TechStrap.Tests.Shared.RepositoryRoot.Combine("src", "TechStrap.Admin", "Clients", "AttachmentPassThrough.cs"));
+
+        source.ShouldNotContain("BrokenCircuitException", Case.Sensitive, "D-040: the read client has no circuit breaker, so that catch clause is dead code");
+        source.ShouldNotContain("Polly", Case.Sensitive);
     }
 }

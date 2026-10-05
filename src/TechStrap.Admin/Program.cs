@@ -1,19 +1,14 @@
-using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.DataProtection;
-using Sentry;
 using SyntaxCircus.AspNetCore.Common;
-using SyntaxCircus.AspNetCore.Serilog;
 using SyntaxCircus.Blazor.Auth;
 using SyntaxCircus.DotEnv;
-using SyntaxCircus.Observability;
 using TechStrap.Admin.Auth;
 using TechStrap.Admin.Clients;
 using TechStrap.Admin.Components;
 using TechStrap.Admin.Features.Shell;
 using TechStrap.Admin.Features.Tickets;
 using TechStrap.Admin.Options;
-using TechStrap.Hosting.Logging;
-using TechStrap.Hosting.Sentry;
+using TechStrap.Hosting.Security;
+using TechStrap.Hosting.Wiring;
 
 const string ServiceName = "techstrap-admin";
 
@@ -25,34 +20,14 @@ if (builder.Configuration.ShouldLoadDotEnv(builder.Environment))
     builder.Configuration.AddSyntaxCircusDotEnvFiles(builder.Environment.ContentRootPath);
 }
 
-var telemetry = builder.AddSyntaxCircusObservability(ServiceName);
-builder.AddStandardSerilog(configureEnrichment: logger =>
-{
-    telemetry.ConfigureSerilog(logger);
-    logger.Enrich.With<PiiRedactionEnricher>();
-});
-if (telemetry.Options.Sentry.IsEnabled)
-{
-    builder.WebHost.UseSentry(options =>
-    {
-        telemetry.ConfigureSentry(options, context =>
-            context.TransactionContext.Name.Contains("/health", StringComparison.OrdinalIgnoreCase)
-                || context.TransactionContext.Name.Contains("/_blazor", StringComparison.OrdinalIgnoreCase) ? 0d : null);
-        options.AddSensitiveHeaderScrubbing();
-        options.AutoSessionTracking = false;
-    });
-}
+var telemetry = builder.AddTechStrapObservability(ServiceName);
 
-builder.Services.AddCorrelationId();
-builder.Services.AddHealthChecks();
-// Trust X-Forwarded-* only from the reverse proxy. Production fails to start without configuration.
-builder.Services.AddTrustedProxyForwardedHeaders(builder.Configuration);
-// Antiforgery and circuit state need a stable key ring; containers mount a volume here.
-var keyRingPath = builder.Configuration["DataProtection:KeyRingPath"];
-if (!string.IsNullOrWhiteSpace(keyRingPath))
-{
-    builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(keyRingPath));
-}
+// Correlation id, health checks, trusted-proxy forwarded headers, the data-protection key ring, the host-wide HttpClient logging default and the security headers,
+// shared with the Portal (TechStrap.Hosting).
+// The Content-Security-Policy lets the sign-in and sign-out redirects reach the identity provider (form-action) and, in Development only, a product logo on localhost.
+builder.Services.AddTechStrapWebHost(
+    builder.Configuration,
+    TechStrapCsp.ForBlazorApp([TechStrapCsp.OriginOf(builder.Configuration["Auth:Authority"])], allowLoopbackImages: builder.Environment.IsDevelopment()));
 
 // Required settings are validated when the host starts (not read here), so a missing Auth or Api key stops the start with a clear message.
 builder.Services.AddAdminOptions(builder.Configuration);
@@ -60,9 +35,6 @@ builder.Services.AddBlazorTokenForwarding(builder.Configuration, AdminOptionsReg
 
 builder.Services.AddAdminAuthentication();
 builder.Services.AddCascadingAuthenticationState();
-// The default HttpClient logging handler writes raw request header values into structured log state at Trace (an OTLP exporter's x-api-key, an Authorization header). No factory client keeps it:
-// this default applies to every client the factory creates, the OTLP exporters' included, and removes only the logging handlers (auth, forwarded-IP and resilience handlers are untouched).
-builder.Services.ConfigureHttpClientDefaults(http => http.RemoveAllLoggers());
 // The named API clients, the typed clients over them and the scoped AgentSession (the layout's AgentGate asks it who is signed in).
 builder.Services.AddTechStrapApiClients();
 builder.Services.AddShell();
@@ -74,25 +46,10 @@ builder.Services.AddRazorComponents()
 var app = builder.Build();
 telemetry.LogStartupWarning(app.Logger);
 
-app.UseForwardedHeaders();
-app.UseCorrelationId();
-if (!app.Environment.IsDevelopment())
-{
-    // Plain error page for unhandled exceptions (BRAND.md section 3); the branded window is for the Admin 404 only.
-    app.UseExceptionHandler("/error", createScopeForErrors: true);
-}
-
-// An address that matches no page gets the branded 404 (re-executed, so the 404 status code is kept).
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-// BRAND.md section 3: humour never covers an error that blocks work, so only 404 is re-executed to the not-found page.
-app.Use(async (context, next) =>
-{
-    await next();
-    if (context.Response.StatusCode != StatusCodes.Status404NotFound)
-    {
-        context.Features.Get<IStatusCodePagesFeature>()?.Enabled = false;
-    }
-});
+// Forwarded headers, correlation id and security headers first, then the plain error page (BRAND.md section 3; the branded window is for the Admin 404 only)
+// and the branded 404, which is the only status that is re-executed.
+app.UseTechStrapWebHost(AttachmentPassThrough.Prefix);
+app.UseTechStrapErrorPages();
 // Order matters: the token cache middleware needs the authenticated user and must run before antiforgery (SyntaxCircus.Blazor.Auth).
 app.UseAuthentication();
 app.UseAuthorization();

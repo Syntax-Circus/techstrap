@@ -51,6 +51,49 @@ public sealed class ShortcutServiceTests : AdminComponentTest
         ShortcutService.Map(Key("Enter", ctrl: true, typing: true, scope: ShortcutService.ComposerScope), singleKeyEnabled: false).ShouldBe(ShortcutAction.Send);
     }
 
+    [Theory]
+    [InlineData("k", false, true)]
+    [InlineData("K", false, true)]
+    [InlineData("k", true, false)]
+    [InlineData("K", true, false)]
+    public void Ctrl_K_and_Cmd_K_open_the_palette_from_anywhere_whatever_the_single_key_switch_says(string key, bool meta, bool ctrl)
+    {
+        var press = new KeyPress(key, ctrl, meta, Alt: false, Typing: true, OnBody: false, Scope: null);
+
+        ShortcutService.Map(press, singleKeyEnabled: true).ShouldBe(ShortcutAction.Palette);
+        ShortcutService.Map(press, singleKeyEnabled: false).ShouldBe(ShortcutAction.Palette);
+    }
+
+    [Fact]
+    public void A_bare_k_is_still_move_up_and_Ctrl_Alt_K_and_other_chords_are_nothing()
+    {
+        ShortcutService.Map(Key("k"), singleKeyEnabled: true).ShouldBe(ShortcutAction.MoveUp);
+        ShortcutService.Map(Key("k", ctrl: true, alt: true), singleKeyEnabled: true).ShouldBeNull();
+        ShortcutService.Map(Key("j", ctrl: true), singleKeyEnabled: true).ShouldBeNull();
+        ShortcutService.Map(Key("Enter", ctrl: true, scope: ShortcutService.ComposerScope), singleKeyEnabled: true).ShouldBe(ShortcutAction.Send);
+    }
+
+    [Fact]
+    public async Task Raising_an_action_tells_every_subscriber_in_order_without_a_key_press()
+    {
+        var seen = new List<string>();
+        ShortcutService.Pressed += action =>
+        {
+            seen.Add("first " + action);
+            return Task.CompletedTask;
+        };
+        ShortcutService.Pressed += action =>
+        {
+            seen.Add("second " + action);
+            return Task.CompletedTask;
+        };
+
+        await ShortcutService.RaiseAsync(ShortcutAction.AssignToMe);
+
+        seen.ShouldBe(["first AssignToMe", "second AssignToMe"]);
+        await Should.NotThrowAsync(() => new ShortcutService(Substitute.For<IJSRuntime>()).RaiseAsync(ShortcutAction.Reply));
+    }
+
     [Fact]
     public void Enter_and_the_arrows_are_left_alone_when_something_interactive_has_focus()
     {
@@ -180,7 +223,7 @@ public sealed class ShortcutServiceTests : AdminComponentTest
     {
         var listed = ShortcutCatalog.All.SelectMany(entry => entry.Keys.Split(" / ")).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var key in new[] { "j", "k", "Enter", "/", "r", "n", "e", "u", "?", "Esc", "Ctrl+Enter" })
+        foreach (var key in new[] { "j", "k", "Enter", "/", "r", "n", "e", "u", "?", "Esc", "Ctrl+Enter", "Ctrl+K", "Cmd+K" })
         {
             listed.ShouldContain(key);
         }

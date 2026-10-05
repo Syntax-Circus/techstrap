@@ -29,7 +29,7 @@ internal sealed class ApiHarness : IAsyncDisposable
 
     public IServiceProvider Services => _scope.ServiceProvider;
 
-    public static async Task<ApiHarness> CreateAsync(AdminTestPrincipal? principal = null, bool seedToken = true)
+    public static async Task<ApiHarness> CreateAsync(AdminTestPrincipal? principal = null, bool seedToken = true, TimeProvider? time = null)
     {
         principal ??= AdminTestPrincipal.Agent;
         var stub = new StubApiHandler();
@@ -37,6 +37,12 @@ internal sealed class ApiHarness : IAsyncDisposable
 
         var services = new ServiceCollection();
         services.AddLogging();
+        if (time is not null)
+        {
+            // The resilience pipelines take their clock from the container, so a test can step through the retry delays instead of waiting for them.
+            services.AddSingleton(time);
+        }
+
         services.AddSingleton<IConfiguration>(configuration);
         services.AddBlazorTokenForwarding(configuration, "Auth");
         services.AddScoped<AuthenticationStateProvider>(_ => new FixedAuthenticationStateProvider(principal.ToClaimsPrincipal("Test")));

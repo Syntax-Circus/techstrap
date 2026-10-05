@@ -26,9 +26,10 @@ RUN grep -q '\.woff2' /app/publish/TechStrap.Admin.staticwebassets.endpoints.jso
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:80
-# curl backs the compose health checks. uid/gid 10001 is the fixed non-root runtime user.
+# curl backs the compose health checks. tzdata holds the IANA zone files that LocalTimeService reads (D-042); without it every time would fall back to UTC.
+# uid/gid 10001 is the fixed non-root runtime user.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl tzdata \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 techstrap \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin techstrap \

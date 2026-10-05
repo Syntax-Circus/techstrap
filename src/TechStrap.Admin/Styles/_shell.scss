@@ -1,4 +1,5 @@
-// Admin shell (BRAND.md section 14): a 208px left rail plus the main area. Under 820px the rail becomes a horizontal strip.
+// Admin shell (BRAND.md section 14): a 208px left rail plus the main area. Below 992px the rail becomes a bar across the top: the brand and a Menu button, with the links folded
+// away until the button opens them (aria-expanded). From 992px the button is hidden and the links are always shown.
 
 .ts-shell {
   display: grid;
@@ -83,21 +84,32 @@
   border: 1px solid var(--rule-strong);
 }
 
+// The links, the admin group and the signed-in user. A plain column inside the rail on a wide screen, so the rail looks as it always did.
+.ts-rail-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ts-rail-toggle {
+  display: none;
+}
+
 .ts-main {
   min-width: 0;
 }
 
-@media (max-width: 820px) {
+@media (max-width: 991.98px) {
   .ts-shell {
     grid-template-columns: minmax(0, 1fr);
     min-height: 0;
   }
 
   .ts-rail {
-    flex-direction: row;
+    flex-flow: row wrap;
     align-items: center;
-    overflow-x: auto;
-    padding: 6px 8px;
+    padding: 6px 12px;
     border-right: 0;
     border-bottom: 1px solid var(--rule-strong);
   }
@@ -111,15 +123,78 @@
       width: 28px;
       height: 28px;
     }
+  }
 
-    span {
-      display: none;
+  // 44px is the comfortable touch size; WCAG 2.2 AA asks for 24px at least.
+  .ts-rail-toggle {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    margin-left: auto;
+    padding: 0 12px;
+    font: 600 .75rem var(--ts-font-mono);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: var(--sheet);
+    border: 2px solid var(--ink);
+
+    &[aria-expanded="true"] {
+      background: var(--sel);
+    }
+  }
+
+  // Folded away until the Menu button opens it. display: none keeps the links out of the tab order and away from a screen reader while they are closed.
+  .ts-rail-panel {
+    display: none;
+    flex-basis: 100%;
+    padding-top: 6px;
+
+    &[data-open="true"] {
+      display: flex;
     }
   }
 
   .ts-rail-link {
-    white-space: nowrap;
-    border-left: 0;
-    border-bottom: 3px solid transparent;
+    align-items: center;
+    min-height: 44px;
   }
+}
+
+// The notice over a page that stays mounted after the session expired (AgentGate, PHASE-07c). Plain and calm, like every state that blocks work (BRAND.md section 3);
+// brand tokens only, so both themes keep their contrast. The action is a link, at least 24px tall (WCAG 2.2 target size).
+.ts-session-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  margin: 0 0 12px;
+  color: var(--ink);
+  background: var(--sheet);
+  border: 2px solid var(--st-spam);
+  box-shadow: 3px 3px 0 var(--shadow);
+
+  p {
+    flex: 1 1 280px;
+    margin: 0;
+  }
+}
+
+.ts-session-banner-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 14px;
+  font: 600 .75rem var(--ts-font-mono);
+  letter-spacing: .05em;
+  color: var(--paper);
+  text-decoration: none;
+  text-transform: uppercase;
+  background: var(--ink);
+  border: 2px solid var(--ink);
 }

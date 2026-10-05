@@ -151,7 +151,7 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 - [ ] **P07-T02** [07a] Wire cookie + OIDC sign-in with `SaveTokens`, `offline_access`, `AddBlazorTokenForwarding`, `UseBlazorTokenCache` in the documented middleware order
   - **Depends on:** P07-T01
   - **Validation:** Manual sign-in against UAT/local Authentik reaches the shell; `GET /api/agents/me` succeeds with the forwarded token; request log shows no token values.
-  - **07a evidence (automated part):** `AdminSignInTests`, `AgentSessionTests`, `AgentGateTests`, `AgentAccessHostTests`, `AdminHostSmokeTests`, `AdminLeakTests`. The manual sign-in against a real provider is still open (Authentik is not set up; docs/development/ADMIN-APP.md)
+  - **07a evidence (automated part):** `AdminSignInTests`, `AgentSessionTests`, `AgentGateTests`, `AgentAccessHostTests`, `AdminHostSmokeTests`, `AdminLeakTests`. The manual sign-in against a real provider is still open (Authentik is not set up; docs/development/ADMIN-APP.md). **07c:** still open, for the same reason (owner action 7); everything that can be tested without a provider is, and 07c adds the CSP check of the sign-in and sign-out redirects to the owner's checklist
 - [x] **P07-T03** [07a] Extend the `tests/TechStrap.Admin.Tests` project (skeleton created in PHASE-02; add bUnit) and the `Shared/` primitives: `LoadingState`, `ErrorState`, `EmptyState`, `ConfirmDialog`, `StatusBadge`, `PriorityBadge`, `TagChip`, `PagerControl`
   - **Depends on:** P07-T02, P02 SCSS tokens
   - **Validation:** bUnit tests per component (render states, callback fires once, focus lands in dialog); no component beyond the inline ceiling lacks a `.razor.cs`.
@@ -160,14 +160,14 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
   - **Depends on:** P07-T03
   - **Validation:** bUnit: throwing child shows fallback and "Try again" recovers; unknown route renders not-found; non-agent principal sees no-access page.
   - **07a evidence:** `MainLayoutTests`, `ShellComponentTests`, `AgentGateTests`, `ReconnectAndErrorTests`
-- [ ] **P07-T05** [07a] Implement typed clients (`IAgentsClient`, `IProductsClient`, `ITagsClient`, `IAdminEventsClient`) over `ApiConnection` with ProblemDetails -> `Result` mapping, a retrying read client and a never-retrying write client (D-040)
+- [x] **P07-T05** [07a] Implement typed clients (`IAgentsClient`, `IProductsClient`, `ITagsClient`, `IAdminEventsClient`) over `ApiConnection` with ProblemDetails -> `Result` mapping, a retrying read client and a never-retrying write client (D-040)
   - **Depends on:** P07-T02
   - **Validation:** Unit tests with stub `HttpMessageHandler`: success, 400 field errors, 403, 409, 503 retry on GET only, cancellation token propagated.
-  - **07a evidence:** 07a: agents, products and tags clients (`ApiConnectionTests`, `ReferenceDataClientTests`); `IAdminEventsClient` is in the app (07b)
-- [ ] **P07-T06** [07a] Implement `ITicketsClient`, `IAttachmentsClient`, `IDeadLettersClient` (including `RowVersion` in the request body; replace local state with the returned `TicketStateDto` (D-036) and multipart reply submit (D-036))
+  - **07a evidence:** 07a: agents, products and tags clients (`ApiConnectionTests`, `ReferenceDataClientTests`); `IAdminEventsClient` is in the app (07b). **07c evidence:** a 401 on any call reaches `AgentSession` from `ApiConnection`, and the read retry's `Retry-After` is capped at 2 s (the session and resilience tests of 07c)
+- [x] **P07-T06** [07a] Implement `ITicketsClient`, `IAttachmentsClient`, `IDeadLettersClient` (including `RowVersion` in the request body; replace local state with the returned `TicketStateDto` (D-036) and multipart reply submit (D-036))
   - **Depends on:** P07-T05
   - **Validation:** Same stub-handler suite; 409 maps to a distinct `Result` error code constant used by components.
-  - **07a evidence:** 07a: `ITicketsClient`, `IRequestersClient`, the attachment pass-through (`TicketsClientTests`, `AttachmentPassThroughTests`); there is no `IAttachmentsClient` (the pass-through is an endpoint, D-017) and `IDeadLettersClient` is in the app (07b)
+  - **07a evidence:** 07a: `ITicketsClient`, `IRequestersClient`, the attachment pass-through (`TicketsClientTests`, `AttachmentPassThroughTests`); there is no `IAttachmentsClient` (the pass-through is an endpoint, D-017) and `IDeadLettersClient` is in the app (07b). The unchecked box was only the wording about `IAttachmentsClient`, which D-040 removed
 - [x] **P07-T07** [07a] Build `TicketQueuePage`, `QueueViewTabs`, `QueueFilterBar`, `TicketRow`, paging, with query-string state
   - **Depends on:** P07-T06, P07-T03
   - **Validation:** bUnit with fake `ITicketsClient`: each view tab requests the right filter; search debounce issues one call; empty/error/loading render; page change preserves filters.
@@ -216,13 +216,15 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
   - **Depends on:** P07-T06, P07-T03
   - **Validation:** bUnit: retry/discard call the matching client method and refresh; empty state shown when none.
   - **07b evidence:** `DeadLettersPageTests`, `AdminSettingsHostTests`
-- [ ] **P07-T19** [07c] Apply BRAND.md tokens/SCSS, responsive layout and accessibility pass per `UX-BRIEF-admin.md` (focus order, ARIA on dialogs/badges, contrast)
+- [x] **P07-T19** [07c] Apply BRAND.md tokens/SCSS, responsive layout and accessibility pass per `UX-BRIEF-admin.md` (focus order, ARIA on dialogs/badges, contrast)
   - **Depends on:** P07-T07, P07-T08, P07-T14
   - **Validation:** Manual checklist from UX-BRIEF-admin completed; keyboard-only run through queue -> reply -> solve; axe (browser extension) run has no critical findings (record in PR).
   - **Validation (PHASE-02 carry-over):** Admin must not use semantic `.text-{color}` or `.link-{color}` utilities in dark mode (they fail contrast there); use brand tokens or `.text-*-emphasis`. Add a `BrandWindow` heading-level parameter so standalone brand pages (404, sign-in) render an `h1`. The keyboard walk-through deferred from PHASE-02 happens here.
-- [ ] **P07-T20** [07c] Add Admin to compose and verify Dockerfile run; add admin architecture rules (no reference to Application/Infrastructure/EF; no `HttpClient` use in `.razor` files)
+  - **07c evidence:** `ResponsiveStyleTests` (rail fold at 992 px, queue cards at 768 px, scroll regions, composer order, forced colours, reduced motion), `RailToggleTests`, `RailLinkTests` (`aria-current`), `ScrollRegionSiteTests`, `CommandPaletteTests`, `TicketActionsMenuTests`, `HeadingHostTests` (one `h1` on the 404 and the sign-in page), `TicketPaletteCommandsTests`, the node tests `shortcuts`, `palette` and `menu`, and a headless-browser render of the queue and the rail at 1280, 800 and 390 px during development. **Still the owner's:** the checklist in docs/development/ADMIN-APP.md, the keyboard-only run through queue, reply and solve, and the axe run with its result in the PR; all need a signed-in session, so they wait for owner action 7. The `.text-{color}` carry-over: a search of the Admin markup and SCSS finds no use of them (nothing guards it).
+- [x] **P07-T20** [07c] Add Admin to compose and verify Dockerfile run; add admin architecture rules (no reference to Application/Infrastructure/EF; no `HttpClient` use in `.razor` files)
   - **Depends on:** P07-T02
   - **Validation:** `docker compose up` -> `/health/ready` 200; Architecture.Tests fail when a forbidden reference or `[Inject] HttpClient` in a component is introduced (verified by a deliberate failing sample).
+  - **07c evidence:** `scripts/Test-ComposeSmoke.ps1` (own project name and free ports, images built one by one, `up -d --wait`, Api and Admin `/health/ready` 200, Admin container healthy, `down` without `-v`; run result in the PR) and its Pester tests; the Admin architecture rules in `tests/TechStrap.Architecture.Tests`, each with a deliberate failing sample that proves it bites (package allowlist, no `HttpClient` in components, the `[ExcludeFromInteractiveRouting]` allowlist (authoritative reflection test `StaticPageReflectionTests` in Admin.Tests, plus a text rule that fails closed, both pinned to exact paths), no inline script, `on*=` attribute, inline style element or `<ImportMap>`); `Dockerfile.admin` installs `tzdata`.
 - [ ] **P07-T21** Moved to PHASE-12 (D-040): optional Playwright smoke tests for sign-in-free paths.
   - **Depends on:** P07-T11, P07-T20
   - **Validation:** Smoke run passes against compose with seed data in CI nightly (not blocking PRs).
@@ -275,8 +277,8 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 - [x] Carried forward from the PHASE-04 final review: Mark the Admin `/error` page `[AllowAnonymous]` when Admin auth lands. (done in PHASE-07a)
 - [x] [07b] Carried forward from the PHASE-04 final review: Return the `tag-in-use` count as a structured field, not only in the message text. (resolved differently in PHASE-07b, D-041: the count comes from `GET /api/tags/summary`; the 409 still carries it only in its message.)
 - [x] [07b] Carried forward from the PHASE-04 final review: Add an endpoint test for the admin agent-list fields (`Email`, `Role`, `IsActive`, `LastSeenAt`). (done in PHASE-07b, D-041)
-- [ ] [07c] Carried forward from the PHASE-07b final review: `AccentPreview` styles itself with an inline `style` attribute (validated `#RRGGBB` values only), so the 07c CSP needs `style-src-attr` or a CSSOM approach instead of `style-src 'self'` alone.
-- [ ] Carried forward from the PHASE-04 final review: Add an OpenAPI bearer security scheme so generated clients know the endpoints need a token (also needed by PHASE-11).
+- [x] [07c] Carried forward from the PHASE-07b final review: `AccentPreview` styles itself with an inline `style` attribute (validated `#RRGGBB` values only), so the 07c CSP needs `style-src-attr` or a CSSOM approach instead of `style-src 'self'` alone. (done in PHASE-07c, D-042: `style-src 'self'` plus `style-src-attr 'unsafe-inline'`)
+- [x] Carried forward from the PHASE-04 final review: Add an OpenAPI bearer security scheme so generated clients know the endpoints need a token (also needed by PHASE-11). (done in PHASE-07c, D-042: Bearer, ApiKey and TicketToken schemes, and a requirement on every operation that is not public)
 - [x] Carried forward from PHASE-06c (D-039): wire `PiiRedactionEnricher` into the Admin host's `AddStandardSerilog` call once the Admin handles requester data (done in PHASE-07a through TechStrap.Hosting, D-040; the Sentry header scrub is wired too).
 
 ## Handoff

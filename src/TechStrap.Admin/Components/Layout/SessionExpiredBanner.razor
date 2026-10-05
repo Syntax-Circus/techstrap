@@ -1,0 +1,6 @@
+@* Shown over a page that stays mounted (PHASE-07c): the agent's session ended while they were working. Nothing on the page is torn down, so an unsent
+   reply or note survives; "Sign in again" is a plain link, so it does not depend on the circuit, and it brings the agent back to this page. *@
+<div class="ts-session-banner" role="alert">
+    <p><strong>@GateCopy.SessionLapsedTitle</strong> @GateCopy.SessionLapsedBody</p>
+    <a class="ts-session-banner-action" href="@SignInHref">@GateCopy.SignInAgain</a>
+</div>

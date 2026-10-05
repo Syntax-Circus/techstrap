@@ -35,17 +35,18 @@ public sealed class UpdateProductRequestHandler(
             return Result<ProductDto>.Failure(actor.Errors[0]);
         }
 
-        var input = request.Branding;
-        var branding = ProductBranding.Create(input?.DisplayName, input?.LogoPath, input?.AccentColour, input?.FromAddress, input?.ReplyTo);
-        if (branding.IsFailure)
-        {
-            return Result<ProductDto>.Failure(branding.Error!.ToError());
-        }
-
         var product = await products.GetByIdAsync(productId, cancellationToken);
         if (product is null)
         {
             return Result<ProductDto>.Failure(ProductErrors.NotFound());
+        }
+
+        // The stored branding is passed in so a logo address saved before the logo rule, and left as it is, does not block the edit (ProductBranding.CreateForUpdate).
+        var input = request.Branding;
+        var branding = ProductBranding.CreateForUpdate(product.Branding, input?.DisplayName, input?.LogoPath, input?.AccentColour, input?.FromAddress, input?.ReplyTo);
+        if (branding.IsFailure)
+        {
+            return Result<ProductDto>.Failure(branding.Error!.ToError());
         }
 
         if (product.Version != request.Version)

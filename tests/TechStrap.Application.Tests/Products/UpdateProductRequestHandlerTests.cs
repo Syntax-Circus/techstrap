@@ -79,10 +79,64 @@ public sealed class UpdateProductRequestHandlerTests
         _products.DidNotReceive().Update(Arg.Any<Product>());
     }
 
+    private void StoreRelativeLogo() =>
+        _products.GetByIdAsync(_product.Id, Arg.Any<CancellationToken>()).Returns(Product.Restore(
+            _product.Id, "orbitly", "Orbitly", "ORB", ProductBranding.Restore("Orbitly", "/images/old-logo.png", "#1F6FEB", null, null), isActive: true, version: 7));
+
+    [Fact]
+    public async Task A_product_with_a_relative_logo_from_before_the_rule_can_be_renamed_with_the_logo_left_as_it_is()
+    {
+        StoreRelativeLogo();
+        var request = new UpdateProductRequest("Orbitly Cloud", new ProductBrandingRequest("Orbitly", "/images/old-logo.png", "#1F6FEB", null, null), true, 7);
+
+        var result = await Handler().HandleAsync(_product.Id, request, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Name.ShouldBe("Orbitly Cloud");
+        result.Value.Branding.LogoPath.ShouldBe("/images/old-logo.png");
+        _products.Received(1).Update(Arg.Any<Product>());
+        _events.Received(1).Add(Arg.Is<AdminEvent>(e => e.PayloadJson == "{\"changed\":[\"name\"]}"));
+    }
+
+    [Fact]
+    public async Task Changing_the_relative_logo_to_another_unsafe_address_is_still_a_field_error()
+    {
+        StoreRelativeLogo();
+        var request = new UpdateProductRequest("Orbitly", new ProductBrandingRequest("Orbitly", "/images/other.png", "#1F6FEB", null, null), true, 7);
+
+        var result = await Handler().HandleAsync(_product.Id, request, TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            error => error.Kind.ShouldBe(ResultErrorKind.Validation),
+            error => error.Target.ShouldBe("logo-path"),
+            error => error.Code.ShouldBe("logo-path-invalid"));
+        _products.DidNotReceive().Update(Arg.Any<Product>());
+    }
+
+    [Fact]
+    public async Task A_stored_product_with_a_good_logo_still_refuses_a_relative_one()
+    {
+        var request = new UpdateProductRequest("Orbitly", new ProductBrandingRequest("Orbitly", "/images/logo.png", "#1F6FEB", null, null), true, 7);
+
+        var result = await Handler().HandleAsync(_product.Id, request, TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("logo-path-invalid");
+    }
+
     [Fact]
     public async Task An_unknown_product_is_not_found()
     {
         var result = await Handler().HandleAsync(Guid.CreateVersion7(), new UpdateProductRequest("Orbitly", SameBranding, true, 7), TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().Kind.ShouldBe(ResultErrorKind.NotFound);
+    }
+
+    [Fact]
+    public async Task An_unknown_product_with_an_invalid_body_is_not_found_not_a_validation_error()
+    {
+        var request = new UpdateProductRequest("Orbitly", new ProductBrandingRequest("Orbitly", "javascript:alert(1)", "#1F6FEB", null, null), true, 7);
+
+        var result = await Handler().HandleAsync(Guid.CreateVersion7(), request, TestContext.Current.CancellationToken);
 
         result.Errors.ShouldHaveSingleItem().Kind.ShouldBe(ResultErrorKind.NotFound);
     }

@@ -65,9 +65,12 @@ public sealed class AttachmentDownloadEndpointTests(TestPostgres postgres) : IDi
         response.Headers.CacheControl!.NoStore.ShouldBeTrue();
         response.Headers.CacheControl.Private.ShouldBeTrue();
         response.Content.Headers.ContentLength.ShouldBe(Png.Length);
-        var csp = string.Join("; ", response.Headers.GetValues("Content-Security-Policy"));
-        csp.ShouldContain("sandbox");
-        csp.ShouldContain("frame-ancestors 'none'");
+        var header = response.Headers.GetValues("Content-Security-Policy").ShouldHaveSingleItem("one Content-Security-Policy header, not two that a browser would intersect");
+        var directives = header.Split(';', StringSplitOptions.TrimEntries);
+        directives.Count(d => d.StartsWith("sandbox", StringComparison.Ordinal)).ShouldBe(1);
+        directives.ShouldContain("sandbox", "a bare sandbox directive");
+        directives.ShouldContain("default-src 'none'", "the Api policy is kept under the sandbox");
+        directives.ShouldContain("frame-ancestors 'none'");
         using var counts = await sam.GetAsync("/api/tickets/counts", Ct);
         counts.StatusCode.ShouldBe(HttpStatusCode.OK);
         string.Join("; ", counts.Headers.GetValues("Content-Security-Policy")).ShouldNotContain("sandbox");

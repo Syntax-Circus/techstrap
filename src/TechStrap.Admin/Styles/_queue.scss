@@ -158,9 +158,9 @@
   color: var(--ink-2);
 }
 
-// Narrow screens drop Product, Requester and Priority first (UX open question 2 proposes this order).
-@media (max-width: 820px) {
-  .ts-ledger {
+// A tablet drops Product, Requester and Priority first (UX open question 2 proposes this order). Only the queue does: the settings tables keep every column and scroll.
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .ts-ledger--stack {
     .ts-col-product,
     .ts-col-requester,
     .ts-col-priority,
@@ -168,6 +168,100 @@
     th:nth-child(5),
     th:nth-child(7) {
       display: none;
+    }
+  }
+}
+
+// A phone shows one card per ticket instead of a table: the number, status and last activity on the first line, the subject across the full width, then
+// Product, Requester, Priority and Assignee with their names beside them (the data-label of each cell). The header row stays for a screen reader, and the
+// selected row keeps its bar on the left (the arrow in the first cell is dropped).
+@media (max-width: 767.98px) {
+  .ts-ledger--stack {
+    display: block;
+
+    thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+
+    tbody {
+      display: block;
+    }
+
+    tr {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px 12px;
+      align-items: baseline;
+      padding: 8px 12px 8px 14px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    td {
+      display: block;
+      min-width: 0;
+      padding: 0;
+      border: 0;
+    }
+
+    td[data-label]::before {
+      content: attr(data-label) ": ";
+      font: 500 .625rem var(--ts-font-mono);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--ink-2);
+    }
+
+    .ts-col-mark {
+      display: none;
+    }
+
+    .ts-col-number {
+      order: 1;
+    }
+
+    .ts-col-status {
+      order: 2;
+    }
+
+    .ts-col-activity {
+      order: 3;
+      margin-left: auto;
+    }
+
+    .ts-col-subject {
+      flex: 1 0 100%;
+      order: 4;
+      overflow-wrap: anywhere;
+    }
+
+    .ts-col-product {
+      order: 5;
+    }
+
+    .ts-col-requester {
+      order: 6;
+    }
+
+    .ts-col-priority {
+      order: 7;
+    }
+
+    .ts-col-assignee {
+      order: 8;
+    }
+
+    .ts-col-actions {
+      flex-basis: 100%;
+      order: 9;
+      text-align: left;
+    }
+
+    .ts-row--selected {
+      box-shadow: inset 3px 0 0 var(--margin);
     }
   }
 }

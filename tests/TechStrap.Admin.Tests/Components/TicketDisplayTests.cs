@@ -99,6 +99,42 @@ public sealed class TicketDisplayTests : AdminComponentTest
         TicketDisplay.Relative(now.AddSeconds(-secondsAgo), now).ShouldBe(expected);
     }
 
+    [Theory]
+    [InlineData("Europe/London", "2026-03-01T23:30:00Z", "2026-03-01")]
+    [InlineData("Europe/London", "2026-07-01T23:30:00Z", "2026-07-02")]
+    [InlineData("America/Los_Angeles", "2026-07-02T03:30:00Z", "2026-07-01")]
+    [InlineData("America/Los_Angeles", "2026-12-02T03:30:00Z", "2026-12-01")]
+    [InlineData("Pacific/Auckland", "2026-07-01T12:30:00Z", "2026-07-02")]
+    [InlineData("UTC", "2026-07-01T23:30:00Z", "2026-07-01")]
+    public void After_a_week_the_date_is_the_date_in_the_agents_zone(string zone, string utc, string expected)
+    {
+        var when = DateTimeOffset.Parse(utc, System.Globalization.CultureInfo.InvariantCulture);
+        var now = when.AddDays(30);
+
+        TicketDisplay.Relative(when, now, TimeZoneInfo.FindSystemTimeZoneById(zone)).ShouldBe(expected);
+    }
+
+    [Fact]
+    public void Within_a_week_the_zone_changes_nothing_and_no_zone_means_utc()
+    {
+        var now = new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero);
+        var tokyo = TimeZoneInfo.FindSystemTimeZoneById("Asia/Tokyo");
+
+        TicketDisplay.Relative(now.AddHours(-3), now, tokyo).ShouldBe("3 h ago");
+        TicketDisplay.Relative(now.AddDays(-8), now).ShouldBe("2026-09-26");
+        TicketDisplay.Relative(now.AddDays(-8), now, TimeZoneInfo.Utc).ShouldBe("2026-09-26");
+    }
+
+    [Fact]
+    public void The_tooltip_gives_the_local_time_and_the_utc_time()
+    {
+        var when = new DateTimeOffset(2026, 10, 4, 11, 55, 0, TimeSpan.Zero);
+
+        TicketDisplay.Absolute(when).ShouldBe("2026-10-04 11:55 UTC");
+        TicketDisplay.Absolute(when, TimeZoneInfo.Utc).ShouldBe("2026-10-04 11:55 UTC");
+        TicketDisplay.Absolute(when, TimeZoneInfo.FindSystemTimeZoneById("Europe/London")).ShouldBe("2026-10-04 12:55 Europe/London, 2026-10-04 11:55 UTC");
+    }
+
     [Fact]
     public void A_time_in_the_future_reads_as_just_now()
     {

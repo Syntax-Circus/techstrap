@@ -15,12 +15,14 @@ namespace TechStrap.Infrastructure.IntegrationTests;
 internal sealed class PersistenceTestHost : IAsyncDisposable
 {
     private readonly ServiceProvider _provider;
+    private readonly string _connectionString;
 
     public PersistenceTestHost(TestDatabase database, FakeTimeProvider? clock = null, Action<IServiceCollection>? configure = null)
     {
+        _connectionString = PooledConnectionString(database);
         Clock = clock ?? new FakeTimeProvider(new DateTimeOffset(2026, 10, 2, 9, 0, 0, TimeSpan.Zero));
         var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { [$"ConnectionStrings:{TechStrapDatabase.ConnectionStringName}"] = PooledConnectionString(database) })
+            .AddInMemoryCollection(new Dictionary<string, string?> { [$"ConnectionStrings:{TechStrapDatabase.ConnectionStringName}"] = _connectionString })
             .Build();
 
         var services = new ServiceCollection();
@@ -60,10 +62,10 @@ internal sealed class PersistenceTestHost : IAsyncDisposable
         await _provider.DisposeAsync();
 
         // Release this host's pooled connections so the per-test database can be dropped and sockets are not left lingering.
-        NpgsqlConnection.ClearAllPools();
+        NpgsqlConnection.ClearPool(new NpgsqlConnection(_connectionString));
     }
 
-    /// <summary>The fixture disables pooling; repository tests open many short connections, so they pool to avoid exhausting sockets.</summary>
+    /// <summary>The fixture's connection strings are pooled too (small pool); repository tests open many short connections concurrently, so this host asks for a larger pool.</summary>
     private static string PooledConnectionString(TestDatabase database) =>
         new NpgsqlConnectionStringBuilder(database.ConnectionString) { Pooling = true, MaxPoolSize = 80 }.ConnectionString;
 }

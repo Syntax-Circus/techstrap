@@ -1,8 +1,10 @@
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using SyntaxCircus.Blazor.Auth;
 using SyntaxCircus.Common;
+using TechStrap.Admin.Auth;
 
 namespace TechStrap.Admin.Clients;
 
@@ -12,7 +14,7 @@ namespace TechStrap.Admin.Clients;
 /// <see cref="Result"/>. It does not use ApiClientBase because that drops the <c>errorCodes</c> the API sends and has no Result mapping. Cancellation by the
 /// caller propagates as <see cref="OperationCanceledException"/>; it is never turned into a Result. One instance per scope (circuit).
 /// </summary>
-internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
+internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients, SessionExpiry expiry)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -27,6 +29,11 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
     /// <summary>GET through the retrying read client.</summary>
     public async Task<Result<T>> GetAsync<T>(string uri, CancellationToken cancellationToken)
     {
+        if (expiry.IsLapsed)
+        {
+            return Result<T>.Failure(Lapsed());
+        }
+
         using var request = new HttpRequestMessage(HttpMethod.Get, uri);
         return await SendAsync<T>(ReadClient, request, cancellationToken);
     }
@@ -34,6 +41,11 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
     /// <summary>A POST, PUT or DELETE with an optional JSON body, through the write client; the answer carries a JSON body.</summary>
     public async Task<Result<T>> SendAsync<T>(HttpMethod method, string uri, object? body, CancellationToken cancellationToken)
     {
+        if (expiry.IsLapsed)
+        {
+            return Result<T>.Failure(Lapsed());
+        }
+
         using var request = new HttpRequestMessage(method, uri) { Content = body is null ? null : JsonContent.Create(body, body.GetType(), options: Json) };
         return await SendAsync<T>(WriteClient, request, cancellationToken);
     }
@@ -41,6 +53,11 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
     /// <summary>A POST, PUT or DELETE with an optional JSON body, through the write client; success has no body (204).</summary>
     public async Task<Result> SendAsync(HttpMethod method, string uri, object? body, CancellationToken cancellationToken)
     {
+        if (expiry.IsLapsed)
+        {
+            return Result.Failure(Lapsed());
+        }
+
         using var request = new HttpRequestMessage(method, uri) { Content = body is null ? null : JsonContent.Create(body, body.GetType(), options: Json) };
         return await SendAsync(WriteClient, request, cancellationToken);
     }
@@ -48,17 +65,29 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
     /// <summary>A write with a prepared body (the multipart reply). The content is used once: the caller builds a new one for every attempt.</summary>
     public async Task<Result<T>> SendContentAsync<T>(HttpMethod method, string uri, HttpContent content, CancellationToken cancellationToken)
     {
+        if (expiry.IsLapsed)
+        {
+            return Result<T>.Failure(Lapsed());
+        }
+
         using var request = new HttpRequestMessage(method, uri) { Content = content };
         return await SendAsync<T>(WriteClient, request, cancellationToken);
     }
 
-    private static async Task<Result<T>> SendAsync<T>(HttpClient client, HttpRequestMessage request, CancellationToken cancellationToken)
+    /// <summary>
+    /// What every call answers once the session has lapsed, without touching the network: the access token was evicted by the 401, so a request could only go out
+    /// unauthenticated (a write that cannot succeed, a log line carrying the path and query). The agent signs in again, which starts a new circuit.
+    /// </summary>
+    private static ResultError Lapsed() => new(ApiErrorCodes.Unauthenticated, SessionExpiry.ExpiredMessage, ResultErrorKind.Unauthenticated);
+
+    private async Task<Result<T>> SendAsync<T>(HttpClient client, HttpRequestMessage request, CancellationToken cancellationToken)
     {
         try
         {
             using var response = await client.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
+                ReportIfUnauthenticated(response);
                 var errors = ProblemMapping.Map(response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken));
                 return Result<T>.Failure(errors[0], [.. errors.Skip(1)]);
             }
@@ -77,7 +106,7 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
         }
     }
 
-    private static async Task<Result> SendAsync(HttpClient client, HttpRequestMessage request, CancellationToken cancellationToken)
+    private async Task<Result> SendAsync(HttpClient client, HttpRequestMessage request, CancellationToken cancellationToken)
     {
         try
         {
@@ -87,6 +116,7 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
                 return Result.Success();
             }
 
+            ReportIfUnauthenticated(response);
             var errors = ProblemMapping.Map(response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken));
             return Result.Failure(errors[0], [.. errors.Skip(1)]);
         }
@@ -97,6 +127,18 @@ internal sealed class ApiConnection(IBlazorCircuitHttpClientFactory httpClients)
         catch (Exception ex) when (Transport(ex, cancellationToken) is { } error)
         {
             return Result.Failure(error);
+        }
+    }
+
+    /// <summary>
+    /// A 401 means the agent's session is over (the access token was refused and could not be renewed). Every call passes here, so one report moves
+    /// <see cref="AgentSession"/> to SessionExpired and no page needs code of its own. Only the status is looked at; nothing about the request is reported.
+    /// </summary>
+    private void ReportIfUnauthenticated(HttpResponseMessage response)
+    {
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            expiry.Report();
         }
     }
 

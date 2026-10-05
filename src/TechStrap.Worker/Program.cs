@@ -4,6 +4,8 @@ using SyntaxCircus.AspNetCore.Serilog;
 using SyntaxCircus.DotEnv;
 using SyntaxCircus.Observability;
 using TechStrap.Hosting.Logging;
+using TechStrap.Hosting.Sentry;
+using TechStrap.Hosting.Wiring;
 using TechStrap.Infrastructure.AutoClose;
 using TechStrap.Infrastructure.Email;
 using TechStrap.Infrastructure.Persistence;
@@ -33,11 +35,15 @@ if (telemetry.Options.Sentry.IsEnabled)
     {
         telemetry.ConfigureSentry(options, context =>
             context.TransactionContext.Name.Contains("/health", StringComparison.OrdinalIgnoreCase) ? 0d : null);
+        // The same scrubbers as every other host: the Worker serves only health checks, but an exception message or breadcrumb it sends must not carry a credential or a search either.
+        options.AddSensitiveHeaderScrubbing();
         options.AutoSessionTracking = false;
     });
 }
 
 builder.Services.AddCorrelationId();
+// No HttpClient the factory creates (the OTLP exporters' included) logs its request headers: the default logging writes Authorization and x-api-key at Trace.
+builder.Services.AddTechStrapHttpClientDefaults();
 builder.Services.AddTechStrapPersistence();
 builder.Services.AddTechStrapEmail(builder.Configuration);
 builder.Services.AddHostedService<EmailOutboxWorker>();

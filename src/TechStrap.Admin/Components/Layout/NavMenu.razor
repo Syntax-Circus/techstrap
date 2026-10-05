@@ -3,34 +3,38 @@
         <img src="brand/mark.svg" alt="" width="36" height="36" />
         <span>TechStrap<small>Call log / admin</small></span>
     </a>
-    @if (Session.State == AgentSessionState.Ready)
+    @if (Session.IsAdmitted)
     {
-        <NavLink class="ts-rail-link" href="/queue" Match="NavLinkMatch.Prefix">@ShellCopy.QueueLink</NavLink>
-        @if (Session.IsAdmin)
-        {
-            <div class="ts-rail-group" role="group" aria-label="@ShellCopy.AdminLinksLabel">
-                <NavLink class="ts-rail-link" href="/settings/products" Match="NavLinkMatch.Prefix">@ShellCopy.ProductsLink</NavLink>
-                <NavLink class="ts-rail-link" href="/settings/agents" Match="NavLinkMatch.Prefix">@ShellCopy.AgentsLink</NavLink>
-                <NavLink class="ts-rail-link" href="/settings/tags" Match="NavLinkMatch.Prefix">@ShellCopy.TagsLink</NavLink>
-                <NavLink class="ts-rail-link" href="/settings/audit" Match="NavLinkMatch.Prefix">@ShellCopy.AuditLink</NavLink>
-                <NavLink class="ts-rail-link" href="/ops/dead-letters" Match="NavLinkMatch.Prefix">
-                    @ShellCopy.FailedEmailsLink
-                    @if (Failed.Count is > 0 and var failed)
-                    {
-                        <span class="ts-rail-badge" aria-hidden="true">@failed</span>
-                        <span class="visually-hidden">@ShellCopy.FailedEmailsCountLabel(failed)</span>
-                    }
-                </NavLink>
-            </div>
-        }
-        <div class="ts-rail-user">
-            <span class="ts-rail-name">@DisplayName</span>
+        @* Below 992 px the links fold away behind this button (_shell.scss); from 992 px up the button is hidden and the panel is always shown. *@
+        <button @ref="_toggle" type="button" class="ts-rail-toggle" aria-expanded="@(_railOpen ? "true" : "false")" aria-controls="@PanelId" @onclick="ToggleRail">@ShellCopy.MenuToggle</button>
+        <div @ref="_panel" id="@PanelId" class="ts-rail-panel" data-open="@(_railOpen ? "true" : "false")">
+            <RailLink Href="/queue">@ShellCopy.QueueLink</RailLink>
             @if (Session.IsAdmin)
             {
-                <span class="ts-rail-role">Admin</span>
+                <div class="ts-rail-group" role="group" aria-label="@ShellCopy.AdminLinksLabel">
+                    <RailLink Href="/settings/products">@ShellCopy.ProductsLink</RailLink>
+                    <RailLink Href="/settings/agents">@ShellCopy.AgentsLink</RailLink>
+                    <RailLink Href="/settings/tags">@ShellCopy.TagsLink</RailLink>
+                    <RailLink Href="/settings/audit">@ShellCopy.AuditLink</RailLink>
+                    <RailLink Href="/ops/dead-letters">
+                        @ShellCopy.FailedEmailsLink
+                        @if (Failed.Count is > 0 and var failed)
+                        {
+                            <span class="ts-rail-badge" aria-hidden="true">@failed</span>
+                            <span class="visually-hidden">@ShellCopy.FailedEmailsCountLabel(failed)</span>
+                        }
+                    </RailLink>
+                </div>
             }
-            <NavLink class="ts-rail-link" href="/account/notifications" Match="NavLinkMatch.Prefix">@ShellCopy.MySettingsLink</NavLink>
-            <SignOutForm />
+            <div class="ts-rail-user">
+                <span class="ts-rail-name">@DisplayName</span>
+                @if (Session.IsAdmin)
+                {
+                    <span class="ts-rail-role">Admin</span>
+                }
+                <RailLink Href="/account/notifications">@ShellCopy.MySettingsLink</RailLink>
+                <SignOutForm />
+            </div>
         </div>
     }
 </nav>

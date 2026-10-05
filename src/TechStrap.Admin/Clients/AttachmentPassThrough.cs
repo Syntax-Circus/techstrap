@@ -9,9 +9,16 @@ namespace TechStrap.Admin.Clients;
 /// (<c>Content-Disposition: attachment</c>), <c>nosniff</c> and no caching, whatever the API sent. An upstream 404 is a 404; the API alone decides who may read a file.
 /// This is a request-scoped call (HttpContext present), so the auth handler resolves the token from the cookie, not from a circuit.
 /// </summary>
+/// <remarks>
+/// Unlike the circuit's API calls it has no <c>SessionExpiry</c> short-circuit, on purpose: it runs in its own request scope (not the circuit's), takes the agent's token from the cookie, and sends
+/// nothing but a GUID path, so a lapsed circuit has no search text to protect here, and the API's own 401 is passed on as a 401.
+/// </remarks>
 public static class AttachmentPassThrough
 {
     public const string Route = "/attachments/{id:guid}";
+
+    /// <summary>The path every download is under. The host adds <c>sandbox</c> to the Content-Security-Policy of these responses (the shared security headers would overwrite a value set here).</summary>
+    public const string Prefix = "/attachments";
 
     public static IEndpointRouteBuilder MapAttachmentPassThrough(this IEndpointRouteBuilder endpoints)
     {
@@ -28,7 +35,7 @@ public static class AttachmentPassThrough
         {
             upstream = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TimeoutException or Polly.CircuitBreaker.BrokenCircuitException
+        catch (Exception ex) when (ex is HttpRequestException or TimeoutException
                                        || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
         {
             http.Response.StatusCode = StatusCodes.Status502BadGateway;

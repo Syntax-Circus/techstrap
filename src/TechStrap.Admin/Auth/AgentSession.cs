@@ -25,16 +25,31 @@ public enum AgentSessionState
 /// <summary>
 /// Who the signed-in user is, according to the API (D-040). The Admin does not parse group claims: the first call of a circuit is <c>GET /api/agents/me</c>,
 /// which also creates the agent row that every ticket call needs, and its answer decides everything. Components that show ticket data sit inside
-/// <c>AgentGate</c>, which renders them only when <see cref="State"/> is <see cref="AgentSessionState.Ready"/>, so NoAccess always wins and no ticket call
+/// <c>AgentGate</c>, which renders them only when <see cref="IsAdmitted"/> (Ready, or expired while working), so NoAccess always wins and no ticket call
 /// precedes a successful <c>/me</c>. Scoped: one per circuit (and one per prerender request).
 /// </summary>
-public sealed class AgentSession(IAgentsClient agents)
+public sealed class AgentSession
 {
+    private readonly IAgentsClient _agents;
     private Task? _loading;
+    private bool _expiredWhileWorking;
+
+    /// <param name="agents">The API client that answers <c>GET /api/agents/me</c>.</param>
+    /// <param name="expiry">
+    /// Reports a 401 from any later API call. Optional so a test can build a session over a substitute client alone; the app always registers it.
+    /// </param>
+    public AgentSession(IAgentsClient agents, SessionExpiry? expiry = null)
+    {
+        _agents = agents;
+        if (expiry is not null)
+        {
+            expiry.Lapsed += OnLapsed;
+        }
+    }
 
     public AgentSessionState State { get; private set; }
 
-    /// <summary>The signed-in agent when <see cref="State"/> is Ready.</summary>
+    /// <summary>The signed-in agent when <see cref="State"/> is Ready, and still set when the session expired while working (<see cref="ExpiredWhileWorking"/>).</summary>
     public AgentDto? Agent { get; private set; }
 
     /// <summary>The API's error code when the state is NoAccess, SessionExpired or Unavailable (for example agent-inactive).</summary>
@@ -44,7 +59,17 @@ public sealed class AgentSession(IAgentsClient agents)
     public string? ErrorMessage { get; private set; }
 
     /// <summary>Admin-only actions (delete, erase) show only for an Admin. The API still enforces it.</summary>
-    public bool IsAdmin => State == AgentSessionState.Ready && Agent?.Role == AgentRoles.Admin;
+    public bool IsAdmin => IsAdmitted && Agent?.Role == AgentRoles.Admin;
+
+    /// <summary>
+    /// True when the session ended (a 401) after the API had let the agent in. <see cref="State"/> is SessionExpired but <see cref="Agent"/> is still set, and the
+    /// layout keeps the page mounted with a banner, so what the agent was typing survives until they sign in again. A 401 on the very first
+    /// <c>/me</c> is not this: there is no agent and no page content yet, so the gate shows the full session-expired page.
+    /// </summary>
+    public bool ExpiredWhileWorking => State == AgentSessionState.SessionExpired && Agent is not null;
+
+    /// <summary>True when the pages and the rail may show: the agent is Ready, or was Ready when the session expired (<see cref="ExpiredWhileWorking"/>).</summary>
+    public bool IsAdmitted => State == AgentSessionState.Ready || ExpiredWhileWorking;
 
     /// <summary>Raised after every state change so the gate and the navigation can re-render.</summary>
     public event Action? Changed;
@@ -82,7 +107,7 @@ public sealed class AgentSession(IAgentsClient agents)
     {
         try
         {
-            Apply(await agents.GetMeAsync(cancellationToken), keepReadyOnTransientFailure);
+            Apply(await _agents.GetMeAsync(cancellationToken), keepReadyOnTransientFailure);
         }
         finally
         {
@@ -102,7 +127,7 @@ public sealed class AgentSession(IAgentsClient agents)
     /// </summary>
     public async Task ReloadAsync(CancellationToken cancellationToken)
     {
-        var keepReady = State == AgentSessionState.Ready;
+        var keepReady = IsAdmitted;
         if (!keepReady)
         {
             State = AgentSessionState.NotLoaded;
@@ -122,8 +147,63 @@ public sealed class AgentSession(IAgentsClient agents)
         }
     }
 
+    /// <summary>
+    /// A load that could not even be attempted (an unexpected exception, not an API answer): show the Unavailable state with its Retry button instead of
+    /// ending the circuit. Ready and NoAccess are final and are not touched.
+    /// </summary>
+    public void MarkUnavailable()
+    {
+        if (State is AgentSessionState.Ready or AgentSessionState.NoAccess)
+        {
+            return;
+        }
+
+        Agent = null;
+        ErrorCode = ApiErrorCodes.ApiUnavailable;
+        ErrorMessage = "TechStrap could not check your access. Try again in a moment.";
+        State = AgentSessionState.Unavailable;
+        Changed?.Invoke();
+    }
+
+    private void OnLapsed()
+    {
+        // Before the agent is admitted the first /me answers for itself (Apply); only a lapse after that is a mid-session expiry.
+        if (Agent is not null)
+        {
+            Expire();
+        }
+    }
+
+    private void Expire()
+    {
+        if (State == AgentSessionState.SessionExpired)
+        {
+            _expiredWhileWorking = true;
+            return;
+        }
+
+        ErrorCode = ApiErrorCodes.Unauthenticated;
+        ErrorMessage = SessionExpiry.ExpiredMessage;
+        _expiredWhileWorking = true;
+        State = AgentSessionState.SessionExpired;
+        Changed?.Invoke();
+    }
+
     private void Apply(Result<AgentDto> result, bool keepReadyOnTransientFailure)
     {
+        if (_expiredWhileWorking)
+        {
+            // Once a working session has lapsed it stays lapsed in this circuit: a late /me answer must not bring the agent back to Ready. A new sign-in is a new circuit.
+            return;
+        }
+
+        if (result.IsFailure && result.Errors[0].Kind == ResultErrorKind.Unauthenticated && Agent is not null)
+        {
+            // A reload of a session that was working: keep the agent (and so the page) and show the banner.
+            Expire();
+            return;
+        }
+
         if (keepReadyOnTransientFailure && result.IsFailure && result.Errors[0].Code is ApiErrorCodes.ApiUnavailable or ApiErrorCodes.ApiTimeout or ApiErrorCodes.ApiError)
         {
             return;

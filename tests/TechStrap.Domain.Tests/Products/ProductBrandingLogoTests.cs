@@ -26,6 +26,57 @@ public sealed class ProductBrandingLogoTests
         }
     }
 
+    private static ProductBranding StoredWith(string? logo) => ProductBranding.Restore("Orbitly", logo, "#1F6FEB", null, null);
+
+    [Theory]
+    [InlineData("/images/old-logo.png")]
+    [InlineData("//cdn.orbitly.example/logo.png")]
+    [InlineData("http://cdn.orbitly.example/logo.png")]
+    public void An_update_that_leaves_a_stored_logo_unchanged_accepts_it_even_when_the_rule_would_refuse_it(string stored)
+    {
+        var result = ProductBranding.CreateForUpdate(StoredWith(stored), "Orbitly Cloud", stored, "#7C3AED", null, null);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.LogoPath.ShouldBe(stored);
+        result.Value.DisplayName.ShouldBe("Orbitly Cloud");
+        result.Value.AccentColour.ShouldBe("#7C3AED");
+    }
+
+    [Fact]
+    public void The_unchanged_logo_is_compared_after_trimming()
+    {
+        var result = ProductBranding.CreateForUpdate(StoredWith("/images/old-logo.png"), "Orbitly", "  /images/old-logo.png  ", null, null, null);
+
+        result.Value.LogoPath.ShouldBe("/images/old-logo.png");
+    }
+
+    [Theory]
+    [InlineData("/images/other.png")]
+    [InlineData("/IMAGES/OLD-LOGO.PNG")]
+    [InlineData("javascript:alert(1)")]
+    public void A_different_logo_is_checked_by_the_full_rule_even_when_the_product_has_a_stored_one(string requested)
+    {
+        var result = ProductBranding.CreateForUpdate(StoredWith("/images/old-logo.png"), "Orbitly", requested, null, null, null);
+
+        result.Error!.Code.ShouldBe("logo-path-invalid");
+    }
+
+    [Fact]
+    public void A_product_with_no_stored_logo_gets_no_exception()
+    {
+        ProductBranding.CreateForUpdate(StoredWith(null), "Orbitly", "/images/logo.png", null, null, null).Error!.Code.ShouldBe("logo-path-invalid");
+        ProductBranding.CreateForUpdate(StoredWith(null), "Orbitly", null, null, null, null).Value.LogoPath.ShouldBeNull();
+        ProductBranding.CreateForUpdate(StoredWith(null), "Orbitly", "https://cdn.orbitly.example/logo.png", null, null, null).Value.LogoPath.ShouldBe("https://cdn.orbitly.example/logo.png");
+    }
+
+    [Fact]
+    public void Clearing_a_stored_relative_logo_is_accepted_and_every_other_field_is_still_checked_when_the_logo_is_left_alone()
+    {
+        ProductBranding.CreateForUpdate(StoredWith("/images/old-logo.png"), "Orbitly", null, null, null, null).Value.LogoPath.ShouldBeNull();
+        ProductBranding.CreateForUpdate(StoredWith("/images/old-logo.png"), "Orbitly", "/images/old-logo.png", "purple", null, null).Error!.Code.ShouldBe("accent-colour-invalid");
+        ProductBranding.CreateForUpdate(StoredWith("/images/old-logo.png"), "  ", "/images/old-logo.png", null, null, null).Error!.Code.ShouldBe("display-name-required");
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

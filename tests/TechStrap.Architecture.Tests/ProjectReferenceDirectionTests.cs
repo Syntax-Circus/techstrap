@@ -43,19 +43,18 @@ public sealed class ProjectReferenceDirectionTests
     {
         var graph = ProjectGraph.LoadSourceProjects(ProjectGraph.FindRepositoryRoot());
 
-        // Admin signs agents in and logs, so it uses the shared Hosting helpers; Portal joins in PHASE-09. Neither may ever see Application, Infrastructure or Domain.
+        // Both browser hosts share the Hosting wiring (headers, error pages, redaction, forwarded headers). Neither may ever see Application, Infrastructure or Domain.
         graph[ReferenceRules.Admin].ProjectReferences.Order().ShouldBe([ReferenceRules.Contracts, ReferenceRules.Hosting]);
-        graph[ReferenceRules.Portal].ProjectReferences.ShouldContain(ReferenceRules.Contracts);
-        graph[ReferenceRules.Portal].ProjectReferences.Except([ReferenceRules.Contracts, ReferenceRules.Hosting]).ShouldBeEmpty();
+        graph[ReferenceRules.Portal].ProjectReferences.Order().ShouldBe([ReferenceRules.Contracts, ReferenceRules.Hosting]);
     }
 
     [Fact]
-    public void Hosting_references_no_TechStrap_project_and_only_the_logging_and_telemetry_packages()
+    public void Hosting_references_no_TechStrap_project_and_only_the_web_logging_and_telemetry_packages()
     {
         var graph = ProjectGraph.LoadSourceProjects(ProjectGraph.FindRepositoryRoot());
 
         graph[ReferenceRules.Hosting].ProjectReferences.ShouldBeEmpty();
-        graph[ReferenceRules.Hosting].PackageReferences.Order().ShouldBe(["SyntaxCircus.AspNetCore.Serilog", "SyntaxCircus.Observability"]);
+        graph[ReferenceRules.Hosting].PackageReferences.Order().ShouldBe(["SyntaxCircus.AspNetCore.Common", "SyntaxCircus.AspNetCore.Serilog", "SyntaxCircus.Observability"]);
     }
 
     [Fact]

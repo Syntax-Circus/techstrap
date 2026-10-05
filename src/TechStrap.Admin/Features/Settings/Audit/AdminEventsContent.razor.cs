@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Logging;
 using TechStrap.Admin.Clients;
 using TechStrap.Contracts.Agents;
 
@@ -35,6 +36,9 @@ public sealed partial class AdminEventsContent : IDisposable
     private IAgentsClient AgentsClient { get; set; } = default!;
 
     [Inject]
+    private ILogger<AdminEventsContent> Logger { get; set; } = default!;
+
+    [Inject]
     private NavigationManager Navigation { get; set; } = default!;
 
     [Inject]
@@ -55,32 +59,43 @@ public sealed partial class AdminEventsContent : IDisposable
         _actor = Guid.TryParse(Actor, out var actor) ? actor : null;
         _page = int.TryParse(PageNumber, NumberStyles.None, CultureInfo.InvariantCulture, out var page) && page > 1 ? page : 1;
 
-        // Both reads start now and are awaited together: the events never wait for the names of the filter. A failed agent list only means the filter has no names; the stale-load guard in LoadAsync still applies.
-        var agents = Task.CompletedTask;
+        // Both reads start now, but only the events are awaited: they render the moment they arrive and never wait for the names of the filter, which draw when their own read finishes.
         if (!_agentsLoaded)
         {
             _agentsLoaded = true;
-            agents = LoadAgentsAsync();
+            _ = LoadAgentsAsync();
         }
 
-        var events = Task.CompletedTask;
         var key = (_subject, _actor, _page);
         if (_loadedFor != key)
         {
             _loadedFor = key;
-            events = LoadAsync();
+            await LoadAsync();
         }
-
-        await Task.WhenAll(agents, events);
     }
 
-    // The filter's actor list. If it cannot be read the filter simply has no names to offer; the log itself still works.
+    // The filter's actor list, read in the background. If it cannot be read the filter simply has no names to offer; the log itself still works.
     private async Task LoadAgentsAsync()
     {
-        var result = await AgentsClient.ListAllAsync(_lifetime.Token);
-        if (!_lifetime.IsCancellationRequested && result.IsSuccess)
+        try
         {
+            var result = await AgentsClient.ListAllAsync(_lifetime.Token);
+            if (_lifetime.IsCancellationRequested || !result.IsSuccess)
+            {
+                return;
+            }
+
             _agents = [.. result.Value.OrderBy(a => a.Name ?? a.DisplayLabel, StringComparer.OrdinalIgnoreCase)];
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // The page went away while the names were on their way.
+        }
+        catch (Exception ex)
+        {
+            // Nothing awaits this read, so a failure must not go unobserved. The filter simply keeps no names; only the type is logged, never the message.
+            Logger.LogWarning("The agent names for the audit filter could not be read ({ExceptionType}).", ex.GetType().Name);
         }
     }
 

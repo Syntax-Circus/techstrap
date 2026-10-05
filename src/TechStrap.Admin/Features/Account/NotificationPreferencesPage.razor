@@ -35,7 +35,7 @@
             <ul class="ts-toggle-list">
                 @foreach (var pref in _prefs)
                 {
-                    <li @key="(pref.ProductId, _version)" class="form-check">
+                    <li @key="(pref.ProductId, _version)" data-revision="@_version" class="form-check">
                         <input id="@($"ts-alert-{pref.ProductId}")" class="form-check-input" type="checkbox" checked="@pref.NotifyNewTicket" disabled="@(_saving || _saveUncertain)"
                                @onchange="e => ToggleAsync(pref, e.Value is true)" />
                         <label class="form-check-label" for="@($"ts-alert-{pref.ProductId}")">@MySettingsCopy.AlertLabel(pref.ProductName)</label>

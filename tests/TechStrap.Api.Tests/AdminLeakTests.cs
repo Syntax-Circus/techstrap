@@ -40,8 +40,8 @@ public sealed class AdminLeakTests
     public async Task The_access_token_appears_in_no_log_event_page_or_download()
     {
         await using var factory = VerboseFactory();
-        // The queue and the ticket are not configured, so the stub answers 404 and the pages show their error states. A 5xx here would trip the read client's circuit
-        // breaker and the download below would never reach the API.
+        // The queue and the ticket are not configured, so the stub answers 404 and the pages show their error states. The read client has no circuit breaker (D-040), so
+        // nothing here can stop the download below reaching the API.
         factory.Api.On(HttpMethod.Get, $"/api/attachments/{AttachmentId}", _ => new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new ByteArrayContent([1, 2, 3]) });
         var token = AdminTestPrincipal.Agent.AccessToken;
         using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
@@ -64,6 +64,26 @@ public sealed class AdminLeakTests
         AssertVerboseWasCaptured(factory);
         factory.LogSink.Events.Select(Everything).ShouldAllBe(text => !text.Contains(token) && !text.Contains("Bearer "));
     }
+
+    [Fact]
+    public async Task A_search_term_appears_in_no_log_event_after_a_mid_session_401()
+    {
+        // An email-shaped term the PII redactor would not necessarily mask: the test proves the Admin never logs it, not that a redactor hid it.
+        const string term = "leakprobe.ada.lovelace@example.com";
+        await using var factory = VerboseFactory();
+        // The agent is let in by /me, then the first data call answers 401. After that the token is evicted, so every later call of the page must stay local.
+        factory.Api.OnStatus(HttpMethod.Get, "/api/products", HttpStatusCode.Unauthorized);
+        using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
+
+        var html = await client.GetStringAsync($"/queue/all?search={Uri.EscapeDataString(term)}", Ct);
+
+        factory.Api.Requests.ShouldContain(r => r.Path == "/api/products", "the 401 must actually have been answered, or this test proves nothing");
+        html.ShouldNotBeNull();
+        AssertVerboseWasCaptured(factory);
+        factory.LogSink.Events.Select(Everything).ShouldAllBe(text => !text.Contains("leakprobe", StringComparison.OrdinalIgnoreCase) && !text.Contains(term, StringComparison.OrdinalIgnoreCase));
+        factory.Api.Requests.Where(r => r.Path != "/api/agents/me" && r.Path != "/api/products").ShouldBeEmpty("once the session lapsed no request may be sent");
+    }
+
     // A secret shaped so the PII log redactor does not mask it: the test proves the Admin never logs it, not that the redactor hid it.
     private const string KeySecret = "tsk_live_leakcheck_0123456789abcdef0123456789abcdef";
 
@@ -148,43 +168,30 @@ public sealed class AdminLeakTests
     }
 
     // The OTLP exporter makes its HTTP calls through IHttpClientFactory. The factory's default logging handler writes raw header values into structured log state at Trace, which would put an
-    // OTLP "x-api-key" in the logs. The Admin removes the default logging handler from every factory client, so the secret never reaches a log event.
-    private const string OtlpSecret = "otlp-secret-0123456789abcdef0123456789abcdef";
-
+    // OTLP "x-api-key" in the logs. Every host removes the default logging handler from every factory client (TechStrap.Hosting), so the secret never reaches a log event. The probe is the
+    // positive control: the exporter must really have connected, or this test proves nothing. The Api and the Portal have the same test in OtlpLeakTests.
     [Fact]
     public async Task An_OTLP_header_secret_appears_in_no_log_event_even_at_Verbose()
     {
-        // The observability options are read while Program.cs builds the host, before the factory's in-memory settings exist, so they arrive as environment variables (like the test issuer does).
-        var variables = new Dictionary<string, string>
+        await using var probe = new Hosting.OtlpProbe();
+        CollectingSink sink = null!;
+        await Hosting.OtlpLeakTests.WithOtlpAsync(probe, async () =>
         {
-            ["OpenTelemetry__Enabled"] = "true",
-            ["OpenTelemetry__OtlpEndpoint"] = "http://127.0.0.1:1/",
-            ["OpenTelemetry__OtlpProtocol"] = "http/protobuf",
-            ["OpenTelemetry__Headers"] = $"x-api-key={OtlpSecret}",
-        };
-        foreach (var (key, value) in variables)
-        {
-            Environment.SetEnvironmentVariable(key, value);
-        }
-
-        var factory = VerboseFactory();
-        try
-        {
-            using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
-            (await client.GetStringAsync("/", Ct)).ShouldNotContain(OtlpSecret);
-            (await client.GetStringAsync("/queue/spam", Ct)).ShouldNotContain(OtlpSecret);
-        }
-        finally
-        {
-            // Disposing the host flushes the trace exporter, which sends (and fails against the closed port) through the factory's HTTP client.
-            await factory.DisposeAsync();
-            foreach (var key in variables.Keys)
+            var factory = VerboseFactory();
+            sink = factory.LogSink;
+            try
             {
-                Environment.SetEnvironmentVariable(key, null);
+                using var client = factory.CreateClient().SignedInAs(AdminTestPrincipal.Agent);
+                (await client.GetStringAsync("/", Ct)).ShouldNotContain(Hosting.OtlpLeakTests.Secret);
+                (await client.GetStringAsync("/queue/spam", Ct)).ShouldNotContain(Hosting.OtlpLeakTests.Secret);
+                await Hosting.OtlpLeakTests.WaitForExportAsync(probe, Ct);
             }
-        }
+            finally
+            {
+                await factory.DisposeAsync();
+            }
+        });
 
-        AssertVerboseWasCaptured(factory);
-        factory.LogSink.Events.Select(Everything).ShouldAllBe(text => !text.Contains(OtlpSecret));
+        Hosting.OtlpLeakTests.AssertNoLeak(sink);
     }
 }

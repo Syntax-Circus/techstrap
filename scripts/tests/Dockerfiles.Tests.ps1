@@ -131,7 +131,7 @@ Describe 'font endpoints manifest assertion' {
 Describe 'clean publish copy list' {
     It '<Project> copies itself and every project it references, and no other TechStrap project' -ForEach @(
         @{ Project = 'TechStrap.Admin'; Expected = @('TechStrap.Admin', 'TechStrap.Contracts', 'TechStrap.Hosting') }
-        @{ Project = 'TechStrap.Portal'; Expected = @('TechStrap.Contracts', 'TechStrap.Portal') }
+        @{ Project = 'TechStrap.Portal'; Expected = @('TechStrap.Contracts', 'TechStrap.Hosting', 'TechStrap.Portal') }
     ) {
         Get-ProjectReferenceClosure -Project $Project | Should -Be $Expected
     }
@@ -174,5 +174,17 @@ Describe 'clean publish serves the self-hosted fonts' -Tag 'Network' {
         finally {
             Remove-Item -LiteralPath $copy -Recurse -Force -ErrorAction SilentlyContinue
         }
+    }
+}
+
+Describe 'Dockerfile.admin time zone data' {
+    # The Admin shows every time in the agent's browser zone and finds it with TimeZoneInfo.FindSystemTimeZoneById, which reads /usr/share/zoneinfo on Linux (D-042).
+    It 'installs tzdata in the final (runtime) stage, not only in an earlier one' {
+        # Everything from the last FROM line on is the final stage: a tzdata install in the build stage would not reach the image that runs.
+        $text = Get-DockerfileText -Name 'admin'
+        $lastFrom = ($text -split "`n" | Select-String -Pattern '^FROM ' | Select-Object -Last 1).LineNumber
+        $finalStage = ($text -split "`n" | Select-Object -Skip ($lastFrom - 1)) -join "`n"
+        $finalStage | Should -Match 'FROM mcr\.microsoft\.com/dotnet/aspnet:10\.0'
+        $finalStage | Should -Match 'apt-get install -y --no-install-recommends curl tzdata'
     }
 }

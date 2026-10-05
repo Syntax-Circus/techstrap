@@ -132,5 +132,5 @@ public sealed class AdminFactory : HostFactory<TechStrap.Admin.Program>
     public StubApiHandler Api { get; }
 }
 
-public sealed class PortalFactory(string environment = "Development")
-    : HostFactory<TechStrap.Portal.Program>(environment);
+public sealed class PortalFactory(string environment = "Development", IReadOnlyDictionary<string, string?>? settings = null)
+    : HostFactory<TechStrap.Portal.Program>(environment, settings);

@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Logging;
+using TechStrap.Admin.Auth;
 using TechStrap.Admin.Features.Shell;
 
 namespace TechStrap.Admin.Components.Layout;
@@ -12,15 +14,25 @@ public partial class MainLayout : IDisposable
     private const string QueuePath = "queue";
 
     private bool _helpOpen;
+    private bool _paletteOpen;
 
     [Inject]
     private ShortcutService Shortcuts { get; set; } = default!;
+
+    [Inject]
+    private ILogger<MainLayout> Logger { get; set; } = default!;
 
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
 
     [Inject]
     private PreferencesService Preferences { get; set; } = default!;
+
+    [Inject]
+    private LocalTimeService LocalTime { get; set; } = default!;
+
+    [Inject]
+    private AgentSession Session { get; set; } = default!;
 
     /// <summary>
     /// The page has <c>&lt;base href="/"&gt;</c>, so a bare <c>#main</c> would resolve to the home page. The link names the current address with the fragment replaced.
@@ -48,9 +60,29 @@ public partial class MainLayout : IDisposable
     {
         if (firstRender)
         {
-            // The stored preferences first: they set the theme and whether single-key shortcuts act. Neither call throws for a script or storage failure.
-            await Preferences.LoadAsync();
-            await Shortcuts.StartAsync();
+            // The stored preferences first: they set the theme and whether single-key shortcuts act. A script or storage failure is handled inside them, but anything else is caught below.
+            try
+            {
+                await Preferences.LoadAsync();
+                await Shortcuts.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                // The layout sits outside every error boundary, so an exception out of OnAfterRenderAsync would end the circuit. Without the listener the keyboard layer
+                // is off but every page still works; it stays off for this circuit (this runs on the first render only). Every exception is caught, a cancellation too: nothing awaits one here. Only the type is logged, never the message.
+                Logger.LogWarning("The keyboard shortcuts could not be started ({ExceptionType}).", ex.GetType().Name);
+            }
+
+            // The browser's time zone, so every time is drawn again in local time. It has its own guard: a failure above must not keep the zone from loading, and a zone failure
+            // must not be reported as a shortcut failure. Until the zone arrives every time is UTC.
+            try
+            {
+                await LocalTime.LoadAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning("The browser time zone could not be read ({ExceptionType}).", ex.GetType().Name);
+            }
         }
     }
 
@@ -60,6 +92,10 @@ public partial class MainLayout : IDisposable
         {
             case ShortcutAction.Help:
                 _helpOpen = true;
+                return InvokeAsync(StateHasChanged);
+            case ShortcutAction.Palette:
+                // Ctrl+K toggles. It never opens before the API has said who this agent is: until then there is nothing to offer, and an admin command must never be listed on a guess.
+                _paletteOpen = !_paletteOpen && Session.State == AgentSessionState.Ready;
                 return InvokeAsync(StateHasChanged);
             case ShortcutAction.FocusSearch when !IsOnQueue():
                 Navigation.NavigateTo("/" + QueuePath);
@@ -78,6 +114,8 @@ public partial class MainLayout : IDisposable
     }
 
     private void CloseHelp() => _helpOpen = false;
+
+    private void ClosePalette() => _paletteOpen = false;
 
     public void Dispose()
     {

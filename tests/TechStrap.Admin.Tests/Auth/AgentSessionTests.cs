@@ -239,7 +239,7 @@ public sealed class AgentSessionTests
 
     [Theory]
     [InlineData(ApiErrorCodes.AgentInactive, ResultErrorKind.Forbidden, AgentSessionState.NoAccess)]
-    [InlineData(ApiErrorCodes.Unauthenticated, ResultErrorKind.Unauthenticated, AgentSessionState.SessionExpired)]
+    // A 401 on a reload is no longer here: the session expires but keeps the agent so the page stays mounted (SessionExpiryTests).
     public async Task A_reload_that_the_api_refuses_wins_over_the_ready_session(string code, ResultErrorKind kind, AgentSessionState expected)
     {
         _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(Result<AgentDto>.Success(Agent(AgentRoles.Admin)), Refused(code, kind));

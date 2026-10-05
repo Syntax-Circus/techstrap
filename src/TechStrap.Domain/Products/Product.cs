@@ -37,10 +37,33 @@ public sealed record ProductBranding
         string? logoPath,
         string? accentColour,
         string? fromAddress,
+        string? replyTo) =>
+        Build(displayName, Guard.OptionalImageUrl(logoPath, DomainLimits.UrlMaxLength, "logo-path"), accentColour, fromAddress, replyTo);
+
+    /// <summary>
+    /// Branding for an update of a stored product. The logo address the product already has is accepted as it is when the request carries it unchanged (compared after trimming), because
+    /// products saved before the logo rule (a relative path, say) must stay editable: renaming one must not need a logo it never had. A different address, or one for a product that has none,
+    /// is checked by the full rule; every other field is always checked.
+    /// </summary>
+    public static DomainResult<ProductBranding> CreateForUpdate(
+        ProductBranding current,
+        string? displayName,
+        string? logoPath,
+        string? accentColour,
+        string? fromAddress,
         string? replyTo)
     {
+        ArgumentNullException.ThrowIfNull(current);
+        var unchanged = string.Equals(logoPath?.Trim(), current.LogoPath, StringComparison.Ordinal);
+        var logo = unchanged
+            ? DomainResult<string?>.Ok(current.LogoPath)
+            : Guard.OptionalImageUrl(logoPath, DomainLimits.UrlMaxLength, "logo-path");
+        return Build(displayName, logo, accentColour, fromAddress, replyTo);
+    }
+
+    private static DomainResult<ProductBranding> Build(string? displayName, DomainResult<string?> logo, string? accentColour, string? fromAddress, string? replyTo)
+    {
         var name = Guard.RequiredText(displayName, DomainLimits.NameMaxLength, "display-name");
-        var logo = Guard.OptionalImageUrl(logoPath, DomainLimits.UrlMaxLength, "logo-path");
         var accent = Guard.Colour(accentColour ?? DefaultAccentColour, "accent-colour");
         var from = Guard.OptionalEmail(fromAddress, "from-address");
         var reply = Guard.OptionalEmail(replyTo, "reply-to");

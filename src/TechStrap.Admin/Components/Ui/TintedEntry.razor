@@ -9,7 +9,7 @@
         {
             <span class="ts-entry-role">@RoleLabel</span>
         }
-        <span class="ts-entry-time">@Time</span>
+        <span class="ts-entry-time">@if (When is { } when) { <RelativeTime When="when" /> } else { @Time }</span>
     </div>
     <div class="ts-entry-body">@ChildContent</div>
 </article>

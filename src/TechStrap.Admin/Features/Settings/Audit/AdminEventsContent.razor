@@ -18,6 +18,11 @@
                 <label for="ts-audit-actor" class="form-label">@AuditCopy.ActorFilter</label>
                 <select id="ts-audit-actor" class="form-select" @onchange="OnActorChanged">
                     <option value="" selected="@(_actor is null)">@AuditCopy.AllActors</option>
+                    @if (_actor is { } chosen && _agents.All(agent => agent.Id != chosen))
+                    {
+                        @* The names are read in the background: until they arrive the chosen actor stays selected, shown by its id. *@
+                        <option value="@chosen" selected="selected">@chosen</option>
+                    }
                     @foreach (var agent in _agents)
                     {
                         <option value="@agent.Id" selected="@(_actor == agent.Id)">@(string.IsNullOrWhiteSpace(agent.Name) ? agent.DisplayLabel : agent.Name)</option>
@@ -51,29 +56,29 @@
         }
         else
         {
-            <div class="table-responsive">
-                <table class="table ts-ledger ts-settings-table" aria-busy="@(_loading ? "true" : null)">
-                    <thead>
-                        <tr>
-                            <th scope="col">@AuditCopy.ColumnWhen</th>
-                            <th scope="col">@AuditCopy.ColumnWho</th>
-                            <th scope="col">@AuditCopy.ColumnWhat</th>
-                            <th scope="col">@AuditCopy.ColumnSummary</th>
+            <ScrollRegion Label="Audit events">
+                <table role="table" class="table ts-ledger ts-settings-table" aria-busy="@(_loading ? "true" : null)">
+                    <thead role="rowgroup">
+                        <tr role="row">
+                            <th role="columnheader" scope="col">@AuditCopy.ColumnWhen</th>
+                            <th role="columnheader" scope="col">@AuditCopy.ColumnWho</th>
+                            <th role="columnheader" scope="col">@AuditCopy.ColumnWhat</th>
+                            <th role="columnheader" scope="col">@AuditCopy.ColumnSummary</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                         @foreach (var row in _rows)
                         {
-                            <tr @key="row.Id">
-                                <td><RelativeTime When="row.At" /></td>
-                                <td>@row.Actor</td>
-                                <td>@row.Subject</td>
-                                <td class="ts-audit-summary">@row.Summary</td>
+                            <tr role="row" @key="row.Id">
+                                <td role="cell"><RelativeTime When="row.At" /></td>
+                                <td role="cell">@row.Actor</td>
+                                <td role="cell">@row.Subject</td>
+                                <td role="cell" class="ts-audit-summary">@row.Summary</td>
                             </tr>
                         }
                     </tbody>
                 </table>
-            </div>
+            </ScrollRegion>
             <PagerControl Page="_page" PageSize="AuditCopy.PageSize" TotalCount="_total" OnPageChanged="OnPageChanged" />
         }
     </div>

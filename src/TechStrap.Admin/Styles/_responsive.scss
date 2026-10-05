@@ -1,0 +1,42 @@
+// Responsive and accessibility rules that cut across screens (PHASE-07c). Imported last, so a rule here wins over the screen it adjusts.
+
+// A wide table scrolls inside its own region (ScrollRegion), never the page. The shadows are the cue that there is more to see: a soft edge appears on the side that has
+// more; "local" backgrounds cover it again once the content reaches that side. Keyboard users reach the region with Tab and scroll it with the arrow keys.
+.ts-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  background:
+    linear-gradient(to right, var(--paper) 30%, transparent) left center / 24px 100% no-repeat local,
+    linear-gradient(to left, var(--paper) 30%, transparent) right center / 24px 100% no-repeat local,
+    linear-gradient(to right, var(--shadow), transparent) left center / 10px 100% no-repeat scroll,
+    linear-gradient(to left, var(--shadow), transparent) right center / 10px 100% no-repeat scroll;
+}
+
+// Forced colours (Windows high contrast) replaces every colour with a system colour, so anything that is said by colour or fill alone is said again by shape.
+// The current rail link, tab and row had only a fill and a coloured edge: they get an outline, and the edges that are transparent on purpose stay invisible.
+@media (forced-colors: active) {
+  .ts-rail-link,
+  .ts-tab,
+  .ts-palette-option {
+    border-color: Canvas;
+  }
+
+  .ts-rail-link[aria-current="page"],
+  .ts-tab[aria-current="page"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  .ts-row--selected {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  .ts-rail-toggle[aria-expanded="true"] {
+    outline: 2px solid Highlight;
+  }
+
+  .ts-scroll:focus-visible {
+    outline: 3px solid Highlight;
+  }
+}

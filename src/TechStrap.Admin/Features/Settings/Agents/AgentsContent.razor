@@ -28,25 +28,25 @@
         }
         else
         {
-            <div class="table-responsive">
-                <table class="table ts-ledger ts-settings-table" aria-busy="@(_loading ? "true" : null)">
-                    <thead>
-                        <tr>
-                            <th scope="col">@AgentsCopy.ColumnName</th>
-                            <th scope="col">@AgentsCopy.ColumnEmail</th>
-                            <th scope="col">@AgentsCopy.ColumnRole</th>
-                            <th scope="col">@AgentsCopy.ColumnStatus</th>
-                            <th scope="col">@AgentsCopy.ColumnLastSeen</th>
-                            <th scope="col"><span class="visually-hidden">@AgentsCopy.ColumnActions</span></th>
+            <ScrollRegion Label="Agents">
+                <table role="table" class="table ts-ledger ts-settings-table" aria-busy="@(_loading ? "true" : null)">
+                    <thead role="rowgroup">
+                        <tr role="row">
+                            <th role="columnheader" scope="col">@AgentsCopy.ColumnName</th>
+                            <th role="columnheader" scope="col">@AgentsCopy.ColumnEmail</th>
+                            <th role="columnheader" scope="col">@AgentsCopy.ColumnRole</th>
+                            <th role="columnheader" scope="col">@AgentsCopy.ColumnStatus</th>
+                            <th role="columnheader" scope="col">@AgentsCopy.ColumnLastSeen</th>
+                            <th role="columnheader" scope="col"><span class="visually-hidden">@AgentsCopy.ColumnActions</span></th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                         @foreach (var row in _rows)
                         {
-                            <tr @key="row.Id" data-agent="@row.Id">
-                                <td>@row.DisplayName @if (IsSelf(row)) { <span class="ts-you">@AgentsCopy.You</span> }</td>
-                                <td>@(row.Email ?? AgentsCopy.Unknown)</td>
-                                <td>
+                            <tr role="row" @key="row.Id" data-agent="@row.Id">
+                                <td role="cell">@row.DisplayName @if (IsSelf(row)) { <span class="ts-you">@AgentsCopy.You</span> }</td>
+                                <td role="cell">@(row.Email ?? AgentsCopy.Unknown)</td>
+                                <td role="cell">
                                     @if (row.Role is { } role)
                                     {
                                         <span class="@("ts-role ts-role--" + role.ToLowerInvariant())">@role</span>
@@ -56,7 +56,7 @@
                                         @AgentsCopy.Unknown
                                     }
                                 </td>
-                                <td>
+                                <td role="cell">
                                     @if (row.IsActive is { } active)
                                     {
                                         <span class="ts-pill @(active ? "ts-pill--on" : "ts-pill--off")">@(active ? AgentsCopy.Active : AgentsCopy.Inactive)</span>
@@ -66,7 +66,7 @@
                                         @AgentsCopy.Unknown
                                     }
                                 </td>
-                                <td>
+                                <td role="cell">
                                     @if (row.LastSeenAt is { } seen)
                                     {
                                         <RelativeTime When="seen" />
@@ -76,7 +76,7 @@
                                         @AgentsCopy.NeverSeen
                                     }
                                 </td>
-                                <td class="ts-settings-actions">
+                                <td role="cell" class="ts-settings-actions">
                                     @if (row.IsActive == true)
                                     {
                                         <button type="button" class="btn btn-outline-secondary ts-deactivate" disabled="@_busy" @onclick="() => AskDeactivate(row)">@AgentsCopy.Deactivate</button>
@@ -90,7 +90,7 @@
                         }
                     </tbody>
                 </table>
-            </div>
+            </ScrollRegion>
             <PagerControl Page="_page" PageSize="AgentsCopy.PageSize" TotalCount="_total" OnPageChanged="OnPageChanged" />
         }
 

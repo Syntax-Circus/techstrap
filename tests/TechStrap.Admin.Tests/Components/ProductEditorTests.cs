@@ -406,6 +406,54 @@ public sealed class ProductEditorTests : AdminPageTest
     }
 
     [Fact]
+    public void A_product_saved_with_a_relative_logo_before_the_rule_can_be_renamed_with_the_logo_left_alone()
+    {
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(version: 7, logo: "/images/old-logo.png")));
+        var cut = RenderEdit();
+
+        Value(cut, "ts-product-logo").ShouldBe("/images/old-logo.png");
+        cut.Find("#ts-product-logo").Blur();
+        FieldError(cut, "ts-product-logo").ShouldBeNull();
+        Type(cut, "ts-product-name", "Orbitly Cloud");
+        Save(cut);
+
+        var sent = Updates.ShouldHaveSingleItem();
+        sent.Name.ShouldBe("Orbitly Cloud");
+        sent.Branding.LogoPath.ShouldBe("/images/old-logo.png");
+        cut.FindAll("img").ShouldBeEmpty("a relative address is still never previewed");
+    }
+
+    [Fact]
+    public void Changing_a_relative_logo_to_another_unsafe_address_is_refused_and_changing_it_back_is_accepted()
+    {
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(version: 7, logo: "/images/old-logo.png")));
+        var cut = RenderEdit();
+
+        Type(cut, "ts-product-logo", "/images/other.png");
+        cut.Find("#ts-product-logo").Blur();
+        FieldError(cut, "ts-product-logo").ShouldBe("Use a full https:// address for the logo.");
+        Save(cut);
+        Updates.ShouldBeEmpty();
+
+        Type(cut, "ts-product-logo", "  /images/old-logo.png ");
+        cut.Find("#ts-product-logo").Blur();
+        FieldError(cut, "ts-product-logo").ShouldBeNull();
+        Save(cut);
+        Updates.ShouldHaveSingleItem().Branding.LogoPath.ShouldBe("/images/old-logo.png");
+    }
+
+    [Fact]
+    public void A_new_product_never_gets_the_exception_because_it_has_no_stored_logo()
+    {
+        var cut = RenderNew();
+
+        Type(cut, "ts-product-logo", "/images/logo.png");
+        cut.Find("#ts-product-logo").Blur();
+
+        FieldError(cut, "ts-product-logo").ShouldBe("Use a full https:// address for the logo.");
+    }
+
+    [Fact]
     public void An_https_logo_is_previewed_and_sent_trimmed()
     {
         var cut = RenderEdit();

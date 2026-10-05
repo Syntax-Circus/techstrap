@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Logging;
+using Microsoft.JSInterop;
 using SyntaxCircus.Common;
 using TechStrap.Admin.Auth;
 using TechStrap.Admin.Clients;
@@ -20,10 +22,23 @@ public enum ActionDialog
 /// the ticket. Delete and erase are Admin-only, irreversible, and need the ticket number or the requester's email typed: for an Agent they are not hidden but not rendered at all (no menu
 /// entry, no dialog, nothing to trigger), and the API enforces the same rule. A failure leaves the dialog open and everything unchanged; only success navigates. A write is never cancelled
 /// when the component goes away, and a failure that leaves the outcome unknown says so and offers a reload instead of a retry.
+/// The menu follows the WAI-ARIA menu button pattern: the list has <c>role="menu"</c> and its buttons <c>role="menuitem"</c>; opening it puts focus on the first item; ArrowDown, ArrowUp, Home and
+/// End move between items; Escape closes it and returns focus to the button; Tab closes it. The keys are handled in <c>menu.js</c>, which tells this component when to open or close.
 /// </summary>
-public sealed partial class TicketActions : IDisposable
+public sealed partial class TicketActions : IDisposable, IAsyncDisposable
 {
     private const string QueuePath = "/queue";
+    private const string MenuModule = "./js/menu.js";
+    private static int _nextId;
+
+    private readonly int _id = Interlocked.Increment(ref _nextId);
+    private ElementReference _root;
+    private ElementReference _menu;
+    private IJSObjectReference? _menuScript;
+    private DotNetObjectReference<TicketActions>? _self;
+    private bool _attached;
+    private bool _scriptFailed;
+    private bool _focusFirst;
 
     private ActionDialog _dialog;
     private bool _menuOpen;
@@ -32,6 +47,12 @@ public sealed partial class TicketActions : IDisposable
     private bool _uncertain;
     private bool _notSpamUncertain;
     private string? _error;
+
+    [Inject]
+    private IJSRuntime Js { get; set; } = default!;
+
+    [Inject]
+    private ILogger<TicketActions> Logger { get; set; } = default!;
 
     [Inject]
     private ITicketsClient Tickets { get; set; } = default!;
@@ -75,9 +96,72 @@ public sealed partial class TicketActions : IDisposable
 
     private bool HasAnyAction => CanMarkSpam || CanRestore || Session.IsAdmin;
 
+    private string ToggleId => $"ts-actions-toggle-{_id}";
+
+    private string MenuId => $"ts-actions-menu-{_id}";
+
     protected override void OnInitialized() => Shortcuts.Pressed += OnShortcutAsync;
 
-    private void ToggleMenu() => _menuOpen = !_menuOpen;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!HasAnyAction)
+        {
+            // The wrapper element is gone, and with it the script's hold on it: when an action comes back the new element needs the keys again.
+            _attached = false;
+        }
+
+        if (_disposed || _scriptFailed || !HasAnyAction)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!_attached)
+            {
+                _menuScript ??= await Js.InvokeAsync<IJSObjectReference>("import", MenuModule);
+                _self ??= DotNetObjectReference.Create(this);
+                await _menuScript.InvokeVoidAsync("attach", _root, _self);
+                _attached = true;
+            }
+
+            if (_focusFirst && _menuOpen)
+            {
+                _focusFirst = false;
+                await _menuScript!.InvokeVoidAsync("focusFirst", _menu);
+            }
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or TaskCanceledException)
+        {
+            // OnAfterRenderAsync must never throw: that would end the circuit. The menu still works with the mouse; log the type only. A script that could not be loaded or
+            // attached is not asked again for the life of this component: one log line, not one per render.
+            _scriptFailed = !_attached;
+            Logger.LogWarning("The actions menu keyboard script failed ({ExceptionType}).", ex.GetType().Name);
+        }
+    }
+
+    private void ToggleMenu()
+    {
+        _menuOpen = !_menuOpen;
+        _focusFirst = _menuOpen;
+    }
+
+    /// <summary>Called by <c>menu.js</c> for ArrowDown on the closed menu button.</summary>
+    [JSInvokable]
+    public Task OpenMenu() => InvokeAsync(() =>
+    {
+        _menuOpen = true;
+        _focusFirst = true;
+        StateHasChanged();
+    });
+
+    /// <summary>Called by <c>menu.js</c> for Escape and Tab in the open menu.</summary>
+    [JSInvokable]
+    public Task CloseMenu() => InvokeAsync(() =>
+    {
+        _menuOpen = false;
+        StateHasChanged();
+    });
 
     private void Open(ActionDialog dialog)
     {
@@ -241,5 +325,24 @@ public sealed partial class TicketActions : IDisposable
     {
         _disposed = true;
         Shortcuts.Pressed -= OnShortcutAsync;
+        _self?.Dispose();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        if (_menuScript is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _menuScript.DisposeAsync();
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or JSException or TaskCanceledException)
+        {
+            // The circuit is already gone.
+        }
     }
 }

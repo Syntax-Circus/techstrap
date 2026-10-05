@@ -1,20 +1,20 @@
 @if (HasAnyAction)
 {
-    <div class="ts-actions">
-        <button type="button" class="btn btn-outline-secondary" aria-haspopup="menu" aria-expanded="@(_menuOpen ? "true" : "false")" @onclick="ToggleMenu">@ActionsCopy.MoreActions</button>
-        <ul class="ts-menu" hidden="@(!_menuOpen)">
+    <div class="ts-actions" @ref="_root">
+        <button type="button" id="@ToggleId" class="btn btn-outline-secondary" aria-haspopup="menu" aria-expanded="@(_menuOpen ? "true" : "false")" aria-controls="@MenuId" @onclick="ToggleMenu">@ActionsCopy.MoreActions</button>
+        <ul id="@MenuId" @ref="_menu" class="ts-menu" role="menu" aria-labelledby="@ToggleId" hidden="@(!_menuOpen)">
             @if (CanMarkSpam)
             {
-                <li><button type="button" class="ts-menu-item" @onclick="() => Open(ActionDialog.Spam)">@ActionsCopy.MarkSpam</button></li>
+                <li role="none"><button type="button" role="menuitem" tabindex="-1" class="ts-menu-item" @onclick="() => Open(ActionDialog.Spam)">@ActionsCopy.MarkSpam</button></li>
             }
             @if (CanRestore)
             {
-                <li><button type="button" class="ts-menu-item" @onclick="RestoreAsync">@ActionsCopy.NotSpam <Kbd>u</Kbd></button></li>
+                <li role="none"><button type="button" role="menuitem" tabindex="-1" class="ts-menu-item" @onclick="RestoreAsync">@ActionsCopy.NotSpam <Kbd>u</Kbd></button></li>
             }
             @if (Session.IsAdmin)
             {
-                <li><button type="button" class="ts-menu-item ts-menu-item--danger" @onclick="() => Open(ActionDialog.Delete)">@ActionsCopy.DeleteTicket</button></li>
-                <li><button type="button" class="ts-menu-item ts-menu-item--danger" @onclick="() => Open(ActionDialog.Erase)">@ActionsCopy.EraseRequester</button></li>
+                <li role="none"><button type="button" role="menuitem" tabindex="-1" class="ts-menu-item ts-menu-item--danger" @onclick="() => Open(ActionDialog.Delete)">@ActionsCopy.DeleteTicket</button></li>
+                <li role="none"><button type="button" role="menuitem" tabindex="-1" class="ts-menu-item ts-menu-item--danger" @onclick="() => Open(ActionDialog.Erase)">@ActionsCopy.EraseRequester</button></li>
             }
         </ul>
     </div>

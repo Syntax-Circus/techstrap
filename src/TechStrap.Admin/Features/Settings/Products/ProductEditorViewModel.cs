@@ -31,6 +31,9 @@ internal sealed partial class ProductEditorViewModel
 
     public string LogoPath { get; set; } = string.Empty;
 
+    /// <summary>The logo address the product was loaded with. An address saved before the logo rule (a relative path) is accepted again while the field still holds it, as the API accepts it.</summary>
+    public string OriginalLogoPath { get; set; } = string.Empty;
+
     public string AccentColour { get; set; } = string.Empty;
 
     public string FromAddress { get; set; } = string.Empty;
@@ -48,6 +51,7 @@ internal sealed partial class ProductEditorViewModel
         NumberPrefix = product.NumberPrefix,
         DisplayName = product.Branding.DisplayName,
         LogoPath = product.Branding.LogoPath ?? string.Empty,
+        OriginalLogoPath = product.Branding.LogoPath ?? string.Empty,
         AccentColour = product.Branding.AccentColour,
         FromAddress = product.Branding.FromAddress ?? string.Empty,
         ReplyTo = product.Branding.ReplyTo ?? string.Empty,
@@ -62,6 +66,8 @@ internal sealed partial class ProductEditorViewModel
     private ProductBrandingRequest ToBranding() =>
         new(DisplayName.Trim(), Blank(LogoPath), Blank(AccentColour), Blank(FromAddress), Blank(ReplyTo));
 
+    private bool LogoUnchanged => OriginalLogoPath.Length > 0 && string.Equals(LogoPath.Trim(), OriginalLogoPath, StringComparison.Ordinal);
+
     private static string? Blank(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     /// <summary>The message for one field, or null when it is fine. Key and ticket number prefix are checked only when the product is being created.</summary>
@@ -74,7 +80,7 @@ internal sealed partial class ProductEditorViewModel
         ApiFields.NumberPrefix when creating => NumberPrefixPattern().IsMatch(NumberPrefix.Trim()) ? null : ProductsCopy.NumberPrefixInvalid,
         ApiFields.DisplayName => string.IsNullOrWhiteSpace(DisplayName) ? ProductsCopy.DisplayNameRequired
             : DisplayName.Trim().Length > ProductFields.DisplayNameMaxLength ? ProductsCopy.NameTooLong : null,
-        ApiFields.LogoPath => BrandingRules.IsAcceptableLogoUrl(LogoPath) ? null : ProductsCopy.LogoInvalid,
+        ApiFields.LogoPath => BrandingRules.IsAcceptableLogoUrl(LogoPath) || LogoUnchanged ? null : ProductsCopy.LogoInvalid,
         ApiFields.AccentColour => string.IsNullOrWhiteSpace(AccentColour) || Regex.IsMatch(AccentColour.Trim(), BrandingRules.ColourPattern) ? null : ProductsCopy.AccentInvalid,
         ApiFields.FromAddress => IsEmailOrBlank(FromAddress) ? null : ProductsCopy.EmailInvalid,
         ApiFields.ReplyTo => IsEmailOrBlank(ReplyTo) ? null : ProductsCopy.EmailInvalid,

@@ -289,6 +289,13 @@
   }
 }
 
+// On a phone the controls come after the conversation, so the reply box follows the last message directly instead of sitting a screenful of controls further down.
+@media (max-width: 767.98px) {
+  .ts-side {
+    order: 1;
+  }
+}
+
 .ts-actions-uncertain {
   display: flex;
   flex-wrap: wrap;

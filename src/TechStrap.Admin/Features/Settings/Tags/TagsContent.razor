@@ -60,23 +60,23 @@
         }
         else
         {
-            <div class="table-responsive">
-                <table class="table ts-ledger ts-settings-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">@TagsCopy.ColumnTag</th>
-                            <th scope="col">@TagsCopy.ColumnSlug</th>
-                            <th scope="col">@TagsCopy.ColumnTickets</th>
-                            <th scope="col"><span class="visually-hidden">@TagsCopy.ColumnActions</span></th>
+            <ScrollRegion Label="Tags">
+                <table role="table" class="table ts-ledger ts-settings-table">
+                    <thead role="rowgroup">
+                        <tr role="row">
+                            <th role="columnheader" scope="col">@TagsCopy.ColumnTag</th>
+                            <th role="columnheader" scope="col">@TagsCopy.ColumnSlug</th>
+                            <th role="columnheader" scope="col">@TagsCopy.ColumnTickets</th>
+                            <th role="columnheader" scope="col"><span class="visually-hidden">@TagsCopy.ColumnActions</span></th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                         @foreach (var row in _rows)
                         {
                             @if (_editing == row.Id)
                             {
-                                <tr @key="row.Id" class="ts-tag-editing" data-tag="@row.Slug">
-                                    <td>
+                                <tr role="row" @key="row.Id" class="ts-tag-editing" data-tag="@row.Slug">
+                                    <td role="cell">
                                         <label for="ts-edit-name" class="visually-hidden">@TagsCopy.NameLabel</label>
                                         <input id="ts-edit-name" type="text" class="form-control @(Err(_editErrors, ApiFields.Name) is null ? null : "is-invalid")" value="@_editName" autocomplete="off" @oninput="e => _editName = e.Value?.ToString() ?? string.Empty" />
                                         @ErrorLine("ts-edit-name-error", Err(_editErrors, ApiFields.Name))
@@ -84,9 +84,9 @@
                                         <input id="ts-edit-colour" type="text" class="form-control @(Err(_editErrors, ApiFields.Colour) is null ? null : "is-invalid")" value="@_editColour" autocomplete="off" spellcheck="false" @oninput="e => _editColour = e.Value?.ToString() ?? string.Empty" />
                                         @ErrorLine("ts-edit-colour-error", Err(_editErrors, ApiFields.Colour))
                                     </td>
-                                    <td><code>@row.Slug</code></td>
-                                    <td>@row.TicketCount</td>
-                                    <td class="ts-settings-actions">
+                                    <td role="cell"><code>@row.Slug</code></td>
+                                    <td role="cell">@row.TicketCount</td>
+                                    <td role="cell" class="ts-settings-actions">
                                         <button type="button" class="btn btn-primary ts-save" disabled="@_busy" @onclick="SaveEditAsync">@TagsCopy.Save</button>
                                         <button type="button" class="btn btn-outline-secondary ts-cancel" disabled="@_busy" @onclick="CancelEdit">@TagsCopy.Cancel</button>
                                     </td>
@@ -94,11 +94,11 @@
                             }
                             else
                             {
-                                <tr @key="row.Id" data-tag="@row.Slug">
-                                    <td><TagChip Name="@row.Name" Colour="@row.Colour" /></td>
-                                    <td><code>@row.Slug</code></td>
-                                    <td class="ts-tag-count">@row.TicketCount</td>
-                                    <td class="ts-settings-actions">
+                                <tr role="row" @key="row.Id" data-tag="@row.Slug">
+                                    <td role="cell"><TagChip Name="@row.Name" Colour="@row.Colour" /></td>
+                                    <td role="cell"><code>@row.Slug</code></td>
+                                    <td role="cell" class="ts-tag-count">@row.TicketCount</td>
+                                    <td role="cell" class="ts-settings-actions">
                                         <button type="button" class="btn btn-outline-secondary ts-edit" disabled="@_busy" @onclick="() => BeginEdit(row)">@TagsCopy.Edit</button>
                                         <button type="button" class="btn btn-outline-secondary ts-delete" disabled="@_busy" @onclick="() => AskDelete(row)">@TagsCopy.Delete</button>
                                     </td>
@@ -107,7 +107,7 @@
                         }
                     </tbody>
                 </table>
-            </div>
+            </ScrollRegion>
         }
 
         <ConfirmDialog Open="@(Deleting is not null)" Title="@(Deleting is null ? string.Empty : TagsCopy.DeleteTitle(Deleting.Name))" ConfirmLabel="@TagsCopy.DeleteConfirm"

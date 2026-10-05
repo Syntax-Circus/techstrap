@@ -1,6 +1,7 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using SyntaxCircus.Common;
 using TechStrap.Admin.Clients;
@@ -16,6 +17,7 @@ public sealed class AdminEventsPageTests : AdminPageTest
 {
     private readonly IAdminEventsClient _events = Substitute.For<IAdminEventsClient>();
     private readonly IAgentsClient _agents = Substitute.For<IAgentsClient>();
+    private readonly RecordingLoggerProvider _logs = new();
     private readonly NavigationManager _navigation;
 
     public AdminEventsPageTests()
@@ -27,6 +29,7 @@ public sealed class AdminEventsPageTests : AdminPageTest
         ], 1, 25, 2)));
         _agents.ListAllAsync(Arg.Any<CancellationToken>()).Returns(TestData.Ok<IReadOnlyList<AgentListItemDto>>(
             [TestData.AgentRow("Ada Admin", TestData.AdaAgentId, AgentRoles.Admin), TestData.AgentRow("Sam Ortiz", TestData.SamAgentId)]));
+        Services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Trace).AddProvider(_logs));
         Services.AddSingleton(_events);
         Services.AddSingleton(_agents);
         _navigation = Services.GetRequiredService<NavigationManager>();
@@ -236,6 +239,53 @@ public sealed class AdminEventsPageTests : AdminPageTest
         cut.WaitForAssertion(() => cut.FindAll("tbody tr").Count.ShouldBe(2));
         agentsGate.SetResult(TestData.Ok<IReadOnlyList<AgentListItemDto>>([TestData.AgentRow("Ada Admin", TestData.AdaAgentId, AgentRoles.Admin)]));
         cut.WaitForAssertion(() => cut.Find("#ts-audit-actor").QuerySelectorAll("option").Count.ShouldBe(2));
+    }
+
+    [Fact]
+    public void The_events_render_the_moment_they_arrive_while_the_agent_list_is_still_on_its_way()
+    {
+        var eventsGate = new TaskCompletionSource<Result<PagedResponse<AdminEventDto>>>();
+        var agentsGate = new TaskCompletionSource<Result<IReadOnlyList<AgentListItemDto>>>();
+        _events.ListAsync(Arg.Any<AdminEventFilter>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(eventsGate.Task);
+        _agents.ListAllAsync(Arg.Any<CancellationToken>()).Returns(agentsGate.Task);
+        var cut = RenderPage();
+        cut.FindAll("tbody tr").ShouldBeEmpty();
+
+        eventsGate.SetResult(TestData.Ok(new PagedResponse<AdminEventDto>([TestData.AdminEvent(AdminEventTypes.TagDeleted, "{\"slug\":\"bug\",\"detachedTicketCount\":2}")], 1, 25, 1)));
+
+        // The agent list has not answered: the rows are drawn without waiting for it, and the filter has only "everyone" until it does.
+        cut.WaitForAssertion(() => cut.FindAll("tbody tr").Count.ShouldBe(1));
+        cut.Find("#ts-audit-actor").QuerySelectorAll("option").Count.ShouldBe(1);
+        agentsGate.SetResult(TestData.Ok<IReadOnlyList<AgentListItemDto>>([TestData.AgentRow("Ada Admin", TestData.AdaAgentId, AgentRoles.Admin)]));
+        cut.WaitForAssertion(() => cut.Find("#ts-audit-actor").QuerySelectorAll("option").Count.ShouldBe(2));
+    }
+
+    [Fact]
+    public void A_chosen_actor_stays_selected_while_the_names_are_on_their_way()
+    {
+        var agentsGate = new TaskCompletionSource<Result<IReadOnlyList<AgentListItemDto>>>();
+        _agents.ListAllAsync(Arg.Any<CancellationToken>()).Returns(agentsGate.Task);
+
+        var cut = RenderPage($"?actor={TestData.SamAgentId}");
+
+        cut.WaitForAssertion(() => cut.FindAll("tbody tr").Count.ShouldBe(2));
+        cut.Find("#ts-audit-actor option[selected]").GetAttribute("value").ShouldBe(TestData.SamAgentId.ToString());
+        agentsGate.SetResult(TestData.Ok<IReadOnlyList<AgentListItemDto>>([TestData.AgentRow("Sam Ortiz", TestData.SamAgentId)]));
+        cut.WaitForAssertion(() => cut.Find("#ts-audit-actor option[selected]").TextContent.ShouldBe("Sam Ortiz"));
+        cut.Find("#ts-audit-actor").QuerySelectorAll("option").Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public void A_failing_agent_list_read_is_logged_by_type_name_only_and_the_events_still_render()
+    {
+        _agents.ListAllAsync(Arg.Any<CancellationToken>()).Returns<Task<Result<IReadOnlyList<AgentListItemDto>>>>(_ => throw new InvalidOperationException("secret ada@example.test"));
+
+        var cut = RenderPage();
+
+        cut.WaitForAssertion(() => cut.FindAll("tbody tr").Count.ShouldBe(2));
+        cut.WaitForAssertion(() => _logs.Lines.ShouldContain(line => line.Contains("InvalidOperationException")));
+        _logs.Lines.ShouldNotContain(line => line.Contains("ada@example.test"));
+        cut.Find("#ts-audit-actor").QuerySelectorAll("option").Count.ShouldBe(1);
     }
 
     [Theory]

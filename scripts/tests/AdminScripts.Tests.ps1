@@ -30,6 +30,19 @@ Describe 'Admin browser scripts' {
         $LASTEXITCODE | Should -Be 0 -Because $output
     }
 
+    It 'passes the node:test suite for the early theme script (never throws, same key and meaning as preferences.js)' {
+        if (-not $script:Node) {
+            Set-ItResult -Skipped -Because 'node is not installed, so the theme-init.js tests cannot run'
+            return
+        }
+
+        $testFile = Join-Path $script:RepoRoot 'tests/TechStrap.Admin.Tests/js/theme-init.test.mjs'
+
+        $output = & node --test $testFile 2>&1 | Out-String
+
+        $LASTEXITCODE | Should -Be 0 -Because $output
+    }
+
     It 'passes the node:test suite for the clipboard helpers' {
         if (-not $script:Node) {
             Set-ItResult -Skipped -Because 'node is not installed, so the clipboard.js tests cannot run'
@@ -37,6 +50,45 @@ Describe 'Admin browser scripts' {
         }
 
         $testFile = Join-Path $script:RepoRoot 'tests/TechStrap.Admin.Tests/js/clipboard.test.mjs'
+
+        $output = & node --test $testFile 2>&1 | Out-String
+
+        $LASTEXITCODE | Should -Be 0 -Because $output
+    }
+
+    It 'passes the node:test suite for the time zone module (the zone is read without ever throwing)' {
+        if (-not $script:Node) {
+            Set-ItResult -Skipped -Because 'node is not installed, so the tz.js tests cannot run'
+            return
+        }
+
+        $testFile = Join-Path $script:RepoRoot 'tests/TechStrap.Admin.Tests/js/tz.test.mjs'
+
+        $output = & node --test $testFile 2>&1 | Out-String
+
+        $LASTEXITCODE | Should -Be 0 -Because $output
+    }
+
+    It 'passes the node:test suite for the command palette keys (arrows and Enter are taken from the browser, typing is not)' {
+        if (-not $script:Node) {
+            Set-ItResult -Skipped -Because 'node is not installed, so the palette.js tests cannot run'
+            return
+        }
+
+        $testFile = Join-Path $script:RepoRoot 'tests/TechStrap.Admin.Tests/js/palette.test.mjs'
+
+        $output = & node --test $testFile 2>&1 | Out-String
+
+        $LASTEXITCODE | Should -Be 0 -Because $output
+    }
+
+    It 'passes the node:test suite for the menu button keys (arrows, Home, End, Escape and Tab)' {
+        if (-not $script:Node) {
+            Set-ItResult -Skipped -Because 'node is not installed, so the menu.js tests cannot run'
+            return
+        }
+
+        $testFile = Join-Path $script:RepoRoot 'tests/TechStrap.Admin.Tests/js/menu.test.mjs'
 
         $output = & node --test $testFile 2>&1 | Out-String
 

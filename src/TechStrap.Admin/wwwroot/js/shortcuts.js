@@ -2,7 +2,10 @@
 // what they mean. To keep the circuit quiet it reports nothing but the keys the layer can use, and nothing while the user types (except Ctrl/Cmd+Enter,
 // which sends from the composer). Escape while typing blurs the field and keeps the text.
 //
-// The filtering is pure (isTyping, isRelevantKey, decide take plain objects) so tests/TechStrap.Admin.Tests/js/shortcuts.test.mjs can run it under node:test.
+// Ctrl+K (Cmd+K on macOS) opens the command palette from anywhere: while typing, and whatever the My settings switch says (a chord is not a single-key
+// shortcut, WCAG 2.1.4). It never opens over another modal dialog, because a confirmation is waiting for an answer; pressed inside the palette it closes it.
+//
+// The filtering is pure (isTyping, isRelevantKey, isPaletteChord, decide take plain objects) so tests/TechStrap.Admin.Tests/js/shortcuts.test.mjs can run it under node:test.
 
 const NON_TEXT_INPUTS = new Set(['button', 'checkbox', 'radio', 'submit', 'reset', 'file', 'range', 'color', 'image']);
 const EDITABLE_VALUES = new Set(['', 'true', 'plaintext-only']);
@@ -42,9 +45,18 @@ export function isRelevantKey(key) {
     return RELEVANT.has(key.length === 1 ? key.toLowerCase() : key);
 }
 
+/** True for Ctrl+K or Cmd+K with no Alt and no Shift (Ctrl+Shift+K is the browser's own developer tools shortcut in Firefox). */
+export function isPaletteChord(event) {
+    return !!(event.ctrlKey || event.metaKey)
+        && !event.altKey
+        && !event.shiftKey
+        && typeof event.key === 'string'
+        && event.key.toLowerCase() === 'k';
+}
+
 /**
  * Decides what one key press means for the page.
- * env: { active (focused element), dialogOpen, scope (nearest data-shortcut-scope), queueOnScreen }.
+ * env: { active (focused element), dialogOpen, paletteOpen (the open dialog is the palette), scope (nearest data-shortcut-scope), queueOnScreen }.
  * Returns null (ignore), { blur: true } (Escape in a field), or { payload, preventDefault } (report to .NET).
  */
 export function decide(event, env) {
@@ -52,8 +64,10 @@ export function decide(event, env) {
         return null;
     }
 
-    // A modal dialog owns the keyboard: Esc and Enter belong to it.
-    if (env.dialogOpen) {
+    const palette = isPaletteChord(event);
+
+    // A modal dialog owns the keyboard: Esc and Enter belong to it. The one exception is the palette chord inside the palette itself, which closes it.
+    if (env.dialogOpen && !(palette && env.paletteOpen)) {
         return null;
     }
 
@@ -66,7 +80,7 @@ export function decide(event, env) {
     const chord = event.ctrlKey || event.metaKey;
     // Send is Ctrl/Cmd+Enter only: Ctrl+Alt+Enter is a different chord (AltGr on some layouts) and never sends.
     const sendFromComposer = chord && event.key === 'Enter' && !event.altKey;
-    if (!sendFromComposer && (typing || chord || event.altKey || !isRelevantKey(key))) {
+    if (!palette && !sendFromComposer && (typing || chord || event.altKey || !isRelevantKey(key))) {
         return null;
     }
 
@@ -75,7 +89,8 @@ export function decide(event, env) {
     const scope = env.scope ?? null;
 
     // Stop the browser's own use of the key (Firefox quick-find on "/", page scroll on the arrows in the queue, a form submit on Ctrl+Enter).
-    const preventDefault = (sendFromComposer && scope === 'composer')
+    const preventDefault = palette
+        || (sendFromComposer && scope === 'composer')
         || key === '/'
         || key === '?'
         || ((key === 'ArrowDown' || key === 'ArrowUp') && onBody && !!env.queueOnScreen);
@@ -103,6 +118,7 @@ export function register(dotNetReference) {
         const result = decide(event, {
             active,
             dialogOpen: !!document.querySelector('dialog[open]'),
+            paletteOpen: !!document.querySelector('dialog[data-palette][open]'),
             scope: scopeElement ? scopeElement.dataset.shortcutScope : null,
             queueOnScreen: !!document.querySelector('[data-shortcut-scope="queue"]'),
         });

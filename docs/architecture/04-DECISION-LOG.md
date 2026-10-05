@@ -15,6 +15,7 @@ Approval basis:
 - **Owner decision (2026-10-03, PHASE-06c planning):** D-039, the owner decisions on erase scope, follow-ups of a deleted ticket and outbox retention. Its technical decisions were proposed in the PHASE-06c plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-04, PHASE-07 planning):** D-040, the owner decisions on the PHASE-07 split, the identity provider and the shared hosting project. Its technical decisions were proposed in the PHASE-07a plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-04, PHASE-07b planning):** D-041, the owner decisions on read-only roles in the Admin, the logo URL field, the tag ticket count and the single PR. Its technical decisions were proposed in the PHASE-07b plan and approved when the owner approved the plan.
+- **Owner decision (2026-10-04, PHASE-07c planning):** D-042, the owner decisions on the CSP, the theme flash, the time zone source, the shared host wiring and the single PR. Its defaults were proposed in the PHASE-07c plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -65,6 +66,7 @@ Approval basis:
 | D-039 | PHASE-06c: erase covers subject, metadata and outbox rows; hard delete unlinks follow-ups; outbox retention sweep and lookup index; Serilog redaction enricher; multipart hardening | Approved (owner 2026-10-03; technical decisions at PHASE-06c plan review) | 2026-10-03 | PHASE-06, PHASE-07, PHASE-09, PHASE-12 |
 | D-040 | PHASE-07 lands as 07a/07b/07c; Authentik set up later; TechStrap.Hosting project; Admin sign-in, API clients and ticket-handling decisions | Approved (owner 2026-10-04; technical decisions at PHASE-07a plan review) | 2026-10-04 | PHASE-07, PHASE-08, PHASE-09, PHASE-12 |
 | D-041 | PHASE-07b: roles are read-only in the Admin; the product logo is a validated URL; the tag list shows ticket counts; Admin guard, browser preferences and client decisions | Approved (owner 2026-10-04; technical decisions at PHASE-07b plan review) | 2026-10-04 | PHASE-07, PHASE-08, PHASE-12 |
+| D-042 | PHASE-07c: CSP with `style-src-attr`, theme init script, browser time zone, shared host wiring, command palette, responsive rail, session-expired banner, Sentry search scrub, OpenAPI security schemes | Approved (owner 2026-10-04; defaults at PHASE-07c plan review) | 2026-10-04 | PHASE-07, PHASE-09, PHASE-11, PHASE-12 |
 
 ---
 
@@ -1434,4 +1436,70 @@ PHASE-07a merged the sign-in, the shell, the typed clients and the ticket pages.
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-07b planning)
+- **Approved on:** 2026-10-04
+
+---
+
+## D-042: PHASE-07c: the CSP, the theme script, local time, shared host wiring, the command palette and the responsive Admin
+
+- **Status:** Approved (owner 2026-10-04; defaults at PHASE-07c plan review)
+- **Date:** 2026-10-04
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-017, D-024, D-034, D-040, D-041, PHASE-07, UX-BRIEF-admin, `docs/development/ADMIN-APP.md`, `docs/superpowers/plans/2026-10-04-phase-07c-admin-polish.md`
+
+### Context
+PHASE-07a and 07b are merged. 07c is the polish pass (T19), the compose and architecture checks (T20) and the items D-040 and D-041 moved to it: the CSP, the shared host wiring, the OpenAPI security scheme, the command palette, local time and the theme flash.
+Reading the code for the plan found these facts:
+- **Headers.** Only the Api sends security headers, and only the package defaults, whose CSP has no `default-src`, `script-src` or `style-src`. The Admin and the Portal send none. The Admin uses `style` attributes for the product accent and tag colours (`AccentPreview`, `TagChip`), and `<ImportMap />` renders an inline script (it is removed in 07c).
+- **The sign-in redirects.** Chrome applies `form-action` to the redirect that follows a form submission, so the sign-in and sign-out forms, which answer with a 302 to the identity provider, need the provider's origin in `form-action`. Firefox does not enforce it, so a Firefox-only check would miss it.
+- **Sessions.** Only the first `GET /api/agents/me` could move the app to "session expired". A 401 on any later call showed a generic error string and left the shell looking signed in.
+- **Logging.** Only the Admin removed the `HttpClient` factory's logging handlers, which write each request header (`Authorization`, an OTLP `x-api-key`) at Trace. The Api, Worker and Portal use the same factory. The 07b claim that the OTLP exporter goes through it was not reproduced in 07c; what was found is that the factory's own logging default leaks header values in its structured state, and the OTLP leak tests remain as an end-to-end guard with a positive control (a TCP listener that sees the export attempt).
+- **Search.** The queue keeps its search text in the address and sends it to the API as `?search=`. Sentry scrubbed request headers only.
+- **Time.** Every time is formatted in UTC. The API stores `timestamptz`, the agent profile has no zone, and the browser is the only source.
+
+### Decision
+**Owner decisions (2026-10-04)**
+- **CSP.** `script-src 'self'` stays strict. `style-src 'self'` plus `style-src-attr 'unsafe-inline'`: the colours are admin data, so classes cannot carry them, and a nonce does not cover attributes.
+- **Theme flash.** An external blocking script, `wwwroot/js/theme-init.js`, in the page head, loaded before the stylesheets.
+- **Time zone.** From the browser (`Intl`) through a JS module, per circuit. The prerender shows UTC. No API change.
+- **Host wiring.** A shared helper in `TechStrap.Hosting` is adopted by the Admin and the Portal, and the Portal gains a reference to Hosting. The `ConfigureHttpClientDefaults(b => b.RemoveAllLoggers())` default goes into all four hosts.
+- **One PR.**
+
+**Defaults (proposed in the plan, approved with it)**
+- **Queue search stays in the URL** and is masked in Sentry: a `SensitiveQuerySentryProcessor` in `TechStrap.Hosting` replaces the value of `search` and `q` with `[redacted]` in the URL and query string, every request header (including `Referer`), the message and its parameters, the request body and cookies (text), extras, tags, exceptions, span descriptions, data and tags, and breadcrumbs (through the `BeforeBreadcrumb` hook); names are matched after URL-decoding. It is registered with the header scrubber, so every host that has one gets it.
+- **`Retry-After` is honoured but capped at 2 seconds** on the read client.
+- **OpenAPI documents three schemes**: `Bearer` (HTTP bearer, JWT) for the Agent and Admin policies, `ApiKey` (header `X-Api-Key`) for intake, and `TicketToken` (header `X-Ticket-Token`) for the customer routes. A document and an operation transformer add them per operation; public operations name none. It is documentation only. A product update now looks the product up before it validates the body, so an unknown product with an invalid body answers 404 (it was 400).
+- **A 401 in the middle of a session** moves `AgentSession` to "session expired" from one place (`ApiConnection`). First load: the full page. Mid-session: a banner with "Sign in again" (a link to `/signin/start` for the current page), and the page stays mounted so an unsent draft survives. **Review ruling:** once the session has lapsed, `ApiConnection` sends no further request: every call returns a local "session expired" failure and the session stays expired for the rest of the circuit, because the auth package logs `PathAndQuery` (which includes the search text) on an unauthenticated call. A sign-in in another tab does not revive the old one; the agent uses the banner.
+
+**Technical decisions made in the plan**
+- **CSP details.** The directives are `default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' <the OIDC authority origin>`. `img-src` allows `https:` because product logos are `https` addresses chosen by an admin, loopback http only in Development, and `data:` because Bootstrap's compiled CSS uses data: SVG icons. There is no `upgrade-insecure-requests`. `connect-src` has no explicit `ws:` or `wss:`; that `'self'` covers the circuit's websocket is an owner browser check. `<ImportMap />` is removed from both apps (an architecture rule flags it). Origins are written with `IdnHost` and only printable ASCII is accepted. A styleguide inline handler was removed, and the architecture rules also flag `on*=` attributes and `<ImportMap>` in every form. The owner browser checks are the websocket under `connect-src 'self'`, the OIDC `form-action` redirects and the reconnect modal. One builder in `TechStrap.Hosting` (`TechStrapCsp.ForBlazorApp`) serves the Admin and the Portal; the Api uses `TechStrapCsp.ForApi` (`default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`), and successful (2xx) attachment downloads also get `sandbox` (in the Api and in the Admin's `/attachments` pass-through; an upstream 404 re-executes the ordinary not-found page, which is not sandboxed and keeps the full policy).
+- **Shared host wiring** (`TechStrap.Hosting.Wiring`). `AddTechStrapHttpClientDefaults` (the `RemoveAllLoggers` default) applies in all four hosts; `AddTechStrapWebHost`, `UseTechStrapWebHost` and `UseTechStrapErrorPages` apply to the Admin and the Portal; the Portal gets `AddTechStrapObservability`, which calls `AddSensitiveHeaderScrubbing`. The Portal references exactly Contracts and Hosting. `FactoryClientLeakTests` covers all four hosts. The OTLP probe in the host tests answers 200 (a probe that never answered made each test wait out the exporter's timeout). HSTS is not sent in Development. The CSP override is applied with `PostConfigure`, and the attachment `sandbox` matches the exact directive and replaces a weaker `sandbox`, and is added only to a 2xx answer, as in the Api. The OTLP probe reads a request body by its length or its chunk sizes and answers `Expect: 100-continue`.
+- **Session resilience.** `SessionExpiry` (scoped) receives `Report()` from `ApiConnection` on every 401 and then answers `IsLapsed`, which makes `ApiConnection` answer locally. `AgentSession` gains `ExpiredWhileWorking`, `IsAdmitted` and `MarkUnavailable()`; `IsAdmin` follows `IsAdmitted`, so it stays true while the session is expired mid-session, and a late `/me` success does not return a lapsed session to Ready. The `SessionExpiredBanner` (`role="alert"`) links to `/signin/start?returnUrl=<current>`. The read retry's cap is `ApiClientRegistration.ReadRetryAfterCap` (2 s).
+- **Command palette.** Ctrl+K or Cmd+K, a chord rather than a single key, so the My settings switch does not turn it off (WCAG 2.1.4). It is a native `dialog` with a combobox and a listbox. Commands come from a scoped `CommandRegistry`: built-in navigation (the six queue views, My settings), admin pages (admin only, checked when listed and again when chosen), and commands a screen registers while it is mounted (the ticket page: reply, internal note, assign to me, not spam). Ticket commands raise the same shortcut action as their key. The palette opens only when `State == Ready`; admin commands are listed only when `IsAdmin` and `AdminOnly` is checked again when a command is chosen; choosing a command and running it after the dialog has closed both require `Ready` again, so nothing runs once the session has lapsed. It closes before a command runs, runs it once, never opens over a confirmation dialog or before the session is known, and catches every exception a command throws (a cancellation too: nothing awaits one), logging the type only. Destructive actions are not palette commands.
+- **Local time.** `LocalTimeService` (scoped) reads the zone once after the first interactive render and resolves it with `TimeZoneInfo.FindSystemTimeZoneById`; an unknown or missing zone is UTC. The zone load has its own guard and runs after the shortcuts start. `RelativeTime` shows relative text (zone independent), a bare date from a week on (UTC before the zone loads; the zone label is only in the tooltip), a tooltip with the local and the UTC time (a zone with base offset 0 and no daylight saving, such as `Etc/UTC` or `Atlantic/Reykjavik`, shows the single UTC tooltip), and a UTC `datetime` attribute. The Admin image installs `tzdata`; moving the base image to Debian trixie needs `tzdata-legacy` for legacy zone names.
+- **Responsive layout.** The rail folds behind a Menu button below 992 px (`aria-expanded`, `display: none` when closed, closes on navigation). The queue drops three columns from 768 to 992 px and becomes cards below 768 px. Tables scroll in a named, focusable `ScrollRegion` (7 ledger tables), and carry explicit table, rowgroup, row, columnheader and cell roles so the phone cards keep their table semantics; how a screen reader announces them is an owner check. Focus that was inside the rail panel moves to the Menu button when a navigation folds it. On a phone the composer follows the conversation. `prefers-reduced-motion` and `forced-colors` rules are tested against the compiled CSS. Breakpoints were chosen to match Bootstrap's `lg` and `md`.
+- **Menu accessibility.** The ticket actions menu follows the menu button pattern (roles, arrow keys, Home and End, Escape returns focus, Tab closes). The rail links carry `aria-current="page"`. `BrandWindow` takes a heading level, so the 404 and the sign-in page have an `h1`.
+- **07b minors.** An uncertain write is held until a read that started after it finishes (`UncertainMarks`, a load id stored with each mark); the audit page draws its events without waiting for the agent list; retyping the committed display name after an uncertain save says to reload; a product saved with a relative logo before the logo rule can be edited when the logo is left alone (`ProductBranding.CreateForUpdate` skips the logo rule for an unchanged stored value; the Admin editor mirrors it).
+
+### Alternatives Considered
+- **A strict `style-src 'self'` with the colours set from script** (CSSOM). Rejected: the prerender and a page without script would have no colours, and it is more code for the same protection of a validated hex value.
+- **A per-request nonce or hash for inline script.** Rejected: there is no inline script to cover once `theme-init.js` is external, and a nonce does not cover style attributes.
+- **A theme cookie rendered on `<html>`.** Rejected: a second source of truth and a cookie on every request.
+- **Taking the time zone from the API or a stored preference.** Rejected: it needs an API change and a migration (the Admin adds no entry points, D-040), and a stored zone goes stale when an agent travels.
+- **Taking the queue search out of the address.** Rejected: it loses bookmarks and back and forward for searches and reverses a recorded assumption; the masking in Sentry covers the exposure that mattered.
+- **Ignoring `Retry-After`.** Rejected: a polite client waits a little when the API asks it to. Honouring it uncapped could stall a page for the whole client timeout.
+- **Tearing the page down on a mid-session 401.** Rejected: it loses unsent replies and notes.
+- **Per-page 401 handling.** Rejected: every page would need it, and one would be forgotten.
+
+### Consequences
+- **Superseded wording.** The D-040 and D-041 lines that moved the palette, local time, the theme flash, the CSP and the OpenAPI scheme to 07c are now done. ADMIN-APP.md describes them. The PHASE-07 package-table lines about "401 flips the session" and "CSP asserted in a host test" are now true.
+- **The CSP relaxes one thing**, `style-src-attr 'unsafe-inline'`, so an injected `style` attribute would run. It cannot run script, and every value the Admin writes into a `style` attribute is a validated hex colour.
+- **The Portal depends on Hosting** (the architecture tests allow it) and gets the PII enricher, the Sentry scrubbers and the headers early, before PHASE-09 builds on it.
+- **A stored logo is untrusted.** A logo stored before 07b was never validated, and an unchanged stored logo is accepted on save, so any stored `LogoPath` must stay untrusted in every renderer: the Portal (PHASE-09) and the email renderer, which accepts only `https://`.
+- **Other tab, old session.** After a mid-session 401 the circuit stays expired and sends nothing, so a sign-in in another tab does not revive it; the agent uses the banner.
+- **The compose smoke is opt-in**, because it builds four images.
+- **Still open:** the manual sign-in against a real identity provider (P07-T02, owner action 7), and with it the keyboard walk, the axe run and the CSP check of the redirects. The queue search is still in the browser history and in the proxy's access log.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-07c planning)
 - **Approved on:** 2026-10-04

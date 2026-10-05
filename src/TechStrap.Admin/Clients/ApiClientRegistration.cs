@@ -17,6 +17,12 @@ public static class ApiClientRegistration
     /// <summary>The write client allows a multipart reply with attachments at least this long, whatever the configured read timeout.</summary>
     public const int WriteTimeoutFloorSeconds = 300;
 
+    /// <summary>
+    /// The longest a read waits before a retry, whatever the API's <c>Retry-After</c> asks for. The resilience default honours the header with no limit, so an
+    /// overloaded API that says "120" would freeze a page on "Loading" until the client timeout (30 s). The header is still honoured below this cap.
+    /// </summary>
+    public static readonly TimeSpan ReadRetryAfterCap = TimeSpan.FromSeconds(2);
+
     private static readonly TimeSpan ReadRetryBaseDelay = TimeSpan.FromMilliseconds(250);
 
     // A circuit can live for hours: refresh pooled connections so a DNS change of the API is picked up.
@@ -48,6 +54,7 @@ public static class ApiClientRegistration
             .AddForwardedClientIp()
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { PooledConnectionLifetime = ConnectionLifetime });
 
+        services.AddScoped<SessionExpiry>();
         services.AddScoped<ApiConnection>();
         services.AddScoped<IAgentsClient, AgentsClient>();
         services.AddScoped<IProductsClient, ProductsClient>();
@@ -67,6 +74,10 @@ public static class ApiClientRegistration
         Delay = ReadRetryBaseDelay,
         BackoffType = DelayBackoffType.Exponential,
         UseJitter = true,
+
+        // The default honours Retry-After without a limit; this one honours it up to ReadRetryAfterCap and otherwise falls back to the backoff above.
+        ShouldRetryAfterHeader = false,
+        DelayGenerator = args => ValueTask.FromResult(RetryAfterDelay(args.Outcome.Result, TimeProvider.System.GetUtcNow())),
         ShouldHandle = args => ValueTask.FromResult(args.Outcome switch
         {
             { Exception: HttpRequestException or TimeoutException } => true,
@@ -75,6 +86,22 @@ public static class ApiClientRegistration
             _ => false,
         }),
     };
+
+    /// <summary>
+    /// The wait the API asked for in <c>Retry-After</c> (seconds or an HTTP date), capped at <see cref="ReadRetryAfterCap"/>; null when there is no usable header, so the
+    /// exponential backoff applies. A date in the past asks for no wait beyond the backoff.
+    /// </summary>
+    internal static TimeSpan? RetryAfterDelay(HttpResponseMessage? response, DateTimeOffset now)
+    {
+        var retryAfter = response?.Headers.RetryAfter;
+        TimeSpan? requested = retryAfter?.Delta ?? (retryAfter?.Date is { } date ? date - now : null);
+        if (requested is not { } wait || wait <= TimeSpan.Zero)
+        {
+            return null;
+        }
+
+        return wait < ReadRetryAfterCap ? wait : ReadRetryAfterCap;
+    }
 
     private static void ConfigureClient(IServiceProvider services, HttpClient client, int minimumTimeoutSeconds)
     {

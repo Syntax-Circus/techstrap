@@ -15,6 +15,12 @@ public enum ShortcutAction
     Send,
     Escape,
     Help,
+
+    /// <summary>Ctrl+K or Cmd+K: open or close the command palette. Not a single-key shortcut, so the My settings switch does not turn it off (WCAG 2.1.4).</summary>
+    Palette,
+
+    /// <summary>Has no key. The command palette raises it for "Assign to me" on a ticket.</summary>
+    AssignToMe,
 }
 
 /// <summary>What <c>wwwroot/js/shortcuts.js</c> reports for one key press. The script decides <see cref="Typing"/> and <see cref="OnBody"/> from the focused element.</summary>
@@ -27,7 +33,9 @@ public sealed record KeyPress(string Key, bool Ctrl, bool Meta, bool Alt, bool T
 /// <summary>
 /// The keyboard layer (UX-BRIEF-admin, Density and keyboard shortcuts). The script reports key presses; this class decides whether one is a
 /// shortcut and tells whoever subscribed. Pages and components subscribe to <see cref="Pressed"/> while they are on screen and ignore what is not theirs.
-/// Single-key shortcuts are off while the user types, and when <see cref="SingleKeyEnabled"/> is false (WCAG 2.1.4). The command palette is deferred to PHASE-07c.
+/// Single-key shortcuts are off while the user types, and when <see cref="SingleKeyEnabled"/> is false (WCAG 2.1.4). Ctrl+K (Cmd+K) is a chord, not a single key: it opens the
+/// command palette from anywhere, typing included, and the switch does not turn it off. The palette raises the same actions through <see cref="RaiseAsync"/>, so a ticket command and its key
+/// run the same code.
 /// </summary>
 public sealed class ShortcutService(IJSRuntime js) : IAsyncDisposable
 {
@@ -51,6 +59,11 @@ public sealed class ShortcutService(IJSRuntime js) : IAsyncDisposable
     {
         if (press.Ctrl || press.Meta)
         {
+            if (!press.Alt && string.Equals(press.Key, "k", StringComparison.OrdinalIgnoreCase))
+            {
+                return ShortcutAction.Palette;
+            }
+
             return press.Key == "Enter" && press.Scope == ComposerScope ? ShortcutAction.Send : null;
         }
 
@@ -119,14 +132,23 @@ public sealed class ShortcutService(IJSRuntime js) : IAsyncDisposable
     public async Task OnKeyAsync(KeyPress press)
     {
         var action = Map(press, SingleKeyEnabled);
-        if (action is null || Pressed is null)
+        if (action is not null)
+        {
+            await RaiseAsync(action.Value);
+        }
+    }
+
+    /// <summary>Tells every subscriber that <paramref name="action"/> happened, in subscription order, as if its key had been pressed. The command palette uses this for ticket commands.</summary>
+    public async Task RaiseAsync(ShortcutAction action)
+    {
+        if (Pressed is null)
         {
             return;
         }
 
         foreach (var handler in Pressed.GetInvocationList().Cast<Func<ShortcutAction, Task>>())
         {
-            await handler(action.Value);
+            await handler(action);
         }
     }
 

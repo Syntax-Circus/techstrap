@@ -28,26 +28,26 @@
         }
         else
         {
-            <div class="table-responsive">
-                <table class="table ts-ledger ts-settings-table" aria-busy="@(_loading ? "true" : null)">
-                    <thead>
-                        <tr>
-                            <th scope="col">@DeadLettersCopy.ColumnRecipient</th>
-                            <th scope="col">@DeadLettersCopy.ColumnEmail</th>
-                            <th scope="col">@DeadLettersCopy.ColumnTicket</th>
-                            <th scope="col">@DeadLettersCopy.ColumnAttempts</th>
-                            <th scope="col">@DeadLettersCopy.ColumnError</th>
-                            <th scope="col">@DeadLettersCopy.ColumnCreated</th>
-                            <th scope="col"><span class="visually-hidden">@DeadLettersCopy.ColumnActions</span></th>
+            <ScrollRegion Label="Failed emails">
+                <table role="table" class="table ts-ledger ts-settings-table" aria-busy="@(_loading ? "true" : null)">
+                    <thead role="rowgroup">
+                        <tr role="row">
+                            <th role="columnheader" scope="col">@DeadLettersCopy.ColumnRecipient</th>
+                            <th role="columnheader" scope="col">@DeadLettersCopy.ColumnEmail</th>
+                            <th role="columnheader" scope="col">@DeadLettersCopy.ColumnTicket</th>
+                            <th role="columnheader" scope="col">@DeadLettersCopy.ColumnAttempts</th>
+                            <th role="columnheader" scope="col">@DeadLettersCopy.ColumnError</th>
+                            <th role="columnheader" scope="col">@DeadLettersCopy.ColumnCreated</th>
+                            <th role="columnheader" scope="col"><span class="visually-hidden">@DeadLettersCopy.ColumnActions</span></th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                         @foreach (var row in _rows)
                         {
-                            <tr @key="row.Id" data-letter="@row.Id">
-                                <td><code>@row.Recipient</code></td>
-                                <td>@DeadLettersCopy.KindLabel(row.Kind)</td>
-                                <td>
+                            <tr role="row" @key="row.Id" data-letter="@row.Id">
+                                <td role="cell"><code>@row.Recipient</code></td>
+                                <td role="cell">@DeadLettersCopy.KindLabel(row.Kind)</td>
+                                <td role="cell">
                                     @if (row.TicketId is { } ticket)
                                     {
                                         <a href="/tickets/@ticket">@DeadLettersCopy.OpenTicket</a>
@@ -57,10 +57,10 @@
                                         @DeadLettersCopy.NoTicket
                                     }
                                 </td>
-                                <td>@row.Attempts</td>
-                                <td class="ts-last-error">@row.LastError</td>
-                                <td><RelativeTime When="row.CreatedAt" /></td>
-                                <td class="ts-settings-actions">
+                                <td role="cell">@row.Attempts</td>
+                                <td role="cell" class="ts-last-error">@row.LastError</td>
+                                <td role="cell"><RelativeTime When="row.CreatedAt" /></td>
+                                <td role="cell" class="ts-settings-actions">
                                     <button type="button" class="btn btn-outline-secondary ts-retry" disabled="@_busy" @onclick="() => RetryAsync(row)">@DeadLettersCopy.Retry</button>
                                     <button type="button" class="btn btn-outline-secondary ts-discard" disabled="@_busy" @onclick="() => AskDiscard(row)">@DeadLettersCopy.Discard</button>
                                 </td>
@@ -68,7 +68,7 @@
                         }
                     </tbody>
                 </table>
-            </div>
+            </ScrollRegion>
             <PagerControl Page="_page" PageSize="DeadLettersCopy.PageSize" TotalCount="_total" OnPageChanged="OnPageChanged" />
         }
 
