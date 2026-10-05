@@ -142,12 +142,19 @@ public sealed class DrainEmailOutboxHandler(
     }
 
     // D-044, Review Focus 5: the links were frozen when the reply was planned. Before sending, keep only the articles that are still Published, visible to
-    // the ticket's product and at the same portal address (one query per email). An entry without an article id (queued before this check) is kept as it is.
+    // the ticket's product (an inactive product keeps none) and at the same portal address (one query per email). An entry without an article id (queued before this check) is kept as it is.
     private async Task<AgentReplyEmail> DropStaleArticlesAsync(AgentReplyEmail reply, Product product, Guid productId, CancellationToken cancellationToken)
     {
         if (reply.Articles is not { Count: > 0 } articles)
         {
             return reply;
+        }
+
+        // A product that was deactivated after the reply was planned has no public portal pages: no link is sent (and no query is needed to know it).
+        if (!product.IsActive)
+        {
+            logger.LogInformation("Dropped {Dropped} article links from an agent reply before sending: the product is inactive.", articles.Count);
+            return reply with { Articles = null };
         }
 
         if (!articles.Any(a => a?.ArticleId is not null))

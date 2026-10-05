@@ -267,6 +267,23 @@ public sealed class DrainEmailOutboxHandlerTests
     }
 
     [Fact]
+    public async Task Review_Focus_5_a_product_deactivated_after_planning_loses_every_link_at_send_time_and_the_knowledge_base_is_not_asked()
+    {
+        _product.SetActive(false);
+        var item = Item(EmailTemplates.AgentReply, JsonSerializer.Serialize(ReplyModel with { Articles = [new ArticleLinkEntry("Reset", LinkA, ArticleA), new ArticleLinkEntry("Old", LinkB)] }, JsonSerializerOptions.Web));
+        Claims(item);
+        _tickets.GetMessageAsync(MessageId, Arg.Any<CancellationToken>()).Returns(AgentMessage(MessageVisibility.Public));
+        AgentReplyEmail? rendered = null;
+        _renderer.RenderAgentReply(Arg.Do<AgentReplyEmail>(m => rendered = m), Arg.Any<string>(), Arg.Any<EmailBranding>()).Returns(Rendered);
+
+        await _handler.HandleAsync("w1", CancellationToken.None);
+
+        rendered.ShouldNotBeNull().Articles.ShouldBeNull();
+        await _kb.DidNotReceiveWithAnyArgs().ListPublicLinkTargetsAsync(default, default!, TestContext.Current.CancellationToken);
+        await _store.Received(1).MarkSentAsync(item.Id, "w1", CancellationToken.None);
+    }
+
+    [Fact]
     public async Task An_article_with_an_empty_id_is_dropped_and_never_kept_unchecked()
     {
         var rendered = await DrainReplyWithArticlesAsync(

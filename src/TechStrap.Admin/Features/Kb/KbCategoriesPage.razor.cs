@@ -427,7 +427,7 @@ public sealed partial class KbCategoriesPage : IDisposable
             _deleteError = KbCategoriesCopy.DeleteForbidden;
             _deleteBlocked = true;
         }
-        else if (ApiErrorCodes.IsUncertainWrite(error.Code))
+        else if (WriteOutcomes.Classify(error) == WriteOutcome.Uncertain)
         {
             _deleteError = KbCategoriesCopy.DeleteUncertain;
             _deleteUncertain = true;
