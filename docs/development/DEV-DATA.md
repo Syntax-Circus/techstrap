@@ -4,6 +4,23 @@ With `ASPNETCORE_ENVIRONMENT=Development` and `TECHSTRAP_SEED_DEV_DATA=true`, th
 requesters, tags, tickets in every status and knowledge base articles. Seeding runs once per database (markers: product
 `orbitly`, shared article `welcome`).
 
+## Dev knowledge base
+
+Three categories (shared `getting-started`, Orbitly `account`, Paperplane `guides`) and five articles. Three are published, so the
+public KB endpoints return something for both products (D-044):
+
+| Article | Product | Category | Status |
+| --- | --- | --- | --- |
+| `welcome` | shared | `getting-started` | Published |
+| `reset-password` | Orbitly | `account` | Published |
+| `using-dark-mode` | Paperplane | `guides` | Published |
+| `export-csv` | Orbitly | none | Draft |
+| `old-pricing` | Orbitly | none | Archived |
+
+For example `GET /api/public/kb/paperplane/categories` lists `getting-started` and `guides` (each with one article), and a reply may link
+any Published article that is shared or belongs to the ticket's product. A database seeded before PHASE-08 keeps its four articles: the seed
+runs once, so start from a fresh development database to get the Paperplane article.
+
 ## Dev API keys
 
 These keys are fake and work only against a database the development seeder filled. Never use them anywhere else.

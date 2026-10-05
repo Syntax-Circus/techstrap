@@ -39,6 +39,10 @@ internal sealed class TicketNotificationPlanner(
     private static readonly JsonSerializerOptions PayloadJson = new(JsonSerializerDefaults.Web);
 
     public Task PlanAgentReplyAsync(Ticket ticket, Message message, Agent author, bool solved, CancellationToken cancellationToken) =>
+        PlanAgentReplyAsync(ticket, message, author, solved, [], cancellationToken);
+
+    public Task PlanAgentReplyAsync(
+        Ticket ticket, Message message, Agent author, bool solved, IReadOnlyList<ReplyArticleLink> articles, CancellationToken cancellationToken) =>
         PlanCustomerAsync(
             ticket,
             EmailTemplates.AgentReply,
@@ -50,7 +54,10 @@ internal sealed class TicketNotificationPlanner(
                 AgentPublicIdentity.Resolve(author, product.Branding.DisplayName),
                 message.Id,
                 solved,
-                autoClose.Value.Days),
+                autoClose.Value.Days,
+                articles.Count == 0
+                    ? null
+                    : [.. articles.Select(article => new ArticleLinkEntry(article.Title, portalOptions.Value.ArticleLink(product.Key, article.CategorySlug, article.Slug)))]),
             cancellationToken);
 
     public Task PlanSolvedAsync(Ticket ticket, CancellationToken cancellationToken) =>

@@ -113,6 +113,22 @@ public sealed class DevSeederTests(PostgresFixture postgres) : PostgresIntegrati
         found.Items.ShouldHaveSingleItem().Slug.ShouldBe("reset-password");
     }
 
+    [Fact]
+    public async Task Seeding_publishes_knowledge_base_articles_in_two_products_and_the_shared_space_each_under_a_category()
+    {
+        await using var provider = BuildProvider();
+
+        await SeedAsync(provider);
+
+        var published = await ReadAsync(provider, sp => sp.GetRequiredService<IKbRepository>().ListArticlesAsync(new KbArticleQuery(Status: KbArticleStatus.Published), Ct));
+        var products = (await ReadAsync(provider, sp => sp.GetRequiredService<IProductRepository>().ListAsync(false, Ct))).ToDictionary(p => p.Id, p => p.Key);
+        published.Items.Select(a => a.ProductId is { } id ? products[id] : "shared").Order().ShouldBe(["orbitly", "paperplane", "shared"]);
+        published.Items.ShouldAllBe(article => article.CategoryId != null);
+        var paperplaneId = products.Single(p => p.Value == "paperplane").Key;
+        var categories = await ReadAsync(provider, sp => sp.GetRequiredService<IKbRepository>().ListPublicCategoriesAsync(paperplaneId, Ct));
+        categories.Select(c => (c.Category.Slug, c.ArticleCount)).ShouldBe([("getting-started", 1), ("guides", 1)]);
+    }
+
     [Theory]
     [InlineData(DevelopmentApiKeys.OrbitlyTrusted)]
     [InlineData(DevelopmentApiKeys.OrbitlyPublic)]
@@ -174,7 +190,7 @@ public sealed class DevSeederTests(PostgresFixture postgres) : PostgresIntegrati
         var all = await ReadAsync(first, sp => sp.GetRequiredService<ITicketRepository>().ListAsync(new TicketQuery(TicketView.All, PageSize: 100), Ct));
         var spam = await ReadAsync(first, sp => sp.GetRequiredService<ITicketRepository>().ListAsync(new TicketQuery(TicketView.Spam), Ct));
         (all.TotalCount + spam.TotalCount).ShouldBe(7);
-        (await ReadAsync(first, sp => sp.GetRequiredService<IKbRepository>().ListArticlesAsync(new KbArticleQuery(), Ct))).TotalCount.ShouldBe(4);
+        (await ReadAsync(first, sp => sp.GetRequiredService<IKbRepository>().ListArticlesAsync(new KbArticleQuery(), Ct))).TotalCount.ShouldBe(5);
     }
 
     [Fact]

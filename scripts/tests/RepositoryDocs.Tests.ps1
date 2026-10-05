@@ -105,6 +105,22 @@ Describe 'D-044 (the knowledge base)' {
         }
     }
 
+    It 'ticks the API tasks P08-T01 to P08-T12 and the roadmap row says the phase is in progress' {
+        $phase = Get-RepoText 'docs/architecture/PHASE-08-knowledge-base.md'
+        foreach ($number in 1..12) {
+            $id = 'P08-T{0:00}' -f $number
+            $phase | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is done"
+        }
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 08 \|.*D-044.*\| In progress'
+    }
+
+    It 'describes the dev knowledge base seed and the reply link rule' {
+        (Get-RepoText 'docs/development/DEV-DATA.md') | Should -Match 'using-dark-mode'
+        $operations = Get-RepoText 'docs/development/TICKET-OPERATIONS.md'
+        $operations | Should -Match 'kb-article-not-linkable'
+        $operations | Should -Match ([regex]::Escape('/p/{product key}/kb/{category slug}/{article slug}'))
+    }
+
     It 'tells the operator about the Api public URL and the /kb-images/ proxy route' {
         $runbook = Get-RepoText 'docs/self-hosting/DEPLOYMENT.md'
         $runbook | Should -Match 'TECHSTRAP_API_PUBLIC_URL'

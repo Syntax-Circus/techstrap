@@ -8,4 +8,8 @@ public sealed class PortalLinkOptions
     public string PublicUrl { get; set; } = string.Empty;
 
     public string TicketLink(string token) => $"{PublicUrl.TrimEnd('/')}/t/{token}";
+
+    /// <summary>The portal page of a published KB article: <c>{url}/p/{product key}/kb/{category slug}/{article slug}</c> (PHASE-09 route, D-044).</summary>
+    public string ArticleLink(string productKey, string categorySlug, string articleSlug) =>
+        $"{PublicUrl.TrimEnd('/')}/p/{Uri.EscapeDataString(productKey)}/kb/{Uri.EscapeDataString(categorySlug)}/{Uri.EscapeDataString(articleSlug)}";
 }

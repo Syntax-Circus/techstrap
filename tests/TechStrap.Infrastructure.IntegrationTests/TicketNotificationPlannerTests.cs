@@ -107,6 +107,37 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
         Message.Create(seed.TicketId, AuthorType.Agent, author.Id, MessageVisibility.Public, "<p>Try again.</p>", host.Clock).Value;
 
     [Fact]
+    public async Task A_reply_with_linked_articles_puts_each_portal_link_in_the_payload_with_the_tickets_product_key_and_a_trailing_slash_does_not_double()
+    {
+        await using var host = NewHost(extra: new Dictionary<string, string?> { [PortalLinkOptions.PublicUrlKey] = "https://help.test/" });
+        var seed = await SeedAsync(host);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, (planner, ticket, sam, _) =>
+            planner.PlanAgentReplyAsync(
+                ticket, AgentMessage(host, seed, sam), sam, false,
+                [new ReplyArticleLink("Reset your password", "account", "reset-password"), new ReplyArticleLink("Shared tips", "general", "shared-tips")],
+                Ct)))).IsSuccess.ShouldBeTrue();
+
+        var payload = await TextAsync("SELECT payload::text FROM email_outbox");
+        payload.ShouldContain("https://help.test/p/orbitly/kb/account/reset-password");
+        payload.ShouldContain("https://help.test/p/orbitly/kb/general/shared-tips");
+        payload.ShouldNotContain("//p/");
+        payload.ShouldNotContain("nimbus");
+    }
+
+    [Fact]
+    public async Task A_reply_without_articles_queues_a_payload_with_no_article_list()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host);
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, (planner, ticket, sam, _) => planner.PlanAgentReplyAsync(ticket, AgentMessage(host, seed, sam), sam, false, [], Ct))))
+            .IsSuccess.ShouldBeTrue();
+
+        (await TextAsync("SELECT payload::text FROM email_outbox")).ShouldContain("\"articles\": null");
+    }
+
+    [Fact]
     public async Task A_reply_queues_one_branded_email_to_the_requester_with_a_fresh_link_and_the_public_name()
     {
         await using var host = NewHost();

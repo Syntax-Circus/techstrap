@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using TechStrap.Application.Email;
 using TechStrap.Application.Tickets.Notifications;
 using TechStrap.Contracts.Branding;
+using TechStrap.Contracts.Tickets;
 using TechStrap.Domain.Products;
 
 namespace TechStrap.Infrastructure.Email;
@@ -75,6 +76,18 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
         text.Append(Greeting(model.RequesterName)).Append("\n\n");
         text.Append($"{model.AgentPublicName} replied:").Append("\n\n");
         text.Append(HtmlText.ToPlainText(messageHtml)).Append("\n\n");
+        var articles = WebArticleLinks(model.Articles);
+        if (articles.Count > 0)
+        {
+            text.Append("Related articles:").Append('\n');
+            foreach (var article in articles)
+            {
+                text.Append($"- {article.Title}: {article.Url}").Append('\n');
+            }
+
+            text.Append('\n');
+        }
+
         if (model.Solved)
         {
             text.Append(solvedLine).Append("\n\n");
@@ -89,6 +102,17 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
         body.Append($"<p style=\"{ParagraphStyle}\">{HtmlGreeting(model.RequesterName)}</p>");
         body.Append($"<p style=\"{ParagraphStyle}\">{Encode(model.AgentPublicName)} replied:</p>");
         body.Append($"<div style=\"margin:0 0 16px 0;\">{messageHtml}</div>");
+        if (articles.Count > 0)
+        {
+            body.Append("<p style=\"margin:0 0 8px 0;\">Related articles:</p><ul style=\"margin:0 0 16px 0;padding-left:20px;\">");
+            foreach (var article in articles)
+            {
+                body.Append($"<li><a href=\"{Encode(article.Url)}\" style=\"color:{colors.AccentInk};\">{Encode(article.Title)}</a></li>");
+            }
+
+            body.Append("</ul>");
+        }
+
         if (model.Solved)
         {
             body.Append($"<p style=\"{ParagraphStyle}\">{Encode(solvedLine)}</p>");
@@ -99,6 +123,10 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
         body.Append($"<p style=\"margin:0;\">The {Encode(branding.DisplayName)} team</p>");
         return Build(subject, text.ToString(), Layout(branding, colors, body.ToString(), showPoweredBy), branding);
     }
+
+    // At most the reply limit, and only absolute http or https addresses: a link that is not one is dropped rather than emailed broken (D-044).
+    private static List<ArticleLinkEntry> WebArticleLinks(IReadOnlyList<ArticleLinkEntry>? articles) =>
+        [.. (articles ?? []).Where(article => IsWebUrl(article.Url) && !string.IsNullOrWhiteSpace(article.Title)).Take(TicketOperationLimits.MaxLinkedArticles)];
 
     public RenderedEmail RenderTicketSolved(TicketSolvedEmail model, EmailBranding branding)
     {

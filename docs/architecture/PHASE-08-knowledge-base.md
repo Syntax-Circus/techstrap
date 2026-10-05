@@ -20,7 +20,7 @@ Portal KB pages, the contact-form deflection UI and SEO tags are
 - **Split of work:** API tasks (T01–T12) need only P06 and may run in parallel with P07; admin-editor tasks (T13–T20) need P07.
 - **Scope model:** `KbArticle.product_id` null = shared across all products; public queries for product `{key}` return that product's published articles plus shared ones. Slug unique within product (and among shared). Categories likewise product-or-shared. Single-level categories ([01-REQUIREMENTS.md](01-REQUIREMENTS.md)).
 - **Lifecycle:** `Draft` -> `Published` -> `Archived` (Archived -> Draft by update). `PublishKbArticleRequestHandler` sets `published_at` on first publish and validates title, slug, category and non-empty body (the portal article URL includes the category slug); `ArchiveKbArticleRequestHandler` removes it from public search/sitemap. Edits to a Published article stay live (no revision history; cut for core).
-- **Markdown pipeline:** Markdig converts stored Markdown to HTML on read, then `IHtmlSanitizer` (HtmlSanitizer library) sanitizes; both behind application abstractions `IMarkdownRenderer` and `IHtmlSanitizer`, implemented in Infrastructure. Raw HTML in Markdown is disabled in the pipeline (**Assumption**) and the sanitizer is the second line of defense. Rendered HTML is cached in-memory keyed by article id + `updated_at` (**Assumption**, bounded size).
+- **Markdown pipeline:** Markdig converts stored Markdown to HTML on read, then `IHtmlSanitizer` (HtmlSanitizer library) sanitizes; both behind application abstractions `IMarkdownRenderer` and `IHtmlSanitizer`, implemented in Infrastructure. Raw HTML in Markdown is disabled in the pipeline (**Assumption**) and the sanitizer is the second line of defense. The knowledge base has its own profile, `IKbContentRenderer` (pipe tables, `img` and table tags), so agent replies keep the narrower message pipeline (D-044). Rendered HTML is cached in-memory keyed by article id + `updated_at` (**Assumption**, bounded size).
 - **Search:** Postgres FTS (`websearch_to_tsquery`, `ts_rank_cd`) over title (weight A), summary (B), body (C); published only; capped result count and snippet via `ts_headline` on the summary. One handler (`SearchPublicKbArticlesRequestHandler`) serves portal search and contact-form deflection ("same use case" per [02-ARCHITECTURE.md](02-ARCHITECTURE.md)).
 - **Images:** `UploadKbImageRequestHandler` validates size (constant, default 5 MB, **Assumption**), content sniffs magic bytes (png/jpeg/gif/webp; **SVG rejected**), generates a random storage key under the `kb-images/` prefix via `IKbImageStore` (over `SyntaxCircus.Storage`), and returns the public URL. The prefix is publicly readable: the API serves it as static assets from storage, which are exempt endpoints that execute no application workflow (D-021); ticket attachments never live under this prefix. Orphan cleanup is out of scope (Risks).
 - **Public endpoints** are anonymous, rate-limited per IP (pattern `CLIENT_IP_RATE_LIMITING.md`, same pinned-subnet/forwarded-headers config as P05) and return `Cache-Control: public, max-age` short TTL (**Assumption**: 60 s).
@@ -94,49 +94,49 @@ are third-party NuGet packages (not Syntax Circus) already listed there.
 
 ## Deliverables
 
-- [ ] KB persistence verified (migration only if P03 gap); FTS ranking verified.
-- [ ] `IMarkdownRenderer`, `IHtmlSanitizer`, `IKbImageStore`, `IKbRepository` KB members and Infrastructure implementations.
-- [ ] 12 agent handlers (including `RenderKbPreviewRequestHandler`) and 4 public handlers with controllers and DTOs in Contracts.
+- [x] KB persistence verified (migration only if P03 gap); FTS ranking verified.
+- [x] `IMarkdownRenderer`, `IHtmlSanitizer`, `IKbImageStore`, `IKbRepository` KB members and Infrastructure implementations.
+- [x] 12 agent handlers (including `RenderKbPreviewRequestHandler`) and 4 public handlers with controllers and DTOs in Contracts.
 - [ ] Reply-article linking validated and surfaced in the timeline.
 - [ ] Admin KB list, editor with live preview and image upload, categories page, article picker in the reply composer.
-- [ ] Seed/demo KB data for local development.
+- [x] Seed/demo KB data for local development.
 
 ## Actionable Tasks
 
-- [ ] **P08-T01** Verify P03's KB entities, unique constraints (product+slug, shared slug), FTS vector/GIN index; add an EF migration via `dotnet ef` only for gaps
+- [x] **P08-T01** Verify P03's KB entities, unique constraints (product+slug, shared slug), FTS vector/GIN index; add an EF migration via `dotnet ef` only for gaps
   - **Depends on:** P06
   - **Validation:** Integration test (Testcontainers) inserts articles and asserts title matches outrank body matches; `dotnet ef migrations has-pending-model-changes` clean.
-- [ ] **P08-T02** Define KB DTOs/requests/responses (including `KbPreviewRequest`/`KbPreviewResponse`) and constants (`KbArticleStatuses`, `KbLimits`) in `TechStrap.Contracts`
+- [x] **P08-T02** Define KB DTOs/requests/responses (including `KbPreviewRequest`/`KbPreviewResponse`) and constants (`KbArticleStatuses`, `KbLimits`) in `TechStrap.Contracts`
   - **Depends on:** P08-T01
   - **Validation:** Build; Architecture.Tests confirm Contracts has no inward references; no `*ViewModel` types in Contracts.
-- [ ] **P08-T03** Implement `IMarkdownRenderer` (Markdig, raw HTML off), the `IHtmlSanitizer` implementation with an explicit allow-list (headings, lists, code, tables, links with `rel=noopener nofollow`, images from `kb-images/` or https) and `RenderKbPreviewRequestHandler` (D-021)
+- [x] **P08-T03** Implement `IMarkdownRenderer` (Markdig, raw HTML off), the `IHtmlSanitizer` implementation with an explicit allow-list (headings, lists, code, tables, links with `rel=noopener nofollow`, images from `kb-images/` or https) and `RenderKbPreviewRequestHandler` (D-021)
   - **Depends on:** P08-T02
   - **Validation:** Unit tests over an XSS corpus (`<script>`, `javascript:` links, `onerror`, SVG/`iframe`, data URIs, nested/mutated markup) producing safe output; a fixed Markdown fixture renders to expected HTML; `RenderKbPreviewRequestHandlerTests` assert the preview output equals the published-page pipeline output for the same Markdown and that oversize input is rejected.
-- [ ] **P08-T04** Implement agent article handlers: `ListKbArticlesRequestHandler`, `GetKbArticleRequestHandler`, `CreateKbArticleRequestHandler`, `UpdateKbArticleRequestHandler` (slug uniqueness, concurrency token)
+- [x] **P08-T04** Implement agent article handlers: `ListKbArticlesRequestHandler`, `GetKbArticleRequestHandler`, `CreateKbArticleRequestHandler`, `UpdateKbArticleRequestHandler` (slug uniqueness, concurrency token)
   - **Depends on:** P08-T02
   - **Validation:** Application.Tests with NSubstitute for each success/validation/not-found/conflict outcome, cancellation passed to repository calls.
-- [ ] **P08-T05** Implement `PublishKbArticleRequestHandler` and `ArchiveKbArticleRequestHandler` with lifecycle rules and `TimeProvider`
+- [x] **P08-T05** Implement `PublishKbArticleRequestHandler` and `ArchiveKbArticleRequestHandler` with lifecycle rules and `TimeProvider`
   - **Depends on:** P08-T04
   - **Validation:** Unit tests: publish incomplete -> failure; first publish sets `published_at`, re-publish does not change it; archive hides from public search (integration test).
-- [ ] **P08-T06** Implement category handlers: list/create/update/delete (delete blocked while articles exist)
+- [x] **P08-T06** Implement category handlers: list/create/update/delete (delete blocked while articles exist)
   - **Depends on:** P08-T02
   - **Validation:** Unit tests for each outcome; integration test for the blocked delete.
-- [ ] **P08-T07** Implement `UploadKbImageRequestHandler` + `IKbImageStore` over `SyntaxCircus.Storage` (size limit, magic-byte sniff, random key, `kb-images/` prefix, SVG rejected)
+- [x] **P08-T07** Implement `UploadKbImageRequestHandler` + `IKbImageStore` over `SyntaxCircus.Storage` (size limit, magic-byte sniff, random key, `kb-images/` prefix, SVG rejected)
   - **Depends on:** P08-T02
   - **Validation:** Unit tests (oversize -> 413 outcome, wrong magic bytes -> 415, SVG -> 415); integration test with Local provider verifies the stored key is random and not user-controlled.
-- [ ] **P08-T08** Implement public handlers: `SearchPublicKbArticlesRequestHandler`, `GetPublishedKbArticleRequestHandler`, `ListPublicKbCategoriesRequestHandler`, `GetSitemapEntriesRequestHandler`
+- [x] **P08-T08** Implement public handlers: `SearchPublicKbArticlesRequestHandler`, `GetPublishedKbArticleRequestHandler`, `ListPublicKbCategoriesRequestHandler`, `GetSitemapEntriesRequestHandler`
   - **Depends on:** P08-T03, P08-T05
   - **Validation:** Integration tests: draft/archived never returned; shared + product articles returned; unknown and inactive keys give the same empty/404 result; `ts_headline` snippets contain no unsanitized markup.
-- [ ] **P08-T09** Add controllers (`KbArticlesController`, `KbCategoriesController`, `KbImagesController`, `KbPreviewController`, `PublicKbController`) with `[FromServices]` handlers, agent policy, role rules, per-IP rate limit and short cache headers on public routes
+- [x] **P08-T09** Add controllers (`KbArticlesController`, `KbCategoriesController`, `KbImagesController`, `KbPreviewController`, `PublicKbController`) with `[FromServices]` handlers, agent policy, role rules, per-IP rate limit and short cache headers on public routes
   - **Depends on:** P08-T04 … P08-T08
   - **Validation:** Api.Tests: 401/403 for non-agents on agent routes; public routes anonymous; 429 after limit; ProblemDetails shape; Architecture.Tests: every action has exactly one handler parameter.
-- [ ] **P08-T10** Validate linked article ids in `AddAgentReplyRequestHandler` (published, product-visible) and include linked articles in the timeline/email template data
+- [x] **P08-T10** Validate linked article ids in `AddAgentReplyRequestHandler` (published, product-visible) and include linked articles in the timeline/email template data
   - **Depends on:** P08-T05
   - **Validation:** Unit tests: draft/foreign-product id rejected; integration test writes `TicketArticle` rows in the same transaction as the message; email template test includes the portal link.
-- [ ] **P08-T11** Add KB seed/demo data to the local seeder
+- [x] **P08-T11** Add KB seed/demo data to the local seeder
   - **Depends on:** P08-T05
   - **Validation:** Fresh local run shows published and draft articles in two products plus one shared article.
-- [ ] **P08-T12** Regenerate/check the OpenAPI document includes all KB operations with security schemes
+- [x] **P08-T12** Regenerate/check the OpenAPI document includes all KB operations with security schemes
   - **Depends on:** P08-T09
   - **Validation:** Api.Tests snapshot of `/openapi/v1.json` operation ids; reviewed diff.
 - [ ] **P08-T13** Add `IKbClient` (admin) with ProblemDetails -> `Result`, no retry on mutating calls, multipart image upload
@@ -193,13 +193,13 @@ are third-party NuGet packages (not Syntax Circus) already listed there.
 ## Risks and Open Questions
 
 - [ ] **Preview round trip (D-021, resolved):** each debounced preview calls `POST /api/kb/preview`; keep the debounce constant and the size limit so the endpoint cannot be used as a free renderer (Agent policy only).
-- [ ] **KB image serving** is not a catalog handler; it is exempt static assets under a public-read prefix (D-021). Add an image-serving handler only if access rules are ever needed.
+- [x] **KB image serving** is not a catalog handler; it is exempt static assets under a public-read prefix (D-021). Add an image-serving handler only if access rules are ever needed.
 - [ ] Orphaned images (uploaded but never referenced) accumulate; a cleanup job is deferred.
-- [ ] `ts_headline` on large bodies is costly; limit to summary field and cap result count (default 10 per page; **Assumption**).
-- [ ] Per-product vs shared slug collisions need a clear rule (shared wins on conflict at read time; creation blocks duplicates across both scopes) — confirm.
+- [x] `ts_headline` on large bodies is costly; limit to summary field and cap result count (default 10 per page; **Assumption**).
+- [x] Per-product vs shared slug collisions need a clear rule (shared wins on conflict at read time; creation blocks duplicates across both scopes) — confirm. **Resolved (D-044):** creation blocks a slug used in any scope, for articles and categories.
 - [ ] bUnit (in the package map) comes with `tests/TechStrap.Admin.Tests` from [PHASE-07](PHASE-07-admin-app.md); Markdig and HtmlSanitizer versions are pinned in the package map.
-- [ ] Carried forward from the PHASE-03 final review: The category and article product match (a product article may only use a shared category or one of its own product) is enforced in the create and edit handlers; the repository cannot check it.
-- [ ] Carried forward from the PHASE-03 final review: `KbCategory` has no concurrency version yet; add one with the category edit handlers (the model change needs a tool-generated migration).
+- [x] Carried forward from the PHASE-03 final review: The category and article product match (a product article may only use a shared category or one of its own product) is enforced in the create and edit handlers; the repository cannot check it.
+- [x] Carried forward from the PHASE-03 final review: `KbCategory` has no concurrency version yet; add one with the category edit handlers (the model change needs a tool-generated migration).
 
 ## Handoff
 

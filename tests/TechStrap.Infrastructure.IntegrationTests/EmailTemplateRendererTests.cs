@@ -101,6 +101,68 @@ public sealed class EmailTemplateRendererTests
     private static AgentReplyEmail Reply(bool solved = false, string? requester = "Ann") =>
         new("ORB-42", "Printer jam", requester, "https://help.test/t/abc", "Sam from Orbitly Support", Guid.NewGuid(), solved);
 
+    private static AgentReplyEmail ReplyWith(params ArticleLinkEntry[] articles) => Reply() with { Articles = articles };
+
+    [Fact]
+    public void An_agent_reply_lists_each_linked_article_as_a_link_in_html_and_a_line_in_text()
+    {
+        var email = Renderer().RenderAgentReply(
+            ReplyWith(new ArticleLinkEntry("Reset your password", "https://help.test/p/orbitly/kb/account/reset-password"), new ArticleLinkEntry("Export to CSV", "https://help.test/p/orbitly/kb/general/export-csv")),
+            "<p>See these</p>", Orbitly);
+
+        email.Html.ShouldContain("Related articles:");
+        email.Html.ShouldContain("<a href=\"https://help.test/p/orbitly/kb/account/reset-password\"");
+        email.Html.ShouldContain(">Reset your password</a>");
+        email.Html.ShouldContain("<a href=\"https://help.test/p/orbitly/kb/general/export-csv\"");
+        email.Text.ShouldContain("Related articles:\n- Reset your password: https://help.test/p/orbitly/kb/account/reset-password\n- Export to CSV: https://help.test/p/orbitly/kb/general/export-csv\n");
+        email.Html.IndexOf("Related articles:", StringComparison.Ordinal).ShouldBeGreaterThan(email.Html.IndexOf("See these", StringComparison.Ordinal));
+        email.Html.IndexOf("Related articles:", StringComparison.Ordinal).ShouldBeLessThan(email.Html.IndexOf("View your request", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_reply_with_no_articles_is_unchanged_and_a_row_queued_before_phase_08_still_renders()
+    {
+        var plain = Renderer().RenderAgentReply(Reply(), "<p>Hi</p>", Orbitly);
+        var empty = Renderer().RenderAgentReply(Reply() with { Articles = [] }, "<p>Hi</p>", Orbitly);
+
+        plain.Html.ShouldNotContain("Related articles");
+        plain.Text.ShouldNotContain("Related articles");
+        empty.Html.ShouldBe(plain.Html);
+        empty.Text.ShouldBe(plain.Text);
+    }
+
+    [Fact]
+    public void An_article_title_is_escaped_and_a_link_that_is_not_an_absolute_web_address_is_dropped_so_no_broken_link_is_emailed()
+    {
+        var email = Renderer().RenderAgentReply(
+            ReplyWith(
+                new ArticleLinkEntry("<script>alert(1)</script>", "https://help.test/p/orbitly/kb/a/b"),
+                new ArticleLinkEntry("Relative", "/p/orbitly/kb/a/c"),
+                new ArticleLinkEntry("Script", "javascript:alert(1)"),
+                new ArticleLinkEntry("Blank url", ""),
+                new ArticleLinkEntry(" ", "https://help.test/p/orbitly/kb/a/d")),
+            "<p>See</p>", Orbitly);
+
+        email.Html.ShouldNotContain("<script>");
+        email.Html.ShouldContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+        email.Html.ShouldNotContain("javascript:");
+        email.Html.ShouldNotContain("href=\"/p/");
+        email.Html.ShouldNotContain("kb/a/d");
+        email.Text.ShouldNotContain("javascript:");
+        email.Text.ShouldNotContain("Relative");
+    }
+
+    [Fact]
+    public void At_most_ten_articles_are_listed()
+    {
+        var articles = Enumerable.Range(1, 14).Select(i => new ArticleLinkEntry("Article " + i, $"https://help.test/p/orbitly/kb/a/slug-{i}")).ToArray();
+
+        var email = Renderer().RenderAgentReply(ReplyWith(articles), "<p>See</p>", Orbitly);
+
+        email.Text.ShouldContain("slug-10");
+        email.Text.ShouldNotContain("slug-11");
+    }
+
     [Fact]
     public void An_agent_reply_shows_the_public_name_the_body_and_the_link()
     {

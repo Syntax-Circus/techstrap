@@ -24,7 +24,7 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 | 05 | [Intake, email and worker](PHASE-05-intake-email-worker.md) | 04 | 06, 11 | Alongside 02 | D-001, D-010, D-012, D-014, D-019, D-020 | Complete (PR #5 merged) |
 | 06 | [Ticket operations](PHASE-06-ticket-operations.md) | 05 | 07, 08, 09 | Alongside 02 and 11 | D-006, D-008, D-009, D-022, D-035, D-036, D-037, D-038, D-039 | Complete (PRs #6, #7 and #8 merged) |
 | 07 | [Admin app](PHASE-07-admin-app.md) | 02, 06 | 08 (editor UI), 10 | 11 alongside; 08 API work alongside | D-017, D-022, D-040, D-041 | 07 complete (pending merge): 07a merged (PR #9), 07b merged (PR #10), 07c implemented; owner action 7 (Authentik) still open, so P07-T02 stays unticked |
-| 08 | [Knowledge base](PHASE-08-knowledge-base.md) | 06 (07 for the editor UI) | 09 | API tasks T01 to T12 alongside 07; editor tasks wait for 07 | D-011, D-014, D-021 | Not started |
+| 08 | [Knowledge base](PHASE-08-knowledge-base.md) | 06 (07 for the editor UI) | 09 | API tasks T01 to T12 alongside 07; editor tasks wait for 07 | D-011, D-014, D-021, D-044 | In progress: API tasks T01 to T12 implemented (D-044); editor tasks T13 to T20 pending |
 | 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 | 10 and 11 alongside | D-002, D-017, D-019 | Not started |
 | 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | 08, 09, 11 alongside | D-007, D-018 | Not started |
 | 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | Alongside 06 to 10 | D-005, D-020 | Not started |

@@ -23,7 +23,9 @@ public interface IAddAgentReplyRequestHandler
 
 /// <summary>
 /// A public agent reply: Markdown rendered then sanitised, attachments saved (with compensation if anything later fails), linked KB
-/// articles, an optional "send and solve", and the customer email planned in the same unit of work.
+/// articles, an optional "send and solve", and the customer email planned in the same unit of work. A linked article must be Published and
+/// visible to the ticket (shared, or in the ticket's own product) and have a category, because the customer email links to its portal
+/// page; anything else is a 400 <c>kb-article-not-linkable</c> and nothing is stored or sent (D-044).
 /// </summary>
 public sealed class AddAgentReplyRequestHandler(
     ICurrentAgentClaims currentAgent,
@@ -84,6 +86,7 @@ public sealed class AddAgentReplyRequestHandler(
         var (agent, ticket) = loaded.Value;
 
         var linked = new List<LinkedArticleDto>();
+        var emailLinks = new List<ReplyArticleLink>();
         foreach (var articleId in articleIds)
         {
             var article = await kb.GetArticleAsync(articleId, cancellationToken);
@@ -92,7 +95,15 @@ public sealed class AddAgentReplyRequestHandler(
                 return Fail(TicketErrors.Invalid("linkedArticleIds", "article-not-found", "One of the linked articles does not exist. Remove it and try again."));
             }
 
+            var category = article.CategoryId is { } categoryId ? await kb.GetCategoryAsync(categoryId, cancellationToken) : null;
+            if (!IsLinkable(article, category, ticket.ProductId))
+            {
+                return Fail(TicketErrors.Invalid(
+                    "linkedArticleIds", "kb-article-not-linkable", "One of the linked articles is not published for this ticket's product. Remove it and try again."));
+            }
+
             linked.Add(new LinkedArticleDto(article.Id, article.Title, article.Slug));
+            emailLinks.Add(new ReplyArticleLink(article.Title, category!.Slug, article.Slug));
         }
 
         var html = sanitizer.Sanitize(markdown.ToHtml(request.Body ?? string.Empty));
@@ -130,7 +141,7 @@ public sealed class AddAgentReplyRequestHandler(
                 kb.AddTicketArticle(new TicketArticle(ticket.Id, message.Value.Id, articleId));
             }
 
-            await planner.PlanAgentReplyAsync(ticket, message.Value, agent, solve, cancellationToken);
+            await planner.PlanAgentReplyAsync(ticket, message.Value, agent, solve, emailLinks, cancellationToken);
 
             var committed = await TicketMutation.CommitAsync(scope, cancellationToken);
             if (committed.IsFailure)
@@ -158,6 +169,13 @@ public sealed class AddAgentReplyRequestHandler(
             throw;
         }
     }
+
+    // Published, in the ticket's product or shared, and filed in a category the same product can see (the portal address carries the category slug).
+    private static bool IsLinkable(KbArticle article, KbCategory? category, Guid ticketProductId) =>
+        article.Status == KbArticleStatus.Published
+        && (article.ProductId is null || article.ProductId == ticketProductId)
+        && category is not null
+        && (category.ProductId is null || category.ProductId == ticketProductId);
 
     private static Result<AgentMessageResponse> Fail(ResultError error) => Result<AgentMessageResponse>.Failure(error);
 }

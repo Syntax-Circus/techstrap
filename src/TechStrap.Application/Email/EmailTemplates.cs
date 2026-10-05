@@ -17,7 +17,10 @@ public sealed record TicketConfirmationEmail(string TicketNumber, string Subject
 
 /// <summary>Payload of an agent-reply row: no body (D-033, 16 000 cap); the Worker loads the message by id at send time. ReopenDays 0 means a row queued before 06b: the renderer uses TicketNotices.DefaultReopenDays.</summary>
 public sealed record AgentReplyEmail(string TicketNumber, string Subject, string? RequesterName, string PortalLink,
-    string AgentPublicName, Guid MessageId, bool Solved, int ReopenDays = 0);
+    string AgentPublicName, Guid MessageId, bool Solved, int ReopenDays = 0, IReadOnlyList<ArticleLinkEntry>? Articles = null);
+
+/// <summary>A KB article the reply links, as it appears in the customer email: its title and the absolute portal URL (D-044). A row queued before PHASE-08 has none.</summary>
+public sealed record ArticleLinkEntry(string Title, string Url);
 
 public sealed record TicketSolvedEmail(string TicketNumber, string Subject, string? RequesterName, string PortalLink, int ReopenDays);
 

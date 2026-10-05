@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using TechStrap.Api.Tests.Auth;
+using TechStrap.Contracts.Kb;
 using TechStrap.Contracts.Tickets;
 
 namespace TechStrap.Api.Tests.Tickets;
@@ -66,6 +67,71 @@ public sealed class AgentReplyEndpointTests(TestPostgres postgres) : IDisposable
             t => t.RowVersion.ShouldNotBe(ticket.Version));
         (await database.ScalarAsync<long>($"SELECT count(*) FROM attachments WHERE message_id = '{body.Message.Id}'")).ShouldBe(1);
         (await database.ScalarAsync<long>("SELECT count(*) FROM email_outbox WHERE kind = 'agent-reply'")).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Review_Focus_5_a_reply_links_only_published_articles_of_the_tickets_product_and_the_email_carries_their_portal_links()
+    {
+        var (factory, database, seed) = await StartAsync();
+        await using var _f = factory;
+        using var sam = TicketTestData.AgentClient(factory, "sam");
+        var ticket = seed.Tickets[0];
+        var own = ticket.ProductId == seed.Orbitly.Id ? seed.Orbitly : seed.Paperplane;
+        var other = ticket.ProductId == seed.Orbitly.Id ? seed.Paperplane : seed.Orbitly;
+        async Task<Guid> ArticleAsync(Guid? productId, string categorySlug, string slug, bool publish)
+        {
+            using var category = await sam.PostAsJsonAsync("/api/kb/categories", new CreateKbCategoryRequest(productId, categorySlug, categorySlug, null, 1), Ct);
+            Guid categoryId;
+            if (category.StatusCode == HttpStatusCode.Created)
+            {
+                categoryId = (await category.Content.ReadFromJsonAsync<KbCategoryDto>(Ct))!.Id;
+            }
+            else
+            {
+                categoryId = (await sam.GetFromJsonAsync<List<KbCategoryDto>>("/api/kb/categories", Ct))!.Single(c => c.Slug == categorySlug).Id;
+            }
+
+            using var created = await sam.PostAsJsonAsync("/api/kb/articles", new CreateKbArticleRequest(productId, categoryId, slug, "Title " + slug, null, "Steps."), Ct);
+            var article = (await created.Content.ReadFromJsonAsync<KbArticleDto>(Ct))!;
+            if (publish)
+            {
+                (await sam.PostAsync($"/api/kb/articles/{article.Id}/publish", null, Ct)).EnsureSuccessStatusCode();
+            }
+
+            return article.Id;
+        }
+
+        var ownPublished = await ArticleAsync(own.Id, "own-cat", "own-published", publish: true);
+        var ownDraft = await ArticleAsync(own.Id, "own-cat", "own-draft", publish: false);
+        var otherPublished = await ArticleAsync(other.Id, "other-cat", "other-published", publish: true);
+        var sharedPublished = await ArticleAsync(null, "general", "shared-published", publish: true);
+
+        async Task<HttpResponseMessage> ReplyAsync(params Guid[] ids)
+        {
+            using var form = new MultipartFormDataContent { { new StringContent("See these"), "body" } };
+            foreach (var id in ids)
+            {
+                form.Add(new StringContent(id.ToString()), "linkedArticleIds");
+            }
+
+            return await sam.PostAsync($"/api/tickets/{ticket.Id}/replies", form, Ct);
+        }
+
+        using var draft = await ReplyAsync(ownPublished, ownDraft);
+        using var foreign = await ReplyAsync(sharedPublished, otherPublished);
+        (await database.ScalarAsync<long>("SELECT count(*) FROM email_outbox WHERE kind = 'agent-reply'")).ShouldBe(0);
+        using var accepted = await ReplyAsync(ownPublished, sharedPublished);
+
+        draft.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await draft.Content.ReadAsStringAsync(Ct)).ShouldContain("kb-article-not-linkable");
+        foreign.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await foreign.Content.ReadAsStringAsync(Ct)).ShouldContain("kb-article-not-linkable");
+        accepted.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var payload = await database.ScalarAsync<string>("SELECT payload::text FROM email_outbox WHERE kind = 'agent-reply'");
+        payload.ShouldContain($"https://help.test/p/{own.Key}/kb/own-cat/own-published");
+        payload.ShouldContain($"https://help.test/p/{own.Key}/kb/general/shared-published");
+        payload.ShouldNotContain(other.Key);
+        payload.ShouldNotContain("own-draft");
     }
 
     [Fact]
