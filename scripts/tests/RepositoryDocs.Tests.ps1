@@ -83,7 +83,7 @@ Describe 'the deployment runbook' {
 
     It 'gives the config, pull, up and ps commands for the deploy compose with an inputs file' {
         foreach ($verb in 'config --quiet', 'pull', 'up -d --wait', 'ps') {
-            $script:Runbook | Should -Match ([regex]::Escape("docker compose --env-file deploy/.env.uat.local -f deploy/docker-compose.yml $verb"))
+            $script:Runbook | Should -Match ([regex]::Escape("sudo docker compose --env-file deploy/.env.uat.local -f deploy/docker-compose.yml $verb"))
         }
     }
 
@@ -94,7 +94,7 @@ Describe 'the deployment runbook' {
     }
 
     It 'requires a different project name per environment and explains the first-deploy network check' {
-        foreach ($phrase in 'TECHSTRAP_PROJECT', 'techstrap-uat', 'gw_priority', 'docker inspect', 'restore from backup', 'Compose 2.30', 'v5.5.1') {
+        foreach ($phrase in 'TECHSTRAP_PROJECT', 'techstrap-uat', 'gw_priority', 'docker inspect', 'restore from backup', 'Compose 2.33.1 or later and Docker Engine 28 or later', 'v5.5.1', 'docker version --format', 'docker network connect techstrap-db', '/proc/net/route', '/proc/net/tcp', '011F10AC', 'sudo docker volume ls --filter name=', 'runs as root') {
             $script:Runbook | Should -Match ([regex]::Escape($phrase))
         }
     }

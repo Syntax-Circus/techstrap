@@ -74,6 +74,13 @@ Describe 'Test-ComposeSmoke.ps1' {
         $output | Should -Match 'deploy/docker-compose\.yml resolves'
     }
 
+    It 'honours -DryRun with -DeployComposeOnly: prints the config check and runs no Docker' {
+        $output = & $script:SmokeScript -DeployComposeOnly -DryRun | Out-String
+        $output | Should -Match 'deploy/docker-compose\.yml config --quiet'
+        $output | Should -Match 'no pull, no up'
+        $output | Should -Not -Match 'resolves'
+    }
+
     It 'leaves the stack running only when asked to' {
         (& $script:SmokeScript -DryRun -KeepRunning | Out-String) | Should -Not -Match ' down'
     }

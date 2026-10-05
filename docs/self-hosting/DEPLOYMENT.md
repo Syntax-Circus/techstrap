@@ -3,8 +3,15 @@
 The deployment stack runs the Api, the Worker, the Admin and the Portal from explicit image references (D-043). Postgres, the identity provider and the reverse proxy are provisioned separately.
 The root `docker-compose.yml` is the local development stack and builds from source; deployment commands MUST name `-f deploy/docker-compose.yml`.
 
-**Tooling.** The deploy compose needs Docker Compose 2.30 or newer: the scoped env files use `format: raw` (2.30), and `gw_priority` on the project network needs a recent Compose too.
-It was tested here with Compose v5.5.1 and Docker Engine 29.8.1; treat that pair as known-good.
+**Tooling.** The deploy compose needs Compose 2.33.1 or later and Docker Engine 28 or later: `gw_priority` on a service network needs both, and the scoped env files use `format: raw` (Compose 2.30).
+It was tested here with Compose v5.5.1 and Engine 29.8.1; treat that pair as known-good. Check the host first:
+
+```bash
+docker compose version
+docker version --format '{{.Server.Version}}'
+```
+
+**Run as root.** Every deploy compose command below runs as root (`sudo docker compose ...`, for config, pull, up, ps and logs): the env files are root-owned, mode 0600, in a 0700 directory, and Compose reads `env_file` as the user who invokes it, so a docker-group user would get permission denied.
 
 ## Configuration layout
 
@@ -34,11 +41,15 @@ Keep a filled env file out of the repository. A new setting is added to `appsett
 ## One-time host setup
 
 1. **Postgres.** Run Postgres 17 as its own instance, and create a database and a user for TechStrap (the role needs connect and schema rights; the Api applies migrations at start). Attach the Postgres container to a
-   Docker network that exists before TechStrap starts, and give that network a stable name. The Api and the Worker join it; the Admin and the Portal never do:
+   Docker network that exists before TechStrap starts, and give that network a stable name. The Api and the Worker join it; the Admin and the Portal never do. Create the network, then put Postgres on it:
 
    ```bash
-   docker network create techstrap-db
+   docker network create techstrap-db                         # or the name you set in TECHSTRAP_DB_NETWORK
+   docker network connect techstrap-db <postgres container>   # for a running container
    ```
+
+   Or, in the Postgres compose file, give the Postgres service `networks: { techstrap-db: { external: true } }`. If the Postgres compose creates the network itself, Compose names it
+   `<project>_<network>` unless the network sets `name:`; `TECHSTRAP_DB_NETWORK` must be the real Docker network name (`docker network ls`).
 
    If UAT and production share one Docker host and one db network, their Api and Worker containers can reach each other on that network. Use a separate db network per environment
    (a different `TECHSTRAP_DB_NETWORK`) where the Postgres layout allows it.
@@ -75,16 +86,17 @@ Keep a filled env file out of the repository. A new setting is added to `appsett
    Edit it: set `TECHSTRAP_PROJECT` (`techstrap-uat`; production uses `techstrap`), pin the four `TECHSTRAP_*_IMAGE` values to one release tag (never `latest`), set `TECHSTRAP_ENV_DIR`, `TECHSTRAP_DB_NETWORK` and `REVERSE_PROXY_CIDR`.
    With loopback-only ports and a proxy on the same host, the proxy appears as the compose gateway (`172.16.31.1/32`); a proxy on another machine needs its own address (a single address, never a wide range such as `172.16.0.0/12` or `0.0.0.0/0`).
    UAT and production on one host need different subnets and ports; change `TECHSTRAP_SUBNET` only after checking the subnet registry in the `_template` `CLIENT_IP_RATE_LIMITING.md`.
+   `REVERSE_PROXY_CIDR` (the subnet's `.1` address as `/32`) changes together with `TECHSTRAP_SUBNET`.
 5. **Registry login.** The images are public or private on GHCR. If private: `echo <token> | docker login ghcr.io -u <user> --password-stdin`.
 
 ## Deploy
 
 ```bash
 # UAT, after the env files and the inputs are in place:
-docker compose --env-file deploy/.env.uat.local -f deploy/docker-compose.yml config --quiet
-docker compose --env-file deploy/.env.uat.local -f deploy/docker-compose.yml pull
-docker compose --env-file deploy/.env.uat.local -f deploy/docker-compose.yml up -d --wait
-docker compose --env-file deploy/.env.uat.local -f deploy/docker-compose.yml ps
+sudo docker compose --env-file deploy/.env.uat.local -f deploy/docker-compose.yml config --quiet
+sudo docker compose --env-file deploy/.env.uat.local -f deploy/docker-compose.yml pull
+sudo docker compose --env-file deploy/.env.uat.local -f deploy/docker-compose.yml up -d --wait
+sudo docker compose --env-file deploy/.env.uat.local -f deploy/docker-compose.yml ps
 
 # Production: the same four commands with deploy/.env.production.local.
 ```
@@ -104,9 +116,28 @@ The compose file and the tests pin this, but only a real Linux host proves it. A
 docker inspect -f '{{json .NetworkSettings.Networks}}' <project>-api-1
 ```
 
-1. Confirm the Api's gateway is on the project network (`<project>_default`, the pinned `TECHSTRAP_SUBNET`), not on the db network.
-2. Send a request through the reverse proxy to the published Api port and confirm it reaches the Api from the trusted subnet's gateway (the address in `REVERSE_PROXY_CIDR`), so the real client address, not the proxy's, is what the Api sees.
+Use root throughout. Both checks read the container''s own kernel tables, because the images have `curl` but no `ss`.
 
+1. **Gateway.** The default route must go through the project network''s gateway, not the db network''s:
+
+   ```bash
+   sudo docker network inspect <project>_default --format '{{(index .IPAM.Config 0).Gateway}}'
+   sudo docker exec <project>-api-1 cat /proc/net/route
+   ```
+
+   In `/proc/net/route` the `Gateway` column of the row whose `Destination` is `00000000` is little-endian hex. For the example subnet, `172.16.31.1` is `AC.10.1F.01` read backwards: `011F10AC`.
+   `011F10AC` means the project network won. Any other value means the db network won, which is a failure.
+2. **Peer address.** Hold a connection to the published port open and read the container''s TCP table while it is open:
+
+   ```bash
+   exec 3<>/dev/tcp/127.0.0.1/<api port>
+   sudo docker exec <project>-api-1 cat /proc/net/tcp
+   exec 3>&-
+   ```
+
+   Find the ESTABLISHED row (`st` is `01`) whose local port is `0050` (port 80). Its remote address must be the project gateway in hex (`011F10AC`:`xxxx` for the example), which lies inside `REVERSE_PROXY_CIDR`.
+
+This proves the Docker path only. The proxy''s `X-Forwarded-For` handling has no observation point short of a temporary debug log; add one if you need to see it.
 If either check fails, do not go live: the Api would ignore the forwarded client address.
 
 ## Health checks and acceptance
@@ -115,17 +146,17 @@ If either check fails, do not go live: the Api would ignore the forwarded client
 curl --fail http://127.0.0.1:<api port>/health/ready     # Api: Postgres reachable and migrated
 curl --fail http://127.0.0.1:<admin port>/health/live
 curl --fail http://127.0.0.1:<portal port>/health/live
-docker compose --env-file deploy/.env.uat.local -f deploy/docker-compose.yml ps   # every service healthy
+sudo docker compose --env-file deploy/.env.uat.local -f deploy/docker-compose.yml ps   # every service healthy
 ```
 
-Also check that the ports are bound to `127.0.0.1` only (`docker compose ... ps`), that the Admin sign-in redirects to the provider and back, and that a test ticket reaches the queue and sends its email.
+Also check that the ports are bound to `127.0.0.1` only (`sudo docker compose ... ps`), that the Admin sign-in redirects to the provider and back, and that a test ticket reaches the queue and sends its email.
 The Worker has no published port: its health is the container health (`/health/ready`).
 
 ## Rollback and upgrade
 
-Record the image references and take a database backup and a copy of the `admin-keys` volume before a rollout. To roll back the application, set the previous tags in `deploy/.env.<env>.local` (the same tag in all four images), then run `pull` and `up -d --wait` again.
+Record the image references before a rollout, and take a Postgres backup together with a copy of the storage volume and both key-ring volumes (`<project>_techstrap-storage`, `<project>_admin-keys`, `<project>_portal-keys`; list them with `sudo docker volume ls --filter name=<project>_`). To roll back the application, set the previous tags in `deploy/.env.<env>.local` (the same tag in all four images), then run `pull` and `up -d --wait` again.
 The Api's migrations only move forward: rolling back past a migration needs a database restore, so restore from backup as a separate, deliberate recovery decision. To upgrade, set the new tags and run the same two commands.
-Do not use `down --volumes`: the `techstrap-storage`, `admin-keys` and `portal-keys` volumes hold attachments and the cookie keys (deleting a key volume signs every agent out).
+Do not use `down --volumes`: those three volumes hold attachments and the cookie keys (deleting a key volume signs every agent out).
 
 ## Checking without deploying
 

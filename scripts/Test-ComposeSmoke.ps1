@@ -139,6 +139,11 @@ function Test-DeployCompose {
 }
 
 if ($DeployComposeOnly) {
+    if ($DryRun) {
+        Write-Output 'docker compose --env-file <UAT input template with dummy env files> -f deploy/docker-compose.yml config --quiet   (config only: no pull, no up)'
+        return
+    }
+
     if (-not (Get-Command docker -ErrorAction SilentlyContinue) -or ((& docker compose version 2>&1 | Out-String) -notmatch 'Docker Compose')) {
         throw 'Docker with the compose plugin is required.'
     }
@@ -146,6 +151,7 @@ if ($DeployComposeOnly) {
     Test-DeployCompose
     return
 }
+
 # The four images are built one after another, never by "up --build": compose builds them in parallel, and four restores into the one shared NuGet cache mount
 # (Dockerfile --mount=type=cache,id=techstrap-nuget) can corrupt each other ("Could not find file .../markdig/...").
 $services = @('api', 'worker', 'admin', 'portal')

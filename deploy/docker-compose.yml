@@ -139,7 +139,7 @@ networks:
         # Change TECHSTRAP_SUBNET only if another network on this host already uses it (UAT and production on one host need two subnets).
         - subnet: ${TECHSTRAP_SUBNET:?set TECHSTRAP_SUBNET to the pinned compose subnet, for example 172.16.31.0/24}
   db:
-    # Pre-existing shared network owned by the separate Postgres compose project; only the api and the worker join it.
+    # Pre-existing network, created by the operator or the Postgres project and named by TECHSTRAP_DB_NETWORK; only the api and the worker join it.
     name: ${TECHSTRAP_DB_NETWORK:?set TECHSTRAP_DB_NETWORK to the name of the Docker network the Postgres container is on}
     external: true
 
