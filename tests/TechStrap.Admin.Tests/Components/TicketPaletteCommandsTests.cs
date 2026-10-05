@@ -157,4 +157,17 @@ public sealed class TicketPaletteCommandsTests : AdminComponentTest
 
         cut.WaitForAssertion(() => TicketCommands().ShouldNotContain("ticket-assign-me"));
     }
+
+    [Fact]
+    public void Moving_from_one_ticket_to_another_swaps_the_commands_instead_of_adding_to_them()
+    {
+        Show(TestData.Detail(isSpam: true));
+        _tickets.GetAsync("ORB-43", Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.Detail(number: "ORB-43", assigneeId: AgentSessions.SamId, assigneeName: "Sam Ortiz")));
+        var cut = RenderTicket();
+        TicketCommands().ShouldBe(["ticket-reply", "ticket-note", "ticket-assign-me", "ticket-not-spam"]);
+
+        cut.Render(p => p.Add(c => c.Number, "ORB-43"));
+
+        cut.WaitForAssertion(() => TicketCommands().ShouldBe(["ticket-reply", "ticket-note"]));
+    }
 }

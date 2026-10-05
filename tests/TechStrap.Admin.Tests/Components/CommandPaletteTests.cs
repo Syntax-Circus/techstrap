@@ -312,6 +312,12 @@ public sealed class CommandPaletteTests : AdminComponentTest
         cut.Find(".ts-brand").ShouldNotBeNull();
         await PressCtrlKAsync();
         await cut.InvokeAsync(() => Task.CompletedTask);
+
+        // The second Ctrl+K tries again and fails again: the palette is not stuck half open, and nothing tried to close a dialog that never opened.
+        cut.WaitForAssertion(() => Dialogs.VerifyInvoke("open", 2));
+        Options(cut).ShouldBeEmpty();
+        Dialogs.VerifyNotInvoke("close");
+        cut.Find(".ts-brand").ShouldNotBeNull();
     }
 
     [Fact]
@@ -327,5 +333,87 @@ public sealed class CommandPaletteTests : AdminComponentTest
 
         cut.WaitForAssertion(() => StatusMessages.Current.ShouldBe("Couldn't run that command."));
         cut.Find(".ts-statusbar").TextContent.ShouldNotContain("secret detail");
+    }
+
+    [Fact]
+    public async Task A_command_that_is_cancelled_is_reported_like_any_other_failure_and_does_not_end_the_circuit()
+    {
+        var cut = await RenderLayoutAsync();
+        Registry.Register([Counting("cancelled", run: () => throw new TaskCanceledException("secret detail"))]);
+        await PressCtrlKAsync();
+        cut.WaitForAssertion(() => Options(cut).ShouldContain("Probe cancelled"));
+        cut.Find("dialog[data-palette] input").Input("cancelled");
+
+        await KeyAsync(cut, "Enter");
+
+        cut.WaitForAssertion(() => StatusMessages.Current.ShouldBe("Couldn't run that command."));
+        cut.Find(".ts-brand").ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Enter_runs_nothing_once_the_session_has_lapsed_while_the_palette_was_open()
+    {
+        var cut = await RenderLayoutAsync();
+        Registry.Register([Counting()]);
+        await PressCtrlKAsync();
+        cut.WaitForAssertion(() => Options(cut).ShouldContain("Probe probe"));
+        cut.Find("dialog[data-palette] input").Input("probe");
+
+        Services.GetRequiredService<SessionExpiry>().Report();
+        Session.State.ShouldBe(AgentSessionState.SessionExpired);
+        await KeyAsync(cut, "Enter");
+        await cut.InvokeAsync(() => Task.CompletedTask);
+
+        _ran.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_command_that_was_chosen_does_not_run_when_the_session_lapses_before_the_dialog_has_closed()
+    {
+        var cut = await RenderLayoutAsync();
+        Registry.Register([Counting()]);
+        await PressCtrlKAsync();
+        cut.WaitForAssertion(() => Options(cut).ShouldContain("Probe probe"));
+        cut.Find("dialog[data-palette] input").Input("probe");
+        // The lapse arrives while the browser closes the dialog, after the choice was made and before the command would run.
+        Dialogs.SetupVoid("close", _ =>
+        {
+            Services.GetRequiredService<SessionExpiry>().Report();
+            return true;
+        }).SetVoidResult();
+
+        await KeyAsync(cut, "Enter");
+        await cut.InvokeAsync(() => Task.CompletedTask);
+
+        cut.WaitForAssertion(() => Session.State.ShouldBe(AgentSessionState.SessionExpired));
+        _ran.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task It_does_not_open_for_a_session_that_expired_while_the_agent_was_working()
+    {
+        var cut = await RenderLayoutAsync();
+        Services.GetRequiredService<SessionExpiry>().Report();
+        Session.ExpiredWhileWorking.ShouldBeTrue();
+
+        await PressCtrlKAsync();
+
+        Dialogs.VerifyNotInvoke("open");
+        cut.FindAll("dialog[data-palette] [role=option]").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task It_does_not_open_for_a_session_whose_first_answer_was_a_401()
+    {
+        _agents = this.AddAgentShell();
+        _agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(TestData.Fail<AgentDto>("unauthenticated", "Sign in again.", ResultErrorKind.Unauthenticated));
+        await Session.EnsureLoadedAsync(Ct);
+        var cut = Render<MainLayout>(p => p.SignedIn().Add(l => l.Body, (RenderFragment)(b => { })));
+
+        await PressCtrlKAsync();
+
+        Session.State.ShouldBe(AgentSessionState.SessionExpired);
+        Dialogs.VerifyNotInvoke("open");
+        cut.FindAll("dialog[data-palette] [role=option]").ShouldBeEmpty();
     }
 }

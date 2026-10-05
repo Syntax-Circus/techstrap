@@ -37,6 +37,7 @@ public sealed partial class TicketActions : IDisposable, IAsyncDisposable
     private IJSObjectReference? _menuScript;
     private DotNetObjectReference<TicketActions>? _self;
     private bool _attached;
+    private bool _scriptFailed;
     private bool _focusFirst;
 
     private ActionDialog _dialog;
@@ -103,7 +104,13 @@ public sealed partial class TicketActions : IDisposable, IAsyncDisposable
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_disposed || !HasAnyAction)
+        if (!HasAnyAction)
+        {
+            // The wrapper element is gone, and with it the script's hold on it: when an action comes back the new element needs the keys again.
+            _attached = false;
+        }
+
+        if (_disposed || _scriptFailed || !HasAnyAction)
         {
             return;
         }
@@ -126,7 +133,9 @@ public sealed partial class TicketActions : IDisposable, IAsyncDisposable
         }
         catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or TaskCanceledException)
         {
-            // OnAfterRenderAsync must never throw: that would end the circuit. The menu still works with the mouse; log the type only.
+            // OnAfterRenderAsync must never throw: that would end the circuit. The menu still works with the mouse; log the type only. A script that could not be loaded or
+            // attached is not asked again for the life of this component: one log line, not one per render.
+            _scriptFailed = !_attached;
             Logger.LogWarning("The actions menu keyboard script failed ({ExceptionType}).", ex.GetType().Name);
         }
     }
@@ -331,7 +340,7 @@ public sealed partial class TicketActions : IDisposable, IAsyncDisposable
         {
             await _menuScript.DisposeAsync();
         }
-        catch (JSDisconnectedException)
+        catch (Exception ex) when (ex is JSDisconnectedException or JSException or TaskCanceledException)
         {
             // The circuit is already gone.
         }

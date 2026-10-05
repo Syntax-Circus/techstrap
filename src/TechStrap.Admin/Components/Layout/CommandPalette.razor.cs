@@ -148,14 +148,21 @@ public sealed partial class CommandPalette : IAsyncDisposable
         }
 
         _pending = null;
+        if (Session.State != AgentSessionState.Ready)
+        {
+            // The session lapsed between the choice and the moment the dialog closed: nothing runs for a session the API no longer vouches for.
+            return;
+        }
+
         _running = true;
         try
         {
             await command.RunAsync();
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex)
         {
-            // OnAfterRenderAsync must never throw: an exception here would end the circuit. Log the type only, and tell the agent.
+            // OnAfterRenderAsync must never throw: an exception here would end the circuit, whatever the exception is (a cancelled command included: nothing awaits a cancellation
+            // from the palette). Log the type only, and tell the agent.
             Logger.LogWarning("A command palette command {CommandId} failed ({ExceptionType}).", command.Id, ex.GetType().Name);
             StatusMessages.Show(PaletteCopy.CommandFailed);
         }
@@ -228,11 +235,11 @@ public sealed partial class CommandPalette : IAsyncDisposable
 
     /// <summary>
     /// Chooses a command: closes the palette now and lets <see cref="RunPendingAsync"/> run it once the dialog is gone. Does nothing while another choice is pending or running,
-    /// and nothing for an admin command when the session is not an admin's.
+    /// nothing for an admin command when the session is not an admin's, and nothing at all once the session is no longer Ready (it lapsed while the palette was open).
     /// </summary>
     private async Task RunAsync(PaletteCommand command)
     {
-        if (_pending is not null || _running || (command.AdminOnly && !Session.IsAdmin))
+        if (_pending is not null || _running || Session.State != AgentSessionState.Ready || (command.AdminOnly && !Session.IsAdmin))
         {
             return;
         }
@@ -277,7 +284,7 @@ public sealed partial class CommandPalette : IAsyncDisposable
                 await _dialogScript.DisposeAsync();
             }
         }
-        catch (Exception ex) when (ex is JSDisconnectedException or JSException)
+        catch (Exception ex) when (ex is JSDisconnectedException or JSException or TaskCanceledException)
         {
             // The circuit is already gone; the browser has dropped the dialog with the page.
         }

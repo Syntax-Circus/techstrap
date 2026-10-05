@@ -66,10 +66,10 @@ public partial class MainLayout : IDisposable
                 await Preferences.LoadAsync();
                 await Shortcuts.StartAsync();
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex)
             {
                 // The layout sits outside every error boundary, so an exception out of OnAfterRenderAsync would end the circuit. Without the listener the keyboard layer
-                // is off but every page still works; it stays off for this circuit (this runs on the first render only). Only the type is logged, never the message.
+                // is off but every page still works; it stays off for this circuit (this runs on the first render only). Every exception is caught, a cancellation too: nothing awaits one here. Only the type is logged, never the message.
                 Logger.LogWarning("The keyboard shortcuts could not be started ({ExceptionType}).", ex.GetType().Name);
             }
 
@@ -79,7 +79,7 @@ public partial class MainLayout : IDisposable
             {
                 await LocalTime.LoadAsync();
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex)
             {
                 Logger.LogWarning("The browser time zone could not be read ({ExceptionType}).", ex.GetType().Name);
             }

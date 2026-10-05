@@ -1,10 +1,12 @@
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 using NSubstitute;
 using TechStrap.Admin.Clients;
 using TechStrap.Admin.Features.Tickets;
 using TechStrap.Admin.Tests.Support;
+using TechStrap.Contracts.Tickets;
 
 namespace TechStrap.Admin.Tests.Components;
 
@@ -14,8 +16,11 @@ namespace TechStrap.Admin.Tests.Components;
 /// </summary>
 public sealed class TicketActionsMenuTests : AdminComponentTest
 {
+    private readonly RecordingLoggerProvider _logs = new();
+
     public TicketActionsMenuTests()
     {
+        Services.AddLogging(logging => logging.AddProvider(_logs));
         Services.AddSingleton(Substitute.For<ITicketsClient>());
         Services.AddSingleton(Substitute.For<IRequestersClient>());
         Services.AddSingleton(_ => AgentSessions.SignedIn(admin: true));
@@ -113,5 +118,42 @@ public sealed class TicketActionsMenuTests : AdminComponentTest
         cut.Find(".ts-actions > button").Click();
 
         cut.Find("ul.ts-menu").HasAttribute("hidden").ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task A_script_that_failed_is_not_tried_or_logged_again_on_every_render()
+    {
+        Menu.SetupVoid("attach", _ => true).SetException(new JSException("no script"));
+        var cut = RenderActions();
+        await cut.InvokeAsync(() => Task.CompletedTask);
+
+        cut.Find(".ts-actions > button").Click();
+        cut.Find(".ts-actions > button").Click();
+        cut.Render(p => p.Add(c => c.Ticket, TestData.Model(priority: TicketPriorities.High)));
+        await cut.InvokeAsync(() => Task.CompletedTask);
+
+        Menu.VerifyInvoke("attach", 1);
+        _logs.Lines.Count(line => line.Contains("keyboard script failed", StringComparison.Ordinal)).ShouldBe(1);
+        _logs.Lines.ShouldAllBe(line => !line.Contains("no script", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Menu_keys_work_again_when_the_last_action_goes_away_and_comes_back()
+    {
+        Services.AddSingleton(_ => AgentSessions.SignedIn(admin: false));
+        var cut = RenderActions();
+        await cut.InvokeAsync(() => Task.CompletedTask);
+        Menu.VerifyInvoke("attach", 1);
+
+        // A closed ticket offers an Agent nothing: the wrapper leaves the page, so the script's hold on it is gone.
+        cut.Render(p => p.Add(c => c.Ticket, TestData.Model(status: TicketStatuses.Closed)));
+        cut.FindAll(".ts-actions").ShouldBeEmpty();
+        await cut.InvokeAsync(() => Task.CompletedTask);
+
+        cut.Render(p => p.Add(c => c.Ticket, TestData.Model()));
+        await cut.InvokeAsync(() => Task.CompletedTask);
+
+        cut.FindAll(".ts-actions").Count.ShouldBe(1);
+        Menu.VerifyInvoke("attach", 2);
     }
 }

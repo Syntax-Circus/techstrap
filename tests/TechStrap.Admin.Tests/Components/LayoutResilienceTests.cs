@@ -79,6 +79,19 @@ public sealed class LayoutResilienceTests : BunitContext
     }
 
     [Fact]
+    public void A_shortcut_listener_that_is_cancelled_while_starting_leaves_the_pages_working_and_logs_only_the_type()
+    {
+        this.AddAgentShell();
+        SetupScripts(module => module.SetupVoid("register", _ => true).SetException(new TaskCanceledException(Secret)));
+
+        var cut = Render<MainLayout>(p => p.SignedIn().Add(l => l.Body, b => b.AddMarkupContent(0, "<p id=\"page\">page</p>")));
+
+        cut.WaitForAssertion(() => _logs.Lines.ShouldContain(line => line.Contains("TaskCanceledException", StringComparison.Ordinal)));
+        cut.WaitForAssertion(() => cut.Find("main.ts-main #page").TextContent.ShouldBe("page"));
+        NoLeak();
+    }
+
+    [Fact]
     public void A_failing_preference_read_does_not_stop_the_time_zone_and_logs_only_the_type()
     {
         this.AddAgentShell();
