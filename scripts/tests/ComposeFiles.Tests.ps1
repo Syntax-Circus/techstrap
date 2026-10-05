@@ -163,6 +163,23 @@ Describe 'docker-compose files' -Skip:(-not $script:DockerAvailable) {
         $result.Config.services.admin.environment.TECHSTRAP_GROUP_CLAIM_TYPE | Should -Be 'groups'
     }
 
+    It '<file> starts the Admin only after a healthy Api and gives it a health check on /health/live and a persistent key ring' -ForEach @(
+        @{ file = 'docker-compose.yml'; withEnv = $false }
+        @{ file = 'docker-compose.uat.yml'; withEnv = $true }
+        @{ file = 'docker-compose.production.yml'; withEnv = $true }
+    ) {
+        $envFile = ''
+        if ($withEnv) {
+            $envFile = Join-Path $TestDrive 'env-admin-health'
+            New-ProductionEnvFile -Path $envFile
+        }
+        $admin = (Get-ComposeConfig -File $file -EnvFile $envFile).Config.services.admin
+
+        $admin.depends_on.api.condition | Should -Be 'service_healthy'
+        ($admin.healthcheck.test -join ' ') | Should -Match '/health/live'
+        @($admin.volumes | Where-Object { $_.target -eq '/app/dataprotection-keys' }).Count | Should -Be 1
+    }
+
     It 'local compose gives the Admin placeholder OIDC values so the container starts without an identity provider' {
         $admin = (Get-ComposeConfig -File 'docker-compose.yml').Config.services.admin.environment
         $admin.Auth__Authority | Should -Match '^https://'
