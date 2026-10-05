@@ -15,7 +15,7 @@ public sealed class UpdateKbArticleRequestHandlerTests
 
     private readonly KbFixture _kb = new();
 
-    private UpdateKbArticleRequestHandler Handler(params Result[] commits) => new(_kb.KnowledgeBase, _kb.Renderer, UnitOfWorkSubstitute.Create(commits), _kb.Clock);
+    private UpdateKbArticleRequestHandler Handler(params Result[] commits) => new(_kb.Claims, _kb.Agents, _kb.KnowledgeBase, _kb.Renderer, UnitOfWorkSubstitute.Create(commits), _kb.Clock);
 
     [Fact]
     public async Task An_edit_changes_the_content_and_stages_the_article()
@@ -83,7 +83,10 @@ public sealed class UpdateKbArticleRequestHandlerTests
 
         var result = await Handler().HandleAsync(article.Id, new UpdateKbArticleRequest(category.Id, "Live edit", null, "Live body", 5), Ct);
 
-        result.Value.Status.ShouldBe(KbArticleStatuses.Published);
+        result.Value.ShouldSatisfyAllConditions(
+            dto => dto.Status.ShouldBe(KbArticleStatuses.Published),
+            dto => dto.CategoryId.ShouldBe(category.Id),
+            dto => dto.PublishedAt.ShouldBe(article.PublishedAt));
     }
 
     [Fact]
@@ -162,5 +165,74 @@ public sealed class UpdateKbArticleRequestHandlerTests
             error => error.Code.ShouldNotBe("kb-body-too-complex"),
             error => error.Target.ShouldBe("body"));
         _kb.Renderer.DidNotReceiveWithAnyArgs().IsTooComplex(default!);
+    }
+
+    [Fact]
+    public async Task A_deactivated_agent_is_refused_and_nothing_is_loaded_or_changed()
+    {
+        var article = _kb.StoredArticle();
+        _kb.Agent.SetActive(false);
+
+        var result = await Handler().HandleAsync(article.Id, new UpdateKbArticleRequest(null, "New title", null, "New body", 5), Ct);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("agent-inactive");
+        await _kb.KnowledgeBase.DidNotReceiveWithAnyArgs().GetArticleAsync(default, Ct);
+        _kb.KnowledgeBase.DidNotReceive().UpdateArticle(Arg.Any<KbArticle>());
+        article.Title.ShouldBe("Reset your password");
+    }
+
+    [Fact]
+    public async Task An_unknown_agent_is_refused_and_nothing_is_loaded()
+    {
+        var article = _kb.StoredArticle();
+        _kb.Agents.GetBySubjectAsync("sam", Arg.Any<CancellationToken>()).Returns((TechStrap.Domain.Agents.Agent?)null);
+
+        var result = await Handler().HandleAsync(article.Id, new UpdateKbArticleRequest(null, "New title", null, "New body", 5), Ct);
+
+        result.IsFailure.ShouldBeTrue();
+        await _kb.KnowledgeBase.DidNotReceiveWithAnyArgs().GetArticleAsync(default, Ct);
+        _kb.KnowledgeBase.DidNotReceive().UpdateArticle(Arg.Any<KbArticle>());
+    }
+
+    [Fact]
+    public async Task A_stale_version_wins_over_a_too_complex_body()
+    {
+        var article = _kb.StoredArticle();
+        _kb.Renderer.IsTooComplex(Arg.Any<string>()).Returns(true);
+
+        var result = await Handler().HandleAsync(article.Id, new UpdateKbArticleRequest(null, "T", null, "Too many cells.", 4), Ct);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe(PersistenceErrorCodes.ConcurrencyConflict);
+    }
+
+    [Fact]
+    public async Task An_unknown_category_is_a_validation_error_on_category_id_and_nothing_is_changed()
+    {
+        var article = _kb.StoredArticle();
+
+        var result = await Handler().HandleAsync(article.Id, new UpdateKbArticleRequest(Guid.NewGuid(), "New title", null, "New body", 5), Ct);
+
+        result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            error => error.Kind.ShouldBe(ResultErrorKind.Validation),
+            error => error.Code.ShouldBe("kb-category-not-found"),
+            error => error.Target.ShouldBe("categoryId"));
+        _kb.KnowledgeBase.DidNotReceive().UpdateArticle(Arg.Any<KbArticle>());
+        article.Title.ShouldBe("Reset your password");
+    }
+
+    [Fact]
+    public async Task A_published_article_cannot_lose_its_category_and_is_unchanged()
+    {
+        var categoryId = Guid.NewGuid();
+        var article = _kb.StoredArticle(KbArticleStatus.Published, categoryId: categoryId, publishedAt: _kb.Clock.GetUtcNow());
+
+        var result = await Handler().HandleAsync(article.Id, new UpdateKbArticleRequest(null, "New title", null, "New body", 5), Ct);
+
+        result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            error => error.Code.ShouldBe("kb-publish-incomplete"),
+            error => error.Target.ShouldBe("category"));
+        _kb.KnowledgeBase.DidNotReceive().UpdateArticle(Arg.Any<KbArticle>());
+        article.CategoryId.ShouldBe(categoryId);
+        article.Title.ShouldBe("Reset your password");
     }
 }

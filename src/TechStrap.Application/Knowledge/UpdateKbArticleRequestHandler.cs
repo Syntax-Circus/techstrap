@@ -1,4 +1,5 @@
 using SyntaxCircus.Common;
+using TechStrap.Application.Agents;
 using TechStrap.Application.Content;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Results;
@@ -12,12 +13,14 @@ public interface IUpdateKbArticleRequestHandler
 }
 
 /// <summary>
-/// PUT /api/kb/articles/{id} (Agent). Replaces the category, title, summary and body. The caller sends the version they read: a different
+/// PUT /api/kb/articles/{id} (Agent). The signed-in agent must be active. Replaces the category, title, summary and body. The caller sends the version they read: a different
 /// stored version is a 409, so a second agent's edit is never silently overwritten (D-026). The repository checks it again at commit.
 /// Editing an Archived article returns it to Draft; editing a Published article keeps it live. The product and the slug never change.
 /// A body over the rendered element cap is refused (<see cref="IKbContentRenderer.IsTooComplex"/>) before anything is changed.
 /// </summary>
 public sealed class UpdateKbArticleRequestHandler(
+    ICurrentAgentClaims currentAgent,
+    IAgentRepository agents,
     IKbRepository knowledgeBase,
     IKbContentRenderer renderer,
     IUnitOfWork unitOfWork,
@@ -26,6 +29,12 @@ public sealed class UpdateKbArticleRequestHandler(
     public async Task<Result<KbArticleDto>> HandleAsync(Guid id, UpdateKbArticleRequest request, CancellationToken cancellationToken)
     {
         await using var scope = await unitOfWork.BeginAsync(cancellationToken);
+        var actor = await CurrentAgent.RequireActiveAsync(currentAgent, agents, cancellationToken);
+        if (actor.IsFailure)
+        {
+            return Result<KbArticleDto>.Failure(actor.Errors[0]);
+        }
+
         var article = await knowledgeBase.GetArticleAsync(id, cancellationToken);
         if (article is null)
         {

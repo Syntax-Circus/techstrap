@@ -182,6 +182,8 @@ public sealed class CreateKbArticleRequestHandlerTests
             error => error.Target.ShouldBe("body"));
         _kb.KnowledgeBase.DidNotReceive().AddArticle(Arg.Any<KbArticle>());
         await _kb.KnowledgeBase.DidNotReceiveWithAnyArgs().ArticleSlugTakenAsync(default, default!, Ct);
+        await _kb.Products.DidNotReceiveWithAnyArgs().GetByIdAsync(default, Ct);
+        await _kb.KnowledgeBase.DidNotReceiveWithAnyArgs().GetCategoryAsync(default, Ct);
     }
 
     [Fact]
