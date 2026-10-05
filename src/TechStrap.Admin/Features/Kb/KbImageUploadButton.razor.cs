@@ -37,6 +37,16 @@ public sealed partial class KbImageUploadButton : IDisposable
     [Parameter]
     public EventCallback<KbUploadedImage> OnUploaded { get; set; }
 
+    /// <summary>Raised with true when an upload starts and with false when it ends, so the owner can hold its own writes while a picture is on its way.</summary>
+    [Parameter]
+    public EventCallback<bool> OnUploadingChanged { get; set; }
+
+    /// <summary>
+    /// What the picture belongs to (the article the editor shows). A result whose scope is no longer the current one is dropped: the picture was picked for another article and must not be added to this one.
+    /// </summary>
+    [Parameter]
+    public int Scope { get; set; }
+
     private static string Accept => string.Join(',', KbDefaults.ImageExtensions);
 
     private async Task OnPickedAsync(InputFileChangeEventArgs e)
@@ -62,8 +72,10 @@ public sealed partial class KbImageUploadButton : IDisposable
             return;
         }
 
+        var scope = Scope;
         _uploading = true;
         StateHasChanged();
+        await OnUploadingChanged.InvokeAsync(true);
         try
         {
             // The browser's file is read here, before anything is sent, so a read that fails is told apart from an upload whose answer was lost.
@@ -93,6 +105,11 @@ public sealed partial class KbImageUploadButton : IDisposable
                 return;
             }
 
+            if (scope != Scope)
+            {
+                return;
+            }
+
             if (result.IsSuccess)
             {
                 await OnUploaded.InvokeAsync(new KbUploadedImage(MarkdownSnippets.AltFromFileName(file.Name), result.Value.Url));
@@ -117,6 +134,7 @@ public sealed partial class KbImageUploadButton : IDisposable
             {
                 _uploading = false;
                 _inputKey++;
+                await OnUploadingChanged.InvokeAsync(false);
             }
         }
     }

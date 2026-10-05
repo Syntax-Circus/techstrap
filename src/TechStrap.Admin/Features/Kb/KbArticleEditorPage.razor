@@ -123,7 +123,7 @@
                 </div>
 
                 <MarkdownEditor Id="ts-kb-body" Value="@_model.Body" ValueChanged="OnBodyChanged" Disabled="_busy" ErrorMessage="@(_errors.GetValueOrDefault(ApiFields.Body))"
-                                OnBlur="() => CheckField(ApiFields.Body)" OnTooComplex="OnBodyTooComplex" />
+                                OnBlur="() => CheckField(ApiFields.Body)" OnTooComplex="OnBodyTooComplex" OnUploadingChanged="OnUploadingChanged" UploadScope="_epoch" />
             </fieldset>
 
             <div class="ts-form-actions ts-kb-actions">

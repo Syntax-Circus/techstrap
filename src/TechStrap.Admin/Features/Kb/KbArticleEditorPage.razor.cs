@@ -39,6 +39,7 @@ public sealed partial class KbArticleEditorPage : IDisposable
     private bool _reloadOpen;
     private bool _conflict;
     private bool _gone;
+    private bool _uploadingImage;
     private bool _slugEdited;
     private bool _allowLeave;
     private bool _disposed;
@@ -68,7 +69,8 @@ public sealed partial class KbArticleEditorPage : IDisposable
 
     private bool IsDirty => !_model.Take().Equals(_saved);
 
-    private bool Held => _busy || _conflict || _uncertainNote is not null || _gone;
+    // A picture on its way holds every write: a save, publish or archive that answered meanwhile would replace the model and drop the picture the agent is about to add.
+    private bool Held => _busy || _uploadingImage || _conflict || _uncertainNote is not null || _gone;
 
     // A new article can always be created; an existing one is saved once something changed. A create whose outcome is unknown may have made the article: no second create until the agent has looked at the list.
     private bool CanSave => !Held && (_creating || IsDirty);
@@ -131,6 +133,9 @@ public sealed partial class KbArticleEditorPage : IDisposable
         var loadId = ++_loadId;
         _loading = true;
         _loadError = null;
+
+        // The form (and a picture upload inside it) is replaced by the load, so its hold ends here.
+        _uploadingImage = false;
         try
         {
             var result = await Presenter.LoadAsync(Id, _lifetime.Token);
@@ -206,6 +211,8 @@ public sealed partial class KbArticleEditorPage : IDisposable
     private void OnSummaryInput(ChangeEventArgs e) => _model.Summary = e.Value?.ToString() ?? string.Empty;
 
     private void OnBodyChanged(string value) => _model.Body = value;
+
+    private void OnUploadingChanged(bool uploading) => _uploadingImage = uploading;
 
     // The preview says whether the API could render the text: a refusal marks the body field, and a later success clears only that mark.
     private void OnBodyTooComplex(bool tooComplex)

@@ -1020,4 +1020,62 @@ public sealed class KbArticleEditorPageTests : AdminComponentTest
         pending.SetResult(TestData.Ok(TestData.KbArticle("Edited", version: 4)));
         await saving;
     }
+
+    // ---- a picture on its way ------------------------------------------------------------------------------------
+
+    // The pick waits for the upload, which these tests hold open: it runs on its own thread so the test can look at the page meanwhile.
+    private static void PickPicture(IRenderedComponent<KbArticleEditorPage> cut) =>
+        _ = Task.Run(() => cut.FindComponent<Microsoft.AspNetCore.Components.Forms.InputFile>().UploadFiles(InputFileContent.CreateFromBinary(new byte[4], "shot.png", null, "image/png")), Xunit.TestContext.Current.CancellationToken);
+
+    [Fact]
+    public void While_a_picture_is_uploading_save_publish_and_archive_are_off_and_they_come_back_when_it_ends()
+    {
+        var pending = new TaskCompletionSource<Result<KbImageUploadResponse>>();
+        _kb.UploadImageAsync(Arg.Any<KbImageFile>(), Arg.Any<CancellationToken>()).Returns(_ => pending.Task);
+        var creating = RenderEditor();
+        FillValidNewArticle(creating);
+        Button(creating, "Create draft").HasAttribute("disabled").ShouldBeFalse();
+        var cut = RenderStored();
+        Button(cut, "Publish").HasAttribute("disabled").ShouldBeFalse();
+        Button(cut, "Archive").HasAttribute("disabled").ShouldBeFalse();
+
+        PickPicture(creating);
+        PickPicture(cut);
+
+        creating.WaitForAssertion(() => Button(creating, "Create draft").HasAttribute("disabled").ShouldBeTrue());
+        cut.WaitForAssertion(() => Button(cut, "Publish").HasAttribute("disabled").ShouldBeTrue());
+        Button(cut, "Archive").HasAttribute("disabled").ShouldBeTrue();
+        Save(creating);
+        Creates().ShouldBeEmpty();
+
+        pending.SetResult(TestData.Ok(new KbImageUploadResponse("kb-images/a.png", "https://api.example/kb-images/a.png")));
+
+        cut.WaitForAssertion(() => Value(cut, "ts-kb-body").ShouldContain("kb-images/a.png"));
+        // The picture is now unsaved text, so Save is the write that is open again.
+        cut.WaitForAssertion(() => Button(cut, "Save").HasAttribute("disabled").ShouldBeFalse());
+        creating.WaitForAssertion(() => Button(creating, "Create draft").HasAttribute("disabled").ShouldBeFalse());
+    }
+
+    [Fact]
+    public void A_picture_that_finishes_after_the_agent_moved_to_another_article_is_dropped_and_holds_nothing()
+    {
+        var pending = new TaskCompletionSource<Result<KbImageUploadResponse>>();
+        _kb.UploadImageAsync(Arg.Any<KbImageFile>(), Arg.Any<CancellationToken>()).Returns(_ => pending.Task);
+        _kb.GetAsync(OtherArticleId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.KbArticle("The other one", "other", id: OtherArticleId, body: "Other text", productId: TestData.OrbitlyId, categoryId: TestData.AccountCategoryId)));
+        var cut = RenderStored();
+        PickPicture(cut);
+        cut.WaitForAssertion(() => Button(cut, "Archive").HasAttribute("disabled").ShouldBeTrue());
+
+        cut.Render(p => p.Add(c => c.Id, OtherArticleId));
+        cut.WaitForAssertion(() => Value(cut, "ts-kb-title").ShouldBe("The other one"));
+        // The hold belonged to the other article: B is not held while that picture is still on its way.
+        Button(cut, "Archive").HasAttribute("disabled").ShouldBeFalse();
+        pending.SetResult(TestData.Ok(new KbImageUploadResponse("kb-images/a.png", "https://api.example/kb-images/a.png")));
+
+        cut.Render(p => p.Add(c => c.Id, OtherArticleId));
+        Value(cut, "ts-kb-body").ShouldBe("Other text");
+        cut.Markup.ShouldNotContain("kb-images/a.png");
+        cut.FindAll(".ts-dirty").ShouldBeEmpty();
+        Button(cut, "Archive").HasAttribute("disabled").ShouldBeFalse();
+    }
 }

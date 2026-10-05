@@ -5,7 +5,7 @@
         <button type="button" class="btn btn-outline-secondary" disabled="@Disabled" @onclick="() => Add(MarkdownSnippets.Link, inline: true)">@KbEditorCopy.LinkButton</button>
         <button type="button" class="btn btn-outline-secondary" disabled="@Disabled" @onclick="() => Add(MarkdownSnippets.List, inline: false)">@KbEditorCopy.ListButton</button>
         <button type="button" class="btn btn-outline-secondary" disabled="@Disabled" @onclick="() => Add(MarkdownSnippets.Code, inline: false)">@KbEditorCopy.CodeButton</button>
-        <KbImageUploadButton Disabled="Disabled" OnUploaded="OnImageUploadedAsync" />
+        <KbImageUploadButton Disabled="Disabled" OnUploaded="OnImageUploadedAsync" OnUploadingChanged="OnUploadingChanged" Scope="UploadScope" />
     </div>
     <p class="ts-field-help">@KbEditorCopy.ToolbarHint</p>
 

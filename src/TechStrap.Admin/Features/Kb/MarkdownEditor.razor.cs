@@ -61,6 +61,14 @@ public sealed partial class MarkdownEditor : IDisposable
     [Parameter]
     public EventCallback<bool> OnTooComplex { get; set; }
 
+    /// <summary>Raised with true while a picture is being uploaded and with false when that ends, so the owner can hold Save, Publish and Archive meanwhile.</summary>
+    [Parameter]
+    public EventCallback<bool> OnUploadingChanged { get; set; }
+
+    /// <summary>What the text belongs to (the article shown). A picture that finishes after this changed is dropped, so it never lands in another article.</summary>
+    [Parameter]
+    public int UploadScope { get; set; }
+
     protected override void OnParametersSet()
     {
         // The text can change from outside (a reload, an image added) as well as by typing; both arrive here, so this is the one place the preview is scheduled.
