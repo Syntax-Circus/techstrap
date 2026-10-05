@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Logging;
 using TechStrap.Admin.Clients;
 using TechStrap.Contracts.Agents;
 
@@ -33,6 +34,9 @@ public sealed partial class AdminEventsContent : IDisposable
 
     [Inject]
     private IAgentsClient AgentsClient { get; set; } = default!;
+
+    [Inject]
+    private ILogger<AdminEventsContent> Logger { get; set; } = default!;
 
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
@@ -87,6 +91,11 @@ public sealed partial class AdminEventsContent : IDisposable
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
             // The page went away while the names were on their way.
+        }
+        catch (Exception ex)
+        {
+            // Nothing awaits this read, so a failure must not go unobserved. The filter simply keeps no names; only the type is logged, never the message.
+            Logger.LogWarning("The agent names for the audit filter could not be read ({ExceptionType}).", ex.GetType().Name);
         }
     }
 

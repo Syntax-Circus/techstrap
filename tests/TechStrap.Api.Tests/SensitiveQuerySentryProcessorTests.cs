@@ -1,6 +1,7 @@
 using Sentry;
 using Sentry.Extensibility;
 using Sentry.Internal;
+using Sentry.Protocol;
 using Sentry.Protocol.Envelopes;
 using TechStrap.Hosting.Sentry;
 
@@ -26,6 +27,10 @@ public sealed class SensitiveQuerySentryProcessorTests
     [InlineData("?search=", "?search=[redacted]")]
     [InlineData("https://admin.test/queue/mine?status=Open&search=ada@x.test&page=2#top", "https://admin.test/queue/mine?status=Open&search=[redacted]&page=2#top")]
     [InlineData("GET https://api.test/api/tickets?search=a%20b&pageSize=25 failed", "GET https://api.test/api/tickets?search=[redacted]&pageSize=25 failed")]
+    [InlineData("?%73earch=ada%40x.test", "?%73earch=[redacted]")]
+    [InlineData("?%53earch=x&%71=y", "?%53earch=[redacted]&%71=[redacted]")]
+    [InlineData("?Search=x", "?Search=[redacted]")]
+    [InlineData("https://admin.test/queue/mine?status=Open&%73earch=x", "https://admin.test/queue/mine?status=Open&%73earch=[redacted]")]
     public void The_value_of_search_and_q_is_masked_and_the_rest_of_the_address_is_kept(string text, string expected) =>
         SensitiveQuerySentryProcessor.Scrub(text).ShouldBe(expected);
 
@@ -33,6 +38,8 @@ public sealed class SensitiveQuerySentryProcessorTests
     [InlineData("?status=Open&page=2")]
     [InlineData("?research=1&faq=2&query=3&squash=4")]
     [InlineData("/queue/search")]
+    [InlineData("?rese%61rch=1&f%61q=2")]
+    [InlineData("https://admin.test/queue/search?status=Open")]
     [InlineData("search")]
     [InlineData("a message that says search=nothing but is not a query")]
     [InlineData("")]
@@ -100,6 +107,57 @@ public sealed class SensitiveQuerySentryProcessorTests
     }
 
     [Fact]
+    public void An_event_loses_the_search_from_every_request_header_and_keeps_the_header_names()
+    {
+        var sentryEvent = new SentryEvent();
+        sentryEvent.Request.Headers["Referer"] = $"https://admin.test/queue/mine?status=Open&search={Needle}";
+        sentryEvent.Request.Headers["User-Agent"] = "ua";
+
+        var result = new SensitiveQuerySentryProcessor().Process(sentryEvent);
+
+        result.ShouldNotBeNull();
+        result.Request.Headers["Referer"].ShouldBe("https://admin.test/queue/mine?status=Open&search=[redacted]");
+        result.Request.Headers["User-Agent"].ShouldBe("ua");
+    }
+
+    [Fact]
+    public void A_transaction_loses_the_search_from_its_request_headers_and_tags_and_from_span_tags()
+    {
+        var tracer = new TransactionTracer(DisabledHub.Instance, new TransactionContext("GET /queue/{view}", "http.server", null, null, null, "", null, null, true, TransactionNameSource.Route));
+        tracer.Request.Headers["Referer"] = $"https://admin.test/queue/mine?search={Needle}";
+        tracer.SetTag("page", $"/queue/mine?search={Needle}");
+        var span = tracer.StartChild("http.client", "GET /api/tickets");
+        span.SetTag("url", $"/api/tickets?search={Needle}");
+        span.Finish();
+
+        var result = new SensitiveQuerySentryProcessor().Process(new SentryTransaction(tracer));
+
+        result.ShouldNotBeNull();
+        result.Request.Headers["Referer"].ShouldBe("https://admin.test/queue/mine?search=[redacted]");
+        result.Tags["page"].ShouldBe("/queue/mine?search=[redacted]");
+        result.Spans.Single().Tags["url"].ShouldBe("/api/tickets?search=[redacted]");
+    }
+
+    [Fact]
+    public void An_event_loses_the_search_from_its_message_tags_extra_and_exception_values()
+    {
+        var sentryEvent = new SentryEvent { Message = new SentryMessage { Message = "failed %s", Formatted = $"failed /queue/mine?search={Needle}" } };
+        sentryEvent.SetTag("page", $"/queue/mine?search={Needle}");
+        sentryEvent.SetExtra("url", $"/queue/mine?search={Needle}");
+        sentryEvent.SetExtra("count", 3);
+        sentryEvent.SentryExceptions = [new SentryException { Type = "HttpRequestException", Value = $"GET /api/tickets?search={Needle} failed" }];
+
+        var result = new SensitiveQuerySentryProcessor().Process(sentryEvent);
+
+        result.ShouldNotBeNull();
+        result.Message!.Formatted.ShouldBe("failed /queue/mine?search=[redacted]");
+        result.Tags["page"].ShouldBe("/queue/mine?search=[redacted]");
+        result.Extra["url"].ShouldBe("/queue/mine?search=[redacted]");
+        result.Extra["count"].ShouldBe(3);
+        result.SentryExceptions!.Single().Value.ShouldBe("GET /api/tickets?search=[redacted] failed");
+    }
+
+    [Fact]
     public void A_breadcrumb_that_carries_a_search_is_replaced_by_a_masked_copy_and_any_other_is_kept_as_it_is()
     {
         var dirty = new Breadcrumb(
@@ -129,8 +187,8 @@ public sealed class SensitiveQuerySentryProcessorTests
         var withoutScrubbing = Send(register: false);
         var withScrubbing = Send(register: true);
 
-        // The control: a registration that scrubs nothing delivers the needle in all three places, so this harness would catch a leak.
-        withoutScrubbing.Split(Needle).Length.ShouldBeGreaterThanOrEqualTo(4);
+        // The control: a registration that scrubs nothing delivers the needle in every place, so this harness would catch a leak.
+        withoutScrubbing.Split(Needle).Length.ShouldBeGreaterThanOrEqualTo(6);
         withScrubbing.ShouldNotContain(Needle);
         withScrubbing.ShouldContain("search=[redacted]");
         withScrubbing.ShouldContain("status=Open");
@@ -157,6 +215,8 @@ public sealed class SensitiveQuerySentryProcessorTests
         var sentryEvent = new SentryEvent { Message = "boom" };
         sentryEvent.Request.QueryString = $"?status=Open&search={Needle}";
         sentryEvent.Request.Url = $"https://admin.test/queue/mine?status=Open&search={Needle}";
+        sentryEvent.Request.Headers["Referer"] = $"https://admin.test/queue/mine?status=Open&search={Needle}";
+        sentryEvent.SetTag("page", $"/queue/mine?search={Needle}");
         SentrySdk.CaptureEvent(sentryEvent);
         SentrySdk.FlushAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
 

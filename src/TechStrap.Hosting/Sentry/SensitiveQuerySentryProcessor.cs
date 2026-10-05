@@ -15,26 +15,66 @@ public sealed partial class SensitiveQuerySentryProcessor : ISentryEventProcesso
     /// <summary>What replaces a masked value.</summary>
     public const string Mask = "[redacted]";
 
-    // A parameter at the start of a query string or after "?" or "&", up to the next "&", "#", a space or a quote: "search=a%40b.test", "?search=a&page=2", "http://h/queue?q=x#top".
-    [GeneratedRegex(@"(?<=^|[?&])(?<name>search|q)=[^&#\s""']*", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex SensitiveParameter();
+    // Any "name=value" pair at the start of a text or after "?" or "&"; the value runs up to the next "&", "#", a space or a quote. Whether the name is a sensitive one is decided after decoding it
+    // (see Scrub), so "?%73earch=x" and "?Search=x" are masked, while "research", "faq" and a "/queue/search" path are not.
+    [GeneratedRegex(@"(?<=^|[?&])(?<name>[^=&#?\s""']+)=[^&#\s""']*", RegexOptions.CultureInvariant)]
+    private static partial Regex Parameter();
+
+    private static bool IsSensitiveName(string name)
+    {
+        string decoded;
+        try
+        {
+            decoded = Uri.UnescapeDataString(name.Replace('+', ' '));
+        }
+        catch (UriFormatException)
+        {
+            decoded = name;
+        }
+
+        return decoded.Equals("search", StringComparison.OrdinalIgnoreCase) || decoded.Equals("q", StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>The text with the value of every sensitive query parameter masked. Null stays null.</summary>
     public static string? Scrub(string? text) =>
-        string.IsNullOrEmpty(text) ? text : SensitiveParameter().Replace(text, match => $"{match.Groups["name"].Value}={Mask}");
+        string.IsNullOrEmpty(text)
+            ? text
+            : Parameter().Replace(text, match => IsSensitiveName(match.Groups["name"].Value) ? $"{match.Groups["name"].Value}={Mask}" : match.Value);
 
     public SentryEvent? Process(SentryEvent @event)
     {
         ScrubRequest(@event.Request);
+        if (@event.Message is { } message)
+        {
+            message.Message = Scrub(message.Message);
+            message.Formatted = Scrub(message.Formatted);
+        }
+
+        foreach (var (key, value) in @event.Extra.ToList())
+        {
+            if (value is string text && Scrub(text) != text)
+            {
+                @event.SetExtra(key, Scrub(text));
+            }
+        }
+
+        ScrubTags(@event.Tags, (key, value) => @event.SetTag(key, value));
+        foreach (var exception in @event.SentryExceptions ?? [])
+        {
+            exception.Value = Scrub(exception.Value);
+        }
+
         return @event;
     }
 
     public SentryTransaction? Process(SentryTransaction transaction)
     {
         ScrubRequest(transaction.Request);
+        ScrubTags(transaction.Tags, (key, value) => transaction.SetTag(key, value));
         foreach (var span in transaction.Spans)
         {
             span.Description = Scrub(span.Description);
+            ScrubTags(span.Tags, (key, value) => span.SetTag(key, value));
             foreach (var (key, value) in span.Data.ToList())
             {
                 if (value is string text && Scrub(text) != text)
@@ -62,9 +102,30 @@ public sealed partial class SensitiveQuerySentryProcessor : ISentryEventProcesso
             : breadcrumb;
     }
 
+    private static void ScrubTags(IReadOnlyDictionary<string, string> tags, Action<string, string> set)
+    {
+        foreach (var (key, value) in tags.ToList())
+        {
+            var scrubbed = Scrub(value);
+            if (scrubbed != value)
+            {
+                set(key, scrubbed!);
+            }
+        }
+    }
+
+    // The headers too: the browser sends the page it came from as Referer (the Referrer-Policy still allows the full address on a same-origin request), and that address carries the search.
     private static void ScrubRequest(SentryRequest request)
     {
         request.QueryString = Scrub(request.QueryString);
         request.Url = Scrub(request.Url);
+        foreach (var (name, value) in request.Headers.ToList())
+        {
+            var scrubbed = Scrub(value);
+            if (scrubbed != value)
+            {
+                request.Headers[name] = scrubbed!;
+            }
+        }
     }
 }

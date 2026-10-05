@@ -56,6 +56,25 @@ public sealed class NotificationPreferencesPageTests : AdminPageTest
     private static string? Revision(IRenderedComponent<NotificationPreferencesPage> cut) =>
         cut.FindAll(".ts-toggle-list li").Select(li => li.GetAttribute("data-revision")).Distinct().Single();
 
+#pragma warning disable BL0006 // The render tree frames are the only place a key can be read: bUnit's DOM carries none.
+    private List<object> ListKeys(IRenderedComponent<NotificationPreferencesPage> cut)
+    {
+        var method = typeof(Microsoft.AspNetCore.Components.RenderTree.Renderer).GetMethod("GetCurrentRenderTreeFrames", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var frames = (Microsoft.AspNetCore.Components.RenderTree.ArrayRange<Microsoft.AspNetCore.Components.RenderTree.RenderTreeFrame>)method.Invoke(Renderer, [cut.ComponentId])!;
+        var keys = new List<object>();
+        for (var i = 0; i < frames.Count; i++)
+        {
+            var frame = frames.Array[i];
+            if (frame.FrameType == Microsoft.AspNetCore.Components.RenderTree.RenderTreeFrameType.Element && frame.ElementName == "li" && frame.ElementKey is { } key)
+            {
+                keys.Add(key);
+            }
+        }
+
+        return keys;
+    }
+#pragma warning restore BL0006
+
     private static bool IsOn(AngleSharp.Dom.IElement toggle) => toggle.HasAttribute("checked");
 
     // ---- a plain agent can use it --------------------------------------------------------------------------------
@@ -142,12 +161,16 @@ public sealed class NotificationPreferencesPageTests : AdminPageTest
         var cut = Render<NotificationPreferencesPage>();
         Toggle(cut, "Orbitly").Change(true);
         var before = Revision(cut);
+        var keysBefore = ListKeys(cut);
 
         Toggle(cut, "Acme").Change(true);
 
         // The list items are keyed by this revision, and the page shows it as data-revision (as the ticket sidebar does). A new one makes Blazor throw the items away and build new ones,
         // so the checkbox the agent just ticked is drawn again from what is saved and the browser cannot keep a tick that was never saved.
         Revision(cut).ShouldNotBe(before);
+        // bUnit rebuilds its DOM on every render, so the keys on the render tree (what Blazor diffs by) are the observable: unchanged keys would let the browser keep the tick.
+        ListKeys(cut).ShouldNotBeEmpty();
+        ListKeys(cut).Intersect(keysBefore).ShouldBeEmpty("every list item is keyed by the revision, so a new one replaces them all");
         Saves().Count.ShouldBe(1);
         gate.SetResult(TestData.Ok());
         cut.WaitForAssertion(() => cut.FindAll(".ts-toggle-list input").ShouldAllBe(i => !i.HasAttribute("disabled")));
