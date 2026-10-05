@@ -1,0 +1,79 @@
+// The command palette (PHASE-07c, UX-BRIEF-admin): a native <dialog> with a combobox input and a listbox. It is working UI like the other dialogs: no window frame, no mascot.
+
+.ts-palette {
+  width: min(36rem, calc(100vw - 32px));
+  max-height: min(32rem, calc(100vh - 64px));
+  margin-top: 12vh;
+  padding: 0;
+  overflow: hidden;
+
+  &[open] {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.ts-palette-input {
+  flex: none;
+  padding: 12px 16px;
+  font: 500 .9375rem var(--ts-font-mono);
+  border: 0;
+  border-bottom: 2px solid var(--ink);
+  border-radius: 0;
+}
+
+.ts-palette-list {
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.ts-palette-option {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8px 16px;
+  font: 500 .8125rem var(--ts-font-mono);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+
+  &:hover {
+    background: var(--hover);
+  }
+
+  // The selected line is set apart by a fill, a bar and weight, never by colour alone (forced-colors drops the fill, so it gets an outline below).
+  &[aria-selected="true"] {
+    font-weight: 700;
+    background: var(--sel);
+    border-left-color: var(--margin);
+  }
+}
+
+.ts-palette-meta {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.ts-palette-group {
+  font: 400 .6875rem var(--ts-font-mono);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.ts-palette-empty {
+  margin: 0;
+  padding: 12px 16px;
+  font: 400 .8125rem var(--ts-font-mono);
+}
+
+@media (forced-colors: active) {
+  .ts-palette-option[aria-selected="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}

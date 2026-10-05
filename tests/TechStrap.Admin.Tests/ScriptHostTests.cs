@@ -16,6 +16,8 @@ public sealed partial class ScriptHostTests
     [InlineData("/js/preferences.js")]
     [InlineData("/js/clipboard.js")]
     [InlineData("/js/tz.js")]
+    [InlineData("/js/palette.js")]
+    [InlineData("/js/menu.js")]
     public async Task Module_scripts_are_served_as_javascript_without_signing_in(string path)
     {
         await using var factory = new AdminFactory();

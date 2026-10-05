@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Logging;
+using TechStrap.Admin.Auth;
 using TechStrap.Admin.Features.Shell;
 
 namespace TechStrap.Admin.Components.Layout;
@@ -13,6 +14,7 @@ public partial class MainLayout : IDisposable
     private const string QueuePath = "queue";
 
     private bool _helpOpen;
+    private bool _paletteOpen;
 
     [Inject]
     private ShortcutService Shortcuts { get; set; } = default!;
@@ -28,6 +30,9 @@ public partial class MainLayout : IDisposable
 
     [Inject]
     private LocalTimeService LocalTime { get; set; } = default!;
+
+    [Inject]
+    private AgentSession Session { get; set; } = default!;
 
     /// <summary>
     /// The page has <c>&lt;base href="/"&gt;</c>, so a bare <c>#main</c> would resolve to the home page. The link names the current address with the fragment replaced.
@@ -88,6 +93,10 @@ public partial class MainLayout : IDisposable
             case ShortcutAction.Help:
                 _helpOpen = true;
                 return InvokeAsync(StateHasChanged);
+            case ShortcutAction.Palette:
+                // Ctrl+K toggles. It never opens before the API has said who this agent is: until then there is nothing to offer, and an admin command must never be listed on a guess.
+                _paletteOpen = !_paletteOpen && Session.State == AgentSessionState.Ready;
+                return InvokeAsync(StateHasChanged);
             case ShortcutAction.FocusSearch when !IsOnQueue():
                 Navigation.NavigateTo("/" + QueuePath);
                 break;
@@ -105,6 +114,8 @@ public partial class MainLayout : IDisposable
     }
 
     private void CloseHelp() => _helpOpen = false;
+
+    private void ClosePalette() => _paletteOpen = false;
 
     public void Dispose()
     {

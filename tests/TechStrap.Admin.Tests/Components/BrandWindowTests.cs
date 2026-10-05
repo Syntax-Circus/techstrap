@@ -26,6 +26,21 @@ public sealed class BrandWindowTests : BunitContext
     }
 
     [Fact]
+    public void The_heading_is_an_h2_by_default_and_an_h1_when_the_window_is_the_whole_page()
+    {
+        var inside = RenderWindow();
+        var standalone = Render<BrandWindow>(p => p
+            .Add(w => w.Title, "ERROR 404")
+            .Add(w => w.Heading, "This page fell out of its strap.")
+            .Add(w => w.HeadingLevel, 1));
+
+        inside.FindAll(".ts-window-body h1").ShouldBeEmpty();
+        inside.Find(".ts-window-body h2").TextContent.ShouldBe("All caught up");
+        standalone.FindAll(".ts-window-body h2").ShouldBeEmpty();
+        standalone.Find(".ts-window-body h1").TextContent.ShouldBe("This page fell out of its strap.");
+    }
+
+    [Fact]
     public void The_mascot_is_the_96px_SVG_head_mark_and_decorative()
     {
         var mark = RenderWindow().Find(".ts-window-body img");

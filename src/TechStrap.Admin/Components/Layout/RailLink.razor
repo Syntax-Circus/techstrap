@@ -1,0 +1,4 @@
+@implements IDisposable
+@inject NavigationManager Navigation
+
+<a class="ts-rail-link" href="@Href" aria-current="@(IsCurrent ? "page" : null)">@ChildContent</a>

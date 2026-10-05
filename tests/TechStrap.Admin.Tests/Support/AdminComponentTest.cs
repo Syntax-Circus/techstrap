@@ -33,6 +33,15 @@ public abstract class AdminComponentTest : BunitContext
         // MainLayout also asks the browser for its time zone on the first render; by default it answers UTC. A test sets it up again to try another zone.
         Tz = JSInterop.SetupModule("./js/tz.js");
         Tz.Setup<string?>("zone", _ => true).SetResult("UTC");
+
+        // The command palette (opened by MainLayout on Ctrl+K) and the ticket actions menu each import a small module the first time they are used.
+        Palette = JSInterop.SetupModule("./js/palette.js");
+        Palette.SetupVoid("attach", _ => true).SetVoidResult();
+        Palette.SetupVoid("detach", _ => true).SetVoidResult();
+        Palette.SetupVoid("reveal", _ => true).SetVoidResult();
+        Menu = JSInterop.SetupModule("./js/menu.js");
+        Menu.SetupVoid("attach", _ => true).SetVoidResult();
+        Menu.SetupVoid("focusFirst", _ => true).SetVoidResult();
     }
 
     protected FakeTimeProvider Time { get; }
@@ -48,6 +57,12 @@ public abstract class AdminComponentTest : BunitContext
 
     /// <summary>The <c>tz.js</c> module double: <c>zone</c> answers "UTC"; set it up again to answer another zone or to fail.</summary>
     protected BunitJSModuleInterop Tz { get; }
+
+    /// <summary>The <c>palette.js</c> module double: <c>attach</c>, <c>detach</c> and <c>reveal</c> succeed.</summary>
+    protected BunitJSModuleInterop Palette { get; }
+
+    /// <summary>The <c>menu.js</c> module double: <c>attach</c> and <c>focusFirst</c> succeed.</summary>
+    protected BunitJSModuleInterop Menu { get; }
 
     protected ShortcutService ShortcutService => Services.GetRequiredService<ShortcutService>();
 

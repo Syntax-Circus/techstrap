@@ -17,6 +17,7 @@ public static class ShortcutCatalog
         new("u", "Spam view, flagged ticket", "Not spam: restore the selected ticket from spam, no dialog"),
         new("Ctrl+Enter", "Reply box", "Send in the current mode"),
         new("Esc", "Anywhere", "Leave a field (your text is kept), close a dialog, or go back to the queue"),
+        new("Ctrl+K / Cmd+K", "Anywhere", "Open the command palette (it works while you type, and when single-key shortcuts are off)"),
         new("?", "Anywhere", "Show this list"),
     ];
 
@@ -29,6 +30,7 @@ public static class ShortcutCatalog
         ("n", "note"),
         ("e", "assign"),
         ("/", "search"),
+        ("Ctrl K", "commands"),
         ("?", "help"),
     ];
 }

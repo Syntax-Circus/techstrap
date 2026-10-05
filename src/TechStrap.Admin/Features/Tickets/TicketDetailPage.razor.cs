@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using SyntaxCircus.Common;
+using TechStrap.Admin.Auth;
 using TechStrap.Admin.Clients;
 using TechStrap.Admin.Features.Shell;
 using TechStrap.Contracts.Tickets;
@@ -26,6 +27,7 @@ public sealed partial class TicketDetailPage : IDisposable
     private ConflictState _conflict;
     private bool _reloading;
     private string? _latestChange;
+    private IDisposable? _palette;
 
     [Inject]
     private TicketDetailPresenter Presenter { get; set; } = default!;
@@ -35,6 +37,12 @@ public sealed partial class TicketDetailPage : IDisposable
 
     [Inject]
     private ShortcutService Shortcuts { get; set; } = default!;
+
+    [Inject]
+    private CommandRegistry Commands { get; set; } = default!;
+
+    [Inject]
+    private AgentSession Session { get; set; } = default!;
 
     /// <summary>The ticket number from the route, for example <c>ORB-42</c>.</summary>
     [Parameter]
@@ -61,6 +69,7 @@ public sealed partial class TicketDetailPage : IDisposable
         _loading = true;
         _gone = null;
         _model = null;
+        SyncPalette();
         _error = string.Empty;
         await LoadCoreAsync(silent: false);
     }
@@ -112,6 +121,7 @@ public sealed partial class TicketDetailPage : IDisposable
         if (result.IsSuccess)
         {
             _model = result.Value;
+            SyncPalette();
             _error = string.Empty;
             return true;
         }
@@ -120,6 +130,7 @@ public sealed partial class TicketDetailPage : IDisposable
         if (error.Kind == ResultErrorKind.NotFound)
         {
             _model = null;
+            SyncPalette();
             _gone = silent
                 ? new GoneMessage(TicketCopy.GoneHeading, TicketCopy.GoneBody)
                 : new GoneMessage(TicketCopy.NotFoundHeading, TicketCopy.NotFoundBody);
@@ -137,6 +148,7 @@ public sealed partial class TicketDetailPage : IDisposable
         if (_model is not null)
         {
             _model = _model.WithState(state);
+            SyncPalette();
             StateHasChanged();
         }
     }
@@ -186,6 +198,38 @@ public sealed partial class TicketDetailPage : IDisposable
 
     private void DismissConflict() => _conflict = ConflictState.None;
 
+    /// <summary>
+    /// Offers this ticket's commands in the command palette while the ticket is on screen: reply and note on an open ticket, "Assign to me" when it is not already assigned to the agent,
+    /// and "Not spam" on a flagged one. Each raises the shortcut that does the same thing, so the owner of the action (the composer, the sidebar, the actions menu) runs its own code.
+    /// Called whenever the model changes, so the list never offers what the ticket no longer allows.
+    /// </summary>
+    private void SyncPalette()
+    {
+        _palette?.Dispose();
+        _palette = null;
+        if (_disposed || _model is not { IsClosed: false } ticket)
+        {
+            return;
+        }
+
+        List<PaletteCommand> commands =
+        [
+            new("ticket-reply", PaletteCopy.ReplyCommand, PaletteCopy.TicketGroup, () => Shortcuts.RaiseAsync(ShortcutAction.Reply), Keys: "r"),
+            new("ticket-note", PaletteCopy.NoteCommand, PaletteCopy.TicketGroup, () => Shortcuts.RaiseAsync(ShortcutAction.Note), Keys: "n"),
+        ];
+        if (Session.Agent is { } me && ticket.AssigneeId != me.Id)
+        {
+            commands.Add(new("ticket-assign-me", PaletteCopy.AssignToMeCommand, PaletteCopy.TicketGroup, () => Shortcuts.RaiseAsync(ShortcutAction.AssignToMe)));
+        }
+
+        if (ticket.IsSpam)
+        {
+            commands.Add(new("ticket-not-spam", PaletteCopy.NotSpamCommand, PaletteCopy.TicketGroup, () => Shortcuts.RaiseAsync(ShortcutAction.NotSpam), Keys: "u"));
+        }
+
+        _palette = Commands.Register(commands);
+    }
+
     private Task OnShortcutAsync(ShortcutAction action)
     {
         if (action == ShortcutAction.Escape)
@@ -199,6 +243,7 @@ public sealed partial class TicketDetailPage : IDisposable
     public void Dispose()
     {
         _disposed = true;
+        _palette?.Dispose();
         Shortcuts.Pressed -= OnShortcutAsync;
         _lifetime.Cancel();
         _load?.Dispose();

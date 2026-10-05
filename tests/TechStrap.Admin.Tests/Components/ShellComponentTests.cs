@@ -17,7 +17,7 @@ public sealed class ShellComponentTests : AdminComponentTest
         var cut = Render<StatusBar>();
 
         cut.FindAll(".ts-statusbar-hints li").Select(li => li.TextContent.Trim()).ShouldBe(
-            ["j k move", "Enter open", "r reply", "n note", "e assign", "/ search", "? help"]);
+            ["j k move", "Enter open", "r reply", "n note", "e assign", "/ search", "Ctrl K commands", "? help"]);
         cut.Find("p.ts-statusbar-message").GetAttribute("role").ShouldBe("status");
         cut.Find("p.ts-statusbar-message").TextContent.ShouldBeEmpty();
     }
@@ -142,8 +142,9 @@ public sealed class ShellComponentTests : AdminComponentTest
         cut.WaitForAssertion(() => Dialogs.VerifyInvoke("open", 1));
 
         cut.Find("dialog.ts-dialog h2").TextContent.ShouldBe("Keyboard shortcuts");
-        cut.FindAll(".ts-shortcut-table tbody tr").Count.ShouldBe(10);
+        cut.FindAll(".ts-shortcut-table tbody tr").Count.ShouldBe(11);
         cut.FindAll(".ts-shortcut-table kbd").Select(k => k.TextContent).ShouldContain("u");
+        cut.FindAll(".ts-shortcut-table kbd").Select(k => k.TextContent).ShouldContain("Ctrl+K / Cmd+K");
 
         cut.Find("dialog button").Click();
 

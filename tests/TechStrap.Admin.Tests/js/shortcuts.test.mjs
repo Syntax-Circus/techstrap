@@ -1,7 +1,7 @@
 // Runs with `node --test` (no browser, no jsdom): the key filter in shortcuts.js is pure and takes plain objects.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { decide, isRelevantKey, isTyping } from '../../../src/TechStrap.Admin/wwwroot/js/shortcuts.js';
+import { decide, isPaletteChord, isRelevantKey, isTyping } from '../../../src/TechStrap.Admin/wwwroot/js/shortcuts.js';
 
 const element = (tagName, extra = {}) => ({ tagName, type: '', isContentEditable: false, getAttribute: () => null, ...extra });
 const event = (key, extra = {}) => ({
@@ -53,6 +53,22 @@ describe('isRelevantKey', () => {
         for (const key of ['a', 'Tab', 'Shift', 'F5', ' ', 'x']) {
             assert.equal(isRelevantKey(key), false, key);
         }
+    });
+});
+
+describe('isPaletteChord', () => {
+    it('accepts Ctrl+K and Cmd+K in either case', () => {
+        assert.equal(isPaletteChord(event('k', { ctrlKey: true })), true);
+        assert.equal(isPaletteChord(event('K', { ctrlKey: true })), true);
+        assert.equal(isPaletteChord(event('k', { metaKey: true })), true);
+    });
+
+    it('rejects a bare k, other chords, and Alt or Shift combinations', () => {
+        assert.equal(isPaletteChord(event('k')), false);
+        assert.equal(isPaletteChord(event('j', { ctrlKey: true })), false);
+        assert.equal(isPaletteChord(event('k', { ctrlKey: true, altKey: true })), false);
+        assert.equal(isPaletteChord(event('k', { ctrlKey: true, shiftKey: true })), false);
+        assert.equal(isPaletteChord(event(undefined, { ctrlKey: true })), false);
     });
 });
 
@@ -111,6 +127,37 @@ describe('decide', () => {
     it('does not report other chords or Alt combinations', () => {
         assert.equal(decide(event('j', { ctrlKey: true }), env()), null);
         assert.equal(decide(event('j', { altKey: true }), env()), null);
+    });
+
+    it('reports Ctrl+K and Cmd+K from anywhere, typing included, and takes the key from the browser', () => {
+        const typing = element('INPUT', { type: 'text' });
+
+        for (const active of [null, typing, element('BUTTON')]) {
+            const ctrl = decide(event('k', { ctrlKey: true }), env({ active }));
+            const meta = decide(event('K', { metaKey: true }), env({ active }));
+
+            assert.equal(ctrl.preventDefault, true);
+            assert.equal(ctrl.payload.key, 'k');
+            assert.equal(ctrl.payload.ctrl, true);
+            assert.equal(meta.payload.meta, true);
+        }
+    });
+
+    it('does not open the palette over another modal dialog, but a press inside the palette closes it', () => {
+        assert.equal(decide(event('k', { ctrlKey: true }), env({ dialogOpen: true })), null);
+        assert.equal(decide(event('k', { ctrlKey: true }), env({ dialogOpen: true, paletteOpen: false })), null);
+
+        const inside = decide(event('k', { ctrlKey: true }), env({ dialogOpen: true, paletteOpen: true, active: element('INPUT', { type: 'text' }) }));
+        assert.equal(inside.payload.key, 'k');
+        assert.equal(inside.preventDefault, true);
+    });
+
+    it('ignores Ctrl+K held down, composed, or already handled, and Ctrl+Alt+K and Ctrl+Shift+K', () => {
+        assert.equal(decide(event('k', { ctrlKey: true, repeat: true }), env()), null);
+        assert.equal(decide(event('k', { ctrlKey: true, isComposing: true }), env()), null);
+        assert.equal(decide(event('k', { ctrlKey: true, defaultPrevented: true }), env()), null);
+        assert.equal(decide(event('k', { ctrlKey: true, altKey: true }), env()), null);
+        assert.equal(decide(event('k', { ctrlKey: true, shiftKey: true }), env()), null);
     });
 
     it('marks onBody false when a control has focus', () => {

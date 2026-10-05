@@ -12,6 +12,7 @@ public static class ShellServiceCollectionExtensions
         services.AddScoped<ShortcutService>();
         services.AddScoped<PreferencesService>();
         services.AddScoped<LocalTimeService>();
+        services.AddScoped<CommandRegistry>();
         services.AddScoped<FailedEmailCounter>();
         return services;
     }

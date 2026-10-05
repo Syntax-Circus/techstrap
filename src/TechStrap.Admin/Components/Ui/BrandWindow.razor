@@ -5,7 +5,14 @@
     </div>
     <div class="ts-window-body">
         <img src="brand/mark.svg" alt="" width="96" height="96" />
-        <h2>@Heading</h2>
+        @if (HeadingLevel == 1)
+        {
+            <h1>@Heading</h1>
+        }
+        else
+        {
+            <h2>@Heading</h2>
+        }
         @ChildContent
     </div>
 </article>
@@ -17,6 +24,13 @@
 
     [Parameter, EditorRequired]
     public string Heading { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 2 (the default) inside a page that has its own <c>h1</c>, such as the "All caught up" window in the queue. 1 when the window is the whole page (404 and the sign-in landing),
+    /// so every screen has exactly one <c>h1</c> (UX-BRIEF-admin, accessibility).
+    /// </summary>
+    [Parameter]
+    public int HeadingLevel { get; set; } = 2;
 
     /// <summary>The copy and the single action: one sentence per line, then one button or one link.</summary>
     [Parameter]

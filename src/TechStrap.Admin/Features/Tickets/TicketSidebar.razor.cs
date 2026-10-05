@@ -225,6 +225,10 @@ public sealed partial class TicketSidebar : IDisposable
         {
             await _assignee.FocusAsync();
         }
+        else if (action == ShortcutAction.AssignToMe && CanAssignToMe && !_busy)
+        {
+            await InvokeAsync(AssignToMeAsync);
+        }
     }
 
     public void Dispose()
