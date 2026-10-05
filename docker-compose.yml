@@ -49,6 +49,8 @@ services:
       # TRUSTEDPROXY__TRUSTEDNETWORKS__1 only when the proxy runs outside this subnet.
       TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${TECHSTRAP_SUBNET:-172.16.31.0/24}
       TECHSTRAP_PORTAL_PUBLIC_URL: http://localhost:8082
+      # Browsers load KB images from here; without it the upload (which arrives over http://api/) would build an unreachable address.
+      TECHSTRAP_API_PUBLIC_URL: http://localhost:8080
       TECHSTRAP_SEED_DEV_DATA: ${TECHSTRAP_SEED_DEV_DATA:-false}
       Storage__Local__RootPath: /app/storage
     depends_on:

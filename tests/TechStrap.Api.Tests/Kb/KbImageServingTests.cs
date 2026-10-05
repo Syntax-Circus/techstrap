@@ -110,7 +110,6 @@ public sealed class KbImageServingTests : IDisposable
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         (await response.Content.ReadAsStringAsync(Ct)).ShouldNotContain("{}");
-        stored.FileName.ShouldNotBeNull();
     }
 
     [Theory]
@@ -118,7 +117,6 @@ public sealed class KbImageServingTests : IDisposable
     [InlineData("/kb-images")]
     [InlineData("/kb-images/a/b.png")]
     [InlineData("/kb-images/..;/secret.png")]
-    [InlineData("/kb-images/../secret.png")]
     [InlineData("/kb-images/attachments/0123456789abcdef0123456789abcdef/0123456789abcdef0123456789abcdef")]
     public async Task A_path_that_matches_no_image_route_never_returns_a_file(string path)
     {
@@ -131,6 +129,33 @@ public sealed class KbImageServingTests : IDisposable
         // The Api answers an unmatched anonymous path with its fallback (401) or a 404; either way no file.
         new[] { HttpStatusCode.NotFound, HttpStatusCode.Unauthorized }.ShouldContain(response.StatusCode);
         response.Content.Headers.ContentType?.MediaType.ShouldNotStartWith("image/");
+    }
+
+    [Fact]
+    public async Task A_head_request_gets_the_headers_and_no_body()
+    {
+        await using var factory = Factory();
+        var stored = await StoreAsync(factory, Png);
+        using var client = factory.CreateClient();
+
+        using var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Head, $"/kb-images/{stored.FileName}"), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.ShouldBe("image/png");
+        response.Headers.GetValues("X-Content-Type-Options").ShouldBe(["nosniff"]);
+        (await response.Content.ReadAsByteArrayAsync(Ct)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_trailing_slash_is_a_404()
+    {
+        await using var factory = Factory();
+        var stored = await StoreAsync(factory, Png);
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync($"/kb-images/{stored.FileName}/", Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]

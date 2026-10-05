@@ -21,7 +21,14 @@ public sealed class ApiPublicUrlOptions
             return isDevelopment;
         }
 
-        return Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+        // These characters would break the Markdown image the Admin inserts, or are not valid in an address at all.
+        var trimmed = value.Trim();
+        if (trimmed.Any(c => char.IsWhiteSpace(c) || char.IsControl(c) || c is '<' or '>' or '"' or '(' or ')'))
+        {
+            return false;
+        }
+
+        return Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)
             && uri.Scheme is "http" or "https"
             && !string.IsNullOrEmpty(uri.Host)
             && string.IsNullOrEmpty(uri.UserInfo)

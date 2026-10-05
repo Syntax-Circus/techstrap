@@ -85,6 +85,10 @@ public sealed class KbImageStoreTests : IDisposable
         { "a gif that is really a page", [.. "GIF89a"u8.ToArray(), .. new byte[8], .. "<script>alert(document.domain)</script>"u8.ToArray()] },
         { "a png with a script in a text chunk", [.. Png, .. "<ScRiPt>alert(1)</ScRiPt>"u8.ToArray()] },
         { "a jpeg with an svg inside", [.. Jpeg, .. "<svg onload=alert(1)>"u8.ToArray()] },
+        { "a bmp", [.. "BM"u8.ToArray(), 0x3A, 0, 0, 0, 0, 0, 0, 0, 0x36, 0, 0, 0, .. new byte[40]] },
+        { "a tiff (little endian)", [0x49, 0x49, 0x2A, 0x00, 0x08, 0, 0, 0, .. new byte[40]] },
+        { "a tiff (big endian)", [0x4D, 0x4D, 0x00, 0x2A, 0, 0, 0, 0x08, .. new byte[40]] },
+        { "an ico", [0, 0, 1, 0, 1, 0, 16, 16, 0, 0, 1, 0, 32, 0, .. new byte[40]] },
     };
 
     [Theory]
@@ -108,6 +112,37 @@ public sealed class KbImageStoreTests : IDisposable
         declaredTooLarge.Errors.ShouldHaveSingleItem().Code.ShouldBe("kb-image-too-large");
         liesAboutLength.Errors.ShouldHaveSingleItem().Code.ShouldBe("kb-image-too-large");
         Directory.Exists(Path.Combine(_root, "kb-images")).ShouldBeFalse();
+    }
+
+    // Only the leading window is scanned (what a browser content-sniffs). Compressed image data is near-random and would otherwise hit a marker by chance.
+    private static byte[] HighEntropyPng(int length, int markerAt, byte[]? marker)
+    {
+        var bytes = new byte[length];
+        new Random(42).NextBytes(bytes);
+        Png.CopyTo(bytes, 0);
+        for (var i = Png.Length; i < KbImageSignatures.MarkupScanWindow && i < length; i++)
+        {
+            bytes[i] = 0;
+        }
+
+        marker?.CopyTo(bytes, markerAt);
+        return bytes;
+    }
+
+    [Fact]
+    public async Task A_marker_after_the_scan_window_in_a_five_megabyte_high_entropy_body_is_accepted()
+    {
+        var bytes = HighEntropyPng((int)KbLimits.MaxImageBytes, KbImageSignatures.MarkupScanWindow + 976, "<svg"u8.ToArray());
+
+        (await _store.SaveAsync(Upload(bytes), Ct)).IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task The_same_marker_inside_the_scan_window_is_refused()
+    {
+        var bytes = HighEntropyPng((int)KbLimits.MaxImageBytes, 500, "<svg"u8.ToArray());
+
+        (await _store.SaveAsync(Upload(bytes), Ct)).Errors.ShouldHaveSingleItem().Code.ShouldBe("kb-image-type-not-allowed");
     }
 
     [Fact]

@@ -14,7 +14,9 @@ internal sealed class KbImageUrls(IOptions<ApiPublicUrlOptions> options, IHttpCo
 {
     public string UrlFor(string fileName)
     {
-        var baseUrl = options.Value.PublicUrl.Trim().TrimEnd('/');
+        // Built from the parsed address, never the raw string; start-up validation has already refused anything that is not an absolute http(s) URL.
+        var configured = options.Value.PublicUrl.Trim();
+        var baseUrl = configured.Length == 0 ? string.Empty : new Uri(configured, UriKind.Absolute).GetLeftPart(UriPartial.Path).TrimEnd('/');
         if (baseUrl.Length == 0)
         {
             var request = accessor.HttpContext?.Request

@@ -18,7 +18,7 @@ internal sealed class KbImageStore(IStorageProvider storage) : IKbImageStore
         }
 
         // Read at most MaxImageBytes + 1 bytes so a declared length that lies cannot exhaust memory.
-        await using var content = new MemoryStream();
+        await using var content = new MemoryStream((int)Math.Clamp(image.Length, 0, KbLimits.MaxImageBytes));
         var buffer = ArrayPool<byte>.Shared.Rent(81_920);
         try
         {

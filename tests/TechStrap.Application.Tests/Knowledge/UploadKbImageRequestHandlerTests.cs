@@ -60,7 +60,7 @@ public sealed class UploadKbImageRequestHandlerTests
 
         var result = await Handler().HandleAsync(image, Ct);
 
-        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("agent-access-required");
         await _store.DidNotReceiveWithAnyArgs().SaveAsync(default!, Ct);
     }
 

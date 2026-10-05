@@ -9,6 +9,9 @@ namespace TechStrap.Infrastructure.Attachments;
 /// </summary>
 internal static class KbImageSignatures
 {
+    /// <summary>How many leading bytes are scanned for markup: the window a browser content-sniffs. A speed bump only; see <see cref="CarriesMarkup"/>.</summary>
+    internal const int MarkupScanWindow = 1024;
+
     private static readonly byte[] _png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
     private static readonly byte[] _gif87 = "GIF87a"u8.ToArray();
     private static readonly byte[] _gif89 = "GIF89a"u8.ToArray();
@@ -55,21 +58,35 @@ internal static class KbImageSignatures
 
     private static bool CarriesMarkup(ReadOnlySpan<byte> content)
     {
-        // Lowered byte by byte: Ascii.ToLower stops at the first byte above 0x7F, and every png starts with one.
-        var lower = new byte[content.Length];
-        for (var i = 0; i < content.Length; i++)
-        {
-            lower[i] = content[i] is >= (byte)'A' and <= (byte)'Z' ? (byte)(content[i] | 0x20) : content[i];
-        }
-
+        // Only the leading window is scanned: it is what a browser content-sniffs. Compressed image data is near-random, so a whole-file scan refuses real
+        // images by chance (about 1.25% of 5 MB bodies hit "<svg"). The real defences are the sniffed image/* type, nosniff, the sandbox CSP and the Api origin.
+        var window = content.Length > MarkupScanWindow ? content[..MarkupScanWindow] : content;
         foreach (var marker in _markup)
         {
-            if (lower.AsSpan().IndexOf(marker) >= 0)
+            for (var start = 0; start + marker.Length <= window.Length; start++)
             {
-                return true;
+                if (MatchesIgnoringCase(window.Slice(start, marker.Length), marker))
+                {
+                    return true;
+                }
             }
         }
 
         return false;
+    }
+
+    // The marker is lower-case. Compared byte by byte: Ascii.ToLower stops at the first byte above 0x7F, and every png starts with one.
+    private static bool MatchesIgnoringCase(ReadOnlySpan<byte> candidate, ReadOnlySpan<byte> lowerMarker)
+    {
+        for (var i = 0; i < lowerMarker.Length; i++)
+        {
+            var b = candidate[i] is >= (byte)'A' and <= (byte)'Z' ? (byte)(candidate[i] | 0x20) : candidate[i];
+            if (b != lowerMarker[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

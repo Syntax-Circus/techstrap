@@ -339,6 +339,11 @@ Describe 'the config contract of the local compose' {
         }
     }
 
+    It 'the local compose gives the Api a browser-reachable public URL (KB image links built from an upload over http://api/ would not load)' {
+        (Get-ComposeEnvironmentKeys -File 'docker-compose.yml')['api'] | Should -Contain 'TECHSTRAP_API_PUBLIC_URL'
+        (Get-Content -LiteralPath (Join-Path $script:RepoRoot 'docker-compose.yml') -Raw) | Should -Match 'TECHSTRAP_API_PUBLIC_URL: http://localhost:8080'
+    }
+
     It 'the local compose no longer overrides the Admin sign-in or the group keys (the clash between .env.local and compose is gone)' {
         $admin = (Get-ComposeEnvironmentKeys -File 'docker-compose.yml')['admin']
         @($admin | Where-Object { $_ -like 'AUTH__*' -or $_ -like 'TECHSTRAP_*GROUP*' -or $_ -like 'TECHSTRAP_GROUP_CLAIM_TYPE' }) | Should -BeNullOrEmpty

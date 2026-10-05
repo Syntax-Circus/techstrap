@@ -13,9 +13,10 @@ public static class KbImageEndpoints
 
     public static IEndpointRouteBuilder MapKbImages(this IEndpointRouteBuilder app)
     {
-        app.MapGet(Route, async (string name, IKbImageStore store, HttpContext context, CancellationToken cancellationToken) =>
+        app.MapMethods(Route, ["GET", "HEAD"], async (string name, IKbImageStore store, HttpContext context, CancellationToken cancellationToken) =>
         {
-            var image = await store.OpenReadAsync(name, cancellationToken);
+            // A trailing slash is not an address the store wrote: 404 rather than serving the same file at a second URL.
+            var image = context.Request.Path.Value!.EndsWith('/') ? null : await store.OpenReadAsync(name, cancellationToken);
             if (image is null)
             {
                 context.Response.Headers.CacheControl = "no-store";

@@ -26,6 +26,12 @@ public sealed class ApiPublicUrlTests
     [InlineData("https://user:pw@api.example.com", true, false)]
     [InlineData("https://api.example.com?x=1", true, false)]
     [InlineData("https://api.example.com#frag", true, false)]
+    [InlineData("https://api.example.com/a b", true, false)]
+    [InlineData("https://api.example.com/<x>", true, false)]
+    [InlineData("https://api.example.com/\"x", true, false)]
+    [InlineData("https://api.example.com/(x)", true, false)]
+    [InlineData("https://api.example.com/x)", true, false)]
+    [InlineData("https://api.example.com/	x", true, false)]
     public void The_value_is_checked_the_way_the_start_up_check_does(string? value, bool isDevelopment, bool acceptable) =>
         ApiPublicUrlOptions.IsAcceptable(value, isDevelopment).ShouldBe(acceptable);
 
@@ -71,6 +77,15 @@ public sealed class ApiPublicUrlTests
         var urls = new KbImageUrls(Microsoft.Extensions.Options.Options.Create(new ApiPublicUrlOptions { PublicUrl = "https://api.example.com/" }), accessor);
 
         urls.UrlFor("abc.png").ShouldBe("https://api.example.com/kb-images/abc.png");
+    }
+
+    [Fact]
+    public void The_url_is_built_from_the_parsed_address_not_the_raw_string()
+    {
+        var accessor = Substitute.For<IHttpContextAccessor>();
+        var urls = new KbImageUrls(Microsoft.Extensions.Options.Options.Create(new ApiPublicUrlOptions { PublicUrl = "HTTPS://Api.Example.com:443/base/" }), accessor);
+
+        urls.UrlFor("abc.png").ShouldBe("https://api.example.com/base/kb-images/abc.png");
     }
 
     [Fact]
