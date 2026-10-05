@@ -109,7 +109,7 @@ public sealed class OtlpProbe : IAsyncDisposable
                 await stream.FlushAsync(_stop.Token);
             }
         }
-        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException or IOException or SocketException or EndOfStreamException)
+        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException or IOException or SocketException or EndOfStreamException or FormatException or OverflowException)
         {
             // The client went away, or the probe was disposed.
         }

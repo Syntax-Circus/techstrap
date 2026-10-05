@@ -32,7 +32,7 @@ public sealed class TestPostgres : IAsyncLifetime
     }
 
     public string ConnectionStringFor(string database) =>
-        new NpgsqlConnectionStringBuilder(_container.GetConnectionString()) 
+        new NpgsqlConnectionStringBuilder(_container.GetConnectionString())
         {
             Database = database,
             // Pooling keeps sockets alive instead of leaving thousands in TIME_WAIT on Windows.

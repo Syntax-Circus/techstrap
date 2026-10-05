@@ -51,6 +51,36 @@ public sealed class SensitiveQuerySentryProcessorTests
         SensitiveQuerySentryProcessor.Scrub(text).ShouldBe(text);
     }
 
+    [Theory]
+    [InlineData("flat")]
+    [InlineData("nested")]
+    public void Hostile_input_is_scrubbed_in_bounded_stack_and_time(string shape)
+    {
+        // "x=a=a=a=..." made every value a new level of recursion, and a stack overflow cannot be caught. Run on a 256 KB stack: it must finish, quickly.
+        var text = shape == "flat" ? "x" + string.Concat(Enumerable.Repeat("=a", 32 * 1024)) : string.Concat(Enumerable.Repeat("a=b?c=d&", 8 * 1024));
+        string? result = null;
+        Exception? failure = null;
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                result = SensitiveQuerySentryProcessor.Scrub(text);
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        }, maxStackSize: 256 * 1024);
+        thread.Start();
+        thread.Join();
+        watch.Stop();
+
+        failure.ShouldBeNull();
+        result.ShouldNotBeNull();
+        watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(1));
+    }
+
     [Fact]
     public void Nothing_stays_nothing()
     {

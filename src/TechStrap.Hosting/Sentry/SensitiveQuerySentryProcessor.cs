@@ -35,15 +35,27 @@ public sealed partial class SensitiveQuerySentryProcessor : ISentryEventProcesso
         return decoded.Equals("search", StringComparison.OrdinalIgnoreCase) || decoded.Equals("q", StringComparison.OrdinalIgnoreCase);
     }
 
+    // A non-sensitive value is looked into once more per level, but only this deep: "last=/queue/mine?search=x" needs one. The bound keeps hostile text such as "x=a=a=a=..." from
+    // recursing once per pair (a stack overflow cannot be caught and would end the process).
+    private const int MaxNesting = 2;
+
     /// <summary>The text with the value of every sensitive query parameter masked. Null stays null.</summary>
-    public static string? Scrub(string? text) =>
+    public static string? Scrub(string? text) => Scrub(text, 0);
+
+    private static string? Scrub(string? text, int depth) =>
         string.IsNullOrEmpty(text)
             ? text
             : Parameter().Replace(text, match =>
             {
-                // A value that is not itself sensitive can still hold an address with a search in it (a cookie "last=/queue/mine?search=x"), so it is scrubbed in its turn.
                 var name = match.Groups["name"].Value;
-                return IsSensitiveName(name) ? $"{name}={Mask}" : $"{name}={Scrub(match.Groups["value"].Value)}";
+                if (IsSensitiveName(name))
+                {
+                    return $"{name}={Mask}";
+                }
+
+                // A value that is not itself sensitive can still hold an address with a search in it (a cookie "last=/queue/mine?search=x"), so it is scrubbed in its turn, to a fixed depth.
+                var value = match.Groups["value"].Value;
+                return depth < MaxNesting ? $"{name}={Scrub(value, depth + 1)}" : match.Value;
             });
 
     public SentryEvent? Process(SentryEvent @event)

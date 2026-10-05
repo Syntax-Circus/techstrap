@@ -74,9 +74,9 @@ public sealed partial class NavMenu : IDisposable, IAsyncDisposable
             _menuScript ??= await Js.InvokeAsync<IJSObjectReference>("import", MenuModule);
             await _menuScript.InvokeVoidAsync("focusIfWithin", _panel, _toggle);
         }
-        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or TaskCanceledException)
+        catch (Exception ex)
         {
-            // Focus is a courtesy, not worth an error; log the type only.
+            // Nothing awaits this call (it runs from an event), so nothing may go unobserved. Focus is a courtesy, not worth an error; log the type only.
             Logger.LogWarning("The menu button could not take focus ({ExceptionType}).", ex.GetType().Name);
         }
 
