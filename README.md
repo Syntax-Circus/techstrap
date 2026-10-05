@@ -58,6 +58,9 @@ the pinned subnet `172.16.31.0/24`. Pick a free one for this stack, for example 
 For production, `REVERSE_PROXY_CIDR` must be the address the containers see the reverse proxy from. With the loopback-only
 published ports and a proxy on the same host, that is the compose gateway (`172.16.31.1/32`), never a wide range.
 
+UAT and production run from one image-only compose, `deploy/docker-compose.yml`: pinned GHCR image tags (one tag for all four), a scoped env file per service under `/etc/techstrap/<env>/`,
+a required and per-environment `TECHSTRAP_PROJECT`, and a separate Postgres on an external Docker network. The runbook is [DEPLOYMENT.md](docs/self-hosting/DEPLOYMENT.md).
+
 ### Submit a test ticket
 
 With `TECHSTRAP_SEED_DEV_DATA=true` set when you start the stack, `pwsh -File scripts/Send-TestTicket.ps1` submits a ticket

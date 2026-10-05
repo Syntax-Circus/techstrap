@@ -1,3 +1,8 @@
+BeforeDiscovery {
+    $script:DockerAvailable = $null -ne (Get-Command docker -ErrorAction SilentlyContinue) -and
+        ((& docker compose version 2>&1 | Out-String) -match 'Docker Compose')
+}
+
 BeforeAll {
     $script:RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..' '..')).Path
     $script:SmokeScript = Join-Path $script:RepoRoot 'scripts' 'Test-ComposeSmoke.ps1'
@@ -52,6 +57,21 @@ Describe 'Test-ComposeSmoke.ps1' {
         $script:DryRun | Should -Not -Match 'up [^\r\n]*--build'
         $quiet = & $script:SmokeScript -DryRun -NoBuild | Out-String
         $quiet | Should -Not -Match ' build '
+    }
+
+    It 'checks the deploy compose only on request, with config alone: no pull and no up' {
+        $script:DryRun | Should -Not -Match 'deploy/docker-compose.yml'
+        $checked = & $script:SmokeScript -DryRun -CheckDeployCompose | Out-String
+        $checked | Should -Match 'deploy/docker-compose\.yml config --quiet'
+        $checked | Should -Match 'no pull, no up'
+        # The script's only docker call that names the deploy file is the config check.
+        $script:SmokeText | Should -Match '& docker compose --env-file \$inputs -f \$deployFile config --quiet'
+        $script:SmokeText | Should -Not -Match '\$deployFile[^\r\n]*\b(pull|up)\b'
+    }
+
+    It 'resolves the deploy compose with the UAT template and dummy env files (-DeployComposeOnly, needs Docker)' -Skip:(-not $script:DockerAvailable) {
+        $output = & $script:SmokeScript -DeployComposeOnly | Out-String
+        $output | Should -Match 'deploy/docker-compose\.yml resolves'
     }
 
     It 'leaves the stack running only when asked to' {

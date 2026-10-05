@@ -77,3 +77,38 @@ Describe 'D-043 (scoped configuration and one image-only deploy compose)' {
         $roadmap | Should -Match '\| 8 \|.*deploy/\.env\.<env>\.local'
     }
 }
+
+Describe 'the deployment runbook' {
+    BeforeAll { $script:Runbook = Get-RepoText 'docs/self-hosting/DEPLOYMENT.md' }
+
+    It 'gives the config, pull, up and ps commands for the deploy compose with an inputs file' {
+        foreach ($verb in 'config --quiet', 'pull', 'up -d --wait', 'ps') {
+            $script:Runbook | Should -Match ([regex]::Escape("docker compose --env-file deploy/.env.uat.local -f deploy/docker-compose.yml $verb"))
+        }
+    }
+
+    It 'covers the shared Postgres network, the 0600 env directory, the registry login, health checks, rollback by image tag and migrations' {
+        foreach ($phrase in 'docker network create techstrap-db', 'install -d -m 0700 /etc/techstrap/uat', 'docker login ghcr.io', '/health/ready', 'set the previous tags', 'DATABASE__MIGRATEONSTARTUP', 'openssl rand -hex 24') {
+            $script:Runbook | Should -Match ([regex]::Escape($phrase))
+        }
+    }
+
+    It 'requires a different project name per environment and explains the first-deploy network check' {
+        foreach ($phrase in 'TECHSTRAP_PROJECT', 'techstrap-uat', 'gw_priority', 'docker inspect', 'restore from backup', 'Compose 2.30', 'v5.5.1') {
+            $script:Runbook | Should -Match ([regex]::Escape($phrase))
+        }
+    }
+
+    It 'never tells the operator to remove volumes and is linked from the README' {
+        $script:Runbook | Should -Not -Match 'down -v(\s|$)'
+        (Get-RepoText 'README.md') | Should -Match ([regex]::Escape('(docs/self-hosting/DEPLOYMENT.md)'))
+    }
+
+    It 'links only to files that exist' {
+        $links = [regex]::Matches($script:Runbook, '\]\((?<path>(?!https?:|#)[^)\s]+)\)') | ForEach-Object { $_.Groups['path'].Value }
+        $links.Count | Should -BeGreaterThan 1
+        foreach ($link in $links) {
+            Test-Path -LiteralPath (Join-Path $script:RepoRoot 'docs' 'self-hosting' $link) | Should -BeTrue -Because "DEPLOYMENT.md links to $link"
+        }
+    }
+}
