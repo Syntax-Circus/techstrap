@@ -35,5 +35,6 @@ public sealed class UnhandledErrorHostTests
         html.ShouldNotContain("boom");
         html.ShouldNotContain("ERROR 404");
         html.ShouldNotContain("fell out of its strap");
+        System.Text.RegularExpressions.Regex.Matches(html, "href=\"https://github.com/Syntax-Circus/techstrap\"").Count.ShouldBe(1, "exactly one Powered-by link on the re-executed 500 page");
     }
 }

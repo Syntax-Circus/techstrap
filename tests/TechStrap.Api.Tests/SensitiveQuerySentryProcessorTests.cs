@@ -64,7 +64,7 @@ public sealed class SensitiveQuerySentryProcessorTests
         SensitiveQuerySentryProcessor.Scrub(text).ShouldBe(text);
 
     [Fact]
-    public void A_ticket_address_in_a_request_a_breadcrumb_and_a_span_is_masked_everywhere_the_search_is()
+    public void A_ticket_address_in_a_request_a_breadcrumb_a_span_and_a_transaction_name_is_masked_everywhere_the_search_is()
     {
         const string url = "https://portal.test/t/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE?name=Jane";
         var @event = new SentryEvent();
@@ -81,6 +81,34 @@ public sealed class SensitiveQuerySentryProcessorTests
         breadcrumb.Message.ShouldBe("GET https://portal.test/t/[token]?name=[redacted]");
         breadcrumb.Data!["url"].ShouldBe("https://portal.test/t/[token]?name=[redacted]");
     }
+
+    [Fact]
+    public void A_ticket_address_in_a_span_description_and_a_transaction_name_is_masked()
+    {
+        const string token = "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE";
+        var tracer = new TransactionTracer(DisabledHub.Instance, new TransactionContext("GET /t/" + token, "http.server", null, null, null, "", null, null, true, TransactionNameSource.Url));
+        var span = tracer.StartChild("http.client", "GET https://portal.test/t/" + token + "?name=Jane");
+        span.Finish();
+
+        var result = new SensitiveQuerySentryProcessor().Process(new SentryTransaction(tracer))!;
+
+        result.Name.ShouldBe("GET /t/[token]");
+        result.Spans.Single().Description.ShouldBe("GET https://portal.test/t/[token]?name=[redacted]");
+    }
+
+    [Fact]
+    public void A_ticket_address_in_an_event_transaction_name_is_masked()
+    {
+        var @event = new SentryEvent { TransactionName = "GET /t/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE" };
+
+        new SensitiveQuerySentryProcessor().Process(@event)!.TransactionName.ShouldBe("GET /t/[token]");
+    }
+
+    [Theory]
+    [InlineData("?name=O'Brien&page=2", "?name=[redacted]&page=2")]
+    [InlineData("?email=a\"b@x.y#top", "?email=[redacted]#top")]
+    public void A_quote_inside_a_name_or_email_value_does_not_end_the_masked_value(string text, string expected) =>
+        SensitiveQuerySentryProcessor.Scrub(text).ShouldBe(expected);
 
     [Theory]
     [InlineData("?status=Open&page=2")]

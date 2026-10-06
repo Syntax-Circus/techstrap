@@ -41,7 +41,7 @@ public static partial class PortalRules
     private static partial Regex MarkupSite();
 
     // Anything that opts a component or the host in to an interactive render mode (a circuit or WebAssembly). The Portal has none: every page is static server rendering.
-    [GeneratedRegex(@"\bAddInteractive\w+|@rendermode\b|\brendermode\s*=|\bRenderMode\s*\.\s*Interactive\w*|\bInteractive(?:Server|WebAssembly|Auto)\b|\bIComponentRenderMode\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\bAddInteractive\w+|@rendermode\b|\brendermode\s*=|\bRenderMode\s*\.\s*Interactive\w*|\bInteractive(?:Server|WebAssembly|Auto)(?:RenderMode)?\b|\bIComponentRenderMode\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex Interactivity();
 
     // Razor comments, HTML comments, block comments and whole-line or trailing slash comments (a "//" that follows a colon, a quote or a word character is part of a URL or a string, not a comment).

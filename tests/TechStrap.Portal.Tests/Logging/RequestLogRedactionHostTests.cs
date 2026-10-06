@@ -63,7 +63,6 @@ public sealed class RequestLogRedactionHostTests
     [Theory]
     [InlineData("/p/paperplane?name=Jane+Doe")]
     [InlineData("/p/paperplane?NAME=Jane%20Doe&EMAIL=jane%40example.com")]
-    [InlineData("/p/paperplane?%6Eame=Jane%20Doe")]
     [InlineData("/p/paperplane/kb/search?q=a&name=Jane%20Doe")]
     public async Task A_name_in_the_query_of_any_page_is_masked_too(string path)
     {

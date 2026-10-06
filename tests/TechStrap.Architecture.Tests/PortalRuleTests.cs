@@ -182,6 +182,7 @@ public sealed class PortalRuleTests
     [InlineData("Components/Pages/Page.razor", "@rendermode InteractiveServer")]
     [InlineData("Components/App.razor", "<Routes @rendermode=\"RenderMode.InteractiveServer\" />")]
     [InlineData("Components/Pages/Page.razor.cs", "static IComponentRenderMode Mode = RenderMode.InteractiveAuto;")]
+    [InlineData("Components/Pages/Page.razor.cs", "static object Mode = new InteractiveServerRenderMode();")]
     public void A_deliberate_interactive_render_mode_is_flagged(string relativePath, string text)
     {
         PortalRules.InteractivityViolations([("src/TechStrap.Portal/" + relativePath, text)]).Count.ShouldBe(1);

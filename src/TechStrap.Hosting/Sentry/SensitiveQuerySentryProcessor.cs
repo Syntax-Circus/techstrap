@@ -20,7 +20,7 @@ public sealed partial class SensitiveQuerySentryProcessor : ISentryEventProcesso
 
     // Any "name=value" pair at the start of a text or after "?" or "&"; the value runs up to the next "&", "#", a space or a quote. Whether the name is a sensitive one is decided after decoding it
     // (see Scrub), so "?%73earch=x" and "?Search=x" are masked, while "research", "faq" and a "/queue/search" path are not.
-    [GeneratedRegex(@"(?<=^|[?&])(?<name>[^=&#?\s""']+)=(?<value>[^&#\s""']*)", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?<=^|[?&])(?<name>[^=&#?\s""']+)=(?<value>[^&#\s]*)", RegexOptions.CultureInvariant)]
     private static partial Regex Parameter();
 
     // The 43-character access token (base64url) right after "/t/" or "/T/": the Portal's ticket address and its attachment address.
@@ -69,6 +69,7 @@ public sealed partial class SensitiveQuerySentryProcessor : ISentryEventProcesso
     public SentryEvent? Process(SentryEvent @event)
     {
         ScrubRequest(@event.Request);
+        @event.TransactionName = Scrub(@event.TransactionName);
         if (@event.Message is { } message)
         {
             message.Message = Scrub(message.Message);
@@ -99,6 +100,8 @@ public sealed partial class SensitiveQuerySentryProcessor : ISentryEventProcesso
     public SentryTransaction? Process(SentryTransaction transaction)
     {
         ScrubRequest(transaction.Request);
+        // SentryTransaction.Name has no public setter; the event-like view of the same field does. Sentry.AspNetCore names an unmatched route "{METHOD} {path}", and the path may be /t/{token}.
+        ((IEventLike)transaction).TransactionName = Scrub(transaction.Name);
         ScrubTags(transaction.Tags, (key, value) => transaction.SetTag(key, value));
         foreach (var span in transaction.Spans)
         {

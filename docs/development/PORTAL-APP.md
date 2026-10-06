@@ -104,4 +104,6 @@ Portal added. `ProxyHopStartupFilter` puts the host behind a trusted reverse pro
 - `NavigationManager.NotFound()` adds the framework's `blazor-enhanced-nav: allow` response header to an unknown product's 404, which the router's own unknown-route 404 does not carry. The bodies are identical,
   and both are 404, so it reveals nothing about which products exist.
 - The Portal does not use `GlobalErrorBoundary`: its Try again button needs interactivity, and catching a render error in the page would answer 200 with a branded page instead of the plain 500 error page.
+- Sentry has no general email rule: it masks the `name` and `email` query values and the `/t/{token}` path only (Serilog's email pattern does catch addresses in logs).
+- If OpenTelemetry tracing were enabled, server spans would carry `url.path=/t/<token>`. It is off by default; masking it is a follow-up.
 - A category named `suggest` would be unreachable once 09b serves `/p/{key}/kb/suggest`; 09b decides whether to reserve the slug.

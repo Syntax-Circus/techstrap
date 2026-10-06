@@ -30,6 +30,8 @@ public sealed class PiiRedactionQueryValueTests
     [InlineData("Request starting HTTP/1.1 GET http://localhost/p/paperplane/contact?name=Jane%20Doe&email=jane.doe%40example.com - -", "Request starting HTTP/1.1 GET http://localhost/p/paperplane/contact?name=[redacted]&email=[redacted] - -")]
     [InlineData("https://portal.test/p/x/contact?name=O%27Brien#top", "https://portal.test/p/x/contact?name=[redacted]#top")]
     [InlineData("?subject=Hi%20there", "?subject=Hi%20there")]
+    [InlineData("?name=O'Brien&page=2", "?name=[redacted]&page=2")]
+    [InlineData("?email=a\"b@x.y#top", "?email=[redacted]#top")]
     public void The_value_of_name_and_email_in_a_query_string_is_masked_and_the_rest_is_kept(string text, string expected) =>
         PiiRedactionEnricher.RedactText(text).ShouldBe(expected);
 
