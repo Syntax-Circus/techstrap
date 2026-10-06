@@ -163,26 +163,30 @@ Describe 'D-045 (the public portal)' {
         (Get-RepoText 'docs/architecture/03-PACKAGE-MAP.md') | Should -Match 'MapSeoRobotsTxt'
     }
 
-    It 'ticks only the tasks and deliverables 09a fully delivers, and the roadmap and discovery rows say 09a is complete, pending merge' {
+    It 'ticks only the tasks and deliverables 09a and 09b fully deliver, and the roadmap and discovery rows say 09b is complete, pending merge' {
         $spec = Get-RepoText 'docs/architecture/PHASE-09-public-portal.md'
-        foreach ($number in 1, 3, 5, 17, 19, 22) {
+        foreach ($number in 1, 3, 5, 6, 7, 8, 9, 10, 11, 17, 19, 21, 22, 23) {
             $id = 'P09-T{0:00}' -f $number
-            $spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is delivered by 09a"
+            $spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is delivered by 09a or 09b"
         }
-        foreach ($number in 2, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 23) {
+        # T02 waits for the KB client of 09c, T04 for the sitemap, T18 for the owner's compose run of the smoke, T12 to T16 are 09c, T20 is deferred.
+        foreach ($number in 2, 4, 12, 13, 14, 15, 16, 18, 20) {
             $id = 'P09-T{0:00}' -f $number
-            $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not finished by 09a"
+            $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not finished by 09b"
         }
         $spec | Should -Match '(?m)^- \[x\] `TechStrap\.Portal` host with `\.env\.example`, forwarded-headers and client-IP forwarding to the API\.'
         $spec | Should -Match '(?m)^- \[x\] Branded layout with per-product theming and NotFound handling\.'
+        $spec | Should -Match '(?m)^- \[x\] Contact page with honeypot, attachments, deflection island, submitted page\.'
+        $spec | Should -Match '(?m)^- \[x\] Customer ticket view, reply \(incl\. Closed -> follow-up\), lost-link, attachment pass-through\.'
         $spec | Should -Match '(?m)^- \[ \] Typed clients for public product, public ticket, customer ticket, public KB\.'
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 09 \|.*D-045.*\| 09a complete \(pending merge\)'
-        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 09 \|.*\| 09a complete \(pending merge\)'
+        $spec | Should -Match '(?m)^- \[ \] KB home/category/search/article pages'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 09 \|.*D-045.*\| 09a merged \(PR #14\); 09b complete \(pending merge\); 09c not started'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 09 \|.*\| 09a merged \(PR #14\); 09b complete \(pending merge\); 09c not started'
     }
 
     It 'has a Portal developer guide, linked from the README, that lists every setting and the known gaps' {
         $guide = Get-RepoText 'docs/development/PORTAL-APP.md'
-        foreach ($heading in '## Run it locally', '### Configuration', '## How a page is served', '## Where things live', '## Tests', '## Known gaps in 09a') {
+        foreach ($heading in '## Run it locally', '### Configuration', '## How a page is served', '### Forms and uploads', '### Suggestions beside the subject', '### The ticket page and attachments', '### The lost-link page', '## Where things live', '## Tests', '## Known gaps') {
             $guide | Should -Match ('(?m)^' + [regex]::Escape($heading))
         }
         foreach ($key in 'API__BASEURL', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TECHSTRAP_PORTAL_DEFAULT_PRODUCT', 'TECHSTRAP_PORTAL_SHOW_POWERED_BY', 'CANONICALHOST__CANONICALHOST') {
@@ -224,6 +228,36 @@ Describe 'D-045 addendum (PHASE-09b rulings, 2026-10-06)' {
     It 'says in the architecture and PHASE-06 tables that the customer ticket carries the product key' {
         (Get-RepoText 'docs/architecture/02-ARCHITECTURE.md') | Should -Match 'CustomerTicketDto` \(public messages only; carries the product key\)'
         (Get-RepoText 'docs/architecture/PHASE-06-ticket-operations.md') | Should -Match 'CustomerTicketDto` \(public messages only; carries the product key\)'
+    }
+}
+
+Describe 'D-045 as built in 09b' {
+    BeforeAll {
+        $log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md'
+        $script:Section = [regex]::Match($log, '(?s)## D-045:.*?(?=\r?\n## D-\d+:|\z)').Value
+        $script:Guide = Get-RepoText 'docs/development/PORTAL-APP.md'
+    }
+
+    It 'records what the 09b build found, as consequences of the addendum' {
+        foreach ($phrase in 'As built in 09b: a post to an unknown product', 'As built in 09b: the request size limit', 'As built in 09b: the honeypot', 'As built in 09b: the ticket page',
+                'As built in 09b: the suggest adapter', 'As built in 09b: the smoke', 'Known in 09b: no copy button') {
+            $script:Section | Should -Match ([regex]::Escape($phrase)) -Because "the as-built list must carry: $phrase"
+        }
+    }
+
+    It 'has a developer guide that describes the 09b flows, the one markup site and the smoke check' {
+        foreach ($phrase in 'ts-kb-suggestions', 'ReceivedReference', 'CustomerMessageBody', 'FollowUpLink', 'AttachmentPassThrough', 'RequestTooLargeMiddleware', 'PortalScripts.Tests.ps1', 'Test-ComposeSmoke.ps1', 'reply-conflict', '/p/{key}/suggest') {
+            $script:Guide | Should -Match ([regex]::Escape($phrase)) -Because "PORTAL-APP.md must mention $phrase"
+        }
+        $script:Guide | Should -Not -Match 'answer 404 until 09b'
+        $script:Guide | Should -Not -Match '`MarkupString` is used nowhere yet'
+    }
+
+    It 'tells the Admin guide that the compose smoke now covers the Portal and the real client address' {
+        $admin = Get-RepoText 'docs/development/ADMIN-APP.md'
+        $paragraph = $admin -split '(?:\r?\n){2}' | Where-Object { $_ -match '\*\*Compose smoke\.\*\*' } | Select-Object -First 1
+        $paragraph | Should -Match 'Portal'
+        $paragraph | Should -Match 'real client address'
     }
 }
 
