@@ -11,7 +11,7 @@ namespace TechStrap.Api.Controllers;
 
 /// <summary>
 /// The knowledge base for the portal (PHASE-08, PHASE-09, D-044): anonymous, rate limited per IP. A hit is cacheable for 60 seconds (the sitemap for 300);
-/// a 404 is never cached. An unknown or inactive product key gives an empty list, never a 404, except on the article page, where everything unavailable is one 404.
+/// a 404 is never cached. An unknown or inactive product key gives an empty list, never a 404, except on the article page and the category article list, where everything unavailable (an unknown or inactive product, a malformed, unknown or empty category) is one 404; a page past the end of a category that has articles is a 200 with no items.
 /// </summary>
 [ApiController]
 [Route("api/public/kb/{productKey}")]

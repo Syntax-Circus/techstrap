@@ -300,9 +300,18 @@ Describe 'D-045 as built in 09c' {
     It 'records what the 09c build found, as consequences of the addendum' {
         foreach ($phrase in 'As built in 09c: the category list and the product list', 'As built in 09c: the pages never fail on a visitor', 'As built in 09c: the cache', 'As built in 09c: structured data',
                 'As built in 09c: the sitemap', 'As built in 09c: the second markup site', 'Known in 09c: the sitemap build', 'Known in 09c: a plain-http image', 'Known in 09c: the category page shows no description',
-                'Known in 09c: the package', 'Resolved in 09c: the product pages no longer link ahead') {
+                'Known in 09c: the package', 'Resolved in 09c: the product pages no longer link ahead', 'As built in 09c: deviations from the plan, driven by the spike', 'As built in 09c: the cache key and its case',
+                'As built in 09c: the sitemap cache is stale-while-revalidate', 'As built in 09c: layering and plain text', 'with one, `/` redirects to it', 'timing-dependent exception') {
             $script:Section | Should -Match ([regex]::Escape($phrase)) -Because "the as-built list must carry: $phrase"
         }
+    }
+
+    It 'records the case-variant cache exception, the 09d search-box note and the article-only JSON-LD in the right places' {
+        $script:Guide | Should -Match ([regex]::Escape('/p/ACME/kb'))
+        $script:Guide | Should -Match ([regex]::Escape('merging them is PHASE-09d'))
+        $script:Section | Should -Match ([regex]::Escape('UseCaseSensitivePaths = true'))
+        $script:Spec | Should -Match ([regex]::Escape('JSON-LD is on the article page only'))
+        (Get-RepoText 'docs/architecture/01-REQUIREMENTS.md') | Should -Match ([regex]::Escape('`GetKbSitemapRequestHandler` (via the Portal provider)'))
     }
 
     It 'records the sitemap rate-limit limit in the decision log and the developer guide' {

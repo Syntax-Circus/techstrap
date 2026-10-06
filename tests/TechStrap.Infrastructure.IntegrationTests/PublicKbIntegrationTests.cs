@@ -565,6 +565,39 @@ public sealed class PublicKbIntegrationTests(PostgresFixture postgres) : Postgre
     }
 
     [Fact]
+    public async Task Articles_with_the_same_update_time_are_ordered_by_id_descending_so_a_page_boundary_never_repeats_or_drops_one()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var scenario = await TicketScenario.CreateAsync(host);
+        var category = KbCategory.Create(null, "general", "General", 1, host.Clock).Value;
+        var articles = new List<KbArticle>();
+        foreach (var slug in new[] { "a", "b", "c", "d", "e" })
+        {
+            // The clock is not advanced, so every article has the same UpdatedAt and only the id can order them.
+            var article = Article(scenario, host, null, category, slug, slug, "s", "body");
+            Publish(host, article);
+            articles.Add(article);
+        }
+
+        (await host.CommitAsync(sp =>
+        {
+            var kb = sp.GetRequiredService<IKbRepository>();
+            kb.AddCategory(category);
+            articles.ForEach(kb.AddArticle);
+            return Task.CompletedTask;
+        })).IsSuccess.ShouldBeTrue();
+        Task<Result<PagedResponse<PublicKbArticleSummaryDto>>> Page(int page) =>
+            host.ReadAsync(sp => new ListPublicKbCategoryArticlesRequestHandler(sp.GetRequiredService<IProductRepository>(), sp.GetRequiredService<IKbRepository>()).HandleAsync("acme", "general", page, 2, Ct));
+
+        var pages = new[] { await Page(1), await Page(2), await Page(3) };
+
+        var served = pages.SelectMany(page => page.Value.Items).ToList();
+        served.Select(item => item.UpdatedAt).Distinct().Count().ShouldBe(1, "the scenario really is a tie");
+        served.Select(item => item.Slug).ShouldBe([.. articles.OrderByDescending(article => article.Id).Select(article => article.Slug)]);
+        pages.Select(page => page.Value.Items.Count).ShouldBe([2, 2, 1]);
+    }
+
+    [Fact]
     public async Task The_public_product_list_is_the_active_products_key_and_display_name_only()
     {
         await using var host = new PersistenceTestHost(Database);
