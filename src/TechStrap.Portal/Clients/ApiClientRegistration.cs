@@ -67,14 +67,30 @@ public static class ApiClientRegistration
         // The default honours Retry-After without a limit; this one honours it up to ReadRetryAfterCap and otherwise falls back to the backoff above.
         ShouldRetryAfterHeader = false,
         DelayGenerator = args => ValueTask.FromResult(RetryAfterDelay(args.Outcome.Result, TimeProvider.System.GetUtcNow())),
-        ShouldHandle = args => ValueTask.FromResult(args.Outcome switch
+        ShouldHandle = args => ValueTask.FromResult(IsRetryable(args)),
+    };
+
+    /// <summary>
+    /// Defence in depth: the read client is only ever given GETs by <see cref="ApiConnection"/>, but a write must never be retried even if one is sent through it by mistake. The request is taken
+    /// from the response when there is one, and from the resilience context otherwise (an exception has no response), so a transport failure of a non-GET is not retried either. A request that
+    /// cannot be found is not retried.
+    /// </summary>
+    internal static bool IsRetryable(RetryPredicateArguments<HttpResponseMessage> args)
+    {
+        var method = args.Outcome.Result?.RequestMessage?.Method ?? args.Context.GetRequestMessage()?.Method;
+        if (method != HttpMethod.Get)
+        {
+            return false;
+        }
+
+        return args.Outcome switch
         {
             { Exception: HttpRequestException or TimeoutException } => true,
             { Exception: OperationCanceledException } => !args.Context.CancellationToken.IsCancellationRequested,
             { Result.StatusCode: HttpStatusCode.RequestTimeout or HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout } => true,
             _ => false,
-        }),
-    };
+        };
+    }
 
     /// <summary>
     /// The wait the API asked for in <c>Retry-After</c> (seconds or an HTTP date), capped at <see cref="ReadRetryAfterCap"/>; null when there is no usable header, so the exponential backoff

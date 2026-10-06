@@ -19,8 +19,11 @@ public readonly partial struct TicketToken
     [GeneratedRegex(@"\A[A-Za-z0-9_\-]{43}\z", RegexOptions.CultureInvariant)]
     private static partial Regex Shape();
 
-    /// <summary>The token text. Throws for <c>default</c>.</summary>
-    public string Value => _value ?? throw new InvalidOperationException("This ticket token has no value.");
+    /// <summary>
+    /// The token text. Throws for <c>default</c>. Internal on purpose: a public property would be read by a serializer or a log destructurer (<c>{@Token}</c>); only <see cref="ApiConnection"/>
+    /// reads it, where the request header is set.
+    /// </summary>
+    internal string Value => _value ?? throw new InvalidOperationException("This ticket token has no value.");
 
     public static bool TryParse(string? text, out TicketToken token)
     {

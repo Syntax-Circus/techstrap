@@ -1,3 +1,6 @@
+using System.Text.Json;
+using Serilog;
+using Serilog.Events;
 using TechStrap.Portal.Clients;
 
 namespace TechStrap.Portal.Tests.Clients;
@@ -76,5 +79,19 @@ public sealed class TicketTokenTests
 
         Should.Throw<InvalidOperationException>(() => token.Value);
         token.ToString().ShouldBe("[token]");
+    }
+
+    [Fact]
+    public void A_serializer_or_a_log_destructurer_cannot_read_the_value()
+    {
+        TicketToken.TryParse(Valid, out var token).ShouldBeTrue();
+        var sink = new CollectingSink();
+        using var logger = new LoggerConfiguration().MinimumLevel.Verbose().WriteTo.Sink(sink).CreateLogger();
+
+        logger.Verbose("Token {@Token} / {Token}", token, token);
+
+        JsonSerializer.Serialize(token).ShouldNotContain(Valid);
+        var evt = sink.Events.ShouldHaveSingleItem();
+        string.Join('|', evt.RenderMessage(), string.Join('|', evt.Properties.Values.Select(v => v.ToString()))).ShouldNotContain(Valid);
     }
 }

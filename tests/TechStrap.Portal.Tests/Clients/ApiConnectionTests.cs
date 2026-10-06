@@ -91,20 +91,75 @@ public sealed class ApiConnectionTests
     }
 
     // Review Focus 4: a duplicate ticket or reply must never come from a retry.
+    public enum WriteOverload
+    {
+        JsonWithResult,
+        JsonWithResultAndToken,
+        JsonNoBody,
+        JsonNoBodyAndToken,
+        ContentWithResult,
+        ContentWithResultAndToken,
+    }
+
+    public static TheoryData<WriteOverload, string> EveryWriteOverloadAndVerb()
+    {
+        var data = new TheoryData<WriteOverload, string>();
+        foreach (var overload in Enum.GetValues<WriteOverload>())
+        {
+            foreach (var verb in new[] { "POST", "PUT", "DELETE" })
+            {
+                data.Add(overload, verb);
+            }
+        }
+
+        return data;
+    }
+
+    // Review Focus 4: a duplicate ticket or reply must never come from a retry. Every one of the six write overloads is pinned to the write client.
     [Theory]
-    [InlineData("POST")]
-    [InlineData("PUT")]
-    [InlineData("DELETE")]
-    public async Task A_write_is_never_retried_on_503(string verb)
+    [MemberData(nameof(EveryWriteOverloadAndVerb))]
+    public async Task A_write_is_never_retried_on_503(WriteOverload overload, string verb)
     {
         using var api = ApiHarness.Create();
         var method = new HttpMethod(verb);
         api.Stub.OnStatus(method, "/api/thing", HttpStatusCode.ServiceUnavailable);
+        var connection = api.Get<ApiConnection>();
+        var token = ValidToken();
 
-        var result = await api.Get<ApiConnection>().SendAsync<PublicProductDto>(method, "api/thing", new { note = "x" }, Ct);
+        var errors = overload switch
+        {
+            WriteOverload.JsonWithResult => (await connection.SendAsync<PublicProductDto>(method, "api/thing", new { note = "x" }, Ct)).Errors,
+            WriteOverload.JsonWithResultAndToken => (await connection.SendAsync<PublicProductDto>(method, "api/thing", new { note = "x" }, token, Ct)).Errors,
+            WriteOverload.JsonNoBody => (await connection.SendAsync(method, "api/thing", new { note = "x" }, Ct)).Errors,
+            WriteOverload.JsonNoBodyAndToken => (await connection.SendAsync(method, "api/thing", new { note = "x" }, token, Ct)).Errors,
+            WriteOverload.ContentWithResult => (await connection.SendContentAsync<PublicProductDto>(method, "api/thing", new StringContent("x"), Ct)).Errors,
+            WriteOverload.ContentWithResultAndToken => (await connection.SendContentAsync<PublicProductDto>(method, "api/thing", new StringContent("x"), token, Ct)).Errors,
+            _ => throw new ArgumentOutOfRangeException(nameof(overload)),
+        };
 
-        result.Errors.ShouldHaveSingleItem().Code.ShouldBe(ApiErrorCodes.ApiUnavailable);
+        errors.ShouldHaveSingleItem().Code.ShouldBe(ApiErrorCodes.ApiUnavailable);
         api.Stub.Count(method, "/api/thing").ShouldBe(1);
+    }
+
+    // Defence in depth: even a write sent through the read client by mistake is sent once, on a status and on a transport failure.
+    [Theory]
+    [InlineData("POST")]
+    [InlineData("PUT")]
+    [InlineData("DELETE")]
+    public async Task A_non_get_sent_through_the_read_client_by_mistake_is_still_sent_once(string verb)
+    {
+        using var api = ApiHarness.Create();
+        var method = new HttpMethod(verb);
+        api.Stub.OnStatus(method, "/api/thing", HttpStatusCode.ServiceUnavailable);
+        api.Stub.On(method, "/api/dropped", _ => throw new HttpRequestException("connection reset"));
+        var client = api.Get<IHttpClientFactory>().CreateClient(ApiClientNames.Read);
+
+        using var unavailable = await client.SendAsync(new HttpRequestMessage(method, "api/thing") { Content = new StringContent("x") }, Ct);
+        await Should.ThrowAsync<HttpRequestException>(() => client.SendAsync(new HttpRequestMessage(method, "api/dropped") { Content = new StringContent("x") }, Ct));
+
+        unavailable.StatusCode.ShouldBe(HttpStatusCode.ServiceUnavailable);
+        api.Stub.Count(method, "/api/thing").ShouldBe(1);
+        api.Stub.Count(method, "/api/dropped").ShouldBe(1);
     }
 
     [Fact]

@@ -8,7 +8,8 @@ namespace TechStrap.Portal.Clients;
 /// Turns a non-success API response into <see cref="Result"/> errors (D-045). The API answers with RFC 7807 problem details; a validation failure (400) carries the specific codes in the
 /// <c>errorCodes</c> extension, keyed by field, and the messages in <c>errors</c>. Every other status is mapped by the status alone, to a fixed code and a fixed sentence (<see cref="ProblemCopy"/>):
 /// 404 is one not-found whatever the API called it (so nothing can tell an unknown product from an unknown ticket), 413 and 415 are the attachment errors, 429 is rate limited, and any 5xx is
-/// "unavailable" (a write may or may not have been applied, and the API's own text is never shown).
+/// "unavailable" (a write may or may not have been applied). The API's own text is never shown for any status except 400: a 400's own <c>detail</c> and per-field messages may be shown, because
+/// they are validation text written for the visitor ("Add a subject."), never a token, a host or exception text.
 /// </summary>
 internal static class ProblemMapping
 {
