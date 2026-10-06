@@ -1666,6 +1666,7 @@ PHASE-02, PHASE-06 and PHASE-08 are merged, so PHASE-09 can start. Reading the c
 - **Theming.** There is no `BrandingThemeFactory`. A thin `ProductThemeViewModel` reuses `AccentScope` and the DTO's derived colours, and re-checks the logo address (https only, or loopback http in Development, matching `TechStrapCsp.ForBlazorApp`); an unacceptable logo is omitted. NotFound and Error stay neutral (no enumeration, and the PHASE-04 no-brand guard): an unknown, inactive or malformed product key is answered exactly like an unknown route.
 - **Shared KB articles.** The canonical URL is the product path the visitor is on, because each product's help centre is its own site. The sitemap lists a shared article under each product.
 - **Forms.** Static-SSR forms use `[SupplyParameterFromForm]` and antiforgery. Attachments use a plain `<input type="file" multiple>`, which works without script, and are streamed into the multipart request. The Portal enforces the request size limit with Contracts `IntakeLimits`.
+
 ### Alternatives Considered
 - **Keep the InteractiveServer island.** Rejected by the owner: it adds a public SignalR circuit, loses the visitor's IP and needs a custom handler to work around it.
 - **A configured list of products for the root page and sitemap.** Rejected: it diverges from "active products" and needs a redeploy to change.

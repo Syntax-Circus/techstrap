@@ -43,7 +43,8 @@ public sealed partial class PiiRedactionEnricher : ILogEventEnricher
         @"(?:(?<![A-Za-z0-9_\-])|(?<=%2[Ff]))(?:ts[kp]_)?[A-Za-z0-9_\-]{43}(?![A-Za-z0-9_\-])",
         Options, MatchTimeout);
 
-    // A "name=value" pair at the start of a text or after "?" or "&": the value runs up to the next "&", "#" or whitespace (a quote is part of a value: O'Brien). Whether the parameter is one of the personal ones is decided after decoding
+    // A "name=value" pair at the start of a text or after "?" or "&": the value runs up to the next "&", "#" or whitespace (a quote is part of a value: O'Brien). The value boundary deliberately runs to "&", "#" or whitespace, so a value
+    // with an unusual character in it is masked whole: it over-masks, on the safe side, rather than leave the tail of a name or an address behind. Whether the parameter is one of the personal ones is decided after decoding
     // its name (see RedactQueryValues), so "%6Eame=" and "NAME=" are masked while "username", "filename" and a sentence that says "name=" are not.
     private static readonly Regex QueryPairPattern = new(@"(?<=^|[?&])(?<name>[^=&#?\s""']+)=(?<value>[^&#\s]*)", Options, MatchTimeout);
 

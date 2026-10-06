@@ -5,7 +5,8 @@ namespace TechStrap.Portal.Tests.Logging;
 
 /// <summary>
 /// P09-T17 at the host, at Verbose: the framework logs every request's path and query, so a <c>/t/{token}</c> address and the contact page's <c>?name=&amp;email=</c> prefill (09b) must never reach a log
-/// event in the clear, in its message or in any property. The first checks of each test are the controls: the request line really was logged, with the secret masked, so the scan can see it.
+/// event in the clear, in its message or in any property. By default the framework's request lines are suppressed (<c>Microsoft.AspNetCore</c> is at Warning); an operator who enables them gets them redacted, so these
+/// tests turn them on (Verbose). The first checks of each test are the controls: the request line really was logged, with the secret masked, so the scan can see it.
 /// </summary>
 public sealed class RequestLogRedactionHostTests
 {

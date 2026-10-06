@@ -64,7 +64,7 @@ public sealed class SensitiveQuerySentryProcessorTests
         SensitiveQuerySentryProcessor.Scrub(text).ShouldBe(text);
 
     [Fact]
-    public void A_ticket_address_in_a_request_a_breadcrumb_a_span_and_a_transaction_name_is_masked_everywhere_the_search_is()
+    public void A_ticket_address_in_a_request_a_breadcrumb_and_a_span_is_masked_everywhere_the_search_is()
     {
         const string url = "https://portal.test/t/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE?name=Jane";
         var @event = new SentryEvent();

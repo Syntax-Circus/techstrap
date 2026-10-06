@@ -66,7 +66,7 @@ until 09c. The canonical-host redirect is an allow-list of legacy hosts and does
 
 ### Logs and Sentry
 
-Request paths and queries are logged by the framework at Information. The PII enricher masks the access token in a `/t/{token}` address and the value of a `name` or `email` query parameter (the contact
+The framework's request lines (path and query) are suppressed by default (`Microsoft.AspNetCore` is set to Warning); an operator who enables them gets them redacted. The PII enricher masks the access token in a `/t/{token}` address and the value of a `name` or `email` query parameter (the contact
 page prefill, 09b), and the Sentry processors mask the same in URLs, headers, breadcrumbs and spans. `RequestLogRedactionHostTests` and `TicketTokenLeakTests` scan every level at Verbose.
 
 ## Where things live

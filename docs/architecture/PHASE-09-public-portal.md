@@ -35,7 +35,7 @@ sitemap, robots) through `SyntaxCircus.Blazor.Seo`.
 ### Corrections (D-045, 2026-10-05)
 
 Where this page and D-045 differ, D-045 wins.
-- **Delivery.** Three pull requests: 09a (the foundation: T01 to T05, T17, T19, T22), 09b (the customer flows: T06 to T11, T18, T21, T23) and 09c (the knowledge base, SEO and polish: T12 to T16). T20 is deferred.
+- **Delivery.** Three pull requests: 09a (the foundation: T01, T03, T05, T17, T19, T22 and parts of T02 and T04), 09b (the customer flows: T06 to T11, T18, T21, T23, and it also finishes T02, the ticket clients) and 09c (the knowledge base, SEO and polish: T12 to T16, and it also finishes T02, the KB client, and T04, the sitemap). T20 is deferred.
 - **References.** The Portal references `TechStrap.Contracts` and `TechStrap.Hosting` (the shared host wiring, D-042), not Contracts only.
 - **KB suggestions.** A vanilla-JS custom element `<ts-kb-suggestions>` and a Portal-hosted `GET /p/{key}/kb/suggest` adapter replace the `KbDeflectionSuggestions` InteractiveServer island. No page has a circuit.
 - **API additions.** 09c adds a paged list of a category's articles and `GET api/public/products`; 09b adds `ProductKey` to `CustomerTicketDto`. `/` redirects to `TECHSTRAP_PORTAL_DEFAULT_PRODUCT`, or shows a neutral page.

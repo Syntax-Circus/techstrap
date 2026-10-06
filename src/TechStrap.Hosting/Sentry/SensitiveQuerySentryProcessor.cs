@@ -18,7 +18,7 @@ public sealed partial class SensitiveQuerySentryProcessor : ISentryEventProcesso
     /// <summary>What replaces a masked value.</summary>
     public const string Mask = "[redacted]";
 
-    // Any "name=value" pair at the start of a text or after "?" or "&"; the value runs up to the next "&", "#", a space or a quote. Whether the name is a sensitive one is decided after decoding it
+    // Any "name=value" pair at the start of a text or after "?" or "&"; the value runs up to the next "&", "#" or whitespace (a quote is part of a value, so it deliberately over-masks, on the safe side). Whether the name is a sensitive one is decided after decoding it
     // (see Scrub), so "?%73earch=x" and "?Search=x" are masked, while "research", "faq" and a "/queue/search" path are not.
     [GeneratedRegex(@"(?<=^|[?&])(?<name>[^=&#?\s""']+)=(?<value>[^&#\s]*)", RegexOptions.CultureInvariant)]
     private static partial Regex Parameter();
