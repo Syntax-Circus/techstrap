@@ -6,7 +6,8 @@ namespace TechStrap.Hosting.Logging;
 
 /// <summary>
 /// Rewrites PII-shaped text in every property value before any sink sees the event (D-039): email addresses (also URL-encoded), 43-character access tokens, JWT-shaped bearer tokens and
-/// "sha256:" hashes. It cannot touch LogEvent.Exception or the template, and it cannot recognise a name; application code never logs either
+/// "sha256:" hashes, and (D-045) the value of a <c>name</c> or <c>email</c> query parameter, which is how the Portal's contact page is prefilled and which a request log would otherwise carry.
+/// It cannot touch LogEvent.Exception or the template, and it cannot recognise a name by shape; application code never logs either
 /// (exceptions are logged by type name, requesters by id).
 /// Residual risk, accepted: names cannot be pattern-redacted, and an attached Exception is not rewritten. The worker loops that attach an
 /// exception (EmailOutboxWorker, AutoCloseWorker, OutboxRetentionWorker) get Npgsql's default, which hides PostgresException.Detail unless the error-detail connection option is enabled;
@@ -18,6 +19,7 @@ public sealed partial class PiiRedactionEnricher : ILogEventEnricher
     public const string EmailMarker = "[email]";
     public const string TokenMarker = "[token]";
     public const string HashMarker = "[hash]";
+    public const string QueryValueMarker = "[redacted]";
     public const string FailedMarker = "[redaction-failed]";
 
     private const RegexOptions Options = RegexOptions.CultureInvariant;
@@ -40,6 +42,10 @@ public sealed partial class PiiRedactionEnricher : ILogEventEnricher
     private static readonly Regex TokenPattern = new(
         @"(?:(?<![A-Za-z0-9_\-])|(?<=%2[Ff]))(?:ts[kp]_)?[A-Za-z0-9_\-]{43}(?![A-Za-z0-9_\-])",
         Options, MatchTimeout);
+
+    // A "name=value" pair at the start of a text or after "?" or "&": the value runs up to the next "&", "#", a space or a quote. Whether the parameter is one of the personal ones is decided after decoding
+    // its name (see RedactQueryValues), so "%6Eame=" and "NAME=" are masked while "username", "filename" and a sentence that says "name=" are not.
+    private static readonly Regex QueryPairPattern = new(@"(?<=^|[?&])(?<name>[^=&#?\s""']+)=(?<value>[^&#\s""']*)", Options, MatchTimeout);
 
     private readonly Func<string, string> _redactText;
 
@@ -72,7 +78,25 @@ public sealed partial class PiiRedactionEnricher : ILogEventEnricher
     }
 
     internal static string RedactText(string text) =>
-        TokenPattern.Replace(JwtPattern.Replace(EmailPattern.Replace(HashPattern.Replace(text, HashMarker), EmailMarker), TokenMarker), TokenMarker);
+        TokenPattern.Replace(JwtPattern.Replace(EmailPattern.Replace(HashPattern.Replace(RedactQueryValues(text), HashMarker), EmailMarker), TokenMarker), TokenMarker);
+
+    private static string RedactQueryValues(string text) =>
+        QueryPairPattern.Replace(text, match => IsPersonalQueryName(match.Groups["name"].Value) ? $"{match.Groups["name"].Value}={QueryValueMarker}" : match.Value);
+
+    private static bool IsPersonalQueryName(string name)
+    {
+        string decoded;
+        try
+        {
+            decoded = Uri.UnescapeDataString(name.Replace('+', ' '));
+        }
+        catch (UriFormatException)
+        {
+            decoded = name;
+        }
+
+        return decoded.Equals("name", StringComparison.OrdinalIgnoreCase) || decoded.Equals("email", StringComparison.OrdinalIgnoreCase);
+    }
 
     private LogEventPropertyValue Redact(LogEventPropertyValue value)
     {

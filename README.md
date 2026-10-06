@@ -94,6 +94,7 @@ Start at the [discovery index](docs/architecture/00-DISCOVERY-INDEX.md).
 | [Development seed data](docs/development/DEV-DATA.md) | What the Development seeder creates and when |
 | [Ticket operations](docs/development/TICKET-OPERATIONS.md) | Agent ticket API: curl examples, RowVersion, email kinds |
 | [Admin app](docs/development/ADMIN-APP.md) | The agent app: configuration, sign-in, Authentik setup, shortcuts, known limits |
+| [Portal app](docs/development/PORTAL-APP.md) | The customer portal: configuration, how a page is served, the API client, headers, known gaps |
 | [Implementation roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md) | Phases 01–12, task index, validation commands |
 
 ## License

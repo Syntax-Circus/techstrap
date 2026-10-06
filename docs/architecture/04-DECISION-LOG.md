@@ -1680,6 +1680,12 @@ PHASE-02, PHASE-06 and PHASE-08 are merged, so PHASE-09 can start. Reading the c
 - **A malformed or unknown product key is a 404 without calling the API.** Only a well-formed key is sent on.
 - **A category named `suggest` would be unreachable.** The Portal serves `/p/{key}/kb/suggest` (09b) beside `/p/{key}/kb/{category}`, and the API reserves only the slug `search`; 09b decides whether to reserve `suggest` too.
 - **09a leaves the sitemap unmapped.** `/robots.txt` is served and disallows `/t/`; its `Sitemap:` line points at `/sitemap.xml`, which answers 404 until 09c.
+- **As built in 09a: log and Sentry redaction.** The shared PII redactor masks the value of a `name` or `email` query parameter (the contact page prefill) in every host's logs, and the Sentry processors mask the same, plus a 43-character token directly under `/t/` in any address they scrub. The Api and the Admin get this too; masking a `name=` value in their logs is accepted.
+- **As built in 09a: T17 redaction of the contact prefill.** The `name` and `email` query values of the contact page prefill are masked in logs and in Sentry (see above), pinned by `RequestLogRedactionHostTests`, `PiiRedactionQueryValueTests` and `SensitiveQuerySentryProcessorTests`.
+- **As built in 09a: host tests assert the final /t headers.** The host tests check the headers a `/t/...` response finally carries (`Referrer-Policy: no-referrer`, `Cache-Control: no-store`, `X-Robots-Tag: noindex`), not only the rule table that produces them.
+- **As built in 09a: `GlobalErrorBoundary` is not used.** Its retry button needs interactivity, and catching a render error in the page would answer 200 with a branded page instead of the plain 500 error page.
+- **Known: a legacy-host redirect decodes percent-escapes.** `UseSyntaxCircusSeo` builds the target with `Uri.ToString()`, so an encoded `&` or `#` in a query value changes meaning. It affects only hosts listed in `CANONICALHOST__LEGACYHOSTS`; it is to be reported upstream.
+- **Known: the product pages link ahead.** Contact support and the footer's lost-link link (09b) and the search box (09c) answer 404 until their pages exist.
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-09 planning)

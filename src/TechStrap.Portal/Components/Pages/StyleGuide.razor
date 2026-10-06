@@ -36,7 +36,7 @@
 
         <section class="ts-sg-section" aria-labelledby="sg-forms">
             <h2 id="sg-forms">Forms</h2>
-            <form class="ts-sg-form" onsubmit="return false">
+            <form class="ts-sg-form" method="get" action="@PortalRoutes.StyleGuideTemplate">
                 <div class="mb-3"><label class="form-label" for="sg-name">Your name</label><input id="sg-name" class="form-control" autocomplete="name" /></div>
                 <div class="mb-3"><label class="form-label" for="sg-email">Email</label><input id="sg-email" class="form-control is-invalid" type="email" value="not-an-email" aria-describedby="sg-email-msg" /><div id="sg-email-msg" class="invalid-feedback">Enter an email address like name@example.com.</div></div>
                 <div class="mb-3"><label class="form-label" for="sg-msg">Message</label><textarea id="sg-msg" class="form-control" rows="4"></textarea></div>
