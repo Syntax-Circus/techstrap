@@ -23,6 +23,17 @@ public sealed class PortalRoutesTests
     }
 
     [Fact]
+    public void The_help_centre_segments_and_query_names_are_the_ones_the_cache_and_the_pages_share()
+    {
+        PortalRoutes.KbSegment.ShouldBe("kb");
+        PortalRoutes.KbSearchSegment.ShouldBe("search");
+        PortalRoutes.PageParameter.ShouldBe("page");
+        PortalRoutes.QueryParameter.ShouldBe("q");
+        PortalRoutes.KbHome("paperplane").ShouldBe("/p/paperplane/kb");
+        PortalRoutes.KbSearch("paperplane").ShouldBe("/p/paperplane/kb/search");
+    }
+
+    [Fact]
     public void The_templates_match_the_routes_of_the_spec_exactly()
     {
         PortalRoutes.HomeTemplate.ShouldBe("/");

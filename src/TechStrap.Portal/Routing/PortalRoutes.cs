@@ -20,6 +20,16 @@ public static class PortalRoutes
     public const string LostLinkSegment = "lost-link";
     public const string SuggestSegment = "suggest";
 
+    // The help centre's own segments and query parameters. The output cache and the header rules match on them (PortalCachePaths), so they are named once.
+    public const string KbSegment = "kb";
+    public const string KbSearchSegment = "search";
+
+    /// <summary>The page number of a paged KB list (a category page or the search results).</summary>
+    public const string PageParameter = "page";
+
+    /// <summary>The search text of the KB search page.</summary>
+    public const string QueryParameter = "q";
+
     /// <summary>The query parameter that makes the lost-link page show its confirmation.</summary>
     public const string SentParameter = "sent";
 
@@ -62,13 +72,13 @@ public static class PortalRoutes
     /// <summary>The lost-link page as it is shown after a request: the same address for every request, whatever the address was.</summary>
     public static string LostLinkSent(string key) => $"{LostLink(key)}?{SentParameter}=1";
 
-    public static string KbHome(string key) => $"{ProductHome(key)}/kb";
+    public static string KbHome(string key) => $"{ProductHome(key)}/{KbSegment}";
 
     public static string KbCategory(string key, string category) => $"{KbHome(key)}/{Escape(category)}";
 
     public static string KbArticle(string key, string category, string slug) => $"{KbCategory(key, category)}/{Escape(slug)}";
 
-    public static string KbSearch(string key) => $"{KbHome(key)}/search";
+    public static string KbSearch(string key) => $"{KbHome(key)}/{KbSearchSegment}";
 
     public static string Suggest(string key) => $"{ProductHome(key)}/suggest";
 

@@ -26,6 +26,35 @@ public sealed class PublicProductClientTests
     }
 
     [Fact]
+    public async Task The_product_list_is_a_read_of_the_list_route_with_the_key_and_display_name_only()
+    {
+        using var api = ApiHarness.Create();
+        PublicProductSummaryDto[] list = [new("acme", "Acme"), new("paperplane", "Paperplane")];
+        api.Stub.OnJson(HttpMethod.Get, "/api/public/products", list);
+
+        var result = await api.Get<IPublicProductClient>().ListAsync(Ct);
+
+        result.Value.ShouldBe(list);
+        var sent = api.Stub.Requests.ShouldHaveSingleItem();
+        sent.Client.ShouldBe(ApiClientNames.Read);
+        sent.Path.ShouldBe("/api/public/products");
+        sent.TicketToken.ShouldBeNull();
+        api.Stub.AssertEveryCallBore(ApiHarness.DefaultClientIp);
+    }
+
+    [Fact]
+    public async Task A_failing_product_list_is_unavailable_after_the_read_retries()
+    {
+        using var api = ApiHarness.Create();
+        api.Stub.OnStatus(HttpMethod.Get, "/api/public/products", HttpStatusCode.ServiceUnavailable);
+
+        var result = await api.Get<IPublicProductClient>().ListAsync(Ct);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe(ApiErrorCodes.ApiUnavailable);
+        api.Stub.Count(HttpMethod.Get, "/api/public/products").ShouldBe(1 + ApiClientRegistration.ReadRetryCount);
+    }
+
+    [Fact]
     public async Task An_unknown_or_inactive_product_is_the_uniform_not_found_error()
     {
         using var api = ApiHarness.Create();

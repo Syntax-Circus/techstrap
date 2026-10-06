@@ -1,14 +1,17 @@
 using System.Net;
+using System.Xml.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using SyntaxCircus.Blazor.Seo;
+using TechStrap.Contracts.Products;
 using TechStrap.Portal.Settings;
+using TechStrap.Portal.Tests.Api;
 
 namespace TechStrap.Portal.Tests.Seo;
 
 /// <summary>
 /// P09-T04 (09a part): <c>SyntaxCircus.Blazor.Seo</c> with its real API. <c>Seo:BaseUrl</c> is derived from <c>TECHSTRAP_PORTAL_PUBLIC_URL</c> (one setting for one value), robots.txt disallows the ticket
-/// pages, and the canonical-host redirect is an allow-list that does nothing while it is not configured. The sitemap is not mapped until PHASE-09c (it needs the products endpoint), which a test pins.
+/// pages, and the canonical-host redirect is an allow-list that does nothing while it is not configured. PHASE-09c maps the sitemap (its content is pinned in <c>SitemapHostTests</c>).
 /// </summary>
 public sealed class SeoHostTests
 {
@@ -44,15 +47,41 @@ public sealed class SeoHostTests
     }
 
     [Fact]
-    public async Task The_sitemap_is_not_mapped_in_09a()
+    public async Task The_sitemap_is_served_as_xml_and_with_no_product_it_lists_the_root_page_only()
     {
         await using var factory = new PortalFactory();
+        factory.Api.OnJson(HttpMethod.Get, "/api/public/products", Array.Empty<PublicProductSummaryDto>());
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync("/sitemap.xml", Ct);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.NotFound, "09c maps the sitemap once the products endpoint exists; until then robots.txt names a sitemap that answers 404");
-        response.Content.Headers.ContentType!.MediaType.ShouldBe("text/html");
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, "robots.txt names the sitemap, so it must be there (09a left it unmapped; PHASE-09c maps it)");
+        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/xml");
+        var locations = XDocument.Parse(await response.Content.ReadAsStringAsync(Ct)).Descendants().Where(element => element.Name.LocalName == "loc").Select(element => element.Value).ToList();
+        locations.ShouldBe([PortalFactory.PublicUrl + "/"]);
+    }
+
+    [Fact]
+    public async Task The_sitemap_build_calls_the_api_with_the_address_of_the_visitor_whose_request_started_it_and_lists_what_it_found()
+    {
+        await using var factory = TechStrap.Portal.Tests.Forms.FormTestKit.Factory(product: false);
+        factory.Api.OnJson(HttpMethod.Get, "/api/public/products", new[] { new PublicProductSummaryDto("paperplane", "Paperplane") });
+        factory.Api.OnJson(HttpMethod.Get, "/api/public/kb/paperplane/sitemap", new[] { new TechStrap.Contracts.Kb.KbSitemapEntryDto(null, "general", "shared-tips", new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero)) });
+        using var client = TechStrap.Portal.Tests.Forms.FormTestKit.Client(factory);
+
+        using var response = await client.GetAsync("/sitemap.xml", Ct);
+        var locations = XDocument.Parse(await response.Content.ReadAsStringAsync(Ct)).Descendants().Where(element => element.Name.LocalName == "loc").Select(element => element.Value).ToList();
+
+        locations.ShouldBe(
+        [
+            PortalFactory.PublicUrl + "/",
+            PortalFactory.PublicUrl + "/p/paperplane",
+            PortalFactory.PublicUrl + "/p/paperplane/kb",
+            PortalFactory.PublicUrl + "/p/paperplane/kb/general",
+            PortalFactory.PublicUrl + "/p/paperplane/kb/general/shared-tips",
+        ]);
+        factory.Api.Requests.Select(request => request.Path).ShouldBe(["/api/public/products", "/api/public/kb/paperplane/sitemap"]);
+        factory.Api.AssertEveryCallBore(TechStrap.Portal.Tests.Forms.FormTestKit.Visitor);
     }
 
     [Theory]

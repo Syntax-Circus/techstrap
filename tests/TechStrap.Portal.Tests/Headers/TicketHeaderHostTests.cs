@@ -102,7 +102,6 @@ public sealed class TicketHeaderHostTests
     }
 
     [Theory]
-    [InlineData("/p/paperplane/kb/search", HttpStatusCode.NotFound)]
     [InlineData("/p/paperplane/kb/guides/dark-mode", HttpStatusCode.NotFound)]
     [InlineData("/no-such-page", HttpStatusCode.NotFound)]
     [InlineData("/not-found", HttpStatusCode.OK)]

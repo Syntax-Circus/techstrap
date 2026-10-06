@@ -24,6 +24,8 @@ public sealed class ProductPageBaseTests : BunitContext
             Calls.Add(key);
             return Task.FromResult(answer);
         }
+
+        public Task<Result<IReadOnlyList<PublicProductSummaryDto>>> ListAsync(CancellationToken cancellationToken) => throw new NotSupportedException("a page never lists the products");
     }
 
     private sealed class Environment : IHostEnvironment

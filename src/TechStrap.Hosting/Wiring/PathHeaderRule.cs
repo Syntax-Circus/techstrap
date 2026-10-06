@@ -27,7 +27,15 @@ public sealed class PathHeaderRule
     internal bool SuccessOnly { get; }
 
     /// <summary>Sets each header to the given value on every response for a matching path, whatever status it has.</summary>
-    public static PathHeaderRule Set(Func<PathString, bool> matches, params (string Name, string Value)[] headers)
+    public static PathHeaderRule Set(Func<PathString, bool> matches, params (string Name, string Value)[] headers) => Create(matches, headers, successOnly: false);
+
+    /// <summary>
+    /// Sets each header to the given value on a successful (2xx) response for a matching path only; a 404, a 429, a 503 or a redirect keeps whatever it had. It is for a header that is only true of a delivered page,
+    /// such as <c>Cache-Control: public, max-age=60</c>, which must never be put on an error answer (a browser or a proxy would keep it).
+    /// </summary>
+    public static PathHeaderRule SetOnSuccess(Func<PathString, bool> matches, params (string Name, string Value)[] headers) => Create(matches, headers, successOnly: true);
+
+    private static PathHeaderRule Create(Func<PathString, bool> matches, (string Name, string Value)[] headers, bool successOnly)
     {
         ArgumentNullException.ThrowIfNull(matches);
         ArgumentNullException.ThrowIfNull(headers);
@@ -36,7 +44,7 @@ public sealed class PathHeaderRule
             throw new ArgumentException("A rule sets at least one header, and every header has a name.", nameof(headers));
         }
 
-        return new PathHeaderRule(matches, [.. headers.Select(h => (h.Name, (Func<string, string>)(_ => h.Value)))], successOnly: false);
+        return new PathHeaderRule(matches, [.. headers.Select(h => (h.Name, (Func<string, string>)(_ => h.Value)))], successOnly);
     }
 
     /// <summary>

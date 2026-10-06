@@ -201,6 +201,126 @@ public sealed class PathHeaderRuleHostTests
         Policy(other).ShouldNotContain("sandbox");
     }
 
+    private static bool UnderKb(PathString path) => path.StartsWithSegments("/kb");
+
+    private static void SuccessPipeline(WebApplication app, params PathHeaderRule[] rules)
+    {
+        app.UseTechStrapWebHost(rules);
+        app.UseTechStrapErrorPages();
+        app.MapGet("/kb/page", (HttpContext context) =>
+        {
+            // What a page might set for itself: the rule must win over it on a delivered page.
+            context.Response.Headers.CacheControl = "private";
+            return "page";
+        });
+        app.MapGet("/kb/gone", (HttpContext context) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            return Results.NotFound();
+        });
+        app.MapGet("/kb/busy", () => Results.StatusCode(StatusCodes.Status429TooManyRequests));
+        app.MapGet("/kb/down", () => Results.StatusCode(StatusCodes.Status503ServiceUnavailable));
+        app.MapGet("/kb/moved", () => Results.Redirect("/kb/page"));
+        app.MapGet("/kb/created", () => Results.StatusCode(StatusCodes.Status201Created));
+        app.MapGet("/other", () => "other");
+        app.MapGet("/not-found", () => "the not-found page");
+    }
+
+    [Theory]
+    [InlineData("/kb/page", HttpStatusCode.OK, true)]
+    [InlineData("/kb/created", HttpStatusCode.Created, true)]
+    [InlineData("/kb/gone", HttpStatusCode.NotFound, false)]
+    [InlineData("/kb/busy", HttpStatusCode.TooManyRequests, false)]
+    [InlineData("/kb/down", HttpStatusCode.ServiceUnavailable, false)]
+    [InlineData("/kb/moved", HttpStatusCode.Redirect, false)]
+    [InlineData("/other", HttpStatusCode.OK, false)]
+    public async Task A_success_only_rule_sets_its_header_on_a_2xx_answer_for_a_matching_path_and_on_nothing_else(string path, HttpStatusCode status, bool applied)
+    {
+        await using var app = await StartAsync(a => SuccessPipeline(a, PathHeaderRule.SetOnSuccess(UnderKb, ("Cache-Control", "public, max-age=60"), ("X-Probe", "kb"))));
+        using var client = app.GetTestClient();
+
+        using var response = await client.GetAsync(path, Ct);
+
+        response.StatusCode.ShouldBe(status);
+        Header(response, "X-Probe").ShouldBe(applied ? ["kb"] : []);
+        if (applied)
+        {
+            Header(response, "Cache-Control").ShouldBe(["public, max-age=60"], "the rule wins over the value the endpoint set itself");
+        }
+        else
+        {
+            Header(response, "Cache-Control").ShouldNotContain("public, max-age=60");
+        }
+    }
+
+    [Fact]
+    public async Task A_success_only_rule_leaves_what_an_error_answer_set_for_itself_and_the_page_that_replaces_a_404_carries_no_public_header()
+    {
+        await using var app = await StartAsync(a => SuccessPipeline(a, PathHeaderRule.SetOnSuccess(UnderKb, ("Cache-Control", "public, max-age=60"))));
+        using var client = app.GetTestClient();
+
+        using var gone = await client.GetAsync("/kb/gone", Ct);
+
+        gone.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await gone.Content.ReadAsStringAsync(Ct)).ShouldBe("the not-found page");
+        Header(gone, "Cache-Control").ShouldBe(["no-store"]);
+    }
+
+    [Fact]
+    public async Task A_success_only_rule_and_an_every_status_rule_apply_in_the_order_given()
+    {
+        await using var app = await StartAsync(a => SuccessPipeline(
+            a,
+            PathHeaderRule.Set(UnderKb, ("X-Robots-Tag", "noindex"), ("Cache-Control", "no-store")),
+            PathHeaderRule.SetOnSuccess(UnderKb, ("Cache-Control", "public, max-age=60"))));
+        using var client = app.GetTestClient();
+
+        using var page = await client.GetAsync("/kb/page", Ct);
+        using var gone = await client.GetAsync("/kb/gone", Ct);
+
+        Header(page, "Cache-Control").ShouldBe(["public, max-age=60"]);
+        Header(page, "X-Robots-Tag").ShouldBe(["noindex"]);
+        Header(gone, "Cache-Control").ShouldBe(["no-store"]);
+        Header(gone, "X-Robots-Tag").ShouldBe(["noindex"]);
+    }
+
+    // The Admin calls UseTechStrapWebHost with a download prefix and no rule. Adding SetOnSuccess must change nothing for it: no header on an ordinary page or an error, and a sandbox on a delivered download only.
+    [Fact]
+    public async Task The_admins_signature_with_only_a_download_prefix_sets_no_cache_header_and_sandboxes_a_delivered_download_only()
+    {
+        await using var app = await StartAsync(a =>
+        {
+            a.UseTechStrapWebHost("/attachments");
+            a.UseTechStrapErrorPages();
+            a.MapGet("/attachments/{id}", (string id) => id == "missing" ? Results.NotFound() : Results.Text("file"));
+            a.MapGet("/queue", () => "page");
+            a.MapGet("/not-found", () => "the not-found page");
+        });
+        using var client = app.GetTestClient();
+
+        using var file = await client.GetAsync("/attachments/1", Ct);
+        using var missing = await client.GetAsync("/attachments/missing", Ct);
+        using var page = await client.GetAsync("/queue", Ct);
+
+        Policy(file).Count(d => d == "sandbox").ShouldBe(1);
+        Policy(missing).ShouldNotContain("sandbox");
+        Policy(page).ShouldNotContain("sandbox");
+        foreach (var response in new[] { file, missing, page })
+        {
+            Header(response, "Cache-Control").ShouldBeEmpty();
+            Header(response, "X-Robots-Tag").ShouldBeEmpty();
+            Header(response, "Referrer-Policy").ShouldBe(["strict-origin-when-cross-origin"]);
+        }
+    }
+
+    [Fact]
+    public void A_success_only_rule_needs_a_predicate_and_at_least_one_named_header()
+    {
+        Should.Throw<ArgumentNullException>(() => PathHeaderRule.SetOnSuccess(null!, ("A", "b")));
+        Should.Throw<ArgumentException>(() => PathHeaderRule.SetOnSuccess(UnderKb));
+        Should.Throw<ArgumentException>(() => PathHeaderRule.SetOnSuccess(UnderKb, (" ", "b")));
+    }
+
     [Fact]
     public void A_rule_needs_a_predicate_and_at_least_one_header()
     {
