@@ -268,6 +268,7 @@ public sealed class TicketPageHostTests
         html.ShouldContain(sentence);
         html.ShouldNotContain("Npgsql");
         html.ShouldNotContain(TicketTestKit.Token, Case.Sensitive, "not even the address of this page is repeated in the body");
+        html.ShouldNotContain("<form", Case.Sensitive, "a visit (no post) has no reply to keep, so no form is offered while the ticket cannot be read");
         html.ShouldNotContain("ts-product-header");
         response.Headers.GetValues("Referrer-Policy").Single().ShouldBe("no-referrer");
     }

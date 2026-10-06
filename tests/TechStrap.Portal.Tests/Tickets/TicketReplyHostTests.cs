@@ -303,6 +303,30 @@ public sealed class TicketReplyHostTests
         factory.Api.Count(HttpMethod.Post, TicketTestKit.ReplyApi).ShouldBe(1);
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.ServiceUnavailable, HttpStatusCode.ServiceUnavailable, "This ticket could not be loaded just now.")]
+    [InlineData(HttpStatusCode.TooManyRequests, HttpStatusCode.TooManyRequests, "You have sent a lot in a short time.")]
+    public async Task When_the_ticket_cannot_be_loaded_for_the_post_the_reply_text_is_kept_beside_the_notice(HttpStatusCode api, HttpStatusCode page, string sentence)
+    {
+        await using var factory = Host();
+        var (client, token) = await OpenAsync(factory);
+        using var _ = client;
+        // The page loaded for the visitor; between the page and the post the API stops answering the ticket read that every post begins with.
+        factory.Api.OnProblem(HttpMethod.Get, TicketTestKit.TicketApi, api, "x", "System.InvalidOperationException at Npgsql host=10.0.0.5");
+
+        using var response = await client.PostAsync(TicketTestKit.Path, TicketTestKit.ReplyForm(token, "A long reply I do not want to lose."), Ct);
+        var html = await response.Content.ReadAsStringAsync(Ct);
+
+        response.StatusCode.ShouldBe(page);
+        html.ShouldContain(sentence);
+        html.ShouldContain("A long reply I do not want to lose.</textarea>");
+        html.ShouldContain("<form method=\"post\"");
+        html.ShouldNotContain("Npgsql");
+        factory.Api.Count(HttpMethod.Post, TicketTestKit.ReplyApi).ShouldBe(0, "nothing is sent while the ticket cannot be read");
+        // The token is still only in the form's action and nowhere else a visitor could copy it from.
+        TicketTestKit.TokenContexts(html).ShouldAllBe(c => c.EndsWith("action=\"/t/" + TicketTestKit.Token, StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task A_token_that_stops_working_between_the_page_and_the_post_is_the_uniform_404()
     {

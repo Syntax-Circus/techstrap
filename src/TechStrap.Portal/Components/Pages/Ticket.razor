@@ -20,12 +20,7 @@
         {
             <p class="alert alert-warning" role="alert">@Notice</p>
         }
-        <form method="post" action="@PortalRoutes.Ticket(_token)" enctype="multipart/form-data" novalidate @formname="@ReplyHandler" @onsubmit="ReplyAsync" class="ts-form">
-            <AntiforgeryToken />
-            <FormField Field="@FormFields.Body" Name="Reply.Body" Label="@TicketCopy.ReplyLabel" Value="@Reply?.Body" MaxLength="@IntakeLimits.BodyMaxLength" Rows="6" Error="@ErrorOf(FormFields.Body)" />
-            <AttachmentInput Name="Reply.Files" Error="@ErrorOf(FormFields.Attachments)" Kept="@(Errors.Count > 0 || Notice is not null)" />
-            <button type="submit" class="btn btn-primary">@(ticket.IsClosed ? TicketCopy.FollowUpButton : TicketCopy.ReplyButton)</button>
-        </form>
+        @ReplyForm(ticket.IsClosed ? TicketCopy.FollowUpButton : TicketCopy.ReplyButton)
     }
 }
 else if (UnavailableMessage is not null)
@@ -35,4 +30,18 @@ else if (UnavailableMessage is not null)
         <h1>@ShellCopy.UnavailableTitle</h1>
         <p>@UnavailableMessage</p>
     </section>
+    @if (Reply is not null)
+    {
+        @* A reply was posted while the ticket could not be read: what the visitor wrote stays in the form, beside the notice, so a long message is not lost to an outage. Nothing is sent. *@
+        @ReplyForm(TicketCopy.ReplyButton)
+    }
+}
+
+@code {
+    private RenderFragment ReplyForm(string button) => @<form method="post" action="@PortalRoutes.Ticket(_token)" enctype="multipart/form-data" novalidate @formname="@ReplyHandler" @onsubmit="ReplyAsync" class="ts-form">
+        <AntiforgeryToken />
+        <FormField Field="@FormFields.Body" Name="Reply.Body" Label="@TicketCopy.ReplyLabel" Value="@Reply?.Body" MaxLength="@IntakeLimits.BodyMaxLength" Rows="6" Error="@ErrorOf(FormFields.Body)" />
+        <AttachmentInput Name="Reply.Files" Error="@ErrorOf(FormFields.Attachments)" Kept="@(Errors.Count > 0 || Notice is not null)" />
+        <button type="submit" class="btn btn-primary">@button</button>
+    </form>;
 }
