@@ -37,7 +37,7 @@ sitemap, robots) through `SyntaxCircus.Blazor.Seo`.
 Where this page and D-045 differ, D-045 wins.
 - **Delivery.** Three pull requests: 09a (the foundation: T01, T03, T05, T17, T19, T22 and parts of T02 and T04), 09b (the customer flows: T06 to T11, T18, T21, T23, and it also finishes T02, the ticket clients) and 09c (the knowledge base, SEO and polish: T12 to T16, and it also finishes T02, the KB client, and T04, the sitemap). T20 is deferred.
 - **References.** The Portal references `TechStrap.Contracts` and `TechStrap.Hosting` (the shared host wiring, D-042), not Contracts only.
-- **KB suggestions.** A vanilla-JS custom element `<ts-kb-suggestions>` and a Portal-hosted `GET /p/{key}/kb/suggest` adapter replace the `KbDeflectionSuggestions` InteractiveServer island. No page has a circuit.
+- **KB suggestions.** A vanilla-JS custom element `<ts-kb-suggestions>` and a Portal-hosted `GET /p/{key}/suggest` adapter replace the `KbDeflectionSuggestions` InteractiveServer island. No page has a circuit.
 - **API additions.** 09c adds a paged list of a category's articles and `GET api/public/products`; 09b adds `ProductKey` to `CustomerTicketDto`. `/` redirects to `TECHSTRAP_PORTAL_DEFAULT_PRODUCT`, or shows a neutral page.
 - **Blazor.Seo.** The real names are `AddSyntaxCircusSeo`, `UseSyntaxCircusSeo`, `MapSeoRobotsTxt(extraDirectives)` and `MapSeoSitemap(staticEntries, provider)`; `UseCanonicalHost`, `MapRobotsTxt`, `MapSitemap` and `ISitemapEntryProvider` do not exist. `Seo:BaseUrl` is derived from `TECHSTRAP_PORTAL_PUBLIC_URL`.
 - **Theming.** `BrandingThemeFactory` is replaced by a thin `ProductThemeViewModel` over `AccentScope` and the DTO's derived colours; the logo address is re-checked.
@@ -45,6 +45,16 @@ Where this page and D-045 differ, D-045 wins.
 - **Lost link.** The Portal's responses are byte-identical whatever the address; the timing assertion in P09-T10 is dropped (D-038 accepts the residual difference).
 - **Received page.** The ticket number travels in a data-protection-protected `?ref=` value that expires after 10 minutes.
 - **Headers.** Per-path header rules in `UseTechStrapWebHost` give `/t/*` its `no-referrer`, `no-store` and `noindex`, and give only `/t/{token}/attachments/{id}` the sandbox CSP.
+
+### Corrections (D-045 addendum, 2026-10-06)
+
+The 09b rulings; where this page and the addendum differ, the addendum wins.
+- **Suggest adapter.** It is `GET /p/{key}/suggest` (not under `/kb`), so no category slug can shadow it.
+- **Honeypot.** A filled honeypot is sent to the API like any other submission; the API validates the product and answers a believable 201 without creating a ticket. The Portal does not short-circuit (P09-T06).
+- **Ticket product.** `CustomerTicketDto` carries `ProductKey`; `/t/{token}` loads that product's branding and falls back to the neutral theme for an inactive or unknown product.
+- **Limits.** The text and size limits of the forms are Contracts constants (`IntakeLimits`), kept equal to the Domain's by a parity test.
+- **Message bodies.** `CustomerMessageBody` is the only `MarkupString` site in 09b; `KbArticleBody` follows in 09c.
+- **Received page.** It shows the ticket number only.
 
 ## Application Boundaries
 

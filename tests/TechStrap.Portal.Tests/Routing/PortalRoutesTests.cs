@@ -37,7 +37,7 @@ public sealed class PortalRoutesTests
         PortalRoutes.KbCategoryTemplate.ShouldBe("/p/{key}/kb/{category}");
         PortalRoutes.KbArticleTemplate.ShouldBe("/p/{key}/kb/{category}/{slug}");
         PortalRoutes.KbSearchTemplate.ShouldBe("/p/{key}/kb/search");
-        PortalRoutes.KbSuggestTemplate.ShouldBe("/p/{key}/kb/suggest");
+        PortalRoutes.SuggestTemplate.ShouldBe("/p/{key}/suggest");
         PortalRoutes.TicketTemplate.ShouldBe("/t/{token}");
         PortalRoutes.TicketAttachmentTemplate.ShouldBe("/t/{token}/attachments/{id}");
     }
@@ -53,9 +53,17 @@ public sealed class PortalRoutesTests
         PortalRoutes.KbCategory("paperplane", "guides").ShouldBe("/p/paperplane/kb/guides");
         PortalRoutes.KbArticle("paperplane", "guides", "dark-mode").ShouldBe("/p/paperplane/kb/guides/dark-mode");
         PortalRoutes.KbSearch("paperplane").ShouldBe("/p/paperplane/kb/search");
-        PortalRoutes.KbSuggest("paperplane").ShouldBe("/p/paperplane/kb/suggest");
+        PortalRoutes.Suggest("paperplane").ShouldBe("/p/paperplane/suggest");
         PortalRoutes.Ticket("abc").ShouldBe("/t/abc");
         PortalRoutes.TicketAttachment("abc", Guid.Parse("11111111-2222-3333-4444-555555555555")).ShouldBe("/t/abc/attachments/11111111-2222-3333-4444-555555555555");
+    }
+
+    [Fact]
+    public void The_suggest_route_is_beside_the_kb_not_under_it_so_no_category_slug_can_ever_shadow_it()
+    {
+        // D-045 addendum (2026-10-06): /p/{key}/kb/suggest would have made a category called "suggest" unreachable.
+        PortalRoutes.SuggestTemplate.ShouldNotStartWith(PortalRoutes.KbHomeTemplate);
+        PortalRoutes.Suggest("paperplane").ShouldNotStartWith(PortalRoutes.KbHome("paperplane"));
     }
 
     [Fact]

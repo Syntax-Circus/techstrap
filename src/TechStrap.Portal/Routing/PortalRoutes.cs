@@ -25,11 +25,13 @@ public static class PortalRoutes
     public const string LostLinkTemplate = "/p/{key}/lost-link";
     public const string KbHomeTemplate = "/p/{key}/kb";
 
-    // A literal segment wins over a parameter in endpoint routing: /p/{key}/kb/search and /kb/suggest are not categories. The API reserves the category slug "search" (KbLimits.ReservedCategorySlug).
+    // A literal segment wins over a parameter in endpoint routing: /p/{key}/kb/search is not a category. The API reserves the category slug "search" (KbLimits.ReservedCategorySlug).
     public const string KbCategoryTemplate = "/p/{key}/kb/{category}";
     public const string KbArticleTemplate = "/p/{key}/kb/{category}/{slug}";
     public const string KbSearchTemplate = "/p/{key}/kb/search";
-    public const string KbSuggestTemplate = "/p/{key}/kb/suggest";
+
+    // The KB suggestion adapter sits beside the KB, not under it, so no category slug can ever shadow it (D-045 addendum, 2026-10-06).
+    public const string SuggestTemplate = "/p/{key}/suggest";
 
     public const string TicketTemplate = "/t/{token}";
     public const string TicketAttachmentTemplate = "/t/{token}/attachments/{id}";
@@ -50,7 +52,7 @@ public static class PortalRoutes
 
     public static string KbSearch(string key) => $"{KbHome(key)}/search";
 
-    public static string KbSuggest(string key) => $"{KbHome(key)}/suggest";
+    public static string Suggest(string key) => $"{ProductHome(key)}/suggest";
 
     public static string Ticket(string token) => $"{TicketPrefix}/{Escape(token)}";
 

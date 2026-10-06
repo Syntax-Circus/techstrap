@@ -63,6 +63,7 @@ public sealed class CustomerTicketEndpointTests(TestPostgres postgres)
         raw.ShouldNotContain("Other reply");
         var dto = System.Text.Json.JsonSerializer.Deserialize<CustomerTicketDto>(raw, System.Text.Json.JsonSerializerOptions.Web)!;
         dto.Number.ShouldBe(seed.Number);
+        dto.ProductKey.ShouldBe("orbitly");
         dto.Subject.ShouldBe("Login broken");
         dto.Messages.Count.ShouldBe(2);
         var agentMessage = dto.Messages.Single(m => m.AuthorType == "Agent");
