@@ -6,6 +6,7 @@ using TechStrap.Portal.Clients;
 using TechStrap.Portal.Components;
 using TechStrap.Portal.Components.Ui;
 using TechStrap.Portal.Headers;
+using TechStrap.Portal.Products;
 using TechStrap.Portal.Seo;
 using TechStrap.Portal.Settings;
 
@@ -32,6 +33,9 @@ builder.Services.AddPortalOptions();
 
 // The two named API clients (reads retried, writes never) and the typed clients: every call forwards the visitor's address (D-019, D-045).
 builder.Services.AddPortalApiClients();
+
+// The product the current request is about, read by the layout (one per request).
+builder.Services.AddScoped<ProductScope>();
 
 // Meta tags, robots.txt and the canonical-host redirect; Seo:BaseUrl comes from the public address (D-045).
 builder.Services.AddPortalSeo(builder.Configuration);

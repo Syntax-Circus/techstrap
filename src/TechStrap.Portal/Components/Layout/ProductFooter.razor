@@ -1,0 +1,8 @@
+<footer class="ts-product-footer">
+    <a href="@PortalRoutes.LostLink(Theme.Key)">@ShellCopy.LostLinkPrompt</a>
+</footer>
+
+@code {
+    [Parameter, EditorRequired]
+    public ProductThemeViewModel Theme { get; set; } = default!;
+}

@@ -1,0 +1,21 @@
+@attribute [Route(PortalRoutes.ProductHomeTemplate)]
+@inherits ProductPageBase
+
+@if (Theme is { } theme)
+{
+    <PageTitle>@ShellCopy.ProductTitle(theme.DisplayName)</PageTitle>
+    <h1>@ShellCopy.HomeHeading</h1>
+    <form method="get" action="@PortalRoutes.KbSearch(theme.Key)" role="search" class="ts-help-search">
+        <label for="kb-search" class="form-label">@ShellCopy.SearchLabel</label>
+        <div class="ts-help-search-row">
+            <input id="kb-search" name="q" type="search" class="form-control" maxlength="@KbLimits.MaxSearchTextChars" autocomplete="off" />
+            <button type="submit" class="btn btn-primary">@ShellCopy.SearchButton</button>
+        </div>
+    </form>
+    <p class="ts-help-contact"><a class="btn btn-primary" href="@PortalRoutes.Contact(theme.Key)">@ShellCopy.ContactSupport</a></p>
+}
+else if (UnavailableMessage is not null)
+{
+    <PageTitle>@ShellCopy.UnavailableTitle</PageTitle>
+    <ProductUnavailable Message="@UnavailableMessage" RetryHref="@RetryHref" />
+}

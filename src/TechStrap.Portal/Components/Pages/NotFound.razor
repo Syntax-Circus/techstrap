@@ -1,8 +1,8 @@
 @attribute [Route(PortalRoutes.NotFoundTemplate)]
 @layout PortalLayout
 
-<PageTitle>Not found</PageTitle>
+<PageTitle>@ShellCopy.NotFoundTitle</PageTitle>
 <section class="shell-placeholder">
-    <h1>Page not found</h1>
-    <p><a href="/">Back to the start</a></p>
+    <h1>@ShellCopy.NotFoundHeading</h1>
+    <p><a href="@PortalRoutes.HomeTemplate">@ShellCopy.BackToStart</a></p>
 </section>
