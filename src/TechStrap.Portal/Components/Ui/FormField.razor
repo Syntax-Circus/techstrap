@@ -1,0 +1,44 @@
+<div class="mb-3">
+    <label for="@Field" class="form-label">@Label</label>
+    @if (Rows > 0)
+    {
+        <textarea id="@Field" name="@Name" class="form-control" rows="@Rows" maxlength="@MaxLength" required aria-describedby="@(Error is null ? null : FormFields.ErrorId(Field))" aria-invalid="@(Error is null ? null : "true")">@Value</textarea>
+    }
+    else
+    {
+        <input id="@Field" name="@Name" type="@Type" class="form-control" value="@Value" maxlength="@MaxLength" autocomplete="@Autocomplete" required aria-describedby="@(Error is null ? null : FormFields.ErrorId(Field))" aria-invalid="@(Error is null ? null : "true")" />
+    }
+    <FieldError Field="@Field" Message="@Error" />
+</div>
+
+@code {
+    /// <summary>The input id, from <see cref="FormFields"/>.</summary>
+    [Parameter, EditorRequired]
+    public string Field { get; set; } = string.Empty;
+
+    /// <summary>The form-binder name of the input (<c>Form.Email</c>).</summary>
+    [Parameter, EditorRequired]
+    public string Name { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Value { get; set; }
+
+    [Parameter, EditorRequired]
+    public int MaxLength { get; set; }
+
+    [Parameter]
+    public string Type { get; set; } = "text";
+
+    [Parameter]
+    public string? Autocomplete { get; set; }
+
+    /// <summary>More than zero makes the field a textarea of that many rows.</summary>
+    [Parameter]
+    public int Rows { get; set; }
+
+    [Parameter]
+    public string? Error { get; set; }
+}

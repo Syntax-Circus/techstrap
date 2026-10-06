@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using SyntaxCircus.AspNetCore.Common;
 using SyntaxCircus.DotEnv;
 using TechStrap.Hosting.Security;
@@ -5,10 +6,12 @@ using TechStrap.Hosting.Wiring;
 using TechStrap.Portal.Clients;
 using TechStrap.Portal.Components;
 using TechStrap.Portal.Components.Ui;
+using TechStrap.Portal.Forms;
 using TechStrap.Portal.Headers;
 using TechStrap.Portal.Products;
 using TechStrap.Portal.Seo;
 using TechStrap.Portal.Settings;
+using TechStrap.Portal.Uploads;
 
 const string ServiceName = "techstrap-portal";
 
@@ -37,6 +40,10 @@ builder.Services.AddPortalApiClients();
 // The product the current request is about, read by the layout (one per request).
 builder.Services.AddScoped<ProductScope>();
 
+// The protected, 10-minute reference that carries a ticket number to the "received" page (D-045 addendum). It needs the data-protection key ring (persisted in production) and a clock.
+builder.Services.TryAddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<ReceivedReference>();
+
 // Meta tags, robots.txt and the canonical-host redirect; Seo:BaseUrl comes from the public address (D-045).
 builder.Services.AddPortalSeo(builder.Configuration);
 // Installation-wide switch for the "Powered by TechStrap" footer (D-024); shown unless set to false.
@@ -58,6 +65,9 @@ telemetry.LogStartupWarning(app.Logger);
 app.UseTechStrapWebHost(PortalHeaderRules.Rules);
 app.UsePortalSeo();
 app.UseTechStrapErrorPages();
+
+// Before the antiforgery check, which reads the form: a post over the endpoint's size limit is a plain 413, not the framework's 400 about a token.
+app.UseMiddleware<RequestTooLargeMiddleware>();
 app.UseAntiforgery();
 app.MapStandardHealthChecks();
 app.MapPortalSeo();

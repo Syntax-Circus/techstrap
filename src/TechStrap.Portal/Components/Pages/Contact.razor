@@ -1,0 +1,31 @@
+@attribute [Route(PortalRoutes.ContactTemplate)]
+@attribute [Microsoft.AspNetCore.Mvc.RequestSizeLimit(IntakeLimits.FormBodyBytes)]
+@using TechStrap.Contracts.Intake
+@inherits ProductPageBase
+
+@if (Theme is { } theme)
+{
+    <PageTitle>@ContactCopy.Title(theme.DisplayName)</PageTitle>
+    <h1>@ContactCopy.Heading</h1>
+    <p class="ts-help-link"><a href="@PortalRoutes.KbHome(theme.Key)">@ContactCopy.BrowseHelp</a></p>
+    <ErrorSummary Errors="Errors" />
+    @if (Notice is not null)
+    {
+        <p class="alert alert-warning" role="alert">@Notice</p>
+    }
+    <form method="post" action="@PortalRoutes.Contact(theme.Key)" enctype="multipart/form-data" novalidate @formname="@FormHandler" @onsubmit="SubmitAsync" class="ts-form">
+        <AntiforgeryToken />
+        <FormField Field="@FormFields.Name" Name="Form.Name" Label="@ContactCopy.NameLabel" Value="@Form?.Name" MaxLength="@IntakeLimits.NameMaxLength" Autocomplete="name" Error="@ErrorOf(FormFields.Name)" />
+        <FormField Field="@FormFields.Email" Name="Form.Email" Label="@ContactCopy.EmailLabel" Value="@Form?.Email" MaxLength="@IntakeLimits.EmailMaxLength" Type="email" Autocomplete="email" Error="@ErrorOf(FormFields.Email)" />
+        <FormField Field="@FormFields.Subject" Name="Form.Subject" Label="@ContactCopy.SubjectLabel" Value="@Form?.Subject" MaxLength="@IntakeLimits.SubjectMaxLength" Error="@ErrorOf(FormFields.Subject)" />
+        <FormField Field="@FormFields.Body" Name="Form.Body" Label="@ContactCopy.BodyLabel" Value="@Form?.Body" MaxLength="@IntakeLimits.BodyMaxLength" Rows="8" Error="@ErrorOf(FormFields.Body)" />
+        <AttachmentInput Name="Form.Files" Error="@ErrorOf(FormFields.Attachments)" Kept="@(Errors.Count > 0 || Notice is not null)" />
+        <HoneypotField Name="Form.Website" Value="@Form?.Website" />
+        <button type="submit" class="btn btn-primary">@ContactCopy.Submit</button>
+    </form>
+}
+else if (UnavailableMessage is not null)
+{
+    <PageTitle>@ShellCopy.UnavailableTitle</PageTitle>
+    <ProductUnavailable Message="@UnavailableMessage" RetryHref="@RetryHref" />
+}

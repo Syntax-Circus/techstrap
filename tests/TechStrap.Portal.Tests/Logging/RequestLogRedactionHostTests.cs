@@ -51,7 +51,7 @@ public sealed class RequestLogRedactionHostTests
 
         using var response = await client.GetAsync("/p/paperplane/contact?subject=Printer&name=Jane%20Doe&email=jane.doe%40example.com", Ct);
 
-        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.NotFound, "the contact page arrives in PHASE-09b; the request is logged all the same");
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, "the contact page of a known product; the request is logged all the same");
         AssertVerboseWasCaptured(factory);
         factory.LogSink.Events.ShouldContain(e => Everything(e).Contains("name=[redacted]", StringComparison.Ordinal), "control: the query string was logged, with the name masked");
         factory.LogSink.Events.ShouldContain(e => Everything(e).Contains("subject=[redacted]", StringComparison.Ordinal), "control: the subject was masked too");

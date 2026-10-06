@@ -1,0 +1,16 @@
+<div class="ts-hp" aria-hidden="true">
+    <label for="contact-website">Website</label>
+    <input id="contact-website" name="@Name" type="text" value="@Value" tabindex="-1" autocomplete="off" />
+</div>
+
+@code {
+    /// <summary>
+    /// The honeypot (D-045 addendum): a field no person sees. It is hidden by a style sheet class, not an inline style (the CSP allows none), left out of the tab order, hidden from assistive technology and marked
+    /// not to be autofilled; a bot that fills it is answered by the API. It takes no part in the layout.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string Name { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Value { get; set; }
+}

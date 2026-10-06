@@ -1,0 +1,13 @@
+@if (Message is not null)
+{
+    <p id="@FormFields.ErrorId(Field)" class="ts-field-error">@Message</p>
+}
+
+@code {
+    /// <summary>The field the message is about: its error paragraph is <c>{field}-error</c>, which the input's <c>aria-describedby</c> names.</summary>
+    [Parameter, EditorRequired]
+    public string Field { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Message { get; set; }
+}

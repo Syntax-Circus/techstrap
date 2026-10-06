@@ -75,6 +75,14 @@ public sealed class PortalRoutesTests
     }
 
     [Fact]
+    public void The_received_page_builder_adds_the_reference_escaped_so_it_can_never_add_a_parameter()
+    {
+        PortalRoutes.ContactReceived("paperplane", "CfDJ8_a-b").ShouldBe("/p/paperplane/contact/received?ref=CfDJ8_a-b");
+        PortalRoutes.ContactReceived("paperplane", "a&b=c#d e").ShouldBe("/p/paperplane/contact/received?ref=a%26b%3Dc%23d%20e");
+        PortalRoutes.ReceivedReferenceParameter.ShouldBe("ref");
+    }
+
+    [Fact]
     public void A_builder_given_a_ticket_token_uses_its_real_value_and_never_the_printed_marker()
     {
         const string text = "AbC-_0123456789AbC-_0123456789AbC-_01234567";
