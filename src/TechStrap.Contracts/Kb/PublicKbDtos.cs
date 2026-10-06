@@ -22,3 +22,9 @@ public sealed record PublishedKbArticleDto(
 public sealed record PublicKbCategoryDto(string Slug, string Name, string? Description, int ArticleCount);
 
 public sealed record KbSitemapEntryDto(string? ProductKey, string CategorySlug, string Slug, DateTimeOffset UpdatedAt);
+
+/// <summary>
+/// One row of a category's article list (PHASE-09c). Every text field is plain text: the consumer must encode it. <paramref name="Summary"/> is the
+/// author's summary (not a search snippet) and may be null. <paramref name="ProductKey"/> is null for a shared article. There is no body, no author and no id.
+/// </summary>
+public sealed record PublicKbArticleSummaryDto(string Slug, string Title, string? Summary, string CategorySlug, string CategoryName, string? ProductKey, DateTimeOffset UpdatedAt);

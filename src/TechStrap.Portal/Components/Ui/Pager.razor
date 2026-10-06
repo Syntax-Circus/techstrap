@@ -1,0 +1,32 @@
+@if (Pages > 1)
+{
+    <nav class="ts-pager" aria-label="@KbCopy.PagerLabel">
+        @if (Page > 1)
+        {
+            <a class="ts-pager-prev" rel="prev" href="@HrefFor(Page - 1)">@KbCopy.PreviousPage</a>
+        }
+        <span class="ts-pager-state" aria-current="page">@KbCopy.PageOf(Page, Pages)</span>
+        @if (Page < Pages)
+        {
+            <a class="ts-pager-next" rel="next" href="@HrefFor(Page + 1)">@KbCopy.NextPage</a>
+        }
+    </nav>
+}
+
+@code {
+    /// <summary>The page being shown, from one.</summary>
+    [Parameter, EditorRequired]
+    public int Page { get; set; } = 1;
+
+    [Parameter, EditorRequired]
+    public int PageSize { get; set; }
+
+    [Parameter, EditorRequired]
+    public int TotalCount { get; set; }
+
+    /// <summary>The address of a page, built by <c>PortalRoutes</c> (it keeps a search text and escapes it). The links are plain, so paging works without script.</summary>
+    [Parameter, EditorRequired]
+    public Func<int, string> HrefFor { get; set; } = _ => string.Empty;
+
+    private int Pages => KbPaging.TotalPages(TotalCount, PageSize);
+}

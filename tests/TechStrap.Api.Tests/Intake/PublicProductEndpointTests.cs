@@ -39,6 +39,30 @@ public sealed class PublicProductEndpointTests(TestPostgres postgres) : IAsyncLi
         body.Key.ShouldBe("orbitly");
     }
 
+    [Fact]
+    public async Task The_anonymous_list_names_the_active_products_by_key_and_display_name_only_with_public_caching()
+    {
+        // Arrange
+        var (factory, _, _) = await StartAsync();
+        await using var _f = factory;
+        using var client = factory.CreateClient();
+
+        // Act
+        using var response = await client.GetAsync("/api/public/products", TestContext.Current.CancellationToken);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Headers.CacheControl!.Public.ShouldBeTrue();
+        response.Headers.CacheControl.MaxAge.ShouldBe(TimeSpan.FromSeconds(300));
+        var raw = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        var list = System.Text.Json.JsonSerializer.Deserialize<List<PublicProductSummaryDto>>(raw, System.Text.Json.JsonSerializerOptions.Web)!;
+        list.ShouldBe([new PublicProductSummaryDto("orbitly", "Orbitly"), new PublicProductSummaryDto("paperplane", "Paperplane")]);
+        raw.ShouldNotContain("dormant");
+        raw.ShouldNotContain("logoPath");
+        raw.ShouldNotContain("accentColour");
+        System.Text.Json.JsonDocument.Parse(raw).RootElement[0].EnumerateObject().Select(property => property.Name).ShouldBe(["key", "displayName"]);
+    }
+
     [Theory]
     [InlineData("nope")]
     [InlineData("dormant")]

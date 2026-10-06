@@ -1,0 +1,24 @@
+@if (Crumbs.Count > 0)
+{
+    <nav class="ts-breadcrumbs" aria-label="@KbCopy.BreadcrumbLabel">
+        <ol>
+            @foreach (var crumb in Crumbs)
+            {
+                @if (crumb.Href is { } href)
+                {
+                    <li><a href="@href">@crumb.Label</a></li>
+                }
+                else
+                {
+                    <li aria-current="page">@crumb.Label</li>
+                }
+            }
+        </ol>
+    </nav>
+}
+
+@code {
+    /// <summary>The trail from the product's home to this page. The last step has no address: it is the page itself.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<KbCrumb> Crumbs { get; set; } = [];
+}

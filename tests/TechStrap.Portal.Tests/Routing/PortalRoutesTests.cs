@@ -23,6 +23,37 @@ public sealed class PortalRoutesTests
     }
 
     [Fact]
+    public void The_help_centre_segments_and_query_names_are_the_ones_the_cache_and_the_pages_share()
+    {
+        PortalRoutes.KbSegment.ShouldBe("kb");
+        PortalRoutes.KbSearchSegment.ShouldBe("search");
+        PortalRoutes.PageParameter.ShouldBe("page");
+        PortalRoutes.QueryParameter.ShouldBe("q");
+        PortalRoutes.KbHome("paperplane").ShouldBe("/p/paperplane/kb");
+        PortalRoutes.KbSearch("paperplane").ShouldBe("/p/paperplane/kb/search");
+    }
+
+    [Theory]
+    [InlineData("paperplane", "accounts", 0, "/p/paperplane/kb/accounts")]
+    [InlineData("paperplane", "accounts", 1, "/p/paperplane/kb/accounts")]
+    [InlineData("paperplane", "accounts", 2, "/p/paperplane/kb/accounts?page=2")]
+    [InlineData("paperplane", "accounts", 120, "/p/paperplane/kb/accounts?page=120")]
+    [InlineData("paperplane", "a/b?c#d", 2, "/p/paperplane/kb/a%2Fb%3Fc%23d?page=2")]
+    public void A_category_page_builds_one_address_per_page_and_page_one_has_no_query(string key, string category, int page, string expected) =>
+        PortalRoutes.KbCategory(key, category, page).ShouldBe(expected);
+
+    [Theory]
+    [InlineData("router", 1, "/p/paperplane/kb/search?q=router")]
+    [InlineData("router", 0, "/p/paperplane/kb/search?q=router")]
+    [InlineData("router", 3, "/p/paperplane/kb/search?q=router&page=3")]
+    [InlineData("a b&c=d#e", 2, "/p/paperplane/kb/search?q=a%20b%26c%3Dd%23e&page=2")]
+    [InlineData("\"><script>", 1, "/p/paperplane/kb/search?q=%22%3E%3Cscript%3E")]
+    [InlineData("", 2, "/p/paperplane/kb/search")]
+    [InlineData("   ", 1, "/p/paperplane/kb/search")]
+    public void A_search_page_builds_the_text_escaped_so_it_can_never_add_a_parameter_and_a_blank_text_is_the_search_page_itself(string text, int page, string expected) =>
+        PortalRoutes.KbSearch("paperplane", text, page).ShouldBe(expected);
+
+    [Fact]
     public void The_templates_match_the_routes_of_the_spec_exactly()
     {
         PortalRoutes.HomeTemplate.ShouldBe("/");

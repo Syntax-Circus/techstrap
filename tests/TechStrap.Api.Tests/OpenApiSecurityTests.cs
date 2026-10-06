@@ -81,10 +81,12 @@ public sealed partial class OpenApiSecurityTests
 
     [Theory]
     [InlineData("/api/customer/access-link", "post")]
+    [InlineData("/api/public/products", "get")]
     [InlineData("/api/public/products/{productKey}", "get")]
     [InlineData("/api/public/products/{productKey}/tickets", "post")]
     [InlineData("/api/public/kb/{productKey}/search", "get")]
     [InlineData("/api/public/kb/{productKey}/categories", "get")]
+    [InlineData("/api/public/kb/{productKey}/categories/{categorySlug}/articles", "get")]
     [InlineData("/api/public/kb/{productKey}/articles/{categorySlug}/{slug}", "get")]
     [InlineData("/api/public/kb/{productKey}/sitemap", "get")]
     public async Task A_public_operation_names_no_scheme(string path, string method)

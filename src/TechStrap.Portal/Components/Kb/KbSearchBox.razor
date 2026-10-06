@@ -1,0 +1,16 @@
+<form method="get" action="@PortalRoutes.KbSearch(ProductKey)" role="search" class="ts-help-search">
+    <label for="kb-search" class="form-label">@ShellCopy.SearchLabel</label>
+    <div class="ts-help-search-row">
+        <input id="kb-search" name="@PortalRoutes.QueryParameter" type="search" class="form-control" maxlength="@KbLimits.MaxSearchTextChars" autocomplete="off" value="@Query" />
+        <button type="submit" class="btn btn-primary">@ShellCopy.SearchButton</button>
+    </div>
+</form>
+
+@code {
+    [Parameter, EditorRequired]
+    public string ProductKey { get; set; } = string.Empty;
+
+    /// <summary>The text to put back in the box (what the visitor searched for): shown as an attribute value, so Razor encodes it.</summary>
+    [Parameter]
+    public string? Query { get; set; }
+}

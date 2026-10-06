@@ -27,7 +27,7 @@ sitemap, robots) through `SyntaxCircus.Blazor.Seo`.
 - **Abuse controls at the edge:** honeypot field (hidden, `autocomplete=off`, `tabindex=-1`), antiforgery, request body size limit equal to the API limit, client-side file hints only (server enforces size/type allowlist). **Rate limits are enforced by the API**, which must see the real client IP: the portal forwards the original client IP (trusted `X-Forwarded-For` from the reverse proxy) to the API through `.AddForwardedClientIp()`, and the API trusts forwarded headers only from the pinned compose subnet (D-019; `CLIENT_IP_RATE_LIMITING.md`, P01/P05 config).
 - **Attachments for customers:** `/t/{token}/attachments/{id}` is a portal-hosted pass-through adapter that forwards to `GET /api/customer/attachments/{id}` (`GetCustomerAttachmentRequestHandler`, D-038) with `X-Ticket-Token` forwarded server-side and streams the response (no business logic), with `Content-Disposition: attachment` and `nosniff`. Exempt per D-017; same pattern as the admin.
 - **Rendered HTML:** the KB article body arrives sanitized from the API (`PublishedKbArticleDto.Html`) and is rendered through `MarkupString` at exactly one site (`KbArticleBody`); message bodies likewise at `CustomerMessageBody`. Portal does not re-sanitize (single source of truth), but an architecture/lint test restricts `MarkupString` to those two components.
-- **SEO** via `SyntaxCircus.Blazor.Seo`: `AddSyntaxCircusSeo`, `UseCanonicalHost`, `MapRobotsTxt`, `MapSitemap` with entries provided by an `ISitemapEntryProvider` implementation that calls `GetSitemapEntriesRequestHandler` through the API (cached 15 minutes, **Assumption**). `SeoHead` per page; JSON-LD `BreadcrumbListSchema` on KB pages and an article schema (custom POCO) on article pages. Contact/ticket pages are `noindex`.
+- **SEO** via `SyntaxCircus.Blazor.Seo`: `AddSyntaxCircusSeo`, `UseSyntaxCircusSeo`, `MapSeoRobotsTxt`, `MapSeoSitemap` with a provider (`PortalSitemap`) that calls `GetKbSitemapRequestHandler` and the products list through the API (cached 15 minutes in an `IMemoryCache`, **Assumption**). `SeoHead` per page; JSON-LD on the article page only: the Portal's own `BreadcrumbListLd` and `ArticleSchema` records (see the 09c Corrections), not the package's `BreadcrumbListSchema`. Contact/ticket pages are `noindex`.
 - **Caching:** KB list/article/category pages use ASP.NET output caching with short TTL and vary by route (**Assumption**: 60 s); never cache `/t/*` or form pages.
 - **Accessibility/UX** follow `UX-BRIEF-portal.md` (mobile-first, no JS required, visible focus, error summaries, labels, 4.5:1 contrast with the computed `--ts-on-accent` and `--ts-accent-ink`).
 - **Tests:** bUnit for component logic, `WebApplicationFactory<Portal>` with a fake API handler for page-level SSR output (token headers, noindex, canonical, sitemap). Playwright e2e optional (**Assumption**, P09-T20).
@@ -56,6 +56,16 @@ The 09b rulings; where this page and the addendum differ, the addendum wins.
 - **Message bodies.** `CustomerMessageBody` is the only `MarkupString` site in 09b; `KbArticleBody` follows in 09c.
 - **Received page.** It shows the ticket number only.
 
+### Corrections (D-045 addendum, 2026-10-06, PHASE-09c)
+
+The 09c rulings; where this page and the addendum differ, the addendum wins.
+- **Sitemap names.** The handoff is `GetKbSitemapRequestHandler` (P08, one product) and `ListPublicProductsRequestHandler` (09c, `GET api/public/products`), read through `IPublicKbClient.GetSitemapAsync` and `IPublicProductClient.ListAsync` by `PortalSitemapBuilder`; `GetSitemapEntriesRequestHandler`, `ISitemapEntryProvider` and `ApiSitemapEntryProvider` never existed.
+- **Category page.** `GET api/public/kb/{productKey}/categories/{categorySlug}/articles` (paged, published only, 404 for an unknown, invisible or empty category) feeds it; the search endpoint cannot, because a blank text gives an empty page.
+- **Article JSON-LD.** JSON-LD is on the article page only (the help-centre home, the category page and the search page carry none). The breadcrumb list and the article are Portal records (`BreadcrumbListLd` and `ArticleSchema`, not the package's `BreadcrumbListSchema`) whose strings are `JsonLdText`: the package's `JsonLd` writes `<` unescaped, so a `</script>` in a title would end the block.
+- **Caching.** One base policy with a path predicate (not an attribute): 60 seconds, varying by the `page` query value only; a delivered page tells browsers `public, max-age=60`; the search page, the form pages and `/t/*` are never kept.
+- **Empty states.** An empty category is the neutral 404 (the API says so), so the empty state is the help-centre home of a product with no article and a search with no result.
+- **Search page.** `/p/{key}/kb/search?q=&page=`; a query makes it `noindex`.
+
 ## Application Boundaries
 
 Follow _template APPLICATION_ARCHITECTURE.md. This phase adds **no new server
@@ -74,8 +84,8 @@ consumed and the portal-hosted framework/adapter endpoints.
 | KB search page and deflection suggestions | `SearchPublicKbArticlesRequestHandler` (P08) | `IPublicKbClient` | `PublicKbClient` | `KbSearchResponse`; empty on no results | Consumed; same use case for search and deflection |
 | KB article page | `GetPublishedKbArticleRequestHandler` (P08) | `IPublicKbClient` | `PublicKbClient` | `PublishedKbArticleDto`; 404 -> NotFound | Consumed; no new server entry point |
 | KB home/category lists | `ListPublicKbCategoriesRequestHandler` (P08) | `IPublicKbClient` | `PublicKbClient` | Category DTOs with counts | Consumed; no new server entry point |
-| `GET /sitemap.xml` entries | `GetSitemapEntriesRequestHandler` (P08) | `ISitemapEntryProvider` (Portal) -> `IPublicKbClient` | `ApiSitemapEntryProvider` | `SitemapEntry[]` | Consumed; the `MapSitemap` endpoint itself is package-owned (`Blazor.Seo`) and runs no application workflow |
-| `GET /robots.txt` | Exempt | `Blazor.Seo` | `MapRobotsTxt` | Static text | Exempt: package-owned, no workflow |
+| `GET /sitemap.xml` entries | `GetKbSitemapRequestHandler` (P08) and `ListPublicProductsRequestHandler` (09c) | `PortalSitemapBuilder` (Portal) -> `IPublicProductClient`, `IPublicKbClient` | `PortalSitemap` and `PortalSitemapCache` | `SitemapEntry[]` | Consumed; the `MapSeoSitemap` endpoint itself is package-owned (`Blazor.Seo`) and runs no application workflow |
+| `GET /robots.txt` | Exempt | `Blazor.Seo` | `MapSeoRobotsTxt` | Static text | Exempt: package-owned, no workflow |
 | `/health/live`, `/health/ready`, static assets (`/_framework`, SCSS output, logos) | Exempt | `SyntaxCircus.AspNetCore.Common` | Package health endpoints | 200/503 | Exempt operational/static endpoints |
 
 ## Razor Component Boundaries
@@ -128,11 +138,11 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
 ## Deliverables
 
 - [x] `TechStrap.Portal` host with `.env.example`, forwarded-headers and client-IP forwarding to the API.
-- [ ] Typed clients for public product, public ticket, customer ticket, public KB.
+- [x] Typed clients for public product, public ticket, customer ticket, public KB.
 - [x] Branded layout with per-product theming and NotFound handling.
 - [x] Contact page with honeypot, attachments, deflection island, submitted page.
 - [x] Customer ticket view, reply (incl. Closed -> follow-up), lost-link, attachment pass-through.
-- [ ] KB home/category/search/article pages with SEO, JSON-LD, sitemap, robots.
+- [x] KB home/category/search/article pages with SEO, JSON-LD, sitemap, robots.
 - [ ] Page-level SSR tests and bUnit tests; portal container healthy under compose.
 
 ## Actionable Tasks
@@ -141,19 +151,21 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
   - **Depends on:** P01 (host skeleton)
   - **Validation:** Options validation unit test fails fast on missing API URL; route constants used by every page (no inline route strings repeated).
   - **09a evidence:** `PortalOptionsValidatorTests` and `PortalOptionsHostTests` (the start fails naming the key), `PortalRoutesTests` and `RouteLiteralTests` (every route once, no inline route string), `ConfigContract.Tests.ps1` and `ProductionBlankTemplateTests` (the keys in every template). The keys are `API__BASEURL`, `TECHSTRAP_PORTAL_PUBLIC_URL` and `TECHSTRAP_PORTAL_DEFAULT_PRODUCT`; `Seo:BaseUrl` is derived from the public URL (D-045).
-- [ ] **P09-T02** Implement typed clients (`IPublicProductClient`, `IPublicTicketClient`, `ICustomerTicketClient`, `IPublicKbClient`) with ProblemDetails -> `Result`, GET-only retry, multipart submit, and `.AddForwardedClientIp()` forwarding the original client IP (D-019)
+- [x] **P09-T02** Implement typed clients (`IPublicProductClient`, `IPublicTicketClient`, `ICustomerTicketClient`, `IPublicKbClient`) with ProblemDetails -> `Result`, GET-only retry, multipart submit, and `.AddForwardedClientIp()` forwarding the original client IP (D-019)
   - **Depends on:** P09-T01, P05, P06, P08 DTOs
   - **Validation:** Stub-handler tests: success/400/404/429/503; POST not retried; `X-Forwarded-For` set from the trusted inbound header; token header never logged (log assertion).
   - **09a:** done: `ApiConnection`, `ProblemMapping`, the token capability and `IPublicProductClient` (`ApiConnectionTests`, `ProblemMappingTests`, `PublicProductClientTests`, `ForwardedClientIpHostTests`, `TicketTokenLeakTests`), with the fake-API harness. The ticket and KB clients arrive with 09b and 09c, so this task stays open.
   - **09b:** the public ticket, customer ticket and KB (search) clients are done (`PublicTicketClientTests`, `CustomerTicketClientTests`, `PublicKbClientTests`, `ApiConnectionStreamTests`); the rest of the KB client arrives with 09c, so this task stays open.
+  - **09c evidence:** the rest of the KB client (categories, a category's articles, the article, the sitemap and a paged search) and `IPublicProductClient.ListAsync` are done (`PublicKbClientTests`, `PublicProductClientTests`, `KbSlugShapeTests`): every call is a read, retried, forwarding the visitor's address, and a key or slug that is not a slug is the uniform not-found without a call.
 - [x] **P09-T03** Implement `BrandingThemeFactory`, `PortalLayout`, header/footer and the product-scope resolution (unknown/inactive -> NotFound)
   - **Depends on:** P09-T02, P02 tokens
   - **Validation:** Theory over accent colours (black, white, mid-gray, brand) asserts the computed `--ts-on-accent` meets 4.5:1 on the accent and `--ts-accent-ink` meets 4.5:1 on white; invalid colour falls back to the default; bUnit: unknown key renders NotFound.
   - **09a evidence:** `ProductThemeViewModelTests`, `PortalLayoutTests`, `NeutralPagesGuardTests`, `ProductHomeHostTests`. There is no `BrandingThemeFactory` (D-045); the contrast theory is `ProductAccentContrastTests`.
-- [ ] **P09-T04** Wire `Blazor.Seo` (`AddSyntaxCircusSeo`, `UseCanonicalHost`, `MapRobotsTxt`, `MapSitemap` with `ApiSitemapEntryProvider`) and security headers/CSP
+- [x] **P09-T04** Wire `Blazor.Seo` (`AddSyntaxCircusSeo`, `UseSyntaxCircusSeo`, `MapSeoRobotsTxt`, `MapSeoSitemap` with the `PortalSitemap` provider) and security headers/CSP
   - **Depends on:** P09-T02
   - **Validation:** Host test: `/robots.txt` disallows `/t/`; `/sitemap.xml` contains published KB URLs only and is cached; response headers include CSP and `X-Content-Type-Options`.
   - **09a:** done: Seo wiring, `/robots.txt`, the canonical host and the per-path headers (`SeoHostTests`, `TicketHeaderHostTests`, `PathHeaderRuleHostTests`). The sitemap arrives with 09c, so this task stays open.
+  - **09c evidence:** the sitemap is mapped (`SitemapHostTests`: absolute addresses, a shared article under each product, the single-flight cache, a crawler that goes away, a failure remembered for a minute with the last good sitemap served, the 50,000 cap; `PortalSitemapBuilderTests`, `PortalSitemapCacheTests`) and robots.txt names it.
 - [x] **P09-T05** Build `App`/`Routes`/`NotFoundPage` with `GlobalErrorBoundary` and the product home page
   - **Depends on:** P09-T03
   - **Validation:** bUnit/host test: home renders branded name and KB search box; unmatched route -> NotFound with 404 status.
@@ -173,7 +185,7 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
 - [ ] **P09-T09** Build `CustomerReplyForm` with attachments, including Closed -> follow-up flow handling
   - **Depends on:** P09-T08
   - **Validation:** Host test: reply on Open ticket refreshes thread; reply on Closed ticket shows follow-up ticket link; oversize/disallowed attachment shows error; double-submit guarded.
-  - **09b:** delivered except double-submit (deferred to 09c, D-045 'Known in 09b').
+  - **09b:** delivered except double-submit (deferred to 09d, D-045 'Known in 09b').
   - **09b evidence:** `TicketReplyHostTests`, `FollowUpLinkTests`, `ReplyAndEmailRulesTests`: a reply redirects to the same page, a reply on a Closed ticket redirects to the follow-up's own page on this site, a link that cannot be read gives a generic confirmation.
 - [x] **P09-T10** Build `LostLinkPage` (`/p/{key}/lost-link`)
   - **Depends on:** P09-T03
@@ -183,18 +195,22 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
   - **Depends on:** P09-T08
   - **Validation:** Host test: streams bytes with `attachment` disposition and `nosniff`; other tokens/ids -> uniform 404; no Infrastructure reference (architecture test).
   - **09b evidence:** `TicketAttachmentHostTests`, `ApiConnectionStreamTests`, `TicketUniformNotFoundHostTests`, `TicketHeaderHostTests` (the real route under the sandbox rule).
-- [ ] **P09-T12** Build `KbHomePage` and `KbCategoryPage` with paging and `KbArticleCard`/`KbBreadcrumbs`
+- [x] **P09-T12** Build `KbHomePage` and `KbCategoryPage` with paging and `KbArticleCard`/`KbBreadcrumbs`
   - **Depends on:** P09-T03, P08-T08
   - **Validation:** bUnit: empty category shows empty state; paging links preserve query; shared + product articles appear.
-- [ ] **P09-T13** Build `KbSearchPage` (GET form) and result highlighting using the API snippet (plain text, escaped)
+  - **09c evidence:** `KbHomeHostTests`, `KbCategoryHostTests`, `KbComponentTests`, `KbPagingTests`, `PortalRoutesTests`. The pages are `KbHome`, `KbCategory`, `KbSearch` and `KbArticle` in `Components/Pages`, the shared pieces `KbArticleCard`, `KbBreadcrumbs`, `KbSearchBox`, `Pager` and `StateMessage`, the words `KbCopy`. An empty category is the neutral 404 (the API's ruling), so the empty state is a product with no article; a page past the end is the neutral 404; a shared article appears under the product the visitor is on.
+- [x] **P09-T13** Build `KbSearchPage` (GET form) and result highlighting using the API snippet (plain text, escaped)
   - **Depends on:** P09-T12
   - **Validation:** bUnit: empty query shows prompt; no results shows contact-us link; snippet HTML-encoded (test with `<b>` in data).
-- [ ] **P09-T14** Build `KbArticlePage`/`KbArticleBody` with `SeoHead`, canonical URL, Open Graph, `BreadcrumbListSchema` and article JSON-LD
+  - **09c evidence:** `KbSearchHostTests` (the prompt, the contact link, a snippet with `<b>` and a hostile text shown as text, `noindex` for a query, paging links that keep the escaped text, a cut at 200 characters, a mangled `page` value, never kept) and `KbComponentTests`.
+- [x] **P09-T14** Build `KbArticlePage`/`KbArticleBody` with `SeoHead`, canonical URL, Open Graph, and JSON-LD (the Portal's `BreadcrumbListLd` and `ArticleSchema`, on this page only)
   - **Depends on:** P09-T04, P09-T12
   - **Validation:** Host test parses the page head: title, description, canonical, `og:*`, valid JSON-LD; unpublished slug -> 404; body markup identical to API HTML (no re-encoding bugs); `MarkupString` only in `KbArticleBody`/`CustomerMessageBody` (architecture test).
-- [ ] **P09-T15** Add output caching for KB pages and sitemap; exclude `/t/*` and forms
+  - **09c evidence:** `KbArticleHostTests` (the head parsed, both JSON-LD blocks parsed, a hostile title, category, summary and product name cannot leave the page or the JSON-LD, the body equals the API's HTML, the neutral 404s), `JsonLdTextTests`, `KbStructuredDataTests`, `KbPlainTextTests`, `PortalRuleTests` (exactly two markup sites).
+- [x] **P09-T15** Add output caching for KB pages and sitemap; exclude `/t/*` and forms
   - **Depends on:** P09-T12, P09-T14
   - **Validation:** Host test: KB responses carry cache headers and hit the fake API once for repeated requests; `/t/*` has `no-store`.
+  - **09c evidence:** `KbPageCacheHostTests` and `OutputCachePipelineTests` (one API call for a repeated request, the request's own headers and correlation id on a hit, a 404 and a 429 never stored, nothing else kept, no key shared between products, no cookie), `PortalCachePathsTests`, `ProgramOrderTests`, `PathHeaderRuleHostTests` and `PublicCacheHeaderPinTests` (the Hosting rule and the unchanged Admin).
 - [ ] **P09-T16** Apply BRAND.md/UX-BRIEF-portal styling: responsive layout, error summaries, focus states, themed accent usage, no-JS verification
   - **Depends on:** P09-T06, P09-T08, P09-T14
   - **Validation:** UX-BRIEF-portal checklist completed; manual run with JavaScript disabled covers contact -> submitted and ticket view -> reply; axe run has no critical findings; Lighthouse accessibility >= 90 (**Assumption**).
@@ -233,7 +249,7 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
 - [ ] Following the emailed `/t/{token}` link shows the public conversation; the customer can reply; replying on a Closed ticket creates and links a follow-up ticket.
 - [ ] Invalid, expired and revoked tokens are indistinguishable (identical 404); lost-link responses are identical for known and unknown emails.
 - [ ] Each product's portal pages use its name, logo and accent colour, including readable contrast; an unknown product key shows NotFound.
-- [ ] KB pages are browsable, searchable, SEO-tagged with sitemap/robots as specified; ticket pages are `noindex`/disallowed.
+- [x] KB pages are browsable, searchable, SEO-tagged with sitemap/robots as specified; ticket pages are `noindex`/disallowed.
 - [ ] The contact URL prefills `subject`, `name` and `email` (visible, editable, validated like typed input); "Powered by TechStrap" links to the GitHub repo and disappears when `TECHSTRAP_PORTAL_SHOW_POWERED_BY=false`; agents appear as the resolved public name (D-024).
 - [ ] Portal request logs contain no access tokens; token pages send `no-store` and `no-referrer`.
 - [ ] Rate limits observe the real client IP through the portal.

@@ -10,4 +10,7 @@ internal sealed class PublicProductClient(ApiConnection api) : IPublicProductCli
         ProductKeyShape.IsWellFormed(key)
             ? api.GetAsync<PublicProductDto>($"api/public/products/{key}", cancellationToken)
             : Task.FromResult(Result<PublicProductDto>.Failure(ProblemMapping.NotFound()));
+
+    public Task<Result<IReadOnlyList<PublicProductSummaryDto>>> ListAsync(CancellationToken cancellationToken) =>
+        api.GetAsync<IReadOnlyList<PublicProductSummaryDto>>("api/public/products", cancellationToken);
 }

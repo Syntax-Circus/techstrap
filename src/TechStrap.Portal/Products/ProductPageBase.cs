@@ -40,6 +40,25 @@ public abstract class ProductPageBase : ComponentBase
     /// <summary>This page's own address, root-relative, for a "Try again" link (the document's <c>base</c> is <c>/</c>).</summary>
     protected string RetryHref => "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
 
+    /// <summary>The token of the request this page is serving: an API call made for it stops when the visitor goes away.</summary>
+    protected CancellationToken RequestAborted => HttpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None;
+
+    /// <summary>
+    /// What a page does with a failed read of its own data once the product has loaded (the help-centre pages): a not-found is the neutral 404 (the product is forgotten first, so the 404 is byte for byte the page an unknown route
+    /// gets), a rate limit is a 429 and anything else a 503, each with the fixed sentence of <see cref="ProblemCopy"/>; whatever the API said is never shown. The page keeps its theme and shows <see cref="UnavailableMessage"/>.
+    /// </summary>
+    protected void Fail(ResultError error)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+        if (error.Kind == ResultErrorKind.NotFound)
+        {
+            NotFoundAfterTheming();
+            return;
+        }
+
+        Unavailable(error);
+    }
+
     /// <summary>Ends the request in the neutral 404 after the product was set (a post the API answers 404 to): the product is forgotten first, so the 404 carries none of its accent, header or footer.</summary>
     protected void NotFoundAfterTheming()
     {
@@ -56,7 +75,7 @@ public abstract class ProductPageBase : ComponentBase
             return;
         }
 
-        var result = await Products.GetAsync(Key, HttpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None);
+        var result = await Products.GetAsync(Key, RequestAborted);
         if (result.IsSuccess)
         {
             Scope.Set(ProductThemeViewModel.From(result.Value, Environment.IsDevelopment()));
@@ -70,7 +89,12 @@ public abstract class ProductPageBase : ComponentBase
             return;
         }
 
-        // Fixed copy only: whatever the API said (a 400's own detail included) is never shown on a product page.
+        Unavailable(error);
+    }
+
+    // Fixed copy only: whatever the API said (a 400's own detail included) is never shown on a product page.
+    private void Unavailable(ResultError error)
+    {
         var rateLimited = error.Code == ApiErrorCodes.RateLimited;
         UnavailableMessage = rateLimited ? ProblemCopy.RateLimited : ProblemCopy.ApiUnavailable;
         SetStatus(rateLimited ? StatusCodes.Status429TooManyRequests : StatusCodes.Status503ServiceUnavailable);

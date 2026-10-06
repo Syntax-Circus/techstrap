@@ -7,7 +7,7 @@ namespace TechStrap.Portal.Seo;
 
 /// <summary>
 /// <c>SyntaxCircus.Blazor.Seo</c> in the Portal (D-045). <c>Seo:BaseUrl</c> is derived from <c>TECHSTRAP_PORTAL_PUBLIC_URL</c>, always, so there is one setting for one value and a stray
-/// <c>Seo__BaseUrl</c> can never disagree with it. robots.txt disallows the ticket pages. The sitemap is not mapped in 09a: it needs the products endpoint PHASE-09c adds.
+/// <c>Seo__BaseUrl</c> can never disagree with it. robots.txt disallows the ticket pages and names the sitemap, which lists every active product's help centre (PHASE-09c).
 /// </summary>
 public static class PortalSeoRegistration
 {
@@ -18,6 +18,7 @@ public static class PortalSeoRegistration
     {
         services.AddSyntaxCircusSeo(configuration);
         services.AddOptions<SeoOptions>().PostConfigure<IOptions<PortalOptions>>((seo, portal) => seo.BaseUrl = portal.Value.PublicBaseUrl);
+        services.AddPortalSitemap();
         return services;
     }
 
@@ -28,10 +29,11 @@ public static class PortalSeoRegistration
         return app;
     }
 
-    /// <summary>robots.txt (and, from 09c, the sitemap).</summary>
+    /// <summary>robots.txt and the sitemap (<c>/sitemap.xml</c>, which robots.txt names): the static entries, then the products and articles from the cache that <see cref="PortalSitemap"/> feeds.</summary>
     public static WebApplication MapPortalSeo(this WebApplication app)
     {
         app.MapSeoRobotsTxt(extraDirectives: [DisallowTickets]);
+        app.MapSeoSitemap(PortalSitemap.StaticEntries(app.Services.GetRequiredService<IOptions<PortalOptions>>().Value), PortalSitemap.ProviderAsync, PortalSitemap.ClientCacheDuration);
         return app;
     }
 }

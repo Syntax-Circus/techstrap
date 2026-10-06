@@ -1,0 +1,14 @@
+<section class="ts-state" role="status">
+    <h2>@Heading</h2>
+    @ChildContent
+</section>
+
+@code {
+    /// <summary>The short heading of the state, plain text.</summary>
+    [Parameter, EditorRequired]
+    public string Heading { get; set; } = string.Empty;
+
+    /// <summary>What to say and where to go next: the page's own markup, built from <c>KbCopy</c> and <c>PortalRoutes</c>.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

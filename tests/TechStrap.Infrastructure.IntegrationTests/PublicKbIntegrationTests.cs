@@ -2,7 +2,9 @@ using Microsoft.Extensions.DependencyInjection;
 using SyntaxCircus.Common;
 using TechStrap.Application.Knowledge;
 using TechStrap.Application.Persistence;
+using TechStrap.Application.Products;
 using TechStrap.Contracts.Kb;
+using TechStrap.Contracts.Paging;
 using TechStrap.Domain.Knowledge;
 using TechStrap.Domain.Products;
 using TechStrap.Infrastructure.Content;
@@ -447,6 +449,167 @@ public sealed class PublicKbIntegrationTests(PostgresFixture postgres) : Postgre
             .HandleAsync("acme", "acme-cat", "acme-published", Ct));
 
         page.Value.Html.ShouldBe(preview.Value.Html);
+    }
+
+    private static Task<Result<PagedResponse<PublicKbArticleSummaryDto>>> CategoryArticles(World world, string product, string category, int page = 1, int pageSize = 25) =>
+        WithHandlersAsync(world, sp => new ListPublicKbCategoryArticlesRequestHandler(sp.GetRequiredService<IProductRepository>(), sp.GetRequiredService<IKbRepository>())
+            .HandleAsync(product, category, page, pageSize, Ct));
+
+    [Fact]
+    public async Task A_category_list_holds_only_published_articles_of_the_product_and_the_shared_space_in_a_category_the_product_can_see()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var world = await SeedAsync(host);
+
+        var acme = await CategoryArticles(world, "acme", "acme-cat");
+        var shared = await CategoryArticles(world, "acme", "general");
+        var orbitlyShared = await CategoryArticles(world, "orbitly", "general");
+
+        // Left out of acme-cat: the draft, the archived article, Orbitly's article filed there and (not in this category anyway) Acme's article filed in an Orbitly category.
+        acme.Value.Items.Select(item => item.Slug).ShouldBe(["acme-published"]);
+        acme.Value.Items.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            item => item.Title.ShouldBe("Router reset guide"),
+            item => item.Summary.ShouldBe("How to reset the router"),
+            item => item.CategorySlug.ShouldBe("acme-cat"),
+            item => item.CategoryName.ShouldBe("Acme things"),
+            item => item.ProductKey.ShouldBe("acme"));
+        acme.Value.TotalCount.ShouldBe(1);
+        shared.Value.Items.ShouldHaveSingleItem().ShouldSatisfyAllConditions(item => item.Slug.ShouldBe("shared-published"), item => item.ProductKey.ShouldBeNull());
+        orbitlyShared.Value.Items.Select(item => item.Slug).ShouldBe(["shared-published"]);
+    }
+
+    [Theory]
+    [InlineData("acme", "orb-cat")]
+    [InlineData("orbitly", "acme-cat")]
+    [InlineData("acme", "empty-cat")]
+    [InlineData("acme", "no-such-category")]
+    [InlineData("acme", "search")]
+    [InlineData("nobody", "general")]
+    [InlineData("dormant", "general")]
+    [InlineData("acme", "ACME-CAT")]
+    [InlineData("acme", "acme-cat\0")]
+    public async Task Another_products_category_an_empty_one_an_unknown_one_and_an_inactive_product_are_all_the_same_404(string product, string category)
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var world = await SeedAsync(host);
+        var dormant = Product.Create("dormant", "Dormant", "DOR", null, host.Clock).Value;
+        dormant.SetActive(false);
+        (await host.CommitAsync(sp => { sp.GetRequiredService<IProductRepository>().Add(dormant); return Task.CompletedTask; })).IsSuccess.ShouldBeTrue();
+
+        var result = await CategoryArticles(world, product, category);
+
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Code.ShouldBe("kb-category-not-found");
+    }
+
+    [Fact]
+    public async Task Archiving_the_last_published_article_of_a_category_makes_it_a_404_like_the_category_list_does()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var world = await SeedAsync(host);
+        (await CategoryArticles(world, "acme", "acme-cat")).IsSuccess.ShouldBeTrue();
+
+        var published = world.Articles["acme-published"];
+        (await host.CommitAsync(async sp =>
+        {
+            var kb = sp.GetRequiredService<IKbRepository>();
+            var loaded = (await kb.GetArticleAsync(published.Id, Ct))!;
+            loaded.Archive(host.Clock).IsSuccess.ShouldBeTrue();
+            kb.UpdateArticle(loaded);
+        })).IsSuccess.ShouldBeTrue();
+
+        (await CategoryArticles(world, "acme", "acme-cat")).Errors.ShouldHaveSingleItem().Code.ShouldBe("kb-category-not-found");
+    }
+
+    [Fact]
+    public async Task A_category_list_is_newest_update_first_paged_and_a_page_past_the_end_is_empty_with_the_total()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var scenario = await TicketScenario.CreateAsync(host);
+        var category = KbCategory.Create(null, "general", "General", 1, host.Clock).Value;
+        var articles = new List<KbArticle>();
+        foreach (var slug in new[] { "a-oldest", "b-second", "c-third", "d-fourth", "e-newest" })
+        {
+            host.Clock.Advance(TimeSpan.FromMinutes(10));
+            var article = Article(scenario, host, null, category, slug, slug, "s", "body");
+            Publish(host, article);
+            articles.Add(article);
+        }
+
+        (await host.CommitAsync(sp =>
+        {
+            var kb = sp.GetRequiredService<IKbRepository>();
+            kb.AddCategory(category);
+            articles.ForEach(kb.AddArticle);
+            return Task.CompletedTask;
+        })).IsSuccess.ShouldBeTrue();
+        Task<Result<PagedResponse<PublicKbArticleSummaryDto>>> Page(int page, int size) =>
+            host.ReadAsync(sp => new ListPublicKbCategoryArticlesRequestHandler(sp.GetRequiredService<IProductRepository>(), sp.GetRequiredService<IKbRepository>()).HandleAsync("acme", "general", page, size, Ct));
+
+        var first = await Page(1, 2);
+        var second = await Page(2, 2);
+        var last = await Page(3, 2);
+        var past = await Page(4, 2);
+
+        first.Value.Items.Select(item => item.Slug).ShouldBe(["e-newest", "d-fourth"]);
+        second.Value.Items.Select(item => item.Slug).ShouldBe(["c-third", "b-second"]);
+        last.Value.Items.Select(item => item.Slug).ShouldBe(["a-oldest"]);
+        past.Value.Items.ShouldBeEmpty();
+        new[] { first, second, last, past }.ShouldAllBe(page => page.Value.TotalCount == 5 && page.Value.PageSize == 2);
+        past.Value.Page.ShouldBe(4);
+
+        // The repository caps the page size itself, whatever the handler passed.
+        var direct = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().ListPublicCategoryArticlesAsync(scenario.Acme.Id, "general", 1, 1000, Ct));
+        direct!.PageSize.ShouldBe(KbLimits.MaxPublicSearchPageSize);
+        direct.Items.Count.ShouldBe(5);
+    }
+
+    [Fact]
+    public async Task Articles_with_the_same_update_time_are_ordered_by_id_descending_so_a_page_boundary_never_repeats_or_drops_one()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var scenario = await TicketScenario.CreateAsync(host);
+        var category = KbCategory.Create(null, "general", "General", 1, host.Clock).Value;
+        var articles = new List<KbArticle>();
+        foreach (var slug in new[] { "a", "b", "c", "d", "e" })
+        {
+            // The clock is not advanced, so every article has the same UpdatedAt and only the id can order them.
+            var article = Article(scenario, host, null, category, slug, slug, "s", "body");
+            Publish(host, article);
+            articles.Add(article);
+        }
+
+        (await host.CommitAsync(sp =>
+        {
+            var kb = sp.GetRequiredService<IKbRepository>();
+            kb.AddCategory(category);
+            articles.ForEach(kb.AddArticle);
+            return Task.CompletedTask;
+        })).IsSuccess.ShouldBeTrue();
+        Task<Result<PagedResponse<PublicKbArticleSummaryDto>>> Page(int page) =>
+            host.ReadAsync(sp => new ListPublicKbCategoryArticlesRequestHandler(sp.GetRequiredService<IProductRepository>(), sp.GetRequiredService<IKbRepository>()).HandleAsync("acme", "general", page, 2, Ct));
+
+        var pages = new[] { await Page(1), await Page(2), await Page(3) };
+
+        var served = pages.SelectMany(page => page.Value.Items).ToList();
+        served.Select(item => item.UpdatedAt).Distinct().Count().ShouldBe(1, "the scenario really is a tie");
+        served.Select(item => item.Slug).ShouldBe([.. articles.OrderByDescending(article => article.Id).Select(article => article.Slug)]);
+        pages.Select(page => page.Value.Items.Count).ShouldBe([2, 2, 1]);
+    }
+
+    [Fact]
+    public async Task The_public_product_list_is_the_active_products_key_and_display_name_only()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        await TicketScenario.CreateAsync(host);
+        var dormant = Product.Create("dormant", "Dormant", "DOR", null, host.Clock).Value;
+        dormant.SetActive(false);
+        (await host.CommitAsync(sp => { sp.GetRequiredService<IProductRepository>().Add(dormant); return Task.CompletedTask; })).IsSuccess.ShouldBeTrue();
+
+        var result = await host.ReadAsync(sp => new ListPublicProductsRequestHandler(sp.GetRequiredService<IProductRepository>()).HandleAsync(Ct));
+
+        result.Value.Select(product => product.Key).ShouldBe(["acme", "orbitly"]);
+        result.Value.Select(product => product.DisplayName).ShouldBe(["Acme", "Orbitly"]);
     }
 
     [Fact]

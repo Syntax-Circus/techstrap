@@ -1,6 +1,7 @@
 using SyntaxCircus.Common;
 using TechStrap.Contracts.Kb;
 using TechStrap.Portal.Clients;
+using TechStrap.Portal.Kb;
 using TechStrap.Portal.Routing;
 
 namespace TechStrap.Portal.Suggestions;
@@ -29,7 +30,7 @@ public static class SuggestEndpoint
     private static async Task<IResult> HandleAsync(string key, string? q, IPublicKbClient kb, HttpContext http, CancellationToken cancellationToken)
     {
         http.Response.Headers.CacheControl = "no-store";
-        var text = Clean(q);
+        var text = KbSearchText.Clean(q);
         if (text.Length == 0)
         {
             return Results.Json(Array.Empty<SuggestionDto>());
@@ -49,17 +50,5 @@ public static class SuggestEndpoint
             .Select(hit => new SuggestionDto(hit.Title, hit.Snippet ?? string.Empty, PortalRoutes.KbArticle(key, hit.CategorySlug, hit.Slug)))
             .ToList();
         return Results.Json(items);
-    }
-
-    private static string Clean(string? text)
-    {
-        var trimmed = text?.Trim() ?? string.Empty;
-        if (trimmed.Length <= KbLimits.MaxSearchTextChars)
-        {
-            return trimmed;
-        }
-
-        var cut = trimmed[..KbLimits.MaxSearchTextChars];
-        return char.IsHighSurrogate(cut[^1]) ? cut[..^1] : cut;
     }
 }

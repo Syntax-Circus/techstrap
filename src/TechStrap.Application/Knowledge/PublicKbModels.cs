@@ -22,3 +22,6 @@ public sealed record PublicKbCategoryCount(KbCategory Category, int ArticleCount
 public sealed record PublicKbLinkTarget(Guid ArticleId, string CategorySlug, string Slug);
 
 public sealed record PublicKbSitemapRow(string? ProductKey, string CategorySlug, string Slug, DateTimeOffset UpdatedAt);
+
+/// <summary>One row of a category's article list: <see cref="Summary"/> is the author's plain-text summary (null when there is none), <see cref="ProductKey"/> is null for a shared article.</summary>
+public sealed record PublicKbCategoryArticle(string Slug, string Title, string? Summary, string CategorySlug, string CategoryName, string? ProductKey, DateTimeOffset UpdatedAt);

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using TechStrap.Hosting.Wiring;
+using TechStrap.Portal.Caching;
 using TechStrap.Portal.Routing;
 
 namespace TechStrap.Portal.Headers;
@@ -15,7 +16,7 @@ internal static class PortalHeaderRules
     public const string CacheControl = "no-store";
     public const string RobotsTag = "noindex";
 
-    /// <summary>The rules for <c>UseTechStrapWebHost</c>: the ticket headers, the attachment sandbox, then the form pages' headers.</summary>
+    /// <summary>The rules for <c>UseTechStrapWebHost</c>: the ticket headers, the attachment sandbox, the form pages' headers, then the help centre's cache headers.</summary>
     public static IReadOnlyList<PathHeaderRule> Rules { get; } =
     [
         PathHeaderRule.Set(IsTicketPath, ("Referrer-Policy", ReferrerPolicy), ("Cache-Control", CacheControl), ("X-Robots-Tag", RobotsTag)),
@@ -23,6 +24,10 @@ internal static class PortalHeaderRules
 
         // The form pages keep the shared referrer policy (a visitor's own address is no secret from the same site) but are never indexed and never stored: their address can carry a name, an address and a subject.
         PathHeaderRule.Set(IsFormPagePath, ("Cache-Control", CacheControl), ("X-Robots-Tag", RobotsTag)),
+
+        // The help centre (PHASE-09c): a delivered page may be kept by a browser for the minute the server keeps it, but only a delivered one: a 404, a 429 or a 503 never gets a public header. The search page is never kept anywhere.
+        PathHeaderRule.SetOnSuccess(PortalCachePaths.IsKbPage, ("Cache-Control", PortalCachePaths.BrowserCacheControl)),
+        PathHeaderRule.Set(PortalCachePaths.IsKbSearchPath, ("Cache-Control", CacheControl)),
     ];
 
     /// <summary><c>/t</c> and everything under it, without regard to case or a trailing slash.</summary>

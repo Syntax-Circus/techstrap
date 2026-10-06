@@ -353,7 +353,7 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 | Q-08 | Reverse proxy address and trusted network values for UAT and production | Supplied through env at deploy time; Unknown |
 | Q-09 | Is a queue-count handler (badges per view) needed beyond `ListTicketsRequestHandler`? | Counts come from `ListTicketsRequestHandler` response |
 | Q-10 | Should portal-side KB category article listing use `SearchPublicKbArticlesRequestHandler` with a category filter, or need a dedicated handler? | Use the search handler with category filter; raise a new handler through the decision log if it proves wrong |
-| Q-11 | Sitemap needs: is `GetSitemapEntriesRequestHandler` enough for products plus articles plus categories? | Yes |
+| Q-11 | Sitemap needs: is `GetKbSitemapRequestHandler` (via the Portal provider) enough for products plus articles plus categories? | Yes, with `ListPublicProductsRequestHandler` for the product list: `PortalSitemapBuilder` makes one products call and one sitemap call per product (D-045 as built in 09c) |
 | Q-12 | Handler request types: Contracts types directly (A-15) or Application-owned records mapped in controllers? | Resolved: Contracts types directly (D-016) |
 | Q-13 | Does the portal need a handler for fetching a ticket's attachments list separately from `GetCustomerTicketRequestHandler`? | No; attachments are part of the ticket view DTO |
 | Q-14 | Should an agent be able to reopen a Closed ticket? | No; Closed is read-only, follow-ups are new tickets |

@@ -3,6 +3,7 @@ using SyntaxCircus.AspNetCore.Common;
 using SyntaxCircus.DotEnv;
 using TechStrap.Hosting.Security;
 using TechStrap.Hosting.Wiring;
+using TechStrap.Portal.Caching;
 using TechStrap.Portal.Clients;
 using TechStrap.Portal.Components;
 using TechStrap.Portal.Components.Ui;
@@ -32,6 +33,9 @@ var telemetry = builder.AddTechStrapObservability(ServiceName);
 builder.Services.AddTechStrapWebHost(builder.Configuration, TechStrapCsp.ForBlazorApp(allowLoopbackImages: builder.Environment.IsDevelopment()));
 
 builder.Services.AddRazorComponents();
+
+// The framework's output cache, with one policy for the help-centre pages (PortalCachePaths): no form, ticket or search page is ever kept.
+builder.Services.AddPortalOutputCache();
 
 // The API address, the Portal's public address and the optional default product: validated at start (D-043, D-045).
 builder.Services.AddPortalOptions();
@@ -67,6 +71,9 @@ telemetry.LogStartupWarning(app.Logger);
 app.UseTechStrapWebHost(PortalHeaderRules.Rules);
 app.UsePortalSeo();
 app.UseTechStrapErrorPages();
+
+// The help-centre pages are kept for a minute (D-045 addendum, PHASE-09c): after the error pages, before the endpoints, so the security headers and the correlation id are the request's own on a cached answer too.
+app.UsePortalOutputCache();
 
 // Before the antiforgery check, which reads the form: a post over the endpoint's size limit is a plain 413, not the framework's 400 about a token.
 app.UseMiddleware<RequestTooLargeMiddleware>();

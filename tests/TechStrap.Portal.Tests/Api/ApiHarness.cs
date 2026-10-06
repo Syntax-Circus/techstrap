@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using TechStrap.Portal.Clients;
+using TechStrap.Portal.Seo;
 using TechStrap.Portal.Settings;
 
 namespace TechStrap.Portal.Tests.Api;
@@ -29,7 +30,7 @@ internal sealed class ApiHarness : IDisposable
 
     public IServiceProvider Services => _scope.ServiceProvider;
 
-    public static ApiHarness Create(string? clientIp = DefaultClientIp, TimeProvider? time = null)
+    public static ApiHarness Create(string? clientIp = DefaultClientIp, TimeProvider? time = null, Action<IServiceCollection>? configure = null)
     {
         var stub = new StubApiHandler();
         var services = new ServiceCollection();
@@ -42,7 +43,9 @@ internal sealed class ApiHarness : IDisposable
 
         services.AddSingleton(Microsoft.Extensions.Options.Options.Create(new PortalOptions { ApiBaseUrl = "http://api.test/", PublicUrl = "https://portal.test" }));
         services.AddPortalApiClients();
+        services.AddPortalSitemap();
         services.AddStubApi(stub);
+        configure?.Invoke(services);
 
         var provider = services.BuildServiceProvider();
         var harness = new ApiHarness(provider, stub);

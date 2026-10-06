@@ -11,4 +11,7 @@ public interface IPublicProductClient
     /// and a malformed key is answered without calling the API.
     /// </summary>
     Task<Result<PublicProductDto>> GetAsync(string key, CancellationToken cancellationToken);
+
+    /// <summary>The key and display name of every active product, by key (at most <see cref="PublicProductLimits.MaxListed"/>). Only the sitemap asks for it: no page lists the products (D-045).</summary>
+    Task<Result<IReadOnlyList<PublicProductSummaryDto>>> ListAsync(CancellationToken cancellationToken);
 }

@@ -1,0 +1,39 @@
+@attribute [Route(PortalRoutes.KbHomeTemplate)]
+@inherits ProductPageBase
+
+@if (UnavailableMessage is not null)
+{
+    <PageTitle>@ShellCopy.UnavailableTitle</PageTitle>
+    <ProductUnavailable Message="@UnavailableMessage" RetryHref="@RetryHref" />
+}
+else if (Theme is { } theme && Categories is { } categories)
+{
+    <SeoHead Title="@KbCopy.HomeTitle(theme.DisplayName)" Description="@KbCopy.HomeDescription(theme.DisplayName)" RelativeUrl="@PortalRoutes.KbHome(theme.Key)" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" />
+    <KbBreadcrumbs Crumbs="@Crumbs(theme)" />
+    <h1>@KbCopy.HomeHeading</h1>
+    <KbSearchBox ProductKey="@theme.Key" />
+    @if (categories.Count == 0)
+    {
+        <StateMessage Heading="@KbCopy.EmptyHomeHeading">
+            <p>@KbCopy.EmptyHomeText <a href="@PortalRoutes.Contact(theme.Key)">@KbCopy.ContactUs</a></p>
+        </StateMessage>
+    }
+    else
+    {
+        <ul class="ts-kb-list">
+            @foreach (var category in categories)
+            {
+                <li>
+                    <article class="ts-kb-card">
+                        <h2><a href="@PortalRoutes.KbCategory(theme.Key, category.Slug)">@category.Name</a></h2>
+                        @if (!string.IsNullOrWhiteSpace(category.Description))
+                        {
+                            <p class="ts-kb-summary">@category.Description</p>
+                        }
+                        <p class="ts-kb-meta">@KbCopy.ArticleCount(category.ArticleCount)</p>
+                    </article>
+                </li>
+            }
+        </ul>
+    }
+}

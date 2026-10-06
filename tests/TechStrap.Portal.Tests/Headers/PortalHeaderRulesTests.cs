@@ -99,9 +99,15 @@ public sealed class PortalHeaderRulesTests
     }
 
     [Fact]
-    public void The_rules_are_the_ticket_headers_the_attachment_sandbox_and_the_form_page_headers_and_nothing_else()
+    public void The_rules_are_the_ticket_headers_the_attachment_sandbox_the_form_page_headers_and_the_two_help_centre_rules_and_nothing_else()
     {
-        PortalHeaderRules.Rules.Count.ShouldBe(3);
+        PortalHeaderRules.Rules.Count.ShouldBe(5);
+        PortalHeaderRules.Rules[3].Matches(new PathString("/p/x/kb/accounts")).ShouldBeTrue();
+        PortalHeaderRules.Rules[3].Matches(new PathString("/p/x/kb/search")).ShouldBeFalse();
+        PortalHeaderRules.Rules[3].Matches(new PathString("/p/x/contact")).ShouldBeFalse();
+        PortalHeaderRules.Rules[3].Matches(new PathString("/t/x")).ShouldBeFalse();
+        PortalHeaderRules.Rules[4].Matches(new PathString("/p/x/kb/search")).ShouldBeTrue();
+        PortalHeaderRules.Rules[4].Matches(new PathString("/p/x/kb")).ShouldBeFalse();
         PortalHeaderRules.Rules[2].Matches(new PathString("/p/x/contact")).ShouldBeTrue();
         PortalHeaderRules.Rules[2].Matches(new PathString("/p/x")).ShouldBeFalse();
         PortalHeaderRules.Rules[2].Matches(new PathString("/t/x")).ShouldBeFalse();
