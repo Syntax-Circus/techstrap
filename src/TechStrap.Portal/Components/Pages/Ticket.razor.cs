@@ -131,6 +131,7 @@ public partial class Ticket
         var failure = FormFailure.From(result.Errors);
         if (failure.IsNotFound)
         {
+            Scope.Clear();
             Navigation.NotFound();
             return;
         }

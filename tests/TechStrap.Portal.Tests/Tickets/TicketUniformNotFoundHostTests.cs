@@ -11,21 +11,13 @@ public sealed class TicketUniformNotFoundHostTests
 {
     private static readonly CancellationToken Ct = TestContext.Current.CancellationToken;
 
-    private sealed record Seen(HttpStatusCode Status, string Body, string Headers, int ApiCalls);
-
     private static async Task<Seen> GetAsync(string path, Action<PortalFactory>? configure = null)
     {
         await using var factory = FormTestKit.Factory(product: false);
         configure?.Invoke(factory);
         using var client = FormTestKit.Client(factory);
         using var response = await client.GetAsync(path, Ct);
-        var headers = string.Join(
-            "\n",
-            response.Headers.Concat(response.Content.Headers)
-                .Where(h => h.Key is "Content-Type" or "Cache-Control" or "Referrer-Policy" or "X-Robots-Tag" or "X-Content-Type-Options" or "X-Frame-Options" or "Content-Security-Policy" or "blazor-enhanced-nav")
-                .OrderBy(h => h.Key, StringComparer.Ordinal)
-                .Select(h => $"{h.Key}: {string.Join(",", h.Value)}"));
-        return new Seen(response.StatusCode, await response.Content.ReadAsStringAsync(Ct), headers, factory.Api.Requests.Count);
+        return await Seen.OfAsync(response, factory.Api.Requests.Count, Ct);
     }
 
     private static Action<PortalFactory> ApiAnswers404(string type, string detail) => factory =>
@@ -95,10 +87,11 @@ public sealed class TicketUniformNotFoundHostTests
         var wrongId = await GetAsync($"/t/{TicketTestKit.Token}/attachments/{TicketTestKit.AttachmentId}", ApiAnswers404("attachment-not-found", "No such attachment on this ticket."));
         var otherTicket = await GetAsync($"/t/{TicketTestKit.OtherToken}/attachments/{TicketTestKit.AttachmentId}", ApiAnswers404("attachment-of-another-ticket", "Belongs to another ticket."));
 
-        foreach (var seen in new[] { badToken, badId, badIdTraversal, noDashes, wrongId, otherTicket })
+        foreach (var (seen, name) in new[] { (badToken, "badToken"), (badId, "badId"), (badIdTraversal, "badIdTraversal"), (noDashes, "noDashes"), (wrongId, "wrongId"), (otherTicket, "otherTicket") })
         {
             seen.Status.ShouldBe(HttpStatusCode.NotFound);
             seen.Body.ShouldBe(wrongTicket.Body, "byte for byte");
+            seen.HeadersWithoutEnhancedNav.ShouldBe(wrongTicket.HeadersWithoutEnhancedNav, name);
         }
 
         badToken.ApiCalls.ShouldBe(0);

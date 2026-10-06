@@ -5,6 +5,7 @@ using Serilog.Events;
 using TechStrap.Contracts.Intake;
 using TechStrap.Portal.Clients;
 using TechStrap.Portal.Tests.Api;
+using TechStrap.Portal.Tests.Tickets;
 
 namespace TechStrap.Portal.Tests.Forms;
 
@@ -405,11 +406,12 @@ public sealed class ContactPostHostTests
         using var _ = client;
 
         using var response = await PostAsync(client, FormTestKit.ContactForm(token));
-        var html = await response.Content.ReadAsStringAsync(Ct);
+        var seen = await Seen.OfAsync(response, factory.Api.Requests.Count, Ct);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-        html.ShouldContain("Page not found");
-        html.ShouldNotContain("<form");
+        // The product loaded (and themed the page) before the post failed; the 404 must still be the neutral one.
+        seen.ShouldBeTheNeutralNotFound(await Seen.NeutralNotFoundAsync(Ct, "/p/nope/contact"));
+        seen.Body.ShouldContain("Page not found");
+        seen.Body.ShouldNotContain("<form");
     }
 
     [Fact]

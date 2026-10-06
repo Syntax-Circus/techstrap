@@ -86,7 +86,7 @@ public partial class Contact : ProductPageBase
         var failure = FormFailure.From(result.Errors);
         if (failure.IsNotFound)
         {
-            Redirects.NotFound();
+            NotFoundAfterTheming();
             return;
         }
 

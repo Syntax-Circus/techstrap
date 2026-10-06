@@ -14,8 +14,7 @@ namespace TechStrap.Portal.Tests.Tickets;
 /// <summary>
 /// P09-T09 at the host: the reply form on the ticket page. A reply on an open ticket is sent through the write client (once, with the token as a header) and redirects to the same page; a reply on a Closed ticket
 /// redirects to the follow-up's own page, whose token is read from the API's link and checked, and never leaves the site (Review Focus 1); a link that cannot be read gives a generic confirmation and no redirect.
-/// Validation, 409, 413, 415, 429 and outages each have their own message and the text is kept. Antiforgery is enforced (Review Focus 3), the size limit applies before the form is read, and a double submit is
-/// guarded by redirect after post. Every call forwards the visitor's address (Review Focus 5).
+/// Validation, 409, 413, 415, 429 and outages each have their own message and the text is kept. Antiforgery is enforced (Review Focus 3), the size limit applies before the form is read, and the redirect after a post guards a refresh (not a double click: that is a known gap, deferred to 09c, so P09-T09 stays open). Every call forwards the visitor's address (Review Focus 5).
 /// </summary>
 public sealed class TicketReplyHostTests
 {
@@ -313,11 +312,12 @@ public sealed class TicketReplyHostTests
         using var _ = client;
 
         using var response = await client.PostAsync(TicketTestKit.Path, TicketTestKit.ReplyForm(token), Ct);
-        var html = await response.Content.ReadAsStringAsync(Ct);
+        var seen = await Seen.OfAsync(response, factory.Api.Requests.Count, Ct);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-        html.ShouldContain("Page not found");
-        html.ShouldNotContain("revoked");
+        // The page was themed with the product before the post failed; the 404 must still be the neutral one a visitor with a bad token gets.
+        seen.ShouldBeTheNeutralNotFound(await Seen.NeutralNotFoundAsync(Ct));
+        seen.Body.ShouldContain("Page not found");
+        seen.Body.ShouldNotContain("revoked");
     }
 
     // ---- logs ----
