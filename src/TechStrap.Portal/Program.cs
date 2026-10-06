@@ -12,6 +12,7 @@ using TechStrap.Portal.Products;
 using TechStrap.Portal.Seo;
 using TechStrap.Portal.Settings;
 using TechStrap.Portal.Suggestions;
+using TechStrap.Portal.Tickets;
 using TechStrap.Portal.Uploads;
 
 const string ServiceName = "techstrap-portal";
@@ -73,6 +74,7 @@ app.UseAntiforgery();
 app.MapStandardHealthChecks();
 app.MapPortalSeo();
 app.MapSuggest();
+app.MapAttachmentPassThrough();
 app.MapRazorComponentsWithStaticAssets<App>();
 
 app.Run();

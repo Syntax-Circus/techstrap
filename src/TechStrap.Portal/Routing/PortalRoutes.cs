@@ -20,6 +20,9 @@ public static class PortalRoutes
     public const string LostLinkSegment = "lost-link";
     public const string SuggestSegment = "suggest";
 
+    /// <summary>The query parameter that makes the lost-link page show its confirmation.</summary>
+    public const string SentParameter = "sent";
+
     /// <summary>The query parameter that carries the protected ticket reference to the "received" page.</summary>
     public const string ReceivedReferenceParameter = "ref";
 
@@ -55,6 +58,9 @@ public static class PortalRoutes
     public static string ContactReceived(string key, string reference) => $"{ContactReceived(key)}?{ReceivedReferenceParameter}={Escape(reference)}";
 
     public static string LostLink(string key) => $"{ProductHome(key)}/lost-link";
+
+    /// <summary>The lost-link page as it is shown after a request: the same address for every request, whatever the address was.</summary>
+    public static string LostLinkSent(string key) => $"{LostLink(key)}?{SentParameter}=1";
 
     public static string KbHome(string key) => $"{ProductHome(key)}/kb";
 

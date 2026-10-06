@@ -18,4 +18,7 @@ internal sealed class CustomerTicketClient(ApiConnection api) : ICustomerTicketC
 
     public Task<Result> RequestAccessLinkAsync(string email, CancellationToken cancellationToken) =>
         api.SendAsync(HttpMethod.Post, "api/customer/access-link", new RequestNewAccessLinkRequest(email), cancellationToken);
+
+    public Task<Result<ApiDownload>> OpenAttachmentAsync(TicketToken token, Guid attachmentId, CancellationToken cancellationToken) =>
+        api.OpenStreamAsync($"api/customer/attachments/{attachmentId}", token, cancellationToken);
 }

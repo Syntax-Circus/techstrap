@@ -1,0 +1,38 @@
+@attribute [Route(PortalRoutes.TicketTemplate)]
+@attribute [Microsoft.AspNetCore.Mvc.RequestSizeLimit(IntakeLimits.FormBodyBytes)]
+@using TechStrap.Contracts.Intake
+
+@if (Model is { } ticket)
+{
+    <PageTitle>@TicketCopy.Title(ticket.Number)</PageTitle>
+    <h1><span class="ts-ticket-number">@ticket.Number</span> <span class="ts-ticket-subject">@ticket.Subject</span></h1>
+    <TicketStatusBanner Label="@ticket.StatusLabel" Note="@ticket.StatusNote" IsClosed="@ticket.IsClosed" />
+    <MessageThread Messages="@ticket.Messages" />
+    <h2 class="h5">@TicketCopy.ReplyHeading</h2>
+    @if (FollowUpConfirmation)
+    {
+        <p role="status">@TicketCopy.FollowUpStarted</p>
+    }
+    else
+    {
+        <ErrorSummary Errors="Errors" />
+        @if (Notice is not null)
+        {
+            <p class="alert alert-warning" role="alert">@Notice</p>
+        }
+        <form method="post" action="@PortalRoutes.Ticket(_token)" enctype="multipart/form-data" novalidate @formname="@ReplyHandler" @onsubmit="ReplyAsync" class="ts-form">
+            <AntiforgeryToken />
+            <FormField Field="@FormFields.Body" Name="Reply.Body" Label="@TicketCopy.ReplyLabel" Value="@Reply?.Body" MaxLength="@IntakeLimits.BodyMaxLength" Rows="6" Error="@ErrorOf(FormFields.Body)" />
+            <AttachmentInput Name="Reply.Files" Error="@ErrorOf(FormFields.Attachments)" Kept="@(Errors.Count > 0 || Notice is not null)" />
+            <button type="submit" class="btn btn-primary">@(ticket.IsClosed ? TicketCopy.FollowUpButton : TicketCopy.ReplyButton)</button>
+        </form>
+    }
+}
+else if (UnavailableMessage is not null)
+{
+    <PageTitle>@ShellCopy.UnavailableTitle</PageTitle>
+    <section class="ts-state" role="alert">
+        <h1>@ShellCopy.UnavailableTitle</h1>
+        <p>@UnavailableMessage</p>
+    </section>
+}

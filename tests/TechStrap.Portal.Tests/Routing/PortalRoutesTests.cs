@@ -75,6 +75,13 @@ public sealed class PortalRoutesTests
     }
 
     [Fact]
+    public void The_lost_link_confirmation_is_the_lost_link_page_with_the_sent_flag_and_nothing_about_an_address()
+    {
+        PortalRoutes.LostLinkSent("paperplane").ShouldBe("/p/paperplane/lost-link?sent=1");
+        PortalRoutes.SentParameter.ShouldBe("sent");
+    }
+
+    [Fact]
     public void The_received_page_builder_adds_the_reference_escaped_so_it_can_never_add_a_parameter()
     {
         PortalRoutes.ContactReceived("paperplane", "CfDJ8_a-b").ShouldBe("/p/paperplane/contact/received?ref=CfDJ8_a-b");

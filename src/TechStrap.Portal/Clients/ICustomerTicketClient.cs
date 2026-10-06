@@ -26,4 +26,10 @@ public interface ICustomerTicketClient
     /// <c>email-invalid</c> and a 429 is rate limited. The call is never retried.
     /// </summary>
     Task<Result> RequestAccessLinkAsync(string email, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Opens one attachment of the ticket for streaming (the pass-through, P09-T11): the token is the header of the request and the id goes in the API path, through the retrying read client, returning as soon as the
+    /// response headers have arrived. The caller owns the <see cref="ApiDownload"/> and disposes it. An unknown id, another ticket's id and a bad token are all the API's uniform not-found.
+    /// </summary>
+    Task<Result<ApiDownload>> OpenAttachmentAsync(TicketToken token, Guid attachmentId, CancellationToken cancellationToken);
 }

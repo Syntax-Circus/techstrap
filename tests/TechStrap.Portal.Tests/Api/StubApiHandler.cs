@@ -66,7 +66,7 @@ public sealed class StubApiHandler : HttpMessageHandler
     public static HttpResponseMessage FileResponse(Stream body, string contentType, string? fileName = null)
     {
         var content = new StreamContent(body);
-        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+        content.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse(contentType);
         if (body.CanSeek)
         {
             content.Headers.ContentLength = body.Length;

@@ -1,4 +1,3 @@
-using System.Net.Mail;
 using TechStrap.Contracts.Intake;
 
 namespace TechStrap.Portal.Forms;
@@ -24,14 +23,9 @@ public static class ContactFormValidator
             errors.Add(Error(FormFields.Name, "name-too-long"));
         }
 
-        var email = form.Email?.Trim() ?? string.Empty;
-        if (email.Length == 0)
+        if (EmailRules.Check(form.Email) is { } emailError)
         {
-            errors.Add(Error(FormFields.Email, "email-required"));
-        }
-        else if (email.Length > IntakeLimits.EmailMaxLength || !LooksLikeAnAddress(email))
-        {
-            errors.Add(Error(FormFields.Email, "email-invalid"));
+            errors.Add(emailError);
         }
 
         var subject = form.Subject?.Trim() ?? string.Empty;
@@ -59,8 +53,4 @@ public static class ContactFormValidator
     }
 
     private static FormError Error(string field, string code) => new(field, code, FormCopy.For(code));
-
-    // Not a full address grammar (the API decides): one address, no display name, a dotted domain.
-    private static bool LooksLikeAnAddress(string text) =>
-        MailAddress.TryCreate(text, out var address) && address.Address == text && address.Host.Contains('.', StringComparison.Ordinal);
 }

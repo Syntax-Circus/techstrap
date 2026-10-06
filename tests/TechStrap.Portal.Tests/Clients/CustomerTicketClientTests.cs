@@ -181,6 +181,40 @@ public sealed class CustomerTicketClientTests
     }
 
     [Fact]
+    public async Task An_attachment_is_opened_through_the_read_client_with_the_token_header_and_the_id_in_the_api_path()
+    {
+        using var api = ApiHarness.Create();
+        var id = Guid.Parse("11111111-2222-3333-4444-555555555555");
+        api.Stub.OnFile(HttpMethod.Get, $"/api/customer/attachments/{id}", "file text"u8.ToArray(), "text/plain", "log.txt");
+
+        var result = await api.Get<ICustomerTicketClient>().OpenAttachmentAsync(Token(), id, Ct);
+
+        result.IsSuccess.ShouldBeTrue();
+        await using var download = result.Value;
+        using var reader = new StreamReader(download.Body);
+        (await reader.ReadToEndAsync(Ct)).ShouldBe("file text");
+        download.FileName.ShouldBe("log.txt");
+        var sent = api.Stub.Requests.ShouldHaveSingleItem();
+        sent.TicketToken.ShouldBe(Text);
+        sent.Client.ShouldBe(ApiClientNames.Read);
+        sent.Query.ShouldBeEmpty();
+        sent.Path.ShouldNotContain(Text);
+        api.Stub.AssertEveryCallBore(ApiHarness.DefaultClientIp);
+    }
+
+    [Fact]
+    public async Task An_attachment_the_api_refuses_is_the_uniform_not_found()
+    {
+        using var api = ApiHarness.Create();
+        var id = Guid.NewGuid();
+        api.Stub.OnProblem(HttpMethod.Get, $"/api/customer/attachments/{id}", HttpStatusCode.NotFound, "attachment-not-found", "No such attachment on this ticket.");
+
+        var result = await api.Get<ICustomerTicketClient>().OpenAttachmentAsync(Token(), id, Ct);
+
+        result.Errors.ShouldHaveSingleItem().ShouldBe(new ResultError(ApiErrorCodes.NotFound, ProblemCopy.NotFound, ResultErrorKind.NotFound));
+    }
+
+    [Fact]
     public async Task A_lost_link_request_is_not_retried()
     {
         using var api = ApiHarness.Create();

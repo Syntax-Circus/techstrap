@@ -29,10 +29,10 @@ public static partial class PortalRules
 
     /// <summary>
     /// The files (relative to src/TechStrap.Portal) that may turn API text into markup, which is where a stored-XSS bug would live. The API sanitises the HTML before it sends it, and the Portal does not
-    /// sanitise again, so each site is argued for in the commit that adds it: 09b adds <c>CustomerMessageBody</c> (a ticket message body) and 09c adds <c>KbArticleBody</c> (a published article). In 09a the
-    /// list is empty: every other string the Portal shows is plain text, and Razor encodes it.
+    /// sanitise again, so each site is argued for in the commit that adds it: 09b adds <c>CustomerMessageBody</c> (a ticket message body: the API's sanitised HTML, D-045 addendum) and 09c adds
+    /// <c>KbArticleBody</c> (a published article). Every other string the Portal shows is plain text, and Razor encodes it.
     /// </summary>
-    public static IReadOnlyList<string> MarkupStringSites { get; } = [];
+    public static IReadOnlyList<string> MarkupStringSites { get; } = ["Components/Tickets/CustomerMessageBody.razor"];
 
     [GeneratedRegex(@"\b(?:I|Add)?HttpClient(?:Factory)?\b", RegexOptions.CultureInvariant)]
     private static partial Regex HttpClientUse();

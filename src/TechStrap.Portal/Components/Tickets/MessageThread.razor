@@ -1,0 +1,34 @@
+@if (Messages.Count == 0)
+{
+    <p>@TicketCopy.NoMessages</p>
+}
+else
+{
+    <ol class="ts-thread" aria-label="@TicketCopy.ConversationHeading">
+        @foreach (var message in Messages)
+        {
+            <li class="ts-message @(message.IsCustomer ? "ts-message-own" : null)">
+                <header class="ts-message-head">
+                    <strong class="ts-message-author">@message.Author</strong>
+                    <time datetime="@message.CreatedAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", System.Globalization.CultureInfo.InvariantCulture)">@message.CreatedAt.UtcDateTime.ToString("d MMM yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture) UTC</time>
+                </header>
+                <CustomerMessageBody Html="@message.BodyHtml" />
+                @if (message.Attachments.Count > 0)
+                {
+                    <ul class="ts-attachments" aria-label="@TicketCopy.AttachmentsLabel">
+                        @foreach (var attachment in message.Attachments)
+                        {
+                            <li><a href="@attachment.Href">@attachment.FileName</a> <span class="ts-attachment-size">(@attachment.SizeText)</span></li>
+                        }
+                    </ul>
+                }
+            </li>
+        }
+    </ol>
+}
+
+@code {
+    /// <summary>The public conversation in the order the API gave (oldest first), each message with its author label, its time (always UTC, so the same page reads the same everywhere) and its files.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<CustomerMessageViewModel> Messages { get; set; } = [];
+}
