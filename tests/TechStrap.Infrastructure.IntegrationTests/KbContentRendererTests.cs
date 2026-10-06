@@ -10,6 +10,11 @@ public sealed class KbContentRendererTests
 {
     private readonly KbContentRenderer _renderer = new();
 
+    // The refusal itself is pinned by the content assertions (no list or table markup): without the cap they fail. This ceiling
+    // only catches a gross hang. It is loose because shared CI runners execute test projects in parallel, and a 2-second wall clock
+    // there failed a capped render that took 2.1 s; the uncapped 50k-item render takes about 6-7 s on a developer machine.
+    private static readonly TimeSpan RenderCeiling = TimeSpan.FromSeconds(10);
+
     public static TheoryData<string> Attacks() =>
     [
         "<script>alert(1)</script>",
@@ -129,7 +134,7 @@ public sealed class KbContentRendererTests
 
         tooComplex.ShouldBeTrue();
         html.ShouldNotContain("<table");
-        watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(2));
+        watch.Elapsed.ShouldBeLessThan(RenderCeiling);
     }
 
     [Fact]
@@ -144,7 +149,7 @@ public sealed class KbContentRendererTests
 
         tooComplex.ShouldBeTrue();
         html.ShouldNotContain("<li>");
-        watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(2));
+        watch.Elapsed.ShouldBeLessThan(RenderCeiling);
     }
 
     [Fact]
@@ -160,7 +165,7 @@ public sealed class KbContentRendererTests
         tooComplex.ShouldBeFalse();
         html.ShouldContain("<table>");
         html.ShouldContain("<td>2</td>");
-        watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(2));
+        watch.Elapsed.ShouldBeLessThan(RenderCeiling);
     }
 
     [Fact]
