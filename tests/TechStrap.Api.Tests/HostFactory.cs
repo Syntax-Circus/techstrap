@@ -133,5 +133,11 @@ public sealed class AdminFactory : HostFactory<TechStrap.Admin.Program>
     public StubApiHandler Api { get; }
 }
 
+/// <summary>The Portal host with the API address it requires at start (D-045); <c>settings</c> is applied on top. The public URL comes from the defaults every host gets.</summary>
 public sealed class PortalFactory(string environment = "Development", IReadOnlyDictionary<string, string?>? settings = null)
-    : HostFactory<TechStrap.Portal.Program>(environment, settings);
+    : HostFactory<TechStrap.Portal.Program>(
+        environment,
+        new Dictionary<string, string?> { ["Api:BaseUrl"] = "http://api.test/" }
+            .Concat(settings ?? new Dictionary<string, string?>())
+            .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Last().Value, StringComparer.OrdinalIgnoreCase));

@@ -35,6 +35,81 @@ public sealed class SensitiveQuerySentryProcessorTests
     public void The_value_of_search_and_q_is_masked_and_the_rest_of_the_address_is_kept(string text, string expected) =>
         SensitiveQuerySentryProcessor.Scrub(text).ShouldBe(expected);
 
+    // P09-T17 / T21: the Portal's contact page may be opened with a name and an email in the address, and its ticket address carries the access token in the path.
+    [Theory]
+    [InlineData("?name=Jane%20Doe", "?name=[redacted]")]
+    [InlineData("?subject=Hi&name=Jane+Doe&email=jane%40example.com&page=2", "?subject=Hi&name=[redacted]&email=[redacted]&page=2")]
+    [InlineData("?NAME=Jane&Email=a@b.example", "?NAME=[redacted]&Email=[redacted]")]
+    [InlineData("?%6Eame=Jane&%65mail=x", "?%6Eame=[redacted]&%65mail=[redacted]")]
+    [InlineData("https://portal.test/p/orbitly/contact?name=Jane&email=jane%40example.com#top", "https://portal.test/p/orbitly/contact?name=[redacted]&email=[redacted]#top")]
+    public void The_value_of_name_and_email_is_masked_so_the_contact_page_prefill_never_reaches_Sentry(string text, string expected) =>
+        SensitiveQuerySentryProcessor.Scrub(text).ShouldBe(expected);
+
+    [Theory]
+    [InlineData("https://portal.test/t/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE", "https://portal.test/t/[token]")]
+    [InlineData("https://portal.test/t/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE/attachments/11111111-2222-3333-4444-555555555555", "https://portal.test/t/[token]/attachments/11111111-2222-3333-4444-555555555555")]
+    [InlineData("/t/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE?x=1", "/t/[token]?x=1")]
+    [InlineData("GET /T/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE failed", "GET /T/[token] failed")]
+    [InlineData("https://portal.test/t/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE?name=Jane", "https://portal.test/t/[token]?name=[redacted]")]
+    public void An_access_token_in_a_ticket_path_is_masked_so_the_ticket_address_never_reaches_Sentry(string text, string expected) =>
+        SensitiveQuerySentryProcessor.Scrub(text).ShouldBe(expected);
+
+    [Theory]
+    [InlineData("/t/short")]
+    [InlineData("/t/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdEx")]
+    [InlineData("/t/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCd")]
+    [InlineData("/ticket/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE")]
+    [InlineData("/api/customer/ticket")]
+    public void Only_a_43_character_token_directly_under_t_is_masked(string text) =>
+        SensitiveQuerySentryProcessor.Scrub(text).ShouldBe(text);
+
+    [Fact]
+    public void A_ticket_address_in_a_request_a_breadcrumb_and_a_span_is_masked_everywhere_the_search_is()
+    {
+        const string url = "https://portal.test/t/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE?name=Jane";
+        var @event = new SentryEvent();
+        @event.Request.Url = url;
+        @event.Request.QueryString = "?name=Jane";
+        @event.Request.Headers["Referer"] = url;
+
+        var scrubbed = new SensitiveQuerySentryProcessor().Process(@event)!;
+        var breadcrumb = SensitiveQuerySentryProcessor.ScrubBreadcrumb(new Breadcrumb("GET " + url, "http", new Dictionary<string, string> { ["url"] = url }, "http", BreadcrumbLevel.Info), new SentryHint())!;
+
+        scrubbed.Request.Url.ShouldBe("https://portal.test/t/[token]?name=[redacted]");
+        scrubbed.Request.QueryString.ShouldBe("?name=[redacted]");
+        scrubbed.Request.Headers["Referer"].ShouldBe("https://portal.test/t/[token]?name=[redacted]");
+        breadcrumb.Message.ShouldBe("GET https://portal.test/t/[token]?name=[redacted]");
+        breadcrumb.Data!["url"].ShouldBe("https://portal.test/t/[token]?name=[redacted]");
+    }
+
+    [Fact]
+    public void A_ticket_address_in_a_span_description_and_a_transaction_name_is_masked()
+    {
+        const string token = "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE";
+        var tracer = new TransactionTracer(DisabledHub.Instance, new TransactionContext("GET /t/" + token, "http.server", null, null, null, "", null, null, true, TransactionNameSource.Url));
+        var span = tracer.StartChild("http.client", "GET https://portal.test/t/" + token + "?name=Jane");
+        span.Finish();
+
+        var result = new SensitiveQuerySentryProcessor().Process(new SentryTransaction(tracer))!;
+
+        result.Name.ShouldBe("GET /t/[token]");
+        result.Spans.Single().Description.ShouldBe("GET https://portal.test/t/[token]?name=[redacted]");
+    }
+
+    [Fact]
+    public void A_ticket_address_in_an_event_transaction_name_is_masked()
+    {
+        var @event = new SentryEvent { TransactionName = "GET /t/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE" };
+
+        new SensitiveQuerySentryProcessor().Process(@event)!.TransactionName.ShouldBe("GET /t/[token]");
+    }
+
+    [Theory]
+    [InlineData("?name=O'Brien&page=2", "?name=[redacted]&page=2")]
+    [InlineData("?email=a\"b@x.y#top", "?email=[redacted]#top")]
+    public void A_quote_inside_a_name_or_email_value_does_not_end_the_masked_value(string text, string expected) =>
+        SensitiveQuerySentryProcessor.Scrub(text).ShouldBe(expected);
+
     [Theory]
     [InlineData("?status=Open&page=2")]
     [InlineData("?research=1&faq=2&query=3&squash=4")]

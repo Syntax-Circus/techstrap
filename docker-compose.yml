@@ -109,8 +109,10 @@ services:
         required: false
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      Api__BaseUrl: http://api/
+      # The Portal's own address, as the browser reaches it (the local port below); the base of canonical URLs and the sitemap.
+      TECHSTRAP_PORTAL_PUBLIC_URL: http://localhost:8082
       # Portal trusts only the reverse proxy. 192.0.2.0/24 is a placeholder; set REVERSE_PROXY_CIDR.
-      # The Portal reads no Api address or public URL yet; PHASE-09 adds Api__BaseUrl and TECHSTRAP_PORTAL_PUBLIC_URL here.
       TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${REVERSE_PROXY_CIDR:-192.0.2.0/24}
       DataProtection__KeyRingPath: /app/dataprotection-keys
     depends_on:

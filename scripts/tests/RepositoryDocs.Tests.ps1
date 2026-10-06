@@ -138,6 +138,64 @@ Describe 'D-044 (the knowledge base)' {
     }
 }
 
+Describe 'D-045 (the public portal)' {
+    BeforeAll { $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md' }
+
+    It 'is in the decision log with its date, its status, a header bullet and an index row' {
+        $script:Log | Should -Match '(?m)^## D-045: PHASE-09: the public portal'
+        $script:Log | Should -Match '(?s)## D-045:.*?- \*\*Status:\*\* Approved \(owner 2026-10-05.*?- \*\*Date:\*\* 2026-10-05'
+        $script:Log | Should -Match '(?m)^\| D-045 \|.*\| 2026-10-05 \|'
+        $script:Log | Should -Match '(?m)^- \*\*Owner decision \(2026-10-05, PHASE-09 planning\):\*\* D-045'
+    }
+
+    It 'records the owner decisions and the technical rulings the three pull requests rely on' {
+        foreach ($phrase in 'Three pull requests', 'vanilla JS', '<ts-kb-suggestions>', 'GET api/public/products', 'TECHSTRAP_PORTAL_DEFAULT_PRODUCT', 'ProductKey', 'T20 (Playwright end-to-end) is deferred',
+                'ApiConnection', 'X-Ticket-Token', 'YAGNI', 'MapSeoRobotsTxt', 'Seo:BaseUrl', 'per-path rules', 'Referrer-Policy: no-referrer', 'byte-identical', '?ref=', 'ProductThemeViewModel', 'Contracts plus Hosting') {
+            $script:Log | Should -Match ([regex]::Escape($phrase)) -Because "D-045 must mention $phrase"
+        }
+    }
+
+    It 'corrects the PHASE-09 spec and the package map' {
+        $spec = Get-RepoText 'docs/architecture/PHASE-09-public-portal.md'
+        $spec | Should -Match '(?m)^### Corrections \(D-045, 2026-10-05\)'
+        $spec | Should -Match 'MapSeoRobotsTxt'
+        $spec | Should -Match 'ProductThemeViewModel'
+        (Get-RepoText 'docs/architecture/03-PACKAGE-MAP.md') | Should -Match 'MapSeoRobotsTxt'
+    }
+
+    It 'ticks only the tasks and deliverables 09a fully delivers, and the roadmap and discovery rows say 09a is complete, pending merge' {
+        $spec = Get-RepoText 'docs/architecture/PHASE-09-public-portal.md'
+        foreach ($number in 1, 3, 5, 17, 19, 22) {
+            $id = 'P09-T{0:00}' -f $number
+            $spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is delivered by 09a"
+        }
+        foreach ($number in 2, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 23) {
+            $id = 'P09-T{0:00}' -f $number
+            $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not finished by 09a"
+        }
+        $spec | Should -Match '(?m)^- \[x\] `TechStrap\.Portal` host with `\.env\.example`, forwarded-headers and client-IP forwarding to the API\.'
+        $spec | Should -Match '(?m)^- \[x\] Branded layout with per-product theming and NotFound handling\.'
+        $spec | Should -Match '(?m)^- \[ \] Typed clients for public product, public ticket, customer ticket, public KB\.'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 09 \|.*D-045.*\| 09a complete \(pending merge\)'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 09 \|.*\| 09a complete \(pending merge\)'
+    }
+
+    It 'has a Portal developer guide, linked from the README, that lists every setting and the known gaps' {
+        $guide = Get-RepoText 'docs/development/PORTAL-APP.md'
+        foreach ($heading in '## Run it locally', '### Configuration', '## How a page is served', '## Where things live', '## Tests', '## Known gaps in 09a') {
+            $guide | Should -Match ('(?m)^' + [regex]::Escape($heading))
+        }
+        foreach ($key in 'API__BASEURL', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TECHSTRAP_PORTAL_DEFAULT_PRODUCT', 'TECHSTRAP_PORTAL_SHOW_POWERED_BY', 'CANONICALHOST__CANONICALHOST') {
+            $guide | Should -Match ([regex]::Escape($key))
+        }
+        (Get-RepoText 'README.md') | Should -Match '\[Portal app\]\(docs/development/PORTAL-APP\.md\)'
+        $links = [regex]::Matches($guide, '\]\((?!http)(?<link>[^)#]+)') | ForEach-Object { $_.Groups['link'].Value }
+        foreach ($link in $links) {
+            Test-Path -LiteralPath (Join-Path $script:RepoRoot 'docs' 'development' $link) | Should -BeTrue -Because "PORTAL-APP.md links to $link"
+        }
+    }
+}
+
 Describe 'the deployment runbook' {
     BeforeAll { $script:Runbook = Get-RepoText 'docs/self-hosting/DEPLOYMENT.md' }
 

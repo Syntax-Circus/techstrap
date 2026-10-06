@@ -23,13 +23,13 @@ public sealed class ProductionBlankTemplateTests
 
     public static TheoryData<HostKind> WebHosts() => new() { HostKind.Api, HostKind.Admin, HostKind.Portal };
 
-    // What each host reports when the template is the only configuration. The Portal reads nothing required yet, so only the trusted proxies (which compose supplies) stop it.
+    // What each host reports when the template is the only configuration. The Portal reports its API address (which compose supplies) and its public URL; the trusted proxies, which compose also supplies, are checked once those are valid.
     public static TheoryData<HostKind, string[]> HostsAndTheKeysTheyReportAlone() => new()
     {
         { HostKind.Api, ["ConnectionStrings:TechStrap", "Authentication:JwtBearer:Authority", "TECHSTRAP_PORTAL_PUBLIC_URL", "TECHSTRAP_API_PUBLIC_URL", "Storage:Local:RootPath"] },
         { HostKind.Worker, ["ConnectionStrings:TechStrap", "Email:Smtp:Host", "Email:Smtp:DefaultFrom"] },
         { HostKind.Admin, ["Auth:Authority", "Auth:ClientId", "Auth:ClientSecret", "Api:BaseUrl"] },
-        { HostKind.Portal, ["TrustedProxy"] },
+        { HostKind.Portal, ["Api:BaseUrl", "TECHSTRAP_PORTAL_PUBLIC_URL"] },
     };
 
     // What remains once compose has set its own values: exactly what the operator must fill in.
@@ -38,6 +38,7 @@ public sealed class ProductionBlankTemplateTests
         { HostKind.Api, ["ConnectionStrings:TechStrap", "Authentication:JwtBearer:Authority", "TECHSTRAP_PORTAL_PUBLIC_URL", "TECHSTRAP_API_PUBLIC_URL"] },
         { HostKind.Worker, ["ConnectionStrings:TechStrap", "Email:Smtp:Host", "Email:Smtp:DefaultFrom"] },
         { HostKind.Admin, ["Auth:Authority", "Auth:ClientId", "Auth:ClientSecret"] },
+        { HostKind.Portal, ["TECHSTRAP_PORTAL_PUBLIC_URL"] },
     };
 
     /// <summary>The blank template as the host sees it, plus the Database setting every test host needs so the Api does not migrate a database that is not there.</summary>
@@ -127,9 +128,10 @@ public sealed class ProductionBlankTemplateTests
             "Auth:ClientId=techstrap-admin",
             "Auth:ClientSecret=not-a-real-secret",
         ],
+        [HostKind.Portal] = ["TECHSTRAP_PORTAL_PUBLIC_URL=https://support.example.com"],
     };
 
-    public static TheoryData<HostKind> FilledHosts() => new() { HostKind.Api, HostKind.Worker, HostKind.Admin };
+    public static TheoryData<HostKind> FilledHosts() => new() { HostKind.Api, HostKind.Worker, HostKind.Admin, HostKind.Portal };
 
     [Theory]
     [MemberData(nameof(FilledHosts))]
@@ -176,15 +178,19 @@ public sealed class ProductionBlankTemplateTests
     }
 
     [Fact]
-    public async Task The_Portal_has_no_required_setting_yet_so_the_blank_template_with_the_compose_trust_starts()
+    public async Task The_Portal_blank_template_with_the_compose_trust_and_address_still_fails_naming_only_the_public_url()
     {
-        // PHASE-09 adds API__BASEURL and TECHSTRAP_PORTAL_PUBLIC_URL to the Portal and to this list; until then the Portal reads only optional settings.
+        // Compose supplies the trusted network and the API address; the operator must set the Portal's public address (D-045).
         using var environment = new ScopedEnvironment(CleanEnvironment);
         using var composeTrust = new ScopedEnvironment(("TrustedProxy__TrustedNetworks__0", ComposeSubnet));
+        var settings = BlankTemplate(HostKind.Portal);
+        settings["Api:BaseUrl"] = "http://api/";
 
-        var failure = await ConfigHosts.TryStartAsync(HostKind.Portal, "Production", BlankTemplate(HostKind.Portal));
+        var failure = await ConfigHosts.TryStartAsync(HostKind.Portal, "Production", settings);
 
-        failure.ShouldBeNull($"The Portal did not start from the blank template with the compose trust: {failure}");
+        failure.ShouldNotBeNull("The Portal started in Production without its public URL");
+        AssertNames(failure, HostKind.Portal, ["TECHSTRAP_PORTAL_PUBLIC_URL"]);
+        string.Join(Environment.NewLine, Messages(failure)).ShouldNotContain("Api:BaseUrl");
     }
 
     [Theory]
@@ -209,8 +215,11 @@ public sealed class ProductionBlankTemplateTests
         // (an empty string that still counts as one configured element), and a whitespace string binds the same way.
         using var environment = new ScopedEnvironment(CleanEnvironment);
         using var blankElement = new ScopedEnvironment(("TrustedProxy__TrustedProxies__0", " "));
+        var settings = BlankTemplate(HostKind.Portal);
+        settings["Api:BaseUrl"] = "http://api/";
+        settings["TECHSTRAP_PORTAL_PUBLIC_URL"] = "https://support.example.com";
 
-        var failure = await ConfigHosts.TryStartAsync(HostKind.Portal, "Production", BlankTemplate(HostKind.Portal));
+        var failure = await ConfigHosts.TryStartAsync(HostKind.Portal, "Production", settings);
 
         failure.ShouldBeNull($"A blank element was expected to satisfy the check: {failure}");
     }

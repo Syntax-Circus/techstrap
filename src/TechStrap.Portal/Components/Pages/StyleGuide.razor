@@ -1,4 +1,4 @@
-@page "/_styleguide"
+@attribute [Route(PortalRoutes.StyleGuideTemplate)]
 
 <DevelopmentOnly>
     <PageTitle>TechStrap portal style guide</PageTitle>
@@ -27,16 +27,16 @@
         <section class="ts-sg-section" aria-labelledby="sg-accents">
             <h2 id="sg-accents">Product accents</h2>
             <p class="ts-sg-note">Each sample is wrapped in AccentScope, which derives on-accent and accent-ink from the accent with the single shared rule (TechStrap.Contracts). #4B7D87 is the worst case for white-or-black text (4.58:1).</p>
-            <AccentScope Accent="#7C3AED"><div class="ts-sg-accent"><button type="button" class="btn btn-primary">Send ticket</button> <button type="button" class="btn btn-outline-primary">Cancel</button> <a href="/_styleguide">Help articles</a> <code>#7C3AED</code></div></AccentScope>
-            <AccentScope Accent="#F59E0B"><div class="ts-sg-accent"><button type="button" class="btn btn-primary">Send ticket</button> <button type="button" class="btn btn-outline-primary">Cancel</button> <a href="/_styleguide">Help articles</a> <code>#F59E0B</code></div></AccentScope>
-            <AccentScope Accent="#0F3D2E"><div class="ts-sg-accent"><button type="button" class="btn btn-primary">Send ticket</button> <button type="button" class="btn btn-outline-primary">Cancel</button> <a href="/_styleguide">Help articles</a> <code>#0F3D2E</code></div></AccentScope>
-            <AccentScope Accent="#2E9AFF"><div class="ts-sg-accent"><button type="button" class="btn btn-primary">Send ticket</button> <button type="button" class="btn btn-outline-primary">Cancel</button> <a href="/_styleguide">Help articles</a> <code>#2E9AFF</code></div></AccentScope>
-            <AccentScope Accent="#4B7D87"><div class="ts-sg-accent"><button type="button" class="btn btn-primary">Send ticket</button> <button type="button" class="btn btn-outline-primary">Cancel</button> <a href="/_styleguide">Help articles</a> <code>#4B7D87</code></div></AccentScope>
+            <AccentScope Accent="#7C3AED"><div class="ts-sg-accent"><button type="button" class="btn btn-primary">Send ticket</button> <button type="button" class="btn btn-outline-primary">Cancel</button> <a href="@PortalRoutes.StyleGuideTemplate">Help articles</a> <code>#7C3AED</code></div></AccentScope>
+            <AccentScope Accent="#F59E0B"><div class="ts-sg-accent"><button type="button" class="btn btn-primary">Send ticket</button> <button type="button" class="btn btn-outline-primary">Cancel</button> <a href="@PortalRoutes.StyleGuideTemplate">Help articles</a> <code>#F59E0B</code></div></AccentScope>
+            <AccentScope Accent="#0F3D2E"><div class="ts-sg-accent"><button type="button" class="btn btn-primary">Send ticket</button> <button type="button" class="btn btn-outline-primary">Cancel</button> <a href="@PortalRoutes.StyleGuideTemplate">Help articles</a> <code>#0F3D2E</code></div></AccentScope>
+            <AccentScope Accent="#2E9AFF"><div class="ts-sg-accent"><button type="button" class="btn btn-primary">Send ticket</button> <button type="button" class="btn btn-outline-primary">Cancel</button> <a href="@PortalRoutes.StyleGuideTemplate">Help articles</a> <code>#2E9AFF</code></div></AccentScope>
+            <AccentScope Accent="#4B7D87"><div class="ts-sg-accent"><button type="button" class="btn btn-primary">Send ticket</button> <button type="button" class="btn btn-outline-primary">Cancel</button> <a href="@PortalRoutes.StyleGuideTemplate">Help articles</a> <code>#4B7D87</code></div></AccentScope>
         </section>
 
         <section class="ts-sg-section" aria-labelledby="sg-forms">
             <h2 id="sg-forms">Forms</h2>
-            <form class="ts-sg-form" onsubmit="return false">
+            <form class="ts-sg-form" method="get" action="@PortalRoutes.StyleGuideTemplate">
                 <div class="mb-3"><label class="form-label" for="sg-name">Your name</label><input id="sg-name" class="form-control" autocomplete="name" /></div>
                 <div class="mb-3"><label class="form-label" for="sg-email">Email</label><input id="sg-email" class="form-control is-invalid" type="email" value="not-an-email" aria-describedby="sg-email-msg" /><div id="sg-email-msg" class="invalid-feedback">Enter an email address like name@example.com.</div></div>
                 <div class="mb-3"><label class="form-label" for="sg-msg">Message</label><textarea id="sg-msg" class="form-control" rows="4"></textarea></div>

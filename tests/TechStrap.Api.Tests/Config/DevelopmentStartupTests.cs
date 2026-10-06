@@ -45,7 +45,7 @@ public sealed class DevelopmentStartupTests
         { HostKind.Api, ["TECHSTRAP_PORTAL_PUBLIC_URL=http://localhost:8082", "Storage:Local:RootPath=storage"] },
         { HostKind.Worker, [] },
         { HostKind.Admin, ["Api:BaseUrl=http://localhost:8080/"] },
-        { HostKind.Portal, [] },
+        { HostKind.Portal, ["Api:BaseUrl=http://localhost:8080/"] },
     };
 
     [Theory]

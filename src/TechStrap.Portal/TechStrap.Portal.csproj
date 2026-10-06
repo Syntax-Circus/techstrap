@@ -17,8 +17,16 @@
     <PackageReference Include="SyntaxCircus.AspNetCore.Common" />
     <PackageReference Include="SyntaxCircus.AspNetCore.Serilog" />
     <PackageReference Include="SyntaxCircus.Blazor.Components" />
+    <PackageReference Include="SyntaxCircus.Blazor.Seo" />
+    <PackageReference Include="SyntaxCircus.Common" />
     <PackageReference Include="SyntaxCircus.DotEnv" />
+    <PackageReference Include="SyntaxCircus.Http.Resilience" />
     <PackageReference Include="SyntaxCircus.Observability" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Internal options validators, clients and view models are unit-tested directly. -->
+    <InternalsVisibleTo Include="TechStrap.Portal.Tests" />
   </ItemGroup>
 
 </Project>

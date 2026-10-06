@@ -1,11 +1,47 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Serilog.Core;
+using Serilog.Events;
+using TechStrap.Portal.Settings;
+using TechStrap.Portal.Tests.Api;
 
 namespace TechStrap.Portal.Tests;
 
-/// <summary>Starts the Portal host in-process in the given environment. A developer's gitignored .env.local must never leak into tests, and Production needs a trusted network to start.</summary>
-internal sealed class PortalFactory(string environment = "Development") : WebApplicationFactory<TechStrap.Portal.Program>
+/// <summary>Captures every Serilog event the host writes so tests can assert on log lines.</summary>
+public sealed class CollectingSink : ILogEventSink
 {
+    private readonly ConcurrentQueue<LogEvent> _events = new();
+
+    public IReadOnlyCollection<LogEvent> Events => _events.ToArray();
+
+    public void Emit(LogEvent logEvent) => _events.Enqueue(logEvent);
+}
+
+/// <summary>
+/// Starts the Portal host in-process in the given environment. A developer's gitignored .env.local must never leak into tests, and Production needs a trusted network to start.
+/// The two required settings (the API address and the public URL) get test values; <paramref name="settings"/> is applied on top, so a test can blank one to prove the start fails.
+/// A stub API (<see cref="Api"/>) sits behind the Portal's two named HTTP clients, and <see cref="LogSink"/> records every log event.
+/// </summary>
+internal sealed class PortalFactory(
+    string environment = "Development",
+    IReadOnlyDictionary<string, string?>? settings = null,
+    Action<IServiceCollection>? configureServices = null) : WebApplicationFactory<TechStrap.Portal.Program>
+{
+    public const string ApiBaseUrl = "http://api.test/";
+    public const string PublicUrl = "https://portal.test";
+
+    /// <summary>Every level is captured, including the Trace and Debug lines of System.Net.Http and ASP.NET Core: a secret that only shows at Verbose is still a leak.</summary>
+    public static IReadOnlyDictionary<string, string?> VerboseLogging { get; } = new Dictionary<string, string?>
+    {
+        ["Serilog:MinimumLevel:Default"] = "Verbose",
+        ["Serilog:MinimumLevel:Override:Microsoft"] = "Verbose",
+        ["Serilog:MinimumLevel:Override:Microsoft.AspNetCore"] = "Verbose",
+        ["Serilog:MinimumLevel:Override:System"] = "Verbose",
+    };
+
     static PortalFactory()
     {
         Environment.SetEnvironmentVariable("DotEnv__Enabled", "false");
@@ -14,8 +50,28 @@ internal sealed class PortalFactory(string environment = "Development") : WebApp
         Environment.SetEnvironmentVariable("TRUSTEDPROXY__TRUSTEDNETWORKS__0", "192.0.2.0/24");
     }
 
+    /// <summary>The stub behind the Portal's API clients. Unconfigured calls answer 404 "stub-not-configured".</summary>
+    public StubApiHandler Api { get; } = new();
+
+    public CollectingSink LogSink { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(environment);
+        builder.ConfigureAppConfiguration((_, configuration) =>
+        {
+            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [PortalOptions.ApiBaseUrlKey] = ApiBaseUrl,
+                [PortalOptions.PublicUrlKey] = PublicUrl,
+            });
+            configuration.AddInMemoryCollection(settings ?? new Dictionary<string, string?>());
+        });
+        builder.ConfigureServices(services =>
+        {
+            services.AddSingleton<ILogEventSink>(LogSink);
+            services.AddStubApi(Api);
+            configureServices?.Invoke(services);
+        });
     }
 }

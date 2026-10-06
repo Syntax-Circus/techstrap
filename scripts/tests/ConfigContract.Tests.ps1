@@ -30,7 +30,7 @@ BeforeAll {
         Api    = @('STORAGE__LOCAL__ROOTPATH', 'TRUSTEDPROXY__TRUSTEDNETWORKS__0')
         Worker = @()
         Admin  = @('API__BASEURL', 'DATAPROTECTION__KEYRINGPATH', 'TRUSTEDPROXY__TRUSTEDNETWORKS__0')
-        Portal = @('DATAPROTECTION__KEYRINGPATH', 'TRUSTEDPROXY__TRUSTEDNETWORKS__0')
+        Portal = @('API__BASEURL', 'DATAPROTECTION__KEYRINGPATH', 'TRUSTEDPROXY__TRUSTEDNETWORKS__0')
     }
     # Names compose sets that are not appsettings keys (the host environment and the switch that stops a container loading a .env file):
     $script:ComposeNonSettings = @('ASPNETCORE_ENVIRONMENT', 'DOTENV__ENABLED')
@@ -43,7 +43,7 @@ BeforeAll {
         Api    = $script:CommonBlank + @('SECURITYHEADERS__ROBOTSTAG', 'CONNECTIONSTRINGS__TECHSTRAP', 'AUTHENTICATION__JWTBEARER__AUTHORITY', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TECHSTRAP_API_PUBLIC_URL', 'TECHSTRAP_ADMIN_PUBLIC_URL', 'STORAGE__LOCAL__ROOTPATH')
         Worker = $script:CommonBlank + @('CONNECTIONSTRINGS__TECHSTRAP', 'EMAIL__SMTP__HOST', 'EMAIL__SMTP__USERNAME', 'EMAIL__SMTP__PASSWORD', 'EMAIL__SMTP__DEFAULTFROM', 'EMAIL__SMTP__TLSMODE', 'EMAIL__SMTP__TOTALSENDTIMEOUT', 'EMAILOUTBOX__WORKERID')
         Admin  = $script:CommonBlank + @('SECURITYHEADERS__ROBOTSTAG', 'API__BASEURL', 'AUTH__AUTHORITY', 'AUTH__CLIENTID', 'AUTH__CLIENTSECRET', 'DATAPROTECTION__KEYRINGPATH', 'TECHSTRAP_PORTAL_PUBLIC_URL')
-        Portal = $script:CommonBlank + @('SECURITYHEADERS__ROBOTSTAG', 'DATAPROTECTION__KEYRINGPATH')
+        Portal = $script:CommonBlank + @('SECURITYHEADERS__ROBOTSTAG', 'API__BASEURL', 'DATAPROTECTION__KEYRINGPATH', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TECHSTRAP_PORTAL_DEFAULT_PRODUCT', 'CANONICALHOST__CANONICALHOST')
     }
     # A key containing one of these words is secret-shaped: its committed value must be blank, whatever the value looks like (a numeric password is still a password).
     # OPENTELEMETRY__HEADERS is added because the OTLP headers carry a token. KeyRingPath is a directory, not a key.
@@ -348,6 +348,13 @@ Describe 'the config contract of the local compose' {
         $admin = (Get-ComposeEnvironmentKeys -File 'docker-compose.yml')['admin']
         @($admin | Where-Object { $_ -like 'AUTH__*' -or $_ -like 'TECHSTRAP_*GROUP*' -or $_ -like 'TECHSTRAP_GROUP_CLAIM_TYPE' }) | Should -BeNullOrEmpty
         @($admin | Sort-Object) | Should -Be @('API__BASEURL', 'ASPNETCORE_ENVIRONMENT', 'DATAPROTECTION__KEYRINGPATH', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TRUSTEDPROXY__TRUSTEDNETWORKS__0')
+    }
+
+    It 'the local compose gives the Portal exactly the API address, the public URL, the trusted proxy and the key ring (D-045)' {
+        $portal = (Get-ComposeEnvironmentKeys -File 'docker-compose.yml')['portal']
+        @($portal | Sort-Object) | Should -Be @('API__BASEURL', 'ASPNETCORE_ENVIRONMENT', 'DATAPROTECTION__KEYRINGPATH', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TRUSTEDPROXY__TRUSTEDNETWORKS__0')
+        $compose = Get-Content -LiteralPath (Join-Path $script:RepoRoot 'docker-compose.yml') -Raw
+        $compose | Should -Match '(?s)  portal:.*?Api__BaseUrl: http://api/.*?TECHSTRAP_PORTAL_PUBLIC_URL: http://localhost:8082'
     }
 
     It 'the root .env.example documents the local compose inputs and nothing else' {

@@ -1,6 +1,16 @@
 @inherits LayoutComponentBase
 
-<div class="ts-portal">
-    <main class="ts-portal-main">@Body</main>
-    <PoweredByFooter />
-</div>
+<AccentScope Accent="@Theme?.Accent">
+    <div class="ts-portal">
+        @if (Theme is { } header)
+        {
+            <ProductHeader Theme="header" />
+        }
+        <main class="ts-portal-main">@Body</main>
+        @if (Theme is { } footer)
+        {
+            <ProductFooter Theme="footer" />
+        }
+        <PoweredByFooter />
+    </div>
+</AccentScope>

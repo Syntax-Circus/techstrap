@@ -54,29 +54,47 @@ public static class BrowserHostExtensions
     /// </summary>
     /// <param name="downloadPathPrefixes">
     /// Paths that stream a user's file (the Admin's <c>/attachments</c>). Their successful (2xx) responses get <c>sandbox</c> appended to the Content-Security-Policy, so a file that is
-    /// opened rather than saved cannot run script in the app's origin. The shared security-headers middleware sets the policy when the response starts and would
-    /// overwrite a value the endpoint set itself; this step is registered before it, and start callbacks run last-registered-first, so it runs after it and appends.
+    /// opened rather than saved cannot run script in the app's origin. It is <see cref="PathHeaderRule.Sandbox"/> over a path prefix; see the overload with rules for how it is applied.
     /// </param>
-    public static WebApplication UseTechStrapWebHost(this WebApplication app, params string[] downloadPathPrefixes)
+    public static WebApplication UseTechStrapWebHost(this WebApplication app, params string[] downloadPathPrefixes) => app.UseTechStrapWebHost([], downloadPathPrefixes);
+
+    /// <summary>
+    /// The same, with per-path header rules (D-045). The shared security-headers middleware sets <c>Referrer-Policy</c> and the Content-Security-Policy when the response starts and would
+    /// overwrite a value an endpoint set itself; the rules are applied by a step registered before it, and start callbacks run last-registered-first, so they run after it and win. Each
+    /// request's matching rules are decided from the path as it arrived (before a 404 is re-executed), and are applied in the order given: first the rules, then the download prefixes.
+    /// </summary>
+    /// <param name="rules">Header rules for paths, for example the Portal's <c>/t/*</c> headers. May be empty.</param>
+    /// <param name="downloadPathPrefixes">As in the overload without rules.</param>
+    public static WebApplication UseTechStrapWebHost(this WebApplication app, IReadOnlyList<PathHeaderRule> rules, params string[] downloadPathPrefixes)
     {
         ArgumentNullException.ThrowIfNull(app);
+        ArgumentNullException.ThrowIfNull(rules);
         app.UseForwardedHeaders();
         app.UseCorrelationId();
+        var applied = new List<PathHeaderRule>(rules);
         if (downloadPathPrefixes.Length > 0)
         {
             var prefixes = downloadPathPrefixes.Select(prefix => new PathString(prefix)).ToArray();
+            applied.Add(PathHeaderRule.Sandbox(path => prefixes.Any(prefix => path.StartsWithSegments(prefix))));
+        }
+
+        if (applied.Count > 0)
+        {
             app.Use(async (context, next) =>
             {
-                if (prefixes.Any(prefix => context.Request.Path.StartsWithSegments(prefix)))
+                var matched = applied.Where(rule => rule.Matches(context.Request.Path)).ToArray();
+                if (matched.Length > 0)
                 {
                     context.Response.OnStarting(() =>
                     {
-                        // Only a delivered file (2xx) is sandboxed, as in the Api's AttachmentSandbox. An error answer (the 404 page is re-executed on this path) is an ordinary app page
-                        // that needs its script, and the full page policy still applies to it.
-                        if (context.Response.StatusCode is >= StatusCodes.Status200OK and < StatusCodes.Status300MultipleChoices)
+                        var headers = context.Response.Headers;
+                        var delivered = context.Response.StatusCode is >= StatusCodes.Status200OK and < StatusCodes.Status300MultipleChoices;
+                        foreach (var rule in matched.Where(rule => delivered || !rule.SuccessOnly))
                         {
-                            var headers = context.Response.Headers;
-                            headers.ContentSecurityPolicy = WithSandbox(headers.ContentSecurityPolicy.ToString());
+                            foreach (var (name, change) in rule.Changes)
+                            {
+                                headers[name] = change(headers[name].ToString());
+                            }
                         }
 
                         return Task.CompletedTask;

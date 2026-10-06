@@ -69,6 +69,6 @@ public sealed class PortalHostTests
         var html = await client.GetStringAsync("/", TestContext.Current.CancellationToken);
 
         html.ShouldContain("ts-powered");
-        html.ShouldContain("TechStrap Portal");
+        html.ShouldContain("<h1>Support</h1>");
     }
 }

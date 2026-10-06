@@ -30,7 +30,7 @@
 | 06 | [Ticket operations](PHASE-06-ticket-operations.md) | 05 | 07, 08, 09 | Complete |
 | 07 | [Admin app](PHASE-07-admin-app.md) | 02, 06 | 08 (editor UI), 10 | 07 complete (pending merge): 07a merged (PR #9), 07b merged (PR #10), 07c implemented; owner action 7 (Authentik) still open, so P07-T02 stays unticked |
 | 08 | [Knowledge base](PHASE-08-knowledge-base.md) | 06 (07 for the editor UI) | 09 | PHASE-08 complete (pending merge): the API (Tasks 1-8) and the Admin (editor, categories, article picker) are implemented; the owner's manual checks are open |
-| 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 | Not started |
+| 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 | 09a complete (pending merge); 09b and 09c not started |
 | 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | Not started |
 | 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | Not started |
 | 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 | Not started |

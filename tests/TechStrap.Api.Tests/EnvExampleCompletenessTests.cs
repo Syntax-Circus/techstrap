@@ -126,6 +126,13 @@ public sealed partial class EnvExampleCompletenessTests
             [
                 .. ObservabilityKeys(),
                 .. TrustedProxyKeys(),
+                "API__BASEURL",
+                "TECHSTRAP_PORTAL_PUBLIC_URL",
+                "TECHSTRAP_PORTAL_DEFAULT_PRODUCT",
+                "CANONICALHOST__CANONICALHOST",
+                "CANONICALHOST__LEGACYHOSTS__0",
+                "CANONICALHOST__FORCEHTTPS",
+                "CANONICALHOST__PERMANENT",
                 "TECHSTRAP_PORTAL_SHOW_POWERED_BY",
                 "DATAPROTECTION__KEYRINGPATH",
             ]
@@ -158,11 +165,10 @@ public sealed partial class EnvExampleCompletenessTests
     [Theory]
     [InlineData("TechStrap.Worker", "STORAGE__LOCAL__ROOTPATH")]
     [InlineData("TechStrap.Worker", "TECHSTRAP_PORTAL_PUBLIC_URL")]
-    [InlineData("TechStrap.Portal", "API__BASEURL")]
-    [InlineData("TechStrap.Portal", "TECHSTRAP_PORTAL_PUBLIC_URL")]
+    [InlineData("TechStrap.Portal", "STORAGE__LOCAL__ROOTPATH")]
     public void Env_example_does_not_document_a_key_the_host_never_reads(string host, string staleKey)
     {
-        // The Worker registers no attachment storage and builds no portal links; the Portal reads no Api address or public URL until PHASE-09 adds them.
+        // The Worker registers no attachment storage and builds no portal links; the Portal never touches storage.
         DocumentedKeys(host).ShouldNotContain(staleKey);
     }
 

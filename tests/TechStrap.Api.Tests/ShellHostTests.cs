@@ -22,12 +22,12 @@ public sealed class ShellHostTests
     }
 
     [Fact]
-    public async Task Portal_serves_the_placeholder_page_icons_and_compiled_css()
+    public async Task Portal_serves_the_neutral_root_page_icons_and_compiled_css()
     {
         await using var factory = new PortalFactory();
         using var client = factory.CreateClient();
 
-        await AssertShellAsync(client, "TechStrap Portal", ".shell-placeholder");
+        await AssertShellAsync(client, "<h1>Support</h1>", ".shell-placeholder");
     }
 
     private static async Task AssertShellAsync(HttpClient client, string expectedHeading, string expectedCssClass)

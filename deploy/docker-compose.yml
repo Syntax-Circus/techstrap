@@ -89,6 +89,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       DOTENV__ENABLED: "false"
+      API__BASEURL: http://api/
       DATAPROTECTION__KEYRINGPATH: /app/dataprotection-keys
       # Portal trusts only the reverse proxy.
       TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${REVERSE_PROXY_CIDR:?set REVERSE_PROXY_CIDR to the reverse proxy address, for example 172.16.31.1/32}

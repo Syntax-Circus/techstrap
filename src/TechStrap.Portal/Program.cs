@@ -2,13 +2,17 @@ using SyntaxCircus.AspNetCore.Common;
 using SyntaxCircus.DotEnv;
 using TechStrap.Hosting.Security;
 using TechStrap.Hosting.Wiring;
+using TechStrap.Portal.Clients;
 using TechStrap.Portal.Components;
 using TechStrap.Portal.Components.Ui;
+using TechStrap.Portal.Headers;
+using TechStrap.Portal.Products;
+using TechStrap.Portal.Seo;
+using TechStrap.Portal.Settings;
 
 const string ServiceName = "techstrap-portal";
 
-// Placeholder shell: this host never touches the database and never migrates. It will call the API
-// through typed clients over TechStrap.Contracts once its UI phase lands.
+// The public portal: static server-side rendering. This host never touches the database and never migrates; it calls the API (TechStrap.Contracts).
 var builder = WebApplication.CreateBuilder(args);
 if (builder.Configuration.ShouldLoadDotEnv(builder.Environment))
 {
@@ -23,6 +27,18 @@ var telemetry = builder.AddTechStrapObservability(ServiceName);
 builder.Services.AddTechStrapWebHost(builder.Configuration, TechStrapCsp.ForBlazorApp(allowLoopbackImages: builder.Environment.IsDevelopment()));
 
 builder.Services.AddRazorComponents();
+
+// The API address, the Portal's public address and the optional default product: validated at start (D-043, D-045).
+builder.Services.AddPortalOptions();
+
+// The two named API clients (reads retried, writes never) and the typed clients: every call forwards the visitor's address (D-019, D-045).
+builder.Services.AddPortalApiClients();
+
+// The product the current request is about, read by the layout (one per request).
+builder.Services.AddScoped<ProductScope>();
+
+// Meta tags, robots.txt and the canonical-host redirect; Seo:BaseUrl comes from the public address (D-045).
+builder.Services.AddPortalSeo(builder.Configuration);
 // Installation-wide switch for the "Powered by TechStrap" footer (D-024); shown unless set to false.
 // A value that is not true or false fails at startup rather than breaking every page.
 builder.Services.AddOptions<PoweredByOptions>()
@@ -37,11 +53,14 @@ builder.Services.AddOptions<PoweredByOptions>()
 var app = builder.Build();
 telemetry.LogStartupWarning(app.Logger);
 
-// Forwarded headers, correlation id and security headers first, then the plain error page and the not-found page (only 404 is re-executed).
-app.UseTechStrapWebHost();
+// Forwarded headers, correlation id and security headers first (with the ticket pages' own header rules, which win over the shared ones), then the canonical-host redirect, then the
+// plain error page and the not-found page (only 404 is re-executed).
+app.UseTechStrapWebHost(PortalHeaderRules.Rules);
+app.UsePortalSeo();
 app.UseTechStrapErrorPages();
 app.UseAntiforgery();
 app.MapStandardHealthChecks();
+app.MapPortalSeo();
 app.MapRazorComponentsWithStaticAssets<App>();
 
 app.Run();

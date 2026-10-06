@@ -1,10 +1,10 @@
-@page "/error"
+@attribute [Route(PortalRoutes.ErrorTemplate)]
 @layout PortalLayout
 
-<PageTitle>Error</PageTitle>
+<PageTitle>@ShellCopy.ErrorTitle</PageTitle>
 
 <section class="shell-placeholder" role="alert">
-    <h1>Something went wrong.</h1>
-    <p>We couldn't finish that request. Try again in a minute; if it keeps happening, contact support.</p>
-    <p><a href="/">Back to the start</a></p>
+    <h1>@ShellCopy.ErrorHeading</h1>
+    <p>@ShellCopy.ErrorText</p>
+    <p><a href="@PortalRoutes.HomeTemplate">@ShellCopy.BackToStart</a></p>
 </section>

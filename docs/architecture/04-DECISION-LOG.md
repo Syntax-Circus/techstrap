@@ -18,6 +18,7 @@ Approval basis:
 - **Owner decision (2026-10-04, PHASE-07c planning):** D-042, the owner decisions on the CSP, the theme flash, the time zone source, the shared host wiring and the single PR. Its defaults were proposed in the PHASE-07c plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-05, scoped configuration and deployment, before PHASE-08):** D-043, the owner decisions on one image-only deploy compose, scoped env files on the host, a separate Postgres and explicit image tags. Its technical decisions were proposed in the plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-05, PHASE-08 planning):** D-044, the owner decisions on slugs across scopes, the image URL setting, no KB audit and the single PR. Its defaults and technical decisions were proposed in the PHASE-08 plan and approved when the owner approved the plan.
+- **Owner decision (2026-10-05, PHASE-09 planning):** D-045, the owner decisions on the three-PR split, vanilla-JS KB suggestions, the two small public API additions, the root page and ticket theming. Its technical rulings were proposed in the PHASE-09a plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -71,6 +72,7 @@ Approval basis:
 | D-042 | PHASE-07c: CSP with `style-src-attr`, theme init script, browser time zone, shared host wiring, command palette, responsive rail, session-expired banner, Sentry search scrub, OpenAPI security schemes | Approved (owner 2026-10-04; defaults at PHASE-07c plan review) | 2026-10-04 | PHASE-07, PHASE-09, PHASE-11, PHASE-12 |
 | D-043 | Scoped per-project configuration (every key in `appsettings.json`, a `.env.example` and a deploy env template per host) and one image-only deploy compose for UAT and production, with a separate Postgres | Approved (owner 2026-10-05; technical decisions at plan review) | 2026-10-05 | PHASE-12, PHASE-08, PHASE-09 |
 | D-044 | PHASE-08: slugs unique across scopes, a separate KB Markdown profile, image URLs from `TECHSTRAP_API_PUBLIC_URL`, 400 outcomes for publish and image errors, public routes with the product key, reply-link validation and email links | Approved (owner 2026-10-05; defaults at PHASE-08 plan review) | 2026-10-05 | PHASE-08, PHASE-09, PHASE-12 |
+| D-045 | PHASE-09: three pull requests, vanilla-JS KB suggestions, two small public API additions, a default-product root page, per-product theming from the DTO, a Portal API client, per-path headers, the real Blazor.Seo API | Approved (owner 2026-10-05; technical rulings at PHASE-09a plan review) | 2026-10-05 | PHASE-09, PHASE-12 |
 
 ---
 
@@ -1623,4 +1625,71 @@ PHASE-03 already delivered the KB tables, the unique `(product_id, slug)` indexe
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-08 planning)
+- **Approved on:** 2026-10-05
+
+## D-045: PHASE-09: the public portal (delivery, KB suggestions, API additions, theming, client, headers, SEO)
+
+- **Status:** Approved (owner 2026-10-05; technical rulings at PHASE-09a plan review)
+- **Date:** 2026-10-05
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-002, D-017, D-019, D-024, D-032, D-038, D-040, D-042, D-043, D-044, `docs/architecture/PHASE-09-public-portal.md`, `docs/architecture/UX-BRIEF-portal.md`, `docs/superpowers/plans/2026-10-05-phase-09a-portal-foundation.md`
+
+### Context
+PHASE-02, PHASE-06 and PHASE-08 are merged, so PHASE-09 can start. Reading the code before planning found these gaps between the spec and what exists:
+- **No public product list.** The root page, the sitemap and any product chooser need to enumerate active products, and the API only answers one key at a time.
+- **No list of a category's articles.** `GET api/public/kb/{productKey}/search` returns an empty page for a blank query, so a category page cannot be built.
+- **`CustomerTicketDto` has no product.** The ticket page at `/t/{token}` has no product key in its route, so it cannot be themed.
+- **The deflection island loses the visitor's IP.** `AddForwardedClientIp()` does nothing without an `HttpContext`, and an InteractiveServer circuit has none, so every suggestion search would share one rate-limit bucket (D-019).
+- **The package API differs from the spec.** `SyntaxCircus.Blazor.Seo` 0.1.4 has `AddSyntaxCircusSeo`, `UseSyntaxCircusSeo`, `MapSeoSitemap` and `MapSeoRobotsTxt`; the spec's `UseCanonicalHost`, `MapRobotsTxt`, `MapSitemap` and `ISitemapEntryProvider` do not exist, and the sitemap is not cached server side.
+- **The shared security-header middleware overwrites a per-page header.** It sets `Referrer-Policy` and the CSP when the response starts, so an endpoint cannot set them itself.
+- **The lost-link timing test conflicts with D-038.** D-038 accepts a residual timing difference of tens of milliseconds between a known and an unknown address.
+- **There is no way to carry the ticket number to the "received" page** without a cookie or an access token.
+- **`BrandingThemeFactory` would duplicate logic.** `PublicProductDto` already carries the derived accent colours and the Portal already has `AccentScope`.
+
+### Decision
+**Owner decisions (2026-10-05)**
+- **Delivery.** Three pull requests, each with its own branch, plan and review: 09a the foundation, 09b the customer flows, 09c the knowledge base, SEO and polish.
+- **KB suggestions are vanilla JS, not an InteractiveServer island.** There is no framework, no Blazor interactivity and no build step. The server renders a `<ts-kb-suggestions>` custom element with fallback markup inside it (a help-centre search link). A module in `wwwroot/js` defines the element: `connectedCallback` attaches a debounced listener to the subject field and fetches suggestions, and `disconnectedCallback` removes it and aborts any request in flight. It fetches from a Portal-hosted `GET /p/{key}/kb/suggest?q=` adapter, which forwards the real client IP to the API's public search. The adapter is exempt like D-017 (no workflow) and returns plain-text JSON that the module renders with `textContent`. There is no SignalR, no WebAssembly and no CSP change.
+- **Two small public API additions** (anonymous, the Public rate limit, the same cache headers as D-044), made in 09c: a paged list of a category's articles (published only, the product's plus shared, newest updated first), and `GET api/public/products` returning the active products (key and display name only), for the sitemap.
+- **`/` redirects to `TECHSTRAP_PORTAL_DEFAULT_PRODUCT` when it is set.** Otherwise it shows a neutral page with no product list, so nothing can be enumerated.
+- **Ticket theming.** `CustomerTicketDto` gains `ProductKey` (additive), in 09b. `/t/{token}` loads that product's branding. `CustomerDtoShapeTests` is updated.
+- **T20 (Playwright end-to-end) is deferred.** It was optional in the spec and stays out of all three pull requests.
+
+**Technical rulings (proposed in the 09a plan; approved when the owner approves it)**
+- **Portal API client.** The Portal gets its own small `ApiConnection` and `ProblemMapping`, modelled on the Admin's. It does not share code with the Admin: Hosting stays a leaf and the Portal references exactly Contracts and Hosting. A read client retries transport errors, 408 and 502 to 504 and honours `Retry-After` up to 2 seconds; a write client never retries. Both use `AddForwardedClientIp()`, `RemoveAllLoggers()` and a 5-minute pooled connection lifetime. `ProblemMapping` maps 400 (field errors), 404, 413 and 415 (the attachment errors), 429 (rate limited) and 5xx or a transport error (`api-unavailable`) explicitly. A customer call sets `X-Ticket-Token` on the request itself; the value is never logged and never put in a URL.
+- **The ticket and KB clients arrive with their pages.** 09a ships `IPublicProductClient` and the token capability of `ApiConnection`; `IPublicTicketClient` and `ICustomerTicketClient` come with 09b and `IPublicKbClient` with 09c (YAGNI).
+- **`SyntaxCircus.Blazor.Seo` 0.1.4, with its real API.** `AddSyntaxCircusSeo(config)` and `UseSyntaxCircusSeo()`; `MapSeoRobotsTxt(extraDirectives: ["Disallow: /t/"])`; in 09c `MapSeoSitemap(static, provider)`, where the provider is backed by the Portal's own 15-minute cache. The article JSON-LD is a local POCO. 03-PACKAGE-MAP and the PHASE-09 spec use the real names.
+- **One key for the public address.** `Seo:BaseUrl` is derived in code from `TECHSTRAP_PORTAL_PUBLIC_URL` (a post-configure step), so there is one setting, required outside Development. `CanonicalHost__*` stay their own optional keys (blank means no redirect), because the package's redirect is an allow-list of legacy hosts and a Portal with one address needs none. The sitemap is not mapped in 09a: it needs the 09c products endpoint.
+- **Per-path headers.** `UseTechStrapWebHost` accepts per-path rules (a path predicate and header overrides) that run after the shared security headers, so they win. `/t/*` gets `Referrer-Policy: no-referrer`, `Cache-Control: no-store` and `X-Robots-Tag: noindex`; the sandbox CSP applies only to `/t/{token}/attachments/{id}`, so the ticket page keeps the normal CSP. The Admin's download prefix is expressed as one such rule, with unchanged behaviour.
+- **Lost link.** The Portal's responses are byte-identical whatever the address. Timing is out of scope: D-038 accepts the residual difference, and the spec's timing test is relaxed to the byte comparison.
+- **The "received" page.** The ticket number travels in a data-protection-protected `?ref=` value that expires after 10 minutes. There is no cookie and no access token. An expired or tampered value shows the generic confirmation.
+- **Theming.** There is no `BrandingThemeFactory`. A thin `ProductThemeViewModel` reuses `AccentScope` and the DTO's derived colours, and re-checks the logo address (https only, or loopback http in Development, matching `TechStrapCsp.ForBlazorApp`); an unacceptable logo is omitted. NotFound and Error stay neutral (no enumeration, and the PHASE-04 no-brand guard): an unknown, inactive or malformed product key is answered exactly like an unknown route.
+- **Shared KB articles.** The canonical URL is the product path the visitor is on, because each product's help centre is its own site. The sitemap lists a shared article under each product.
+- **Forms.** Static-SSR forms use `[SupplyParameterFromForm]` and antiforgery. Attachments use a plain `<input type="file" multiple>`, which works without script, and are streamed into the multipart request. The Portal enforces the request size limit with Contracts `IntakeLimits`.
+
+### Alternatives Considered
+- **Keep the InteractiveServer island.** Rejected by the owner: it adds a public SignalR circuit, loses the visitor's IP and needs a custom handler to work around it.
+- **A configured list of products for the root page and sitemap.** Rejected: it diverges from "active products" and needs a redeploy to change.
+- **Share `ApiConnection` and `ProblemMapping` with the Admin through Hosting.** Rejected: it gives Hosting a Contracts and Common reference, and the Admin's version carries a session-expiry concern the Portal does not have.
+- **A `BrandingThemeFactory`.** Rejected: `ProductAccent` is the single implementation of the accent rule and the DTO already carries its output.
+- **A separate `Seo__BaseUrl` key.** Rejected: two keys for one value would drift.
+- **A cookie for the "received" page.** Rejected: a protected, short-lived query value needs no state and no consent notice.
+
+### Consequences
+- **The Portal needs two settings in Production.** `API__BASEURL` (set by the deploy compose) and `TECHSTRAP_PORTAL_PUBLIC_URL` (the operator's). The Portal refuses to start without them and names the key.
+- **The PHASE-09 spec text was corrected where it named things that do not exist.** The Seo names, `BrandingThemeFactory`, the lost-link timing test and "Portal references Contracts only" (it is Contracts plus Hosting).
+- **A malformed or unknown product key is a 404 without calling the API.** Only a well-formed key is sent on.
+- **A category named `suggest` would be unreachable.** The Portal serves `/p/{key}/kb/suggest` (09b) beside `/p/{key}/kb/{category}`, and the API reserves only the slug `search`; 09b decides whether to reserve `suggest` too.
+- **09a leaves the sitemap unmapped.** `/robots.txt` is served and disallows `/t/`; its `Sitemap:` line points at `/sitemap.xml`, which answers 404 until 09c.
+- **As built in 09a: log and Sentry redaction.** The shared PII redactor masks the value of a `name` or `email` query parameter (the contact page prefill) in every host's logs, and the Sentry processors mask the same, plus a 43-character token directly under `/t/` in any address they scrub. The Api and the Admin get this too; masking a `name=` value in their logs is accepted.
+- **As built in 09a: T17 redaction of the contact prefill.** The `name` and `email` query values of the contact page prefill are masked in logs and in Sentry (see above), pinned by `RequestLogRedactionHostTests`, `PiiRedactionQueryValueTests` and `SensitiveQuerySentryProcessorTests`.
+- **As built in 09a: host tests assert the final /t headers.** The host tests check the headers a `/t/...` response finally carries (`Referrer-Policy: no-referrer`, `Cache-Control: no-store`, `X-Robots-Tag: noindex`), not only the rule table that produces them.
+- **As built in 09a: `GlobalErrorBoundary` is not used.** Its retry button needs interactivity, and catching a render error in the page would answer 200 with a branded page instead of the plain 500 error page.
+- **Known: a legacy-host redirect decodes percent-escapes.** `UseSyntaxCircusSeo` builds the target with `Uri.ToString()`, so an encoded `&` or `#` in a query value changes meaning. It affects only hosts listed in `CANONICALHOST__LEGACYHOSTS`; it is to be reported upstream.
+- **Known: Sentry has no general email rule.** The Sentry processors mask the `name` and `email` query values and the `/t/{token}` path, but do not pattern-match email addresses elsewhere in an event (Serilog's email pattern does catch them in logs).
+- **Known: OpenTelemetry server spans would carry the ticket path.** If OpenTelemetry tracing were enabled, a server span would carry `url.path=/t/<token>`. Tracing is off by default; masking it is a follow-up.
+- **Known: the product pages link ahead.** Contact support and the footer's lost-link link (09b) and the search box (09c) answer 404 until their pages exist.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-09 planning)
 - **Approved on:** 2026-10-05

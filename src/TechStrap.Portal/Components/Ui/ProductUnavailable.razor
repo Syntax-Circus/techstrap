@@ -1,0 +1,13 @@
+<section class="ts-state" role="alert">
+    <h1>@ShellCopy.UnavailableTitle</h1>
+    <p>@Message</p>
+    <p><a class="btn btn-outline-primary" href="@RetryHref">@ShellCopy.UnavailableRetry</a></p>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Message { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string RetryHref { get; set; } = string.Empty;
+}

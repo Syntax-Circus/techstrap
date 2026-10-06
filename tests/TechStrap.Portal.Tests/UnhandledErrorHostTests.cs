@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -35,5 +36,6 @@ public sealed class UnhandledErrorHostTests
         html.ShouldNotContain("boom");
         html.ShouldNotContain("ERROR 404");
         html.ShouldNotContain("fell out of its strap");
+        Regex.Matches(html, "href=\"https://github.com/Syntax-Circus/techstrap\"").Count.ShouldBe(1, "exactly one Powered-by link on the re-executed 500 page");
     }
 }
