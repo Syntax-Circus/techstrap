@@ -11,9 +11,19 @@ public static class PortalTestApi
     /// </summary>
     public static IServiceCollection AddStubApi(this IServiceCollection services, StubApiHandler stub)
     {
-        services.AddHttpClient(ApiClientNames.Read).ConfigurePrimaryHttpMessageHandler(_ => stub);
-        services.AddHttpClient(ApiClientNames.Write).ConfigurePrimaryHttpMessageHandler(_ => stub);
+        // The tag handler is added last, so it is the innermost handler: it records which named client sent the request (a test pins each overload to its client).
+        services.AddHttpClient(ApiClientNames.Read).AddHttpMessageHandler(() => new ClientTagHandler(ApiClientNames.Read)).ConfigurePrimaryHttpMessageHandler(_ => stub);
+        services.AddHttpClient(ApiClientNames.Write).AddHttpMessageHandler(() => new ClientTagHandler(ApiClientNames.Write)).ConfigurePrimaryHttpMessageHandler(_ => stub);
         return services;
+    }
+
+    private sealed class ClientTagHandler(string name) : DelegatingHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            request.Options.Set(StubApiHandler.ClientKey, name);
+            return base.SendAsync(request, cancellationToken);
+        }
     }
 
     /// <summary>

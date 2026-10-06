@@ -34,6 +34,19 @@ public sealed class ApiConnectionTests
     }
 
     [Fact]
+    public async Task Both_get_overloads_use_the_read_client()
+    {
+        using var api = ApiHarness.Create();
+        api.Stub.OnJson(HttpMethod.Get, "/api/thing", Product());
+        var connection = api.Get<ApiConnection>();
+
+        (await connection.GetAsync<PublicProductDto>("api/thing", Ct)).IsSuccess.ShouldBeTrue();
+        (await connection.GetAsync<PublicProductDto>("api/thing", ValidToken(), Ct)).IsSuccess.ShouldBeTrue();
+
+        api.Stub.Requests.Select(r => r.Client).ShouldBe([ApiClientNames.Read, ApiClientNames.Read]);
+    }
+
+    [Fact]
     public async Task A_get_is_retried_on_503_and_then_succeeds()
     {
         using var api = ApiHarness.Create();
@@ -138,6 +151,7 @@ public sealed class ApiConnectionTests
         };
 
         errors.ShouldHaveSingleItem().Code.ShouldBe(ApiErrorCodes.ApiUnavailable);
+        api.Stub.Requests.ShouldHaveSingleItem().Client.ShouldBe(ApiClientNames.Write);
         api.Stub.Count(method, "/api/thing").ShouldBe(1);
     }
 

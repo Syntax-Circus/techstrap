@@ -7,7 +7,7 @@ using TechStrap.Contracts.Http;
 namespace TechStrap.Portal.Tests.Api;
 
 /// <summary>One request the Portal sent to the stub API.</summary>
-public sealed record StubApiRequest(HttpMethod Method, string Path, string Query, string? ForwardedFor, string? TicketToken, string? ContentType, string? Body);
+public sealed record StubApiRequest(HttpMethod Method, string Path, string Query, string? ForwardedFor, string? TicketToken, string? ContentType, string? Body, string? Client = null);
 
 /// <summary>
 /// Stands in for the TechStrap API behind the Portal's named HTTP clients (it replaces their primary handler, so the real handler pipeline above it still runs: the forwarded-IP handler
@@ -16,6 +16,9 @@ public sealed record StubApiRequest(HttpMethod Method, string Path, string Query
 /// </summary>
 public sealed class StubApiHandler : HttpMessageHandler
 {
+    /// <summary>Set on every request by the tag handler of each named client, so a test can see which client sent it.</summary>
+    public static readonly HttpRequestOptionsKey<string> ClientKey = new("stub-client");
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     private readonly List<StubApiRequest> _requests = [];
@@ -99,7 +102,8 @@ public sealed class StubApiHandler : HttpMessageHandler
             Header(request, "X-Forwarded-For"),
             Header(request, HeaderNames.TicketToken),
             request.Content?.Headers.ContentType?.ToString(),
-            body);
+            body,
+            request.Options.TryGetValue(ClientKey, out var client) ? client : null);
 
         Func<StubApiRequest, HttpResponseMessage>? respond;
         lock (_gate)
