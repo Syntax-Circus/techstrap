@@ -94,7 +94,7 @@ unless stated.
 | `ContactPage` (`/p/{key}/contact`) | Paired (`[SupplyParameterFromForm]`, submit, redirect, error mapping) | `ContactFormViewModel` (form model with data-annotation validation constants) | Form state per request; validation + server errors as summary; honeypot check | `SubmitTicketRequest` mapped in code-behind (simple) |
 | `AttachmentInput` | Paired (`InputFile` multiple, client-side hint validation) | None | Local selected file list | Files streamed into multipart request |
 | `HoneypotField` | Inline | None | Stateless | None |
-| `KbDeflectionSuggestions` (InteractiveServer island) | Paired (debounced subject changes, async search, cancellation, disposal) | `KbSuggestionViewModel` list | Idle/Searching/Results/Empty/Error (error silently hides) | `KbSearchResponse` |
+| `KbDeflectionSuggestions` (vanilla JS custom element, D-045) | Paired (debounced subject changes, async search, cancellation, disposal) | `KbSuggestionViewModel` list | Idle/Searching/Results/Empty/Error (error silently hides) | `KbSearchResponse` |
 | `SubmittedPage` (`/p/{key}/contact/received`) | Paired (short-lived reference, loads nothing sensitive) | None | Stateless; shows ticket number and "check your email" | None (number only) |
 | `CustomerTicketPage` (`/t/{token}`) | Paired (token route, load, noindex head, reply submit) | `CustomerTicketViewModel` assembled by feature-local **`CustomerTicketPresenter`** (messages, attachments, closed/follow-up state, status text) | Loading/NotFound(uniform)/Content; posting state; Closed banner | `CustomerTicketDto`, `AddCustomerReplyRequest` |
 | `MessageThread` (customer) / `CustomerMessageBody` | `MessageThread` inline loop over view models; `CustomerMessageBody` paired (single `MarkupString` site, link rewriting none) | `CustomerMessageViewModel` | Stateless | `CustomerMessageDto` (body sanitized by API) |
@@ -145,7 +145,7 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
   - **Depends on:** P09-T01, P05, P06, P08 DTOs
   - **Validation:** Stub-handler tests: success/400/404/429/503; POST not retried; `X-Forwarded-For` set from the trusted inbound header; token header never logged (log assertion).
   - **09a:** done: `ApiConnection`, `ProblemMapping`, the token capability and `IPublicProductClient` (`ApiConnectionTests`, `ProblemMappingTests`, `PublicProductClientTests`, `ForwardedClientIpHostTests`, `TicketTokenLeakTests`), with the fake-API harness. The ticket and KB clients arrive with 09b and 09c, so this task stays open.
-  - **09b:** 09b: the public ticket, customer ticket and KB (search) clients are done (`PublicTicketClientTests`, `CustomerTicketClientTests`, `PublicKbClientTests`, `ApiConnectionStreamTests`); the rest of the KB client arrives with 09c, so this task stays open.
+  - **09b:** the public ticket, customer ticket and KB (search) clients are done (`PublicTicketClientTests`, `CustomerTicketClientTests`, `PublicKbClientTests`, `ApiConnectionStreamTests`); the rest of the KB client arrives with 09c, so this task stays open.
 - [x] **P09-T03** Implement `BrandingThemeFactory`, `PortalLayout`, header/footer and the product-scope resolution (unknown/inactive -> NotFound)
   - **Depends on:** P09-T02, P02 tokens
   - **Validation:** Theory over accent colours (black, white, mid-gray, brand) asserts the computed `--ts-on-accent` meets 4.5:1 on the accent and `--ts-accent-ink` meets 4.5:1 on white; invalid colour falls back to the default; bUnit: unknown key renders NotFound.
@@ -170,9 +170,10 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
   - **Depends on:** P09-T03, P06
   - **Validation:** Host test: valid token renders public messages only; invalid/expired/revoked all return the identical 404 body; response headers asserted; presenter unit test for Closed state.
   - **09b evidence:** `TicketPageHostTests`, `TicketUniformNotFoundHostTests`, `CustomerTicketPresenterTests`, `TicketHeaderHostTests`; `CustomerMessageBody` is the one markup site (`PortalRuleTests`).
-- [x] **P09-T09** Build `CustomerReplyForm` with attachments, including Closed -> follow-up flow handling
+- [ ] **P09-T09** Build `CustomerReplyForm` with attachments, including Closed -> follow-up flow handling
   - **Depends on:** P09-T08
   - **Validation:** Host test: reply on Open ticket refreshes thread; reply on Closed ticket shows follow-up ticket link; oversize/disallowed attachment shows error; double-submit guarded.
+  - **09b:** delivered except double-submit (deferred to 09c, D-045 'Known in 09b').
   - **09b evidence:** `TicketReplyHostTests`, `FollowUpLinkTests`, `ReplyAndEmailRulesTests`: a reply redirects to the same page, a reply on a Closed ticket redirects to the follow-up's own page on this site, a link that cannot be read gives a generic confirmation.
 - [x] **P09-T10** Build `LostLinkPage` (`/p/{key}/lost-link`)
   - **Depends on:** P09-T03
@@ -204,7 +205,7 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
 - [ ] **P09-T18** Add portal to compose with forwarded-headers/subnet trust (D-019) and the end-to-end intake path (portal -> API) rate-limit check
   - **Depends on:** P09-T06, P05
   - **Validation:** `docker compose up`; hitting the contact form repeatedly from one client IP behind the proxy trips the API 429 for that IP only (second source IP unaffected); `/health/ready` 200.
-  - **09b:** 09b: the smoke check is written and pinned (`scripts/Test-ComposeSmoke.ps1`, `scripts/tests/ComposeSmoke.Tests.ps1`: the Portal's `/health/ready`, and the Api's rate limit seen through `GET /p/smoke/suggest` as two visitors); the owner's manual run of it and of the contact flow under compose ticks this task.
+  - **09b:** the smoke check is written and pinned (`scripts/Test-ComposeSmoke.ps1`, `scripts/tests/ComposeSmoke.Tests.ps1`: the Portal's `/health/ready`, and the Api's rate limit seen through `GET /p/smoke/suggest` as two visitors); the owner's manual run of it and of the contact flow under compose ticks this task.
 - [x] **P09-T19** Add architecture rules: Portal references only Contracts; no `[Inject] HttpClient` in components; `MarkupString` restricted
   - **Depends on:** P09-T14
   - **Validation:** Architecture.Tests fail on a deliberate violation sample.

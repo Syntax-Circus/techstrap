@@ -165,15 +165,16 @@ Describe 'D-045 (the public portal)' {
 
     It 'ticks only the tasks and deliverables 09a and 09b fully deliver, and the roadmap and discovery rows say 09b is complete, pending merge' {
         $spec = Get-RepoText 'docs/architecture/PHASE-09-public-portal.md'
-        foreach ($number in 1, 3, 5, 6, 7, 8, 9, 10, 11, 17, 19, 21, 22, 23) {
+        foreach ($number in 1, 3, 5, 6, 7, 8, 10, 11, 17, 19, 21, 22, 23) {
             $id = 'P09-T{0:00}' -f $number
             $spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is delivered by 09a or 09b"
         }
-        # T02 waits for the KB client of 09c, T04 for the sitemap, T18 for the owner's compose run of the smoke, T12 to T16 are 09c, T20 is deferred.
-        foreach ($number in 2, 4, 12, 13, 14, 15, 16, 18, 20) {
+        # T02 waits for the KB client of 09c, T09 for the double-submit guard (09c), T04 for the sitemap, T18 for the owner's compose run of the smoke, T12 to T16 are 09c, T20 is deferred.
+        foreach ($number in 2, 4, 9, 12, 13, 14, 15, 16, 18, 20) {
             $id = 'P09-T{0:00}' -f $number
             $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not finished by 09b"
         }
+        $spec | Should -Match 'delivered except double-submit \(deferred to 09c, D-045' -Because 'T09 stays open with the reason written down'
         $spec | Should -Match '(?m)^- \[x\] `TechStrap\.Portal` host with `\.env\.example`, forwarded-headers and client-IP forwarding to the API\.'
         $spec | Should -Match '(?m)^- \[x\] Branded layout with per-product theming and NotFound handling\.'
         $spec | Should -Match '(?m)^- \[x\] Contact page with honeypot, attachments, deflection island, submitted page\.'
