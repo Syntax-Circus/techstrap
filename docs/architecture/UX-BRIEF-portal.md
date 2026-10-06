@@ -294,7 +294,7 @@ team should keep them stable for SEO.
 - **Screen/route:** System pages: uniform not-found/invalid link, rate-limited,
   server error, `sitemap.xml`, `robots.txt`
   - **Purpose:** safe, calm failure states; crawler support
-    (`GetSitemapEntriesRequestHandler`). Product-branded where a product is
+    (`GetKbSitemapRequestHandler`). Product-branded where a product is
     known, otherwise neutral. Plain copy: no mascot, no jokes, even on 404.
   - **Primary actions:** go home, search help, request a new link.
   - **Data/state:** none.
@@ -604,7 +604,7 @@ Target: **WCAG 2.2 AA** (the audience is the general public).
   Open Graph/Twitter tags using the product name and logo, and one `h1`
   (`SyntaxCircus.Blazor.Seo`).
 - `sitemap.xml` lists product homes, categories and published articles
-  (`GetSitemapEntriesRequestHandler`); `robots.txt` references it.
+  (`GetKbSitemapRequestHandler`, `ListPublicProductsRequestHandler`); `robots.txt` references it.
 - **`noindex`:** customer ticket pages (`/t/*`), the contact confirmation,
   lost-link, search result pages with query strings (Assumption), error pages.
   Customer ticket pages also send `Referrer-Policy: no-referrer` and `no-store`.

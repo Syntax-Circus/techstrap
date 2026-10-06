@@ -339,7 +339,7 @@ Not entry points: `TicketChangePublishingInterceptor` (Infrastructure post-commi
 | `/hubs/tickets` handshake (API) | SignalR framework connection setup; the hub methods are the use cases (section 7.5) | JWT bearer and the Agent policy at handshake only |
 | API host startup: migrate database (advisory lock) and dev data seeder (`IDevelopmentDataSeeder`) | Host startup steps with no request input and no transport outcome; the seeder runs only in Development with `TECHSTRAP_SEED_DEV_DATA=true` | No application workflow; API only |
 
-Admin and Portal framework endpoints (Blazor `_blazor` hub, OIDC callback, antiforgery) are framework-owned and execute no TechStrap workflow. Portal `/sitemap.xml` and `robots.txt` are presentation endpoints that call the API through the typed client (`GetSitemapEntriesRequestHandler` at the API); they hold no business logic.
+Admin and Portal framework endpoints (Blazor `_blazor` hub, OIDC callback, antiforgery) are framework-owned and execute no TechStrap workflow. Portal `/sitemap.xml` and `robots.txt` are presentation endpoints that call the API through the typed client (`GetKbSitemapRequestHandler` and `ListPublicProductsRequestHandler` at the API); they hold no business logic.
 
 ## 8. Razor presentation-boundary tables
 

@@ -163,31 +163,31 @@ Describe 'D-045 (the public portal)' {
         (Get-RepoText 'docs/architecture/03-PACKAGE-MAP.md') | Should -Match 'MapSeoRobotsTxt'
     }
 
-    It 'ticks only the tasks and deliverables 09a and 09b fully deliver, and the roadmap and discovery rows say 09b is complete, pending merge' {
+    It 'ticks only the tasks and deliverables 09a, 09b and 09c fully deliver, and the roadmap and discovery rows say 09c is complete, pending merge' {
         $spec = Get-RepoText 'docs/architecture/PHASE-09-public-portal.md'
-        foreach ($number in 1, 3, 5, 6, 7, 8, 10, 11, 17, 19, 21, 22, 23) {
+        foreach ($number in 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 17, 19, 21, 22, 23) {
             $id = 'P09-T{0:00}' -f $number
-            $spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is delivered by 09a or 09b"
+            $spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is delivered by 09a, 09b or 09c"
         }
-        # T02 waits for the KB client of 09c, T09 for the double-submit guard (09c), T04 for the sitemap, T18 for the owner's compose run of the smoke, T12 to T16 are 09c, T20 is deferred.
-        foreach ($number in 2, 4, 9, 12, 13, 14, 15, 16, 18, 20) {
+        # T09 waits for the double-submit guard (09d), T16 is the 09d polish pass, T18 waits for the owner's compose run of the smoke, T20 is deferred.
+        foreach ($number in 9, 16, 18, 20) {
             $id = 'P09-T{0:00}' -f $number
-            $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not finished by 09b"
+            $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not finished by 09c"
         }
-        $spec | Should -Match 'delivered except double-submit \(deferred to 09c, D-045' -Because 'T09 stays open with the reason written down'
+        $spec | Should -Match 'delivered except double-submit \(deferred to 09d, D-045' -Because 'T09 stays open with the reason written down'
         $spec | Should -Match '(?m)^- \[x\] `TechStrap\.Portal` host with `\.env\.example`, forwarded-headers and client-IP forwarding to the API\.'
         $spec | Should -Match '(?m)^- \[x\] Branded layout with per-product theming and NotFound handling\.'
         $spec | Should -Match '(?m)^- \[x\] Contact page with honeypot, attachments, deflection island, submitted page\.'
         $spec | Should -Match '(?m)^- \[x\] Customer ticket view, reply \(incl\. Closed -> follow-up\), lost-link, attachment pass-through\.'
-        $spec | Should -Match '(?m)^- \[ \] Typed clients for public product, public ticket, customer ticket, public KB\.'
-        $spec | Should -Match '(?m)^- \[ \] KB home/category/search/article pages'
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 09 \|.*D-045.*\| 09a merged \(PR #14\); 09b complete \(pending merge\); 09c not started'
-        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 09 \|.*\| 09a merged \(PR #14\); 09b complete \(pending merge\); 09c not started'
+        $spec | Should -Match '(?m)^- \[x\] Typed clients for public product, public ticket, customer ticket, public KB\.'
+        $spec | Should -Match '(?m)^- \[x\] KB home/category/search/article pages'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 09 \|.*D-045.*\| 09a merged \(PR #14\); 09b merged \(PR #15\); 09c complete \(pending merge\); 09d not started'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 09 \|.*\| 09a merged \(PR #14\); 09b merged \(PR #15\); 09c complete \(pending merge\); 09d not started'
     }
 
     It 'has a Portal developer guide, linked from the README, that lists every setting and the known gaps' {
         $guide = Get-RepoText 'docs/development/PORTAL-APP.md'
-        foreach ($heading in '## Run it locally', '### Configuration', '## How a page is served', '### Forms and uploads', '### Suggestions beside the subject', '### The ticket page and attachments', '### The lost-link page', '## Where things live', '## Tests', '## Known gaps') {
+        foreach ($heading in '## Run it locally', '### Configuration', '## How a page is served', '### Forms and uploads', '### Suggestions beside the subject', '### The help centre', '### SEO and structured data', '### Caching and the sitemap', '### The ticket page and attachments', '### The lost-link page', '## Where things live', '## Tests', '## Known gaps') {
             $guide | Should -Match ('(?m)^' + [regex]::Escape($heading))
         }
         foreach ($key in 'API__BASEURL', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TECHSTRAP_PORTAL_DEFAULT_PRODUCT', 'TECHSTRAP_PORTAL_SHOW_POWERED_BY', 'CANONICALHOST__CANONICALHOST') {
@@ -286,6 +286,60 @@ Describe 'D-045 as built in 09b' {
         $paragraph = $admin -split '(?:\r?\n){2}' | Where-Object { $_ -match '\*\*Compose smoke\.\*\*' } | Select-Object -First 1
         $paragraph | Should -Match 'Portal'
         $paragraph | Should -Match 'real client address'
+    }
+}
+
+Describe 'D-045 as built in 09c' {
+    BeforeAll {
+        $log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md'
+        $script:Section = [regex]::Match($log, '(?s)## D-045:.*?(?=\r?\n## D-\d+:|\z)').Value
+        $script:Guide = Get-RepoText 'docs/development/PORTAL-APP.md'
+        $script:Spec = Get-RepoText 'docs/architecture/PHASE-09-public-portal.md'
+    }
+
+    It 'records what the 09c build found, as consequences of the addendum' {
+        foreach ($phrase in 'As built in 09c: the category list and the product list', 'As built in 09c: the pages never fail on a visitor', 'As built in 09c: the cache', 'As built in 09c: structured data',
+                'As built in 09c: the sitemap', 'As built in 09c: the second markup site', 'Known in 09c: the sitemap build', 'Known in 09c: a plain-http image', 'Known in 09c: the category page shows no description',
+                'Known in 09c: the package', 'Resolved in 09c: the product pages no longer link ahead') {
+            $script:Section | Should -Match ([regex]::Escape($phrase)) -Because "the as-built list must carry: $phrase"
+        }
+    }
+
+    It 'records the sitemap rate-limit limit in the decision log and the developer guide' {
+        foreach ($text in $script:Section, $script:Guide) {
+            $text | Should -Match ([regex]::Escape('1 + N API calls under one forwarded IP'))
+            $text | Should -Match ([regex]::Escape('120 per minute per IP'))
+            $text | Should -Match ([regex]::Escape('about 120 or more active products'))
+            $text | Should -Match ([regex]::Escape('a bulk sitemap endpoint, or exempting the Portal'))
+        }
+    }
+
+    It 'has a developer guide that describes the help centre, the SEO head, the cache, the sitemap and the two markup sites' {
+        foreach ($phrase in 'KbArticleBody', 'KbHome', 'KbCategory', 'KbSearch', 'KbArticle', 'Pager', 'StateMessage', 'KbCopy', 'JsonLdText', 'PortalCachePaths', 'AddPortalOutputCache', 'SetOnSuccess', 'X-Correlation-Id',
+                'PortalSitemapCache', 'PortalSitemapBuilder', 'single-flight', '50,000', 'exactly two files', 'KbPaging', 'KbSlugShape', 'ListAsync') {
+            $script:Guide | Should -Match ([regex]::Escape($phrase)) -Because "PORTAL-APP.md must mention $phrase"
+        }
+        $script:Guide | Should -Not -Match 'answers 404 until 09c'
+        $script:Guide | Should -Not -Match 'search only; 09c extends it'
+        $script:Guide | Should -Not -Match 'is used in one file'
+    }
+
+    It 'names the real sitemap handoff in the spec and the architecture, and the old names appear only where the spec says they never existed' {
+        $script:Spec | Should -Match '(?m)^### Corrections \(D-045 addendum, 2026-10-06, PHASE-09c\)'
+        $block = [regex]::Match($script:Spec, '(?ms)### Corrections \(D-045 addendum, 2026-10-06, PHASE-09c\).*?(?=^## )').Value
+        $block | Should -Match 'GetKbSitemapRequestHandler'
+        $block | Should -Match 'IPublicKbClient\.GetSitemapAsync'
+        $block | Should -Match 'PortalSitemapBuilder'
+        $script:Spec | Should -Match 'PortalSitemapBuilder` \(Portal\)'
+        $script:Spec | Should -Match '`MapSeoSitemap` endpoint itself is package-owned'
+        foreach ($old in 'ISitemapEntryProvider', 'GetSitemapEntriesRequestHandler', 'ApiSitemapEntryProvider') {
+            $lines = $script:Spec -split '\r?\n' | Where-Object { $_ -match [regex]::Escape($old) }
+            foreach ($line in $lines) {
+                $line | Should -Match 'do not exist|never existed' -Because "$old may be named only to say it does not exist"
+            }
+        }
+        (Get-RepoText 'docs/architecture/02-ARCHITECTURE.md') | Should -Not -Match 'GetSitemapEntriesRequestHandler'
+        (Get-RepoText 'docs/architecture/UX-BRIEF-portal.md') | Should -Not -Match 'GetSitemapEntriesRequestHandler'
     }
 }
 
