@@ -1,3 +1,5 @@
+using TechStrap.Portal.Clients;
+
 namespace TechStrap.Portal.Routing;
 
 /// <summary>
@@ -53,6 +55,11 @@ public static class PortalRoutes
     public static string Ticket(string token) => $"{TicketPrefix}/{Escape(token)}";
 
     public static string TicketAttachment(string token, Guid attachmentId) => $"{Ticket(token)}/attachments/{attachmentId}";
+
+    /// <summary>The link to a ticket from a parsed token (the token's own <c>ToString</c> is a fixed marker, so the real value is read here, where a link is built).</summary>
+    public static string Ticket(TicketToken token) => Ticket(token.Value);
+
+    public static string TicketAttachment(TicketToken token, Guid attachmentId) => TicketAttachment(token.Value, attachmentId);
 
     private static string Escape(string value) => Uri.EscapeDataString(value);
 }

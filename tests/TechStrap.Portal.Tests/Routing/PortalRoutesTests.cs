@@ -1,4 +1,5 @@
 using System.Reflection;
+using TechStrap.Portal.Clients;
 using TechStrap.Portal.Routing;
 
 namespace TechStrap.Portal.Tests.Routing;
@@ -63,6 +64,19 @@ public sealed class PortalRoutesTests
         PortalRoutes.ProductHome("a/b?c#d").ShouldBe("/p/a%2Fb%3Fc%23d");
         PortalRoutes.KbArticle("p", "../x", "y z").ShouldBe("/p/p/kb/..%2Fx/y%20z");
         PortalRoutes.Ticket("a b").ShouldBe("/t/a%20b");
+    }
+
+    [Fact]
+    public void A_builder_given_a_ticket_token_uses_its_real_value_and_never_the_printed_marker()
+    {
+        const string text = "AbC-_0123456789AbC-_0123456789AbC-_01234567";
+        TicketToken.TryParse(text, out var token).ShouldBeTrue();
+        var id = Guid.Parse("11111111-2222-3333-4444-555555555555");
+
+        PortalRoutes.Ticket(token).ShouldBe($"/t/{text}");
+        PortalRoutes.TicketAttachment(token, id).ShouldBe($"/t/{text}/attachments/{id}");
+        PortalRoutes.Ticket(token).ShouldNotContain("[token]");
+        PortalRoutes.TicketAttachment(token, id).ShouldNotContain("[token]");
     }
 
     [Fact]
