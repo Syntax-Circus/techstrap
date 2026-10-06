@@ -53,6 +53,48 @@ internal sealed class ApiConnection(IHttpClientFactory httpClients)
     public Task<Result<T>> SendContentAsync<T>(HttpMethod method, string uri, HttpContent content, TicketToken token, CancellationToken cancellationToken) =>
         SendAsync<T>(WriteClient, new HttpRequestMessage(method, uri) { Content = content }, token, cancellationToken);
 
+    /// <summary>
+    /// GET through the retrying read client as a ticket's customer, returning as soon as the response headers have arrived (<see cref="HttpCompletionOption.ResponseHeadersRead"/>): the body is a live
+    /// stream and is never buffered, so an attachment is copied to the visitor as it comes. On success the caller owns the <see cref="ApiDownload"/> and must dispose it. Every failure is a Result (the status
+    /// decides, as for any call), and a cancellation by the caller propagates.
+    /// </summary>
+    public async Task<Result<ApiDownload>> OpenStreamAsync(string uri, TicketToken token, CancellationToken cancellationToken)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        Attach(request, token);
+        HttpResponseMessage? response = null;
+        var handedOver = false;
+        try
+        {
+            response = await ReadClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errors = ProblemMapping.Map(response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken));
+                return Result<ApiDownload>.Failure(errors[0], [.. errors.Skip(1)]);
+            }
+
+            var body = await response.Content.ReadAsStreamAsync(cancellationToken);
+            handedOver = true;
+            return Result<ApiDownload>.Success(new ApiDownload(request, response, body));
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException)
+        {
+            return Result<ApiDownload>.Failure(ProblemMapping.Unexpected());
+        }
+        catch (Exception ex) when (Transport(ex, cancellationToken) is { } error)
+        {
+            return Result<ApiDownload>.Failure(error);
+        }
+        finally
+        {
+            if (!handedOver)
+            {
+                response?.Dispose();
+                request.Dispose();
+            }
+        }
+    }
+
     private static HttpRequestMessage JsonRequest(HttpMethod method, string uri, object? body) =>
         new(method, uri) { Content = body is null ? null : JsonContent.Create(body, body.GetType(), options: Json) };
 

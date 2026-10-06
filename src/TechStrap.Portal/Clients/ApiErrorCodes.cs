@@ -17,6 +17,9 @@ public static class ApiErrorCodes
 
     public const string UnexpectedResponse = "api-unexpected-response";
 
-    /// <summary>Any other status (401, 403, 409 and so on): the public routes do not answer them, so a page treats it as a failure.</summary>
+    /// <summary>A reply that could not be saved because the ticket changed at the same moment (409): the customer is asked to send it again.</summary>
+    public const string ReplyConflict = "reply-conflict";
+
+    /// <summary>Any other status (401, 403 and so on): the public routes do not answer them, so a page treats it as a failure.</summary>
     public const string ApiError = "api-error";
 }

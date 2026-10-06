@@ -11,6 +11,7 @@ public static class ProblemCopy
     public const string PayloadTooLarge = "That is too large to send. Remove a file or two and try again.";
     public const string UnsupportedMediaType = "That could not be sent in that form. Reload the page and try again.";
     public const string RateLimited = "You have sent a lot in a short time. Wait a minute and try again.";
+    public const string ReplyConflict = "Your reply could not be saved this time. Your text is still here: send it again.";
     public const string ApiUnavailable = "We could not reach our support system. Try again in a moment.";
     public const string ApiError = "Something went wrong on our side. Try again in a moment.";
     public const string UnexpectedResponse = "We got an answer we did not expect. Try again in a moment.";

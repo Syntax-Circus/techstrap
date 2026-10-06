@@ -14,6 +14,12 @@ public static class PortalRoutes
     /// <summary>The ticket pages. The Portal's header rules and its robots.txt exclusion apply to everything under it.</summary>
     public const string TicketPrefix = "/t";
 
+    // The last segments of the product's form pages: the header rule that keeps them out of the index and out of every cache matches on these (PortalHeaderRules.IsFormPagePath).
+    public const string ContactSegment = "contact";
+    public const string ReceivedSegment = "received";
+    public const string LostLinkSegment = "lost-link";
+    public const string SuggestSegment = "suggest";
+
     public const string HomeTemplate = "/";
     public const string NotFoundTemplate = "/not-found";
     public const string ErrorTemplate = "/error";

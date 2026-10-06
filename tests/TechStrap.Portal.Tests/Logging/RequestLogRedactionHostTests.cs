@@ -54,11 +54,32 @@ public sealed class RequestLogRedactionHostTests
         response.StatusCode.ShouldBe(System.Net.HttpStatusCode.NotFound, "the contact page arrives in PHASE-09b; the request is logged all the same");
         AssertVerboseWasCaptured(factory);
         factory.LogSink.Events.ShouldContain(e => Everything(e).Contains("name=[redacted]", StringComparison.Ordinal), "control: the query string was logged, with the name masked");
+        factory.LogSink.Events.ShouldContain(e => Everything(e).Contains("subject=[redacted]", StringComparison.Ordinal), "control: the subject was masked too");
         factory.LogSink.Events.Select(Everything).ShouldAllBe(text =>
-            !text.Contains("Jane", StringComparison.OrdinalIgnoreCase)
+            !text.Contains("Printer", StringComparison.Ordinal)
+            && !text.Contains("Jane", StringComparison.OrdinalIgnoreCase)
             && !text.Contains("Doe", StringComparison.Ordinal)
             && !text.Contains("jane.doe", StringComparison.OrdinalIgnoreCase)
             && !text.Contains("example.com", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task The_received_reference_and_the_suggest_text_never_reach_a_log_event()
+    {
+        await using var factory = Verbose();
+        using var client = factory.CreateClient();
+
+        using var received = await client.GetAsync("/p/paperplane/contact/received?ref=CfDJ8SECRETREFERENCEVALUE", Ct);
+        using var suggest = await client.GetAsync("/p/paperplane/suggest?q=jane.doe%27s+private+printer", Ct);
+
+        AssertVerboseWasCaptured(factory);
+        factory.LogSink.Events.ShouldContain(e => Everything(e).Contains("ref=[redacted]", StringComparison.Ordinal), "control: the reference was logged, masked");
+        factory.LogSink.Events.ShouldContain(e => Everything(e).Contains("q=[redacted]", StringComparison.Ordinal), "control: the suggest text was logged, masked");
+        factory.LogSink.Events.Select(Everything).ShouldAllBe(text =>
+            !text.Contains("SECRETREFERENCE", StringComparison.Ordinal)
+            && !text.Contains("private printer", StringComparison.OrdinalIgnoreCase)
+            && !text.Contains("private+printer", StringComparison.OrdinalIgnoreCase)
+            && !text.Contains("jane.doe", StringComparison.OrdinalIgnoreCase));
     }
 
     [Theory]

@@ -103,7 +103,6 @@ public sealed class ProblemMappingTests
     [Theory]
     [InlineData(401)]
     [InlineData(403)]
-    [InlineData(409)]
     [InlineData(408)]
     [InlineData(418)]
     public async Task Any_other_status_is_a_generic_api_error_with_fixed_copy(int status)
@@ -111,6 +110,15 @@ public sealed class ProblemMappingTests
         var errors = await MapAsync(StubApiHandler.Problem((HttpStatusCode)status, "something", "internal detail"));
 
         errors.ShouldHaveSingleItem().ShouldBe(new ResultError(ApiErrorCodes.ApiError, ProblemCopy.ApiError, ResultErrorKind.Failure));
+    }
+
+    [Fact]
+    public async Task A_409_is_the_reply_conflict_with_its_own_fixed_copy_whatever_the_api_said()
+    {
+        var errors = await MapAsync(StubApiHandler.Problem(HttpStatusCode.Conflict, "reply-conflict", "internal detail: rowversion 17 != 18"));
+
+        errors.ShouldHaveSingleItem().ShouldBe(new ResultError(ApiErrorCodes.ReplyConflict, ProblemCopy.ReplyConflict, ResultErrorKind.Conflict));
+        errors[0].Message.ShouldNotContain("rowversion");
     }
 
     [Theory]
@@ -134,7 +142,7 @@ public sealed class ProblemMappingTests
     [Fact]
     public void Every_fixed_message_is_plain_text_a_visitor_can_act_on()
     {
-        foreach (var message in new[] { ProblemCopy.Invalid, ProblemCopy.NotFound, ProblemCopy.PayloadTooLarge, ProblemCopy.UnsupportedMediaType, ProblemCopy.RateLimited, ProblemCopy.ApiUnavailable, ProblemCopy.ApiError, ProblemCopy.UnexpectedResponse })
+        foreach (var message in new[] { ProblemCopy.Invalid, ProblemCopy.NotFound, ProblemCopy.PayloadTooLarge, ProblemCopy.UnsupportedMediaType, ProblemCopy.RateLimited, ProblemCopy.ApiUnavailable, ProblemCopy.ApiError, ProblemCopy.UnexpectedResponse, ProblemCopy.ReplyConflict })
         {
             message.ShouldNotBeNullOrWhiteSpace();
             message.ShouldNotContain("<");

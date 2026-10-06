@@ -9,8 +9,8 @@ namespace TechStrap.Hosting.Sentry;
 /// Masks the text an agent searched for in what Sentry records. The queue keeps its search in the address (<c>/queue/mine?search=...</c>) so a view can be bookmarked, and the same text goes to the
 /// API as <c>GET /api/tickets?search=...</c>. A search is often a requester's email address or a subject line, so on an unhandled exception it must not reach Sentry in the request's query string
 /// or URL, in a breadcrumb, or in the description of a span. The value becomes <c>[redacted]</c> and the rest of the address is left alone, so the event still shows which page failed.
-/// The parameters are <c>search</c> (the queue and the ticket list) and <c>q</c> (a free-text query), and, for the Portal's contact page (D-045), <c>name</c> and <c>email</c> (the prefill, which a customer's own
-/// app puts in the address). The Portal's ticket address carries the access token in its path (<c>/t/{token}</c>), so a 43-character token directly under <c>/t/</c> is masked wherever an address appears.
+/// The parameters are <c>search</c> (the queue and the ticket list) and <c>q</c> (a free-text query), and, for the Portal's contact page (D-045), <c>name</c>, <c>email</c> and <c>subject</c> (the prefill, which a
+/// customer's own app puts in the address) and <c>ref</c> (the protected ticket reference of the "received" page). The Portal's ticket address carries the access token in its path (<c>/t/{token}</c>), so a 43-character token directly under <c>/t/</c> is masked wherever an address appears.
 /// Registered with the header scrubber by <see cref="SentryOptionsExtensions.AddSensitiveHeaderScrubbing"/>.
 /// </summary>
 public sealed partial class SensitiveQuerySentryProcessor : ISentryEventProcessor, ISentryTransactionProcessor
@@ -40,7 +40,8 @@ public sealed partial class SensitiveQuerySentryProcessor : ISentryEventProcesso
         }
 
         return decoded.Equals("search", StringComparison.OrdinalIgnoreCase) || decoded.Equals("q", StringComparison.OrdinalIgnoreCase)
-            || decoded.Equals("name", StringComparison.OrdinalIgnoreCase) || decoded.Equals("email", StringComparison.OrdinalIgnoreCase);
+            || decoded.Equals("name", StringComparison.OrdinalIgnoreCase) || decoded.Equals("email", StringComparison.OrdinalIgnoreCase)
+            || decoded.Equals("subject", StringComparison.OrdinalIgnoreCase) || decoded.Equals("ref", StringComparison.OrdinalIgnoreCase);
     }
 
     // A non-sensitive value is looked into once more per level, but only this deep: "last=/queue/mine?search=x" needs one. The bound keeps hostile text such as "x=a=a=a=..." from
