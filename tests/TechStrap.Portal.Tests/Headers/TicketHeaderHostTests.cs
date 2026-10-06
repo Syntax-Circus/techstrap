@@ -7,7 +7,9 @@ namespace TechStrap.Portal.Tests.Headers;
 /// <summary>
 /// Review Focus 2 at the host: whatever the Portal answers under <c>/t</c> carries <c>Referrer-Policy: no-referrer</c>, <c>Cache-Control: no-store</c> and <c>X-Robots-Tag: noindex</c>, and
 /// only the attachment route is sandboxed, so the ticket page keeps the normal policy. The shared security-header middleware overwrites a value a page sets itself; these assert the final
-/// response. There is no ticket page until PHASE-09b, so the 404 for an unknown <c>/t</c> path is checked (its headers must apply anyway), and a probe answers 200 on paths no later route can match.
+/// response. The 404 for an unknown <c>/t</c> path is checked (its headers must apply anyway). Since PHASE-09b the ticket page and the attachment pass-through are real routes, so the delivered attachment is
+/// tested through the real route with a file behind the stub API (a probe at an attachment-shaped path can no longer be reached: the pass-through answers it), and a probe still answers 200 for a path under
+/// <c>/t</c> that no Portal route matches.
 /// </summary>
 public sealed class TicketHeaderHostTests
 {
@@ -15,9 +17,9 @@ public sealed class TicketHeaderHostTests
     private const string Token = "AbC-_0123456789AbC-_0123456789AbC-_01234567";
     private static readonly string AttachmentPath = $"/t/{Token}/attachments/{Guid.NewGuid()}";
 
-    // A page under /t that no Portal route will ever match (the ticket page is /t/{token}), and the real shape of the attachment route with an id the pass-through (a Guid route) cannot match.
+    // A page under /t that no Portal route will ever match (the ticket page is /t/{token}, the attachment route /t/{token}/attachments/{id}).
     private static readonly Action<Microsoft.Extensions.DependencyInjection.IServiceCollection> Probes = OkProbeStartupFilter.Add(path =>
-        path.StartsWithSegments("/t/probe-token/probe-page") || path.StartsWithSegments("/t/probe-token/attachments/probe-id"));
+        path.StartsWithSegments("/t/probe-token/probe-page"));
 
     private static string[] Header(HttpResponseMessage response, string name) => response.Headers.TryGetValues(name, out var values) ? [.. values] : [];
 
@@ -72,14 +74,15 @@ public sealed class TicketHeaderHostTests
     [Fact]
     public async Task A_delivered_attachment_has_the_ticket_headers_and_a_sandbox_on_top_of_the_page_policy()
     {
-        await using var factory = new PortalFactory(configureServices: Probes);
+        await using var factory = new PortalFactory();
+        factory.Api.OnFile(HttpMethod.Get, $"/api/customer/attachments/{Guid.Empty}", "file text"u8.ToArray(), "text/plain", "log.txt");
         using var client = factory.CreateClient();
 
-        // The probe answers the attachment shape; the id is not a guid, which a later pass-through route will not match, so the response is the probe's 200.
-        using var response = await client.GetAsync("/t/probe-token/attachments/probe-id", Ct);
+        // The real pass-through route, with a file behind the stub API: a 2xx response under /t/{token}/attachments/{id}.
+        using var response = await client.GetAsync($"/t/{Token}/attachments/{Guid.Empty}", Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await response.Content.ReadAsStringAsync(Ct)).ShouldBe("probe");
+        (await response.Content.ReadAsStringAsync(Ct)).ShouldBe("file text", "the pass-through must really have answered, or this proves nothing");
         AssertTicketHeaders(response, "attachment");
         Policy(response).Count(directive => directive == "sandbox").ShouldBe(1);
         Policy(response).ShouldContain("script-src 'self'", "the page policy is still there, with sandbox on top");
@@ -99,7 +102,7 @@ public sealed class TicketHeaderHostTests
     }
 
     [Theory]
-    [InlineData("/p/paperplane/contact", HttpStatusCode.NotFound)]
+    [InlineData("/p/paperplane/kb/search", HttpStatusCode.NotFound)]
     [InlineData("/p/paperplane/kb/guides/dark-mode", HttpStatusCode.NotFound)]
     [InlineData("/no-such-page", HttpStatusCode.NotFound)]
     [InlineData("/not-found", HttpStatusCode.OK)]

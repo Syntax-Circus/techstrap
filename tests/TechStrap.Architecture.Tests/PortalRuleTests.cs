@@ -127,12 +127,12 @@ public sealed class PortalRuleTests
     // ---- MarkupString sites -----------------------------------------------------------------------------------------------------------
 
     [Fact]
-    public void In_09a_no_Portal_file_turns_text_into_markup()
+    public void In_09b_exactly_CustomerMessageBody_turns_text_into_markup()
     {
         var files = PortalRules.Sources(ProjectGraph.FindRepositoryRoot()).ToList();
 
         files.Count.ShouldBeGreaterThan(20, "the scan must see the Portal sources");
-        PortalRules.MarkupStringSites.ShouldBeEmpty("09b adds CustomerMessageBody and 09c adds KbArticleBody, each in the commit that argues for it");
+        PortalRules.MarkupStringSites.ShouldBe(["Components/Tickets/CustomerMessageBody.razor"], "09b adds CustomerMessageBody (the API sanitises the message body); 09c adds KbArticleBody in its own commit");
         PortalRules.MarkupStringViolations(files).ShouldBeEmpty();
     }
 
@@ -143,12 +143,23 @@ public sealed class PortalRuleTests
     [InlineData(Code, "var m = new MarkupString(html);")]
     [InlineData(Code, "builder.AddMarkupContent(0, html);")]
     [InlineData("src/TechStrap.Portal/Components/Pages/Page.razor.cs", "public MarkupString Body => (MarkupString)Html;")]
-    public void A_deliberate_markup_site_is_flagged_while_the_allow_list_is_empty(string path, string text)
+    public void A_deliberate_markup_site_is_flagged_when_it_is_not_on_the_allow_list(string path, string text)
     {
-        var violations = PortalRules.MarkupStringViolations([(path, text)]);
+        var violations = PortalRules.MarkupStringViolations([(path, text)], []);
 
         violations.Count.ShouldBe(1);
         violations[0].ShouldContain(path.Replace("src/TechStrap.Portal/", string.Empty, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void The_real_allow_list_passes_for_its_own_file_and_flags_the_same_text_anywhere_else()
+    {
+        const string Real = "src/TechStrap.Portal/Components/Tickets/CustomerMessageBody.razor";
+
+        PortalRules.MarkupStringViolations([(Real, "<div>@((MarkupString)Html)</div>")]).ShouldBeEmpty();
+        PortalRules.MarkupStringViolations([("src/TechStrap.Portal/Components/Tickets/MessageThread.razor", "<div>@((MarkupString)Html)</div>"), (Real, "<div>@((MarkupString)Html)</div>")])
+            .ShouldHaveSingleItem().ShouldContain("MessageThread.razor");
+        PortalRules.MarkupStringViolations([(Real, "<div>@Html</div>")]).ShouldHaveSingleItem().ShouldContain("no longer");
     }
 
     [Fact]

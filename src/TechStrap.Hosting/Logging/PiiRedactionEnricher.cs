@@ -6,7 +6,8 @@ namespace TechStrap.Hosting.Logging;
 
 /// <summary>
 /// Rewrites PII-shaped text in every property value before any sink sees the event (D-039): email addresses (also URL-encoded), 43-character access tokens, JWT-shaped bearer tokens and
-/// "sha256:" hashes, and (D-045) the value of a <c>name</c> or <c>email</c> query parameter, which is how the Portal's contact page is prefilled and which a request log would otherwise carry.
+/// "sha256:" hashes, and (D-045) the value of a <c>name</c>, <c>email</c>, <c>subject</c>, <c>ref</c> or <c>q</c> query parameter: the Portal's contact page is prefilled with the first three, its "received" page carries the
+/// protected ticket reference in <c>ref</c> and its suggest adapter the visitor's search text in <c>q</c>, which a request log would otherwise carry.
 /// It cannot touch LogEvent.Exception or the template, and it cannot recognise a name by shape; application code never logs either
 /// (exceptions are logged by type name, requesters by id).
 /// Residual risk, accepted: names cannot be pattern-redacted, and an attached Exception is not rewritten. The worker loops that attach an
@@ -96,7 +97,8 @@ public sealed partial class PiiRedactionEnricher : ILogEventEnricher
             decoded = name;
         }
 
-        return decoded.Equals("name", StringComparison.OrdinalIgnoreCase) || decoded.Equals("email", StringComparison.OrdinalIgnoreCase);
+        return decoded.Equals("name", StringComparison.OrdinalIgnoreCase) || decoded.Equals("email", StringComparison.OrdinalIgnoreCase)
+            || decoded.Equals("subject", StringComparison.OrdinalIgnoreCase) || decoded.Equals("ref", StringComparison.OrdinalIgnoreCase) || decoded.Equals("q", StringComparison.OrdinalIgnoreCase);
     }
 
     private LogEventPropertyValue Redact(LogEventPropertyValue value)

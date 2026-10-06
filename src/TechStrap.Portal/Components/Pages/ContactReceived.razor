@@ -1,0 +1,27 @@
+@attribute [Route(PortalRoutes.ContactReceivedTemplate)]
+@inherits ProductPageBase
+
+@if (Theme is { } theme)
+{
+    <PageTitle>@ContactCopy.ReceivedTitle(theme.DisplayName)</PageTitle>
+    <h1>@ContactCopy.ReceivedHeading</h1>
+    @if (TicketNumber is not null)
+    {
+        <p>@ContactCopy.YourNumber <strong class="ts-ticket-number">@TicketNumber</strong></p>
+        <p>@ContactCopy.ReceivedNext</p>
+    }
+    else
+    {
+        <p>@ContactCopy.ReceivedGeneric</p>
+    }
+    <ul class="ts-next-links">
+        <li><a href="@PortalRoutes.KbHome(theme.Key)">@ContactCopy.BrowseHelp</a></li>
+        <li><a href="@PortalRoutes.ProductHome(theme.Key)">@ContactCopy.BackTo(theme.DisplayName)</a></li>
+        <li><a href="@PortalRoutes.LostLink(theme.Key)">@ContactCopy.LostLinkPrompt</a></li>
+    </ul>
+}
+else if (UnavailableMessage is not null)
+{
+    <PageTitle>@ShellCopy.UnavailableTitle</PageTitle>
+    <ProductUnavailable Message="@UnavailableMessage" RetryHref="@RetryHref" />
+}

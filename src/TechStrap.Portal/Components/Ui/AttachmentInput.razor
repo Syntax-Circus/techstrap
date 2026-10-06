@@ -1,0 +1,28 @@
+<div class="mb-3">
+    <label for="@FormFields.Attachments" class="form-label">@FormCopy.AttachmentsLabel</label>
+    <p id="attachments-hint" class="form-text">@FormCopy.AttachmentRules</p>
+    <input id="@FormFields.Attachments" name="@Name" type="file" multiple accept="@FormCopy.Accept" class="form-control" aria-describedby="@Described" aria-invalid="@(Error is null ? null : "true")" />
+    @if (Kept)
+    {
+        <p class="form-text">@FormCopy.AttachmentsKept</p>
+    }
+    <FieldError Field="@FormFields.Attachments" Message="@Error" />
+</div>
+
+@code {
+    /// <summary>
+    /// A plain multiple file input, which works without script (the files travel in the same post). The rule is stated before anyone picks a file; the Portal checks the files against it after the post, and the API
+    /// checks again. A browser never keeps a chosen file across a round trip, so after an error the form says so (<paramref name="Kept"/>).
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string Name { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Error { get; set; }
+
+    /// <summary>True after a post that came back with errors: the files have to be chosen again.</summary>
+    [Parameter]
+    public bool Kept { get; set; }
+
+    private string Described => Error is null ? "attachments-hint" : $"attachments-hint {FormFields.ErrorId(FormFields.Attachments)}";
+}

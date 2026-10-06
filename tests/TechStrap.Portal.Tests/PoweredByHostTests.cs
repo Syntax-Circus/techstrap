@@ -106,7 +106,7 @@ public sealed partial class PoweredByHostTests
     {
         await using var factory = Factory(setting);
 
-        var failure = Should.Throw<OptionsValidationException>(() => factory.CreateClient());
+        var failure = StartupFailure.Capture(factory);
 
         failure.Message.ShouldContain("TECHSTRAP_PORTAL_SHOW_POWERED_BY");
         failure.Message.ShouldContain("true or false");

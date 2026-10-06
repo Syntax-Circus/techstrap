@@ -13,8 +13,8 @@ public static class IntakeRequestLimits
 {
     public const long JsonBodyBytes = 256 * 1024; // text fields and metadata only (D-034: no API attachments in v1)
 
-    // 25 MiB of files plus room for the text fields and multipart framing; the handler enforces the exact file limits.
-    public const long FormBodyBytes = IntakeLimits.MaxMessageBytes + (1024 * 1024);
+    // 25 MiB of files plus room for the text fields and multipart framing; the handler enforces the exact file limits. The Portal's forms use the same number.
+    public const long FormBodyBytes = IntakeLimits.FormBodyBytes;
 }
 
 /// <summary>Maps an over-limit request body (a 413 BadHttpRequestException) to a problem+json 413 instead of a 500.</summary>

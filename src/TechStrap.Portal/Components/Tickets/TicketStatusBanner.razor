@@ -1,0 +1,19 @@
+<section class="ts-status-banner @(IsClosed ? "ts-status-closed" : null)" aria-label="@TicketCopy.StatusLabel">
+    <p class="ts-status"><span class="ts-status-label">@TicketCopy.StatusLabel:</span> <strong>@Label</strong></p>
+    @if (Note is not null)
+    {
+        <p class="ts-status-note">@Note</p>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    /// <summary>The note under the status: that a reply reopens a solved ticket, or that a reply to a closed one starts a follow-up.</summary>
+    [Parameter]
+    public string? Note { get; set; }
+
+    [Parameter]
+    public bool IsClosed { get; set; }
+}

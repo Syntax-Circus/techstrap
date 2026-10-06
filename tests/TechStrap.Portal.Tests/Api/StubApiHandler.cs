@@ -59,6 +59,27 @@ public sealed class StubApiHandler : HttpMessageHandler
     /// <summary>An RFC 7807 answer in the shape the API produces: <c>type</c> is the error code, <c>detail</c> the message.</summary>
     public StubApiHandler OnProblem(HttpMethod method, string path, HttpStatusCode status, string type, string detail) => On(method, path, _ => Problem(status, type, detail));
 
+    /// <summary>A file download as the API sends it: the body as a stream (so a test can see whether it was read), a content type and, when given, a <c>Content-Disposition</c> with the stored name.</summary>
+    public StubApiHandler OnFile(HttpMethod method, string path, byte[] bytes, string contentType, string? fileName = null) =>
+        On(method, path, _ => FileResponse(new MemoryStream(bytes), contentType, fileName));
+
+    public static HttpResponseMessage FileResponse(Stream body, string contentType, string? fileName = null)
+    {
+        var content = new StreamContent(body);
+        content.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse(contentType);
+        if (body.CanSeek)
+        {
+            content.Headers.ContentLength = body.Length;
+        }
+
+        if (fileName is not null)
+        {
+            content.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("attachment") { FileName = $"\"{fileName}\"" };
+        }
+
+        return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+    }
+
     public static HttpResponseMessage JsonResponse<T>(HttpStatusCode status, T body) => new(status) { Content = JsonContent.Create(body, options: Json) };
 
     public static HttpResponseMessage Problem(HttpStatusCode status, string type, string detail) => new(status)

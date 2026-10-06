@@ -37,7 +37,7 @@ sitemap, robots) through `SyntaxCircus.Blazor.Seo`.
 Where this page and D-045 differ, D-045 wins.
 - **Delivery.** Three pull requests: 09a (the foundation: T01, T03, T05, T17, T19, T22 and parts of T02 and T04), 09b (the customer flows: T06 to T11, T18, T21, T23, and it also finishes T02, the ticket clients) and 09c (the knowledge base, SEO and polish: T12 to T16, and it also finishes T02, the KB client, and T04, the sitemap). T20 is deferred.
 - **References.** The Portal references `TechStrap.Contracts` and `TechStrap.Hosting` (the shared host wiring, D-042), not Contracts only.
-- **KB suggestions.** A vanilla-JS custom element `<ts-kb-suggestions>` and a Portal-hosted `GET /p/{key}/kb/suggest` adapter replace the `KbDeflectionSuggestions` InteractiveServer island. No page has a circuit.
+- **KB suggestions.** A vanilla-JS custom element `<ts-kb-suggestions>` and a Portal-hosted `GET /p/{key}/suggest` adapter replace the `KbDeflectionSuggestions` InteractiveServer island. No page has a circuit.
 - **API additions.** 09c adds a paged list of a category's articles and `GET api/public/products`; 09b adds `ProductKey` to `CustomerTicketDto`. `/` redirects to `TECHSTRAP_PORTAL_DEFAULT_PRODUCT`, or shows a neutral page.
 - **Blazor.Seo.** The real names are `AddSyntaxCircusSeo`, `UseSyntaxCircusSeo`, `MapSeoRobotsTxt(extraDirectives)` and `MapSeoSitemap(staticEntries, provider)`; `UseCanonicalHost`, `MapRobotsTxt`, `MapSitemap` and `ISitemapEntryProvider` do not exist. `Seo:BaseUrl` is derived from `TECHSTRAP_PORTAL_PUBLIC_URL`.
 - **Theming.** `BrandingThemeFactory` is replaced by a thin `ProductThemeViewModel` over `AccentScope` and the DTO's derived colours; the logo address is re-checked.
@@ -45,6 +45,16 @@ Where this page and D-045 differ, D-045 wins.
 - **Lost link.** The Portal's responses are byte-identical whatever the address; the timing assertion in P09-T10 is dropped (D-038 accepts the residual difference).
 - **Received page.** The ticket number travels in a data-protection-protected `?ref=` value that expires after 10 minutes.
 - **Headers.** Per-path header rules in `UseTechStrapWebHost` give `/t/*` its `no-referrer`, `no-store` and `noindex`, and give only `/t/{token}/attachments/{id}` the sandbox CSP.
+
+### Corrections (D-045 addendum, 2026-10-06)
+
+The 09b rulings; where this page and the addendum differ, the addendum wins.
+- **Suggest adapter.** It is `GET /p/{key}/suggest` (not under `/kb`), so no category slug can shadow it.
+- **Honeypot.** A filled honeypot is sent to the API like any other submission; the API validates the product and answers a believable 201 without creating a ticket. The Portal does not short-circuit (P09-T06).
+- **Ticket product.** `CustomerTicketDto` carries `ProductKey`; `/t/{token}` loads that product's branding and falls back to the neutral theme for an inactive or unknown product.
+- **Limits.** The text and size limits of the forms are Contracts constants (`IntakeLimits`), kept equal to the Domain's by a parity test.
+- **Message bodies.** `CustomerMessageBody` is the only `MarkupString` site in 09b; `KbArticleBody` follows in 09c.
+- **Received page.** It shows the ticket number only.
 
 ## Application Boundaries
 
@@ -84,7 +94,7 @@ unless stated.
 | `ContactPage` (`/p/{key}/contact`) | Paired (`[SupplyParameterFromForm]`, submit, redirect, error mapping) | `ContactFormViewModel` (form model with data-annotation validation constants) | Form state per request; validation + server errors as summary; honeypot check | `SubmitTicketRequest` mapped in code-behind (simple) |
 | `AttachmentInput` | Paired (`InputFile` multiple, client-side hint validation) | None | Local selected file list | Files streamed into multipart request |
 | `HoneypotField` | Inline | None | Stateless | None |
-| `KbDeflectionSuggestions` (InteractiveServer island) | Paired (debounced subject changes, async search, cancellation, disposal) | `KbSuggestionViewModel` list | Idle/Searching/Results/Empty/Error (error silently hides) | `KbSearchResponse` |
+| `KbDeflectionSuggestions` (vanilla JS custom element, D-045) | Paired (debounced subject changes, async search, cancellation, disposal) | `KbSuggestionViewModel` list | Idle/Searching/Results/Empty/Error (error silently hides) | `KbSearchResponse` |
 | `SubmittedPage` (`/p/{key}/contact/received`) | Paired (short-lived reference, loads nothing sensitive) | None | Stateless; shows ticket number and "check your email" | None (number only) |
 | `CustomerTicketPage` (`/t/{token}`) | Paired (token route, load, noindex head, reply submit) | `CustomerTicketViewModel` assembled by feature-local **`CustomerTicketPresenter`** (messages, attachments, closed/follow-up state, status text) | Loading/NotFound(uniform)/Content; posting state; Closed banner | `CustomerTicketDto`, `AddCustomerReplyRequest` |
 | `MessageThread` (customer) / `CustomerMessageBody` | `MessageThread` inline loop over view models; `CustomerMessageBody` paired (single `MarkupString` site, link rewriting none) | `CustomerMessageViewModel` | Stateless | `CustomerMessageDto` (body sanitized by API) |
@@ -120,8 +130,8 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
 - [x] `TechStrap.Portal` host with `.env.example`, forwarded-headers and client-IP forwarding to the API.
 - [ ] Typed clients for public product, public ticket, customer ticket, public KB.
 - [x] Branded layout with per-product theming and NotFound handling.
-- [ ] Contact page with honeypot, attachments, deflection island, submitted page.
-- [ ] Customer ticket view, reply (incl. Closed -> follow-up), lost-link, attachment pass-through.
+- [x] Contact page with honeypot, attachments, deflection island, submitted page.
+- [x] Customer ticket view, reply (incl. Closed -> follow-up), lost-link, attachment pass-through.
 - [ ] KB home/category/search/article pages with SEO, JSON-LD, sitemap, robots.
 - [ ] Page-level SSR tests and bUnit tests; portal container healthy under compose.
 
@@ -135,6 +145,7 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
   - **Depends on:** P09-T01, P05, P06, P08 DTOs
   - **Validation:** Stub-handler tests: success/400/404/429/503; POST not retried; `X-Forwarded-For` set from the trusted inbound header; token header never logged (log assertion).
   - **09a:** done: `ApiConnection`, `ProblemMapping`, the token capability and `IPublicProductClient` (`ApiConnectionTests`, `ProblemMappingTests`, `PublicProductClientTests`, `ForwardedClientIpHostTests`, `TicketTokenLeakTests`), with the fake-API harness. The ticket and KB clients arrive with 09b and 09c, so this task stays open.
+  - **09b:** the public ticket, customer ticket and KB (search) clients are done (`PublicTicketClientTests`, `CustomerTicketClientTests`, `PublicKbClientTests`, `ApiConnectionStreamTests`); the rest of the KB client arrives with 09c, so this task stays open.
 - [x] **P09-T03** Implement `BrandingThemeFactory`, `PortalLayout`, header/footer and the product-scope resolution (unknown/inactive -> NotFound)
   - **Depends on:** P09-T02, P02 tokens
   - **Validation:** Theory over accent colours (black, white, mid-gray, brand) asserts the computed `--ts-on-accent` meets 4.5:1 on the accent and `--ts-accent-ink` meets 4.5:1 on white; invalid colour falls back to the default; bUnit: unknown key renders NotFound.
@@ -147,24 +158,31 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
   - **Depends on:** P09-T03
   - **Validation:** bUnit/host test: home renders branded name and KB search box; unmatched route -> NotFound with 404 status.
   - **09a evidence:** `ProductHomeHostTests`, `RootPageHostTests`, `NotFoundHostTests`. `GlobalErrorBoundary` is not used: its retry button needs interactivity and it would turn the plain 500 page into a branded 200 (D-045).
-- [ ] **P09-T06** Build `ContactPage`, `ContactFormViewModel`, `HoneypotField`, `AttachmentInput`, and `SubmittedPage` (redirect-after-post)
+- [x] **P09-T06** Build `ContactPage`, `ContactFormViewModel`, `HoneypotField`, `AttachmentInput`, and `SubmittedPage` (redirect-after-post)
   - **Depends on:** P09-T03
   - **Validation:** Host test with fake API: valid post -> 302 to `/p/{key}/contact/received`; invalid -> 200 with error summary and preserved input; honeypot filled -> silently success-page without calling the API; 429 -> friendly message; antiforgery missing -> 400.
-- [ ] **P09-T07** Build `KbDeflectionSuggestions` island and place it on the contact page
+  - **09b evidence:** `ContactPageHostTests`, `ContactPostHostTests`, `ContactReceivedHostTests`, `ReceivedReferenceTests`, `ContactFormValidatorTests`, `AttachmentRulesTests`, `FormFailureTests`, `RequestTooLargeMiddlewareTests` (the real server). The honeypot is passed to the API instead of short-circuited (D-045 addendum).
+- [x] **P09-T07** Build `KbDeflectionSuggestions` island and place it on the contact page
   - **Depends on:** P09-T06, P08-T08
   - **Validation:** bUnit with fake `IPublicKbClient` and `TimeProvider`: rapid typing yields one search; stale responses discarded; cancellation on dispose; failure hides the panel; contact form still posts without the island.
-- [ ] **P09-T08** Build `CustomerTicketPage`, `CustomerTicketPresenter`, `MessageThread`, `CustomerMessageBody`, `TicketStatusBanner` with security headers (`no-store`, `no-referrer`, `noindex`)
+  - **09b evidence:** `SuggestEndpointHostTests`, `ContactSuggestionsHostTests` and `tests/TechStrap.Portal.Tests/js/kb-suggestions.test.mjs` (run by `scripts/tests/PortalScripts.Tests.ps1`). It is a vanilla-JS `<ts-kb-suggestions>` element and a Portal `GET /p/{key}/suggest` adapter, not a Blazor island (D-045).
+- [x] **P09-T08** Build `CustomerTicketPage`, `CustomerTicketPresenter`, `MessageThread`, `CustomerMessageBody`, `TicketStatusBanner` with security headers (`no-store`, `no-referrer`, `noindex`)
   - **Depends on:** P09-T03, P06
   - **Validation:** Host test: valid token renders public messages only; invalid/expired/revoked all return the identical 404 body; response headers asserted; presenter unit test for Closed state.
+  - **09b evidence:** `TicketPageHostTests`, `TicketUniformNotFoundHostTests`, `CustomerTicketPresenterTests`, `TicketHeaderHostTests`; `CustomerMessageBody` is the one markup site (`PortalRuleTests`).
 - [ ] **P09-T09** Build `CustomerReplyForm` with attachments, including Closed -> follow-up flow handling
   - **Depends on:** P09-T08
   - **Validation:** Host test: reply on Open ticket refreshes thread; reply on Closed ticket shows follow-up ticket link; oversize/disallowed attachment shows error; double-submit guarded.
-- [ ] **P09-T10** Build `LostLinkPage` (`/p/{key}/lost-link`)
+  - **09b:** delivered except double-submit (deferred to 09c, D-045 'Known in 09b').
+  - **09b evidence:** `TicketReplyHostTests`, `FollowUpLinkTests`, `ReplyAndEmailRulesTests`: a reply redirects to the same page, a reply on a Closed ticket redirects to the follow-up's own page on this site, a link that cannot be read gives a generic confirmation.
+- [x] **P09-T10** Build `LostLinkPage` (`/p/{key}/lost-link`)
   - **Depends on:** P09-T03
   - **Validation:** Host test: matching and non-matching emails produce byte-identical responses and timing within a small tolerance (no early-return branch visible in code review); 429 handled generically.
-- [ ] **P09-T11** Implement the portal `GET /t/{token}/attachments/{id}` pass-through adapter (D-017)
+  - **09b evidence:** `LostLinkHostTests`: the responses are byte-identical for any well-formed address; the timing assertion is dropped (D-038).
+- [x] **P09-T11** Implement the portal `GET /t/{token}/attachments/{id}` pass-through adapter (D-017)
   - **Depends on:** P09-T08
   - **Validation:** Host test: streams bytes with `attachment` disposition and `nosniff`; other tokens/ids -> uniform 404; no Infrastructure reference (architecture test).
+  - **09b evidence:** `TicketAttachmentHostTests`, `ApiConnectionStreamTests`, `TicketUniformNotFoundHostTests`, `TicketHeaderHostTests` (the real route under the sandbox rule).
 - [ ] **P09-T12** Build `KbHomePage` and `KbCategoryPage` with paging and `KbArticleCard`/`KbBreadcrumbs`
   - **Depends on:** P09-T03, P08-T08
   - **Validation:** bUnit: empty category shows empty state; paging links preserve query; shared + product articles appear.
@@ -187,6 +205,7 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
 - [ ] **P09-T18** Add portal to compose with forwarded-headers/subnet trust (D-019) and the end-to-end intake path (portal -> API) rate-limit check
   - **Depends on:** P09-T06, P05
   - **Validation:** `docker compose up`; hitting the contact form repeatedly from one client IP behind the proxy trips the API 429 for that IP only (second source IP unaffected); `/health/ready` 200.
+  - **09b:** the smoke check is written and pinned (`scripts/Test-ComposeSmoke.ps1`, `scripts/tests/ComposeSmoke.Tests.ps1`: the Portal's `/health/ready`, and the Api's rate limit seen through `GET /p/smoke/suggest` as two visitors); the owner's manual run of it and of the contact flow under compose ticks this task.
 - [x] **P09-T19** Add architecture rules: Portal references only Contracts; no `[Inject] HttpClient` in components; `MarkupString` restricted
   - **Depends on:** P09-T14
   - **Validation:** Architecture.Tests fail on a deliberate violation sample.
@@ -194,16 +213,18 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
 - [ ] **P09-T20** (Optional, **Assumption**) Playwright e2e: submit ticket -> read email link (from test SMTP sink) -> view -> reply
   - **Depends on:** P09-T09, P09-T18
   - **Validation:** Passes in nightly CI against compose with MailPit/test sink.
-- [ ] **P09-T21** (D-024) Contact-page prefill: bind `subject`, `name` and `email` from the query string into `ContactFormViewModel` through the same validation attributes and length constants as posted input; all three stay visible and editable (inputs carry `maxlength` equal to the model limit), no hidden field carries prefill data, nothing auto-submits, unknown parameters are ignored and never echoed; add `name` and `email` query values to the request-log redaction (P09-T17). App context (version, device) is not a URL concern: it goes through the SDK/API
+- [x] **P09-T21** (D-024) Contact-page prefill: bind `subject`, `name` and `email` from the query string into `ContactFormViewModel` through the same validation attributes and length constants as posted input; all three stay visible and editable (inputs carry `maxlength` equal to the model limit), no hidden field carries prefill data, nothing auto-submits, unknown parameters are ignored and never echoed; add `name` and `email` query values to the request-log redaction (P09-T17). App context (version, device) is not a URL concern: it goes through the SDK/API
   - **Depends on:** P09-T06, P09-T17
   - **Validation:** host tests: `?subject=&name=&email=` render three visible editable inputs with the values, HTML-encoded (injected markup is escaped); an over-length subject and an invalid email fail on post exactly as typed input does; extra parameters such as `product` or `token` change nothing; a log-capture test shows no prefilled name or email
+  - **09b evidence:** `ContactPageHostTests` (the prefill: visible, editable, encoded, unknown parameters ignored, nothing submitted), `ContactPostHostTests` (judged on post like typed text), `ContactFormViewModel.FromPrefill`, `RequestLogRedactionHostTests` (`name`, `email`, `subject` masked).
 - [x] **P09-T22** (D-024) "Powered by TechStrap" link and setting: portal options `ShowPoweredBy` bound from `TECHSTRAP_PORTAL_SHOW_POWERED_BY` (default `true`); the footer renders the line as a link to https://github.com/Syntax-Circus/techstrap (constant, neutral secondary ink, underlined, 4.5:1) on every page including NotFound and error pages, and omits it entirely when false
   - **Depends on:** P09-T03
   - **Validation:** host tests: with the default every page type contains exactly one link with the exact href and no other TechStrap text; with the option false none contains the line; the option defaults to true when the variable is unset; an invalid value fails startup validation
   - **09a evidence:** `PoweredByHostTests` (exactly one link on every page type, none when false, true by default, an invalid value fails the start) and `PoweredByFooterTests`.
-- [ ] **P09-T23** (D-024) Agent identity on the ticket view: `CustomerMessage` shows the API-resolved `AuthorDisplayName` as-is (HTML-encoded) for agent messages and "You" for the customer's own; no agent email, id or avatar is rendered
+- [x] **P09-T23** (D-024) Agent identity on the ticket view: `CustomerMessage` shows the API-resolved `AuthorDisplayName` as-is (HTML-encoded) for agent messages and "You" for the customer's own; no agent email, id or avatar is rendered
   - **Depends on:** P09-T08, P06-T22
   - **Validation:** bUnit: an agent message shows "Sam from Orbitly Support"; a fixture with override "Samantha from Orbitly Support" shows it unchanged; markup in the name is encoded; a DTO shape test shows the portal model has no agent email property
+  - **09b evidence:** `CustomerTicketPresenterTests` and `TicketPageHostTests`: an agent shows as the API named them, markup in a name is encoded, the customer is "You", and the view model has no email, id or avatar.
 
 
 ## Success Criteria

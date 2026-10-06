@@ -55,6 +55,27 @@ internal sealed class PortalFactory(
 
     public CollectingSink LogSink { get; } = new();
 
+    /// <summary>
+    /// When set, disposing the factory asserts that every API call the host made carried <c>X-Forwarded-For: {ExpectedClientIp}</c> (<c>AssertEveryCallBore</c>), so a host test that makes an API call can never
+    /// pass with a lost forwarded-IP handler (Review Focus 5). A test that made no call passes. The form and ticket kits set it for every host they build.
+    /// </summary>
+    public string? ExpectedClientIp { get; set; }
+
+    public override async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (ExpectedClientIp is not null && Api.Requests.Count > 0)
+            {
+                Api.AssertEveryCallBore(ExpectedClientIp);
+            }
+        }
+        finally
+        {
+            await base.DisposeAsync();
+        }
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(environment);

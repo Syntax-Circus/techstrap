@@ -40,6 +40,13 @@ public abstract class ProductPageBase : ComponentBase
     /// <summary>This page's own address, root-relative, for a "Try again" link (the document's <c>base</c> is <c>/</c>).</summary>
     protected string RetryHref => "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
 
+    /// <summary>Ends the request in the neutral 404 after the product was set (a post the API answers 404 to): the product is forgotten first, so the 404 carries none of its accent, header or footer.</summary>
+    protected void NotFoundAfterTheming()
+    {
+        Scope.Clear();
+        Navigation.NotFound();
+    }
+
     protected override async Task OnInitializedAsync()
     {
         // The client refuses a malformed key too (without a call); this check keeps the page from depending on that, and ProductPageBaseTests pins it.

@@ -128,3 +128,136 @@
 .ts-help-contact {
   margin-top: 24px;
 }
+
+// The contact form and the received page (PHASE-09b). The honeypot is hidden here, not with an inline style (the CSP allows none): out of the layout, out of sight, and never focusable (tabindex -1 on the input).
+.ts-hp {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.ts-help-link {
+  margin-bottom: 16px;
+}
+
+.ts-error-summary {
+  margin-bottom: 16px;
+
+  ul {
+    margin: 0;
+    padding-left: 20px;
+  }
+}
+
+.ts-field-error {
+  margin: 4px 0 0;
+  font-size: .875rem;
+  color: var(--p-error, #b3261e);
+}
+
+// The KB suggestions beside the subject field: empty until there is something to suggest, then a short list. Plain text; the links open in a new tab, so the form is never lost.
+.ts-suggestions {
+  display: block;
+  margin: -8px 0 16px;
+  font-size: .9375rem;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.ts-suggest-heading {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.ts-suggest-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.ts-suggest-snippet {
+  display: block;
+  color: var(--p-ink2);
+}
+
+// The ticket page (PHASE-09b): the status banner, the conversation and the reply form.
+.ts-ticket-subject {
+  font-weight: 500;
+}
+
+.ts-status-banner {
+  margin: 8px 0 20px;
+  padding: 12px 16px;
+  border: 1px solid var(--p-line);
+  border-left: 6px solid var(--ts-accent, var(--p-line));
+}
+
+.ts-status-closed {
+  border-left-color: var(--p-ink2);
+}
+
+.ts-status,
+.ts-status-note {
+  margin: 0;
+}
+
+.ts-status-note {
+  margin-top: 4px;
+  color: var(--p-ink2);
+}
+
+.ts-thread {
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+}
+
+.ts-message {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--p-line);
+}
+
+.ts-message-own {
+  border-left: 4px solid var(--ts-accent, var(--p-line));
+}
+
+.ts-message-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+  margin-bottom: 8px;
+  font-size: .875rem;
+
+  time {
+    color: var(--p-ink2);
+  }
+}
+
+.ts-message-body {
+  overflow-wrap: anywhere;
+}
+
+.ts-attachments {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  font-size: .875rem;
+}
+
+.ts-attachment-size {
+  color: var(--p-ink2);
+}
+
+.ts-ticket-number {
+  font: 600 1.125rem var(--ts-font-mono);
+  user-select: all;
+}
+
+.ts-next-links {
+  margin-top: 24px;
+  padding-left: 20px;
+}

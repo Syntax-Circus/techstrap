@@ -16,6 +16,13 @@ public sealed class CustomerDtoShapeTests
         Properties(dto).ShouldNotContain(name => _forbidden.Contains(name));
 
     [Fact]
+    public void The_customer_ticket_carries_the_products_public_key_so_the_portal_can_theme_the_page()
+    {
+        // D-045 addendum (2026-10-06): the key is what the public product endpoint is asked for; the internal ProductId stays forbidden above.
+        typeof(CustomerTicketDto).GetProperty("ProductKey")!.PropertyType.ShouldBe(typeof(string));
+    }
+
+    [Fact]
     public void Every_type_reachable_from_a_customer_dto_is_customer_safe()
     {
         // walk property types recursively from CustomerTicketDto: every record type reached is one of

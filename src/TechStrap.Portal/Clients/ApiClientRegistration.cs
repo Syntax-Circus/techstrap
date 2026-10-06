@@ -53,6 +53,9 @@ public static class ApiClientRegistration
 
         services.AddScoped<ApiConnection>();
         services.AddScoped<IPublicProductClient, PublicProductClient>();
+        services.AddScoped<IPublicTicketClient, PublicTicketClient>();
+        services.AddScoped<ICustomerTicketClient, CustomerTicketClient>();
+        services.AddScoped<IPublicKbClient, PublicKbClient>();
         return services;
     }
 

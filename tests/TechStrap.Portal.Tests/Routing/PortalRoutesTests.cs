@@ -37,7 +37,7 @@ public sealed class PortalRoutesTests
         PortalRoutes.KbCategoryTemplate.ShouldBe("/p/{key}/kb/{category}");
         PortalRoutes.KbArticleTemplate.ShouldBe("/p/{key}/kb/{category}/{slug}");
         PortalRoutes.KbSearchTemplate.ShouldBe("/p/{key}/kb/search");
-        PortalRoutes.KbSuggestTemplate.ShouldBe("/p/{key}/kb/suggest");
+        PortalRoutes.SuggestTemplate.ShouldBe("/p/{key}/suggest");
         PortalRoutes.TicketTemplate.ShouldBe("/t/{token}");
         PortalRoutes.TicketAttachmentTemplate.ShouldBe("/t/{token}/attachments/{id}");
     }
@@ -53,9 +53,17 @@ public sealed class PortalRoutesTests
         PortalRoutes.KbCategory("paperplane", "guides").ShouldBe("/p/paperplane/kb/guides");
         PortalRoutes.KbArticle("paperplane", "guides", "dark-mode").ShouldBe("/p/paperplane/kb/guides/dark-mode");
         PortalRoutes.KbSearch("paperplane").ShouldBe("/p/paperplane/kb/search");
-        PortalRoutes.KbSuggest("paperplane").ShouldBe("/p/paperplane/kb/suggest");
+        PortalRoutes.Suggest("paperplane").ShouldBe("/p/paperplane/suggest");
         PortalRoutes.Ticket("abc").ShouldBe("/t/abc");
         PortalRoutes.TicketAttachment("abc", Guid.Parse("11111111-2222-3333-4444-555555555555")).ShouldBe("/t/abc/attachments/11111111-2222-3333-4444-555555555555");
+    }
+
+    [Fact]
+    public void The_suggest_route_is_beside_the_kb_not_under_it_so_no_category_slug_can_ever_shadow_it()
+    {
+        // D-045 addendum (2026-10-06): /p/{key}/kb/suggest would have made a category called "suggest" unreachable.
+        PortalRoutes.SuggestTemplate.ShouldBe("/p/{key}/suggest");
+        PortalRoutes.Suggest("paperplane").ShouldBe("/p/paperplane/suggest");
     }
 
     [Fact]
@@ -64,6 +72,21 @@ public sealed class PortalRoutesTests
         PortalRoutes.ProductHome("a/b?c#d").ShouldBe("/p/a%2Fb%3Fc%23d");
         PortalRoutes.KbArticle("p", "../x", "y z").ShouldBe("/p/p/kb/..%2Fx/y%20z");
         PortalRoutes.Ticket("a b").ShouldBe("/t/a%20b");
+    }
+
+    [Fact]
+    public void The_lost_link_confirmation_is_the_lost_link_page_with_the_sent_flag_and_nothing_about_an_address()
+    {
+        PortalRoutes.LostLinkSent("paperplane").ShouldBe("/p/paperplane/lost-link?sent=1");
+        PortalRoutes.SentParameter.ShouldBe("sent");
+    }
+
+    [Fact]
+    public void The_received_page_builder_adds_the_reference_escaped_so_it_can_never_add_a_parameter()
+    {
+        PortalRoutes.ContactReceived("paperplane", "CfDJ8_a-b").ShouldBe("/p/paperplane/contact/received?ref=CfDJ8_a-b");
+        PortalRoutes.ContactReceived("paperplane", "a&b=c#d e").ShouldBe("/p/paperplane/contact/received?ref=a%26b%3Dc%23d%20e");
+        PortalRoutes.ReceivedReferenceParameter.ShouldBe("ref");
     }
 
     [Fact]

@@ -50,6 +50,30 @@ Describe 'Test-ComposeSmoke.ps1' {
         foreach ($port in $ports) { $port | Should -Match '^127\.0\.0\.1::\d+$' }
     }
 
+    It 'checks the Portal too: it must answer /health/ready, and its published port is read like the others' {
+        $script:DryRun | Should -Match 'port portal 80'
+        $script:DryRun | Should -Match 'GET /health/ready on the Api, the Admin and the Portal, expecting 200'
+        $script:SmokeText | Should -Match "Get-PublishedPort -Service 'portal' -ContainerPort 80"
+        $script:SmokeText | Should -Match 'Assert-Ready -Name ''Portal'' -Port \$portalPort'
+    }
+
+    It 'lowers the Api public limit to 3 and makes the Portal trust the compose subnet, in the override only' {
+        $script:DryRun | Should -Match '(?s)api:\s+image: techstrap-smoke-api:local\s+ports: !override\s+- "127\.0\.0\.1::80"\s+environment:\s+RateLimiting__Public__PermitLimit: "3"\s+RateLimiting__Public__WindowSeconds: "600"'
+        $script:DryRun | Should -Match '(?s)portal:\s+image: techstrap-smoke-portal:local\s+ports: !override\s+- "127\.0\.0\.1::80"\s+environment:\s+TRUSTEDPROXY__TRUSTEDNETWORKS__0: \$\{TECHSTRAP_SUBNET:-172\.16\.31\.0/24\}'
+        # The lowered limit lives in the smoke override only: neither compose file may carry it.
+        (Get-Content -LiteralPath (Join-Path $script:RepoRoot 'docker-compose.yml') -Raw) | Should -Not -Match 'RateLimiting__Public'
+        (Get-Content -LiteralPath (Join-Path $script:RepoRoot 'deploy' 'docker-compose.yml') -Raw) | Should -Not -Match 'RateLimiting__Public'
+    }
+
+    It 'proves the rate limit sees the real client address through the Portal suggest adapter, from inside the compose network' {
+        $script:DryRun | Should -Match 'exec -T api curl .*http://portal/p/smoke/suggest\?q=printer'
+        $script:DryRun | Should -Match 'X-Forwarded-For: 203\.0\.113\.10 .* 200 three times, then 429'
+        $script:DryRun | Should -Match 'X-Forwarded-For: 203\.0\.113\.11 .* 200'
+        $script:SmokeText | Should -Match "'exec', '-T', 'api', 'curl'"
+        $script:SmokeText | Should -Match 'Assert-StatusCode'
+        $script:SmokeText | Should -Match '\$smokePermitLimit = 3'
+    }
+
     It 'builds the four images one after another, never with up --build (parallel restores corrupt the shared NuGet cache mount)' {
         foreach ($service in 'api', 'worker', 'admin', 'portal') {
             $script:DryRun | Should -Match "build $service"

@@ -82,7 +82,7 @@ public sealed class GetCustomerTicketRequestHandler(
         }
 
         return Result<CustomerTicketDto>.Success(
-            new CustomerTicketDto(ticket.Number.ToString(), ticket.Subject, ticket.Status.ToWire(), ticket.CreatedAt, dtos));
+            new CustomerTicketDto(ticket.Number.ToString(), product.Key, ticket.Subject, ticket.Status.ToWire(), ticket.CreatedAt, dtos));
     }
 
     private static Result<CustomerTicketDto> NotFound() => Result<CustomerTicketDto>.Failure(CustomerErrors.NotFound());

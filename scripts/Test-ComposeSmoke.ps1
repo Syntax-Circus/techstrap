@@ -1,8 +1,9 @@
 <#
 .SYNOPSIS
-Starts the local compose stack, checks that the Api and the Admin answer, and stops it again.
+Starts the local compose stack, checks that the Api, the Admin and the Portal answer and that the rate limit sees the real client address, and stops it again.
 .DESCRIPTION
-The PHASE-07 T20 check: "docker compose up" gives a healthy Admin and an Api whose /health/ready answers 200. It is opt-in (it builds four images and needs Docker),
+The PHASE-07 T20 check: "docker compose up" gives a healthy Admin and an Api whose /health/ready answers 200. PHASE-09 T18 adds the Portal to it: its /health/ready must answer 200 too, and the
+Api's rate limit must count the visitor, not the Portal's container. It is opt-in (it builds four images and needs Docker),
 so it is not part of the default CI run; run it by hand before merging a change to a Dockerfile, a compose file or the host wiring, or start the "Compose smoke" workflow.
 
 It never touches a stack you already run. It uses its own compose project name (techstrap-smoke, never the default "techstrap"), publishes every host port on a free
@@ -10,6 +11,13 @@ port chosen by Docker instead of 8080 to 8082 and 8025, and stops only that proj
 key-ring volumes of the smoke project stay for the next run (they are named techstrap-smoke_*; remove them yourself when you want them gone).
 
 The Admin starts with placeholder OIDC settings (docker-compose.yml), so nothing here signs in; it checks the container's health and its /health/ready endpoint.
+
+The real-address check (D-019): the override below lowers the Api's public rate limit to 3 requests per 10 minutes and makes the Portal trust the compose subnet. The script then calls the Portal's
+suggest adapter, GET /p/smoke/suggest, which makes one call to the Api's public KB search per request, from inside the network (docker compose exec in the api container, which has curl):
+the source is a container address on the pinned subnet, so the Portal treats it as the proxy hop and takes the visitor from X-Forwarded-For. Three calls as 203.0.113.10 answer 200 and the fourth 429
+(the Api counted that visitor and passed its 429 through the adapter); then 203.0.113.11 answers 200 (another visitor is unaffected). If the Api counted the Portal's address instead, the second visitor
+would be refused too. A call from the host through the published port would arrive from the Docker gateway, whose address differs between Linux and Docker Desktop, so it could not be trusted portably;
+the call from the api container always comes from the pinned subnet. The override changes nothing in docker-compose.yml, and the lowered limit belongs to the smoke project only.
 
 With -CheckDeployCompose it also resolves deploy/docker-compose.yml (the image-only UAT and production stack) with the committed UAT input template and dummy scoped env files:
 "docker compose config --quiet" only. It never pulls an image and never starts that stack, which needs real images and an external Postgres.
@@ -57,6 +65,9 @@ services:
     image: techstrap-smoke-api:local
     ports: !override
       - "127.0.0.1::80"
+    environment:
+      RateLimiting__Public__PermitLimit: "3"
+      RateLimiting__Public__WindowSeconds: "600"
   worker:
     image: techstrap-smoke-worker:local
   admin:
@@ -67,10 +78,18 @@ services:
     image: techstrap-smoke-portal:local
     ports: !override
       - "127.0.0.1::80"
+    environment:
+      TRUSTEDPROXY__TRUSTEDNETWORKS__0: ${TECHSTRAP_SUBNET:-172.16.31.0/24}
   mailpit:
     ports: !override
       - "127.0.0.1::8025"
 '@
+
+# The public limit the override sets (RateLimiting__Public__PermitLimit above) and the two visitors the check pretends to be (documentation addresses, RFC 5737).
+$smokePermitLimit = 3
+$visitorA = '203.0.113.10'
+$visitorB = '203.0.113.11'
+$suggestUrl = 'http://portal/p/smoke/suggest?q=printer'
 
 $overridePath = Join-Path ([System.IO.Path]::GetTempPath()) "techstrap-smoke-$([guid]::NewGuid().ToString('N')).override.yml"
 $composeArguments = @('compose', '-p', $ProjectName, '-f', (Resolve-Path -LiteralPath $ComposeFile).Path, '-f', $overridePath)
@@ -95,6 +114,24 @@ function Get-PublishedPort {
     }
 
     return [int] $Matches['port']
+}
+
+# One call to the Portal's suggest adapter from inside the compose network, as the given visitor; returns the HTTP status the Portal answered.
+function Get-SuggestStatus {
+    param([Parameter(Mandatory)][string] $Visitor)
+
+    $code = Invoke-Compose -Arguments @('exec', '-T', 'api', 'curl', '--silent', '--output', '/dev/null', '--write-out', '%{http_code}', '--max-time', '30', '--header', "X-Forwarded-For: $Visitor", $suggestUrl)
+    return [int] $code.Trim()
+}
+
+function Assert-StatusCode {
+    param([Parameter(Mandatory)][string] $Name, [Parameter(Mandatory)][int] $Actual, [Parameter(Mandatory)][int] $Expected)
+
+    if ($Actual -ne $Expected) {
+        throw "$Name answered $Actual (expected $Expected)."
+    }
+
+    Write-Output "ok   $Name -> $Expected"
 }
 
 function Assert-Ready {
@@ -173,8 +210,12 @@ if ($DryRun) {
 
     Write-Output "docker $($composeArguments -join ' ') port api 80"
     Write-Output "docker $($composeArguments -join ' ') port admin 80"
-    Write-Output "GET /health/ready on the Api and on the Admin, expecting 200"
+    Write-Output "docker $($composeArguments -join ' ') port portal 80"
+    Write-Output "GET /health/ready on the Api, the Admin and the Portal, expecting 200"
     Write-Output "docker $($composeArguments -join ' ') ps admin --format json   (Health must be healthy)"
+    $curl = "docker $($composeArguments -join ' ') exec -T api curl --silent --output /dev/null --write-out %{http_code} --header"
+    Write-Output "$curl 'X-Forwarded-For: $visitorA' $suggestUrl   (X-Forwarded-For: $visitorA -> 200 three times, then 429: the Api counts the visitor)"
+    Write-Output "$curl 'X-Forwarded-For: $visitorB' $suggestUrl   (X-Forwarded-For: $visitorB -> 200: another visitor is unaffected)"
     if (-not $KeepRunning) {
         Write-Output "docker $($composeArguments -join ' ') down"
     }
@@ -205,8 +246,10 @@ try {
 
     $apiPort = Get-PublishedPort -Service 'api' -ContainerPort 80
     $adminPort = Get-PublishedPort -Service 'admin' -ContainerPort 80
+    $portalPort = Get-PublishedPort -Service 'portal' -ContainerPort 80
     Assert-Ready -Name 'Api' -Port $apiPort
     Assert-Ready -Name 'Admin' -Port $adminPort
+    Assert-Ready -Name 'Portal' -Port $portalPort
 
     $admin = (Invoke-Compose -Arguments @('ps', 'admin', '--format', 'json') | ConvertFrom-Json)
     if ($admin.Health -ne 'healthy') {
@@ -214,11 +257,19 @@ try {
     }
 
     Write-Output 'ok   Admin container is healthy'
+
+    # The Api's rate limit must see the visitor behind the Portal (D-019): the limit is 3, so visitor A is refused on the fourth call and visitor B is not.
+    for ($call = 1; $call -le $smokePermitLimit; $call++) {
+        Assert-StatusCode -Name "suggest $call of $smokePermitLimit as $visitorA" -Actual (Get-SuggestStatus -Visitor $visitorA) -Expected 200
+    }
+
+    Assert-StatusCode -Name "suggest $($smokePermitLimit + 1) as $visitorA (over the limit)" -Actual (Get-SuggestStatus -Visitor $visitorA) -Expected 429
+    Assert-StatusCode -Name "suggest 1 as $visitorB (another visitor)" -Actual (Get-SuggestStatus -Visitor $visitorB) -Expected 200
     $failed = $false
 }
 finally {
     if ($failed) {
-        Write-Output (Invoke-Compose -Arguments @('logs', '--tail', '60', 'api', 'admin') -AllowFailure)
+        Write-Output (Invoke-Compose -Arguments @('logs', '--tail', '60', 'api', 'admin', 'portal') -AllowFailure)
     }
 
     if (-not $KeepRunning) {

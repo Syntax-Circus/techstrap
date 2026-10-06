@@ -1,0 +1,32 @@
+@attribute [Route(PortalRoutes.LostLinkTemplate)]
+@inherits ProductPageBase
+
+@if (Theme is { } theme)
+{
+    <PageTitle>@LostLinkCopy.Title(theme.DisplayName)</PageTitle>
+    <h1>@LostLinkCopy.Heading</h1>
+    @if (SentFlag == "1")
+    {
+        <p role="status" class="ts-confirmation">@LostLinkCopy.Confirmation</p>
+        <p><a href="@PortalRoutes.ProductHome(theme.Key)">@LostLinkCopy.BackTo(theme.DisplayName)</a></p>
+    }
+    else
+    {
+        <p>@LostLinkCopy.Intro</p>
+        <ErrorSummary Errors="Errors" />
+        @if (Notice is not null)
+        {
+            <p class="alert alert-warning" role="alert">@Notice</p>
+        }
+        <form method="post" action="@PortalRoutes.LostLink(theme.Key)" novalidate @formname="@FormHandler" @onsubmit="SubmitAsync" class="ts-form">
+            <AntiforgeryToken />
+            <FormField Field="@FormFields.Email" Name="Form.Email" Label="@LostLinkCopy.EmailLabel" Value="@Form?.Email" MaxLength="@TechStrap.Contracts.Intake.IntakeLimits.EmailMaxLength" Type="email" Autocomplete="email" Error="@ErrorOf(FormFields.Email)" />
+            <button type="submit" class="btn btn-primary">@LostLinkCopy.Submit</button>
+        </form>
+    }
+}
+else if (UnavailableMessage is not null)
+{
+    <PageTitle>@ShellCopy.UnavailableTitle</PageTitle>
+    <ProductUnavailable Message="@UnavailableMessage" RetryHref="@RetryHref" />
+}
