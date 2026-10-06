@@ -137,6 +137,34 @@ internal sealed partial class KbRepository
         return [.. categories.Select(category => new PublicKbCategoryCount(category.ToDomain(), countById[category.Id]))];
     }
 
+    public async Task<PagedResult<PublicKbCategoryArticle>?> ListPublicCategoryArticlesAsync(
+        Guid productId, string categorySlug, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        var normalisedPage = Paging.NormalizePage(page);
+        var size = Math.Clamp(Paging.NormalizePageSize(pageSize), 1, KbLimits.MaxPublicSearchPageSize);
+        var inCategory =
+            from article in PublishedIn(productId)
+            join category in context.Set<KbCategoryRecord>().AsNoTracking() on article.CategoryId equals category.Id
+            where category.Slug == categorySlug
+            select new { Article = article, Category = category };
+        var total = await inCategory.CountAsync(cancellationToken);
+        if (total == 0)
+        {
+            return null;
+        }
+
+        var items = await (
+            from row in inCategory
+            join owner in context.Set<ProductRecord>().AsNoTracking() on row.Article.ProductId equals owner.Id into owners
+            from owner in owners.DefaultIfEmpty()
+            orderby row.Article.UpdatedAt descending, row.Article.Id descending
+            select new PublicKbCategoryArticle(
+                row.Article.Slug, row.Article.Title, row.Article.Summary, row.Category.Slug, row.Category.Name, owner == null ? null : owner.Key, row.Article.UpdatedAt))
+            .Skip(Paging.Offset(normalisedPage, size)).Take(size)
+            .ToListAsync(cancellationToken);
+        return new PagedResult<PublicKbCategoryArticle>(items, normalisedPage, size, total);
+    }
+
     public async Task<IReadOnlyList<PublicKbSitemapRow>> ListPublicSitemapAsync(Guid productId, CancellationToken cancellationToken) =>
         await (
             from article in PublishedIn(productId)

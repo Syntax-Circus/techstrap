@@ -44,6 +44,17 @@ public sealed class PublicKbController : ControllerBase
         string productKey, string categorySlug, string slug, [FromServices] IGetPublishedKbArticleRequestHandler handler, CancellationToken cancellationToken) =>
         CachedFor(HitMaxAgeSeconds, await handler.HandleAsync(productKey, categorySlug, slug, cancellationToken));
 
+    /// <summary>One page of a category's Published articles (the product's and the shared ones), newest update first, 10 a page (at most 25). An unknown, invisible or empty category is a 404.</summary>
+    [HttpGet("categories/{categorySlug}/articles")]
+    public async Task<IActionResult> CategoryArticles(
+        string productKey,
+        string categorySlug,
+        [FromServices] IListPublicKbCategoryArticlesRequestHandler handler,
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = KbLimits.DefaultPublicSearchPageSize) =>
+        CachedFor(HitMaxAgeSeconds, await handler.HandleAsync(productKey, categorySlug, page, pageSize, cancellationToken));
+
     [HttpGet("sitemap")]
     public async Task<IActionResult> Sitemap(string productKey, [FromServices] IGetKbSitemapRequestHandler handler, CancellationToken cancellationToken) =>
         CachedFor(SitemapMaxAgeSeconds, await handler.HandleAsync(productKey, cancellationToken));

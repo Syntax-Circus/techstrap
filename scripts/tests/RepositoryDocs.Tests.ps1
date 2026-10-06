@@ -232,6 +232,33 @@ Describe 'D-045 addendum (PHASE-09b rulings, 2026-10-06)' {
     }
 }
 
+Describe 'D-045 addendum (PHASE-09c rulings, 2026-10-06)' {
+    BeforeAll {
+        $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md'
+        $script:Section = [regex]::Match($script:Log, '(?s)## D-045:.*?(?=\r?\n## D-\d+:|\z)').Value
+    }
+
+    It 'is a dated addendum inside D-045, not a new decision number' {
+        $script:Section | Should -Match '(?m)^### Addendum \(2026-10-06, PHASE-09c knowledge base pages, SEO and caching\)'
+        $script:Log | Should -Not -Match '(?m)^## D-046'
+    }
+
+    It 'records each ruling the 09c plan rests on' {
+        foreach ($phrase in 'categories/{categorySlug}/articles', 'PublicKbArticleSummaryDto', 'PublicProductSummaryDto', 'PublicProductLimits.MaxListed', 'PublishedIn', 'kb-category-not-found', 'ListCategoryArticlesAsync',
+                'KbArticleBody', 'KbArticleCard', 'KbBreadcrumbs', 'JsonLdText', 'MapSeoSitemap', 'IMemoryCache', 'single-flight', '50,000', 'AddOutputCache', 'PortalCachePaths', 'SetOnSuccess', 'X-Correlation-Id',
+                'img-src', 'SetVaryByQuery') {
+            $script:Section | Should -Match ([regex]::Escape($phrase)) -Because "the addendum must mention $phrase"
+        }
+    }
+
+    It 'lists the two new routes in the architecture tables and the public rate limit row' {
+        $architecture = Get-RepoText 'docs/architecture/02-ARCHITECTURE.md'
+        $architecture | Should -Match ([regex]::Escape('`GET /api/public/kb/{productKey}/categories/{categorySlug}/articles?page=&pageSize=`'))
+        $architecture | Should -Match ([regex]::Escape('`GET /api/public/products` (anonymous, `public` limit; for the Portal sitemap)'))
+        $architecture | Should -Match ([regex]::Escape('`GET /api/public/products`, `GET /api/public/products/{key}`, public KB endpoints, sitemap'))
+    }
+}
+
 Describe 'D-045 as built in 09b' {
     BeforeAll {
         $log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md'

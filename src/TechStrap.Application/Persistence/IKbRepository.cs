@@ -67,6 +67,13 @@ public interface IKbRepository
     /// <summary>Categories visible to the product (its own and the shared ones) with their Published article counts, empty ones left out, sort order then name.</summary>
     Task<IReadOnlyList<PublicKbCategoryCount>> ListPublicCategoriesAsync(Guid productId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// One page of the Published articles the product can see in the category with the given slug (its own and the shared ones, in a category the product can see),
+    /// newest update first. Null when the product can see no Published article in a category with that slug: the category does not exist, belongs to another
+    /// product or is empty (the category list leaves empty ones out). A page past the end is a non-null result with no items. The page size is capped at <c>KbLimits.MaxPublicSearchPageSize</c>.
+    /// </summary>
+    Task<PagedResult<PublicKbCategoryArticle>?> ListPublicCategoryArticlesAsync(Guid productId, string categorySlug, int page, int pageSize, CancellationToken cancellationToken);
+
     /// <summary>Published articles visible to the product, newest update first, at most <c>KbLimits.MaxSitemapEntries</c>.</summary>
     Task<IReadOnlyList<PublicKbSitemapRow>> ListPublicSitemapAsync(Guid productId, CancellationToken cancellationToken);
 

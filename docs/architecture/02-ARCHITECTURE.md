@@ -264,6 +264,7 @@ Conventions:
 | `POST /api/intake/tickets` (Trusted or Public API key) | `SubmitTicketRequestHandler` (same use case; channel `Api`; trust from key kind) | same as above, plus `ICurrentUserService` for key principal (product id, kind) and `IIntakeIdempotencyStore` (optional `Idempotency-Key`) | same as above, plus idempotency store | 201 `SubmitTicketResponse` (number, view URL; a repeated `Idempotency-Key` returns the original ticket number with a fresh link; the stored response never holds the link, D-033); 400; 401 uniform for a bad key; external ref from a Public key is dropped with a warning and its metadata flagged untrusted (rule fixed in PHASE-05) | H, C, I | D-001, D-016, D-020 |
 | Worker outbox loop (`EmailOutboxWorker` hosted service, resolves the scoped handler from a fresh DI scope per iteration via `IServiceScopeFactory`) | `DrainEmailOutboxHandler` (plain `Task` or `Result`; no caller branching other than loop delay) | `IEmailOutboxStore`, `IEmailTemplateRenderer`, `IProductRepository`, `IOutboundEmailSender`, `IOptions<EmailOutboxWorkerOptions>`, `ILogger` | Outbox store (`SKIP LOCKED`), SMTP sender | Loop: batch processed means poll again; empty or failure means delay; unexpected exception logged and loop continues | H, I, W | D-010, D-012 |
 | `GET /api/public/products/{key}` (anonymous, `public` limit, Cache-Control) | `GetPublicProductRequestHandler` | `IProductRepository` | EF repos | 200 `PublicProductDto` (name, logo, accent; no secrets) with `Cache-Control: public, max-age`; 404 `no-store` | H, C, I | D-002 |
+| `GET /api/public/products` (anonymous, `public` limit; for the Portal sitemap) | `ListPublicProductsRequestHandler` | `IProductRepository` | EF repos | 200 `PublicProductSummaryDto[]` (key and display name of the active products, by key, at most 1,000) with `Cache-Control: public, max-age=300` | H, C, I | D-045 |
 
 ### 7.3 Ticket operations (PHASE-06)
 
@@ -314,6 +315,7 @@ Conventions:
 | `GET /api/public/kb/{productKey}/search?q=&category=` (anonymous, `public` limit; also deflection) | `SearchPublicKbArticlesRequestHandler` | `IKbRepository`, `IProductRepository` | EF repos (FTS) | 200 `PagedResponse<PublicKbSearchResultDto>` with `Cache-Control: public, max-age=60` | H, C, I | D-011, D-044 |
 | `GET /api/public/kb/{productKey}/articles/{categorySlug}/{slug}` (anonymous, `public` limit) | `GetPublishedKbArticleRequestHandler` | `IKbRepository`, `IProductRepository`, `IKbContentRenderer` | EF repos, KB Markdig profile and sanitiser | 200 `PublishedKbArticleDto` (sanitized HTML) with `Cache-Control: public, max-age=60`; 404 `no-store` | H, C, I | D-014, D-044 |
 | `GET /api/public/kb/{productKey}/categories` (anonymous, `public` limit) | `ListPublicKbCategoriesRequestHandler` | `IKbRepository`, `IProductRepository` | EF repos | 200 `PublicKbCategoryDto[]` | H, C | none |
+| `GET /api/public/kb/{productKey}/categories/{categorySlug}/articles?page=&pageSize=` (anonymous, `public` limit) | `ListPublicKbCategoryArticlesRequestHandler` | `IKbRepository`, `IProductRepository` | EF repos | 200 `PagedResponse<PublicKbArticleSummaryDto>` (published only, newest update first) with `Cache-Control: public, max-age=60`; 404 `no-store` for an unknown, invisible or empty category | H, C, I | D-045 |
 | `GET /api/public/kb/{productKey}/sitemap` (anonymous, `public` limit) | `GetKbSitemapRequestHandler` | `IKbRepository`, `IProductRepository` | EF repos | 200 `KbSitemapEntryDto[]` | H, C | none |
 
 ### 7.5 Live updates (PHASE-10)
@@ -417,7 +419,7 @@ Per _template pattern CLIENT_IP_RATE_LIMITING.md (reverse proxy in front of Dock
 
 | Policy | Applies to | Partition | Default |
 | --- | --- | --- | --- |
-| `public` | `GET /api/public/products/{key}`, public KB endpoints, sitemap | client IP | 120 / min |
+| `public` | `GET /api/public/products`, `GET /api/public/products/{key}`, public KB endpoints, sitemap | client IP | 120 / min |
 | `public-submit` | `POST /api/public/products/{key}/tickets` | client IP | 5 / 10 min |
 | `intake-key` (Public key) | `POST /api/intake/tickets` with a Public key | key prefix + client IP | 10 / min |
 | `intake-key` (Trusted key) | `POST /api/intake/tickets` with a Trusted key | key prefix + client IP (a key id is impossible before authentication; the limiter reads the raw `X-Api-Key` prefix, so a spoofer who knows a prefix exhausts only their own IP's partition) | 120 / min |

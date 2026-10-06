@@ -182,6 +182,72 @@ public sealed class KbEndpointTests(TestPostgres postgres) : IDisposable
     }
 
     [Fact]
+    public async Task A_category_list_serves_only_published_articles_with_the_public_cache_header_and_pages()
+    {
+        await using var started = await StartAsync();
+        var product = await CreateProductAsync(started.Admin, "orbitly", "ORB");
+        var other = await CreateProductAsync(started.Admin, "paperplane", "PPL");
+        var category = await CreateCategoryAsync(started.Agent, product.Id, "account");
+        var otherCategory = await CreateCategoryAsync(started.Agent, other.Id, "billing");
+        var shared = await CreateCategoryAsync(started.Agent, null, "general");
+        await CreateArticleAsync(started.Agent, product.Id, category.Id, "still-a-draft");
+        foreach (var slug in new[] { "reset-password", "change-email", "close-account" })
+        {
+            var article = await CreateArticleAsync(started.Agent, product.Id, category.Id, slug);
+            (await started.Agent.PostAsync($"/api/kb/articles/{article.Id}/publish", null, Ct)).EnsureSuccessStatusCode();
+        }
+
+        var elsewhere = await CreateArticleAsync(started.Agent, other.Id, otherCategory.Id, "paperplane-only");
+        (await started.Agent.PostAsync($"/api/kb/articles/{elsewhere.Id}/publish", null, Ct)).EnsureSuccessStatusCode();
+        var sharedArticle = await CreateArticleAsync(started.Agent, null, shared.Id, "shared-tips");
+        (await started.Agent.PostAsync($"/api/kb/articles/{sharedArticle.Id}/publish", null, Ct)).EnsureSuccessStatusCode();
+
+        using var firstPage = await started.Anonymous.GetAsync("/api/public/kb/orbitly/categories/account/articles?pageSize=2", Ct);
+        using var secondPage = await started.Anonymous.GetAsync("/api/public/kb/orbitly/categories/account/articles?pageSize=2&page=2", Ct);
+        using var sharedPage = await started.Anonymous.GetAsync("/api/public/kb/orbitly/categories/general/articles", Ct);
+        var first = await ReadAsync<PagedResponse<PublicKbArticleSummaryDto>>(firstPage);
+        var second = await ReadAsync<PagedResponse<PublicKbArticleSummaryDto>>(secondPage);
+
+        first.ShouldSatisfyAllConditions(page => page.Items.Count.ShouldBe(2), page => page.TotalCount.ShouldBe(3), page => page.Page.ShouldBe(1), page => page.PageSize.ShouldBe(2));
+        second.Items.Count.ShouldBe(1);
+        first.Items.Concat(second.Items).Select(item => item.Slug).Order().ShouldBe(["change-email", "close-account", "reset-password"]);
+        first.Items.ShouldAllBe(item => item.ProductKey == "orbitly" && item.CategorySlug == "account" && item.Summary == "Summary of " + item.Slug && item.Title == "Title " + item.Slug);
+        (await ReadAsync<PagedResponse<PublicKbArticleSummaryDto>>(sharedPage)).Items.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            item => item.Slug.ShouldBe("shared-tips"), item => item.ProductKey.ShouldBeNull());
+        firstPage.Headers.GetValues("Cache-Control").Single().ShouldBe("public, max-age=60");
+        var raw = await firstPage.Content.ReadAsStringAsync(Ct);
+        raw.ShouldNotContain("still-a-draft");
+        raw.ShouldNotContain("paperplane-only");
+    }
+
+    [Theory]
+    [InlineData("/api/public/kb/orbitly/categories/no-such-category/articles")]
+    [InlineData("/api/public/kb/orbitly/categories/billing/articles")]
+    [InlineData("/api/public/kb/orbitly/categories/empty/articles")]
+    [InlineData("/api/public/kb/orbitly/categories/search/articles")]
+    [InlineData("/api/public/kb/orbitly/categories/NOT-A-SLUG/articles")]
+    [InlineData("/api/public/kb/nobody/categories/account/articles")]
+    public async Task An_unknown_invisible_or_empty_category_or_an_unknown_product_is_one_404_that_is_never_cached(string path)
+    {
+        await using var started = await StartAsync();
+        var product = await CreateProductAsync(started.Admin, "orbitly", "ORB");
+        var other = await CreateProductAsync(started.Admin, "paperplane", "PPL");
+        var account = await CreateCategoryAsync(started.Agent, product.Id, "account");
+        await CreateCategoryAsync(started.Agent, product.Id, "empty");
+        var billing = await CreateCategoryAsync(started.Agent, other.Id, "billing");
+        var published = await CreateArticleAsync(started.Agent, product.Id, account.Id, "reset-password");
+        (await started.Agent.PostAsync($"/api/kb/articles/{published.Id}/publish", null, Ct)).EnsureSuccessStatusCode();
+        var elsewhere = await CreateArticleAsync(started.Agent, other.Id, billing.Id, "invoices");
+        (await started.Agent.PostAsync($"/api/kb/articles/{elsewhere.Id}/publish", null, Ct)).EnsureSuccessStatusCode();
+
+        using var response = await started.Anonymous.GetAsync(path, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.Headers.GetValues("Cache-Control").Single().ShouldBe("no-store");
+        (await response.Content.ReadAsStringAsync(Ct)).ShouldContain("kb-category-not-found");
+    }
+
+    [Fact]
     public async Task An_unknown_product_gets_empty_lists_and_one_uniform_not_found_for_the_article()
     {
         await using var started = await StartAsync();
