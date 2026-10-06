@@ -1,5 +1,6 @@
 using System.Net;
 using TechStrap.Contracts.Products;
+using TechStrap.Portal.Clients;
 using TechStrap.Portal.Tests.Api;
 
 namespace TechStrap.Portal.Tests.Products;
@@ -181,6 +182,19 @@ public sealed class ProductHomeHostTests
         html.ShouldNotContain("--ts-accent");
         html.ShouldNotContain("ts-product-header");
         html.ShouldContain("ts-powered");
+    }
+
+    [Fact]
+    public async Task A_400_from_the_api_shows_the_fixed_copy_and_never_the_apis_own_text()
+    {
+        await using var factory = new PortalFactory("Production");
+        factory.Api.OnProblem(HttpMethod.Get, "/api/public/products/paperplane", HttpStatusCode.BadRequest, "validation-failed", "Column secret_notes of table products is invalid");
+
+        var (response, html) = await GetAsync(factory, "/p/paperplane");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.ServiceUnavailable);
+        html.ShouldContain(ProblemCopy.ApiUnavailable);
+        html.ShouldNotContain("secret_notes");
     }
 
     [Fact]

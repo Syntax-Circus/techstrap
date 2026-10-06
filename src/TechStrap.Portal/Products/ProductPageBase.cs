@@ -42,6 +42,7 @@ public abstract class ProductPageBase : ComponentBase
 
     protected override async Task OnInitializedAsync()
     {
+        // The client refuses a malformed key too (without a call); this check keeps the page from depending on that, and ProductPageBaseTests pins it.
         if (!ProductKeyShape.IsWellFormed(Key))
         {
             Navigation.NotFound();
@@ -62,8 +63,10 @@ public abstract class ProductPageBase : ComponentBase
             return;
         }
 
-        UnavailableMessage = error.Message;
-        SetStatus(error.Code == ApiErrorCodes.RateLimited ? StatusCodes.Status429TooManyRequests : StatusCodes.Status503ServiceUnavailable);
+        // Fixed copy only: whatever the API said (a 400's own detail included) is never shown on a product page.
+        var rateLimited = error.Code == ApiErrorCodes.RateLimited;
+        UnavailableMessage = rateLimited ? ProblemCopy.RateLimited : ProblemCopy.ApiUnavailable;
+        SetStatus(rateLimited ? StatusCodes.Status429TooManyRequests : StatusCodes.Status503ServiceUnavailable);
     }
 
     private void SetStatus(int status)
