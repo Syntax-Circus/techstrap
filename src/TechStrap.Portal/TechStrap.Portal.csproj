@@ -20,6 +20,7 @@
     <PackageReference Include="SyntaxCircus.Blazor.Seo" />
     <PackageReference Include="SyntaxCircus.Common" />
     <PackageReference Include="SyntaxCircus.DotEnv" />
+    <PackageReference Include="SyntaxCircus.Http.Resilience" />
     <PackageReference Include="SyntaxCircus.Observability" />
   </ItemGroup>
 

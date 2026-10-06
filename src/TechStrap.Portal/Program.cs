@@ -2,6 +2,7 @@ using SyntaxCircus.AspNetCore.Common;
 using SyntaxCircus.DotEnv;
 using TechStrap.Hosting.Security;
 using TechStrap.Hosting.Wiring;
+using TechStrap.Portal.Clients;
 using TechStrap.Portal.Components;
 using TechStrap.Portal.Components.Ui;
 using TechStrap.Portal.Settings;
@@ -26,6 +27,9 @@ builder.Services.AddRazorComponents();
 
 // The API address, the Portal's public address and the optional default product: validated at start (D-043, D-045).
 builder.Services.AddPortalOptions();
+
+// The two named API clients (reads retried, writes never) and the typed clients: every call forwards the visitor's address (D-019, D-045).
+builder.Services.AddPortalApiClients();
 // Installation-wide switch for the "Powered by TechStrap" footer (D-024); shown unless set to false.
 // A value that is not true or false fails at startup rather than breaking every page.
 builder.Services.AddOptions<PoweredByOptions>()
