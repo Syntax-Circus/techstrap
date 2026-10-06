@@ -11,7 +11,9 @@ namespace TechStrap.Portal.Components.Pages;
 /// refresh never sends it twice). Review Focus 3: the antiforgery token is checked by the framework before the handler runs (a post without one is a 400); the request size limit is on the page and applies before
 /// the form is read; the files are checked against <c>IntakeLimits</c> before anything is sent; the honeypot goes to the API as it arrived; a prefilled value from <c>?subject&amp;name&amp;email</c> is shown in the
 /// visible, editable inputs and checked on post exactly like typed text, and nothing is ever submitted for the visitor. A failure keeps what the visitor wrote (but not their files: a browser never keeps those).
-/// An unknown, inactive or malformed product is the uniform 404, before the handler runs, because the base class loads the product on every request including the post.
+/// An unknown, inactive or malformed product ends in <c>NotFound()</c> before the handler runs, because the base class loads the product on every request including the post: a GET is the uniform 404 page, and a post gets
+/// the framework's plain-text 400 ("Cannot submit the form ... no form on the page"), because the form was never rendered. Nothing is created either way. A product that vanishes after it was loaded (the API answers the
+/// post with a 404) is the neutral 404, because the product is forgotten first (<see cref="ProductPageBase"/>).
 /// </summary>
 public partial class Contact : ProductPageBase
 {

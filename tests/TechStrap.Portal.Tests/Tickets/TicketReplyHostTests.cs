@@ -328,6 +328,28 @@ public sealed class TicketReplyHostTests
     }
 
     [Fact]
+    public async Task A_post_to_a_malformed_or_unknown_ticket_token_is_the_same_plain_400_so_nothing_tells_them_apart()
+    {
+        await using var factory = Host();
+        var (client, token) = await OpenAsync(factory);
+        using var _ = client;
+
+        factory.Api.OnProblem(HttpMethod.Get, TicketTestKit.TicketApi, HttpStatusCode.NotFound, "token-not-found", "No such token.");
+        // A good antiforgery token and cookie (they came from a ticket page); only the address of the post is wrong. The ticket is never rendered, so the form it posts to does not exist.
+        using var malformed = await client.PostAsync("/t/x", TicketTestKit.ReplyForm(token), Ct);
+        using var unknown = await client.PostAsync(TicketTestKit.Path, TicketTestKit.ReplyForm(token), Ct);
+        var seenMalformed = await Seen.OfAsync(malformed, 0, Ct);
+        var seenUnknown = await Seen.OfAsync(unknown, 0, Ct);
+
+        seenMalformed.Status.ShouldBe(HttpStatusCode.BadRequest);
+        seenMalformed.Body.ShouldBe("Cannot submit the form 'reply' because no form on the page currently has that name.");
+        seenUnknown.Status.ShouldBe(seenMalformed.Status);
+        seenUnknown.Body.ShouldBe(seenMalformed.Body, "byte for byte");
+        seenUnknown.Headers.ShouldBe(seenMalformed.Headers);
+        factory.Api.Count(HttpMethod.Post, TicketTestKit.ReplyApi).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task A_token_that_stops_working_between_the_page_and_the_post_is_the_uniform_404()
     {
         await using var factory = Host();

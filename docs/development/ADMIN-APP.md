@@ -316,8 +316,7 @@ scrolls inside its own region (`ScrollRegion`, a named, focusable box, wrapping 
 19. The mid-session 401. Type a draft (a reply or a note). Make the API refuse the token, for example by revoking the session in Authentik. Trigger a load. Then: the session-expired banner shows; the draft stays; nothing else saves; "Sign in again" returns to the same page.
 20. Portal. The Portal `/` shows no `Refused to` lines in the console.
 
-**Compose smoke.** `pwsh scripts/Test-ComposeSmoke.ps1` also starts the Portal, checks its `/health/ready` and proves that the Api's rate limit sees the real client address through the Portal (PHASE-09 T18; see [PORTAL-APP.md](PORTAL-APP.md)). It builds the four images one after another, starts the local compose stack under its own project name (`techstrap-smoke`) on free ports, waits for every healthcheck, checks that the Api and the
-Admin answer `/health/ready` with 200 and that the Admin container is healthy, and stops the project (never `down -v`). It needs Docker and runs by hand or from the "Compose smoke" workflow; it is not part of every pull request.
+**Compose smoke.** `pwsh scripts/Test-ComposeSmoke.ps1` builds the four images one after another, starts the local compose stack under its own project name (`techstrap-smoke`) on free ports, waits for every healthcheck and checks that the Api, the Admin and the Portal answer `/health/ready` with 200 and that the Admin container is healthy. It then proves that the Api's rate limit sees the real client address through the Portal, not the Portal's own (PHASE-09 T18; see [PORTAL-APP.md](PORTAL-APP.md)), and stops the project (never `down -v`). It needs Docker and runs by hand or from the "Compose smoke" workflow; it is not part of every pull request.
 
 ## Known limits
 

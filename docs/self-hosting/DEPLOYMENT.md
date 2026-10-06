@@ -86,6 +86,8 @@ Keep a filled env file out of the repository. A new setting is added to `appsett
    | `.env.portal` | none yet | PHASE-09 adds the Api address and the public URL. |
 
    Set `ALLOWEDHOSTS` in each file to the real public host names if you want host filtering (keep the health-probe hosts `localhost`). Sentry and OpenTelemetry are optional and disabled by default; their DSN and OTLP headers are secrets.
+
+   Set a request body limit and a rate limit for the Portal's form POSTs (`/p/{key}/contact`, `/p/{key}/lost-link` and `/t/{token}`) at the reverse proxy: the Portal buffers a form of up to about 27 MB (27,262,976 bytes) before its antiforgery check runs, so the proxy is the first place to refuse a flood or an oversized body.
 4. **Compose inputs.**
 
    ```bash

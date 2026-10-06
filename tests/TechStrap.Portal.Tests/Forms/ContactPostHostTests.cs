@@ -48,8 +48,10 @@ public sealed class ContactPostHostTests
         var location = response.Headers.Location.ShouldNotBeNull().ToString();
         location.ShouldStartWith("http://localhost/p/paperplane/contact/received?ref=");
         location.ShouldNotContain("PAP-42", Case.Sensitive, "the number travels protected");
-        location.ShouldNotContain("ada", Case.Insensitive);
-        location.ShouldNotContain("jam", Case.Insensitive);
+        // The reference is random base64, so a short word can occur in it by chance: only strings that cannot are checked (the address, the surname, the subject).
+        location.ShouldNotContain("example.com", Case.Insensitive);
+        location.ShouldNotContain("Lovelace", Case.Insensitive);
+        location.ShouldNotContain("Printer", Case.Insensitive);
         response.Headers.GetValues("Cache-Control").Single().ShouldBe("no-store");
         var sent = factory.Api.Requests.Single(r => r.Method == HttpMethod.Post);
         sent.Client.ShouldBe(ApiClientNames.Write);
@@ -427,10 +429,11 @@ public sealed class ContactPostHostTests
         using var response = await client.PostAsync("/p/nope/contact", FormTestKit.ContactForm(token), Ct);
         var html = await response.Content.ReadAsStringAsync(Ct);
 
-        // The page asks for the product before the handler runs, finds none and ends in NavigationManager.NotFound(). The framework re-executes the post against the not-found page, which has no handler named
-        // "contact", so the answer is the framework's own 400 (an empty body), not the 404 page a GET gets. What matters is that nothing was created and no form came back.
-        (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.BadRequest).ShouldBeTrue($"was {(int)response.StatusCode}");
-        html.ShouldNotContain("<form");
+        // The page asks for the product before the form handler runs, finds none and ends in NavigationManager.NotFound(). The form was never rendered, so the framework has nothing to post to and answers its own
+        // plain-text 400 (not the 404 page a GET gets). Nothing was created and no form came back.
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("text/plain");
+        html.ShouldBe("Cannot submit the form 'contact' because no form on the page currently has that name.");
         response.Headers.GetValues("Cache-Control").Single().ShouldBe("no-store");
         factory.Api.Count(HttpMethod.Post, "/api/public/products/nope/tickets").ShouldBe(0);
     }

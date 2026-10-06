@@ -63,6 +63,7 @@ nothing needs script and a refresh never sends twice.
 - **The size limit.** `[RequestSizeLimit(IntakeLimits.FormBodyBytes)]` on the page (27,262,976 bytes, the API's own limit) is applied by endpoint routing before the antiforgery check reads the form, so an
   oversized body is never buffered. `RequestTooLargeMiddleware` answers a declared length over the limit with a plain 413 before the framework turns the failed read into a 400 about a token; a chunked body over
   the limit is still that 400. `TestServer` has no limit feature, so these tests use `UseKestrel(0)`.
+  Deployment: set a request body limit and a rate limit for the Portal's form POSTs at the reverse proxy, because the Portal buffers a form of up to about 27 MB before the antiforgery check runs (see [DEPLOYMENT.md](../self-hosting/DEPLOYMENT.md)).
 - **Checks before the API.** `ContactFormValidator`, `ReplyFormValidator`, `EmailRules` and `AttachmentRules` use the `IntakeLimits` constants (name 100, email 320, subject 200, body 100,000, 5 files, 10 MB each,
   25 MB in all, ten extensions), the same constants the inputs' `maxlength` attributes use; `IntakeLimitsParityTests` keeps them equal to the Domain's. The API checks again and is the authority. An error is a
   `FormError` (field, code, sentence): the codes are the API's (`email-invalid`, `attachments-too-many`, ...) and the sentences are `FormCopy`'s, so the API's own text is never shown. `FormFailure` decides
@@ -175,7 +176,7 @@ path no Portal route matches. A test that needs the real server (a request size 
 - `/robots.txt` names `/sitemap.xml`, which answers 404 until 09c maps it. The search box on the product home and the KB links answer 404 until 09c.
 - There is no "copy" button for the ticket number, no live character counter and no "sending" state on the submit button: they need script, and 09b keeps every flow script-free (09c's polish pass decides).
 - A chunked post over the size limit is the framework's 400 about an antiforgery token, not a 413 (a browser form post always declares its length).
-- A post to an unknown product is the framework's 400 with no body (the not-found page is re-executed with the post and has no handler), not the 404 page a GET gets. Nothing is created.
+- A post to an unknown product is the framework's plain-text 400 ("Cannot submit the form 'contact' because no form on the page currently has that name."), not the 404 page a GET gets: the product page ends in `NotFound()` before the form is rendered, so there is no form to post to. Nothing is created. A post to a malformed or unknown ticket token is the same for the form `reply`, with an identical body, so nothing tells the two apart.
 - A legacy-host redirect decodes percent-escapes in the query string (the package builds the target with `Uri.ToString()`), so a value that holds an encoded `&` or `#` changes meaning. It affects only hosts
   in `CANONICALHOST__LEGACYHOSTS`; report it upstream before using the redirect with the contact prefill.
 - `NavigationManager.NotFound()` adds the framework's `blazor-enhanced-nav: allow` response header to an unknown product's 404, which the router's own unknown-route 404 does not carry. The bodies are identical,
