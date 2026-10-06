@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
+using TechStrap.Contracts.Products;
 using TechStrap.Portal.Forms;
 
 namespace TechStrap.Portal.Tests.Forms;
@@ -23,7 +24,7 @@ public sealed class ContactReceivedHostTests
     private static string ReferenceFor(PortalFactory factory, string number)
     {
         using var scope = factory.Services.CreateScope();
-        return scope.ServiceProvider.GetRequiredService<ReceivedReference>().Protect(number);
+        return scope.ServiceProvider.GetRequiredService<ReceivedReference>().Protect("paperplane", number);
     }
 
     [Fact]
@@ -103,6 +104,24 @@ public sealed class ContactReceivedHostTests
         var (_, html) = await GetAsync(factory, FormTestKit.ReceivedPath + "?ref=" + Uri.EscapeDataString(reference));
 
         html.ShouldNotContain("ts-ticket-number");
+        html.ShouldContain("Check your inbox and your spam folder.");
+    }
+
+    [Fact]
+    public async Task A_reference_made_for_one_product_shows_the_generic_confirmation_on_another()
+    {
+        await using var factory = FormTestKit.Factory();
+        factory.Api.OnJson(HttpMethod.Get, "/api/public/products/otherproduct", new PublicProductDto("otherproduct", "Otherproduct", null, "#F59E0B", "#000000", "#9D6507"));
+        using var host = FormTestKit.Client(factory);
+        var reference = ReferenceFor(factory, "PAP-42");
+
+        var (_, controlHtml) = await GetAsync(factory, FormTestKit.ReceivedPath + "?ref=" + Uri.EscapeDataString(reference));
+        var (response, html) = await GetAsync(factory, "/p/otherproduct/contact/received?ref=" + Uri.EscapeDataString(reference));
+
+        controlHtml.ShouldContain("PAP-42", Case.Sensitive, "control: its own product shows the number");
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        html.ShouldNotContain("ts-ticket-number");
+        html.ShouldNotContain("PAP-42");
         html.ShouldContain("Check your inbox and your spam folder.");
     }
 

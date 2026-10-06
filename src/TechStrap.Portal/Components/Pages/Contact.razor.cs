@@ -79,7 +79,7 @@ public partial class Contact : ProductPageBase
         if (result.IsSuccess)
         {
             // Straight after the redirect: nothing else may run or render.
-            Redirects.NavigateTo(PortalRoutes.ContactReceived(Key, References.Protect(result.Value.TicketNumber)));
+            Redirects.NavigateTo(PortalRoutes.ContactReceived(Key, References.Protect(Key, result.Value.TicketNumber)));
             return;
         }
 

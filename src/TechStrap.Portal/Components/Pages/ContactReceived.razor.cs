@@ -22,7 +22,7 @@ public partial class ContactReceived : ProductPageBase
     protected override async Task OnInitializedAsync()
     {
         await base.OnInitializedAsync();
-        if (Theme is not null && References.TryUnprotect(Reference, out var number))
+        if (Theme is not null && References.TryUnprotect(Key, Reference, out var number))
         {
             TicketNumber = number;
         }
