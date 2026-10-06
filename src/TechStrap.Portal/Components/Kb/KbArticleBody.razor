@@ -1,0 +1,10 @@
+<div class="ts-kb-article-body">@((MarkupString)Html)</div>
+
+@code {
+    /// <summary>
+    /// The article body exactly as the API sent it. The API renders the agent's Markdown and sanitises the HTML (D-044); the Portal does not sanitise again and does not change a byte, so what a visitor reads is what the API
+    /// decided is safe. This and <c>CustomerMessageBody</c> are the only two places the Portal turns text into elements (PortalRules.MarkupStringSites); every other string it shows is encoded.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string Html { get; set; } = string.Empty;
+}

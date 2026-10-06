@@ -321,3 +321,26 @@
 .ts-state {
   margin: 24px 0;
 }
+
+// An article's body is the API's sanitised HTML: a wide table, a code block or an image scrolls or shrinks inside its own box instead of widening the page.
+.ts-kb-article-body {
+  overflow-wrap: anywhere;
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  pre,
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
+.ts-kb-help {
+  margin-top: 32px;
+  padding-top: 8px;
+  border-top: 1px solid var(--p-line);
+}

@@ -1,0 +1,23 @@
+@attribute [Route(PortalRoutes.KbArticleTemplate)]
+@inherits ProductPageBase
+
+@if (UnavailableMessage is not null)
+{
+    <PageTitle>@ShellCopy.UnavailableTitle</PageTitle>
+    <ProductUnavailable Message="@UnavailableMessage" RetryHref="@RetryHref" />
+}
+else if (Theme is { } theme && Article is { } article)
+{
+    <SeoHead Title="@KbCopy.ArticleTitle(article.Title, theme.DisplayName)" Description="@Description" RelativeUrl="@PortalRoutes.KbArticle(theme.Key, article.CategorySlug, article.Slug)" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" OgType="article" StructuredData="@StructuredData" />
+    <KbBreadcrumbs Crumbs="@Trail" />
+    <article class="ts-kb-article">
+        <h1>@article.Title</h1>
+        <p class="ts-kb-meta">@KbCopy.UpdatedOn(article.UpdatedAt)</p>
+        <KbArticleBody Html="@article.Html" />
+    </article>
+    <aside class="ts-kb-help">
+        <h2>@KbCopy.StillNeedHelp</h2>
+        <p>@KbCopy.StillNeedHelpText</p>
+        <p><a class="btn btn-primary" href="@PortalRoutes.Contact(theme.Key)">@KbCopy.ContactUs</a></p>
+    </aside>
+}

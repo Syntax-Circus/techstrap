@@ -19,6 +19,10 @@ public static class KbCopy
     public const string PreviousPage = "Previous page";
     public const string NextPage = "Next page";
 
+    // The end of an article.
+    public const string StillNeedHelp = "Still need help?";
+    public const string StillNeedHelpText = "If this did not answer your question, contact support and we will help you.";
+
     // Search.
     public const string SearchHeading = "Search results";
     public const string SearchPromptHeading = "What are you looking for?";
@@ -35,6 +39,10 @@ public static class KbCopy
         page <= 1 ? $"{categoryName} - {productName} Help Centre" : $"{categoryName} (page {page.ToString(CultureInfo.InvariantCulture)}) - {productName} Help Centre";
 
     public static string CategoryDescription(string categoryName, string productName) => $"Help articles about {categoryName} for {productName}.";
+
+    public static string ArticleTitle(string articleTitle, string productName) => $"{articleTitle} - {productName} Help Centre";
+
+    public static string ArticleDescriptionFallback(string articleTitle, string productName) => $"{articleTitle}. Help article for {productName}.";
 
     public static string SearchTitle(string productName) => $"Search - {productName} Help Centre";
 

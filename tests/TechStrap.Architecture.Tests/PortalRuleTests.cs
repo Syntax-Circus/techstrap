@@ -127,13 +127,16 @@ public sealed class PortalRuleTests
     // ---- MarkupString sites -----------------------------------------------------------------------------------------------------------
 
     [Fact]
-    public void In_09b_exactly_CustomerMessageBody_turns_text_into_markup()
+    public void In_09c_exactly_KbArticleBody_and_CustomerMessageBody_turn_text_into_markup()
     {
         var files = PortalRules.Sources(ProjectGraph.FindRepositoryRoot()).ToList();
 
         files.Count.ShouldBeGreaterThan(20, "the scan must see the Portal sources");
-        PortalRules.MarkupStringSites.ShouldBe(["Components/Tickets/CustomerMessageBody.razor"], "09b adds CustomerMessageBody (the API sanitises the message body); 09c adds KbArticleBody in its own commit");
+        PortalRules.MarkupStringSites.ShouldBe(
+            ["Components/Kb/KbArticleBody.razor", "Components/Tickets/CustomerMessageBody.razor"],
+            "09b added CustomerMessageBody (the API sanitises the message body) and 09c added KbArticleBody (the API sanitises the article with the same rules, D-044); a third site is a design decision, argued in its own commit");
         PortalRules.MarkupStringViolations(files).ShouldBeEmpty();
+        files.Count(file => file.Text.Contains("MarkupString", StringComparison.Ordinal)).ShouldBe(2, "the word appears in those two files and nowhere else, comments included");
     }
 
     [Theory]
@@ -151,15 +154,29 @@ public sealed class PortalRuleTests
         violations[0].ShouldContain(path.Replace("src/TechStrap.Portal/", string.Empty, StringComparison.Ordinal));
     }
 
-    [Fact]
-    public void The_real_allow_list_passes_for_its_own_file_and_flags_the_same_text_anywhere_else()
-    {
-        const string Real = "src/TechStrap.Portal/Components/Tickets/CustomerMessageBody.razor";
+    private const string ArticleBody = "src/TechStrap.Portal/Components/Kb/KbArticleBody.razor";
+    private const string MessageBody = "src/TechStrap.Portal/Components/Tickets/CustomerMessageBody.razor";
+    private const string Markup = "<div>@((MarkupString)Html)</div>";
+    private const string Encoded = "<div>@Html</div>";
 
-        PortalRules.MarkupStringViolations([(Real, "<div>@((MarkupString)Html)</div>")]).ShouldBeEmpty();
-        PortalRules.MarkupStringViolations([("src/TechStrap.Portal/Components/Tickets/MessageThread.razor", "<div>@((MarkupString)Html)</div>"), (Real, "<div>@((MarkupString)Html)</div>")])
+    [Fact]
+    public void The_real_allow_list_passes_for_its_two_files_and_flags_the_same_text_anywhere_else()
+    {
+        PortalRules.MarkupStringViolations([(ArticleBody, Markup), (MessageBody, Markup)]).ShouldBeEmpty();
+        PortalRules.MarkupStringViolations([("src/TechStrap.Portal/Components/Tickets/MessageThread.razor", Markup), (ArticleBody, Markup), (MessageBody, Markup)])
             .ShouldHaveSingleItem().ShouldContain("MessageThread.razor");
-        PortalRules.MarkupStringViolations([(Real, "<div>@Html</div>")]).ShouldHaveSingleItem().ShouldContain("no longer");
+        PortalRules.MarkupStringViolations([("src/TechStrap.Portal/Components/Pages/KbArticle.razor", "<div>@((MarkupString)article.Html)</div>"), (ArticleBody, Markup), (MessageBody, Markup)])
+            .ShouldHaveSingleItem().ShouldContain("KbArticle.razor");
+        PortalRules.MarkupStringViolations([("src/TechStrap.Portal/Components/Kb/KbArticleCard.razor", "<p>@((MarkupString)Summary)</p>"), (ArticleBody, Markup), (MessageBody, Markup)])
+            .ShouldHaveSingleItem().ShouldContain("KbArticleCard.razor");
+    }
+
+    [Fact]
+    public void A_listed_file_that_no_longer_uses_it_and_a_missing_one_are_flagged()
+    {
+        PortalRules.MarkupStringViolations([(ArticleBody, Encoded), (MessageBody, Markup)]).ShouldHaveSingleItem().ShouldContain("KbArticleBody.razor");
+        PortalRules.MarkupStringViolations([(ArticleBody, Markup), (MessageBody, Encoded)]).ShouldHaveSingleItem().ShouldContain("CustomerMessageBody.razor");
+        PortalRules.MarkupStringViolations([(ArticleBody, Markup)]).ShouldHaveSingleItem().ShouldContain("no longer");
     }
 
     [Fact]
