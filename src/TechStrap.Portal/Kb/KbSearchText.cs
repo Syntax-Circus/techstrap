@@ -1,6 +1,6 @@
 using TechStrap.Contracts.Kb;
 
-namespace TechStrap.Portal.Components.Kb;
+namespace TechStrap.Portal.Kb;
 
 /// <summary>The search text the Portal sends on: trimmed and cut at the API's own limit without splitting a surrogate pair. Both the search page and the suggest adapter use it, so they cut alike.</summary>
 public static class KbSearchText

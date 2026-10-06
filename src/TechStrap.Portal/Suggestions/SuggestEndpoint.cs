@@ -2,6 +2,7 @@ using SyntaxCircus.Common;
 using TechStrap.Contracts.Kb;
 using TechStrap.Portal.Clients;
 using TechStrap.Portal.Components.Kb;
+using TechStrap.Portal.Kb;
 using TechStrap.Portal.Routing;
 
 namespace TechStrap.Portal.Suggestions;

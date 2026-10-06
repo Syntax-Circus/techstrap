@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace TechStrap.Portal.Components.Kb;
+namespace TechStrap.Portal.Kb;
 
 /// <summary>
 /// The page number of a paged help-centre list, read from text. The page is bound as text and parsed here, because the framework's own binding to a number answers 500 for <c>?page=abc</c> or a number that

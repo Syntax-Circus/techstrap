@@ -3,6 +3,7 @@ using TechStrap.Contracts.Kb;
 using TechStrap.Contracts.Paging;
 using TechStrap.Portal.Clients;
 using TechStrap.Portal.Components.Kb;
+using TechStrap.Portal.Kb;
 using TechStrap.Portal.Products;
 using TechStrap.Portal.Routing;
 
