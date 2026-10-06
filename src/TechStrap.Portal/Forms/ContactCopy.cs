@@ -11,6 +11,9 @@ public static class ContactCopy
     public const string BodyLabel = "Message";
     public const string Submit = "Send message";
 
+    /// <summary>The fallback inside the suggestions element, shown only without script: a plain link to the help search.</summary>
+    public const string SuggestFallback = "Search the help articles first";
+
     // The received page.
     public const string ReceivedHeading = "We have received your request.";
     public const string YourNumber = "Your ticket number is";

@@ -157,6 +157,32 @@
   color: var(--p-error, #b3261e);
 }
 
+// The KB suggestions beside the subject field: empty until there is something to suggest, then a short list. Plain text; the links open in a new tab, so the form is never lost.
+.ts-suggestions {
+  display: block;
+  margin: -8px 0 16px;
+  font-size: .9375rem;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.ts-suggest-heading {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.ts-suggest-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.ts-suggest-snippet {
+  display: block;
+  color: var(--p-ink2);
+}
+
 .ts-ticket-number {
   font: 600 1.125rem var(--ts-font-mono);
   user-select: all;
