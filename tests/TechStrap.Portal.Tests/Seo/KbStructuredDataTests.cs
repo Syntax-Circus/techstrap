@@ -1,5 +1,7 @@
+using System.Reflection;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using TechStrap.Contracts.Kb;
 using TechStrap.Portal.Components.Kb;
 using TechStrap.Portal.Products;
@@ -151,5 +153,36 @@ public sealed class KbStructuredDataTests
         Should.Throw<ArgumentNullException>(() => KbStructuredData.ForArticle(Absolute, null!, article, "d", []));
         Should.Throw<ArgumentNullException>(() => KbStructuredData.ForArticle(Absolute, Theme, null!, "d", []));
         Should.Throw<ArgumentNullException>(() => KbStructuredData.ForArticle(Absolute, Theme, article, "d", null!));
+    }
+
+    private const string HostileLogo = "https://cdn.example.com/a</script><img/src=x/onerror=alert(1)>.png";
+
+    [Fact]
+    public void A_hostile_logo_address_cannot_leave_its_string_and_reads_back_unchanged()
+    {
+        var theme = Theme with { LogoUrl = HostileLogo };
+        var article = Article();
+
+        var data = KbStructuredData.ForArticle(Absolute, theme, article, "d", Trail(article));
+        var scripts = data.Select(item => JsonSerializer.Serialize(item, item.GetType(), PackageOptions)).ToList();
+
+        scripts.ShouldAllBe(script => !script.Contains('<') && !script.Contains('>') && !script.Contains('&'));
+        using var page = JsonDocument.Parse(scripts[1]);
+        page.RootElement.GetProperty("image").GetString().ShouldBe(HostileLogo);
+    }
+
+    [Fact]
+    public void Every_string_of_every_structured_data_record_is_a_JsonLdText_except_the_context_and_the_type()
+    {
+        var records = new[] { typeof(BreadcrumbItemLd), typeof(BreadcrumbListLd), typeof(WebPageLd), typeof(OrganizationLd), typeof(ArticleSchema) };
+
+        var plain = records
+            .SelectMany(record => record.GetProperties(BindingFlags.Public | BindingFlags.Instance), (record, property) => (record, property))
+            .Where(pair => pair.property.PropertyType == typeof(string))
+            .Where(pair => (pair.property.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? pair.property.Name) is not ("@type" or "@context"))
+            .Select(pair => pair.record.Name + "." + pair.property.Name)
+            .ToList();
+
+        plain.ShouldBeEmpty("a plain string is written without escaping <, so it must be a JsonLdText");
     }
 }

@@ -381,4 +381,24 @@ public sealed class KbArticleHostTests
         using var article = JsonLd(dom)[1];
         article.RootElement.GetProperty("image").GetString().ShouldBe("https://cdn.example.com/paperplane.png");
     }
+
+    [Fact]
+    public async Task A_hostile_logo_address_cannot_break_out_of_the_json_ld()
+    {
+        const string Logo = "https://cdn.example.com/a</script><img/src=x/onerror=alert(1)>.png";
+        await using var factory = KbTestKit.Factory();
+        factory.Api.OnJson(HttpMethod.Get, KbTestKit.ProductPath, FormTestKit.Product() with { LogoPath = Logo });
+        factory.Api.OnJson(HttpMethod.Get, ArticlePath, Published());
+        using var client = FormTestKit.Client(factory);
+
+        var (_, _, dom) = await KbTestKit.GetAsync(client, "/p/paperplane/kb/accounts/reset-password", Ct);
+
+        dom.QuerySelectorAll("img[src=x], [onerror]").Length.ShouldBe(0);
+        var scripts = dom.QuerySelectorAll("script[type='application/ld+json']").Select(script => script.TextContent).ToList();
+        scripts.Count.ShouldBe(2);
+        scripts.ShouldAllBe(script => !script.Contains('<') && !script.Contains('>'));
+        using var article = JsonDocument.Parse(scripts[1]);
+        article.RootElement.GetProperty("image").GetString().ShouldBe(KbTestKit.Meta(dom, "meta[property='og:image']"));
+        article.RootElement.GetProperty("image").GetString()!.ShouldContain("</script>");
+    }
 }
