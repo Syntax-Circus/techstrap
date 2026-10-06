@@ -10,9 +10,9 @@ internal sealed class PortalOptionsValidator(IHostEnvironment environment) : IVa
     {
         var failures = new List<string>();
 
-        if (!IsHttpUrl(options.ApiBaseUrl))
+        if (string.IsNullOrWhiteSpace(options.ApiBaseUrl) || !IsHttpBase(options.ApiBaseUrl))
         {
-            failures.Add($"{PortalOptions.ApiBaseUrlKey} (API__BASEURL) must be the absolute http or https URL of the TechStrap API, for example http://api/.");
+            failures.Add($"{PortalOptions.ApiBaseUrlKey} (API__BASEURL) must be the absolute http or https URL of the TechStrap API, with no query, fragment or user info, for example http://api/.");
         }
 
         if (string.IsNullOrWhiteSpace(options.PublicUrl))
@@ -34,9 +34,6 @@ internal sealed class PortalOptionsValidator(IHostEnvironment environment) : IVa
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
-
-    private static bool IsHttpUrl(string? value) =>
-        Uri.TryCreate(value?.Trim(), UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp);
 
     /// <summary>An absolute http(s) address that can be a base: no user info, no query, no fragment. A lone "?" or "#" counts (<see cref="Uri.Query"/> and <see cref="Uri.Fragment"/> keep it).</summary>
     private static bool IsHttpBase(string value) =>

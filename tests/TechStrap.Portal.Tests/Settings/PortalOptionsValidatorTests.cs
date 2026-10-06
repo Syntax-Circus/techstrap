@@ -30,6 +30,11 @@ public sealed class PortalOptionsValidatorTests
     [InlineData("/api/")]
     [InlineData("ftp://api/")]
     [InlineData("javascript:alert(1)")]
+    [InlineData("http://user:pw@api/")]
+    [InlineData("http://api/?x=1")]
+    [InlineData("http://api/#frag")]
+    [InlineData("http://api/?")]
+    [InlineData("http://api/#")]
     public void The_api_address_must_be_an_absolute_http_or_https_url_and_the_failure_names_the_key(string value)
     {
         var options = Valid();
