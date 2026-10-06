@@ -73,17 +73,17 @@ public sealed class PortalCachePathsTests
     [Theory]
     [InlineData("")]
     [InlineData("?")]
-    [InlineData("?page=1")]
     [InlineData("?page=2")]
     [InlineData("?page=9999")]
     [InlineData("?PAGE=7")]
     [InlineData("?utm_source=mail&utm_campaign=x")]
     [InlineData("?page=3&utm=1")]
-    public void A_kb_page_with_no_page_value_or_a_plain_page_number_is_kept(string query) => Cacheable("/p/paperplane/kb/accounts", query).ShouldBeTrue(query);
+    public void A_category_with_no_page_value_or_a_plain_page_number_is_kept(string query) => Cacheable("/p/paperplane/kb/accounts", query).ShouldBeTrue(query);
 
     [Theory]
     [InlineData("?page=")]
     [InlineData("?page=abc")]
+    [InlineData("?page=1")]
     [InlineData("?page=0")]
     [InlineData("?page=01")]
     [InlineData("?page=-1")]
@@ -95,7 +95,21 @@ public sealed class PortalCachePathsTests
     [InlineData("?page=1&page=2")]
     [InlineData("?page=1&PAGE=1")]
     [InlineData("?page")]
-    public void A_page_value_that_is_not_one_to_four_digits_is_never_kept_so_it_cannot_fill_the_store(string query) => Cacheable("/p/paperplane/kb/accounts", query).ShouldBeFalse(query);
+    public void A_page_value_that_is_not_two_to_four_digits_is_never_kept_so_it_cannot_fill_the_store(string query) => Cacheable("/p/paperplane/kb/accounts", query).ShouldBeFalse(query);
+
+    [Theory]
+    [InlineData("/p/paperplane/kb", "")]
+    [InlineData("/p/paperplane/kb", "?utm=1")]
+    [InlineData("/p/paperplane/kb/accounts/reset-password", "")]
+    public void The_home_and_an_article_are_kept_with_no_page_value(string path, string query) => Cacheable(path, query).ShouldBeTrue(path + query);
+
+    [Theory]
+    [InlineData("/p/paperplane/kb", "?page=2")]
+    [InlineData("/p/paperplane/kb", "?page=5")]
+    [InlineData("/p/paperplane/kb", "?page=1")]
+    [InlineData("/p/paperplane/kb/accounts/reset-password", "?page=2")]
+    [InlineData("/p/paperplane/kb/accounts/reset-password", "?page=1")]
+    public void On_the_home_and_an_article_any_page_value_is_never_kept_because_those_pages_do_not_page(string path, string query) => Cacheable(path, query).ShouldBeFalse(path + query);
 
     [Theory]
     [InlineData("/p/paperplane/kb/search", "?q=router")]

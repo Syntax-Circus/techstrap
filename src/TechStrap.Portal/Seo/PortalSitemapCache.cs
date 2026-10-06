@@ -10,7 +10,8 @@ internal sealed class SitemapUnavailableException() : Exception("The sitemap cou
 /// The Portal's sitemap, kept for 15 minutes in one <see cref="IMemoryCache"/> entry (D-045 addendum, PHASE-09c). <c>MapSeoSitemap</c> asks its provider on every request and keeps nothing, and a build costs one API call
 /// for the products and one per product, so a crawler must never start a build of its own:
 /// <list type="bullet">
-/// <item><b>Single-flight.</b> While one build runs, every other request waits for it; twenty concurrent requests make one build.</item>
+/// <item><b>Single-flight.</b> While one build runs, every other request waits for it; twenty concurrent requests make one build. Once there is an earlier sitemap, a rebuild is stale-while-revalidate: the request that
+/// starts it waits for it, and every request during it gets the earlier sitemap at once.</item>
 /// <item><b>Its own cancellation token.</b> The build runs on its own task, with no link to any request (and without the request's execution context, so it never touches that request's <c>HttpContext</c>). A crawler that goes
 /// away stops waiting (its own token) but cannot cancel the build, so it cannot leave the cache empty or poisoned for the others. A build that never finishes ends after <see cref="BuildTimeout"/>.</item>
 /// <item><b>A failure is remembered for a minute.</b> The API is not asked again for that minute. The last good sitemap, however old, is served meanwhile; with none (the very first build failed) the request fails.</item>
@@ -46,6 +47,12 @@ internal sealed class PortalSitemapCache(IMemoryCache cache, ILogger<PortalSitem
                 return _lastGood ?? throw new SitemapUnavailableException();
             }
 
+            if (_flight is not null && _lastGood is { } stale)
+            {
+                // Stale-while-revalidate: a rebuild is already running and there is an earlier sitemap, so nobody waits for the build (the one that started it does, to give it its result).
+                return stale;
+            }
+
             flight = _flight ??= StartBuild(build);
         }
 
@@ -57,7 +64,12 @@ internal sealed class PortalSitemapCache(IMemoryCache cache, ILogger<PortalSitem
         // The request's HttpContext lives in an AsyncLocal that the new task would inherit and the build must not touch (see PortalSitemap), so the flow is suppressed for the start only.
         using (ExecutionContext.SuppressFlow())
         {
-            return Task.Run(() => RunAsync(build));
+            var flight = Task.Run(() => RunAsync(build));
+
+            // Whoever waits on the flight may all have gone away (a crawler that aborts), so the flight's own exception is read here: it is already logged by RunAsync, and an unread one would reach
+            // TaskScheduler.UnobservedTaskException when the task is collected.
+            _ = flight.ContinueWith(static task => _ = task.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            return flight;
         }
     }
 

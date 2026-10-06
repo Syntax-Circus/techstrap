@@ -105,6 +105,43 @@ public sealed class KbPageCacheHostTests
         factory.Api.Count(HttpMethod.Get, KbTestKit.CategoryArticlesPath).ShouldBe(2);
     }
 
+    [Theory]
+    [InlineData("/p/paperplane/kb?page=5", KbTestKit.CategoriesPath)]
+    [InlineData("/p/paperplane/kb/accounts?page=1", KbTestKit.CategoryArticlesPath)]
+    public async Task A_page_value_a_page_does_not_use_or_page_one_is_never_stored_so_it_cannot_be_a_second_copy_of_the_same_page(string path, string dataPath)
+    {
+        await using var factory = Factory();
+        using var client = FormTestKit.Client(factory);
+
+        using var first = await GetAsync(client, path);
+        using var second = await GetAsync(client, path);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        factory.Api.Count(HttpMethod.Get, dataPath).ShouldBe(2, path);
+        KbTestKit.Header(second, "Age").ShouldBeEmpty(path);
+    }
+
+    [Fact]
+    public async Task A_case_variant_of_a_kept_path_shares_its_key_so_the_stored_page_answers_it_instead_of_the_neutral_404()
+    {
+        // Known exception (D-045 as-built): the output cache's key is case-insensitive on the path, so once /p/paperplane/kb is stored, /p/PAPERPLANE/kb gets that 200 (same public content; its canonical link is
+        // fixed from Seo:BaseUrl). Case-sensitive keys would let one visitor store a copy per capitalisation of a path, which is the worse trade, so it is accepted and pinned here.
+        await using var cold = Factory();
+        using var coldClient = FormTestKit.Client(cold);
+        using var alone = await GetAsync(coldClient, "/p/PAPERPLANE/kb");
+        alone.StatusCode.ShouldBe(HttpStatusCode.NotFound, "with nothing stored the unknown product key is the neutral 404");
+
+        await using var factory = Factory();
+        using var client = FormTestKit.Client(factory);
+        using var stored = await GetAsync(client, "/p/paperplane/kb");
+        using var variant = await GetAsync(client, "/p/PAPERPLANE/kb");
+
+        stored.StatusCode.ShouldBe(HttpStatusCode.OK);
+        variant.StatusCode.ShouldBe(HttpStatusCode.OK);
+        KbTestKit.Header(variant, "Age").ShouldNotBeEmpty("answered from the entry the lower-case path stored");
+        factory.Api.Count(HttpMethod.Get, KbTestKit.CategoriesPath).ShouldBe(1);
+    }
+
     [Fact]
     public async Task A_404_is_never_stored_and_carries_no_public_cache_header()
     {

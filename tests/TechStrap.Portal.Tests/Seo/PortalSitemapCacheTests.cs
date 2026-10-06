@@ -170,6 +170,76 @@ public sealed class PortalSitemapCacheTests
     }
 
     [Fact(Timeout = 20_000)]
+    public async Task While_a_rebuild_runs_the_last_good_sitemap_is_served_at_once_and_still_only_one_build_runs()
+    {
+        var cache = Cache(ttl: Short);
+        var builds = new Builds();
+        await cache.GetAsync(builds.Succeeding("good"), TestContext.Current.CancellationToken);
+        await Task.Delay(Short + TimeSpan.FromMilliseconds(600), TestContext.Current.CancellationToken);
+        var rebuilds = 0;
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var rebuilding = cache.GetAsync(
+            async token =>
+            {
+                Interlocked.Increment(ref rebuilds);
+                started.SetResult();
+                await release.Task.WaitAsync(token);
+                return Entries("fresh");
+            },
+            TestContext.Current.CancellationToken);
+        await started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var others = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => cache.GetAsync(builds.Succeeding("never-used"), TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)));
+
+        rebuilding.IsCompleted.ShouldBeFalse("the rebuild is still running while the others were answered");
+        others.ShouldAllBe(result => result[0].Url == "https://portal.test/good");
+        release.SetResult();
+        (await rebuilding)[0].Url.ShouldBe("https://portal.test/fresh");
+        (await cache.GetAsync(builds.Succeeding("never-used"), TestContext.Current.CancellationToken))[0].Url.ShouldBe("https://portal.test/fresh");
+        builds.Count.ShouldBe(1, "only the first good build went through Builds; the others never built");
+        rebuilds.ShouldBe(1, "single-flight: the rebuild ran once");
+    }
+
+    [Fact(Timeout = 20_000)]
+    public async Task A_faulted_build_nobody_is_waiting_for_is_never_an_unobserved_task_exception()
+    {
+        var unobserved = new List<Exception>();
+        void Record(object? sender, UnobservedTaskExceptionEventArgs args) { lock (unobserved) { unobserved.AddRange(args.Exception.InnerExceptions); } }
+        TaskScheduler.UnobservedTaskException += Record;
+        try
+        {
+            var cache = Cache();
+            using var crawler = new CancellationTokenSource();
+            var failing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var waiting = cache.GetAsync(async token =>
+            {
+                await failing.Task;
+                throw new SitemapBuildException("the product list failed (probe-unobserved).");
+            }, crawler.Token);
+            await crawler.CancelAsync();
+            await Should.ThrowAsync<OperationCanceledException>(() => waiting);
+
+            failing.SetResult();
+            await Task.Delay(300, TestContext.Current.CancellationToken);
+            for (var i = 0; i < 3; i++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+
+            lock (unobserved)
+            {
+                unobserved.OfType<SitemapBuildException>().ShouldBeEmpty("the faulted flight's exception is observed by the cache");
+            }
+        }
+        finally
+        {
+            TaskScheduler.UnobservedTaskException -= Record;
+        }
+    }
+
+    [Fact(Timeout = 20_000)]
     public async Task A_build_that_never_finishes_ends_after_the_timeout_and_counts_as_a_failure()
     {
         var cache = Cache(buildTimeout: TimeSpan.FromMilliseconds(200));

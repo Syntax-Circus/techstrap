@@ -77,6 +77,23 @@ public sealed class SitemapHostTests
     }
 
     [Fact]
+    public async Task The_addresses_come_from_the_configured_public_url_whatever_host_the_request_names()
+    {
+        await using var factory = Factory();
+        using var client = FormTestKit.Client(factory);
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/sitemap.xml");
+        request.Headers.Host = "evil.example";
+
+        using var response = await client.SendAsync(request, Ct);
+        var locations = Locations(XDocument.Parse(await response.Content.ReadAsStringAsync(Ct)));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        locations.ShouldNotBeEmpty();
+        locations.ShouldAllBe(location => location.StartsWith(PortalFactory.PublicUrl + "/", StringComparison.Ordinal));
+        locations.ShouldNotContain(location => location.Contains("evil.example", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task A_shared_article_is_listed_under_every_product_and_nothing_the_api_did_not_return_is_listed()
     {
         await using var factory = Factory();

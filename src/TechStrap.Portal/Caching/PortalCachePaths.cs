@@ -17,9 +17,10 @@ internal static partial class PortalCachePaths
     /// <summary>What a browser is told about a delivered KB page (the same minute).</summary>
     public const string BrowserCacheControl = "public, max-age=60";
 
-    // A page number of one to four digits, no sign and no leading zero: the only value a cached request may carry. Anything else (text, a huge number, two values) is still answered, but never stored,
-    // because each distinct value would be a new key and a visitor could fill the store with them.
-    [GeneratedRegex(@"\A[1-9][0-9]{0,3}\z", RegexOptions.CultureInvariant)]
+    // A page number of two to four digits, no sign and no leading zero, or a single digit from two to nine: the only value a cached category request may carry. Page one is not one of them: it is the page with no value,
+    // so ?page=1 would be a second stored copy of the same page. Anything else (text, a huge number, two values) is still answered, but never stored, because each distinct value would be a new key and a visitor
+    // could fill the store with them.
+    [GeneratedRegex(@"\A(?:[2-9]|[1-9][0-9]{1,3})\z", RegexOptions.CultureInvariant)]
     private static partial Regex PageNumber();
 
     /// <summary>A help-centre page of the three kinds above (the search page is not one).</summary>
@@ -37,10 +38,32 @@ internal static partial class PortalCachePaths
         && Is(kb, PortalRoutes.KbSegment)
         && Is(search, PortalRoutes.KbSearchSegment);
 
-    /// <summary>A KB page whose <c>page</c> query value is absent or a plain page number (other query values do not change the page, so they do not change the key).</summary>
-    public static bool IsCacheable(HttpRequest request) =>
-        IsKbPage(request.Path)
-        && (!request.Query.TryGetValue(PortalRoutes.PageParameter, out var pages) || (pages.Count == 1 && pages[0] is { } page && PageNumber().IsMatch(page)));
+    /// <summary><c>/p/{key}/kb/{category}</c>: the only kept page that pages (the home and an article ignore <c>page</c>).</summary>
+    private static bool IsCategoryPath(PathString path) =>
+        IsKbPage(path)
+        && path.StartsWithSegments(PortalRoutes.ProductPrefix, out var rest)
+        && Segments(rest).Length == 3;
+
+    /// <summary>
+    /// A KB page that is kept when its <c>page</c> query value is absent; a category page is also kept with a page number from two up. On the home and an article any <c>page</c> value is not kept (it changes nothing, so
+    /// each value would be a copy of the same page), and on a category <c>page=1</c> is not kept either (it is the page with no value). Other query values do not change the page, so they do not change the key.
+    /// The key's path is compared without regard to case (the framework's default), so once <c>/p/acme/kb</c> is stored <c>/p/ACME/kb</c> is answered from it, a known exception to "an unknown key is the neutral 404";
+    /// it is the same public page with a canonical address fixed from <c>Seo:BaseUrl</c>, and a case-sensitive key would let a visitor store one copy per capitalisation (D-045 as-built).
+    /// </summary>
+    public static bool IsCacheable(HttpRequest request)
+    {
+        if (!IsKbPage(request.Path))
+        {
+            return false;
+        }
+
+        if (!request.Query.TryGetValue(PortalRoutes.PageParameter, out var pages))
+        {
+            return true;
+        }
+
+        return IsCategoryPath(request.Path) && pages.Count == 1 && pages[0] is { } page && PageNumber().IsMatch(page);
+    }
 
     private static string[] Segments(PathString rest) => rest.Value!.Split('/', StringSplitOptions.RemoveEmptyEntries);
 
