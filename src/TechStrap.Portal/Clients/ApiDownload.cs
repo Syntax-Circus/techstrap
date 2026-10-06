@@ -36,8 +36,15 @@ public sealed class ApiDownload : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await Body.DisposeAsync();
-        _response.Dispose();
-        _request.Dispose();
+        try
+        {
+            await Body.DisposeAsync();
+        }
+        finally
+        {
+            // Whatever closing the body did, the response and the request are released, so the connection goes back to the pool.
+            _response.Dispose();
+            _request.Dispose();
+        }
     }
 }

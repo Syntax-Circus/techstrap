@@ -194,4 +194,48 @@ public sealed class ApiConnectionStreamTests
 
         await Should.ThrowAsync<OperationCanceledException>(async () => await api.Get<ApiConnection>().OpenStreamAsync($"api/customer/attachments/{Id}", Token(), cancelled.Token));
     }
+
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    public async Task A_failed_answer_is_disposed_before_the_error_is_returned(HttpStatusCode status)
+    {
+        using var api = ApiHarness.Create();
+        var contents = new List<TrackingContent>();
+        api.Stub.On(HttpMethod.Get, Path, _ =>
+        {
+            var content = new TrackingContent("{}"u8.ToArray());
+            contents.Add(content);
+            return new HttpResponseMessage(status) { Content = content };
+        });
+
+        var result = await api.Get<ApiConnection>().OpenStreamAsync($"api/customer/attachments/{Id}", Token(), Ct);
+
+        result.IsFailure.ShouldBeTrue();
+        contents.ShouldNotBeEmpty();
+        contents.ShouldAllBe(c => c.Disposed, "nothing is handed to the caller on a failure, so nothing may be left open (a leaked response holds a pooled connection)");
+    }
+
+    [Fact]
+    public async Task Disposing_a_download_whose_body_throws_still_disposes_the_response_and_the_request()
+    {
+        var content = new TrackingContent([1]);
+        var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+        var requestContent = new TrackingContent([1]);
+        var request = new HttpRequestMessage(HttpMethod.Get, "/x") { Content = requestContent };
+        var download = new ApiDownload(request, response, new ThrowingStream());
+
+        await Should.ThrowAsync<InvalidOperationException>(async () => await download.DisposeAsync());
+
+        content.Disposed.ShouldBeTrue("the response is released even when closing the body fails");
+        requestContent.Disposed.ShouldBeTrue("and so is the request");
+    }
+
+    private sealed class ThrowingStream : MemoryStream
+    {
+        public override ValueTask DisposeAsync() => throw new InvalidOperationException("the body will not close");
+
+        protected override void Dispose(bool disposing) => throw new InvalidOperationException("the body will not close");
+    }
 }

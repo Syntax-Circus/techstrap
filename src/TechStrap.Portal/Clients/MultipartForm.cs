@@ -12,8 +12,6 @@ internal static class MultipartForm
     /// <summary>The name of the file parts, as both intake endpoints bind them.</summary>
     public const string AttachmentsField = "Attachments";
 
-    private static readonly MediaTypeHeaderValue OctetStream = new("application/octet-stream");
-
     public static MultipartFormDataContent Build(IEnumerable<KeyValuePair<string, string?>> fields, IReadOnlyList<AttachmentUpload> attachments)
     {
         var form = new MultipartFormDataContent();
@@ -30,7 +28,8 @@ internal static class MultipartForm
             foreach (var attachment in attachments)
             {
                 var file = new StreamContent(attachment.OpenRead());
-                file.Headers.ContentType = MediaTypeHeaderValue.TryParse(attachment.ContentType, out var type) ? type : OctetStream;
+                // A new header value per part: a part owns its headers, so none is shared.
+                file.Headers.ContentType = MediaTypeHeaderValue.TryParse(attachment.ContentType, out var type) ? type : new MediaTypeHeaderValue("application/octet-stream");
                 form.Add(file, AttachmentsField, AttachmentFileName.Clean(attachment.FileName));
             }
 

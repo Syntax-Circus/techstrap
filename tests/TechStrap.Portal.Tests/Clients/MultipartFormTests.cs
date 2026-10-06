@@ -104,4 +104,17 @@ public sealed class MultipartFormTests
 
         first.Closed.ShouldBeTrue();
     }
+
+    [Fact]
+    public void Every_part_has_its_own_content_type_value()
+    {
+        using var form = MultipartForm.Build([], [Upload("a.bin", "not a type", new MemoryStream([1])), Upload("b.bin", "also not a type", new MemoryStream([2]))]);
+
+        var types = form.Select(part => part.Headers.ContentType).ToList();
+
+        types.Count.ShouldBe(2);
+        types[0].ShouldNotBeNull().MediaType.ShouldBe("application/octet-stream");
+        types[1].ShouldNotBeNull().MediaType.ShouldBe("application/octet-stream");
+        ReferenceEquals(types[0], types[1]).ShouldBeFalse("a header value is mutable, so two parts must not share one");
+    }
 }

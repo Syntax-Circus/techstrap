@@ -162,6 +162,78 @@ public sealed class TicketAttachmentHostTests
         response.Content.Headers.ContentDisposition!.FileNameStar.ShouldBe("evilfdp.exex.txt");
     }
 
+    [Fact]
+    public async Task The_download_is_disposed_when_the_endpoint_is_done_with_it()
+    {
+        var client = new TrackingFileClient();
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddSingleton<ICustomerTicketClient>(client);
+        await using var app = builder.Build();
+        app.MapAttachmentPassThrough();
+        await app.StartAsync(Ct);
+        using var http = app.GetTestClient();
+
+        using var response = await http.GetAsync(Url, Ct);
+        await response.Content.ReadAsByteArrayAsync(Ct);
+
+        // The endpoint has finished writing; its download (the upstream body and response) must have been released, not left to the garbage collector.
+        for (var i = 0; i < 100 && !client.Body.Closed; i++)
+        {
+            await Task.Delay(20, Ct);
+        }
+
+        client.Body.Closed.ShouldBeTrue("the endpoint must dispose the download it opened");
+        client.Content.Disposed.ShouldBeTrue("and with it the upstream response");
+    }
+
+    private sealed class TrackingBody : MemoryStream
+    {
+        public TrackingBody()
+            : base([1, 2, 3])
+        {
+        }
+
+        public bool Closed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            Closed = true;
+            base.Dispose(disposing);
+        }
+    }
+
+    private sealed class TrackedContent(Stream body) : StreamContent(body)
+    {
+        public bool Disposed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            Disposed = true;
+            base.Dispose(disposing);
+        }
+    }
+
+    private sealed class TrackingFileClient : ICustomerTicketClient
+    {
+        public TrackingBody Body { get; } = new();
+
+        public TrackedContent Content { get; private set; } = null!;
+
+        public Task<Result<ApiDownload>> OpenAttachmentAsync(TicketToken token, Guid attachmentId, CancellationToken cancellationToken)
+        {
+            Content = new TrackedContent(Body);
+            var upstream = new HttpResponseMessage(HttpStatusCode.OK) { Content = Content };
+            return Task.FromResult(Result<ApiDownload>.Success(new ApiDownload(new HttpRequestMessage(), upstream, Body)));
+        }
+
+        public Task<Result<CustomerTicketDto>> GetAsync(TicketToken token, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<Result<CustomerReplyResponse>> ReplyAsync(TicketToken token, CustomerReply reply, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<Result> RequestAccessLinkAsync(string email, CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+
     private sealed class HostileFileClient : ICustomerTicketClient
     {
         public Task<Result<ApiDownload>> OpenAttachmentAsync(TicketToken token, Guid attachmentId, CancellationToken cancellationToken)
