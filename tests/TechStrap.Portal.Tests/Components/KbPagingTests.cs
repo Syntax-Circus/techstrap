@@ -1,5 +1,4 @@
 using TechStrap.Contracts.Kb;
-using TechStrap.Portal.Components.Kb;
 using TechStrap.Portal.Kb;
 
 namespace TechStrap.Portal.Tests.Components;

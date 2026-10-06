@@ -123,8 +123,7 @@ hostile texts live in C# tests. The block is data, not script, so the CSP does n
 
 The help-centre home, a category page and an article page are kept for 60 seconds by the framework's output cache (`AddPortalOutputCache`, one base policy with the path predicate `PortalCachePaths.IsCacheable`; no
 attribute on a page). The key varies by the `page` query value only and never by host (the framework's default key holds the whole query string and the host, so `?utm=1`, `?utm=2` ... would fill the store); a `page`
-value is kept only on a category page and only from two up (the home and an article ignore `page`; `?page=1` is the page with no value); any other value is answered but never kept. The path in the key is compared without regard to case,
-so once `/p/acme/kb` is stored `/p/ACME/kb` is answered from it, a known exception to the byte-identical 404 for a malformed key (same public page, canonical fixed from `Seo:BaseUrl`; a case-sensitive key would let a visitor store a copy per capitalisation). The search page, the form pages, `/p/{key}` itself, `/t/*`, the suggest adapter, `/not-found`, the sitemap and every answer that is not a 200 are never kept,
+value is kept only on a category page and only from two up (the home and an article ignore `page`; `?page=1` is the page with no value); any other value is answered but never kept. Only all-lowercase paths are kept (a path with an upper-case letter is never stored or looked up), so a capitalised path can never be answered from the lower-case entry: `/p/ACME/kb` stays the neutral 404 and `/p/acme/KB` is a 200 that is never stored. The search page, the form pages, `/p/{key}` itself, `/t/*`, the suggest adapter, `/not-found`, the sitemap and every answer that is not a 200 are never kept,
 and the output cache never stores a response that sets a cookie (no help-centre page does). A delivered KB page tells browsers `Cache-Control: public, max-age=60` (`PathHeaderRule.SetOnSuccess` in Hosting: a 404,
 429 or 503 never gets it); the search page is `no-store`. `UsePortalOutputCache` goes after the error pages and before the endpoints (`ProgramOrderTests` pins the order), so the shared security headers and the per-path
 rules are applied to a cached answer too, and it sets the request's own `X-Correlation-Id` again when the response starts, because a stored copy replays the first request's.
@@ -230,7 +229,6 @@ small host with the real wiring to prove what the cache keeps. The cache and sit
 
 ## Known gaps
 
-- A case-variant of a stored help-centre path (`/p/ACME/kb` after `/p/acme/kb`) is answered from the cache for up to a minute instead of the neutral 404 (the key ignores case). Same public content; see Caching.
 - `ProductHome` and `KbHome` each carry a search box, so the product home shows a duplicate of the help-centre one; merging them is PHASE-09d.
 - The sitemap build's API calls carry the address of the visitor whose request started it, so each sitemap build makes 1 + N API calls under one forwarded IP, and the API's public limit is 120 per minute per IP:
   with about 120 or more active products the sitemap build is rate-limited and the sitemap goes stale or becomes unavailable. Possible later fixes are a bulk sitemap endpoint, or exempting the Portal's own build traffic from the limit.

@@ -98,6 +98,14 @@ public sealed class PortalCachePathsTests
     public void A_page_value_that_is_not_two_to_four_digits_is_never_kept_so_it_cannot_fill_the_store(string query) => Cacheable("/p/paperplane/kb/accounts", query).ShouldBeFalse(query);
 
     [Theory]
+    [InlineData("/p/PAPERPLANE/kb")]
+    [InlineData("/p/paperplane/KB")]
+    [InlineData("/P/paperplane/kb")]
+    [InlineData("/p/paperplane/kb/ACCOUNTS")]
+    [InlineData("/p/paperplane/kb/accounts/Reset-password")]
+    public void A_path_with_an_upper_case_letter_is_never_kept_so_it_can_never_be_answered_from_the_lower_case_entry(string path) => Cacheable(path).ShouldBeFalse(path);
+
+    [Theory]
     [InlineData("/p/paperplane/kb", "")]
     [InlineData("/p/paperplane/kb", "?utm=1")]
     [InlineData("/p/paperplane/kb/accounts/reset-password", "")]

@@ -47,12 +47,13 @@ internal static partial class PortalCachePaths
     /// <summary>
     /// A KB page that is kept when its <c>page</c> query value is absent; a category page is also kept with a page number from two up. On the home and an article any <c>page</c> value is not kept (it changes nothing, so
     /// each value would be a copy of the same page), and on a category <c>page=1</c> is not kept either (it is the page with no value). Other query values do not change the page, so they do not change the key.
-    /// The key's path is compared without regard to case (the framework's default), so once <c>/p/acme/kb</c> is stored <c>/p/ACME/kb</c> is answered from it, a known exception to "an unknown key is the neutral 404";
-    /// it is the same public page with a canonical address fixed from <c>Seo:BaseUrl</c>, and a case-sensitive key would let a visitor store one copy per capitalisation (D-045 as-built).
+    /// Only an all-lowercase path is kept. The framework's key compares the path without regard to case, so if a capitalised path could be looked up, <c>/p/ACME/kb</c> would be answered from the stored
+    /// <c>/p/acme/kb</c> instead of the neutral 404. A path with an upper-case letter makes the predicate false, so the cache neither stores nor looks it up: an unknown capitalised key stays the byte-identical 404,
+    /// and a capitalised fixed segment (<c>/p/acme/KB</c>) is a 200 that is never stored (D-045 as-built).
     /// </summary>
     public static bool IsCacheable(HttpRequest request)
     {
-        if (!IsKbPage(request.Path))
+        if (!IsKbPage(request.Path) || request.Path.Value!.AsSpan().IndexOfAnyInRange('A', 'Z') >= 0)
         {
             return false;
         }

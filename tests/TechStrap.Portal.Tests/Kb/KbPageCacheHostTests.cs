@@ -2,6 +2,7 @@ using System.Net;
 using TechStrap.Contracts.Kb;
 using TechStrap.Contracts.Products;
 using TechStrap.Portal.Tests.Forms;
+using TechStrap.Portal.Tests.Tickets;
 
 namespace TechStrap.Portal.Tests.Kb;
 
@@ -122,24 +123,27 @@ public sealed class KbPageCacheHostTests
     }
 
     [Fact]
-    public async Task A_case_variant_of_a_kept_path_shares_its_key_so_the_stored_page_answers_it_instead_of_the_neutral_404()
+    public async Task A_capitalised_path_is_never_answered_from_the_lower_case_entry_and_never_stored()
     {
-        // Known exception (D-045 as-built): the output cache's key is case-insensitive on the path, so once /p/paperplane/kb is stored, /p/PAPERPLANE/kb gets that 200 (same public content; its canonical link is
-        // fixed from Seo:BaseUrl). Case-sensitive keys would let one visitor store a copy per capitalisation of a path, which is the worse trade, so it is accepted and pinned here.
-        await using var cold = Factory();
-        using var coldClient = FormTestKit.Client(cold);
-        using var alone = await GetAsync(coldClient, "/p/PAPERPLANE/kb");
-        alone.StatusCode.ShouldBe(HttpStatusCode.NotFound, "with nothing stored the unknown product key is the neutral 404");
-
+        // Only all-lowercase paths are kept (PortalCachePaths.IsCacheable), so the case-insensitive key can never answer a capitalised path from the lower-case entry.
+        var neutral = await Seen.NeutralNotFoundAsync(Ct, "/p/nope");
         await using var factory = Factory();
         using var client = FormTestKit.Client(factory);
         using var stored = await GetAsync(client, "/p/paperplane/kb");
-        using var variant = await GetAsync(client, "/p/PAPERPLANE/kb");
+        factory.Api.Count(HttpMethod.Get, KbTestKit.CategoriesPath).ShouldBe(1);
+
+        using var unknownKey = await GetAsync(client, "/p/PAPERPLANE/kb");
+        var seen = await Seen.OfAsync(unknownKey, factory.Api.Requests.Count, Ct);
+        using var capitalisedSegment = await GetAsync(client, "/p/paperplane/KB");
 
         stored.StatusCode.ShouldBe(HttpStatusCode.OK);
-        variant.StatusCode.ShouldBe(HttpStatusCode.OK);
-        KbTestKit.Header(variant, "Age").ShouldNotBeEmpty("answered from the entry the lower-case path stored");
-        factory.Api.Count(HttpMethod.Get, KbTestKit.CategoriesPath).ShouldBe(1);
+        seen.Status.ShouldBe(HttpStatusCode.NotFound);
+        seen.Body.ShouldBe(neutral.Body, "byte for byte");
+        seen.Headers.ShouldBe(neutral.Headers);
+        KbTestKit.Header(unknownKey, "Age").ShouldBeEmpty();
+        capitalisedSegment.StatusCode.ShouldBe(HttpStatusCode.OK);
+        KbTestKit.Header(capitalisedSegment, "Age").ShouldBeEmpty("a 200 that is never stored");
+        factory.Api.Count(HttpMethod.Get, KbTestKit.CategoriesPath).ShouldBe(2, "the capitalised segment asked the API again");
     }
 
     [Fact]
