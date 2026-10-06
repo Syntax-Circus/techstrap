@@ -1,0 +1,22 @@
+@attribute [Route(PortalRoutes.KbCategoryTemplate)]
+@inherits ProductPageBase
+
+@if (UnavailableMessage is not null)
+{
+    <PageTitle>@ShellCopy.UnavailableTitle</PageTitle>
+    <ProductUnavailable Message="@UnavailableMessage" RetryHref="@RetryHref" />
+}
+else if (Theme is { } theme && Listing is { } listing)
+{
+    var name = listing.Items[0].CategoryName;
+    <SeoHead Title="@KbCopy.CategoryTitle(name, theme.DisplayName, listing.Page)" Description="@KbCopy.CategoryDescription(name, theme.DisplayName)" RelativeUrl="@PortalRoutes.KbCategory(theme.Key, Category, listing.Page)" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" />
+    <KbBreadcrumbs Crumbs="@Crumbs(theme, name)" />
+    <h1>@name</h1>
+    <ul class="ts-kb-list">
+        @foreach (var article in listing.Items)
+        {
+            <li><KbArticleCard Href="@PortalRoutes.KbArticle(theme.Key, article.CategorySlug, article.Slug)" Title="@article.Title" Summary="@article.Summary" Meta="@KbCopy.UpdatedOn(article.UpdatedAt)" /></li>
+        }
+    </ul>
+    <Pager Page="@listing.Page" PageSize="@listing.PageSize" TotalCount="@listing.TotalCount" HrefFor="@(page => PortalRoutes.KbCategory(theme.Key, Category, page))" />
+}

@@ -1,0 +1,29 @@
+<article class="ts-kb-card">
+    <h2><a href="@Href">@Title</a></h2>
+    @if (!string.IsNullOrWhiteSpace(Summary))
+    {
+        <p class="ts-kb-summary">@Summary</p>
+    }
+    @if (Meta is not null)
+    {
+        <p class="ts-kb-meta">@Meta</p>
+    }
+</article>
+
+@code {
+    /// <summary>The article's address: a path of this site built by <c>PortalRoutes.KbArticle</c>.</summary>
+    [Parameter, EditorRequired]
+    public string Href { get; set; } = string.Empty;
+
+    /// <summary>Plain text, encoded when shown.</summary>
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>The author's summary or a search snippet: plain text, never markup, encoded when shown.</summary>
+    [Parameter]
+    public string? Summary { get; set; }
+
+    /// <summary>A short line under the summary (the category, the day it changed): plain text.</summary>
+    [Parameter]
+    public string? Meta { get; set; }
+}

@@ -261,3 +261,63 @@
   margin-top: 24px;
   padding-left: 20px;
 }
+
+// The help centre (PHASE-09c): structure only (lists, the breadcrumb trail, the pager); the visual polish pass is PHASE-09d.
+.ts-kb-list {
+  margin: 24px 0;
+  padding: 0;
+  list-style: none;
+
+  li + li {
+    margin-top: 20px;
+  }
+
+  h2 {
+    font-size: 1.125rem;
+    margin-bottom: 4px;
+  }
+}
+
+.ts-kb-summary {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+
+.ts-kb-meta {
+  margin: 0;
+  font-size: .875rem;
+  color: var(--p-ink2);
+}
+
+.ts-breadcrumbs {
+  margin-bottom: 16px;
+  font-size: .875rem;
+
+  ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li + li::before {
+    content: "/";
+    margin-right: 8px;
+    color: var(--p-ink2);
+  }
+}
+
+.ts-pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 24px 0;
+}
+
+.ts-state {
+  margin: 24px 0;
+}

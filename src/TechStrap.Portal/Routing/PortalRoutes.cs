@@ -76,9 +76,18 @@ public static class PortalRoutes
 
     public static string KbCategory(string key, string category) => $"{KbHome(key)}/{Escape(category)}";
 
+    /// <summary>A page of a category: page one is the category's own address, so there is one address for it; a later page adds <c>?page=n</c>.</summary>
+    public static string KbCategory(string key, string category, int page) => page <= 1 ? KbCategory(key, category) : $"{KbCategory(key, category)}?{PageParameter}={page}";
+
     public static string KbArticle(string key, string category, string slug) => $"{KbCategory(key, category)}/{Escape(slug)}";
 
     public static string KbSearch(string key) => $"{KbHome(key)}/{KbSearchSegment}";
+
+    /// <summary>A page of search results: the text is escaped, so it can never add a parameter, and a paging link keeps it. Page one has no <c>page</c>; a blank text is the search page itself.</summary>
+    public static string KbSearch(string key, string text, int page) =>
+        string.IsNullOrWhiteSpace(text)
+            ? KbSearch(key)
+            : $"{KbSearch(key)}?{QueryParameter}={Escape(text)}{(page <= 1 ? string.Empty : $"&{PageParameter}={page}")}";
 
     public static string Suggest(string key) => $"{ProductHome(key)}/suggest";
 
