@@ -53,9 +53,10 @@ public sealed class PortalHostTests
     [Fact]
     public async Task A_malformed_TECHSTRAP_PORTAL_SHOW_POWERED_BY_fails_at_startup_instead_of_on_every_page()
     {
-        await using var factory = new PortalFactory().WithWebHostBuilder(b => b.UseSetting("TECHSTRAP_PORTAL_SHOW_POWERED_BY", "maybe"));
+        await using var root = new PortalFactory();
+        await using var factory = root.WithWebHostBuilder(b => b.UseSetting("TECHSTRAP_PORTAL_SHOW_POWERED_BY", "maybe"));
 
-        var failure = Should.Throw<OptionsValidationException>(() => factory.CreateClient());
+        var failure = StartupFailure.Capture(factory, root);
 
         failure.Message.ShouldContain("TECHSTRAP_PORTAL_SHOW_POWERED_BY");
     }
