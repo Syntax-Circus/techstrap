@@ -9,6 +9,7 @@ public sealed class IntakeRequestLimitsTests
     [Fact]
     public void The_api_form_limit_is_the_contract_limit()
     {
+        IntakeRequestLimits.FormBodyBytes.ShouldBe(27_262_976, "the literal, so a change of the number is a decision, not an accident");
         IntakeRequestLimits.FormBodyBytes.ShouldBe(IntakeLimits.FormBodyBytes);
     }
 }
