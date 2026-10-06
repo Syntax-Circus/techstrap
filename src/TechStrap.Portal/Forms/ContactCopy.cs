@@ -14,6 +14,14 @@ public static class ContactCopy
     /// <summary>The fallback inside the suggestions element, shown only without script: a plain link to the help search.</summary>
     public const string SuggestFallback = "Search the help articles first";
 
+    // The words of the suggestions list. The script has its own fallbacks, but the page owns its copy and passes these to the element as data attributes.
+    public const string SuggestOne = "1 article may help";
+    public const string SuggestMany = "{0} articles may help";
+    public const string SuggestNewTab = "(opens in a new tab)";
+
+    /// <summary>The label of the honeypot field. No person sees it (it is hidden from sight and from assistive technology), but a bot that reads the markup sees an ordinary field.</summary>
+    public const string HoneypotLabel = "Website";
+
     // The received page.
     public const string ReceivedHeading = "We have received your request.";
     public const string YourNumber = "Your ticket number is";

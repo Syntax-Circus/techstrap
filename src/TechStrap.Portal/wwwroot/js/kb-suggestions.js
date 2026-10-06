@@ -1,7 +1,9 @@
 // <ts-kb-suggestions>: article suggestions beside the contact form's subject field (PHASE-09b, D-045 addendum). Vanilla JavaScript, no framework and no build step.
 //
 // Markup (server-rendered; the content of the element is the fallback shown when this script does not run):
-//   <ts-kb-suggestions field="subject" src="/p/paperplane/suggest" aria-live="polite"><a href="...">Search help articles</a></ts-kb-suggestions>
+//   <ts-kb-suggestions field="subject" src="/p/paperplane/suggest" data-count-one="1 article may help" data-count-many="{0} articles may help" data-new-tab="(opens in a new tab)" aria-live="polite"><a href="...">Search help articles</a></ts-kb-suggestions>
+//
+// The words come from the server as data attributes (ContactCopy), so the page owns its copy; DEFAULT_COPY below is only a fallback for an element rendered without them.
 //
 // The module lists suggestions only: the form works without it and is never blocked by it. Everything it needs from the browser is passed in (fetch, the timers, AbortController, the document), so the
 // behaviour is tested with `node --test` and no browser. Text from the server is plain text and is only ever put on the page with textContent; a link is only ever built from a root-relative path
@@ -11,6 +13,19 @@ export const DEBOUNCE_MS = 300;
 export const MIN_CHARS = 3;
 export const MAX_ITEMS = 5;
 export const MAX_QUERY_CHARS = 200;
+
+/** The words of the list: `one` and `many` (with {0} for the count) for the heading, `newTab` for the cue added to every link. The server passes them in; these are a fallback. */
+export const DEFAULT_COPY = Object.freeze({ one: '1 article may help', many: '{0} articles may help', newTab: '(opens in a new tab)' });
+
+/** The copy an element carries in its data attributes, each one falling back to DEFAULT_COPY when missing or empty. */
+export function copyFrom(element) {
+    const read = (name, fallback) => {
+        const value = element.getAttribute(name);
+        return typeof value === 'string' && value.length > 0 ? value : fallback;
+    };
+
+    return { one: read('data-count-one', DEFAULT_COPY.one), many: read('data-count-many', DEFAULT_COPY.many), newTab: read('data-new-tab', DEFAULT_COPY.newTab) };
+}
 
 /** A root-relative path on this site ("/p/x/kb/a/b"): not protocol-relative ("//host"), not an absolute URL, no backslash, no control character. */
 export function isSafeHref(value) {
@@ -111,7 +126,7 @@ export function createSuggester({ url, fetchFn, setTimer, clearTimer, newAbortCo
 }
 
 /** Replaces the content of `container` with the list: a count line and the links, each opening in a new tab with the cue in its text. An empty list leaves the container empty (no "nothing found" noise). */
-export function render(doc, container, items) {
+export function render(doc, container, items, copy = DEFAULT_COPY) {
     container.replaceChildren();
     if (items.length === 0) {
         return;
@@ -119,7 +134,7 @@ export function render(doc, container, items) {
 
     const heading = doc.createElement('p');
     heading.className = 'ts-suggest-heading';
-    heading.textContent = items.length === 1 ? '1 article may help' : `${items.length} articles may help`;
+    heading.textContent = items.length === 1 ? copy.one : copy.many.split('{0}').join(String(items.length));
     const list = doc.createElement('ul');
     list.className = 'ts-suggest-list';
     for (const item of items) {
@@ -128,7 +143,7 @@ export function render(doc, container, items) {
         link.setAttribute('href', item.href);
         link.setAttribute('target', '_blank');
         link.setAttribute('rel', 'noopener noreferrer');
-        link.textContent = `${item.title} (opens in a new tab)`;
+        link.textContent = `${item.title} ${copy.newTab}`;
         row.appendChild(link);
         if (item.snippet.length > 0) {
             const snippet = doc.createElement('span');
@@ -172,7 +187,7 @@ export function defineKbSuggestions(env) {
                 newAbortController: () => new env.AbortController(),
                 onItems: (items) => {
                     this.hidden = false;
-                    render(env.document, this, items);
+                    render(env.document, this, items, copyFrom(this));
                 },
                 onError: () => {
                     this.replaceChildren();

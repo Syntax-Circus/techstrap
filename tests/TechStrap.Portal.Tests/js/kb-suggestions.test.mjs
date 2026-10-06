@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import {
-    DEBOUNCE_MS, MAX_ITEMS, MIN_CHARS, MAX_QUERY_CHARS, createSuggester, defineKbSuggestions, isSafeHref, parseItems, render,
+    DEBOUNCE_MS, DEFAULT_COPY, MAX_ITEMS, MIN_CHARS, MAX_QUERY_CHARS, copyFrom, createSuggester, defineKbSuggestions, isSafeHref, parseItems, render,
 } from '../../../src/TechStrap.Portal/wwwroot/js/kb-suggestions.js';
 
 const sourcePath = new URL('../../../src/TechStrap.Portal/wwwroot/js/kb-suggestions.js', import.meta.url);
@@ -317,6 +317,33 @@ describe('render', () => {
 
         assert.equal(container.children[1].children[0].children.length, 1);
     });
+
+    it('uses the words it is given, for the heading and for the new-tab cue', () => {
+        const doc = fakeDocument();
+        const container = doc.createElement('x');
+        const copy = { one: 'Un article peut aider', many: '{0} articles peuvent aider', newTab: '(nouvel onglet)' };
+
+        render(doc, container, [item(1), item(2), item(3)], copy);
+        assert.equal(container.children[0].textContent, '3 articles peuvent aider');
+        assert.ok(container.children[1].children[0].children[0].textContent.endsWith(' (nouvel onglet)'));
+
+        render(doc, container, [item(1)], copy);
+        assert.equal(container.children[0].textContent, 'Un article peut aider');
+    });
+
+    it('falls back to the built-in words when no copy is given', () => {
+        assert.deepEqual({ ...DEFAULT_COPY }, { one: '1 article may help', many: '{0} articles may help', newTab: '(opens in a new tab)' });
+    });
+});
+
+describe('copyFrom', () => {
+    it('reads the three data attributes and falls back to the defaults for a missing or empty one', () => {
+        const attrs = { 'data-count-one': 'Un', 'data-count-many': '{0} plusieurs', 'data-new-tab': '' };
+        const element = { getAttribute: (name) => attrs[name] ?? null };
+
+        assert.deepEqual(copyFrom(element), { one: 'Un', many: '{0} plusieurs', newTab: DEFAULT_COPY.newTab });
+        assert.deepEqual(copyFrom({ getAttribute: () => null }), { ...DEFAULT_COPY });
+    });
 });
 
 describe('the custom element', () => {
@@ -369,6 +396,22 @@ describe('the custom element', () => {
 
         assert.deepEqual([...registry.keys()], ['ts-kb-suggestions']);
         defineKbSuggestions({ customElements: { get: () => registry.get('ts-kb-suggestions'), define: () => assert.fail('defined twice') }, HTMLElement: class {} });
+    });
+
+    it('shows the words the server put in its data attributes', async () => {
+        const doc = fakeDocument();
+        const field = inputField();
+        doc.byId.set('subject', field);
+        const { element, clock, fetchFn } = connected(doc, { field: 'subject', src: '/p/paperplane/suggest', 'data-count-one': 'Un article', 'data-count-many': '{0} articles ici', 'data-new-tab': '(autre onglet)' });
+        element.connectedCallback();
+
+        field.type('printer');
+        clock.advance(300);
+        fetchFn.calls[0].resolve(ok([item(1), item(2)]));
+        await flush();
+
+        assert.equal(element.children[0].textContent, '2 articles ici');
+        assert.ok(element.children[1].children[0].children[0].textContent.endsWith(' (autre onglet)'));
     });
 
     it('does nothing in an environment with no custom elements', () => {

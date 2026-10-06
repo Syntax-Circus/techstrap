@@ -26,7 +26,7 @@ public sealed class ContactSuggestionsHostTests
 
         var (_, html) = await GetAsync(factory, FormTestKit.Path);
 
-        html.ShouldContain("<ts-kb-suggestions field=\"subject\" src=\"/p/paperplane/suggest\" class=\"ts-suggestions\" aria-live=\"polite\"><a href=\"/p/paperplane/kb/search\">Search the help articles first</a></ts-kb-suggestions>");
+        html.ShouldContain("<ts-kb-suggestions field=\"subject\" src=\"/p/paperplane/suggest\" data-count-one=\"1 article may help\" data-count-many=\"{0} articles may help\" data-new-tab=\"(opens in a new tab)\" class=\"ts-suggestions\" aria-live=\"polite\"><a href=\"/p/paperplane/kb/search\">Search the help articles first</a></ts-kb-suggestions>");
         html.IndexOf("id=\"subject\"", StringComparison.Ordinal).ShouldBeLessThan(html.IndexOf("<ts-kb-suggestions", StringComparison.Ordinal));
         html.IndexOf("<ts-kb-suggestions", StringComparison.Ordinal).ShouldBeLessThan(html.IndexOf("id=\"body\"", StringComparison.Ordinal));
     }
