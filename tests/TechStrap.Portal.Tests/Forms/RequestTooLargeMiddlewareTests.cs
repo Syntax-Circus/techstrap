@@ -168,4 +168,52 @@ public sealed class RequestTooLargeMiddlewareTests
         small.Length.ShouldBeLessThan((int)IntakeLimits.FormBodyBytes);
         refused.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
     }
+
+    /// <summary>Another content's bytes and headers, but not its length, so it goes over the wire chunked (no <c>Content-Length</c> for the middleware to refuse on).</summary>
+    private sealed class Chunked : HttpContent
+    {
+        private readonly HttpContent _inner;
+
+        public Chunked(HttpContent inner)
+        {
+            _inner = inner;
+            foreach (var header in inner.Headers)
+            {
+                Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+
+            Headers.ContentLength = null;
+        }
+
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) => _inner.CopyToAsync(stream, context);
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
+    }
+
+    [Fact]
+    public async Task On_the_real_server_a_chunked_body_over_the_limit_is_a_400_and_nothing_is_sent_to_the_api()
+    {
+        var (client, factory) = Kestrel();
+        using var _ = client;
+        await using var __ = factory;
+        factory.Api.OnJson(HttpMethod.Post, FormTestKit.ApiTicketsPath, FormTestKit.Created(), HttpStatusCode.Created);
+        var token = await FormTestKit.TokenAsync(client, FormTestKit.Path, Ct);
+        var apiCalls = factory.Api.Requests.Count;
+        // A real, well-formed contact post whose file pushes it over the limit: only the size can make it fail.
+        using var form = FormTestKit.ContactForm(token, files: [new("big.zip", new byte[(int)IntakeLimits.FormBodyBytes], "application/zip")]);
+        using var request = new HttpRequestMessage(HttpMethod.Post, FormTestKit.Path) { Content = new Chunked(form) };
+        request.Headers.TransferEncodingChunked = true;
+
+        // No declared length, so the middleware cannot answer 413; Kestrel refuses the read at the limit and the antiforgery check reports it as a 400. What matters: the body is not buffered, nothing is created.
+        using var response = await client.SendAsync(request, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        request.Content.Headers.ContentLength.ShouldBeNull("control: this really went over the wire without a length");
+        factory.Api.Requests.Count.ShouldBe(apiCalls, "the form was never read, so the page never even asked for the product");
+        factory.Api.Count(HttpMethod.Post, FormTestKit.ApiTicketsPath).ShouldBe(0);
+    }
 }
