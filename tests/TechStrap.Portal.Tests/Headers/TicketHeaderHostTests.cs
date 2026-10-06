@@ -122,6 +122,20 @@ public sealed class TicketHeaderHostTests
     }
 
     [Fact]
+    public async Task A_500_under_t_in_production_keeps_the_ticket_headers_and_is_not_sandboxed()
+    {
+        await using var factory = new PortalFactory("Production", configureServices: ThrowProbeStartupFilter.Add(path => path.StartsWithSegments("/t/probe-token/boom")));
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync("/t/probe-token/boom", Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.InternalServerError);
+        (await response.Content.ReadAsStringAsync(Ct)).ShouldContain("Something went wrong.", Case.Insensitive, "the real error page answered");
+        AssertTicketHeaders(response, "500");
+        Policy(response).ShouldNotContain("sandbox", "the error page is an ordinary page");
+    }
+
+    [Fact]
     public async Task The_header_rules_do_not_depend_on_the_environment()
     {
         foreach (var environment in new[] { "Development", "Production" })
