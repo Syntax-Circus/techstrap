@@ -86,6 +86,17 @@ public sealed class SuggestEndpointHostTests
     }
 
     [Fact]
+    public async Task A_hit_that_names_another_product_is_still_linked_under_the_visitors_product_key()
+    {
+        var other = new PublicKbSearchResultDto("shared-article", "Shared", "Snippet.", "guides", "Guides", "otherproduct");
+        await using var factory = Host(Page(other));
+
+        var (_, body) = await GetAsync(factory, "/p/paperplane/suggest?q=shared");
+
+        body[0].GetProperty("href").GetString().ShouldBe("/p/paperplane/kb/guides/shared-article");
+    }
+
+    [Fact]
     public async Task At_most_five_items_come_back()
     {
         await using var factory = Host(Page([.. Enumerable.Range(1, 8).Select(n => Hit(n))]));
