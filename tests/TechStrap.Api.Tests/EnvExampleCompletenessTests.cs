@@ -129,6 +129,10 @@ public sealed partial class EnvExampleCompletenessTests
                 "API__BASEURL",
                 "TECHSTRAP_PORTAL_PUBLIC_URL",
                 "TECHSTRAP_PORTAL_DEFAULT_PRODUCT",
+                "CANONICALHOST__CANONICALHOST",
+                "CANONICALHOST__LEGACYHOSTS__0",
+                "CANONICALHOST__FORCEHTTPS",
+                "CANONICALHOST__PERMANENT",
                 "TECHSTRAP_PORTAL_SHOW_POWERED_BY",
                 "DATAPROTECTION__KEYRINGPATH",
             ]
