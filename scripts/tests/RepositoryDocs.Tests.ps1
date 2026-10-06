@@ -138,6 +138,34 @@ Describe 'D-044 (the knowledge base)' {
     }
 }
 
+Describe 'D-045 (the public portal)' {
+    BeforeAll { $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md' }
+
+    It 'is in the decision log with its date, its status, a header bullet and an index row' {
+        $script:Log | Should -Match '(?m)^## D-045: PHASE-09: the public portal'
+        $script:Log | Should -Match '(?s)## D-045:.*?- \*\*Status:\*\* Approved \(owner 2026-10-05.*?- \*\*Date:\*\* 2026-10-05'
+        $script:Log | Should -Match '(?m)^\| D-045 \|.*\| 2026-10-05 \|'
+        $script:Log | Should -Match '(?m)^- \*\*Owner decision \(2026-10-05, PHASE-09 planning\):\*\* D-045'
+    }
+
+    It 'records the owner decisions and the technical rulings the three pull requests rely on' {
+        foreach ($phrase in 'Three pull requests', 'vanilla JS', '<ts-kb-suggestions>', 'GET api/public/products', 'TECHSTRAP_PORTAL_DEFAULT_PRODUCT', 'ProductKey', 'T20 (Playwright end-to-end) is deferred',
+                'ApiConnection', 'X-Ticket-Token', 'YAGNI', 'MapSeoRobotsTxt', 'Seo:BaseUrl', 'per-path rules', 'Referrer-Policy: no-referrer', 'byte-identical', '?ref=', 'ProductThemeViewModel', 'Contracts plus Hosting') {
+            $script:Log | Should -Match ([regex]::Escape($phrase)) -Because "D-045 must mention $phrase"
+        }
+    }
+
+    It 'corrects the PHASE-09 spec, the package map and marks the roadmap and discovery rows as in progress (09a)' {
+        $spec = Get-RepoText 'docs/architecture/PHASE-09-public-portal.md'
+        $spec | Should -Match '(?m)^### Corrections \(D-045, 2026-10-05\)'
+        $spec | Should -Match 'MapSeoRobotsTxt'
+        $spec | Should -Match 'ProductThemeViewModel'
+        (Get-RepoText 'docs/architecture/03-PACKAGE-MAP.md') | Should -Match 'MapSeoRobotsTxt'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 09 \|.*D-045.*\| In progress \(09a\)'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 09 \|.*\| In progress \(09a\)'
+    }
+}
+
 Describe 'the deployment runbook' {
     BeforeAll { $script:Runbook = Get-RepoText 'docs/self-hosting/DEPLOYMENT.md' }
 

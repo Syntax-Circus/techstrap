@@ -32,6 +32,20 @@ sitemap, robots) through `SyntaxCircus.Blazor.Seo`.
 - **Accessibility/UX** follow `UX-BRIEF-portal.md` (mobile-first, no JS required, visible focus, error summaries, labels, 4.5:1 contrast with the computed `--ts-on-accent` and `--ts-accent-ink`).
 - **Tests:** bUnit for component logic, `WebApplicationFactory<Portal>` with a fake API handler for page-level SSR output (token headers, noindex, canonical, sitemap). Playwright e2e optional (**Assumption**, P09-T20).
 
+### Corrections (D-045, 2026-10-05)
+
+Where this page and D-045 differ, D-045 wins.
+- **Delivery.** Three pull requests: 09a (the foundation: T01 to T05, T17, T19, T22), 09b (the customer flows: T06 to T11, T18, T21, T23) and 09c (the knowledge base, SEO and polish: T12 to T16). T20 is deferred.
+- **References.** The Portal references `TechStrap.Contracts` and `TechStrap.Hosting` (the shared host wiring, D-042), not Contracts only.
+- **KB suggestions.** A vanilla-JS custom element `<ts-kb-suggestions>` and a Portal-hosted `GET /p/{key}/kb/suggest` adapter replace the `KbDeflectionSuggestions` InteractiveServer island. No page has a circuit.
+- **API additions.** 09c adds a paged list of a category's articles and `GET api/public/products`; 09b adds `ProductKey` to `CustomerTicketDto`. `/` redirects to `TECHSTRAP_PORTAL_DEFAULT_PRODUCT`, or shows a neutral page.
+- **Blazor.Seo.** The real names are `AddSyntaxCircusSeo`, `UseSyntaxCircusSeo`, `MapSeoRobotsTxt(extraDirectives)` and `MapSeoSitemap(staticEntries, provider)`; `UseCanonicalHost`, `MapRobotsTxt`, `MapSitemap` and `ISitemapEntryProvider` do not exist. `Seo:BaseUrl` is derived from `TECHSTRAP_PORTAL_PUBLIC_URL`.
+- **Theming.** `BrandingThemeFactory` is replaced by a thin `ProductThemeViewModel` over `AccentScope` and the DTO's derived colours; the logo address is re-checked.
+- **Clients.** A hand-written `ApiConnection` and `ProblemMapping` (reads retried, writes never), not `ApiClientBase`; each client arrives with its page.
+- **Lost link.** The Portal's responses are byte-identical whatever the address; the timing assertion in P09-T10 is dropped (D-038 accepts the residual difference).
+- **Received page.** The ticket number travels in a data-protection-protected `?ref=` value that expires after 10 minutes.
+- **Headers.** Per-path header rules in `UseTechStrapWebHost` give `/t/*` its `no-referrer`, `no-store` and `noindex`, and give only `/t/{token}/attachments/{id}` the sandbox CSP.
+
 ## Application Boundaries
 
 Follow _template APPLICATION_ARCHITECTURE.md. This phase adds **no new server
