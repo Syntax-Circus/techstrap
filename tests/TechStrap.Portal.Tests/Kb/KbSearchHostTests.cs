@@ -132,6 +132,41 @@ public sealed class KbSearchHostTests
     }
 
     [Fact]
+    public async Task A_page_past_the_end_of_results_that_exist_is_the_neutral_404_like_a_category_page()
+    {
+        var neutral = await Seen.NeutralNotFoundAsync(Ct, "/p/nope");
+        await using var factory = KbTestKit.Factory();
+        factory.Api.OnJson(HttpMethod.Get, KbTestKit.SearchPath, KbTestKit.Hits(9, 10, 3));
+        using var client = FormTestKit.Client(factory);
+
+        using var response = await client.GetAsync("/p/paperplane/kb/search?q=router&page=9", Ct);
+        var seen = await Seen.OfAsync(response, factory.Api.Requests.Count, Ct);
+
+        // The path rule for the search page adds no-store (never kept by anyone), which no other 404 has; everything else is the neutral page byte for byte.
+        seen.Status.ShouldBe(HttpStatusCode.NotFound);
+        seen.Body.ShouldBe(neutral.Body, "byte for byte");
+        seen.Body.ShouldNotContain("--ts-accent");
+        seen.Body.ShouldNotContain("ts-product-header");
+        response.Headers.CacheControl!.NoStore.ShouldBeTrue();
+        Without(seen.HeadersWithoutEnhancedNav).ShouldBe(Without(neutral.HeadersWithoutEnhancedNav));
+    }
+
+    private static string Without(string headers) => string.Join("\n", headers.Split('\n').Where(line => !line.StartsWith("Cache-Control:", StringComparison.Ordinal)));
+
+    [Fact]
+    public async Task A_later_page_of_a_search_with_no_results_at_all_is_still_the_no_result_message()
+    {
+        await using var factory = KbTestKit.Factory();
+        factory.Api.OnJson(HttpMethod.Get, KbTestKit.SearchPath, KbTestKit.Hits(3, 10, 0));
+        using var client = FormTestKit.Client(factory);
+
+        var (response, _, dom) = await KbTestKit.GetAsync(client, "/p/paperplane/kb/search?q=zzz&page=3", Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        KbTestKit.Texts(dom, ".ts-state h2").ShouldBe(["No articles found"]);
+    }
+
+    [Fact]
     public async Task The_paging_links_keep_the_text_and_work_without_script()
     {
         await using var factory = WithHits(2, 25);

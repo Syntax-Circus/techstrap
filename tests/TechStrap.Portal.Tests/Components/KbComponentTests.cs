@@ -34,7 +34,8 @@ public sealed class KbComponentTests : BunitContext
         var cut = Render<KbArticleCard>(parameters => parameters
             .Add(card => card.Href, "/x")
             .Add(card => card.Title, "Title")
-            .Add(card => card.Summary, summary));
+            .Add(card => card.Summary, summary)
+            .Add(card => card.Meta, summary));
 
         cut.FindAll("p").Count.ShouldBe(0);
     }

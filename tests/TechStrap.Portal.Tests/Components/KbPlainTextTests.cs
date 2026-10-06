@@ -67,4 +67,28 @@ public sealed class KbPlainTextTests
 
         description.ShouldBe("<script>alert(1)</script> and link.");
     }
+
+    [Fact]
+    public void A_body_that_makes_a_pattern_run_too_long_has_no_description_instead_of_holding_the_request()
+    {
+        var body = string.Concat(Enumerable.Repeat("<p>x", 80_000));
+        var started = System.Diagnostics.Stopwatch.StartNew();
+
+        var description = KbPlainText.Describe(null, body);
+
+        description.ShouldBeEmpty("a pattern that passes the match timeout ends the description");
+        started.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));
+        KbPlainText.MatchTimeoutMs.ShouldBe(100);
+        KbPlainText.Describe("A summary still wins.", body).ShouldBe("A summary still wins.");
+    }
+
+    [Fact]
+    public void A_greater_than_sign_inside_an_attribute_value_may_leave_stray_words_but_never_markup()
+    {
+        // Known and accepted (see KbPlainText.Strip): the tag ends early at the '>' in the value. Cosmetic only, and the result is encoded when written.
+        var description = KbPlainText.Describe(null, "<p><a title=\"a>b\">link</a>. Next.</p>");
+
+        description.ShouldNotContain("<");
+        description.ShouldContain("link");
+    }
 }

@@ -47,9 +47,17 @@ public partial class KbSearch : ProductPageBase
             return;
         }
 
-        var result = await Kb.SearchAsync(Key, Text, KbPaging.Parse(PageText), PageSize, RequestAborted);
+        var page = KbPaging.Parse(PageText);
+        var result = await Kb.SearchAsync(Key, Text, page, PageSize, RequestAborted);
         if (result.IsSuccess)
         {
+            if (page > 1 && result.Value.Items.Count == 0 && result.Value.TotalCount > 0)
+            {
+                // A page past the end of results that exist: the same neutral 404 as a category page past its end, not a "No articles found" for a crawler to find at every page number.
+                NotFoundAfterTheming();
+                return;
+            }
+
             Results = result.Value;
             return;
         }

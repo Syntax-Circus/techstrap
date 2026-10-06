@@ -4,7 +4,7 @@
     {
         <p class="ts-kb-summary">@Summary</p>
     }
-    @if (Meta is not null)
+    @if (!string.IsNullOrWhiteSpace(Meta))
     {
         <p class="ts-kb-meta">@Meta</p>
     }
