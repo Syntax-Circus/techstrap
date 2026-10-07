@@ -143,6 +143,8 @@ public sealed class TicketHubTests(TestPostgres postgres)
         using var kimInbox = new HubTestSupport.Inbox<TicketChangedDto>(kim, TicketHubMethods.TicketChanged);
         await sam.StartAsync(Ct);
         await kim.StartAsync(Ct);
+        await sam.ReadyAsync(Ct);
+        await kim.ReadyAsync(Ct);
         var change = Change(number: "ORB-7");
 
         await factory.Services.GetRequiredService<ITicketChangeBroadcaster>().PublishAsync(change, Ct);
@@ -227,6 +229,7 @@ public sealed class TicketHubTests(TestPostgres postgres)
         using var presence = new HubTestSupport.Inbox<TicketPresenceDto>(sam, TicketHubMethods.PresenceChanged);
         using var queue = new HubTestSupport.Inbox<TicketChangedDto>(sam, TicketHubMethods.TicketChanged);
         await sam.StartAsync(Ct);
+        await sam.ReadyAsync(Ct);
 
         var refusal = await Should.ThrowAsync<HubException>(() => sam.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, unknown, Ct));
 
@@ -280,6 +283,7 @@ public sealed class TicketHubTests(TestPostgres postgres)
         await using var kim = HubTestSupport.Connect(factory, HubTestSupport.AgentToken("kim", "Kim"));
         using var queue = new HubTestSupport.Inbox<TicketChangedDto>(kim, TicketHubMethods.TicketChanged);
         await kim.StartAsync(Ct);
+        await kim.ReadyAsync(Ct);
         using var sam = TicketTestData.AgentClient(factory, "sam");
         var version = await TicketTestData.VersionAsync(sam, ticket.Id);
 

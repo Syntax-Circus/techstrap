@@ -43,6 +43,7 @@ public sealed class NotifyRelayHostTests(TestPostgres postgres)
         await using var connection = HubTestSupport.Connect(api, HubTestSupport.AgentToken("sam", "Sam"));
         using var inbox = new HubTestSupport.Inbox<TicketChangedDto>(connection, TicketHubMethods.TicketChanged);
         await connection.StartAsync(ct);
+        await connection.ReadyAsync(ct);
         await WaitForListenerAsync(database, expected: 1);
         var change = new TicketChange(Guid.NewGuid(), Guid.NewGuid(), "ORB-9", Guid.NewGuid(), TicketEventTypes.StatusChanged, null, DateTimeOffset.UtcNow, TicketChangeKinds.Updated);
 

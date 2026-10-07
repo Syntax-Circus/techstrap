@@ -40,6 +40,7 @@ public sealed class HubWebSocketTests(TestPostgres postgres)
             .Build();
         using var inbox = new HubTestSupport.Inbox<TicketChangedDto>(connection, TicketHubMethods.TicketChanged);
         await connection.StartAsync(ct);
+        await connection.ReadyAsync(ct);
         var change = new TicketChange(Guid.NewGuid(), Guid.NewGuid(), "ORB-1", Guid.NewGuid(), TicketEventTypes.StatusChanged, null, DateTimeOffset.UtcNow, TicketChangeKinds.Updated);
 
         await factory.Services.GetRequiredService<ITicketChangeBroadcaster>().PublishAsync(change, ct);
