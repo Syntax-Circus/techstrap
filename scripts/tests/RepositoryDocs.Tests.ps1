@@ -491,4 +491,42 @@ Describe 'D-046 (live updates)' {
             $text | Should -Not -Match '(?m)^\| 0[789] \|.*pending merge'
         }
     }
+
+    It 'ticks only what 10a delivers: P10-T01 to T10 and the three server deliverables, with the Admin work still open' {
+        $spec = Get-RepoText 'docs/architecture/PHASE-10-live-updates.md'
+        foreach ($number in 1..10) {
+            $id = 'P10-T{0:00}' -f $number
+            $spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is delivered by 10a"
+        }
+        foreach ($number in 11..17) {
+            $id = 'P10-T{0:00}' -f $number
+            $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is 10b"
+        }
+        $spec | Should -Match '(?m)^- \[x\] `TicketHub`, `UpdateTicketPresenceHandler`'
+        $spec | Should -Match '(?m)^- \[x\] Post-commit publishing hook in Infrastructure'
+        $spec | Should -Match '(?m)^- \[x\] Contracts: `TicketChangedDto`'
+        $spec | Should -Match '(?m)^- \[ \] Admin `ITicketLiveClient`'
+        $spec | Should -Match '(?m)^- \[ \] Reverse-proxy/WebSocket notes'
+    }
+
+    It 'says in the roadmap and discovery rows that 10a is complete pending merge and 10b is ready to start using Blazor.Auth 0.2.0' {
+        foreach ($file in 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md', 'docs/architecture/00-DISCOVERY-INDEX.md') {
+            (Get-RepoText $file) | Should -Match '(?m)^\| 10 \|.*\| 10a complete \(pending merge\); 10b \(Admin\) ready to start after 10a merges, using SyntaxCircus\.Blazor\.Auth 0\.2\.0 \|'
+        }
+    }
+
+    It 'tells the operator that the hub is internal and that LISTEN needs a direct connection' {
+        $runbook = Get-RepoText 'docs/self-hosting/DEPLOYMENT.md'
+        $runbook | Should -Match '(?m)^## Live updates \(PHASE-10\)'
+        foreach ($phrase in 'The hub is internal', 'PgBouncer in transaction mode breaks `LISTEN`', 'techstrap-ticket-change-listener', 'Do not publish `/hubs`', 'No new settings') {
+            $runbook | Should -Match ([regex]::Escape($phrase)) -Because "the live-updates note must say $phrase"
+        }
+    }
+
+    It 'records the two packages the live updates use' {
+        $map = Get-RepoText 'docs/architecture/03-PACKAGE-MAP.md'
+        $map | Should -Match 'TechStrap\.Api\.Tests` connects a real `HubConnection` in 10a'
+        $map | Should -Match 'A direct reference of `TechStrap\.Infrastructure` \(10a, D-046\)'
+    }
 }
+
