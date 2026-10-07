@@ -9,7 +9,7 @@ namespace TechStrap.Api.Live;
 public static class LiveHubExtensions
 {
     /// <summary>
-    /// SignalR, the in-memory presence store (D-007: one Api instance) and the hub's <see cref="ITicketChangeBroadcaster"/>. Call it after <c>AddTechStrapPersistence</c>:
+    /// SignalR, the in-memory presence store (D-007: one Api instance), the hub's <see cref="ITicketChangeBroadcaster"/> and the listener that relays the Worker's NOTIFY to it. Call it after <c>AddTechStrapPersistence</c>:
     /// that registered the null broadcaster, and <c>Replace</c> is what makes the hub's win.
     /// </summary>
     public static IServiceCollection AddTechStrapLiveHub(this IServiceCollection services)
@@ -17,6 +17,7 @@ public static class LiveHubExtensions
         services.AddSignalR();
         services.AddTechStrapPresence();
         services.Replace(ServiceDescriptor.Singleton<ITicketChangeBroadcaster, SignalRTicketChangeBroadcaster>());
+        services.AddTechStrapTicketChangeListener();
         return services;
     }
 

@@ -15,4 +15,21 @@ public static class LiveServiceCollectionExtensions
         services.TryAddSingleton<ITicketPresenceStore, InMemoryTicketPresenceStore>();
         return services;
     }
+
+    /// <summary>
+    /// The Api's listener on the NOTIFY channel (a hosted service). It needs <c>IRelayTicketChangeHandler</c> (registered with the other handlers) and a broadcaster that reaches the
+    /// hub. The Worker never calls this, and nothing here ever notifies, so a change cannot echo.
+    /// </summary>
+    public static IServiceCollection AddTechStrapTicketChangeListener(this IServiceCollection services)
+    {
+        services.AddHostedService<TicketChangeListener>();
+        return services;
+    }
+
+    /// <summary>The Worker's broadcaster: a Postgres NOTIFY after each commit, for the Api's listener. Call it after <c>AddTechStrapPersistence</c>, whose null broadcaster it replaces.</summary>
+    public static IServiceCollection AddTechStrapNotifyBroadcaster(this IServiceCollection services)
+    {
+        services.Replace(ServiceDescriptor.Singleton<ITicketChangeBroadcaster, PgNotifyTicketChangeBroadcaster>());
+        return services;
+    }
 }
