@@ -21,11 +21,11 @@ public sealed class StyleBuildTests
     [Fact]
     public void The_token_table_of_BRAND_md_was_read()
     {
-        // 18 surface + 5 tint + 6 status + 10 brand-moment tokens have a dark value; the 5 portal tokens do not.
+        // 18 surface + 5 tint + 6 status + 10 brand-moment tokens have a dark value; the 11 portal tokens (5 neutral, 6 semantic) do not.
         var tokens = BrandTokenTable.Read();
 
         tokens.Count(t => t.Dark is not null).ShouldBe(39);
-        tokens.Count(t => t.Dark is null).ShouldBe(5);
+        tokens.Count(t => t.Dark is null).ShouldBe(11);
     }
 
     [Fact]

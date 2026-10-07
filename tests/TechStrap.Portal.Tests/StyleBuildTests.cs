@@ -23,7 +23,7 @@ public sealed class StyleBuildTests
     public void Every_portal_token_of_BRAND_md_is_a_custom_property_on_root()
     {
         var portalTokens = BrandTokenTable.Read().Where(t => t.Name.StartsWith("p-", StringComparison.Ordinal)).ToList();
-        portalTokens.Count.ShouldBe(5);
+        portalTokens.Count.ShouldBe(11, "the five neutral tokens and the six semantic ones (error, success, warning and their grounds)");
         var root = Css.Declarations(LightScope);
 
         foreach (var token in portalTokens)

@@ -1,11 +1,12 @@
+@inject NavigationManager Navigation
 @if (Errors.Count > 0)
 {
-    <section class="ts-error-summary alert alert-danger" role="alert" tabindex="-1" autofocus aria-labelledby="error-summary-heading">
+    <section class="ts-error-summary alert alert-danger" role="alert" tabindex="-1" autofocus aria-labelledby="error-summary-heading" data-enhance-nav="false">
         <h2 id="error-summary-heading" class="h5">@Heading</h2>
         <ul>
             @foreach (var error in Errors)
             {
-                <li>@if (error.Field is { } field){<a href="#@field">@error.Message</a>}else{@error.Message}</li>
+                <li>@if (error.Field is { } field){<a href="@PageLinks.ToFragment(Navigation.Uri, field, keepQuery: false)">@error.Message</a>}else{@error.Message}</li>
             }
         </ul>
     </section>

@@ -29,7 +29,7 @@ public sealed class PortalLayoutTests : BunitContext
 
         cut.Find("#page").TextContent.ShouldBe("the page");
         cut.FindAll("header").ShouldBeEmpty();
-        cut.FindAll("footer.ts-product-footer").ShouldBeEmpty();
+        cut.FindAll("nav.ts-product-footer").ShouldBeEmpty();
         cut.Find("div.ts-accent-scope").HasAttribute("style").ShouldBeFalse();
         cut.FindAll("footer.ts-powered").Count.ShouldBe(1);
         cut.Markup.ShouldNotContain("--ts-accent");
@@ -49,7 +49,7 @@ public sealed class PortalLayoutTests : BunitContext
         header.QuerySelector("a.ts-product-name")!.GetAttribute("href").ShouldBe("/p/paperplane");
         header.QuerySelector("img.ts-product-logo")!.GetAttribute("src").ShouldBe("https://cdn.example.com/paperplane.png");
         cut.Find("main #page").TextContent.ShouldBe("the page");
-        cut.Find("footer.ts-product-footer a").GetAttribute("href").ShouldBe("/p/paperplane/lost-link");
+        cut.Find("nav.ts-product-footer a").GetAttribute("href").ShouldBe("/p/paperplane/lost-link");
         cut.FindAll("footer.ts-powered").Count.ShouldBe(1);
         cut.Markup.IndexOf("ts-product-header", StringComparison.Ordinal).ShouldBeLessThan(cut.Markup.IndexOf("id=\"page\"", StringComparison.Ordinal));
         cut.Markup.IndexOf("id=\"page\"", StringComparison.Ordinal).ShouldBeLessThan(cut.Markup.IndexOf("ts-product-footer", StringComparison.Ordinal));
@@ -127,6 +127,6 @@ public sealed class PortalLayoutTests : BunitContext
         var cut = RenderLayout();
 
         cut.FindAll("footer.ts-powered").ShouldBeEmpty();
-        cut.FindAll("footer.ts-product-footer").Count.ShouldBe(1);
+        cut.FindAll("nav.ts-product-footer").Count.ShouldBe(1);
     }
 }

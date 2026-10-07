@@ -16,6 +16,7 @@ public static class LostLinkCopy
     public const string Intro = "Enter the email address you used when you contacted us. If we have tickets for that address, we will send you a new link.";
     public const string EmailLabel = "Email address";
     public const string Submit = "Send me a new link";
+    public const string RequiredNote = "The email address is required.";
     public const string Confirmation = "If we have tickets for that address, we have sent a new link. Check your inbox and your spam folder.";
 
     public static string Title(string productName) => $"New ticket link: {productName}";

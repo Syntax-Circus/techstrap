@@ -23,6 +23,12 @@ public static class TicketCopy
     public const string NoMessages = "There are no messages to show yet.";
     public const string AttachmentsLabel = "Attachments";
 
+    /// <summary>The link at the top of a long conversation that jumps to the reply form.</summary>
+    public const string JumpToReply = "Jump to your reply";
+
+    /// <summary>Required is said in words, not by an asterisk (UX brief).</summary>
+    public const string ReplyNote = "A message is required. Attachments are optional.";
+
     public const string ReplyHeading = "Reply";
     public const string ReplyLabel = "Your reply";
     public const string ReplyButton = "Send reply";

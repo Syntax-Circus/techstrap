@@ -74,7 +74,8 @@ public sealed class ContactReceivedHostTests
         html.ShouldContain("We have received your request.");
         html.ShouldContain("We have emailed you a link to follow it. Check your inbox and your spam folder.");
         html.ShouldNotContain("ts-ticket-number");
-        html.ShouldNotContain("PAP-42");
+        // No number is shown to the visitor. (The skip link keeps the query string of the page it is on, so the text may sit in an href; what matters is the text of the page.)
+        new AngleSharp.Html.Parser.HtmlParser().ParseDocument(html).Body!.TextContent.ShouldNotContain("PAP-42");
     }
 
     [Fact]

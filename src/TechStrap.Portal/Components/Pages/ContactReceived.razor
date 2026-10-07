@@ -4,6 +4,7 @@
 @if (Theme is { } theme)
 {
     <PageTitle>@ContactCopy.ReceivedTitle(theme.DisplayName)</PageTitle>
+    <div class="ts-reading">
     <h1>@ContactCopy.ReceivedHeading</h1>
     @if (TicketNumber is not null)
     {
@@ -19,6 +20,7 @@
         <li><a href="@PortalRoutes.ProductHome(theme.Key)">@ContactCopy.BackTo(theme.DisplayName)</a></li>
         <li><a href="@PortalRoutes.LostLink(theme.Key)">@ContactCopy.LostLinkPrompt</a></li>
     </ul>
+    </div>
 }
 else if (UnavailableMessage is not null)
 {

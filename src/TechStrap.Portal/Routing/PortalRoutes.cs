@@ -36,6 +36,9 @@ public static class PortalRoutes
     /// <summary>The query parameter that carries the protected ticket reference to the "received" page.</summary>
     public const string ReceivedReferenceParameter = "ref";
 
+    /// <summary>The query parameters of the contact page that prefill its inputs (<c>?subject=&amp;name=&amp;email=</c>).</summary>
+    public static readonly IReadOnlyList<string> PrefillParameters = ["subject", "name", "email"];
+
     public const string HomeTemplate = "/";
     public const string NotFoundTemplate = "/not-found";
     public const string ErrorTemplate = "/error";

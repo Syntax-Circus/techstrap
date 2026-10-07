@@ -147,12 +147,12 @@ public sealed class ContactPostHostTests
         var html = await response.Content.ReadAsStringAsync(Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        html.ShouldContain("<section class=\"ts-error-summary alert alert-danger\" role=\"alert\" tabindex=\"-1\" autofocus aria-labelledby=\"error-summary-heading\">");
-        html.ShouldContain("<a href=\"#email\">Enter a valid email address, like name@example.com.</a>");
-        html.ShouldContain("<a href=\"#subject\">Enter a subject.</a>");
+        html.ShouldContain("<section class=\"ts-error-summary alert alert-danger\" role=\"alert\" tabindex=\"-1\" autofocus aria-labelledby=\"error-summary-heading\" data-enhance-nav=\"false\">");
+        html.ShouldContain("<a href=\"/p/paperplane/contact#email\">Enter a valid email address, like name@example.com.</a>");
+        html.ShouldContain("<a href=\"/p/paperplane/contact#subject\">Enter a subject.</a>");
         html.ShouldContain("<p id=\"email-error\" class=\"ts-field-error\">Enter a valid email address, like name@example.com.</p>");
         html.ShouldContain("aria-describedby=\"email-error\" aria-invalid=\"true\"");
-        html.ShouldNotContain("<a href=\"#name\">", Case.Sensitive, "a valid field has no error");
+        html.ShouldNotContain("<a href=\"/p/paperplane/contact#name\">", Case.Sensitive, "a valid field has no error");
         Text(html, "name").ShouldBe("Ada");
         Text(html, "email").ShouldBe("not an address");
         html.ShouldContain("It jams &lt;b&gt;every&lt;/b&gt; time.</textarea>");
@@ -173,7 +173,7 @@ public sealed class ContactPostHostTests
         var html = await response.Content.ReadAsStringAsync(Ct);
 
         var summary = FormTestKit.Between(html, "<ul>", "</ul>");
-        Regex.Matches(summary, "<a href=\"#(\\w+)\">").Select(m => m.Groups[1].Value).ShouldBe(["name", "email", "subject", "body"]);
+        Regex.Matches(summary, "<a href=\"/p/paperplane/contact#(\\w+)\">").Select(m => m.Groups[1].Value).ShouldBe(["name", "email", "subject", "body"]);
     }
 
     [Fact]
@@ -271,7 +271,7 @@ public sealed class ContactPostHostTests
         html.ShouldContain("Attach at most 5 files.");
         html.ShouldContain("virus.exe is a type we cannot accept.");
         html.ShouldContain("empty.txt is empty. Remove it or choose another.");
-        html.ShouldContain("<a href=\"#attachments\">");
+        html.ShouldContain("<a href=\"/p/paperplane/contact#attachments\">");
         factory.Api.Count(HttpMethod.Post, FormTestKit.ApiTicketsPath).ShouldBe(0);
     }
 
@@ -339,7 +339,7 @@ public sealed class ContactPostHostTests
         html.ShouldContain("One of the files is a type we cannot accept.");
         html.ShouldNotContain("API TEXT");
         html.ShouldNotContain("Domain text");
-        html.ShouldContain("<a href=\"#attachments\">");
+        html.ShouldContain("<a href=\"/p/paperplane/contact#attachments\">");
         Text(html, "email").ShouldBe("ada@example.com", "what was typed is kept");
     }
 

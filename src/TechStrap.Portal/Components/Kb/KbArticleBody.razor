@@ -1,9 +1,9 @@
-<div class="ts-kb-article-body">@((MarkupString)Html)</div>
+<div class="ts-kb-article-body">@((MarkupString)BodyHeadings.DemoteTitle(Html))</div>
 
 @code {
     /// <summary>
-    /// The article body exactly as the API sent it. The API renders the agent's Markdown and sanitises the HTML (D-044); the Portal does not sanitise again and does not change a byte, so what a visitor reads is what the API
-    /// decided is safe. This and <c>CustomerMessageBody</c> are the only two places the Portal turns text into elements (PortalRules.MarkupStringSites); every other string it shows is encoded.
+    /// The article body as the API sent it. The API renders the agent's Markdown and sanitises the HTML (D-044); the Portal does not sanitise again and changes one thing only: an <c>h1</c> in the body becomes an <c>h2</c>
+    /// (<see cref="BodyHeadings"/>), because the page's own title is its one <c>h1</c>. So what a visitor reads is what the API decided is safe. This and <c>CustomerMessageBody</c> are the only two places the Portal turns text into elements (PortalRules.MarkupStringSites); every other string it shows is encoded.
     /// </summary>
     [Parameter, EditorRequired]
     public string Html { get; set; } = string.Empty;

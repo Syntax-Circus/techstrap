@@ -24,6 +24,9 @@ public static class KbCopy
     public const string StillNeedHelpText = "If this did not answer your question, contact support and we will help you.";
 
     // Search.
+    /// <summary>The h1 of the search page: different from the help centre's, so two tabs of the two pages are told apart.</summary>
+    public const string SearchPageHeading = "Search the help centre";
+
     public const string SearchHeading = "Search results";
     public const string SearchPromptHeading = "What are you looking for?";
     public const string SearchPromptText = "Type a few words about your question and search the help articles.";

@@ -357,7 +357,13 @@ This code **never changes meaning and is never reused** for decoration, status, 
 | `--p-soft` | Soft panels | `#F5F5F7` | `$light` |
 | `--p-ink` | Text | `#1B1B22` | `$body-color` |
 | `--p-ink2` | Secondary text | `#4A4A57` | `$secondary-color` |
-| `--p-line` | Borders | `#D4D4DC` | `$border-color` |
+| `--p-line` | Decorative borders and rules (never the only edge of a control) | `#D4D4DC` | `$border-color` |
+| `--p-error` | Error text, the error summary's border and a field's error text (the same red as `--st-spam`) | `#B3141C` | `$danger` |
+| `--p-error-bg` | Ground of the error summary | `#FDECEE` | none |
+| `--p-success` | Success text and border (the same green as `--st-open`) | `#14702F` | `$success` |
+| `--p-success-bg` | Ground of a success message | `#E8F5EC` | none |
+| `--p-warn` | Warning text and border (the same amber as `--st-pending`) | `#8A5300` | `$warning` |
+| `--p-warn-bg` | Ground of a notice | `#FFF3E0` | none |
 | `--accent`, `--on-accent`, `--accent-ink` | Product-supplied; see section 22 | per product | `$primary`, button text, `$link-color` |
 
 # 13. Geometry
@@ -378,7 +384,7 @@ This code **never changes meaning and is never reused** for decoration, status, 
 - **Density:** dense and plain. No hero blocks, no oversized padding. Message line length capped at 68ch.
 - **Status bar:** Admin only. Sticky bottom strip with keycap hints and a transient message; hints hide under 900px.
 - **Brand-moment screens:** one centred retro window, 400px max, on the plain page background. Nothing competes with it.
-- **Portal:** 640px single column, product bar with a 6px accent top border, product name and logo top left, plain forms, "Powered by TechStrap" footer.
+- **Portal:** a 640px reading column (one token, `--ts-reading-width`) for forms, the conversation, an article and the confirmation, and a 1024px wide container (`--ts-wide-width`) for search, the categories and the product home; one column below 768px. Product bar with a 6px accent top border, product name and logo top left, plain forms, "Powered by TechStrap" footer.
 
 # 15. Imagery
 

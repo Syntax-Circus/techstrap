@@ -6,9 +6,11 @@
 @import "theme";
 @import "fonts";
 @import "components";
+@import "layout";
+@import "a11y";
 
 .shell-placeholder {
-  max-width: 40rem;
+  max-width: var(--ts-reading-width);
   margin: 4rem auto;
   padding: 0 1rem;
 }

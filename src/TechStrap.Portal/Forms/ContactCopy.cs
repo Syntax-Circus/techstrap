@@ -11,6 +11,9 @@ public static class ContactCopy
     public const string BodyLabel = "Message";
     public const string Submit = "Send message";
 
+    /// <summary>Required is said in words, not by an asterisk (UX brief): the one sentence above the form.</summary>
+    public const string RequiredNote = "All fields are required, except attachments.";
+
     /// <summary>The fallback inside the suggestions element, shown only without script: a plain link to the help search.</summary>
     public const string SuggestFallback = "Search the help articles first";
 

@@ -11,7 +11,7 @@
 .ts-portal-main {
   flex: 1;
   width: 100%;
-  max-width: 640px;
+  max-width: var(--ts-wide-width);
   margin: 0 auto;
   padding: 24px 16px 32px;
 }
@@ -85,7 +85,7 @@
 // A product's header and footer (PHASE-09a): the logo and name are one link to the product home; the colours are the product's through --ts-accent*.
 .ts-product-header {
   width: 100%;
-  max-width: 640px;
+  max-width: var(--ts-wide-width);
   margin: 0 auto;
   padding: 16px 16px 0;
 }
@@ -109,7 +109,7 @@
 
 .ts-product-footer {
   width: 100%;
-  max-width: 640px;
+  max-width: var(--ts-wide-width);
   margin: 0 auto;
   padding: 0 16px 16px;
   font-size: .875rem;
@@ -154,7 +154,6 @@
 .ts-field-error {
   margin: 4px 0 0;
   font-size: .875rem;
-  color: var(--p-error, #b3261e);
 }
 
 // The KB suggestions beside the subject field: empty until there is something to suggest, then a short list. Plain text; the links open in a new tab, so the form is never lost.
@@ -204,6 +203,10 @@
   margin: 0;
 }
 
+.ts-status-label {
+  color: var(--p-ink2);
+}
+
 .ts-status-note {
   margin-top: 4px;
   color: var(--p-ink2);
@@ -238,6 +241,10 @@
   }
 }
 
+.ts-message-author {
+  font-weight: 600;
+}
+
 .ts-message-body {
   overflow-wrap: anywhere;
 }
@@ -262,19 +269,37 @@
   padding-left: 20px;
 }
 
-// The help centre (PHASE-09c): structure only (lists, the breadcrumb trail, the pager); the visual polish pass is PHASE-09d.
+// The help centre: lists of articles and categories (a card each), the breadcrumb trail and the pager. The card grid of the categories is in _layout.scss.
 .ts-kb-list {
   margin: 24px 0;
   padding: 0;
   list-style: none;
 
   li + li {
-    margin-top: 20px;
+    margin-top: 16px;
   }
 
   h2 {
     font-size: 1.125rem;
     margin-bottom: 4px;
+  }
+}
+
+.ts-kb-card {
+  height: 100%;
+  padding: 16px;
+  background: var(--p-bg);
+  border: 1px solid var(--p-line);
+  border-top: 4px solid var(--ts-accent, var(--p-line));
+  border-radius: $border-radius-lg;
+
+  h2 {
+    margin-top: 0;
+  }
+
+  &:hover,
+  &:focus-within {
+    border-color: var(--ts-accent-ink, var(--p-ink2));
   }
 }
 
@@ -318,13 +343,92 @@
   margin: 24px 0;
 }
 
-.ts-state {
-  margin: 24px 0;
+.ts-pager-prev,
+.ts-pager-next {
+  font-weight: 600;
 }
 
-// An article's body is the API's sanitised HTML: a wide table, a code block or an image scrolls or shrinks inside its own box instead of widening the page.
+.ts-pager-state {
+  color: var(--p-ink2);
+}
+
+.ts-state {
+  margin: 24px 0;
+  padding: 16px;
+  background: var(--p-soft);
+  border-radius: $border-radius-lg;
+
+  h1,
+  h2 {
+    margin-top: 0;
+  }
+}
+
+// The article (the reading column is the page's own wrapper): the title, the date and the body.
+.ts-kb-article {
+  margin-bottom: 8px;
+}
+
+// An article's body is the API's sanitised HTML: a wide table, a code block or an image scrolls or shrinks inside its own box instead of widening the page. Its prose keeps a readable measure and rhythm.
 .ts-kb-article-body {
   overflow-wrap: anywhere;
+  line-height: 1.6;
+
+  h2,
+  h3,
+  h4 {
+    margin: 1.5em 0 .5em;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  h3 {
+    font-size: 1.125rem;
+  }
+
+  ul,
+  ol {
+    padding-left: 1.5rem;
+  }
+
+  blockquote {
+    margin: 1em 0;
+    padding: .5em 1em;
+    color: var(--p-ink2);
+    border-left: 4px solid var(--p-line);
+  }
+
+  code {
+    padding: 0 .25em;
+    font-family: var(--ts-font-mono);
+    font-size: .875em;
+    background: var(--p-soft);
+    border-radius: 3px;
+  }
+
+  pre {
+    padding: 12px 16px;
+    background: var(--p-soft);
+    border: 1px solid var(--p-line);
+    border-radius: $border-radius;
+
+    code {
+      padding: 0;
+      background: none;
+    }
+  }
+
+  table {
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    padding: 6px 10px;
+    border: 1px solid var(--p-line);
+  }
 
   img {
     max-width: 100%;

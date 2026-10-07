@@ -205,7 +205,7 @@ public sealed class TicketReplyHostTests
         var html = await response.Content.ReadAsStringAsync(Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        html.ShouldContain("<a href=\"#body\">Write a message.</a>");
+        html.ShouldContain("<a href=\"/t/" + TicketTestKit.Token + "#body\">Write a message.</a>");
         html.ShouldContain("<p id=\"body-error\" class=\"ts-field-error\">Write a message.</p>");
         html.ShouldContain("It jams every time.", Case.Sensitive, "the conversation is still shown");
         factory.Api.Count(HttpMethod.Post, TicketTestKit.ReplyApi).ShouldBe(0);

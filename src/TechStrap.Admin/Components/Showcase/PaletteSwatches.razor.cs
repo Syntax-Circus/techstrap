@@ -11,7 +11,7 @@ public partial class PaletteSwatches
         [PaletteGroup.Tints] = ["canary", "canary-edge", "pink", "pink-edge", "note-ink"],
         [PaletteGroup.Status] = ["st-new", "st-open", "st-pending", "st-solved", "st-closed", "st-spam"],
         [PaletteGroup.BrandMoment] = ["bm-plate", "bm-edge", "bm-bar", "bm-on-bar", "bm-text", "bm-text2", "bm-crt", "bm-on-crt", "bm-led", "bm-shadow"],
-        [PaletteGroup.Portal] = ["p-bg", "p-soft", "p-ink", "p-ink2", "p-line"],
+        [PaletteGroup.Portal] = ["p-bg", "p-soft", "p-ink", "p-ink2", "p-line", "p-error", "p-error-bg", "p-success", "p-success-bg", "p-warn", "p-warn-bg"],
     };
 
     [Parameter, EditorRequired]

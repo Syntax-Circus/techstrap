@@ -4,6 +4,8 @@
 @import "../../../assets/brand/scss/brand-tokens";
 
 $enable-dark-mode: false;
+// Nothing in the Portal scrolls smoothly (BRAND.md section 17: reduced motion is respected, so there is no motion to opt out of).
+$enable-smooth-scroll: false;
 
 // Compile-time fallback for the product accent. At runtime the product's own accent arrives as --ts-accent,
 // --ts-on-accent and --ts-accent-ink (see _theme.scss) and replaces this everywhere it matters.
