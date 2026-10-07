@@ -103,15 +103,15 @@ public sealed class ReplyComposerLiveTests : AdminComponentTest
         LiveClient.Composing.ShouldBeEmpty();
     }
 
-    [Fact]
-    public void Sending_clears_the_hint()
+    [Fact(Timeout = 30000)]
+    public async Task Sending_clears_the_hint()
     {
         var cut = RenderComposer();
         cut.Find("textarea").Input("A reply");
 
         cut.FindAll(".ts-composer-actions button")[0].Click();
 
-        cut.WaitForAssertion(() => LiveClient.Composing.ShouldBe([(TicketId, true), (TicketId, false)]));
+        await cut.WaitForAssertionAsync(() => LiveClient.Composing.ShouldBe([(TicketId, true), (TicketId, false)])).WaitAsync(Xunit.TestContext.Current.CancellationToken);
     }
 
     [Fact]

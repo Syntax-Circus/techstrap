@@ -16,6 +16,7 @@ internal sealed class HubLiveConnection : ILiveConnection
 
     public HubLiveConnection(Uri hubUri, LiveConnectionOptions options, Action<HttpConnectionOptions>? configure)
     {
+        // No logging is configured on purpose: a logger provider would route SignalR's internals, possibly with exception text (a URL, a token), to Serilog.
         _hub = new HubConnectionBuilder()
             .WithUrl(hubUri, http =>
             {

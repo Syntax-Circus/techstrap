@@ -73,20 +73,36 @@ public sealed class TicketDetailLiveTests : AdminComponentTest
         LiveClient.StartCalls.ShouldBe(0);
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task A_change_by_another_agent_raises_the_banner_and_changes_nothing_else()
     {
+        Xunit.TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
         var cut = RenderTicket();
 
         await ChangeAsync(cut, Change(actor: ColleagueId));
 
         Banner(cut).ShouldContain(LiveCopy.NewActivity);
-        cut.Find(".ts-live-banner").GetAttribute("role").ShouldBe("status");
+        cut.Find(".ts-live-banner").HasAttribute("role").ShouldBeFalse();
         Loads().ShouldBe(1);
         cut.FindAll(".ts-timeline *").Count.ShouldBeGreaterThan(0);
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
+    public async Task The_banner_is_announced_through_a_status_region_that_is_in_the_page_before_it_has_any_text()
+    {
+        Xunit.TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
+        var cut = RenderTicket();
+
+        // A live region that is inserted together with its text is often not announced, so the region exists first, empty.
+        cut.Find("p.visually-hidden[role=status]").TextContent.ShouldBeEmpty();
+        cut.FindAll(".ts-live-banner").ShouldBeEmpty();
+
+        await ChangeAsync(cut, Change(actor: ColleagueId));
+
+        cut.Find("p.visually-hidden[role=status]").TextContent.ShouldBe(LiveCopy.NewActivity);
+    }
+
+    [Fact(Timeout = 30000)]
     public async Task A_change_with_no_actor_and_a_resync_raise_the_banner()
     {
         var cut = RenderTicket();
@@ -94,16 +110,17 @@ public sealed class TicketDetailLiveTests : AdminComponentTest
         await ChangeAsync(cut, Change() with { ActorAgentId = null });
         cut.FindAll(".ts-live-banner").Count.ShouldBe(1);
         cut.Find(".ts-live-banner button").Click();
-        cut.WaitForAssertion(() => cut.FindAll(".ts-live-banner").ShouldBeEmpty());
+        await cut.WaitForAssertionAsync(() => cut.FindAll(".ts-live-banner").ShouldBeEmpty()).WaitAsync(Xunit.TestContext.Current.CancellationToken);
 
         await ChangeAsync(cut, Resync() with { ActorAgentId = MeId });
 
         cut.FindAll(".ts-live-banner").Count.ShouldBe(1);
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task A_change_to_another_ticket_and_the_agents_own_change_raise_nothing()
     {
+        Xunit.TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
         var cut = RenderTicket();
 
         await ChangeAsync(cut, Change(ticketId: OtherTicketId, actor: ColleagueId));
@@ -113,7 +130,7 @@ public sealed class TicketDetailLiveTests : AdminComponentTest
         Loads().ShouldBe(1);
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task Clicking_the_banner_reloads_the_timeline_and_takes_the_new_row_version_and_clears_the_banner()
     {
         _tickets.ReplyAsync(Arg.Any<Guid>(), Arg.Any<AddAgentReplyRequest>(), Arg.Any<IReadOnlyList<ReplyAttachment>>(), Arg.Any<CancellationToken>())
@@ -124,7 +141,7 @@ public sealed class TicketDetailLiveTests : AdminComponentTest
 
         cut.Find(".ts-live-banner button").Click();
 
-        cut.WaitForAssertion(() => cut.FindAll(".ts-live-banner").ShouldBeEmpty());
+        await cut.WaitForAssertionAsync(() => cut.FindAll(".ts-live-banner").ShouldBeEmpty()).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         Loads().ShouldBe(2);
         cut.Markup.ShouldContain("Still broken");
         cut.Find("textarea").Input("Now fixed.");
@@ -132,9 +149,10 @@ public sealed class TicketDetailLiveTests : AdminComponentTest
         await _tickets.Received(1).ReplyAsync(TicketId, Arg.Is<AddAgentReplyRequest>(r => r.RowVersion == 11u), Arg.Any<IReadOnlyList<ReplyAttachment>>(), Arg.Any<CancellationToken>());
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task Until_the_click_the_page_keeps_its_row_version_so_a_send_still_gets_the_409_and_the_draft_survives()
     {
+        Xunit.TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
         _tickets.ReplyAsync(Arg.Any<Guid>(), Arg.Any<AddAgentReplyRequest>(), Arg.Any<IReadOnlyList<ReplyAttachment>>(), Arg.Any<CancellationToken>())
             .Returns(TestData.Fail<AgentMessageResponse>(ApiErrorCodes.ConcurrencyConflict, "Stale.", ResultErrorKind.Conflict));
         var cut = RenderTicket();
@@ -151,7 +169,7 @@ public sealed class TicketDetailLiveTests : AdminComponentTest
         Loads().ShouldBe(1);
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task The_draft_is_never_touched_by_the_banner_or_by_the_reload_it_offers()
     {
         var cut = RenderTicket();
@@ -161,13 +179,13 @@ public sealed class TicketDetailLiveTests : AdminComponentTest
         await ChangeAsync(cut, Change(actor: ColleagueId));
         cut.Find("textarea").GetAttribute("value").ShouldBe("Half a reply");
         cut.Find(".ts-live-banner button").Click();
-        cut.WaitForAssertion(() => cut.FindAll(".ts-live-banner").ShouldBeEmpty());
+        await cut.WaitForAssertionAsync(() => cut.FindAll(".ts-live-banner").ShouldBeEmpty()).WaitAsync(Xunit.TestContext.Current.CancellationToken);
 
         cut.Find("textarea").GetAttribute("value").ShouldBe("Half a reply");
         drafts.Get(TicketId).PublicText.ShouldBe("Half a reply");
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task A_change_that_arrives_while_the_reload_runs_keeps_the_banner()
     {
         var cut = RenderTicket();
@@ -179,12 +197,12 @@ public sealed class TicketDetailLiveTests : AdminComponentTest
         await ChangeAsync(cut, Change(actor: ColleagueId));
         release.SetResult(TestData.Ok(TestData.Detail(rowVersion: 8)));
 
-        cut.WaitForAssertion(() => Loads().ShouldBe(2));
+        await cut.WaitForAssertionAsync(() => Loads().ShouldBe(2)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         await cut.InvokeAsync(() => { });
         cut.FindAll(".ts-live-banner").Count.ShouldBe(1);
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task A_failed_reload_keeps_the_banner_and_the_page()
     {
         var cut = RenderTicket();
@@ -193,59 +211,79 @@ public sealed class TicketDetailLiveTests : AdminComponentTest
 
         cut.Find(".ts-live-banner button").Click();
 
-        cut.WaitForAssertion(() => Loads().ShouldBe(2));
+        await cut.WaitForAssertionAsync(() => Loads().ShouldBe(2)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         cut.FindAll(".ts-live-banner").Count.ShouldBe(1);
         cut.Find(".ts-ticket").ShouldNotBeNull();
     }
 
-    [Fact]
-    public void Another_agents_presence_is_shown_and_the_agent_themself_is_not()
+    [Fact(Timeout = 30000)]
+    public async Task Another_agents_presence_is_shown_and_the_agent_themself_is_not()
     {
         LiveClient.JoinResult = id => Presence(id, Viewer(MeId, "Sam Ortiz"), Viewer(ColleagueId, "Ada Admin"));
 
         var cut = RenderTicket();
 
-        cut.WaitForAssertion(() => cut.Find(".ts-presence").TextContent.ShouldBe("Ada Admin is viewing"));
+        await cut.WaitForAssertionAsync(() => cut.Find(".ts-presence").TextContent.ShouldBe("Ada Admin is viewing")).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         cut.Find(".ts-presence").GetAttribute("aria-live").ShouldBe("polite");
         cut.Find(".ts-presence").GetAttribute("role").ShouldBe("status");
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task A_presence_update_for_this_ticket_replaces_the_list_and_one_for_another_ticket_is_ignored()
     {
         var cut = RenderTicket();
         cut.Find(".ts-presence").TextContent.Trim().ShouldBeEmpty();
 
         LiveClient.RaisePresence(Presence(TicketId, Viewer(ColleagueId, "Ada Admin", TicketPresenceStates.Composing)));
-        cut.WaitForAssertion(() => cut.Find(".ts-presence").TextContent.ShouldBe("Ada Admin is replying"));
+        await cut.WaitForAssertionAsync(() => cut.Find(".ts-presence").TextContent.ShouldBe("Ada Admin is replying")).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         LiveClient.RaisePresence(Presence(OtherTicketId, Viewer(Guid.NewGuid(), "Someone Else")));
         await cut.InvokeAsync(() => { });
         cut.Find(".ts-presence").TextContent.ShouldBe("Ada Admin is replying");
         LiveClient.RaisePresence(Presence(TicketId));
 
-        cut.WaitForAssertion(() => cut.Find(".ts-presence").TextContent.Trim().ShouldBeEmpty());
+        await cut.WaitForAssertionAsync(() => cut.Find(".ts-presence").TextContent.Trim().ShouldBeEmpty()).WaitAsync(Xunit.TestContext.Current.CancellationToken);
     }
 
-    [Fact]
-    public void A_replying_hint_that_is_not_refreshed_lapses_after_the_servers_lease_and_a_refresh_extends_it()
+    [Fact(Timeout = 30000)]
+    public async Task A_replying_hint_that_is_not_refreshed_lapses_after_the_servers_lease_and_a_refresh_extends_it()
     {
         var cut = RenderTicket();
         var replying = Presence(TicketId, Viewer(ColleagueId, "Ada Admin", TicketPresenceStates.Composing));
 
         LiveClient.RaisePresence(replying);
-        cut.WaitForAssertion(() => cut.Find(".ts-presence").TextContent.ShouldBe("Ada Admin is replying"));
+        await cut.WaitForAssertionAsync(() => cut.Find(".ts-presence").TextContent.ShouldBe("Ada Admin is replying")).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         Time.Advance(TimeSpan.FromSeconds(TicketLiveLimits.ComposingTtlSeconds - 1));
         LiveClient.RaisePresence(replying);
         Time.Advance(TimeSpan.FromSeconds(TicketLiveLimits.ComposingTtlSeconds - 1));
         cut.Find(".ts-presence").TextContent.ShouldBe("Ada Admin is replying");
         Time.Advance(TimeSpan.FromSeconds(1));
 
-        cut.WaitForAssertion(() => cut.Find(".ts-presence").TextContent.ShouldBe("Ada Admin is viewing"));
+        await cut.WaitForAssertionAsync(() => cut.Find(".ts-presence").TextContent.ShouldBe("Ada Admin is viewing")).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         _timers.LiveTimers.ShouldBe(0);
     }
 
-    [Fact]
-    public void Navigating_to_another_ticket_leaves_the_old_group_and_joins_the_new_one()
+    [Fact(Timeout = 30000)]
+    public async Task A_lease_timer_that_fired_just_before_a_fresh_presence_message_does_not_expire_the_fresh_hint()
+    {
+        var cut = RenderTicket();
+        var replying = Presence(TicketId, Viewer(ColleagueId, "Ada Admin", TicketPresenceStates.Composing));
+        LiveClient.RaisePresence(replying);
+        await cut.WaitForAssertionAsync(() => cut.Find(".ts-presence").TextContent.ShouldBe("Ada Admin is replying")).WaitAsync(Xunit.TestContext.Current.CancellationToken);
+        var late = _timers.LastCallback.ShouldNotBeNull();
+
+        LiveClient.RaisePresence(replying);
+        await cut.InvokeAsync(() => { });
+
+        // The first timer had fired before the fresh message, but its work reaches the renderer only now: it must not expire the fresh hint or release the newer timer.
+        await Task.Run(() => late(null), Xunit.TestContext.Current.CancellationToken);
+        await cut.InvokeAsync(() => { });
+
+        cut.Find(".ts-presence").TextContent.ShouldBe("Ada Admin is replying");
+        _timers.LiveTimers.ShouldBe(1);
+    }
+
+    [Fact(Timeout = 30000)]
+    public async Task Navigating_to_another_ticket_leaves_the_old_group_and_joins_the_new_one()
     {
         var other = Guid.Parse("dddddddd-0000-0000-0000-000000000043");
         Show(TestData.Detail(number: "ORB-43") with { Id = other }, "ORB-43");
@@ -253,13 +291,14 @@ public sealed class TicketDetailLiveTests : AdminComponentTest
 
         cut.Render(p => p.Add(c => c.Number, "ORB-43"));
 
-        cut.WaitForAssertion(() => LiveClient.Joined.ShouldBe([TicketId, other]));
+        await cut.WaitForAssertionAsync(() => LiveClient.Joined.ShouldBe([TicketId, other])).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         LiveClient.Left.ShouldBe([TicketId]);
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task A_refresh_of_the_same_ticket_does_not_join_again()
     {
+        Xunit.TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
         var cut = RenderTicket();
         LiveClient.Joined.Count.ShouldBe(1);
 
@@ -269,12 +308,12 @@ public sealed class TicketDetailLiveTests : AdminComponentTest
         LiveClient.Left.ShouldBeEmpty();
     }
 
-    [Fact]
-    public void Disposal_leaves_the_group_unsubscribes_and_releases_the_presence_timer()
+    [Fact(Timeout = 30000)]
+    public async Task Disposal_leaves_the_group_unsubscribes_and_releases_the_presence_timer()
     {
         var cut = RenderTicket();
         LiveClient.RaisePresence(Presence(TicketId, Viewer(ColleagueId, "Ada Admin", TicketPresenceStates.Composing)));
-        cut.WaitForAssertion(() => _timers.LiveTimers.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => _timers.LiveTimers.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
 
         cut.Instance.Dispose();
 
@@ -285,9 +324,10 @@ public sealed class TicketDetailLiveTests : AdminComponentTest
         Should.NotThrow(() => LiveClient.RaisePresence(Presence(TicketId)));
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task Switched_off_the_page_joins_nothing_and_draws_nothing_live()
     {
+        Xunit.TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
         LiveClient.IsEnabled = false;
         var cut = RenderTicket();
 
@@ -315,7 +355,7 @@ public sealed class TicketDetailLiveTests : AdminComponentTest
         _logs.Lines.ShouldNotContain(line => line.Contains("hub down", StringComparison.Ordinal));
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task A_ticket_that_is_gone_leaves_its_group()
     {
         var cut = RenderTicket();
@@ -323,6 +363,6 @@ public sealed class TicketDetailLiveTests : AdminComponentTest
 
         await cut.InvokeAsync(() => cut.Instance.RefreshAsync());
 
-        cut.WaitForAssertion(() => LiveClient.Left.ShouldBe([TicketId]));
+        await cut.WaitForAssertionAsync(() => LiveClient.Left.ShouldBe([TicketId])).WaitAsync(Xunit.TestContext.Current.CancellationToken);
     }
 }

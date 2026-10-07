@@ -36,37 +36,37 @@ public sealed class LiveConnectionIndicatorTests : AdminComponentTest
         region.TextContent.ShouldContain(LiveCopy.Label, Case.Sensitive);
     }
 
-    [Fact]
-    public void A_change_of_state_updates_the_same_live_region_so_it_is_announced()
+    [Fact(Timeout = 30000)]
+    public async Task A_change_of_state_updates_the_same_live_region_so_it_is_announced()
     {
         var cut = Render<LiveConnectionIndicator>();
         cut.Find(".ts-live").TextContent.ShouldContain(LiveCopy.Connected);
 
         LiveClient.SetState(LiveConnectionState.Reconnecting);
 
-        cut.WaitForAssertion(() => cut.Find(".ts-live").TextContent.ShouldContain(LiveCopy.Reconnecting));
+        await cut.WaitForAssertionAsync(() => cut.Find(".ts-live").TextContent.ShouldContain(LiveCopy.Reconnecting)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         cut.FindAll("[aria-live]").Count.ShouldBe(1);
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task A_state_raised_on_another_thread_is_marshalled_to_the_renderer()
     {
         var cut = Render<LiveConnectionIndicator>();
 
         await Task.Run(() => LiveClient.SetState(LiveConnectionState.Disconnected), Xunit.TestContext.Current.CancellationToken);
 
-        cut.WaitForAssertion(() => cut.Find(".ts-live").TextContent.ShouldContain(LiveCopy.Disconnected));
+        await cut.WaitForAssertionAsync(() => cut.Find(".ts-live").TextContent.ShouldContain(LiveCopy.Disconnected)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
     }
 
-    [Fact]
-    public void The_client_is_started_once_from_the_first_render_and_not_again_on_later_renders()
+    [Fact(Timeout = 30000)]
+    public async Task The_client_is_started_once_from_the_first_render_and_not_again_on_later_renders()
     {
         var cut = Render<LiveConnectionIndicator>();
         LiveClient.StartCalls.ShouldBe(1);
 
         LiveClient.SetState(LiveConnectionState.Reconnecting);
         LiveClient.SetState(LiveConnectionState.Connected);
-        cut.WaitForAssertion(() => cut.Find(".ts-live").TextContent.ShouldContain(LiveCopy.Connected));
+        await cut.WaitForAssertionAsync(() => cut.Find(".ts-live").TextContent.ShouldContain(LiveCopy.Connected)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         cut.Render();
 
         LiveClient.StartCalls.ShouldBe(1);
@@ -83,7 +83,7 @@ public sealed class LiveConnectionIndicatorTests : AdminComponentTest
         LiveClient.StartCalls.ShouldBe(0);
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task Before_the_session_is_ready_nothing_is_drawn_and_nothing_is_started_then_it_starts_once()
     {
         var agents = Substitute.For<IAgentsClient>();
@@ -101,11 +101,11 @@ public sealed class LiveConnectionIndicatorTests : AdminComponentTest
         answer.SetResult(Result<AgentDto>.Success(me));
         await load;
 
-        cut.WaitForAssertion(() => cut.Find(".ts-live").TextContent.ShouldContain(LiveCopy.Connected));
+        await cut.WaitForAssertionAsync(() => cut.Find(".ts-live").TextContent.ShouldContain(LiveCopy.Connected)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         LiveClient.StartCalls.ShouldBe(1);
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task An_agent_without_access_never_starts_a_connection()
     {
         var agents = Substitute.For<IAgentsClient>();

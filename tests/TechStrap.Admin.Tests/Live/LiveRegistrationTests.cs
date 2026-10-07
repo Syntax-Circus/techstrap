@@ -8,9 +8,10 @@ namespace TechStrap.Admin.Tests.Live;
 /// <summary>The kill switch <c>LiveUpdates:Enabled</c>: on by default; off, the Admin gets a client that does nothing and offers no connection, so nothing live is drawn.</summary>
 public sealed class LiveRegistrationTests
 {
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task The_default_is_the_real_client_and_each_scope_gets_its_own()
     {
+        Xunit.TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
         using var factory = new AdminFactory();
         await using var first = factory.Services.CreateAsyncScope();
         await using var second = factory.Services.CreateAsyncScope();
@@ -24,9 +25,10 @@ public sealed class LiveRegistrationTests
         Should.Throw<InvalidOperationException>(() => factory.Services.GetService<ITicketLiveClient>()).Message.ShouldContain("scoped", Case.Insensitive);
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task Switched_off_the_admin_gets_the_null_client()
     {
+        Xunit.TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
         using var factory = new AdminFactory(settings: new Dictionary<string, string?> { ["LiveUpdates:Enabled"] = "false" });
         await using var scope = factory.Services.CreateAsyncScope();
 
@@ -37,7 +39,7 @@ public sealed class LiveRegistrationTests
         client.State.ShouldBe(LiveConnectionState.Disconnected);
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task The_null_client_does_nothing_and_never_throws()
     {
         var ct = TestContext.Current.CancellationToken;

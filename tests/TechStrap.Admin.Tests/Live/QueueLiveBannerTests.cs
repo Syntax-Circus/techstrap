@@ -55,25 +55,25 @@ public sealed class QueueLiveBannerTests : AdminComponentTest
 
     private static string[] RowNumbers(IRenderedComponent<TicketQueuePage> cut) => [.. cut.FindAll("tbody tr").Select(row => row.QuerySelector("a")!.GetAttribute("href")!)];
 
-    [Fact]
-    public void A_change_by_another_agent_raises_the_banner_after_the_window_and_reloads_and_reorders_nothing()
+    [Fact(Timeout = 30000)]
+    public async Task A_change_by_another_agent_raises_the_banner_after_the_window_and_reloads_and_reorders_nothing()
     {
         var cut = RenderQueue();
         var rows = RowNumbers(cut);
 
         LiveClient.RaiseChange(Change(actor: ColleagueId));
-        cut.WaitForAssertion(() => _timers.LiveTimers.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => _timers.LiveTimers.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         Time.Advance(OneSecond - TimeSpan.FromMilliseconds(1));
         cut.FindAll(".ts-live-banner").ShouldBeEmpty();
         Time.Advance(TimeSpan.FromMilliseconds(1));
 
-        cut.WaitForAssertion(() => cut.Find(".ts-live-banner button").TextContent.ShouldBe(LiveCopy.QueueUpdated));
+        await cut.WaitForAssertionAsync(() => cut.Find(".ts-live-banner button").TextContent.ShouldBe(LiveCopy.QueueUpdated)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         ListCalls().ShouldBe(1);
         RowNumbers(cut).ShouldBe(rows);
         _timers.LiveTimers.ShouldBe(0);
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task A_burst_of_changes_gives_one_banner_and_one_timer()
     {
         var cut = RenderQueue();
@@ -83,10 +83,10 @@ public sealed class QueueLiveBannerTests : AdminComponentTest
             LiveClient.RaiseChange(Change(ticketId: Guid.NewGuid(), actor: ColleagueId));
         }
 
-        cut.WaitForAssertion(() => _timers.LiveTimers.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => _timers.LiveTimers.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         Time.Advance(OneSecond);
 
-        cut.WaitForAssertion(() => cut.FindAll(".ts-live-banner").Count.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => cut.FindAll(".ts-live-banner").Count.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         LiveClient.RaiseChange(Change(actor: ColleagueId));
 
         // The renderer runs its queued work in order, so once this returns the change has been handled: no second timer was started for it.
@@ -109,54 +109,54 @@ public sealed class QueueLiveBannerTests : AdminComponentTest
         _timers.LiveTimers.ShouldBe(0);
     }
 
-    [Fact]
-    public void A_change_with_no_actor_raises_the_banner()
+    [Fact(Timeout = 30000)]
+    public async Task A_change_with_no_actor_raises_the_banner()
     {
         var cut = RenderQueue();
 
         LiveClient.RaiseChange(Change() with { ActorAgentId = null });
-        cut.WaitForAssertion(() => _timers.LiveTimers.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => _timers.LiveTimers.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         Time.Advance(OneSecond);
 
-        cut.WaitForAssertion(() => cut.FindAll(".ts-live-banner").Count.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => cut.FindAll(".ts-live-banner").Count.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
     }
 
-    [Fact]
-    public void A_resync_raises_the_banner_even_when_it_names_the_agent()
+    [Fact(Timeout = 30000)]
+    public async Task A_resync_raises_the_banner_even_when_it_names_the_agent()
     {
         var cut = RenderQueue();
 
         LiveClient.RaiseChange(Resync() with { ActorAgentId = MeId });
-        cut.WaitForAssertion(() => _timers.LiveTimers.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => _timers.LiveTimers.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         Time.Advance(OneSecond);
 
-        cut.WaitForAssertion(() => cut.FindAll(".ts-live-banner").Count.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => cut.FindAll(".ts-live-banner").Count.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
     }
 
-    [Fact]
-    public void The_banner_is_announced_in_the_polite_status_region()
+    [Fact(Timeout = 30000)]
+    public async Task The_banner_is_announced_in_the_polite_status_region()
     {
         var cut = RenderQueue();
 
         LiveClient.RaiseChange(Change());
-        cut.WaitForAssertion(() => _timers.LiveTimers.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => _timers.LiveTimers.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         Time.Advance(OneSecond);
 
-        cut.WaitForAssertion(() => cut.Find("p.visually-hidden[role=status]").TextContent.ShouldContain(LiveCopy.QueueUpdated));
+        await cut.WaitForAssertionAsync(() => cut.Find("p.visually-hidden[role=status]").TextContent.ShouldContain(LiveCopy.QueueUpdated)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
     }
 
-    [Fact]
-    public void Clicking_the_banner_reloads_with_the_current_filters_and_clears_it()
+    [Fact(Timeout = 30000)]
+    public async Task Clicking_the_banner_reloads_with_the_current_filters_and_clears_it()
     {
         var cut = RenderQueue("mine", "?status=Open");
         LiveClient.RaiseChange(Change());
-        cut.WaitForAssertion(() => _timers.LiveTimers.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => _timers.LiveTimers.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         Time.Advance(OneSecond);
-        cut.WaitForAssertion(() => cut.FindAll(".ts-live-banner").Count.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => cut.FindAll(".ts-live-banner").Count.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
 
         cut.Find(".ts-live-banner button").Click();
 
-        cut.WaitForAssertion(() => ListCalls().ShouldBe(2));
+        await cut.WaitForAssertionAsync(() => ListCalls().ShouldBe(2)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         cut.FindAll(".ts-live-banner").ShouldBeEmpty();
         var requests = _tickets.ReceivedCalls().Where(call => call.GetMethodInfo().Name == nameof(ITicketsClient.ListAsync)).Select(call => (ListTicketsRequest)call.GetArguments()[0]!).ToList();
         requests[1].ShouldBe(requests[0]);
@@ -164,29 +164,47 @@ public sealed class QueueLiveBannerTests : AdminComponentTest
         requests[1].Status.ShouldBe(TicketStatuses.Open);
     }
 
-    [Fact]
-    public void The_refresh_button_of_the_filter_bar_clears_the_banner_too()
+    [Fact(Timeout = 30000)]
+    public async Task The_refresh_button_of_the_filter_bar_clears_the_banner_too()
     {
         var cut = RenderQueue();
         LiveClient.RaiseChange(Change());
-        cut.WaitForAssertion(() => _timers.LiveTimers.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => _timers.LiveTimers.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         Time.Advance(OneSecond);
-        cut.WaitForAssertion(() => cut.FindAll(".ts-live-banner").Count.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => cut.FindAll(".ts-live-banner").Count.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
 
         cut.FindAll("button").Single(b => b.TextContent.Trim() == QueueCopy.Refresh).Click();
 
-        cut.WaitForAssertion(() => cut.FindAll(".ts-live-banner").ShouldBeEmpty());
+        await cut.WaitForAssertionAsync(() => cut.FindAll(".ts-live-banner").ShouldBeEmpty()).WaitAsync(Xunit.TestContext.Current.CancellationToken);
     }
 
-    [Fact]
-    public void A_reload_cancels_a_pending_banner_and_its_timer()
+    [Fact(Timeout = 30000)]
+    public async Task A_timer_that_fired_just_before_a_reload_does_not_raise_a_banner_after_it()
     {
         var cut = RenderQueue();
         LiveClient.RaiseChange(Change());
-        cut.WaitForAssertion(() => _timers.LiveTimers.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => _timers.LiveTimers.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
+        var late = _timers.LastCallback.ShouldNotBeNull();
 
         cut.FindAll("button").Single(b => b.TextContent.Trim() == QueueCopy.Refresh).Click();
-        cut.WaitForAssertion(() => ListCalls().ShouldBe(2));
+        await cut.WaitForAssertionAsync(() => ListCalls().ShouldBe(2)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
+
+        // The timer had fired before the reload, but its work reaches the renderer only now: it belongs to a banner the reload has already answered.
+        await Task.Run(() => late(null), Xunit.TestContext.Current.CancellationToken);
+        await cut.InvokeAsync(() => { });
+
+        cut.FindAll(".ts-live-banner").ShouldBeEmpty();
+    }
+
+    [Fact(Timeout = 30000)]
+    public async Task A_reload_cancels_a_pending_banner_and_its_timer()
+    {
+        var cut = RenderQueue();
+        LiveClient.RaiseChange(Change());
+        await cut.WaitForAssertionAsync(() => _timers.LiveTimers.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
+
+        cut.FindAll("button").Single(b => b.TextContent.Trim() == QueueCopy.Refresh).Click();
+        await cut.WaitForAssertionAsync(() => ListCalls().ShouldBe(2)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
 
         // The reload showed everything up to now, so the pending banner is cancelled with its timer.
         _timers.LiveTimers.ShouldBe(0);
@@ -216,12 +234,12 @@ public sealed class QueueLiveBannerTests : AdminComponentTest
         LiveClient.Joined.ShouldBeEmpty();
     }
 
-    [Fact]
+    [Fact(Timeout = 30000)]
     public async Task Disposal_unsubscribes_and_releases_a_pending_timer()
     {
         var cut = RenderQueue();
         LiveClient.RaiseChange(Change());
-        cut.WaitForAssertion(() => _timers.LiveTimers.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => _timers.LiveTimers.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
 
         await cut.Instance.DisposeAsync();
 

@@ -15,36 +15,36 @@ public sealed class MainLayoutLiveTests : AdminComponentTest
     private IRenderedComponent<MainLayout> RenderLayout() =>
         Render<MainLayout>(p => p.SignedIn().Add(l => l.Body, (RenderFragment)(b => b.AddMarkupContent(0, "<p id=\"page\">page</p>"))));
 
-    [Fact]
-    public void The_layout_draws_one_indicator_and_starts_the_connection_once_the_agent_is_admitted()
+    [Fact(Timeout = 30000)]
+    public async Task The_layout_draws_one_indicator_and_starts_the_connection_once_the_agent_is_admitted()
     {
         var cut = RenderLayout();
 
-        cut.WaitForAssertion(() => cut.FindAll(".ts-live").Count.ShouldBe(1));
+        await cut.WaitForAssertionAsync(() => cut.FindAll(".ts-live").Count.ShouldBe(1)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         LiveClient.StartCalls.ShouldBe(1);
         cut.Find("main.ts-main #page").TextContent.ShouldBe("page");
     }
 
-    [Fact]
-    public void Switched_off_the_layout_draws_no_indicator_and_starts_nothing()
+    [Fact(Timeout = 30000)]
+    public async Task Switched_off_the_layout_draws_no_indicator_and_starts_nothing()
     {
         LiveClient.IsEnabled = false;
 
         var cut = RenderLayout();
 
-        cut.WaitForAssertion(() => cut.Find("main.ts-main #page").TextContent.ShouldBe("page"));
+        await cut.WaitForAssertionAsync(() => cut.Find("main.ts-main #page").TextContent.ShouldBe("page")).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         cut.FindAll(".ts-live").ShouldBeEmpty();
         LiveClient.StartCalls.ShouldBe(0);
     }
 
-    [Fact]
-    public void A_failing_client_leaves_the_layout_and_the_page_working()
+    [Fact(Timeout = 30000)]
+    public async Task A_failing_client_leaves_the_layout_and_the_page_working()
     {
         LiveClient.Failure = new InvalidOperationException("hub down");
 
         var cut = RenderLayout();
 
-        cut.WaitForAssertion(() => cut.Find("main.ts-main #page").TextContent.ShouldBe("page"));
+        await cut.WaitForAssertionAsync(() => cut.Find("main.ts-main #page").TextContent.ShouldBe("page")).WaitAsync(Xunit.TestContext.Current.CancellationToken);
         cut.Find(".ts-brand").ShouldNotBeNull();
     }
 }

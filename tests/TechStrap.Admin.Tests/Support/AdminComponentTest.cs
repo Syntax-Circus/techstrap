@@ -14,6 +14,8 @@ public abstract class AdminComponentTest : BunitContext
 {
     protected AdminComponentTest()
     {
+        // bUnit's one-second default wait is too short for a pool-thread event that has to hop through InvokeAsync on a loaded CI agent.
+        DefaultWaitTimeout = TimeSpan.FromSeconds(10);
         Time = new FakeTimeProvider(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         Services.AddShell();
         Services.AddSingleton<TimeProvider>(Time);

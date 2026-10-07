@@ -148,11 +148,11 @@ Versions in [03-PACKAGE-MAP.md](03-PACKAGE-MAP.md). `Microsoft.AspNetCore.Signal
 - [x] **P10-T13** Add queue live refresh: subscription in `TicketQueuePage`, `QueueLiveBanner`, debounced counter and explicit refresh
   - **Depends on:** P10-T11, P07-T07
   - **Validation:** bUnit with `FakeTimeProvider`: a burst of changes yields one banner update; accepting refreshes with current filters; rows not reordered before acceptance.
-  - **As built (10b):** `QueueLiveBanner` ("Queue updated - refresh"): one banner per one-second window for any change by another agent or a resync, the agent's own changes ignored; the click is the existing load with the current filters; the debounce is a window, not a restarted timer, so a steady trickle still shows it.
+  - **As built (10b):** `QueueLiveBanner` ("Queue updated – refresh"): one banner per one-second window for any change by another agent or a resync, the agent's own changes ignored; the click is the existing load with the current filters; the debounce is a window, not a restarted timer, so a steady trickle still shows it.
 - [x] **P10-T14** Add detail live refresh: join/leave ticket group in `TicketDetailPage`, `ChangedTicketBanner`, reload timeline preserving composer draft and updating the concurrency token
   - **Depends on:** P10-T11, P07-T08, P07-T11
   - **Validation:** bUnit: change for the open ticket reloads timeline; draft text untouched; change for another ticket ignored; leaves the group on navigation/dispose.
-  - **As built (10b):** `ChangedTicketBanner` ("New activity - refresh"): the model, the row version and the draft stay as they are until the click (D-046), so a send before it still gets the 409; join after load, leave on navigation and disposal; a change that arrives while a reload runs keeps the banner.
+  - **As built (10b):** `ChangedTicketBanner` ("New activity – refresh"): the model, the row version and the draft stay as they are until the click (D-046), so a send before it still gets the 409; join after load, leave on navigation and disposal; a change that arrives while a reload runs keeps the banner.
 - [x] **P10-T15** Build `TicketPresenceBar` + `PresenceViewModelFactory` and throttled `SetComposing` in `ReplyComposer`
   - **Depends on:** P10-T14
   - **Validation:** Factory theory (viewing only, replying only, both, self excluded, ordering); bUnit with fake timers: typing sends at most one `SetComposing(true)` per throttle window and `false` on submit/blur/dispose.

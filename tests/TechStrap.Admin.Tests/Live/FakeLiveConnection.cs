@@ -31,17 +31,49 @@ internal sealed class FakeLiveConnection(LiveConnectionOptions options) : ILiveC
     /// <summary>When set, <c>LeaveTicket</c> and <c>SetComposing</c> throw it.</summary>
     public Exception? InvokeFailure { get; set; }
 
-    public bool HasSubscribers => TicketChanged is not null || PresenceChanged is not null || Reconnecting is not null || Reconnected is not null || Closed is not null;
+    public bool HasSubscribers => TicketChanged is not null || PresenceChanged is not null || _reconnecting is not null || _reconnected is not null || _closed is not null;
 
     public event Action<TicketChangedDto>? TicketChanged;
 
     public event Action<TicketPresenceDto>? PresenceChanged;
 
-    public event Func<Task>? Reconnecting;
+    // Each of the three connection events also remembers every handler ever added, as a hub callback that was already running at disposal would still hold it.
+    private Func<Task>? _reconnecting;
+    private Func<Task>? _reconnectingEver;
+    private Func<Task>? _reconnected;
+    private Func<Task>? _reconnectedEver;
+    private Func<Task>? _closed;
+    private Func<Task>? _closedEver;
 
-    public event Func<Task>? Reconnected;
+    public event Func<Task>? Reconnecting
+    {
+        add
+        {
+            _reconnecting += value;
+            _reconnectingEver += value;
+        }
+        remove => _reconnecting -= value;
+    }
 
-    public event Func<Task>? Closed;
+    public event Func<Task>? Reconnected
+    {
+        add
+        {
+            _reconnected += value;
+            _reconnectedEver += value;
+        }
+        remove => _reconnected -= value;
+    }
+
+    public event Func<Task>? Closed
+    {
+        add
+        {
+            _closed += value;
+            _closedEver += value;
+        }
+        remove => _closed -= value;
+    }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -87,11 +119,19 @@ internal sealed class FakeLiveConnection(LiveConnectionOptions options) : ILiveC
 
     public void RaisePresence(TicketPresenceDto presence) => PresenceChanged?.Invoke(presence);
 
-    public Task RaiseReconnectingAsync() => Reconnecting?.Invoke() ?? Task.CompletedTask;
+    public Task RaiseReconnectingAsync() => _reconnecting?.Invoke() ?? Task.CompletedTask;
 
-    public Task RaiseReconnectedAsync() => Reconnected?.Invoke() ?? Task.CompletedTask;
+    public Task RaiseReconnectedAsync() => _reconnected?.Invoke() ?? Task.CompletedTask;
 
-    public Task RaiseClosedAsync() => Closed?.Invoke() ?? Task.CompletedTask;
+    public Task RaiseClosedAsync() => _closed?.Invoke() ?? Task.CompletedTask;
+
+    /// <summary>The Reconnecting, Reconnected and Closed callbacks of a hub that were already running when the client was disposed: they still reach the handlers the client had added.</summary>
+    public async Task RaiseStaleConnectionEventsAsync()
+    {
+        await (_reconnectingEver?.Invoke() ?? Task.CompletedTask);
+        await (_reconnectedEver?.Invoke() ?? Task.CompletedTask);
+        await (_closedEver?.Invoke() ?? Task.CompletedTask);
+    }
 }
 
 internal sealed class FakeLiveConnectionFactory : ILiveConnectionFactory

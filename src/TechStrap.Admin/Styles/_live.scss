@@ -35,10 +35,6 @@
   padding: 8px 12px;
   background: var(--sheet);
   border: 2px solid var(--st-pending);
-
-  p {
-    margin: 0;
-  }
 }
 
 // The presence bar sits above the timeline; an empty one takes no room but stays in the page so a newcomer is announced.

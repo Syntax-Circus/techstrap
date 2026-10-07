@@ -500,8 +500,12 @@ Describe 'D-046 (live updates)' {
         }
         foreach ($number in 11..17) {
             $id = 'P10-T{0:00}' -f $number
-            $spec | Should -Match ('(?s)- \[x\] \*\*' + $id + '\*\*.*?\*\*As built \(10b\):\*\*') -Because "$id carries its as-built note"
+            # The note must sit inside the task's own block: a lazy match would run on into the next task.
+            $spec | Should -Match ('(?s)- \[x\] \*\*' + $id + '\*\*(?:(?!- \[[x ]\] \*\*P10-T).)*?\*\*As built \(10b\):\*\*') -Because "$id carries its as-built note"
         }
+        # The as-built notes quote the banner copy of the UI, which has an en dash.
+        $spec | Should -Match ('QueueLiveBanner` \("Queue updated {0} refresh"\)' -f [char]0x2013)
+        $spec | Should -Match ('ChangedTicketBanner` \("New activity {0} refresh"\)' -f [char]0x2013)
         $deliverables = ($spec -split '(?m)^## Deliverables')[1] -split '(?m)^## Actionable Tasks' | Select-Object -First 1
         $deliverables | Should -Not -Match '- \[ \]'
         $criteria = ($spec -split '(?m)^## Success Criteria')[1] -split '(?m)^## Boundary Validation' | Select-Object -First 1
@@ -541,8 +545,8 @@ Describe 'D-046 addendum (PHASE-10b, live updates in the Admin)' {
         $script:Log | Should -Match '(?m)^### Addendum \(2026-10-07, PHASE-10b live updates in the Admin\)'
         $script:Log | Should -Not -Match '(?m)^## D-047'
         $addendum = ($script:Log -split '(?m)^### Addendum \(2026-10-07, PHASE-10b live updates in the Admin\)')[1]
-        foreach ($phrase in 'LiveUpdates:Enabled', 'LIVEUPDATES__ENABLED', 'NullTicketLiveClient', 'AdminLiveClientHostTests', 'Own changes are ignored', 'Queue updated - refresh', 'IUserAccessTokenProvider',
-                'OnAfterRenderAsync', 'compose is not edited', 'Known limits (10b)', 'There is no new decision number') {
+        foreach ($phrase in 'LiveUpdates:Enabled', 'LIVEUPDATES__ENABLED', 'NullTicketLiveClient', 'AdminLiveClientHostTests', 'Own changes are ignored', ('Queue updated {0} refresh' -f [char]0x2013), 'IUserAccessTokenProvider',
+                'OnAfterRenderAsync', 'compose is not edited', 'Known limits (10b)', 'There is no new decision number', 'does not sign the agent out') {
             $addendum | Should -Match ([regex]::Escape($phrase)) -Because "the 10b addendum must mention $phrase"
         }
     }
@@ -552,7 +556,11 @@ Describe 'D-046 addendum (PHASE-10b, live updates in the Admin)' {
         $admin | Should -Match '(?m)^## Live updates \(10b\)'
         $admin | Should -Match '(?m)^### Manual check against a real identity provider \(owner\)'
         $admin | Should -Match '(?m)^## Known gaps in 10b'
-        $admin | Should -Match 'between the detail page.s load and its join of the ticket group raises no banner'
+        $admin | Should -Match 'before the live connection is first established \(on either page\), or while a ticket.s first load runs, raises no banner'
+        $admin | Should -Match '(?s)## Known gaps in 10b.*refuses the connection for good'
+        $admin | Should -Match "UPDATE tickets SET solved_at = now\(\) - interval '2 days' WHERE number"
+        $admin | Should -Match ('New activity {0} refresh' -f [char]0x2013)
+        $admin | Should -Match ('Queue updated {0} refresh' -f [char]0x2013)
         $admin | Should -Match '(?m)^\| `LIVEUPDATES__ENABLED` \| no \| `true` \|'
         $admin | Should -Not -Match 'live updates arrive with PHASE-10'
         $admin | Should -Not -Match 'it is not live \(PHASE-10\)'

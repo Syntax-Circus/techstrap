@@ -23,6 +23,7 @@ public sealed class SignalRTicketLiveClient : ITicketLiveClient
     private readonly TimeProvider _time;
     private readonly ILogger<SignalRTicketLiveClient> _logger;
     private readonly CancellationTokenSource _lifetime = new();
+    private readonly CancellationToken _stopping;
     private readonly object _gate = new();
     private readonly HashSet<Guid> _joined = [];
     private readonly Queue<Guid> _seenOrder = new();
@@ -40,6 +41,7 @@ public sealed class SignalRTicketLiveClient : ITicketLiveClient
         _expiry = expiry;
         _time = time;
         _logger = logger;
+        _stopping = _lifetime.Token;
     }
 
     public bool IsEnabled => true;
@@ -70,7 +72,8 @@ public sealed class SignalRTicketLiveClient : ITicketLiveClient
                 return Task.CompletedTask;
             }
 
-            return _starting ??= RunAsync();
+            // On the pool, so the start loop, the retry delays and the re-joins never run on the renderer's context (the caller is a component).
+            return _starting ??= Task.Run(RunAsync, CancellationToken.None);
         }
     }
 
@@ -145,14 +148,7 @@ public sealed class SignalRTicketLiveClient : ITicketLiveClient
             connection.Reconnecting -= OnReconnectingAsync;
             connection.Reconnected -= OnReconnectedAsync;
             connection.Closed -= OnClosedAsync;
-            try
-            {
-                await connection.DisposeAsync();
-            }
-            catch (Exception exception)
-            {
-                _logger.LogWarning("The live connection could not be closed cleanly ({ExceptionType}).", exception.GetType().Name);
-            }
+            await DisposeQuietlyAsync(connection);
         }
 
         if (starting is not null)
@@ -166,16 +162,54 @@ public sealed class SignalRTicketLiveClient : ITicketLiveClient
         _lifetime.Dispose();
     }
 
+    private async Task DisposeQuietlyAsync(ILiveConnection connection)
+    {
+        try
+        {
+            await connection.DisposeAsync();
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning("The live connection could not be closed cleanly ({ExceptionType}).", exception.GetType().Name);
+        }
+    }
+
+    /// <summary>No token, or a lapsed session: no attempt, start or reconnect, can succeed any more.</summary>
+    private bool ShouldStop() => _noToken || _expiry.IsLapsed;
+
+    private bool IsDisposed
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _disposed;
+            }
+        }
+    }
+
     /// <summary>The first connection: attempts with the retry policy's delays until one succeeds, the session lapses, no token comes, or the client is disposed. Never throws.</summary>
     private async Task RunAsync()
     {
         try
         {
             SetState(LiveConnectionState.Connecting);
-            var connection = _connections.Create(new LiveConnectionOptions(GetTokenAsync, new LiveRetryPolicy(() => _noToken || _expiry.IsLapsed)));
+            var connection = _connections.Create(new LiveConnectionOptions(GetTokenAsync, new LiveRetryPolicy(ShouldStop)));
+            bool disposedMeanwhile;
             lock (_gate)
             {
-                _connection = connection;
+                // DisposeAsync reads _connection under this lock: publish only while it has not run, otherwise nobody else would dispose this connection.
+                disposedMeanwhile = _disposed;
+                if (!disposedMeanwhile)
+                {
+                    _connection = connection;
+                }
+            }
+
+            if (disposedMeanwhile)
+            {
+                await DisposeQuietlyAsync(connection);
+                return;
             }
 
             connection.TicketChanged += OnTicketChanged;
@@ -184,27 +218,27 @@ public sealed class SignalRTicketLiveClient : ITicketLiveClient
             connection.Reconnected += OnReconnectedAsync;
             connection.Closed += OnClosedAsync;
 
-            for (var attempt = 0; !_lifetime.IsCancellationRequested; attempt++)
+            for (var attempt = 0; !_stopping.IsCancellationRequested; attempt++)
             {
                 try
                 {
-                    await connection.StartAsync(_lifetime.Token);
+                    await connection.StartAsync(_stopping);
                 }
-                catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+                catch (OperationCanceledException) when (_stopping.IsCancellationRequested)
                 {
                     return;
                 }
                 catch (Exception exception)
                 {
                     _logger.LogWarning("The live connection could not be started ({ExceptionType}).", exception.GetType().Name);
-                    if (_noToken || _expiry.IsLapsed)
+                    if (ShouldStop())
                     {
                         SetState(LiveConnectionState.Disconnected);
                         return;
                     }
 
                     SetState(LiveConnectionState.Reconnecting);
-                    await Task.Delay(LiveRetryPolicy.DelayFor(attempt), _time, _lifetime.Token);
+                    await Task.Delay(LiveRetryPolicy.DelayFor(attempt), _time, _stopping);
                     continue;
                 }
 
@@ -213,7 +247,7 @@ public sealed class SignalRTicketLiveClient : ITicketLiveClient
                 return;
             }
         }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        catch (OperationCanceledException) when (_stopping.IsCancellationRequested)
         {
             // Disposed while waiting to retry: nothing more to do.
         }
@@ -232,7 +266,7 @@ public sealed class SignalRTicketLiveClient : ITicketLiveClient
     {
         try
         {
-            var token = await _tokens.GetAccessTokenAsync(_lifetime.Token);
+            var token = await _tokens.GetAccessTokenAsync(_stopping);
             if (string.IsNullOrEmpty(token))
             {
                 _noToken = true;
@@ -251,6 +285,11 @@ public sealed class SignalRTicketLiveClient : ITicketLiveClient
 
     private void OnTicketChanged(TicketChangedDto change)
     {
+        if (IsDisposed)
+        {
+            return;
+        }
+
         if (change.EventId != Guid.Empty && !Remember(change.EventId))
         {
             return;
@@ -259,7 +298,13 @@ public sealed class SignalRTicketLiveClient : ITicketLiveClient
         Raise(TicketChanged, change);
     }
 
-    private void OnPresenceChanged(TicketPresenceDto presence) => Raise(PresenceChanged, presence);
+    private void OnPresenceChanged(TicketPresenceDto presence)
+    {
+        if (!IsDisposed)
+        {
+            Raise(PresenceChanged, presence);
+        }
+    }
 
     private Task OnReconnectingAsync()
     {
@@ -269,6 +314,11 @@ public sealed class SignalRTicketLiveClient : ITicketLiveClient
 
     private async Task OnReconnectedAsync()
     {
+        if (IsDisposed)
+        {
+            return;
+        }
+
         ILiveConnection? connection;
         lock (_gate)
         {
@@ -301,10 +351,34 @@ public sealed class SignalRTicketLiveClient : ITicketLiveClient
 
         foreach (var ticketId in tickets)
         {
-            if (await JoinAsync(connection, ticketId, _lifetime.Token) is { } presence)
+            // A ticket left (or a client disposed) since the snapshot is not joined again.
+            if (IsDisposed || !IsJoined(ticketId))
             {
-                Raise(PresenceChanged, presence);
+                continue;
             }
+
+            if (await JoinAsync(connection, ticketId, _stopping) is { } presence)
+            {
+                if (!IsJoined(ticketId))
+                {
+                    // The page left the ticket while the join was in flight, and its leave may have reached the hub first: send one more leave (the connection handles invocations in order), or the others see a ghost viewer.
+                    await InvokeSafelyAsync(() => connection.LeaveTicketAsync(ticketId, _stopping), nameof(ITicketLiveClient.LeaveTicketAsync));
+                    continue;
+                }
+
+                if (!IsDisposed)
+                {
+                    Raise(PresenceChanged, presence);
+                }
+            }
+        }
+    }
+
+    private bool IsJoined(Guid ticketId)
+    {
+        lock (_gate)
+        {
+            return _joined.Contains(ticketId);
         }
     }
 

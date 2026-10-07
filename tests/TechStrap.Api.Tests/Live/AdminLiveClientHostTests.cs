@@ -44,12 +44,17 @@ public sealed class AdminLiveClientHostTests(TestPostgres postgres)
     {
         using var timeout = new CancellationTokenSource(HubTestSupport.Patience);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, TestContext.Current.CancellationToken);
-        while (!await condition())
+        try
         {
-            await Task.Delay(50, linked.Token);
+            while (!await condition())
+            {
+                await Task.Delay(50, linked.Token);
+            }
         }
-
-        what.ShouldNotBeNull();
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+        {
+            throw new ShouldAssertException($"Timed out waiting for {what}");
+        }
     }
 
     private static Task<T> NextAsync<T>(Channel<T> channel)
@@ -171,20 +176,29 @@ public sealed class AdminLiveClientHostTests(TestPostgres postgres)
         var tokensIssued = 0;
         await using var client = NewClient(api, () =>
         {
-            // The first token lives four seconds (the server closes the connection at its expiry); every later one is fresh.
+            // The first token lives four seconds. This depends on the REAL clock: the Api closes the connection when the token's exp passes (CloseOnAuthenticationExpiration), and the test waits for that. Every later token is fresh.
             return Interlocked.Increment(ref tokensIssued) == 1
                 ? HubTestSupport.AgentToken("sam", "Sam", expires: DateTime.UtcNow.AddSeconds(4))
                 : HubTestSupport.AgentToken("sam", "Sam");
         });
         var changes = Channel.CreateUnbounded<TicketChangedDto>();
         client.TicketChanged += change => changes.Writer.TryWrite(change);
+        var issuedAtReconnecting = -1;
+        client.StateChanged += state =>
+        {
+            if (state == LiveConnectionState.Reconnecting)
+            {
+                Interlocked.CompareExchange(ref issuedAtReconnecting, Volatile.Read(ref tokensIssued), -1);
+            }
+        };
         await client.StartAsync(ct);
 
         var resync = await NextAsync(changes);
 
         resync.Kind.ShouldBe(TicketChangeKinds.Resync);
         resync.TicketId.ShouldBe(Guid.Empty);
-        tokensIssued.ShouldBeGreaterThanOrEqualTo(2, "the reconnect asked for a fresh token");
+        issuedAtReconnecting.ShouldBeGreaterThanOrEqualTo(1, "the connection was seen reconnecting");
+        tokensIssued.ShouldBeGreaterThan(issuedAtReconnecting, "a token was issued after the reconnect began (the reconnect could not authenticate with the expired first one)");
         await WaitForAsync(() => Task.FromResult(client.State == LiveConnectionState.Connected), "connected again");
     }
 

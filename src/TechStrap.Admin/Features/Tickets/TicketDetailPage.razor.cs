@@ -38,6 +38,7 @@ public sealed partial class TicketDetailPage : IDisposable
     private IReadOnlyList<PresenceViewModel> _viewers = [];
     private bool _composingExpired;
     private ITimer? _composingTimer;
+    private int _composingGeneration;
 
     [Inject]
     private TicketDetailPresenter Presenter { get; set; } = default!;
@@ -235,22 +236,26 @@ public sealed partial class TicketDetailPage : IDisposable
     /// </summary>
     private void ArmComposingTimer()
     {
+        _composingGeneration++;
         _composingTimer?.Dispose();
         _composingTimer = null;
         if (PresenceViewModelFactory.AnyoneReplying(_presence, Session.Agent?.Id))
         {
-            _composingTimer = Time.CreateTimer(_ => _ = InvokeAsync(ExpireComposing), null, TimeSpan.FromSeconds(TicketLiveLimits.ComposingTtlSeconds), Timeout.InfiniteTimeSpan);
+            var generation = _composingGeneration;
+            _composingTimer = Time.CreateTimer(_ => _ = InvokeAsync(() => ExpireComposing(generation)), null, TimeSpan.FromSeconds(TicketLiveLimits.ComposingTtlSeconds), Timeout.InfiniteTimeSpan);
         }
     }
 
-    private void ExpireComposing()
+    /// <summary>A callback queued just before a fresh presence message (or a ticket switch) re-armed the timer is stale: it must neither expire the fresh hint nor dispose the newer timer.</summary>
+    private void ExpireComposing(int generation)
     {
-        _composingTimer?.Dispose();
-        _composingTimer = null;
-        if (_disposed)
+        if (_disposed || generation != _composingGeneration)
         {
             return;
         }
+
+        _composingTimer?.Dispose();
+        _composingTimer = null;
 
         _composingExpired = true;
         RebuildViewers();
@@ -274,6 +279,7 @@ public sealed partial class TicketDetailPage : IDisposable
         _presence = null;
         _viewers = [];
         _composingExpired = false;
+        _composingGeneration++;
         _composingTimer?.Dispose();
         _composingTimer = null;
         _liveChanged = false;
@@ -293,7 +299,10 @@ public sealed partial class TicketDetailPage : IDisposable
         try
         {
             var presence = await LiveClient.JoinTicketAsync(ticketId);
-            await InvokeAsync(() => ApplyPresence(presence));
+            if (!_disposed)
+            {
+                await InvokeAsync(() => ApplyPresence(presence));
+            }
         }
         catch (Exception exception)
         {

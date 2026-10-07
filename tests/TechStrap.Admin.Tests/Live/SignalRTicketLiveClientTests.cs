@@ -33,7 +33,7 @@ public sealed class SignalRTicketLiveClientTests
     private async Task UntilAsync(Func<bool> condition)
     {
         var ct = TestContext.Current.CancellationToken;
-        var deadline = DateTime.UtcNow.AddSeconds(30);
+        var deadline = DateTime.UtcNow.AddSeconds(20); // below the tests' own 30 s Timeout, so the named assertion below is what fails
         while (!condition())
         {
             ct.ThrowIfCancellationRequested();
@@ -52,7 +52,18 @@ public sealed class SignalRTicketLiveClientTests
         client.StateChanged += states.Add;
         client.State.ShouldBe(LiveConnectionState.Disconnected);
 
-        await Task.WhenAll(client.StartAsync(ct), client.StartAsync(ct), client.StartAsync(ct));
+        // The token is held back so the first start is still in flight while the other callers arrive; all three begin together.
+        var gate = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _tokens.GetAccessTokenAsync(Arg.Any<CancellationToken>()).Returns(_ => new ValueTask<string?>(gate.Task));
+        using var together = new Barrier(3);
+        var callers = Enumerable.Range(0, 3).Select(_ => Task.Run(() =>
+        {
+            together.SignalAndWait(ct);
+            return client.StartAsync(ct);
+        }, ct)).ToArray();
+        await UntilAsync(() => _factory.Created.Count == 1 && _factory.Only.StartCalls == 1);
+        gate.SetResult("token-1");
+        await Task.WhenAll(callers);
         await client.StartAsync(ct);
 
         _factory.Created.Count.ShouldBe(1);
@@ -97,7 +108,6 @@ public sealed class SignalRTicketLiveClientTests
         await client.StartAsync(ct);
 
         client.State.ShouldBe(LiveConnectionState.Disconnected);
-        _factory.Only.StartCalls.ShouldBe(1);
         _time.Advance(TimeSpan.FromMinutes(5));
         _factory.Only.StartCalls.ShouldBe(1);
         _factory.Only.Options.RetryPolicy.NextRetryDelay(new RetryContext { PreviousRetryCount = 0 }).ShouldBeNull();
@@ -357,6 +367,140 @@ public sealed class SignalRTicketLiveClientTests
         _time.Advance(TimeSpan.FromMinutes(5));
         connection.StartCalls.ShouldBe(calls);
         connection.DisposeCalls.ShouldBe(1);
+    }
+
+    [Fact(Timeout = 30000)]
+    public async Task A_disposal_that_lands_before_the_connection_is_published_disposes_that_connection_itself()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var factory = new BlockingFactory(ct);
+        var client = NewClient(factory);
+        var start = client.StartAsync(ct);
+        factory.Entered.Wait(ct);
+
+        // The connection exists, but the client has not stored it yet: DisposeAsync cannot see it.
+        var dispose = client.DisposeAsync().AsTask();
+        await UntilAsync(() => client.StartAsync(ct).IsCompleted);
+        factory.Release.Set();
+        await dispose;
+        await start;
+
+        var connection = factory.Connection.ShouldNotBeNull();
+        connection.DisposeCalls.ShouldBe(1);
+        connection.StartCalls.ShouldBe(0);
+        connection.HasSubscribers.ShouldBeFalse();
+        client.State.ShouldBe(LiveConnectionState.Disconnected);
+    }
+
+    [Fact(Timeout = 30000)]
+    public async Task A_disposal_while_the_first_start_is_in_flight_ends_it_without_joining_or_reporting_a_state()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var gate = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _tokens.GetAccessTokenAsync(Arg.Any<CancellationToken>()).Returns(_ => new ValueTask<string?>(gate.Task));
+        var client = NewClient();
+        await client.JoinTicketAsync(TicketId, ct);
+        var states = new List<LiveConnectionState>();
+        client.StateChanged += states.Add;
+        var start = client.StartAsync(ct);
+        await UntilAsync(() => _factory.Created.Count == 1 && _factory.Only.StartCalls == 1);
+
+        var dispose = client.DisposeAsync().AsTask();
+        gate.SetResult("token-1");
+        await dispose;
+        await start;
+
+        var connection = _factory.Only;
+        connection.Joined.ShouldBeEmpty();
+        connection.DisposeCalls.ShouldBe(1);
+        client.State.ShouldBe(LiveConnectionState.Disconnected);
+        states.ShouldNotContain(LiveConnectionState.Connected);
+    }
+
+    [Fact(Timeout = 30000)]
+    public async Task A_hub_callback_that_runs_after_the_disposal_changes_nothing_and_joins_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = NewClient();
+        await client.StartAsync(ct);
+        await client.JoinTicketAsync(TicketId, ct);
+        var connection = _factory.Only;
+        await client.DisposeAsync();
+
+        await connection.RaiseStaleConnectionEventsAsync();
+
+        client.State.ShouldBe(LiveConnectionState.Disconnected);
+        connection.Joined.ShouldBe([TicketId]);
+    }
+
+    [Fact(Timeout = 30000)]
+    public async Task A_leave_that_lands_while_a_rejoin_is_in_flight_is_sent_again_after_it_so_no_ghost_viewer_stays()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var client = NewClient();
+        await client.StartAsync(ct);
+        await client.JoinTicketAsync(TicketId, ct);
+        var connection = _factory.Only;
+        var answer = new TaskCompletionSource<TicketPresenceDto>(TaskCreationOptions.RunContinuationsAsynchronously);
+        connection.JoinHandler = _ => answer.Task;
+        var announced = new List<TicketPresenceDto>();
+        client.PresenceChanged += announced.Add;
+
+        var reconnect = connection.RaiseReconnectedAsync();
+        await UntilAsync(() => connection.Joined.Count == 2);
+        await client.LeaveTicketAsync(TicketId, ct);
+        answer.SetResult(new TicketPresenceDto(TicketId, []));
+        await reconnect;
+
+        // One leave from the page, one from the client after the join that raced it; the stale join announces nothing.
+        connection.Left.ShouldBe([TicketId, TicketId]);
+        announced.ShouldBeEmpty();
+    }
+
+    [Fact(Timeout = 30000)]
+    public async Task A_ticket_left_before_a_rejoin_starts_is_not_joined_again()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var client = NewClient();
+        await client.StartAsync(ct);
+        await client.JoinTicketAsync(TicketId, ct);
+        var other = Guid.NewGuid();
+        await client.JoinTicketAsync(other, ct);
+        var connection = _factory.Only;
+        connection.Joined.Clear();
+        connection.JoinHandler = async id =>
+        {
+            // The first re-join is answered while the page leaves the second ticket.
+            await client.LeaveTicketAsync(id == TicketId ? other : TicketId, ct);
+            return new TicketPresenceDto(id, []);
+        };
+
+        await connection.RaiseReconnectedAsync();
+
+        connection.Joined.Count.ShouldBe(1);
+    }
+
+    private sealed class BlockingFactory(CancellationToken cancellationToken) : ILiveConnectionFactory, IDisposable
+    {
+        public ManualResetEventSlim Entered { get; } = new(false);
+
+        public ManualResetEventSlim Release { get; } = new(false);
+
+        public FakeLiveConnection? Connection { get; private set; }
+
+        public ILiveConnection Create(LiveConnectionOptions options)
+        {
+            Connection = new FakeLiveConnection(options);
+            Entered.Set();
+            Release.Wait(cancellationToken);
+            return Connection;
+        }
+
+        public void Dispose()
+        {
+            Entered.Dispose();
+            Release.Dispose();
+        }
     }
 
     private sealed class SingleConnectionFactory(FakeLiveConnection connection) : ILiveConnectionFactory

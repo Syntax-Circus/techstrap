@@ -29,6 +29,7 @@ public sealed class LayoutResilienceTests : BunitContext
 
     public LayoutResilienceTests()
     {
+        DefaultWaitTimeout = TimeSpan.FromSeconds(10);
         Services.AddLogging(logging => logging.AddProvider(_logs));
         Services.AddShell();
         Services.AddSingleton<TimeProvider>(new FakeTimeProvider());

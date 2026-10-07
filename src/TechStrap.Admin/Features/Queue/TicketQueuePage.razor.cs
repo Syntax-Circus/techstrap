@@ -43,6 +43,7 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
     private bool _disposed;
     private bool _liveChanged;
     private ITimer? _liveTimer;
+    private int _liveGeneration;
     private int _selected = -1;
 
     [Inject]
@@ -286,17 +287,20 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
                 return;
             }
 
-            _liveTimer = Time.CreateTimer(_ => _ = InvokeAsync(ShowLiveBanner), null, LiveDefaults.QueueBannerWindow, Timeout.InfiniteTimeSpan);
+            var generation = _liveGeneration;
+            _liveTimer = Time.CreateTimer(_ => _ = InvokeAsync(() => ShowLiveBanner(generation)), null, LiveDefaults.QueueBannerWindow, Timeout.InfiniteTimeSpan);
         });
     }
 
-    private void ShowLiveBanner()
+    /// <summary>A timer that fired just before a reload cleared the banner (or re-armed it) is stale: it must neither raise a banner for changes the reload already showed nor dispose the newer timer.</summary>
+    private void ShowLiveBanner(int generation)
     {
-        ReleaseLiveTimer();
-        if (_disposed)
+        if (_disposed || generation != _liveGeneration)
         {
             return;
         }
+
+        ReleaseLiveTimer();
 
         _liveChanged = true;
         _announcement = LiveCopy.QueueUpdated;
@@ -305,6 +309,7 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
 
     private void ClearLiveBanner()
     {
+        _liveGeneration++;
         ReleaseLiveTimer();
         _liveChanged = false;
     }

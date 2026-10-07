@@ -11,6 +11,9 @@ public sealed class CountingTimeProvider(TimeProvider inner) : TimeProvider
     /// <summary>Timers created through this provider that have not been disposed.</summary>
     public int LiveTimers => Volatile.Read(ref _live);
 
+    /// <summary>The callback of the newest timer created, so a test can fire it late, as a timer that fired just before a state change and whose work reaches the renderer after it.</summary>
+    public TimerCallback? LastCallback { get; private set; }
+
     public override DateTimeOffset GetUtcNow() => inner.GetUtcNow();
 
     public override TimeZoneInfo LocalTimeZone => inner.LocalTimeZone;
@@ -22,6 +25,7 @@ public sealed class CountingTimeProvider(TimeProvider inner) : TimeProvider
     public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
     {
         Interlocked.Increment(ref _live);
+        LastCallback = callback;
         return new Counted(inner.CreateTimer(callback, state, dueTime, period), this);
     }
 

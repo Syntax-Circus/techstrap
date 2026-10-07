@@ -42,7 +42,7 @@ public sealed partial class LiveConnectionIndicator : IDisposable
         }
     }
 
-    /// <summary>Never awaited by the render and never throws: a live failure shows as the indicator's state, not as an error in the page.</summary>
+    /// <summary>Never awaited by the render and never throws: a live failure shows as the indicator's state, not as an error in the page. There is no retry here: the client retries itself, and the real client's StartAsync never throws.</summary>
     private async Task StartAsync()
     {
         try
