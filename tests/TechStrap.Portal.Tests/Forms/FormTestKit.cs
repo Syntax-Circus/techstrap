@@ -98,6 +98,21 @@ internal static class FormTestKit
 
     public static SubmitTicketResponse Created(string number = "PAP-42") => new(number, null, []);
 
+    /// <summary>The one-time id a rendered form carries in its hidden input <paramref name="name"/> (<c>Form.SubmitId</c> or <c>Reply.SubmitId</c>).</summary>
+    public static string SubmitIdFrom(string html, string name = "Form.SubmitId")
+    {
+        var match = Regex.Match(html, $"<input type=\"hidden\" name=\"{Regex.Escape(name)}\" value=\"([^\"]*)\"");
+        match.Success.ShouldBeTrue($"the form must carry a hidden {name} field");
+        return match.Groups[1].Value;
+    }
+
+    /// <summary>The form with the one-time id a browser would post back from the hidden input <paramref name="name"/>.</summary>
+    public static MultipartFormDataContent WithSubmitId(this MultipartFormDataContent form, string id, string name = "Form.SubmitId")
+    {
+        form.Add(new StringContent(id), name);
+        return form;
+    }
+
     private static void Add(MultipartFormDataContent form, string name, string? value)
     {
         if (value is not null)

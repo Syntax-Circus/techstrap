@@ -1,0 +1,10 @@
+<input type="hidden" name="@Name" value="@_id" autocomplete="off" />
+
+@code {
+    // A fresh id for every render of the form (a component is made anew for each request, and a page that shows errors after a failed post must carry a new id, never the posted one).
+    private readonly string _id = SubmitIds.New();
+
+    /// <summary>The form-binder name of the field (<c>Form.SubmitId</c>, <c>Reply.SubmitId</c>), which binds the property of the same name on the form's view model.</summary>
+    [Parameter, EditorRequired]
+    public string Name { get; set; } = string.Empty;
+}

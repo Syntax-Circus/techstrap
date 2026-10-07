@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using TechStrap.Contracts.Products;
 using TechStrap.Portal.Components.Ui;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Portal.Tests;
 
@@ -106,7 +107,7 @@ public sealed partial class PoweredByHostTests
     {
         await using var factory = Factory(setting);
 
-        var failure = StartupFailure.Capture(factory);
+        var failure = StartupFailure.Capture(factory, () => factory.LogSink.Events);
 
         failure.Message.ShouldContain("TECHSTRAP_PORTAL_SHOW_POWERED_BY");
         failure.Message.ShouldContain("true or false");

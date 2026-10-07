@@ -163,31 +163,32 @@ Describe 'D-045 (the public portal)' {
         (Get-RepoText 'docs/architecture/03-PACKAGE-MAP.md') | Should -Match 'MapSeoRobotsTxt'
     }
 
-    It 'ticks only the tasks and deliverables 09a, 09b and 09c fully deliver, and the roadmap and discovery rows say 09c is complete, pending merge' {
+    It 'ticks only the tasks and deliverables 09a to 09d fully deliver, and the roadmap and discovery rows say PHASE-09 is complete, pending merge' {
         $spec = Get-RepoText 'docs/architecture/PHASE-09-public-portal.md'
-        foreach ($number in 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 17, 19, 21, 22, 23) {
+        foreach ($number in 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 19, 21, 22, 23) {
             $id = 'P09-T{0:00}' -f $number
-            $spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is delivered by 09a, 09b or 09c"
+            $spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is delivered by 09a, 09b, 09c or 09d"
         }
-        # T09 waits for the double-submit guard (09d), T16 is the 09d polish pass, T18 waits for the owner's compose run of the smoke, T20 is deferred.
-        foreach ($number in 9, 16, 18, 20) {
+        # T16 waits for the owner's evidence (axe, Lighthouse, the JavaScript-off walk, screenshots), T18 for the owner's compose run of the smoke, T20 is deferred.
+        foreach ($number in 16, 18, 20) {
             $id = 'P09-T{0:00}' -f $number
-            $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not finished by 09c"
+            $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not closed by 09d"
         }
-        $spec | Should -Match 'delivered except double-submit \(deferred to 09d, D-045' -Because 'T09 stays open with the reason written down'
+        $spec | Should -Match 'delivered except double-submit \(deferred to 09d, D-045' -Because 'the 09b history of T09 is kept'
+        $spec | Should -Match '\*\*Owner evidence pending:\*\*' -Because 'T16 says what the owner still has to record'
         $spec | Should -Match '(?m)^- \[x\] `TechStrap\.Portal` host with `\.env\.example`, forwarded-headers and client-IP forwarding to the API\.'
         $spec | Should -Match '(?m)^- \[x\] Branded layout with per-product theming and NotFound handling\.'
         $spec | Should -Match '(?m)^- \[x\] Contact page with honeypot, attachments, deflection island, submitted page\.'
         $spec | Should -Match '(?m)^- \[x\] Customer ticket view, reply \(incl\. Closed -> follow-up\), lost-link, attachment pass-through\.'
         $spec | Should -Match '(?m)^- \[x\] Typed clients for public product, public ticket, customer ticket, public KB\.'
         $spec | Should -Match '(?m)^- \[x\] KB home/category/search/article pages'
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 09 \|.*D-045.*\| 09a merged \(PR #14\); 09b merged \(PR #15\); 09c complete \(pending merge\); 09d not started'
-        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 09 \|.*\| 09a merged \(PR #14\); 09b merged \(PR #15\); 09c complete \(pending merge\); 09d not started'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 09 \|.*D-045.*\| 09a merged \(PR #14\); 09b merged \(PR #15\); 09c merged \(PR #16\); PHASE-09 complete \(pending merge\)'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 09 \|.*\| 09a merged \(PR #14\); 09b merged \(PR #15\); 09c merged \(PR #16\); PHASE-09 complete \(pending merge\)'
     }
 
     It 'has a Portal developer guide, linked from the README, that lists every setting and the known gaps' {
         $guide = Get-RepoText 'docs/development/PORTAL-APP.md'
-        foreach ($heading in '## Run it locally', '### Configuration', '## How a page is served', '### Forms and uploads', '### Suggestions beside the subject', '### The help centre', '### SEO and structured data', '### Caching and the sitemap', '### The ticket page and attachments', '### The lost-link page', '## Where things live', '## Tests', '## Known gaps') {
+        foreach ($heading in '## Run it locally', '### Configuration', '## How a page is served', '### Forms and uploads', '### The double-send guard', '### Suggestions beside the subject', '### Form helpers (`portal-forms.js`)', '### Accessibility, layout and the base address', '### The help centre', '### SEO and structured data', '### Caching and the sitemap', '### The ticket page and attachments', '### The lost-link page', '## Where things live', '## Tests', '## Known gaps') {
             $guide | Should -Match ('(?m)^' + [regex]::Escape($heading))
         }
         foreach ($key in 'API__BASEURL', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TECHSTRAP_PORTAL_DEFAULT_PRODUCT', 'TECHSTRAP_PORTAL_SHOW_POWERED_BY', 'CANONICALHOST__CANONICALHOST') {
@@ -259,6 +260,30 @@ Describe 'D-045 addendum (PHASE-09c rulings, 2026-10-06)' {
     }
 }
 
+Describe 'D-045 addendum (PHASE-09d rulings, 2026-10-06)' {
+    BeforeAll {
+        $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md'
+        $script:Section = [regex]::Match($script:Log, '(?s)## D-045:.*?(?=\r?\n## D-\d+:|\z)').Value
+    }
+
+    It 'is a dated addendum inside D-045, not a new decision number' {
+        $script:Section | Should -Match '(?m)^### Addendum \(2026-10-06, PHASE-09d portal polish\)'
+        $script:Log | Should -Not -Match '(?m)^## D-046'
+    }
+
+    It 'records each ruling the 09d plan rests on and the spike findings' {
+        foreach ($phrase in 'SubmitId', 'FormGuard', 'SubmitGuard', 'own `MemoryCache`', 'RequestAborted', 'portal-forms.js', 'ts-copy-text', 'ts-char-count', '--ts-reading-width', '--p-error', 'PageLinks.ToFragment',
+                'data-enhance-nav', 'BodyHeadings', 'StartupFailure', 'ResponsiveStyleTests', 'HeadingHostTests', 'Seen', 'Spike findings', 'does not run a script that arrives with swapped content', 'Deviations from the brief') {
+            $script:Section | Should -Match ([regex]::Escape($phrase)) -Because "the addendum must mention $phrase"
+        }
+    }
+
+    It 'words the 09b note about a post to an unknown product as the same request, not a re-execution' {
+        $script:Section | Should -Match ([regex]::Escape('renders the not-found page in the same request'))
+        $script:Section | Should -Not -Match ([regex]::Escape('the framework re-executes the post'))
+    }
+}
+
 Describe 'D-045 as built in 09b' {
     BeforeAll {
         $log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md'
@@ -289,6 +314,46 @@ Describe 'D-045 as built in 09b' {
     }
 }
 
+Describe 'D-045 as built in 09d' {
+    BeforeAll {
+        $log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md'
+        $script:Section = [regex]::Match($log, '(?s)## D-045:.*?(?=\r?\n## D-\d+:|\z)').Value
+        $script:Guide = Get-RepoText 'docs/development/PORTAL-APP.md'
+        $script:Spec = Get-RepoText 'docs/architecture/PHASE-09-public-portal.md'
+    }
+
+    It 'records what the 09d build found, as consequences of the addendum' {
+        foreach ($phrase in 'As built in 09d: the double-send guard', 'As built in 09d: the form helpers', 'As built in 09d: links to the current page', 'As built in 09d: styles', 'As built in 09d: test hardening',
+                'Known in 09d: the guard is per instance', 'Known in 09d: the owner', 'Known in 09d: an `h1` in a body', 'Resolved in 09d') {
+            $script:Section | Should -Match ([regex]::Escape($phrase)) -Because "the as-built list must carry: $phrase"
+        }
+    }
+
+    It 'has a developer guide that describes the guard, the helpers, the base-address rule and the owner checklist' {
+        foreach ($phrase in 'SubmitGuard', 'SubmitIds', 'FormGuard', 'portal-forms.js', 'ts-copy-text', 'ts-char-count', 'PageLinks.ToFragment', 'data-enhance-nav', 'BodyHeadings', 'StartupFailure', 'ResponsiveStyleTests',
+                'HeadingHostTests', 'DoubleSendHostTests', '## Manual checks (owner, before merging 09d)', 'Lighthouse', 'axe', 'forced-colors', 'Double click') {
+            $script:Guide | Should -Match ([regex]::Escape($phrase)) -Because "PORTAL-APP.md must mention $phrase"
+        }
+        $script:Guide | Should -Not -Match 'merging them is PHASE-09d'
+        $script:Guide | Should -Not -Match 'there is no script to disable the button'
+    }
+
+    It 'lists the six semantic Portal tokens in BRAND.md' {
+        $brand = Get-RepoText 'docs/BRAND.md'
+        foreach ($token in '--p-error', '--p-error-bg', '--p-success', '--p-success-bg', '--p-warn', '--p-warn-bg') {
+            $brand | Should -Match ([regex]::Escape('`' + $token + '`')) -Because "BRAND.md must define $token"
+        }
+        $brand | Should -Match ([regex]::Escape('--ts-reading-width'))
+    }
+
+    It 'ticks T09 and the success criteria the tests prove, and leaves the owner evidence open' {
+        $script:Spec | Should -Match '(?m)^- \[x\] A customer can open'
+        $script:Spec | Should -Match '(?m)^- \[ \] Rate limits observe the real client IP through the portal\.'
+        $script:Spec | Should -Match '(?m)^- \[x\] `dotnet build`/`dotnet test` green \(the automated half'
+        $script:Spec | Should -Match '(?m)^- \[ \] Portal container healthy under compose \(the other half: the owner''s compose smoke, P09-T18\)\.'
+    }
+}
+
 Describe 'D-045 as built in 09c' {
     BeforeAll {
         $log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md'
@@ -306,10 +371,15 @@ Describe 'D-045 as built in 09c' {
         }
     }
 
-    It 'records the lower-case-only cache rule, the 09d search-box note and the article-only JSON-LD in the right places' {
+    It 'words the KbPlainText match timeout as 1 s, not 100 ms' {
+        $script:Section | Should -Match ([regex]::Escape('`KbPlainText` patterns have a 1 s match timeout'))
+        $script:Section | Should -Not -Match ([regex]::Escape('100 ms match timeout'))
+    }
+
+    It 'records the lower-case-only cache rule, the search-box merge and the article-only JSON-LD in the right places' {
         $script:Guide | Should -Match ([regex]::Escape('Only all-lowercase paths are kept'))
         $script:Guide | Should -Not -Match 'known exception'
-        $script:Guide | Should -Match ([regex]::Escape('merging them is PHASE-09d'))
+        $script:Guide | Should -Match ([regex]::Escape('merged in 09d'))
         $script:Section | Should -Match ([regex]::Escape('there is no exception'))
         $script:Section | Should -Not -Match 'timing-dependent'
         $script:Spec | Should -Match ([regex]::Escape('JSON-LD is on the article page only'))

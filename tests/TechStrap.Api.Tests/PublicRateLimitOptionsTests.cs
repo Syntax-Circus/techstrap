@@ -1,3 +1,5 @@
+using TechStrap.Tests.Shared;
+
 namespace TechStrap.Api.Tests;
 
 public sealed class PublicRateLimitOptionsTests
@@ -11,11 +13,9 @@ public sealed class PublicRateLimitOptionsTests
     {
         await using var factory = new ApiFactory(settings: new Dictionary<string, string?> { [key] = value });
 
-        var exception = Record.Exception(() => factory.CreateClient());
+        var failure = StartupFailure.Capture(factory, () => factory.LogSink.Events);
 
-        exception.ShouldNotBeNull();
-        exception.ToString().ShouldContain("OptionsValidationException");
-        exception.ToString().ShouldContain(key);
+        failure.Message.ShouldContain(key);
     }
 
     [Fact]

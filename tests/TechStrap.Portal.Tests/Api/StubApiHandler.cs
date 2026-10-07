@@ -22,7 +22,7 @@ public sealed class StubApiHandler : HttpMessageHandler
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     private readonly List<StubApiRequest> _requests = [];
-    private readonly List<(HttpMethod Method, string Path, Func<StubApiRequest, HttpResponseMessage> Respond)> _routes = [];
+    private readonly List<(HttpMethod Method, string Path, Func<StubApiRequest, CancellationToken, Task<HttpResponseMessage>> Respond)> _routes = [];
     private readonly object _gate = new();
 
     /// <summary>Every request received so far, in order.</summary>
@@ -41,7 +41,13 @@ public sealed class StubApiHandler : HttpMessageHandler
     public int Count(HttpMethod method, string path) => Requests.Count(r => r.Method == method && string.Equals(r.Path, path, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Answers requests for <paramref name="path"/> (path only, no query) with whatever <paramref name="respond"/> returns. A later route for the same method and path replaces an earlier one.</summary>
-    public StubApiHandler On(HttpMethod method, string path, Func<StubApiRequest, HttpResponseMessage> respond)
+    public StubApiHandler On(HttpMethod method, string path, Func<StubApiRequest, HttpResponseMessage> respond) => OnAsync(method, path, (request, _) => Task.FromResult(respond(request)));
+
+    /// <summary>
+    /// The same, for an answer a test holds back: the request is recorded when it arrives, and the answer is whatever the task gives, so a test can keep a write "in flight" while another request is made. The token is the
+    /// one the Portal's call was made with.
+    /// </summary>
+    public StubApiHandler OnAsync(HttpMethod method, string path, Func<StubApiRequest, CancellationToken, Task<HttpResponseMessage>> respond)
     {
         lock (_gate)
         {
@@ -126,14 +132,14 @@ public sealed class StubApiHandler : HttpMessageHandler
             body,
             request.Options.TryGetValue(ClientKey, out var client) ? client : null);
 
-        Func<StubApiRequest, HttpResponseMessage>? respond;
+        Func<StubApiRequest, CancellationToken, Task<HttpResponseMessage>>? respond;
         lock (_gate)
         {
             _requests.Add(seen);
             respond = _routes.FirstOrDefault(r => r.Method == seen.Method && string.Equals(r.Path, seen.Path, StringComparison.OrdinalIgnoreCase)).Respond;
         }
 
-        return respond is null ? Problem(HttpStatusCode.NotFound, "stub-not-configured", $"{seen.Method} {seen.Path} is not configured in the stub API.") : respond(seen);
+        return respond is null ? Problem(HttpStatusCode.NotFound, "stub-not-configured", $"{seen.Method} {seen.Path} is not configured in the stub API.") : await respond(seen, cancellationToken);
     }
 
     private static string? Header(HttpRequestMessage request, string name) => request.Headers.TryGetValues(name, out var values) ? string.Join(",", values) : null;

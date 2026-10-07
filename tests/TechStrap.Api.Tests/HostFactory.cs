@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -6,21 +5,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Serilog.Core;
 using Serilog.Events;
 using TechStrap.Api.Startup;
+using TechStrap.Tests.Shared;
 using TechStrap.Tests.Shared.AdminHost;
 
 namespace TechStrap.Api.Tests;
 
-/// <summary>Captures every Serilog event the host writes so tests can assert on log lines.</summary>
-public sealed class CollectingSink : ILogEventSink
-{
-    private readonly ConcurrentQueue<LogEvent> _events = new();
-
-    public IReadOnlyCollection<LogEvent> Events => _events.ToArray();
-
-    public void Emit(LogEvent logEvent) => _events.Enqueue(logEvent);
-}
-
-/// <summary>
+//// <summary>
 /// Starts one of the TechStrap hosts in-process. Settings are applied as lazily-bound in-memory
 /// configuration. TrustedProxy is NOT overridable this way: AddTrustedProxyForwardedHeaders binds it
 /// eagerly in Program.cs, before the factory's configuration is applied (see CLIENT_IP_RATE_LIMITING.md).

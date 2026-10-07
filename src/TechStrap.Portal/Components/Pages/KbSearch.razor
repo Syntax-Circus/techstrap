@@ -10,7 +10,7 @@ else if (Theme is { } theme)
 {
     <SeoHead Title="@KbCopy.SearchTitle(theme.DisplayName)" Description="@KbCopy.SearchDescription(theme.DisplayName)" RelativeUrl="@PortalRoutes.KbSearch(theme.Key)" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" NoIndex="@(Text.Length > 0)" />
     <KbBreadcrumbs Crumbs="@Crumbs(theme)" />
-    <h1>@KbCopy.HomeHeading</h1>
+    <h1>@KbCopy.SearchPageHeading</h1>
     <KbSearchBox ProductKey="@theme.Key" Query="@Text" />
     @if (Text.Length == 0)
     {

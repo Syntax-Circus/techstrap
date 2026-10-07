@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using TechStrap.Portal.Settings;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Portal.Tests.Settings;
 
@@ -34,7 +35,7 @@ public sealed class PortalOptionsHostTests
     {
         await using var factory = new PortalFactory(environment, new Dictionary<string, string?> { [key] = value });
 
-        var failure = Should.Throw<OptionsValidationException>(() => factory.CreateClient());
+        var failure = StartupFailure.Capture(factory, () => factory.LogSink.Events);
 
         failure.Message.ShouldContain(expectedInMessage);
     }

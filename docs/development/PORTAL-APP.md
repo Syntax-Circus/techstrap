@@ -2,12 +2,14 @@
 
 `TechStrap.Portal` is the public site customers use: a product's own help and support pages, with the product's name, logo and accent. It never touches the database: every page asks the TechStrap API,
 anonymously. This page is for people who run it and people who extend it. How agents work the tickets customers send is in [ADMIN-APP.md](ADMIN-APP.md); the decisions behind the Portal are D-045 in the
-[decision log](../architecture/04-DECISION-LOG.md) (with its 2026-10-06 addenda for 09b and 09c) and the spec is [PHASE-09](../architecture/PHASE-09-public-portal.md).
+[decision log](../architecture/04-DECISION-LOG.md) (with its 2026-10-06 addenda for 09b, 09c and 09d) and the spec is [PHASE-09](../architecture/PHASE-09-public-portal.md).
 
 PHASE-09 is delivered in four pull requests. **09a** is the foundation: the settings, the API client, the per-product theme and shell, the product home, the root page, the ticket-page headers, robots.txt, log
 redaction and the architecture rules. **09b** adds the customer flows: the contact form with its suggestions and received page, the ticket page with replies and the Closed follow-up, the attachment pass-through
 and the lost-link page. **09c** (this page describes all three) adds the help centre: the knowledge base home, category, search and article pages, the SEO head and structured data, output caching and the sitemap.
-**09d** is the polish pass (styling, accessibility, the no-JS check, the double-send guard and the copy button, counter and sending state). The routes of all of them are in `PortalRoutes`.
+**09d** is the polish pass: the double-send guard, the form helpers (the sending state, the copy button and the counter), the styling, the accessibility and the no-JS pass, and the hardening of the start-failure and
+uniform-404 tests. PHASE-09 is complete pending merge: what is still the owner's (the axe run, Lighthouse, the JavaScript-off walk, the screenshots and the compose smoke) is the checklist under
+[Manual checks](#manual-checks-owner-before-merging-09d). The routes of all of them are in `PortalRoutes`.
 
 ## Run it locally
 
@@ -77,15 +79,75 @@ nothing needs script and a refresh never sends twice.
   exactly like typed text. The form posts to the page's own address without the query. The `name`, `email`, `subject`, `ref` and `q` query values are masked in logs and Sentry.
 - **The received page** (`/p/{key}/contact/received?ref=`) shows the ticket number from a data-protected, 10-minute reference (`ReceivedReference`, purpose `TechStrap.Portal.ContactReceived.v1`). A missing, expired, tampered or
   foreign reference shows the generic confirmation, never an error. It carries the number only.
+- **A required field is said in words.** One sentence above each form says what is required (`ContactCopy.RequiredNote`, `LostLinkCopy.RequiredNote`, `TicketCopy.ReplyNote`); the labels stay as they are.
+
+### The double-send guard
+
+A double click on a form must not send twice (P09-T09). Each of the three forms renders `<FormGuard Name="Form.SubmitId" />` (`Reply.SubmitId` on the ticket page) right after the antiforgery field: a hidden input with a
+fresh 22-character random `SubmitId` (`SubmitIds.New`: 128 bits from `RandomNumberGenerator`), made anew on every render, so a form shown again after an error carries a new id, not the posted one. The handler
+claims the id with the singleton `SubmitGuard` after validation passes and before the API call.
+
+- **What a repeat does.** The first post with an id claims it under a lock and does the write; a repeat of the id never writes. It waits for the first's answer when that is still running or reads the stored one, and redirects
+  to the same place (a reply: the same ticket page, or the follow-up's page; contact: the received page with its reference; lost link: the sent page).
+- **The claimed write runs on its own token** with the guard's own deadline of 295 seconds (`SubmitGuard.WriteTimeout`: `ApiClientRegistration.WriteTimeoutSeconds`, the write client's 300 seconds sized for 25 MB uploads, less 5 seconds), never on `RequestAborted`: a real double click makes the browser abort the first POST while the API may already have the ticket. The guard's deadline is deliberately the shorter of the two, so it always fires first and a timeout is always "unknown" (never the client's own timeout racing it and releasing the claim for an upload that then commits); `SubmitGuardTests` pins it below the client's. The first
+  request waits for its own write without its abort token, so the files it is reading stay valid (a precaution, not reproduced).
+- **Unknown is not retried.** A write that times out or throws leaves the claim as unknown: a repeat goes to the fallback (a reply: the ticket page; contact: the received page with no reference, which shows its
+  generic confirmation; lost link: the sent page) and never sends. The first request shows its own calm notice with a 503 (`FormCopy.Unknown`, "We could not confirm it was sent. Check your email before sending again.": not "try again", because the message may have arrived).
+- **A failure releases the claim**, so a retry sends (429, 409, 503 and anything else, a 5xx or a transport failure too: accepted, D-045); a repeat that was waiting gets the same failure and does not write.
+- **A missing or malformed id means no guard**: the post goes through as it did before (old pages and the test kits keep working), and a full cache leaves a new post unguarded rather than refused.
+- **A resend after the back button is a new message.** After Back the visitor always has a fresh id: either the page is fetched again (`no-store`, a server-rendered id, and the `FormGuard` input is `autocomplete="off"` so the browser does not restore the old one), or it comes from the back/forward cache and `portal-forms.js` writes a new id into every form on that `pageshow`. So any resend after Back, edited or identical, is sent (confirmed in Edge: two ticket POSTs). The guard covers a double click and a refresh that re-posts the same id. The key also hashes a digest of what was posted (`SubmitContent.Digest`: the trimmed text fields, and each attachment's name and size in order), so an edited re-post that reuses an id is a new message too. Only a hash is kept; the text is never stored or logged.
+- **Scope and secrecy.** The key is a hash of the form name, the product key (or the ticket's access token), the id and the content digest, so an id cannot be used on another form, product or ticket, and the cache never holds a token or a word the visitor wrote.
+  `SubmitGuard` has its own `MemoryCache` with a cap of 10,000 claims (the shared `IMemoryCache` holds the sitemap and has no size), a claim lives 6 minutes (`SubmitGuard.Lifetime`: longer than the 295-second write deadline, shorter than `ReceivedReference.Lifetime`), the stored
+  target is memory-only and the class takes no logger. For a follow-up reply the target holds the new ticket's access token; that is accepted for the 6 minutes.
+- **Limits.** The guard is per instance and is lost on a restart (like the sitemap cache), and the API still has no idempotency key for `/api/customer` or the public ticket route. The tests are
+  `SubmitGuardTests` (the class on its own, with a gate that holds the write) and `DoubleSendHostTests` (the three forms through the host).
 
 ### Suggestions beside the subject
 
-The contact page puts `<ts-kb-suggestions field="subject" src="/p/{key}/suggest">` after the subject field, with a plain link to the help search inside it (shown only without script), and loads
-`wwwroot/js/kb-suggestions.js` as `<script type="module" src=...>` (no CSP change). The module defines the element: a 300 ms debounce, at least 3 characters, one request at a time (a newer one aborts the older
+The contact page puts `<ts-kb-suggestions field="subject" src="/p/{key}/suggest">` after the subject field, with a plain link to the help search inside it (shown only without script). The document shell (`App.razor`)
+loads `wwwroot/js/kb-suggestions.js` as `<script type="module" src=...>` (no CSP change), not the page: Blazor's enhanced navigation does not run a script that arrives with swapped content, so a script in the contact page's own
+body never ran for a visitor who got there by a click (09d). The module defines the element: a 300 ms debounce, at least 3 characters, one request at a time (a newer one aborts the older
 and its answer is dropped), results written with `textContent` and links built only from root-relative paths, hide-on-error, and clean-up in `disconnectedCallback`. It never parses text as markup, and a test fails
 if the file ever contains `innerHTML`. `GET /p/{key}/suggest?q=` (`SuggestEndpoint`) is the Portal-hosted adapter: it asks `IPublicKbClient.SearchAsync` (a read, forwarding the visitor's address), cuts the text at 200
 characters, returns at most 5 `{title, snippet, href}` items with the links built by `PortalRoutes.KbArticle`, passes the API's 429 through and answers an empty list for a blank text or any other failure.
 The module is tested with `node --test` (`tests/TechStrap.Portal.Tests/js/kb-suggestions.test.mjs`, run by `scripts/tests/PortalScripts.Tests.ps1`, skipped without node).
+
+### Form helpers (`portal-forms.js`)
+
+`wwwroot/js/portal-forms.js` is the second module the document shell loads (once). Every page works without it. It defines two custom elements and two document-level listeners, so it works on whatever
+Blazor's enhanced navigation swaps in (a listener on the document survives; the browser calls `connectedCallback` for an inserted element; a module in a page body would not run). It keeps its state in a `WeakMap`,
+never in an attribute of the markup, because the swap rewrites the attributes of an element it keeps. A same-page enhanced navigation (a form post that shows errors, a link to the same route) also keeps `ts-copy-text`, `ts-char-count` and
+`ts-kb-suggestions` but replaces their content with the server's (empty, or the no-script fallback link), and `connectedCallback` does not run again; so each element watches its own children with a `MutationObserver` and builds them again when they are gone (`data-permanent`
+was rejected: it would also keep the old page's field, limit and suggest path through a navigation to another product's page). Proven in Edge headless: after `Blazor.navigateTo` to the same address the counter, the suggestions and the copy button all still work in the same document.
+
+- **The sending state.** A form with `data-sending-label` (`FormCopy.Sending`, "Sending" and an ellipsis written as `\u2026`) gets its submit button disabled and relabelled when it is submitted, so a double click cannot post twice
+  (the server's one-time id is the real guard); a second submit of a form that is sending is cancelled; the button comes back on `pageshow` after the back button and after a minute (a post the visitor stopped); a submit that something else already cancelled leaves the button alone. On a `pageshow` from the cache every `input[name$=".SubmitId"]` also gets a fresh id (see "A resend after the back button").
+- **`<ts-copy-text target="ticket-number" data-label data-copied data-failed>`** on the received page renders a button that copies the number to the clipboard; when the browser refuses it selects the number, so Ctrl+C
+  works, and says so. Without script the number is still there to select (`.ts-ticket-number` is `user-select: all`).
+- **`<ts-char-count for="body" data-limit data-template data-over>`** under the long text fields shows "{0} of {1} characters used" from 80 percent of the limit, and how far over it is, bold and underlined, above it. A line
+  break counts as two characters, because the browser posts CR LF and the server counts what it receives, while the textarea's own `maxlength` counts one. The screen reader hears the count once typing pauses.
+- **Words and safety.** Every word comes from a `*Copy` constant through a data attribute; text goes on the page with `textContent` only (a node test fails if the file contains `innerHTML`, `eval`, a request or
+  a non-ASCII character); there is no inline script and no `on*` attribute, so the CSP is unchanged.
+- **Tests.** `tests/TechStrap.Portal.Tests/js/portal-forms.test.mjs` (run by `PortalScripts.Tests.ps1`) and `PortalFormsHostTests` (the shell loads both modules once and no page body has a script, the markup and the words).
+
+### Accessibility, layout and the base address
+
+- **Widths.** One token for the reading column (`--ts-reading-width`, 40rem: a form, the conversation, an article, the confirmation; the page puts its content in `.ts-reading`) and one for the wide container
+  (`--ts-wide-width`, 64rem: the header, the footer, search, the categories, the product home). One column below 768px; the category cards are two across from 768px and three from 1200px.
+- **Colours.** `--p-error`, `--p-success` and `--p-warn` and their grounds (BRAND.md, "Portal tokens") carry errors, confirmations and notices; a state is never colour alone (the summary has a heading and a list, a field in
+  error has text and a 2px border, the counter over its limit is bold and underlined). A control's edge is `--p-ink2`, not the decorative `--p-line`. Focus is a 3px ink ring with an accent halo; in forced colours the ring
+  stays and the halo is dropped; reduced motion switches every animation and transition off, and smooth scrolling is off in the build (`$enable-smooth-scroll: false`).
+- **Landmarks and headings.** A product page starts with a skip link (`.ts-skip-link`, off the screen until it has focus, in ink on the page so no accent can hide it) and `main` is `id="main" tabindex="-1"`. The header holds a
+  named `nav` (the product, the help centre and contact) and the footer a named `nav`; the "Powered by" footer is the one contentinfo. A neutral page (the root, not-found, error) has none of the product frame, so every
+  neutral 404 is still the same bytes. Every page has exactly one `h1` (`HeadingHostTests`); the search page's is "Search the help centre"; an `h1` inside an article or a message body, which the API's sanitiser allows, is
+  shown as an `h2` (`BodyHeadings`, the only change the Portal makes to those bodies).
+- **The `<base href="/">` rule.** The document's `base` is `/` (the stylesheet, the favicon and `blazor.web.js` are relative to it, and Blazor reads it), so a bare `href="#email"` is the home page. A link to a place on the
+  current page is written by `PageLinks.ToFragment` as the root-relative path plus the fragment (the error summary's field links, the skip link and the "jump to your reply" link on the ticket page), which the browser
+  treats as a jump, and carries `data-enhance-nav="false"`: Blazor takes a click on an in-page link, scrolls and leaves the focus on the link, while the browser moves the focus to the field. The query string is kept only for
+  the parameters the page itself reads (the contact prefill, `ref`, `sent`, `q` and `page`), in the address bar's own raw spelling (a form's `paper+jam` stays `paper+jam`), so a jump is not a reload that loses what the page shows, and an extra parameter is neither echoed nor kept in a copy the output
+  cache stores. `ErrorSummaryLinkHostTests` and `LayoutLandmarkHostTests` resolve each link against the base the way a browser does.
+- **Styles** are three partials after `_components`: `_layout.scss` (the widths and the breakpoints) and `_a11y.scss` (the semantic colours, the targets of at least 44px, forced colours, reduced motion). Every `ts-*` class the
+  markup uses has a rule (`ResponsiveStyleTests` scans the markup); `TokenContrastTests` checks every text pair of the Portal's tokens against WCAG AA in the compiled CSS.
 
 ### The help centre
 
@@ -97,7 +159,7 @@ Four pages, each on `ProductPageBase`, each static SSR with plain links and a GE
   characters; a page with a text is `noindex`; paging links keep the escaped text.
 - `/p/{key}/kb/{category}/{slug}` (`KbArticle`) shows the article: breadcrumbs, the title, the day it changed, the body and a "Still need help?" link. **`KbArticleBody` is the second and last place the Portal turns
   text into markup** (`PortalRules.MarkupStringSites` lists exactly it and `CustomerMessageBody`): the API renders the Markdown and sanitises the HTML (D-044), and the Portal passes it on byte for byte
-  (`KbArticleHostTests` compares it with the API's string). A plain-http image in an article is blocked by the CSP's `img-src 'self' https: data:` in Production; that is the intended posture.
+  (`KbArticleHostTests` compares it with the API's string), except that an `h1` in the body is shown as an `h2` (`BodyHeadings`), because the page's own title is its one `h1`. A plain-http image in an article is blocked by the CSP's `img-src 'self' https: data:` in Production; that is the intended posture.
 
 Everything an agent wrote or a visitor typed (a name, a title, a summary, a snippet, a search text) is plain text shown by Razor, which encodes it. `/p/{key}/kb/search/{x}` matches the article route with the category
 `search`, which the API reserves, so it is a 404.
@@ -123,7 +185,7 @@ hostile texts live in C# tests. The block is data, not script, so the CSP does n
 
 The help-centre home, a category page and an article page are kept for 60 seconds by the framework's output cache (`AddPortalOutputCache`, one base policy with the path predicate `PortalCachePaths.IsCacheable`; no
 attribute on a page). The key varies by the `page` query value only and never by host (the framework's default key holds the whole query string and the host, so `?utm=1`, `?utm=2` ... would fill the store); a `page`
-value is kept only on a category page and only from two up (the home and an article ignore `page`; `?page=1` is the page with no value); any other value is answered but never kept. Only all-lowercase paths are kept (a path with an upper-case letter is never stored or looked up), so a capitalised path can never be answered from the lower-case entry: `/p/ACME/kb` stays the neutral 404 and `/p/acme/KB` is a 200 that is never stored. The search page, the form pages, `/p/{key}` itself, `/t/*`, the suggest adapter, `/not-found`, the sitemap and every answer that is not a 200 are never kept,
+value is kept only on a category page and only from two up (the home and an article ignore `page`; `?page=1` is the page with no value); any other value is answered but never kept. A category page is kept only when its raw `Request.QueryString` is empty or literally `?page=` and 2 to 9999: `?PAGE=2`, `?pa%67e=2`, `?page=%32` and any request with another parameter are answered but never stored, because the page's links repeat the address bar's own spelling and a stored copy would hand one visitor's spelling to the next. Only all-lowercase paths are kept (a path with an upper-case letter is never stored or looked up), so a capitalised path can never be answered from the lower-case entry: `/p/ACME/kb` stays the neutral 404 and `/p/acme/KB` is a 200 that is never stored. The search page, the form pages, `/p/{key}` itself, `/t/*`, the suggest adapter, `/not-found`, the sitemap and every answer that is not a 200 are never kept,
 and the output cache never stores a response that sets a cookie (no help-centre page does). A delivered KB page tells browsers `Cache-Control: public, max-age=60` (`PathHeaderRule.SetOnSuccess` in Hosting: a 404,
 429 or 503 never gets it); the search page is `no-store`. `UsePortalOutputCache` goes after the error pages and before the endpoints (`ProgramOrderTests` pins the order), so the shared security headers and the per-path
 rules are applied to a cached answer too, and it sets the request's own `X-Correlation-Id` again when the response starts, because a stored copy replays the first request's.
@@ -196,13 +258,15 @@ src/TechStrap.Portal/
     Layout/       PortalLayout, ProductHeader, ProductFooter
     Pages/        Home (the root), ProductHome, KbHome, KbCategory, KbSearch, KbArticle, Contact, ContactReceived, Ticket, LostLink, NotFound, Error, StyleGuide (Development only)
     Tickets/      CustomerMessageBody (a markup site), MessageThread, TicketStatusBanner
-    Ui/           AccentScope, PoweredByFooter, ProductUnavailable, DevelopmentOnly, ErrorSummary, FieldError, FormField, AttachmentInput, HoneypotField, Pager, StateMessage
+    Ui/           AccentScope, PoweredByFooter, ProductUnavailable, DevelopmentOnly, ErrorSummary, FieldError, FormField, FormGuard, AttachmentInput, HoneypotField, Pager, StateMessage
+    BodyHeadings.cs  an h1 in an author's body is shown as an h2
     KbCopy.cs     the words of the help centre (beside ShellCopy)
-  Forms/          FormError and FormFields, FormCopy, FormFailure, AttachmentRules, EmailRules, ContactFormViewModel and its validator, ReplyForm, LostLinkForm, ContactCopy, ReceivedReference
+  Forms/          FormError and FormFields, FormCopy, FormFailure, AttachmentRules, EmailRules, ContactFormViewModel and its validator, ReplyForm, LostLinkForm, ContactCopy, ReceivedReference,
+                  SubmitIds, SubmitKey and SubmitGuard (the double-send guard)
   Kb/             KbPaging, KbSearchText (plain helpers the pages and the suggest adapter share)
   Headers/        PortalHeaderRules (the /t rules, the attachment sandbox, the form pages and the help centre)
   Products/       ProductThemeViewModel, ProductScope, ProductPageBase
-  Routing/        PortalRoutes, ProductKeyShape, KbSlugShape
+  Routing/        PortalRoutes, PageLinks (a link to a place on the current page), ProductKeyShape, KbSlugShape
   Seo/            PortalSeoRegistration (Blazor.Seo: base URL, robots.txt, the sitemap, canonical host), PortalSitemap, PortalSitemapBuilder, PortalSitemapCache, JsonLdText,
                   KbStructuredData (the breadcrumb and article records), KbSeo
   Settings/       PortalOptions and its validator
@@ -210,7 +274,7 @@ src/TechStrap.Portal/
   Tickets/        CustomerTicketPresenter and its view models, TicketCopy, FollowUpLink, AttachmentPassThrough
   Uploads/        RequestTooLargeMiddleware
   Styles/         SCSS partials over the brand tokens (docs/BRAND.md)
-  wwwroot/js/     kb-suggestions.js
+  wwwroot/js/     kb-suggestions.js, portal-forms.js (both loaded once by App.razor)
 ```
 
 Rules the code follows (the architecture tests check them): the Portal references **Contracts and Hosting only**; **components never inject `HttpClient`** (only `Clients/` mentions it); no inline script
@@ -224,16 +288,45 @@ Portal added. `ProxyHopStartupFilter` puts the host behind a trusted reverse pro
 path no Portal route matches. A test that needs the real server (a request size limit) calls `UseKestrel(0)` and `StartServer()` and reads the address from `IServerAddressesFeature`. bUnit covers the layout and
 the shared help-centre components; the help-centre host tests (`Kb/`) parse the page with AngleSharp (which bUnit brings) and assert on elements, the JSON-LD is parsed as JSON, and `OutputCachePipelineTests` builds a
 small host with the real wiring to prove what the cache keeps. The cache and sitemap-cache tests that wait use short real lifetimes, because a `MemoryCache` has no `TimeProvider`.
-`tests/TechStrap.Portal.Tests/js` holds the node tests of the browser module. The shared rules are in `TechStrap.Architecture.Tests` (`PortalRules`), the Hosting header-rule mechanism in `TechStrap.Api.Tests`
+`tests/TechStrap.Portal.Tests/js` holds the node tests of the two browser modules. The start-failure tests of all three test projects use the one `tests/Shared/StartupFailure.cs`, which reads a host's refusal to start
+from the log sink of its factory when `CreateClient()` loses a race with the host's disposal, and the "neutral 404" tests compare `Seen`, which holds every response header except the per-request ones. The accessibility and
+style tests are `ResponsiveStyleTests`, `TokenContrastTests`, `CspStyleTests`, `HeadingHostTests`, `LayoutLandmarkHostTests` and `ErrorSummaryLinkHostTests`; the double-send tests are `SubmitGuardTests` and `DoubleSendHostTests`. The shared rules are in `TechStrap.Architecture.Tests` (`PortalRules`), the Hosting header-rule mechanism in `TechStrap.Api.Tests`
 (`PathHeaderRuleHostTests`), and the log and Sentry redaction in `TechStrap.Api.Tests`.
+
+## Manual checks (owner, before merging 09d)
+
+The tests read the compiled CSS and the markup and run the host in memory; they cannot see a layout, a screen reader or a real browser. These checks close **P09-T16** and, with the compose run, **P09-T18**, and each result is
+recorded in the pull request (the checklist there is ticked by the owner). Run the Portal against an API with the Development seed (`orbitly` and `paperplane`), in Chrome with the DevTools Console open.
+
+1. No CSP errors on the Portal's pages: `/`, `/p/paperplane`, the contact form, the received page, a ticket page, the help centre, an article. No `Refused to ...` lines; the fonts and the CSS load; both modules load (`js/kb-suggestions.*.js` and `js/portal-forms.*.js`, status 200, `text/javascript`).
+2. Run the axe browser extension on the product home, the contact form (with the error summary showing), the received page, a ticket page, the help-centre home, a category page, search results and an article: no critical findings. Record the result.
+3. Run Lighthouse (accessibility) on the contact form, a ticket page and an article: at least 90 each. Record the scores.
+4. JavaScript off (DevTools, Disable JavaScript): contact form -> submit -> received page, and a ticket -> reply -> the same page, work end to end; the received page still shows the number (it can be selected); the skip link jumps to the main content; an error summary link moves the focus to its field.
+5. Screenshots at 360, 768 and 1280 px of the product home, the contact form, the contact form with errors, the received page, the ticket page and an article: one column on a phone, no horizontal scroll, the category cards two across from 768 and three from 1200, nothing clipped. Attach them to the pull request.
+6. Keyboard only: Tab goes first to the skip link (visible), then the header navigation; Enter on the skip link moves the focus to the main content; on a form with errors the summary has the focus when the page opens and each link moves the focus to its field; focus is visible everywhere.
+7. Click the contact button on the product home (an enhanced navigation) and type in the subject: the article suggestions appear. Then do the same from a page that was loaded directly.
+8. Double click "Send message" on the contact form, "Send" on a ticket reply and "Send me a new link": one ticket, one reply, one email (check the Mailpit inbox and the Admin queue); the button shows "Sending" until the page changes. Press the back button after a send: the button is usable again.
+9. On the received page click "Copy ticket number": the number is on the clipboard and "Copied" shows; in a page opened over plain http from another address (no clipboard) the number is selected and the sentence says so.
+10. Type or paste about 85,000 characters into the message: the counter appears and counts; a long text with many line breaks shows it over the limit before the server would say so.
+11. Forced-colours emulation (DevTools > Rendering > Emulate CSS media feature forced-colors): a 3px outline on the focused control, the skip link bordered, the error summary and the status banner outlined. Reduced-motion emulation: no animation. The console shows no CSP violations in either.
+12. 400 percent zoom and increased text spacing (a bookmarklet or the Text Spacing extension): nothing is lost or overlaps.
+13. The hostile accents: set a product's accent to `#F59E0B`, `#0F3D2E`, a red, a grey, a near-black and a blue in the Admin and look at the contact form and the product home: text, buttons, the skip link and focus stay readable.
+14. A screen reader (NVDA or VoiceOver) on the contact form with errors, and on a ticket page: the landmarks are announced with their names (Main, the footer navigation, "Powered by"); the error summary is announced once; the counter speaks after a pause, not on every key.
+15. An invalid token, an unknown product and an unpublished article look the same (the neutral 404 page).
+16. The compose smoke (`pwsh scripts/Test-ComposeSmoke.ps1`) and the contact flow under `docker compose up` (P09-T18): the Portal is healthy, and hitting the contact form repeatedly from one client address trips the API's 429 for that address only.
+17. The back button: send a contact message, press Back, edit the text, send again within 6 minutes: the second message arrives (a second ticket, with the edited text). Send, Back, send again without editing: it also arrives (Back gives a fresh form). A double click, or a refresh that re-posts, sends once.
 
 ## Known gaps
 
-- `ProductHome` and `KbHome` each carry a search box, so the product home shows a duplicate of the help-centre one; merging them is PHASE-09d.
+- The product home has the shared search box (`KbSearchBox`, merged in 09d) and the header's link to the help centre, but still no list of categories.
 - The sitemap build's API calls carry the address of the visitor whose request started it, so each sitemap build makes 1 + N API calls under one forwarded IP, and the API's public limit is 120 per minute per IP:
   with about 120 or more active products the sitemap build is rate-limited and the sitemap goes stale or becomes unavailable. Possible later fixes are a bulk sitemap endpoint, or exempting the Portal's own build traffic from the limit.
-- The help centre has no category description on its category page and the product home has no category list; the visual polish, the accessibility and no-JS pass and the double-send guard are PHASE-09d.
-- There is no "copy" button for the ticket number, no live character counter and no "sending" state on the submit button: they need script, and the Portal keeps every flow script-free (09d decides).
+- The help centre has no category description on its category page and the product home has no category list (the article list does not carry a description, and a second call per page was not worth it).
+- The form helpers need script (the sending state, the copy button, the counter) and are only extras: every flow works without them, which is the owner's JavaScript-off walk below.
+- The double-send guard is per instance and is lost on a restart, and two Portal replicas do not share it (like the sitemap cache); the API has no idempotency key for the two public writes.
+- The Blazor DOM diff of an enhanced navigation rewrites the attributes of an element it keeps, and the children a script added to such an element. The helpers are built for it (a custom element rebuilds in
+  `connectedCallback` and again from a `MutationObserver` when its children were stripped; the sending state is in a `WeakMap`); a browser check of a link to the same page type is in the manual checklist.
+- An address with parameters the page does not read gets a skip link that reloads to the cleaned address (the link keeps only the parameters the page reads, so it is no longer a same-document jump there). Focus still lands on the main content.
 - The package's `JsonLd` component is unsafe for any text an author wrote (see SEO); the Portal does not use it for strings, and the problem is to be reported to `SyntaxCircus.Blazor.Seo`.
 - A chunked post over the size limit is the framework's 400 about an antiforgery token, not a 413 (a browser form post always declares its length).
 - A post to an unknown product is the framework's plain-text 400 ("Cannot submit the form 'contact' because no form on the page currently has that name."), not the 404 page a GET gets: the product page ends in `NotFound()` before the form is rendered, so there is no form to post to. Nothing is created. A post to a malformed or unknown ticket token is the same for the form `reply`, with an identical body, so nothing tells the two apart.
@@ -244,4 +337,4 @@ small host with the real wiring to prove what the cache keeps. The cache and sit
 - The Portal does not use `GlobalErrorBoundary`: its Try again button needs interactivity, and catching a render error in the page would answer 200 with a branded page instead of the plain 500 error page.
 - Sentry has no general email rule: it masks the `name`, `email`, `subject` and `ref` query values and the `/t/{token}` path only (Serilog's email pattern does catch addresses in logs).
 - If OpenTelemetry tracing were enabled, server spans would carry `url.path=/t/<token>`. It is off by default; masking it is a follow-up.
-- A double click on "Send message" can send twice before the redirect arrives (there is no script to disable the button); the API creates a ticket for each (09d adds a guard).
+- The Portal's own `Seen` comparison ignores the antiforgery `Set-Cookie` (other cookies are compared by name) and ignores `Pragma` only when the antiforgery cookie is in play, set by the response or sent with the request (the framework's antiforgery step adds both to a response that rendered a form, which a post to a product that vanished after its form was served still carries): a visitor holding that form already knew the product.

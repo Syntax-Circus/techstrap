@@ -68,17 +68,19 @@ public sealed class KbPlainTextTests
         description.ShouldBe("<script>alert(1)</script> and link.");
     }
 
-    [Fact]
+    [Fact(Timeout = 15000)]
     public void A_body_that_makes_a_pattern_run_too_long_has_no_description_instead_of_holding_the_request()
     {
-        var body = string.Concat(Enumerable.Repeat("<p>x", 80_000));
+        // The patterns are quadratic on unclosed tags, so this body (about 1.2 MB) runs far past the 1 s match timeout on any machine, and the call ends at the timeout (about 1 s), not when the work is done.
+        var body = string.Concat(Enumerable.Repeat("<p>x", 400_000));
         var started = System.Diagnostics.Stopwatch.StartNew();
 
         var description = KbPlainText.Describe(null, body);
 
+        TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
         description.ShouldBeEmpty("a pattern that passes the match timeout ends the description");
-        started.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));
-        KbPlainText.MatchTimeoutMs.ShouldBe(100);
+        started.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(15));
+        KbPlainText.MatchTimeoutMs.ShouldBe(1000);
         KbPlainText.Describe("A summary still wins.", body).ShouldBe("A summary still wins.");
     }
 

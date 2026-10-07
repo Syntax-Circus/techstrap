@@ -3,6 +3,7 @@
     @if (Rows > 0)
     {
         <textarea id="@Field" name="@Name" class="form-control" rows="@Rows" maxlength="@MaxLength" required aria-describedby="@(Error is null ? null : FormFields.ErrorId(Field))" aria-invalid="@(Error is null ? null : "true")">@Value</textarea>
+        <ts-char-count for="@Field" data-limit="@MaxLength" data-template="@FormCopy.CounterTemplate" data-over="@FormCopy.CounterOver" class="ts-char-count" hidden></ts-char-count>
     }
     else
     {

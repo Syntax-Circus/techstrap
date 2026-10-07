@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using SyntaxCircus.Common;
 using TechStrap.Portal.Clients;
 using TechStrap.Portal.Forms;
 using TechStrap.Portal.Products;
@@ -26,6 +27,9 @@ public partial class LostLink : ProductPageBase
 
     [Inject]
     private NavigationManager Redirects { get; set; } = default!;
+
+    [Inject]
+    private SubmitGuard Guard { get; set; } = default!;
 
     [Inject]
     private IHttpContextAccessor Http { get; set; } = default!;
@@ -59,15 +63,26 @@ public partial class LostLink : ProductPageBase
             return;
         }
 
-        var result = await Customers.RequestAccessLinkAsync(form.Email!.Trim(), Http.HttpContext?.RequestAborted ?? CancellationToken.None);
-        if (result.IsSuccess)
+        // A double click asks for one email, not two: the id this form carried claims the write (D-045 09d addendum). The target never depends on the answer, so a repeat always goes to the same page.
+        var sent = new SubmitTarget(PortalRoutes.LostLinkSent(Key));
+        var email = form.Email!.Trim();
+        var outcome = await Guard.RunAsync(
+            SubmitKey.TryCreate(FormHandler, Key, form.SubmitId, SubmitContent.Digest([form.Email])),
+            sent,
+            async cancellation =>
+            {
+                var result = await Customers.RequestAccessLinkAsync(email, cancellation);
+                return result.IsSuccess ? Result<SubmitTarget>.Success(sent) : Result<SubmitTarget>.Failure(result.Errors[0], [.. result.Errors.Skip(1)]);
+            },
+            RequestAborted);
+        if (outcome.Status == SubmitStatus.Done)
         {
-            Redirects.NavigateTo(PortalRoutes.LostLinkSent(Key));
+            Redirects.NavigateTo(outcome.Target.Path!);
             return;
         }
 
         // The route has no product or ticket for the API to not find, so a not-found here is the API misrouted: the same calm notice as an outage.
-        var failure = FormFailure.From(result.Errors);
+        var failure = outcome.Status == SubmitStatus.Failed ? FormFailure.From(outcome.Errors) : FormFailure.Unknown;
         if (failure.IsNotFound)
         {
             failure = new FormFailure([], FormCopy.Unavailable, StatusCodes.Status503ServiceUnavailable, false);

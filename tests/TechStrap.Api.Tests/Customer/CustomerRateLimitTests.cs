@@ -7,6 +7,7 @@ using TechStrap.Api.Options;
 using TechStrap.Api.Tests.Auth;
 using TechStrap.Contracts.Http;
 using TechStrap.Contracts.Tickets;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Api.Tests.Customer;
 
@@ -96,10 +97,8 @@ public sealed class CustomerRateLimitTests(TestPostgres postgres)
         var key = $"{CustomerRateLimitOptions.SectionName}:{property}";
         await using var factory = new ApiFactory(settings: new Dictionary<string, string?> { [key] = "0" });
 
-        var exception = Record.Exception(() => factory.CreateClient());
+        var failure = StartupFailure.Capture(factory, () => factory.LogSink.Events);
 
-        exception.ShouldNotBeNull();
-        exception.ToString().ShouldContain("OptionsValidationException");
-        exception.ToString().ShouldContain(key);
+        failure.Message.ShouldContain(key);
     }
 }

@@ -2,9 +2,9 @@ using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using SyntaxCircus.EntityFrameworkCore.Postgres;
 using TechStrap.Infrastructure.Persistence;
+using TechStrap.Tests.Shared;
 using TechStrap.Worker.Outbox;
 
 namespace TechStrap.Api.Tests;
@@ -87,7 +87,7 @@ public sealed class HostHealthSmokeTests(TestPostgres postgres)
         };
         await using var factory = new WorkerFactory(settings: settings);
 
-        var error = Should.Throw<OptionsValidationException>(() => factory.CreateClient());
+        var error = StartupFailure.Capture(factory, () => factory.LogSink.Events);
         error.Message.ShouldContain("Email:Smtp:Host");
     }
 

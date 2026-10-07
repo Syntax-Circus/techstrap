@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Mvc.Testing;
 using TechStrap.Portal.Settings;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Portal.Tests.Products;
 
@@ -66,6 +67,6 @@ public sealed class RootPageHostTests
     {
         await using var factory = new PortalFactory(settings: Default("Not A Slug"));
 
-        Should.Throw<Microsoft.Extensions.Options.OptionsValidationException>(() => factory.CreateClient());
+        StartupFailure.Capture(factory, () => factory.LogSink.Events);
     }
 }

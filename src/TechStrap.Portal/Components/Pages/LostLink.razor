@@ -4,6 +4,7 @@
 @if (Theme is { } theme)
 {
     <PageTitle>@LostLinkCopy.Title(theme.DisplayName)</PageTitle>
+    <div class="ts-reading">
     <h1>@LostLinkCopy.Heading</h1>
     @if (SentFlag == "1")
     {
@@ -18,12 +19,15 @@
         {
             <p class="alert alert-warning" role="alert">@Notice</p>
         }
-        <form method="post" action="@PortalRoutes.LostLink(theme.Key)" novalidate @formname="@FormHandler" @onsubmit="SubmitAsync" class="ts-form">
+        <p class="ts-form-note">@LostLinkCopy.RequiredNote</p>
+        <form method="post" action="@PortalRoutes.LostLink(theme.Key)" novalidate @formname="@FormHandler" @onsubmit="SubmitAsync" class="ts-form" data-sending-label="@FormCopy.Sending">
             <AntiforgeryToken />
+            <FormGuard Name="Form.SubmitId" />
             <FormField Field="@FormFields.Email" Name="Form.Email" Label="@LostLinkCopy.EmailLabel" Value="@Form?.Email" MaxLength="@TechStrap.Contracts.Intake.IntakeLimits.EmailMaxLength" Type="email" Autocomplete="email" Error="@ErrorOf(FormFields.Email)" />
             <button type="submit" class="btn btn-primary">@LostLinkCopy.Submit</button>
         </form>
     }
+    </div>
 }
 else if (UnavailableMessage is not null)
 {

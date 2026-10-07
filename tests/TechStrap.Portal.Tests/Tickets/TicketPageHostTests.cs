@@ -199,8 +199,11 @@ public sealed class TicketPageHostTests
 
         html.ShouldNotContain("[token]");
         var contexts = TicketTestKit.TokenContexts(html);
-        contexts.Count.ShouldBe(2, "the form action and the one attachment link");
+        // The form action, the one attachment link, and the two jumps within this very page (the skip link and "jump to your reply": a root-relative address plus a fragment, because a bare #fragment would resolve
+        // against the document's base to the home page).
+        contexts.Count.ShouldBe(4);
         contexts.ShouldAllBe(c => c.Contains("action=\"/t/", StringComparison.Ordinal) || c.Contains("href=\"/t/", StringComparison.Ordinal));
+        Regex.Matches(html, "href=\"/t/" + TicketTestKit.Token + "#(main|reply)\"").Count.ShouldBe(2);
         html.ShouldNotContain("?" + TicketTestKit.Token);
         html.ShouldNotContain("=" + TicketTestKit.Token);
         Regex.Match(html, "<title>.*?</title>").Value.ShouldNotContain(TicketTestKit.Token);

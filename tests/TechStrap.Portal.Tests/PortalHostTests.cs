@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Options;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Portal.Tests;
 
@@ -56,7 +57,7 @@ public sealed class PortalHostTests
         await using var root = new PortalFactory();
         await using var factory = root.WithWebHostBuilder(b => b.UseSetting("TECHSTRAP_PORTAL_SHOW_POWERED_BY", "maybe"));
 
-        var failure = StartupFailure.Capture(factory, root);
+        var failure = StartupFailure.Capture(factory, () => root.LogSink.Events);
 
         failure.Message.ShouldContain("TECHSTRAP_PORTAL_SHOW_POWERED_BY");
     }

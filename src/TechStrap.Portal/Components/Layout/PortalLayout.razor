@@ -4,9 +4,11 @@
     <div class="ts-portal">
         @if (Theme is { } header)
         {
+            @* The skip link belongs to the product header it skips. A neutral page (the root, not-found, error) has none: its body must stay the same for every address, byte for byte, and the link is built from the address. *@
+            <a class="ts-skip-link" href="@SkipHref" data-enhance-nav="false">@ShellCopy.SkipToMain</a>
             <ProductHeader Theme="header" />
         }
-        <main class="ts-portal-main">@Body</main>
+        <main id="main" tabindex="-1" class="ts-portal-main">@Body</main>
         @if (Theme is { } footer)
         {
             <ProductFooter Theme="footer" />

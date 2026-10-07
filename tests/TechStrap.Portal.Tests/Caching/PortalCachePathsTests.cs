@@ -72,13 +72,27 @@ public sealed class PortalCachePathsTests
 
     [Theory]
     [InlineData("")]
-    [InlineData("?")]
     [InlineData("?page=2")]
+    [InlineData("?page=9")]
+    [InlineData("?page=10")]
     [InlineData("?page=9999")]
+    public void A_category_with_no_query_or_literally_a_plain_page_number_is_kept(string query) => Cacheable("/p/paperplane/kb/accounts", query).ShouldBeTrue(query);
+
+    [Theory]
+    [InlineData("?")]
+    [InlineData("?PAGE=2")]
+    [InlineData("?Page=2")]
+    [InlineData("?pa%67e=2")]
+    [InlineData("?page=%32")]
+    [InlineData("?page=2%30")]
+    [InlineData("?%70age=2")]
     [InlineData("?PAGE=7")]
     [InlineData("?utm_source=mail&utm_campaign=x")]
     [InlineData("?page=3&utm=1")]
-    public void A_category_with_no_page_value_or_a_plain_page_number_is_kept(string query) => Cacheable("/p/paperplane/kb/accounts", query).ShouldBeTrue(query);
+    [InlineData("?utm=1&page=3")]
+    [InlineData("?page=3&")]
+    [InlineData("?page=3#x")]
+    public void A_category_request_is_kept_only_for_the_raw_query_the_page_links_use_so_no_other_spelling_is_ever_stored(string query) => Cacheable("/p/paperplane/kb/accounts", query).ShouldBeFalse(query);
 
     [Theory]
     [InlineData("?page=")]

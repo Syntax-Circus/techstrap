@@ -1,0 +1,236 @@
+// Portal accessibility styling (PHASE-09d, T16; BRAND.md sections 17, 18 and 24; UX-BRIEF-portal). Imported last. WCAG 2.2 AA.
+//
+// The semantic colours are the --p-error, --p-success and --p-warn tokens of BRAND.md (never a product accent). A state is never colour alone: the error summary has a heading and a list, a success has its sentence,
+// a field in error has text and a heavier border, the counter over its limit is bold and underlined.
+
+// ---- skip link and the focus target of main ----
+
+.ts-skip-link {
+  position: absolute;
+  top: -100px;
+  left: 8px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  font-weight: 600;
+  color: var(--p-ink);
+  text-decoration: underline;
+  background: var(--p-bg);
+  border: 2px solid var(--p-ink);
+  border-radius: $border-radius;
+
+  &:focus,
+  &:focus-visible {
+    top: 8px;
+  }
+}
+
+// main takes focus when the skip link is used (tabindex -1); the container itself shows no ring.
+.ts-portal-main:focus {
+  outline: none;
+  box-shadow: none !important;
+}
+
+// ---- messages and errors ----
+
+.alert-danger.ts-error-summary {
+  --bs-alert-color: var(--p-ink);
+  --bs-alert-bg: var(--p-error-bg);
+  --bs-alert-border-color: var(--p-error);
+  --bs-alert-link-color: var(--p-error);
+  border-width: 2px;
+
+  h2 {
+    color: var(--p-error);
+  }
+
+  a {
+    color: var(--p-error);
+    font-weight: 600;
+  }
+}
+
+.alert-warning {
+  --bs-alert-color: var(--p-ink);
+  --bs-alert-bg: var(--p-warn-bg);
+  --bs-alert-border-color: var(--p-warn);
+  --bs-alert-link-color: var(--p-warn);
+  border-width: 2px;
+}
+
+.ts-field-error {
+  color: var(--p-error);
+  font-weight: 500;
+}
+
+.form-control[aria-invalid="true"] {
+  border-color: var(--p-error);
+  border-width: 2px;
+}
+
+.ts-confirmation {
+  padding: 12px 16px;
+  color: var(--p-ink);
+  background: var(--p-success-bg);
+  border: 2px solid var(--p-success);
+  border-radius: $border-radius;
+}
+
+// A control's edge must be seen by everyone (WCAG 1.4.11): the neutral border is the secondary ink, not the decorative line colour.
+.form-control,
+.form-select {
+  border-color: var(--p-ink2);
+}
+
+.form-text {
+  color: var(--p-ink2);
+}
+
+// ---- the form helpers (portal-forms.js) ----
+
+.ts-form-note {
+  margin: 0 0 16px;
+  color: var(--p-ink2);
+}
+
+.ts-form {
+  display: block;
+}
+
+.ts-char-count {
+  display: block;
+  margin-top: 4px;
+  font-size: .875rem;
+  color: var(--p-ink2);
+  text-align: right;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+.ts-count-text {
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-count-over {
+  font-weight: 700;
+  color: var(--p-error);
+  text-decoration: underline;
+}
+
+.ts-copy {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: center;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.ts-copy-button {
+  white-space: nowrap;
+}
+
+.ts-copy-status {
+  font-size: .875rem;
+  color: var(--p-ink2);
+}
+
+// A form that is being sent: the button is disabled and says so; it must still read as a button (not faded to nothing).
+.btn:disabled {
+  opacity: .75;
+  cursor: progress;
+}
+
+// ---- target sizes: every link a visitor may have to hit is at least 44px tall (BRAND.md section 24) ----
+
+.ts-site-nav-links a,
+.ts-breadcrumbs a,
+.ts-pager a,
+.ts-pager-state,
+.ts-next-links a,
+.ts-product-footer a,
+.ts-powered a,
+.ts-error-summary a,
+.ts-help-link a,
+.ts-jump-reply,
+.ts-attachments a,
+.ts-kb-card h2 a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.ts-product-footer {
+  padding-top: 8px;
+}
+
+.ts-powered a {
+  min-height: 44px;
+  padding: 0 4px;
+}
+
+.ts-next-links {
+  padding-left: 0;
+  list-style: none;
+}
+
+.ts-jump-reply {
+  margin-bottom: 8px;
+}
+
+// ---- forced colours (Windows high contrast): keep what colour alone would say, and keep the 3px focus outline (the accent halo is dropped) ----
+
+@media (forced-colors: active) {
+  :focus-visible,
+  .btn:focus-visible,
+  .form-control:focus,
+  .form-select:focus,
+  .form-check-input:focus {
+    outline: 3px solid Highlight !important;
+    box-shadow: none !important;
+  }
+
+  .ts-skip-link {
+    border: 2px solid CanvasText;
+  }
+
+  .ts-error-summary,
+  .ts-confirmation,
+  .alert-warning {
+    border: 2px solid CanvasText;
+  }
+
+  .ts-status-banner,
+  .ts-message-own {
+    border-left: 6px solid Highlight;
+  }
+
+  .form-control[aria-invalid="true"] {
+    border: 3px solid CanvasText;
+  }
+
+  .btn:disabled {
+    color: GrayText;
+    border-color: GrayText;
+    opacity: 1;
+  }
+
+  .ts-count-over {
+    border-bottom: 2px solid CanvasText;
+  }
+}
+
+// ---- reduced motion (BRAND.md section 17): nothing animates or transitions ----
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

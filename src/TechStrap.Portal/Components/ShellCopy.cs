@@ -18,6 +18,14 @@ public static class ShellCopy
     public const string ContactSupport = "Contact support";
     public const string LostLinkPrompt = "Lost your ticket link?";
 
+    public const string SkipToMain = "Skip to main content";
+
+    // The landmarks (the accessible names of the two navigation regions).
+    public const string NavLabel = "Main";
+    public const string NavHelp = "Help articles";
+    public const string NavContact = "Contact support";
+    public const string FooterNavLabel = "More help";
+
     // The calm failure state of a product page.
     public const string UnavailableTitle = "This page could not be loaded.";
     public const string UnavailableRetry = "Try again";

@@ -1,0 +1,105 @@
+// Portal layout widths and the responsive rules (PHASE-09d, T16). Imported after _components, so a rule here refines one there.
+//
+// Two widths, each one token (BRAND.md section 14): a reading column (a form, the conversation, an article, a confirmation) and a wide container (the header, the footer, search, the categories, the product home).
+// Mobile first: one column below 768px, nothing wider than the screen at 360px, and no horizontal scroll of the page (a wide table or code block scrolls in its own box, in _components).
+
+:root,
+[data-bs-theme="light"] {
+  --ts-reading-width: 40rem;
+  --ts-wide-width: 64rem;
+  --ts-gutter: 16px;
+}
+
+// A reading page puts its content in this column; a wide page does not.
+.ts-reading {
+  max-width: var(--ts-reading-width);
+}
+
+.ts-portal-main,
+.ts-product-header,
+.ts-product-footer {
+  max-width: var(--ts-wide-width);
+}
+
+.ts-portal-main {
+  padding: 24px var(--ts-gutter) 32px;
+}
+
+.ts-portal {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+// The header: the product's name and logo on the left, the two ways in on the right; they wrap under the name on a phone.
+.ts-site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 24px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ts-site-nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// The search box: a text box and its button on one row, stacked on a phone.
+.ts-help-search {
+  max-width: var(--ts-reading-width);
+  margin: 16px 0 24px;
+}
+
+.ts-help-search-row {
+  .form-control {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 479.98px) {
+  .ts-help-search-row {
+    flex-direction: column;
+
+    .btn {
+      width: 100%;
+    }
+  }
+
+  // The primary action of a form fills the row on a phone.
+  .ts-form .btn,
+  .ts-help-contact .btn {
+    width: 100%;
+  }
+
+  .ts-pager {
+    justify-content: center;
+  }
+}
+
+// The help centre home lists its categories as cards, two across from a tablet up.
+@media (min-width: 768px) {
+  .ts-kb-list--cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+
+    li + li {
+      margin-top: 0;
+    }
+  }
+
+  .ts-portal-main {
+    padding-top: 32px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .ts-kb-list--cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

@@ -159,6 +159,11 @@ export function render(doc, container, items, copy = DEFAULT_COPY) {
     container.appendChild(list);
 }
 
+/** True when every element child of `container` was made by render() (its classes start with ts-suggest-): anything else is the server's no-script fallback that an enhanced navigation put back. */
+export function holdsOnlyOurs(container) {
+    return [...container.children].every((child) => typeof child.className === 'string' && child.className.startsWith('ts-suggest-'));
+}
+
 /**
  * Defines <ts-kb-suggestions> with the given environment (the browser's own, by default at the bottom of this file). The fallback content is removed when the element connects (it is only for browsers
  * without script) and the element stays empty until there is something to suggest. When the request fails the element hides itself; the next keystroke tries again.
@@ -178,6 +183,9 @@ export function defineKbSuggestions(env) {
             }
 
             this.replaceChildren();
+            this._items = [];
+            this._src = url;
+            this._fieldId = this.getAttribute('field');
             this._input = input;
             this._suggester = createSuggester({
                 url,
@@ -187,18 +195,35 @@ export function defineKbSuggestions(env) {
                 newAbortController: () => new env.AbortController(),
                 onItems: (items) => {
                     this.hidden = false;
+                    this._items = items;
                     render(env.document, this, items, copyFrom(this));
                 },
                 onError: () => {
+                    this._items = [];
                     this.replaceChildren();
                     this.hidden = true;
                 },
             });
             this._listener = () => this._suggester.input(input.value);
             input.addEventListener('input', this._listener);
+            // A same-page enhanced navigation keeps this element but puts the server's fallback link back inside it (and connectedCallback does not run again): show the list again, or nothing.
+            if (typeof env.MutationObserver === 'function') {
+                this._observer = new env.MutationObserver(() => {
+                    // A navigation to another product keeps this element with a new src or field: start over with them.
+                    if (this.getAttribute('src') !== this._src || this.getAttribute('field') !== this._fieldId || env.document.getElementById(this._fieldId ?? '') !== this._input) {
+                        this.disconnectedCallback();
+                        this.connectedCallback();
+                    } else if (!holdsOnlyOurs(this)) {
+                        render(env.document, this, this._items ?? [], copyFrom(this));
+                    }
+                });
+                this._observer.observe(this, { childList: true, attributes: true, attributeFilter: ['src', 'field'] });
+            }
         }
 
         disconnectedCallback() {
+            this._observer?.disconnect();
+            this._observer = null;
             if (this._input && this._listener) {
                 this._input.removeEventListener('input', this._listener);
             }
@@ -216,6 +241,7 @@ if (typeof customElements !== 'undefined' && typeof document !== 'undefined') {
         customElements,
         HTMLElement,
         document,
+        MutationObserver: globalThis.MutationObserver,
         fetch: (...args) => fetch(...args),
         setTimeout: (...args) => setTimeout(...args),
         clearTimeout: (...args) => clearTimeout(...args),

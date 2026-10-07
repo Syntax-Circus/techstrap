@@ -94,7 +94,13 @@ $ts-portal: (
   "p-soft": #F5F5F7,
   "p-ink": #1B1B22,
   "p-ink2": #4A4A57,
-  "p-line": #D4D4DC
+  "p-line": #D4D4DC,
+  "p-error": #B3141C,
+  "p-error-bg": #FDECEE,
+  "p-success": #14702F,
+  "p-success-bg": #E8F5EC,
+  "p-warn": #8A5300,
+  "p-warn-bg": #FFF3E0
 );
 
 // Fallback values for the three product-accent properties. The Portal sets the real ones at runtime on its root

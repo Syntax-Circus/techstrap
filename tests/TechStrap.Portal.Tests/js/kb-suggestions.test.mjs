@@ -351,6 +351,7 @@ describe('the custom element', () => {
         const registry = new Map();
         const clock = fakeClock();
         const fetchFn = fakeFetch();
+        const observers = [];
         class FakeHTMLElement {
             constructor() { this.attrs = {}; this.children = []; this.hidden = false; }
             getAttribute(name) { return this.attrs[name] ?? null; }
@@ -365,10 +366,15 @@ describe('the custom element', () => {
             setTimeout: clock.setTimer,
             clearTimeout: clock.clearTimer,
             AbortController: class { constructor() { return fakeAbortController(); } },
+            MutationObserver: class {
+                constructor(callback) { this.callback = callback; this.watching = false; observers.push(this); }
+                observe() { this.watching = true; }
+                disconnect() { this.watching = false; }
+            },
             ...overrides,
         };
         defineKbSuggestions(env);
-        return { Element: registry.get('ts-kb-suggestions'), registry, clock, fetchFn };
+        return { Element: registry.get('ts-kb-suggestions'), registry, clock, fetchFn, observers };
     }
 
     function inputField() {
@@ -494,6 +500,77 @@ describe('the custom element', () => {
         assert.deepEqual(element.children, []);
     });
 
+    it('shows its list again, or nothing, when a same-page enhanced navigation put the server fallback back', async () => {
+        const doc = fakeDocument();
+        const field = inputField();
+        doc.byId.set('subject', field);
+        const { element, clock, fetchFn, observers } = connected(doc);
+        element.connectedCallback();
+        assert.equal(observers[0].watching, true);
+
+        // Nothing suggested yet: the fallback link that comes back is removed.
+        element.children = [{ tag: 'a', className: '' }];
+        observers[0].callback([]);
+        assert.deepEqual(element.children, []);
+
+        field.type('printer');
+        clock.advance(300);
+        fetchFn.calls[0].resolve(ok([item(1), item(2)]));
+        await flush();
+        const [heading, list] = element.children;
+        observers[0].callback([]);
+        assert.deepEqual(element.children, [heading, list], 'our own list is left alone');
+
+        element.children = [{ tag: 'a', className: '' }];
+        observers[0].callback([]);
+
+        assert.equal(element.children.length, 2);
+        assert.equal(element.children[0].textContent, '2 articles may help');
+        assert.equal(element.children[1].children.length, 2);
+    });
+
+    it('starts over with the new src and field when a navigation to another product keeps the element', () => {
+        const doc = fakeDocument();
+        const first = inputField();
+        const second = inputField();
+        doc.byId.set('subject', first);
+        doc.byId.set('subject2', second);
+        const { element, clock, fetchFn, observers } = connected(doc);
+        element.connectedCallback();
+
+        element.attrs = { field: 'subject2', src: '/p/other/suggest' };
+        observers[0].callback([]);
+        assert.equal(first.listening(), false);
+        assert.equal(second.listening(), true);
+        second.type('printer');
+        clock.advance(300);
+
+        assert.ok(fetchFn.calls.at(-1).url.startsWith('/p/other/suggest?q='), 'the new src is used');
+        assert.equal(observers.filter((o) => o.watching).length, 1);
+
+        element.attrs = { field: 'subject2', src: '/p/third/suggest' };
+        observers.filter((o) => o.watching)[0].callback([]);
+        second.type('printer jam');
+        clock.advance(300);
+        assert.ok(fetchFn.calls.at(-1).url.startsWith('/p/third/suggest?q='), 'a new src alone is enough');
+    });
+
+    it('stops watching when removed, and works without MutationObserver', () => {
+        const doc = fakeDocument();
+        const field = inputField();
+        doc.byId.set('subject', field);
+        const { element, observers } = connected(doc);
+        element.connectedCallback();
+        element.disconnectedCallback();
+        assert.equal(observers[0].watching, false);
+
+        const bare = define(doc, { MutationObserver: undefined });
+        const other = new bare.Element();
+        other.attrs = { field: 'subject', src: '/p/paperplane/suggest' };
+        other.connectedCallback();
+        assert.equal(field.listening(), true);
+    });
+
     it('can be removed without ever having connected', () => {
         const doc = fakeDocument();
         const { element } = connected(doc);
@@ -507,9 +584,10 @@ describe('the source', () => {
     const code = source.split('\n').filter((line) => !line.trim().startsWith('//') && !line.trim().startsWith('*') && !line.trim().startsWith('/**')).join('\n');
 
     it('never builds markup from text: no innerHTML, outerHTML, insertAdjacentHTML, document.write, eval or Function', () => {
-        for (const forbidden of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'eval(', 'new Function', 'setAttribute(\'on', 'srcdoc']) {
+        for (const forbidden of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'eval(', 'new Function', 'srcdoc']) {
             assert.equal(code.includes(forbidden), false, `${forbidden} must not appear`);
         }
+        assert.equal(/setAttribute\(\s*['"`]on|\.on[a-z]+\s*=/.test(code), false, 'no event-handler attribute or property is set');
     });
 
     it('puts server text on the page with textContent', () => {

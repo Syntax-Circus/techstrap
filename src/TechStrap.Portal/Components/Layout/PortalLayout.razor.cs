@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using TechStrap.Portal.Products;
+using TechStrap.Portal.Routing;
 
 namespace TechStrap.Portal.Components.Layout;
 
@@ -12,7 +13,12 @@ public partial class PortalLayout : LayoutComponentBase, IDisposable
     [Inject]
     private ProductScope Scope { get; set; } = default!;
 
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+
     private ProductThemeViewModel? Theme => Scope.Theme;
+
+    private string SkipHref => PageLinks.ToFragment(Navigation.Uri, "main", keepQuery: true);
 
     protected override void OnInitialized() => Scope.Changed += OnScopeChanged;
 

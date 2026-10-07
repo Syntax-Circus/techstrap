@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Serilog.Events;
 using TechStrap.Contracts.Intake;
 using TechStrap.Portal.Clients;
+using TechStrap.Portal.Products;
 using TechStrap.Portal.Tests.Api;
 using TechStrap.Portal.Tests.Tickets;
 
@@ -76,7 +77,7 @@ public sealed class ContactPostHostTests
         var second = await client.GetStringAsync(next, Ct);
 
         first.ShouldContain("We have received your request.");
-        first.ShouldContain("<strong class=\"ts-ticket-number\">PAP-42</strong>");
+        first.ShouldContain("<strong class=\"ts-ticket-number\" id=\"ticket-number\">PAP-42</strong>");
         second.ShouldContain("PAP-42");
         factory.Api.Count(HttpMethod.Post, FormTestKit.ApiTicketsPath).ShouldBe(1, "post, redirect, get: reloading the confirmation never posts again");
     }
@@ -146,12 +147,12 @@ public sealed class ContactPostHostTests
         var html = await response.Content.ReadAsStringAsync(Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        html.ShouldContain("<section class=\"ts-error-summary alert alert-danger\" role=\"alert\" tabindex=\"-1\" autofocus aria-labelledby=\"error-summary-heading\">");
-        html.ShouldContain("<a href=\"#email\">Enter a valid email address, like name@example.com.</a>");
-        html.ShouldContain("<a href=\"#subject\">Enter a subject.</a>");
+        html.ShouldContain("<section class=\"ts-error-summary alert alert-danger\" role=\"alert\" tabindex=\"-1\" autofocus aria-labelledby=\"error-summary-heading\" data-enhance-nav=\"false\">");
+        html.ShouldContain("<a href=\"/p/paperplane/contact#email\">Enter a valid email address, like name@example.com.</a>");
+        html.ShouldContain("<a href=\"/p/paperplane/contact#subject\">Enter a subject.</a>");
         html.ShouldContain("<p id=\"email-error\" class=\"ts-field-error\">Enter a valid email address, like name@example.com.</p>");
         html.ShouldContain("aria-describedby=\"email-error\" aria-invalid=\"true\"");
-        html.ShouldNotContain("<a href=\"#name\">", Case.Sensitive, "a valid field has no error");
+        html.ShouldNotContain("<a href=\"/p/paperplane/contact#name\">", Case.Sensitive, "a valid field has no error");
         Text(html, "name").ShouldBe("Ada");
         Text(html, "email").ShouldBe("not an address");
         html.ShouldContain("It jams &lt;b&gt;every&lt;/b&gt; time.</textarea>");
@@ -172,7 +173,7 @@ public sealed class ContactPostHostTests
         var html = await response.Content.ReadAsStringAsync(Ct);
 
         var summary = FormTestKit.Between(html, "<ul>", "</ul>");
-        Regex.Matches(summary, "<a href=\"#(\\w+)\">").Select(m => m.Groups[1].Value).ShouldBe(["name", "email", "subject", "body"]);
+        Regex.Matches(summary, "<a href=\"/p/paperplane/contact#(\\w+)\">").Select(m => m.Groups[1].Value).ShouldBe(["name", "email", "subject", "body"]);
     }
 
     [Fact]
@@ -270,7 +271,7 @@ public sealed class ContactPostHostTests
         html.ShouldContain("Attach at most 5 files.");
         html.ShouldContain("virus.exe is a type we cannot accept.");
         html.ShouldContain("empty.txt is empty. Remove it or choose another.");
-        html.ShouldContain("<a href=\"#attachments\">");
+        html.ShouldContain("<a href=\"/p/paperplane/contact#attachments\">");
         factory.Api.Count(HttpMethod.Post, FormTestKit.ApiTicketsPath).ShouldBe(0);
     }
 
@@ -338,7 +339,7 @@ public sealed class ContactPostHostTests
         html.ShouldContain("One of the files is a type we cannot accept.");
         html.ShouldNotContain("API TEXT");
         html.ShouldNotContain("Domain text");
-        html.ShouldContain("<a href=\"#attachments\">");
+        html.ShouldContain("<a href=\"/p/paperplane/contact#attachments\">");
         Text(html, "email").ShouldBe("ada@example.com", "what was typed is kept");
     }
 
@@ -436,6 +437,28 @@ public sealed class ContactPostHostTests
         html.ShouldBe("Cannot submit the form 'contact' because no form on the page currently has that name.");
         response.Headers.GetValues("Cache-Control").Single().ShouldBe("no-store");
         factory.Api.Count(HttpMethod.Post, "/api/public/products/nope/tickets").ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_post_to_an_unknown_product_is_answered_in_one_request_not_re_executed_against_the_not_found_page()
+    {
+        // The wording of D-045 depends on this: NavigationManager.NotFound() renders the not-found page in the SAME request (one dependency scope, and the layout is built once), and the framework then rejects the
+        // post because no form named "contact" was rendered. A re-execution (UseStatusCodePagesWithReExecute) would build a second scope.
+        var scopes = 0;
+        await using var factory = Host(services => services.AddScoped(_ =>
+        {
+            Interlocked.Increment(ref scopes);
+            return new ProductScope();
+        }));
+        factory.Api.OnProblem(HttpMethod.Get, "/api/public/products/nope", HttpStatusCode.NotFound, "product-not-found", "No such product.");
+        var (client, token) = await OpenAsync(factory);
+        using var _ = client;
+        var before = scopes;
+
+        using var response = await client.PostAsync("/p/nope/contact", FormTestKit.ContactForm(token), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (scopes - before).ShouldBe(1, "the post, the not-found page and the layout share one request scope");
     }
 
     // ---- logs ----

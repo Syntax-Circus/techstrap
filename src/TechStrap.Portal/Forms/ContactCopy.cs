@@ -11,6 +11,9 @@ public static class ContactCopy
     public const string BodyLabel = "Message";
     public const string Submit = "Send message";
 
+    /// <summary>Required is said in words, not by an asterisk (UX brief): the one sentence above the form.</summary>
+    public const string RequiredNote = "All fields are required, except attachments.";
+
     /// <summary>The fallback inside the suggestions element, shown only without script: a plain link to the help search.</summary>
     public const string SuggestFallback = "Search the help articles first";
 
@@ -27,6 +30,10 @@ public static class ContactCopy
     public const string YourNumber = "Your ticket number is";
     public const string ReceivedNext = "We have emailed you a link. Use it to follow the conversation and reply.";
     public const string ReceivedGeneric = "We have emailed you a link to follow it. Check your inbox and your spam folder.";
+    // The copy button next to the ticket number (<c>portal-forms.js</c>); without script the number is still there to select.
+    public const string CopyNumber = "Copy ticket number";
+    public const string CopyNumberDone = "Copied";
+    public const string CopyNumberFailed = "Could not copy. The number is selected: press Ctrl+C.";
     public const string LostLinkPrompt = "Can't find the email?";
 
     public static string Title(string productName) => $"Contact {productName} support";

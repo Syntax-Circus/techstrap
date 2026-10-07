@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Options;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Admin.Tests;
 
@@ -14,7 +14,7 @@ public sealed class AdminStartupSettingsTests
     {
         await using var factory = new AdminFactory(settings: new Dictionary<string, string?> { [key] = null });
 
-        var error = Should.Throw<OptionsValidationException>(() => factory.CreateClient());
+        var error = StartupFailure.Capture(factory, () => factory.LogSink.Events);
 
         error.Message.ShouldContain(variable);
     }
@@ -28,7 +28,7 @@ public sealed class AdminStartupSettingsTests
             ["TECHSTRAP_ADMIN_GROUP"] = "Staff",
         });
 
-        Should.Throw<OptionsValidationException>(() => factory.CreateClient()).Message.ShouldContain("different groups");
+        StartupFailure.Capture(factory, () => factory.LogSink.Events).Message.ShouldContain("different groups");
     }
 
     [Fact]

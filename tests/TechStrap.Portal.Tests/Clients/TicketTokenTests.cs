@@ -2,6 +2,7 @@ using System.Text.Json;
 using Serilog;
 using Serilog.Events;
 using TechStrap.Portal.Clients;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Portal.Tests.Clients;
 

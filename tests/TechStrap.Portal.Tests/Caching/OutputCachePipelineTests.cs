@@ -210,22 +210,33 @@ public sealed class OutputCachePipelineTests
     }
 
     [Fact]
-    public async Task Only_the_page_value_changes_the_key_other_query_values_and_the_host_do_not()
+    public async Task Only_the_page_value_changes_the_key_and_a_category_with_any_other_query_is_answered_but_never_stored()
     {
         var counter = new Counter();
         await using var app = await StartAsync(counter);
         using var client = app.GetTestClient();
 
         (await (await GetAsync(client, "/p/paperplane/kb/accounts")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 1");
-        (await (await GetAsync(client, "/p/paperplane/kb/accounts?utm=1")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 1");
-        (await (await GetAsync(client, "/p/paperplane/kb/accounts?utm=2&other=x")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 1");
         (await (await GetAsync(client, "/p/paperplane/kb/accounts", host: "other.example")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 1");
-        counter.Calls.ShouldBe(1, "query values other than page and the host are not part of the key");
+        counter.Calls.ShouldBe(1, "the host is not part of the key");
 
-        (await (await GetAsync(client, "/p/paperplane/kb/accounts?page=2")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 2");
-        (await (await GetAsync(client, "/p/paperplane/kb/accounts?page=2&utm=1")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 2");
-        (await (await GetAsync(client, "/p/paperplane/kb/accounts?page=3")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 3");
-        counter.Calls.ShouldBe(3, "each page number is its own key");
+        // Any other raw query is answered afresh each time (the page's links repeat the address bar's own spelling, so a stored copy must never serve another spelling).
+        (await (await GetAsync(client, "/p/paperplane/kb/accounts?utm=1")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 2");
+        (await (await GetAsync(client, "/p/paperplane/kb/accounts?utm=1")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 3");
+        counter.Calls.ShouldBe(3, "a category with another query value is not kept");
+
+        (await (await GetAsync(client, "/p/paperplane/kb/accounts?page=2")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 4");
+        (await (await GetAsync(client, "/p/paperplane/kb/accounts?page=2")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 4");
+        (await (await GetAsync(client, "/p/paperplane/kb/accounts?page=3")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 5");
+        counter.Calls.ShouldBe(5, "each plain page number is its own key");
+
+        foreach (var spelling in new[] { "?PAGE=2", "?Page=2&x=1" })
+        {
+            await GetAsync(client, "/p/paperplane/kb/accounts" + spelling);
+            await GetAsync(client, "/p/paperplane/kb/accounts" + spelling);
+        }
+
+        counter.Calls.ShouldBe(9, "no other spelling of a page number is stored: every request reached the page");
     }
 
     [Fact]

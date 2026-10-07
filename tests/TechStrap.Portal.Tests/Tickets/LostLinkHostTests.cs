@@ -149,7 +149,7 @@ public sealed class LostLinkHostTests
         var html = await response.Content.ReadAsStringAsync(Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        html.ShouldContain("<a href=\"#email\">");
+        html.ShouldContain("<a href=\"/p/paperplane/lost-link#email\">");
         html.ShouldContain("class=\"ts-field-error\"");
         html.ShouldNotContain("role=\"status\"", Case.Sensitive, "no confirmation for a malformed address");
         factory.Api.Count(HttpMethod.Post, LinkApi).ShouldBe(0);

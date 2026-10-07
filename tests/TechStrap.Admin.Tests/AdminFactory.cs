@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Serilog.Core;
+using TechStrap.Tests.Shared;
 using TechStrap.Tests.Shared.AdminHost;
 
 namespace TechStrap.Admin.Tests;
@@ -10,7 +12,8 @@ namespace TechStrap.Admin.Tests;
 /// <summary>
 /// Starts the Admin host in-process in the given environment. A developer's gitignored .env.local must never leak into tests, and Production needs a trusted network to start.
 /// It supplies the settings the options validation requires (<see cref="AdminTestSettings"/>, with <c>settings</c> applied on top) and a stub API (<see cref="Api"/>).
-/// It registers the <c>Test</c> authentication scheme: a request signs in with <c>AdminTestAuth.SignedInAs</c>, no header is anonymous.
+/// It registers the <c>Test</c> authentication scheme: a request signs in with <c>AdminTestAuth.SignedInAs</c>, no header is anonymous. <see cref="LogSink"/> records every log event, which
+/// <see cref="StartupFailure"/> reads when a start failure surfaces as a disposed provider.
 /// </summary>
 internal sealed class AdminFactory(
     string environment = "Development",
@@ -28,12 +31,16 @@ internal sealed class AdminFactory(
     /// <summary>The stub behind the Admin's API clients. By default it answers GET /api/agents/me for the three test principals.</summary>
     public StubApiHandler Api { get; } = new StubApiHandler().WithTestAgents();
 
+    /// <summary>Every event the host logs (a factory made by <c>WithWebHostBuilder</c> logs to the root factory's sink only).</summary>
+    public CollectingSink LogSink { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(environment);
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(AdminTestSettings.With(settings)));
         builder.ConfigureTestServices(services =>
         {
+            services.AddSingleton<ILogEventSink>(LogSink);
             services.AddAdminTestAuthentication();
             services.AddStubApi(Api);
             configureServices?.Invoke(services);

@@ -49,6 +49,19 @@ public sealed class FormFailureTests
     }
 
     [Fact]
+    public void An_unknown_outcome_is_a_503_with_its_own_sentence_that_says_to_check_before_sending_again()
+    {
+        var failure = FormFailure.Unknown;
+
+        failure.Status.ShouldBe(StatusCodes.Status503ServiceUnavailable);
+        failure.Notice.ShouldBe("We could not confirm it was sent. Check your email before sending again.");
+        failure.Notice.ShouldBe(FormCopy.Unknown);
+        failure.Notice.ShouldNotBe(FormCopy.Unavailable, "'try again in a moment' would invite a duplicate of a message that may have arrived");
+        failure.Errors.ShouldBeEmpty();
+        failure.IsNotFound.ShouldBeFalse();
+    }
+
+    [Fact]
     public void A_rate_limit_is_a_429_with_a_calm_notice_and_no_field_errors()
     {
         var failure = FormFailure.From([Failure(ApiErrorCodes.RateLimited)]);
