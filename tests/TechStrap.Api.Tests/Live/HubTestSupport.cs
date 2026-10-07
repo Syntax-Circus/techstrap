@@ -39,20 +39,11 @@ internal static class HubTestSupport
 
     /// <summary>
     /// <c>StartAsync</c> returns when the handshake response arrives, which the server sends before <c>OnConnectedAsync</c> has added the connection to the queue group. The hub
-    /// handles invocations only after <c>OnConnectedAsync</c> completes, so one answered round trip proves the connection is in the group. <c>LeaveTicket</c> for an unknown
-    /// ticket is a harmless refusal (no state changes); the refusal is the answer.
+    /// handles invocations only after <c>OnConnectedAsync</c> completes, so one answered round trip proves the connection is in the group. A <c>LeaveTicket</c> for a ticket the
+    /// connection never joined succeeds and changes nothing; its answer proves <c>OnConnectedAsync</c> finished.
     /// </summary>
-    public static async Task ReadyAsync(this HubConnection connection, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await connection.InvokeAsync(TicketHubMethods.LeaveTicket, Guid.NewGuid(), cancellationToken);
-        }
-        catch (HubException)
-        {
-            // Refused as expected: the server answered, so OnConnectedAsync has finished.
-        }
-    }
+    public static Task ReadyAsync(this HubConnection connection, CancellationToken cancellationToken) =>
+        connection.InvokeAsync(TicketHubMethods.LeaveTicket, Guid.NewGuid(), cancellationToken);
 
     /// <summary>Everything the hub pushes under one method name, in order, readable with a deadline.</summary>
     public sealed class Inbox<T> : IDisposable

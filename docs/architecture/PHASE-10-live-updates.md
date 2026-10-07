@@ -12,12 +12,12 @@ presence hint.
 
 - **Depends on:** [PHASE-07](PHASE-07-admin-app.md) (admin queue/detail pages, token forwarding); transitively [PHASE-06](PHASE-06-ticket-operations.md) (events written by handlers and the `AutoCloseSolvedTicketsHandler` worker job).
 - **Unblocks:** [PHASE-12](PHASE-12-release-hardening.md).
-- **External prerequisites:** Reverse proxy allows WebSocket upgrade to the API (`/hubs/*`) with adequate idle timeouts; Postgres allows a dedicated long-lived connection for `LISTEN` from the API (not via a transaction-pooling proxy such as PgBouncer in transaction mode).
+- **External prerequisites:** Reverse proxy allows WebSocket upgrade to the API (`/hubs/*`) with adequate idle timeouts; Postgres allows a dedicated long-lived connection for `LISTEN` from the API (not via a transaction-pooling proxy such as PgBouncer in transaction mode). *(Superseded by D-046 for the proxy: browsers never reach `/hubs`, so there is no proxy hub route.)*
 
 ### Corrections (D-046, 2026-10-07)
 
 Where this page and D-046 differ, D-046 wins.
-- **Delivery.** Two pull requests: 10a (T01 to T10, the server) and 10b (T11 to T17, the Admin, after a `SyntaxCircus.Blazor.Auth` token-provider release).
+- **Delivery.** Two pull requests: 10a (T01 to T10, the server) and 10b (T11 to T17, the Admin, after a `SyntaxCircus.Blazor.Auth` token-provider release (0.2.0, released)).
 - **Identity.** `ICurrentUserService` does not exist. The hub fills an `UpdateTicketPresenceRequest` from `Context.User` and `Context.ConnectionId`; `ICurrentAgentClaims` and `IHttpContextAccessor` are not used in a hub.
 - **`LiveConnectionState`** is an Admin type (`Features/Live`), not a Contracts type: Contracts allows only `*Dto`, `*Request`, `*Response` and static constants.
 - **Post-commit.** A SaveChanges interceptor fires before the commit. The hook is `TicketChangeCaptureInterceptor` (stages the inserted events) plus `TicketChangePublishingInterceptor` (publishes after the commit, drops on rollback or failure).
@@ -32,7 +32,7 @@ Where this page and D-046 differ, D-046 wins.
 
 ## Architecture Decisions
 
-- **Hub on the API, authenticated by the agent JWT.** `TicketHub` at `/hubs/tickets` requires the same agent authorization policy (group claim) as the REST API. Browsers never connect; the admin's Blazor Server circuit connects server-side with the user's access token from `SyntaxCircus.Blazor.Auth` (token provider per connection). WebSocket token travels as `access_token` query value, accepted only on `/hubs/*` via `JwtBearerEvents.OnMessageReceived`, and redacted from logs (**Assumption** for server-side clients; the header route is used where the transport allows).
+- **Hub on the API, authenticated by the agent JWT.** `TicketHub` at `/hubs/tickets` requires the same agent authorization policy (group claim) as the REST API. Browsers never connect; the admin's Blazor Server circuit connects server-side with the user's access token from `SyntaxCircus.Blazor.Auth` (token provider per connection). WebSocket token travels as `access_token` query value, accepted only on `/hubs/*` via `JwtBearerEvents.OnMessageReceived`, and redacted from logs (**Assumption** for server-side clients; the header route is used where the transport allows). *(Superseded by D-046: no proxy hub route; the token travels in the header only and a query token is refused.)*
 - **One fan-in abstraction, two implementations of `ITicketChangeBroadcaster`:**
   - **API process:** `SignalRTicketChangeBroadcaster` (via `IHubContext<TicketHub>`).
   - **Worker process:** `PgNotifyTicketChangeBroadcaster` runs `SELECT pg_notify('techstrap_ticket_changes', @payload)`.
@@ -46,7 +46,7 @@ Where this page and D-046 differ, D-046 wins.
 - **Admin client side:** `ITicketLiveClient` (scoped, wraps `HubConnection` with automatic reconnect, `IAsyncDisposable`) exposes events; pages subscribe in code-behind and refresh via the existing typed clients. Queue refresh is debounced (constant 1 s) and shows an "N tickets updated – refresh" banner instead of reordering rows under the agent's cursor. Detail refresh updates timeline/status; the reply draft and selected KB articles are never touched.
 - **Hub method names and group name formats are constants** in `TechStrap.Contracts` (`TicketHubMethods`, `TicketHubGroups`), as they cross the process boundary.
 - **No polling fallback** in the core (**Assumption**); the connection indicator and manual refresh are the fallback.
-- **Security:** hub methods authorize via the policy plus per-call `ICurrentUserService`; `JoinTicket` verifies the ticket exists (cheap read) so group names cannot be probed for arbitrary ids; payloads contain no customer text. Connection token expiry: the admin recreates the connection when the access token it was started with expires (token provider supplies a fresh one on reconnect). **Assumption**; verify Authentik token lifetime in UAT.
+- **Security:** hub methods authorize via the policy plus per-call `ICurrentUserService` *(superseded by D-046: the request record carries the identity)*; `JoinTicket` verifies the ticket exists (cheap read) so group names cannot be probed for arbitrary ids; payloads contain no customer text. Connection token expiry: the admin recreates the connection when the access token it was started with expires (token provider supplies a fresh one on reconnect). **Assumption**; verify Authentik token lifetime in UAT.
 
 ## Application Boundaries
 
@@ -200,7 +200,7 @@ Versions in [03-PACKAGE-MAP.md](03-PACKAGE-MAP.md). `Microsoft.AspNetCore.Signal
 Before [PHASE-12](PHASE-12-release-hardening.md) starts: hub, listener and
 admin live features work against compose (including the worker-originated
 path); the WebSocket/proxy and `LISTEN` connection requirements are written
-into the compose/self-host notes; hub authentication and the `access_token`
-query-string handling are listed for the security review. D-018 (the post-commit
+into the compose/self-host notes; hub authentication and the header-only
+token (query refused, D-046) are listed for the security review. D-018 (the post-commit
 publishing hook) was approved on 2026-10-02 in
 [04-DECISION-LOG.md](04-DECISION-LOG.md).

@@ -208,7 +208,7 @@ Worker scheduled loop (**Assumption** every 15 min) calls `AutoCloseSolvedTicket
 ### 6.6 Live updates
 
 - API changes: the handler commits; the Infrastructure post-commit hook (`TicketChangeCaptureInterceptor` stages the inserted `TicketEvent` rows, `TicketChangePublishingInterceptor` publishes after the commit, D-046) reads the `TicketEvent` rows committed in that unit of work and calls `ITicketChangeBroadcaster` (SignalR implementation), which sends to hub groups (`queue`, `ticket:{id}`). Ticket handlers are unchanged (D-018).
-- Worker changes: the same interceptor runs in the Worker with the Postgres `NOTIFY` implementation of `ITicketChangeBroadcaster` (`pg_notify`, delivered on commit); the API hosted listener receives it and calls `RelayTicketChangeHandler`, which calls the SignalR `ITicketChangeBroadcaster`.
+- Worker changes: the same interceptor runs in the Worker with the Postgres `NOTIFY` implementation of `ITicketChangeBroadcaster` (`pg_notify`, sent after the commit on a dedicated connection); the API hosted listener receives it and calls `RelayTicketChangeHandler`, which calls the SignalR `ITicketChangeBroadcaster`.
 - Presence: `TicketHub` methods call `UpdateTicketPresenceHandler`, which holds viewing/composing state with TTL in `ITicketPresenceStore` (in-memory, single API instance) and broadcasts hints.
 - Admin connects to the hub server-side with the agent's token and refreshes list and detail on events. Best-effort; UI also refetches after own actions and reconnects (D-007).
 

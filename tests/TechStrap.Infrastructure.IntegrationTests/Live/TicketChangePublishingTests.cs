@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Npgsql;
 using TechStrap.Application.Live;
 using TechStrap.Application.Persistence;
 using TechStrap.Contracts.Live;
@@ -437,6 +438,121 @@ public sealed class TicketChangePublishingTests(PostgresFixture postgres) : Post
         await Should.ThrowAsync<InvalidOperationException>(() => context.SaveChangesAsync(Ct));
 
         _recorder.Attempts.Count.ShouldBe(before);
+    }
+
+    private static TicketEventRecord AssignedEvent(Guid ticketId, DateTimeOffset occurredAt, string payload = "{}") => new()
+    {
+        Id = Guid.CreateVersion7(),
+        TicketId = ticketId,
+        Type = TicketEventType.Assigned,
+        ActorType = ActorType.System,
+        Payload = payload,
+        OccurredAt = occurredAt,
+    };
+
+    [Fact(Timeout = 120000)]
+    public async Task A_commit_that_fails_in_the_database_publishes_nothing_and_its_staged_changes_do_not_ride_along_with_the_next_commit()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = NewHost();
+        var scenario = await TicketScenario.CreateAsync(host);
+        var first = await scenario.CreateTicketAsync("First");
+        var other = await scenario.CreateTicketAsync("Other");
+        await using (var connection = new NpgsqlConnection(Database.ConnectionString))
+        {
+            await connection.OpenAsync(ct);
+            await using var command = new NpgsqlCommand("ALTER TABLE ticket_events ADD CONSTRAINT uq_test_deferred UNIQUE (ticket_id, payload) DEFERRABLE INITIALLY DEFERRED", connection);
+            await command.ExecuteNonQueryAsync(ct);
+        }
+
+        var before = _recorder.Attempts.Count;
+        await using var scope = host.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<TechStrapDbContext>();
+        var tickets = scope.ServiceProvider.GetRequiredService<ITicketRepository>();
+        (await tickets.GetByIdAsync(first.Id, ct)).ShouldNotBeNull();
+        (await tickets.GetByIdAsync(other.Id, ct)).ShouldNotBeNull();
+
+        // The deferred constraint is checked by Postgres at COMMIT, so SaveChanges succeeds (and stages the change) and the commit itself fails.
+        await using (var failing = await context.Database.BeginTransactionAsync(ct))
+        {
+            context.Set<TicketEventRecord>().Add(AssignedEvent(first.Id, host.Clock.GetUtcNow(), "{\"d\":1}"));
+            context.Set<TicketEventRecord>().Add(AssignedEvent(first.Id, host.Clock.GetUtcNow(), "{\"d\":1}"));
+            await context.SaveChangesAsync(ct);
+            await Should.ThrowAsync<PostgresException>(() => failing.CommitAsync(ct));
+        }
+
+        _recorder.Attempts.Count.ShouldBe(before);
+
+        // The same context commits something else: only that change is published, not the one the failed commit had staged.
+        await using (var good = await context.Database.BeginTransactionAsync(ct))
+        {
+            context.Set<TicketEventRecord>().Add(AssignedEvent(other.Id, host.Clock.GetUtcNow()));
+            await context.SaveChangesAsync(ct);
+            await good.CommitAsync(ct);
+        }
+
+        _recorder.Attempts.Skip(before).ShouldHaveSingleItem().TicketId.ShouldBe(other.Id);
+    }
+
+    [Fact(Timeout = 120000)]
+    public async Task Two_saves_and_one_commit_publish_one_change_for_the_ticket_named_by_the_newest_event()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = NewHost();
+        var scenario = await TicketScenario.CreateAsync(host);
+        var ticket = await scenario.CreateTicketAsync();
+        var before = _recorder.Attempts.Count;
+        var older = AssignedEvent(ticket.Id, host.Clock.GetUtcNow());
+        var newer = AssignedEvent(ticket.Id, host.Clock.GetUtcNow() + TimeSpan.FromSeconds(5));
+
+        await using var scope = host.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<TechStrapDbContext>();
+        (await scope.ServiceProvider.GetRequiredService<ITicketRepository>().GetByIdAsync(ticket.Id, ct)).ShouldNotBeNull();
+        await using var unitOfWork = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().BeginAsync(ct);
+        context.Set<TicketEventRecord>().Add(older);
+        await context.SaveChangesAsync(ct);
+        context.Set<TicketEventRecord>().Add(newer);
+        await context.SaveChangesAsync(ct);
+        _recorder.Attempts.Count.ShouldBe(before);
+
+        (await unitOfWork.CommitAsync(ct)).IsSuccess.ShouldBeTrue();
+
+        var change = _recorder.Attempts.Skip(before).ShouldHaveSingleItem();
+        change.TicketId.ShouldBe(ticket.Id);
+        change.EventId.ShouldBe(newer.Id);
+    }
+
+    [Fact(Timeout = 120000)]
+    public async Task The_capture_relies_on_the_append_only_guard_running_first_so_a_refused_save_stages_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = NewHost();
+        var scenario = await TicketScenario.CreateAsync(host);
+        var first = await scenario.CreateTicketAsync("First");
+        var other = await scenario.CreateTicketAsync("Other");
+        var before = _recorder.Attempts.Count;
+
+        await using var scope = host.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<TechStrapDbContext>();
+        var tickets = scope.ServiceProvider.GetRequiredService<ITicketRepository>();
+        (await tickets.GetByIdAsync(first.Id, ct)).ShouldNotBeNull();
+        (await tickets.GetByIdAsync(other.Id, ct)).ShouldNotBeNull();
+        var existing = await context.Set<TicketEventRecord>().FirstAsync(item => item.TicketId == first.Id, ct);
+
+        // An added event plus a modified one: the guard throws from SavingChanges, which EF runs outside the try that raises SaveChangesFailed. The capture must not have staged the
+        // added event before that, because nothing would ever drop it.
+        var added = AssignedEvent(first.Id, host.Clock.GetUtcNow());
+        context.Set<TicketEventRecord>().Add(added);
+        existing.Payload = "{\"edited\":true}";
+        await Should.ThrowAsync<InvalidOperationException>(() => context.SaveChangesAsync(ct));
+        context.Entry(added).State = EntityState.Detached;
+        context.Entry(existing).State = EntityState.Unchanged;
+        _recorder.Attempts.Count.ShouldBe(before);
+
+        context.Set<TicketEventRecord>().Add(AssignedEvent(other.Id, host.Clock.GetUtcNow()));
+        await context.SaveChangesAsync(ct);
+
+        _recorder.Attempts.Skip(before).ShouldHaveSingleItem().TicketId.ShouldBe(other.Id);
     }
 
     [Fact]

@@ -18,7 +18,7 @@ namespace TechStrap.Api.Tests.Live;
 /// </summary>
 public sealed class TicketHubTests(TestPostgres postgres)
 {
-    private static readonly CancellationToken Ct = TestContext.Current.CancellationToken;
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private async Task<(ApiFactory Factory, ApiTestDatabase Database, TicketSeed Seed)> StartAsync(Dictionary<string, string?>? extra = null)
     {
@@ -46,9 +46,10 @@ public sealed class TicketHubTests(TestPostgres postgres)
 
     // ---- who may connect ---------------------------------------------------------------------------------------------------------------------------------
 
-    [Fact]
+    [Fact(Timeout = 120000)]
     public async Task A_connection_without_a_token_is_401()
     {
+        _ = TestContext.Current.CancellationToken;
         var (factory, _, _) = await StartAsync();
         await using var _f = factory;
 
@@ -57,9 +58,10 @@ public sealed class TicketHubTests(TestPostgres postgres)
         failure.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
-    [Fact]
+    [Fact(Timeout = 120000)]
     public async Task A_valid_token_for_someone_who_is_not_an_agent_is_403()
     {
+        _ = TestContext.Current.CancellationToken;
         var (factory, _, _) = await StartAsync();
         await using var _f = factory;
         var outsider = TestJwt.Token("outsider", ["some-other-group"], email: "outsider@example.com", name: "Outsider");
@@ -69,9 +71,10 @@ public sealed class TicketHubTests(TestPostgres postgres)
         failure.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    [Fact]
+    [Fact(Timeout = 120000)]
     public async Task A_deactivated_agent_is_refused_at_the_handshake()
     {
+        _ = TestContext.Current.CancellationToken;
         var (factory, database, _) = await StartAsync();
         await using var _f = factory;
         await database.ExecuteAsync("UPDATE agents SET is_active = false WHERE oidc_subject = 'kim'");
@@ -81,9 +84,10 @@ public sealed class TicketHubTests(TestPostgres postgres)
         failure.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    [Fact]
+    [Fact(Timeout = 120000)]
     public async Task A_token_in_the_query_string_is_refused_even_when_it_is_a_valid_agent_token()
     {
+        _ = TestContext.Current.CancellationToken;
         var (factory, _, _) = await StartAsync();
         await using var _f = factory;
         var token = HubTestSupport.AgentToken("sam", "Sam");
@@ -93,16 +97,17 @@ public sealed class TicketHubTests(TestPostgres postgres)
         failure.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
-    [Fact]
+    [Fact(Timeout = 120000)]
     public async Task A_raw_negotiate_with_the_token_only_in_the_query_is_401_and_with_the_header_is_200()
     {
+        var ct = TestContext.Current.CancellationToken;
         var (factory, _, _) = await StartAsync();
         await using var _f = factory;
         var token = HubTestSupport.AgentToken("sam", "Sam");
         using var client = factory.CreateClient();
 
-        using var viaQuery = await client.PostAsync($"{TicketHubRoutes.Path}/negotiate?negotiateVersion=1&access_token={Uri.EscapeDataString(token)}", null, Ct);
-        using var viaHeader = await client.Bearer(token).PostAsync($"{TicketHubRoutes.Path}/negotiate?negotiateVersion=1", null, Ct);
+        using var viaQuery = await client.PostAsync($"{TicketHubRoutes.Path}/negotiate?negotiateVersion=1&access_token={Uri.EscapeDataString(token)}", null, ct);
+        using var viaHeader = await client.Bearer(token).PostAsync($"{TicketHubRoutes.Path}/negotiate?negotiateVersion=1", null, ct);
 
         viaQuery.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         viaHeader.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -132,30 +137,32 @@ public sealed class TicketHubTests(TestPostgres postgres)
 
     // ---- what a connection receives ---------------------------------------------------------------------------------------------------------------------
 
-    [Fact]
+    [Fact(Timeout = 120000)]
     public async Task Every_agent_connection_is_in_the_queue_and_receives_ticket_changes_with_ids_only()
     {
+        var ct = TestContext.Current.CancellationToken;
         var (factory, _, _) = await StartAsync();
         await using var _f = factory;
         await using var sam = HubTestSupport.Connect(factory, HubTestSupport.AgentToken("sam", "Sam"));
         await using var kim = HubTestSupport.Connect(factory, HubTestSupport.AgentToken("kim", "Kim"));
         using var samInbox = new HubTestSupport.Inbox<TicketChangedDto>(sam, TicketHubMethods.TicketChanged);
         using var kimInbox = new HubTestSupport.Inbox<TicketChangedDto>(kim, TicketHubMethods.TicketChanged);
-        await sam.StartAsync(Ct);
-        await kim.StartAsync(Ct);
-        await sam.ReadyAsync(Ct);
-        await kim.ReadyAsync(Ct);
+        await sam.StartAsync(ct);
+        await kim.StartAsync(ct);
+        await sam.ReadyAsync(ct);
+        await kim.ReadyAsync(ct);
         var change = Change(number: "ORB-7");
 
-        await factory.Services.GetRequiredService<ITicketChangeBroadcaster>().PublishAsync(change, Ct);
+        await factory.Services.GetRequiredService<ITicketChangeBroadcaster>().PublishAsync(change, ct);
 
         (await samInbox.NextAsync()).ShouldBe(change.ToDto());
         (await kimInbox.NextAsync()).ShouldBe(change.ToDto());
     }
 
-    [Fact]
+    [Fact(Timeout = 120000)]
     public async Task The_hubs_broadcaster_is_the_one_the_rest_of_the_host_resolves()
     {
+        _ = TestContext.Current.CancellationToken;
         var (factory, _, _) = await StartAsync();
         await using var _f = factory;
 
@@ -164,38 +171,40 @@ public sealed class TicketHubTests(TestPostgres postgres)
 
     // ---- presence ---------------------------------------------------------------------------------------------------------------------------------------
 
-    [Fact]
+    [Fact(Timeout = 120000)]
     public async Task Two_agents_on_one_ticket_see_each_other_come_replying_and_go()
     {
+        var ct = TestContext.Current.CancellationToken;
         var (factory, _, seed) = await StartAsync();
         await using var _f = factory;
         var ticketId = seed.Tickets[0].Id;
         await using var sam = HubTestSupport.Connect(factory, HubTestSupport.AgentToken("sam", "Sam"));
         await using var kim = HubTestSupport.Connect(factory, HubTestSupport.AgentToken("kim", "Kim"));
         using var samSees = new HubTestSupport.Inbox<TicketPresenceDto>(sam, TicketHubMethods.PresenceChanged);
-        await sam.StartAsync(Ct);
-        await kim.StartAsync(Ct);
+        await sam.StartAsync(ct);
+        await kim.StartAsync(ct);
 
-        var first = await sam.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, ticketId, Ct);
+        var first = await sam.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, ticketId, ct);
         first.TicketId.ShouldBe(ticketId);
         first.Viewers.Select(viewer => (viewer.DisplayName, viewer.State)).ShouldBe([("Sam", TicketPresenceStates.Viewing)]);
 
-        var second = await kim.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, ticketId, Ct);
+        var second = await kim.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, ticketId, ct);
         second.Viewers.Select(viewer => viewer.DisplayName).ShouldBe(["Kim", "Sam"]);
         (await samSees.NextAsync()).Viewers.Select(viewer => viewer.DisplayName).ShouldBe(["Kim", "Sam"]);
 
-        await kim.InvokeAsync(TicketHubMethods.SetComposing, ticketId, true, Ct);
+        await kim.InvokeAsync(TicketHubMethods.SetComposing, ticketId, true, ct);
         var composing = await samSees.NextAsync();
         composing.Viewers.Single(viewer => viewer.DisplayName == "Kim").State.ShouldBe(TicketPresenceStates.Composing);
 
-        await kim.StopAsync(Ct);
+        await kim.StopAsync(ct);
         var gone = await samSees.NextAsync();
         gone.Viewers.Select(viewer => viewer.DisplayName).ShouldBe(["Sam"]);
     }
 
-    [Fact]
+    [Fact(Timeout = 120000)]
     public async Task Leaving_a_ticket_is_announced_and_the_leaver_stops_receiving_its_presence()
     {
+        var ct = TestContext.Current.CancellationToken;
         var (factory, _, seed) = await StartAsync();
         await using var _f = factory;
         var ticketId = seed.Tickets[0].Id;
@@ -203,93 +212,97 @@ public sealed class TicketHubTests(TestPostgres postgres)
         await using var kim = HubTestSupport.Connect(factory, HubTestSupport.AgentToken("kim", "Kim"));
         using var samSees = new HubTestSupport.Inbox<TicketPresenceDto>(sam, TicketHubMethods.PresenceChanged);
         using var kimSees = new HubTestSupport.Inbox<TicketPresenceDto>(kim, TicketHubMethods.PresenceChanged);
-        await sam.StartAsync(Ct);
-        await kim.StartAsync(Ct);
-        await sam.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, ticketId, Ct);
-        await kim.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, ticketId, Ct);
+        await sam.StartAsync(ct);
+        await kim.StartAsync(ct);
+        await sam.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, ticketId, ct);
+        await kim.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, ticketId, ct);
         (await samSees.NextAsync()).Viewers.Count.ShouldBe(2);
 
-        await kim.InvokeAsync(TicketHubMethods.LeaveTicket, ticketId, Ct);
+        await kim.InvokeAsync(TicketHubMethods.LeaveTicket, ticketId, ct);
         (await samSees.NextAsync()).Viewers.Select(viewer => viewer.DisplayName).ShouldBe(["Sam"]);
 
         // Kim is out of the ticket's group now: a later presence push for the ticket reaches Sam only.
         kimSees.Pending();
-        await factory.Services.GetRequiredService<ITicketChangeBroadcaster>().PublishPresenceAsync(new TicketPresence(ticketId, []), Ct);
+        await factory.Services.GetRequiredService<ITicketChangeBroadcaster>().PublishPresenceAsync(new TicketPresence(ticketId, []), ct);
         (await samSees.NextAsync()).Viewers.ShouldBeEmpty();
         kimSees.Pending().ShouldBeEmpty();
     }
 
-    [Fact]
+    [Fact(Timeout = 120000)]
     public async Task Joining_an_unknown_ticket_is_a_hub_exception_with_the_fixed_message_and_joins_no_group()
     {
+        var ct = TestContext.Current.CancellationToken;
         var (factory, _, _) = await StartAsync();
         await using var _f = factory;
         var unknown = Guid.NewGuid();
         await using var sam = HubTestSupport.Connect(factory, HubTestSupport.AgentToken("sam", "Sam"));
         using var presence = new HubTestSupport.Inbox<TicketPresenceDto>(sam, TicketHubMethods.PresenceChanged);
         using var queue = new HubTestSupport.Inbox<TicketChangedDto>(sam, TicketHubMethods.TicketChanged);
-        await sam.StartAsync(Ct);
-        await sam.ReadyAsync(Ct);
+        await sam.StartAsync(ct);
+        await sam.ReadyAsync(ct);
 
-        var refusal = await Should.ThrowAsync<HubException>(() => sam.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, unknown, Ct));
+        var refusal = await Should.ThrowAsync<HubException>(() => sam.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, unknown, ct));
 
         refusal.Message.ShouldEndWith(TicketHubMessages.TicketNotFound);
         refusal.Message.ShouldNotContain(unknown.ToString());
 
         // Not in the group: a presence push for that id never arrives. The queue message sent after it is the barrier (a connection gets its messages in the order they were sent).
         var broadcaster = factory.Services.GetRequiredService<ITicketChangeBroadcaster>();
-        await broadcaster.PublishPresenceAsync(new TicketPresence(unknown, []), Ct);
+        await broadcaster.PublishPresenceAsync(new TicketPresence(unknown, []), ct);
         var barrier = Change();
-        await broadcaster.PublishAsync(barrier, Ct);
+        await broadcaster.PublishAsync(barrier, ct);
         (await queue.NextAsync()).EventId.ShouldBe(barrier.EventId);
         presence.Pending().ShouldBeEmpty();
     }
 
-    [Fact]
+    [Fact(Timeout = 120000)]
     public async Task Composing_on_a_ticket_that_was_never_joined_is_refused()
     {
+        var ct = TestContext.Current.CancellationToken;
         var (factory, _, seed) = await StartAsync();
         await using var _f = factory;
         await using var sam = HubTestSupport.Connect(factory, HubTestSupport.AgentToken("sam", "Sam"));
-        await sam.StartAsync(Ct);
+        await sam.StartAsync(ct);
 
-        var refusal = await Should.ThrowAsync<HubException>(() => sam.InvokeAsync(TicketHubMethods.SetComposing, seed.Tickets[0].Id, true, Ct));
+        var refusal = await Should.ThrowAsync<HubException>(() => sam.InvokeAsync(TicketHubMethods.SetComposing, seed.Tickets[0].Id, true, ct));
 
         refusal.Message.ShouldEndWith("Open the ticket first.");
     }
 
-    [Fact]
+    [Fact(Timeout = 120000)]
     public async Task The_name_other_agents_see_is_the_internal_name_never_the_public_display_name()
     {
+        var ct = TestContext.Current.CancellationToken;
         var (factory, database, seed) = await StartAsync();
         await using var _f = factory;
         await database.ExecuteAsync("UPDATE agents SET public_display_name = 'Sam from Support' WHERE oidc_subject = 'sam'");
         await using var sam = HubTestSupport.Connect(factory, HubTestSupport.AgentToken("sam", "Sam"));
-        await sam.StartAsync(Ct);
+        await sam.StartAsync(ct);
 
-        var presence = await sam.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, seed.Tickets[0].Id, Ct);
+        var presence = await sam.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, seed.Tickets[0].Id, ct);
 
         presence.Viewers.Single().DisplayName.ShouldBe("Sam");
     }
 
     // ---- a REST write is announced once, after its commit -----------------------------------------------------------------------------------------------
 
-    [Fact]
+    [Fact(Timeout = 120000)]
     public async Task A_rest_status_change_reaches_the_queue_exactly_once_and_a_rejected_one_never_does()
     {
+        var ct = TestContext.Current.CancellationToken;
         var (factory, _, seed) = await StartAsync();
         await using var _f = factory;
         var ticket = seed.Tickets[1];
         await using var kim = HubTestSupport.Connect(factory, HubTestSupport.AgentToken("kim", "Kim"));
         using var queue = new HubTestSupport.Inbox<TicketChangedDto>(kim, TicketHubMethods.TicketChanged);
-        await kim.StartAsync(Ct);
-        await kim.ReadyAsync(Ct);
+        await kim.StartAsync(ct);
+        await kim.ReadyAsync(ct);
         using var sam = TicketTestData.AgentClient(factory, "sam");
         var version = await TicketTestData.VersionAsync(sam, ticket.Id);
 
-        using var stale = await sam.PutAsJsonAsync($"/api/tickets/{ticket.Id}/status", new ChangeTicketStatusRequest("Open", version + 100), Ct);
+        using var stale = await sam.PutAsJsonAsync($"/api/tickets/{ticket.Id}/status", new ChangeTicketStatusRequest("Open", version + 100), ct);
         stale.StatusCode.ShouldBe(HttpStatusCode.Conflict);
-        using var accepted = await sam.PutAsJsonAsync($"/api/tickets/{ticket.Id}/status", new ChangeTicketStatusRequest("Open", version), Ct);
+        using var accepted = await sam.PutAsJsonAsync($"/api/tickets/{ticket.Id}/status", new ChangeTicketStatusRequest("Open", version), ct);
         accepted.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var change = await queue.NextAsync();
@@ -302,16 +315,17 @@ public sealed class TicketHubTests(TestPostgres postgres)
 
         // Anything else the same two requests produced would arrive before this barrier.
         var barrier = Change();
-        await factory.Services.GetRequiredService<ITicketChangeBroadcaster>().PublishAsync(barrier, Ct);
+        await factory.Services.GetRequiredService<ITicketChangeBroadcaster>().PublishAsync(barrier, ct);
         (await queue.NextAsync()).EventId.ShouldBe(barrier.EventId);
         queue.Pending().ShouldBeEmpty();
     }
 
     // ---- logs -------------------------------------------------------------------------------------------------------------------------------------------
 
-    [Fact]
+    [Fact(Timeout = 120000)]
     public async Task No_token_reaches_a_log_event_at_any_level_whether_it_came_in_a_header_or_a_refused_query()
     {
+        var ct = TestContext.Current.CancellationToken;
         var (factory, _, seed) = await StartAsync(new Dictionary<string, string?>
         {
             ["Serilog:MinimumLevel:Default"] = "Verbose",
@@ -324,8 +338,8 @@ public sealed class TicketHubTests(TestPostgres postgres)
         var queryToken = HubTestSupport.AgentToken("kim", "Kim");
         await using (var good = HubTestSupport.Connect(factory, headerToken))
         {
-            await good.StartAsync(Ct);
-            await good.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, seed.Tickets[0].Id, Ct);
+            await good.StartAsync(ct);
+            await good.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, seed.Tickets[0].Id, ct);
         }
 
         await StartFailureAsync(HubTestSupport.Connect(factory, headerToken: null, queryToken: queryToken));

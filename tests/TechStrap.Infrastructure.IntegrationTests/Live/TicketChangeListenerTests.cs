@@ -208,6 +208,9 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
 
         second.ShouldNotBe(first);
         metrics.Sum(TechStrapMetrics.ListenerReconnectsName).ShouldBe(1);
+
+        // The synthetic Resync is not a change relayed from Postgres.
+        metrics.Sum(TechStrapMetrics.ChangesRelayedName).ShouldBe(0);
         host.Recorder.Attempts.ShouldHaveSingleItem().Kind.ShouldBe(TicketChangeKinds.Resync);
         host.Log.Entries.ShouldContain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("lost its connection"));
 
@@ -224,6 +227,8 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
         await NotifyTestSupport.UntilAsync(() => host.Recorder.Attempts.Count >= 3);
         host.Recorder.Attempts.Select(change => change.Kind).ShouldBe([TicketChangeKinds.Resync, TicketChangeKinds.Resync, TicketChangeKinds.Updated]);
         metrics.Sum(TechStrapMetrics.ListenerReconnectsName).ShouldBe(2);
+        await NotifyTestSupport.UntilAsync(() => metrics.Sum(TechStrapMetrics.ChangesRelayedName) >= 1);
+        metrics.Sum(TechStrapMetrics.ChangesRelayedName).ShouldBe(1);
     }
 
     [Fact(Timeout = 180000)]

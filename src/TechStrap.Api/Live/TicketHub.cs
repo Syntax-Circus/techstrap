@@ -23,8 +23,17 @@ public sealed class TicketHub(IUpdateTicketPresenceHandler presence, IOptions<Ag
     public override async Task OnConnectedAsync()
     {
         metrics.AgentConnected(Context.ConnectionId, Subject());
-        await Groups.AddToGroupAsync(Context.ConnectionId, TicketHubGroups.Queue, Context.ConnectionAborted);
-        await base.OnConnectedAsync();
+        try
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, TicketHubGroups.Queue, Context.ConnectionAborted);
+            await base.OnConnectedAsync();
+        }
+        catch
+        {
+            // SignalR does not call OnDisconnectedAsync when OnConnectedAsync throws, so the gauge entry would stay for good.
+            metrics.AgentDisconnected(Context.ConnectionId);
+            throw;
+        }
     }
 
     /// <summary>Opens a ticket: returns who has it open now (the caller included); everyone else on the ticket is told when that changed.</summary>
@@ -37,6 +46,13 @@ public sealed class TicketHub(IUpdateTicketPresenceHandler presence, IOptions<Ag
         }
 
         await Groups.AddToGroupAsync(Context.ConnectionId, TicketHubGroups.Ticket(ticketId), Context.ConnectionAborted);
+
+        // A disconnect can race this call: SignalR aborts the connection before OnDisconnectedAsync, whose LeaveAll may already have run, so undo the join here.
+        if (Context.ConnectionAborted.IsCancellationRequested)
+        {
+            await presence.HandleAsync(Request(TicketPresenceActions.Leave, ticketId), CancellationToken.None);
+        }
+
         return result.Value.ToDto();
     }
 

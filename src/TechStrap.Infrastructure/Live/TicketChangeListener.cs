@@ -31,6 +31,9 @@ internal sealed class TicketChangeListener(
     /// <summary>The longest one relay (the handler and the hub behind it) may take, so a stuck hub cannot hold the loop for good.</summary>
     private static readonly TimeSpan RelayTimeout = TimeSpan.FromSeconds(5);
 
+    /// <summary>The longest the loop waits for a notification before it drains the queue again, so one queued in the gap before the wait cannot strand.</summary>
+    private static readonly TimeSpan WaitTimeout = TimeSpan.FromSeconds(TicketChangeNotify.KeepAliveSeconds);
+
     /// <summary>The delay before reconnect number <paramref name="failuresInARow"/> (0 is the first): the initial delay doubled each time, never over the maximum.</summary>
     internal static TimeSpan BackoffFor(int failuresInARow)
     {
@@ -127,7 +130,7 @@ internal sealed class TicketChangeListener(
             metrics.ListenerReconnected();
 
             // Whatever was sent while the connection was down is lost, so tell the clients to reload everything.
-            await RelayAsync(JsonSerializer.Serialize(TicketChange.Resync(Guid.CreateVersion7(clock.GetUtcNow()), clock.GetUtcNow()).ToDto(), JsonSerializerOptions.Web), cancellationToken);
+            await RelayAsync(JsonSerializer.Serialize(TicketChange.Resync(Guid.CreateVersion7(clock.GetUtcNow()), clock.GetUtcNow()).ToDto(), JsonSerializerOptions.Web), countAsRelayed: false, cancellationToken);
         }
 
         if (AfterListening is { } afterListening)
@@ -141,14 +144,15 @@ internal sealed class TicketChangeListener(
             // another one came, and several can be queued at once.
             while (received.TryDequeue(out var payload))
             {
-                await RelayAsync(payload, cancellationToken);
+                await RelayAsync(payload, countAsRelayed: true, cancellationToken);
             }
 
-            await connection.WaitAsync(cancellationToken);
+            _ = await connection.WaitAsync(WaitTimeout, cancellationToken);
         }
     }
 
-    private async Task RelayAsync(string payload, CancellationToken cancellationToken)
+    /// <summary>A synthetic Resync is not a change relayed from Postgres, so it is not counted as one; a failed one still counts as a failure.</summary>
+    private async Task RelayAsync(string payload, bool countAsRelayed, CancellationToken cancellationToken)
     {
         try
         {
@@ -158,7 +162,10 @@ internal sealed class TicketChangeListener(
             var result = await scope.ServiceProvider.GetRequiredService<IRelayTicketChangeHandler>().HandleAsync(new RelayTicketChangeRequest(payload), bounded.Token);
             if (result.IsSuccess)
             {
-                metrics.ChangeRelayed();
+                if (countAsRelayed)
+                {
+                    metrics.ChangeRelayed();
+                }
             }
             else
             {

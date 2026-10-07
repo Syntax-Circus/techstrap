@@ -1880,6 +1880,12 @@ PHASE-09 is merged, so PHASE-10 can start. Reading the code before planning foun
 - **Single Api instance.** Presence and the in-process publish do not span instances (D-007). The listener needs a direct Postgres connection: PgBouncer in transaction mode breaks `LISTEN` (DEPLOYMENT.md).
 - **As built in 10a: the proof.** The hub is exercised through a real `HubConnection` on the in-memory server (long polling) and, for the header token, over real WebSockets on a loopback Kestrel port; the hook, the broadcaster and the listener run against Postgres (Testcontainers), including `pg_terminate_backend` of the listener's backend, which ends in a reconnect and one `Resync`.
 - **As built in 10a: the Admin is not changed.** 10b adds the client, the indicator, the banners and the presence bar; the hub contract (Contracts `Live`) is what it builds on.
+- **Known limits (10a).**
+  - A deactivated agent's already-open socket keeps receiving `TicketChanged` (ids and numbers) and the presence of tickets it joined until its access token expires; the handshake, `JoinTicket`, `SetComposing` and REST all refuse it.
+  - The hub is not rate-limited, like the agent REST endpoints; SignalR runs one invocation at a time per connection.
+  - The erasure `ExecuteUpdate`/`ExecuteDelete` bypasses the change tracker, so it publishes nothing; an open detail page shows the old text until its next load.
+  - The Worker's `connected_agents` gauge is always 0 (only the Api has a hub).
+  - `TechStrapMetrics` creates its meter with `new Meter`, not `IMeterFactory`, so it is process-wide (the next bullet is the consequence); moving to `IMeterFactory` is a 10b-or-later change.
 - **Known: the first 10a host test of a meter needs an async disposal.** A meter provider subscribes to every meter of that name in the process, so a host that is only disposed synchronously keeps observing the next one's instruments; the registration test disposes each host before it starts the next.
 
 ### Approval
