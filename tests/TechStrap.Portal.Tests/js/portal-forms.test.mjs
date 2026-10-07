@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import {
-    COPIED_RESET_MS, COUNT_ANNOUNCE_MS, NEAR_RATIO, SENDING_RESET_MS, copyText, copyWords, counterText, createSendingState, defineElements, fill, groupDigits, installSendingState, selectContents,
+    COPIED_RESET_MS, COUNT_ANNOUNCE_MS, NEAR_RATIO, SENDING_RESET_MS, newSubmitId, refreshSubmitIds, copyText, copyWords, counterText, createSendingState, defineElements, fill, groupDigits, installSendingState, selectContents,
     serverLength, submitButtonOf,
 } from '../../../src/TechStrap.Portal/wwwroot/js/portal-forms.js';
 
@@ -51,6 +51,7 @@ function fakeElement(tag, attrs = {}) {
         listenerCount: (type) => (listeners.get(type) ?? []).length,
         fire(type, event = {}) { for (const fn of listeners.get(type) ?? []) { fn({ type, target: this, ...event }); } },
         querySelector(selector) { return selector === 'button[type="submit"]' ? this.submit ?? null : null; },
+        contains(node) { return this.children.includes(node); },
     };
 }
 
@@ -64,6 +65,8 @@ function fakeDocument() {
         getElementById: (id) => byId.get(id) ?? null,
         getSelection: () => ({ selectAllChildren: (node) => selections.push(node) }),
         listeners: new Map(),
+        idInputs: [],
+        querySelectorAll(selector) { return selector === 'input[name$=".SubmitId"]' ? this.idInputs : []; },
         addEventListener(type, fn, capture) { this.listeners.set(type, { fn, capture }); },
     };
 }
@@ -167,6 +170,17 @@ describe('the sending state', () => {
         assert.equal(prevented, 1);
     });
 
+    it('leaves a submit that something else already cancelled alone: the button is not disabled', () => {
+        const state = createSendingState(fakeClock());
+        const { form, submit } = formWith();
+
+        const handled = state.onSubmit({ target: form, defaultPrevented: true, preventDefault() { assert.fail('nothing to cancel'); } });
+
+        assert.equal(handled, false);
+        assert.equal(submit.disabled, false);
+        assert.equal(state.isSending(form), false);
+    });
+
     it('leaves a form without a sending label, and a form without a submit button, alone', () => {
         const state = createSendingState(fakeClock());
         const plain = formWith(null);
@@ -243,6 +257,41 @@ describe('the sending state', () => {
         assert.equal(state.isSending(form), false);
     });
 
+    it('gives every form a fresh well-formed id on a pageshow from the cache, and leaves the ids alone on an ordinary pageshow', () => {
+        const doc = fakeDocument();
+        const win = fakeElement('window');
+        const first = fakeElement('input'); first.value = 'AbC-_0123456789AbC-_01';
+        const second = fakeElement('input'); second.value = 'AbC-_0123456789AbC-_01';
+        doc.idInputs = [first, second];
+        let calls = 0;
+        const fakeCrypto = { getRandomValues: (bytes) => { calls += 1; bytes.fill(calls * 37); return bytes; } };
+        installSendingState({ document: doc, window: win, crypto: fakeCrypto, btoa: (text) => globalThis.btoa(text) }, fakeClock());
+
+        win.fire('pageshow', { persisted: false });
+        assert.equal(first.value, 'AbC-_0123456789AbC-_01');
+        win.fire('pageshow', { persisted: true });
+
+        for (const input of [first, second]) {
+            assert.match(input.value, /^[A-Za-z0-9_-]{22}$/);
+            assert.notEqual(input.value, 'AbC-_0123456789AbC-_01');
+        }
+        assert.notEqual(first.value, second.value, 'each form gets its own id');
+    });
+
+    it('makes ids of exactly the shape the server accepts, from random bytes, and keeps the old id when there is no random source', () => {
+        const bytes = (value) => ({ getRandomValues: (array) => array.fill(value) });
+        assert.match(newSubmitId(bytes(251)), /^[A-Za-z0-9_-]{22}$/);
+        assert.equal(newSubmitId(bytes(251)).includes('+'), false);
+        assert.equal(newSubmitId(bytes(255)), '_____________________w');
+        assert.equal(newSubmitId(bytes(0)), 'AAAAAAAAAAAAAAAAAAAAAA');
+        assert.equal(newSubmitId(null), null);
+        const doc = fakeDocument();
+        const input = fakeElement('input'); input.value = 'old';
+        doc.idInputs = [input];
+        refreshSubmitIds(doc, null);
+        assert.equal(input.value, 'old');
+    });
+
     it('finds the submit button by its type', () => {
         const { form, submit } = formWith();
         assert.equal(submitButtonOf(form), submit);
@@ -288,6 +337,7 @@ describe('copyWords', () => {
 });
 
 function elementsEnv() {
+    const observers = [];
     const doc = fakeDocument();
     const clock = fakeClock();
     const defined = new Map();
@@ -303,8 +353,13 @@ function elementsEnv() {
         navigator: { clipboard: { writeText: async (text) => { written.push(text); } } },
         setTimeout: clock.setTimer,
         clearTimeout: clock.clearTimer,
+        MutationObserver: class {
+            constructor(callback) { this.callback = callback; this.watching = false; observers.push(this); }
+            observe() { this.watching = true; }
+            disconnect() { this.watching = false; }
+        },
     };
-    return { env, doc, clock, defined, written };
+    return { env, doc, clock, defined, written, observers };
 }
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -405,6 +460,86 @@ describe('<ts-copy-text>', () => {
 
         assert.equal(element.children[0].textContent, '<img src=x onerror=alert(1)>');
         assert.equal(element.children[0].children.length, 0);
+    });
+});
+
+describe('same-page enhanced navigation', () => {
+    it('<ts-copy-text> builds its button again when the navigation stripped its children, and the new button works', async () => {
+        const setup = elementsEnv();
+        defineElements(setup.env);
+        const target = fakeElement('strong');
+        target.textContent = ' PAP-42 ';
+        setup.doc.byId.set('ticket-number', target);
+        const element = new (setup.defined.get('ts-copy-text'))();
+        Object.assign(element.attrs, { target: 'ticket-number', 'data-label': 'Copy ticket number' });
+        element.connectedCallback();
+        const [oldButton] = element.children;
+        assert.equal(setup.observers.length, 1);
+        assert.equal(setup.observers[0].watching, true);
+
+        setup.observers[0].callback([]);
+        assert.equal(element.children[0], oldButton, 'nothing is rebuilt while the children are there');
+        element.replaceChildren();
+        setup.observers.at(-1).callback([]);
+
+        const [button] = element.children;
+        assert.notEqual(button, oldButton);
+        assert.equal(button.textContent, 'Copy ticket number');
+        assert.equal(oldButton.listenerCount('click'), 0);
+        button.fire('click');
+        await flush();
+        assert.deepEqual(setup.written, ['PAP-42']);
+        assert.equal(setup.observers.filter((observer) => observer.watching).length, 1, 'one live observer, never a pile of them');
+    });
+
+    it('<ts-char-count> builds its count again when stripped, and when its textarea was replaced', () => {
+        const setup = elementsEnv();
+        defineElements(setup.env);
+        const field = fakeElement('textarea');
+        setup.doc.byId.set('body', field);
+        const element = new (setup.defined.get('ts-char-count'))();
+        Object.assign(element.attrs, { for: 'body', 'data-limit': '1000', 'data-template': '{0} of {1} characters', 'data-over': '{0} over the limit' });
+        element.connectedCallback();
+        const [oldVisible] = element.children;
+
+        element.replaceChildren();
+        setup.observers.at(-1).callback([]);
+        field.value = 'x'.repeat(850);
+        field.fire('input');
+
+        assert.notEqual(element.children[0], oldVisible);
+        assert.equal(element.children[0].textContent, '850 of 1,000 characters');
+        assert.equal(field.listenerCount('input'), 1, 'one listener, never a pile of them');
+
+        const replacement = fakeElement('textarea');
+        replacement.value = 'x'.repeat(900);
+        setup.doc.byId.set('body', replacement);
+        setup.observers.at(-1).callback([]);
+
+        assert.equal(field.listenerCount('input'), 0);
+        assert.equal(replacement.listenerCount('input'), 1);
+        assert.equal(element.children[0].textContent, '900 of 1,000 characters');
+    });
+
+    it('stops watching when removed, and still renders without MutationObserver', () => {
+        const setup = elementsEnv();
+        defineElements(setup.env);
+        const field = fakeElement('textarea');
+        setup.doc.byId.set('body', field);
+        const element = new (setup.defined.get('ts-char-count'))();
+        Object.assign(element.attrs, { for: 'body', 'data-limit': '1000' });
+        element.connectedCallback();
+        element.disconnectedCallback();
+        assert.equal(setup.observers.every((observer) => !observer.watching), true);
+
+        const bare = elementsEnv();
+        delete bare.env.MutationObserver;
+        defineElements(bare.env);
+        bare.doc.byId.set('body', fakeElement('textarea'));
+        const other = new (bare.defined.get('ts-char-count'))();
+        Object.assign(other.attrs, { for: 'body', 'data-limit': '1000' });
+        other.connectedCallback();
+        assert.equal(other.children.length, 2);
     });
 });
 
@@ -526,9 +661,10 @@ describe('the source', () => {
     const code = source.split('\n').filter((line) => !line.trim().startsWith('//') && !line.trim().startsWith('*') && !line.trim().startsWith('/**')).join('\n');
 
     it('never builds markup from text: no innerHTML, outerHTML, insertAdjacentHTML, document.write, eval or Function', () => {
-        for (const forbidden of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'eval(', 'new Function', 'setAttribute(\'on', 'srcdoc', 'createContextualFragment', 'DOMParser']) {
+        for (const forbidden of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'eval(', 'new Function', 'srcdoc', 'createContextualFragment', 'DOMParser']) {
             assert.equal(code.includes(forbidden), false, `${forbidden} must not appear`);
         }
+        assert.equal(/setAttribute\(\s*['"`]on|\.on[a-z]+\s*=/.test(code), false, 'no event-handler attribute or property is set');
     });
 
     it('puts server text on the page with textContent', () => {

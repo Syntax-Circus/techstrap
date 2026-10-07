@@ -37,13 +37,36 @@ public sealed class SeenTests
     [InlineData("Date", "Tue, 06 Oct 2026 10:00:00 GMT", "Tue, 06 Oct 2026 10:00:09 GMT")]
     [InlineData("X-Correlation-Id", "cid-one", "cid-two")]
     [InlineData("Set-Cookie", ".AspNetCore.Antiforgery.x=one; path=/", ".AspNetCore.Antiforgery.x=two; path=/")]
-    [InlineData("Pragma", "no-cache", "no-cache, x")]
     public async Task A_header_that_varies_per_request_does_not(string name, string first, string second)
     {
         var one = await SeenAsync(response => response.Headers.TryAddWithoutValidation(name, first));
         var two = await SeenAsync(response => response.Headers.TryAddWithoutValidation(name, second));
 
         one.Headers.ShouldBe(two.Headers);
+    }
+
+    [Fact]
+    public async Task Pragma_is_ignored_only_together_with_the_antiforgery_cookie()
+    {
+        var plain = await SeenAsync(_ => { });
+        var strayPragma = await SeenAsync(response => response.Headers.TryAddWithoutValidation("Pragma", "no-cache"));
+        var cookie = await SeenAsync(response => response.Headers.TryAddWithoutValidation("Set-Cookie", ".AspNetCore.Antiforgery.x=one; path=/"));
+        var cookieAndPragma = await SeenAsync(response =>
+        {
+            response.Headers.TryAddWithoutValidation("Set-Cookie", ".AspNetCore.Antiforgery.x=two; path=/");
+            response.Headers.TryAddWithoutValidation("Pragma", "no-cache");
+        });
+
+        using var posted = new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("<h1>Page not found</h1>"), RequestMessage = new HttpRequestMessage() };
+        posted.Headers.TryAddWithoutValidation("Cache-Control", "no-store");
+        posted.Headers.TryAddWithoutValidation("Pragma", "no-cache");
+        posted.RequestMessage.Headers.TryAddWithoutValidation("Cookie", ".AspNetCore.Antiforgery.x=one");
+        (await Seen.OfAsync(posted, 0, Ct)).Headers.ShouldBe(plain.Headers, "a post that carried the antiforgery cookie gets Pragma without a new Set-Cookie");
+
+        strayPragma.Headers.ShouldNotBe(plain.Headers, "a Pragma header with no antiforgery cookie behind it is a real difference");
+        Should.Throw<ShouldAssertException>(() => strayPragma.ShouldBeTheNeutralNotFound(plain));
+        cookieAndPragma.Headers.ShouldBe(cookie.Headers);
+        cookieAndPragma.Headers.ShouldBe(plain.Headers);
     }
 
     [Fact]

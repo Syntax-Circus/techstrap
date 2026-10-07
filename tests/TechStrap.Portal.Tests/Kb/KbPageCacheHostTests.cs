@@ -73,24 +73,35 @@ public sealed class KbPageCacheHostTests
     }
 
     [Fact]
-    public async Task Only_the_page_value_changes_the_key_and_a_page_asked_with_other_query_values_is_the_same_page()
+    public async Task Only_the_page_value_changes_the_key_and_a_category_asked_with_any_other_query_is_answered_but_never_stored()
     {
         await using var factory = Factory();
         using var client = FormTestKit.Client(factory);
 
         using var a = await GetAsync(client, "/p/paperplane/kb/accounts");
-        using var b = await GetAsync(client, "/p/paperplane/kb/accounts?utm_source=mail");
-        using var c = await GetAsync(client, "/p/paperplane/kb/accounts?utm_source=other&x=1");
-
+        using var a2 = await GetAsync(client, "/p/paperplane/kb/accounts");
         factory.Api.Count(HttpMethod.Get, KbTestKit.CategoryArticlesPath).ShouldBe(1);
+
+        using var b = await GetAsync(client, "/p/paperplane/kb/accounts?utm_source=mail");
+        using var c = await GetAsync(client, "/p/paperplane/kb/accounts?utm_source=mail");
+        factory.Api.Count(HttpMethod.Get, KbTestKit.CategoryArticlesPath).ShouldBe(3, "another query is never stored");
 
         factory.Api.OnJson(HttpMethod.Get, KbTestKit.CategoryArticlesPath, KbTestKit.Page(2, 10, 15, KbTestKit.Article("change-email", "Change your email")));
         using var page2 = await GetAsync(client, "/p/paperplane/kb/accounts?page=2");
-        using var page2Again = await GetAsync(client, "/p/paperplane/kb/accounts?page=2&utm=1");
-
-        factory.Api.Count(HttpMethod.Get, KbTestKit.CategoryArticlesPath).ShouldBe(2);
+        using var page2Again = await GetAsync(client, "/p/paperplane/kb/accounts?page=2");
+        factory.Api.Count(HttpMethod.Get, KbTestKit.CategoryArticlesPath).ShouldBe(4);
         (await page2.Content.ReadAsStringAsync(Ct)).ShouldContain("Change your email");
         (await page2Again.Content.ReadAsStringAsync(Ct)).ShouldContain("Change your email");
+
+        // A case variant of the page key is answered, never stored: its links would otherwise carry one visitor's spelling to the next. (The percent-encoded spellings, which the HTTP client would normalise
+        // before sending, are pinned on the raw query in PortalCachePathsTests.)
+        foreach (var spelling in new[] { "?PAGE=2", "?Page=2&x=1" })
+        {
+            using var first = await GetAsync(client, "/p/paperplane/kb/accounts" + spelling);
+            using var again = await GetAsync(client, "/p/paperplane/kb/accounts" + spelling);
+        }
+
+        factory.Api.Count(HttpMethod.Get, KbTestKit.CategoryArticlesPath).ShouldBe(8);
     }
 
     [Fact]

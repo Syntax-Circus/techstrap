@@ -30,6 +30,9 @@ public static class FormCopy
     public const string RateLimited = "Too many attempts. Wait a few minutes and try again. What you wrote is still here.";
     public const string Unavailable = "We could not send that just now. What you wrote is still here: try again in a moment.";
 
+    /// <summary>When a send timed out: it may have arrived, so the visitor is told to check before sending again.</summary>
+    public const string Unknown = "We could not confirm it was sent. Check your email before sending again.";
+
     /// <summary>The rule for attachments, stated before anyone picks a file (UX brief): size, count and type, from the same limits the API enforces.</summary>
     public static string AttachmentRules { get; } =
         $"Up to {IntakeLimits.MaxFiles} files: images and documents of {IntakeLimits.MaxFileBytes / Mebibyte} MB each and {IntakeLimits.MaxMessageBytes / Mebibyte} MB in all ({string.Join(", ", IntakeLimits.AllowedExtensions)}).";

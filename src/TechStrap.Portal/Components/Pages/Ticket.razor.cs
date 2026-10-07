@@ -112,10 +112,10 @@ public partial class Ticket
         }
 
         // A double click sends one reply: the id this form carried, with the ticket's token, claims the write (D-045 09d addendum). A repeat goes where the first went (the same page, or the follow-up's page), or back to this
-        // ticket's page when the first's answer is unknown. The stored target can be a follow-up's access token: it stays in memory, for two minutes, and is never logged.
+        // ticket's page when the first's answer is unknown. The stored target can be a follow-up's access token: it stays in memory, for <see cref="SubmitGuard.Lifetime"/>, and is never logged.
         var reply = new CustomerReply(form.Body!.Trim(), AttachmentRules.ToUploads(form.Files));
         var outcome = await Guard.RunAsync(
-            SubmitKey.TryCreate(ReplyHandler, _token.Value, form.SubmitId, foldScope: false),
+            SubmitKey.TryCreate(ReplyHandler, _token.Value, form.SubmitId, SubmitContent.Digest([form.Body], form.Files), foldScope: false),
             new SubmitTarget(PortalRoutes.Ticket(_token)),
             async cancellation =>
             {

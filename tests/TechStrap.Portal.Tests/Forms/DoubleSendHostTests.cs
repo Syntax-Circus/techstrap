@@ -112,6 +112,7 @@ public sealed class DoubleSendHostTests
             ids.ShouldAllBe(id => SubmitIds.IsWellFormed(id));
             ids[0].ShouldNotBe(ids[1]);
             System.Text.RegularExpressions.Regex.IsMatch(pages[0], $"name=\"__RequestVerificationToken\"[^>]*/>\\s*<input type=\"hidden\" name=\"{name}\"").ShouldBeTrue("the id sits straight after the antiforgery field");
+            pages[0].ShouldContain($"name=\"{name}\" value=\"{ids[0]}\" autocomplete=\"off\"", Case.Sensitive, "the browser must not restore an old id into the field (the back button gets a fresh one from the module)");
         }
     }
 
@@ -165,6 +166,76 @@ public sealed class DoubleSendHostTests
         second.Headers.Location.ShouldBe(first.Headers.Location);
         first.Headers.Location!.Query.ShouldStartWith("?ref=");
         factory.Api.Count(HttpMethod.Post, FormTestKit.ApiTicketsPath).ShouldBe(1);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Contact_the_same_id_with_edited_text_is_a_new_message_and_calls_the_api_again()
+    {
+        await using var factory = Host();
+        var (client, token, id) = await OpenContactAsync(factory);
+        using var _ = client;
+
+        using var first = await client.PostAsync(FormTestKit.Path, FormTestKit.ContactForm(token).WithSubmitId(id), TestContext.Current.CancellationToken);
+        using var same = await client.PostAsync(FormTestKit.Path, FormTestKit.ContactForm(token).WithSubmitId(id), TestContext.Current.CancellationToken);
+        factory.Api.Count(HttpMethod.Post, FormTestKit.ApiTicketsPath).ShouldBe(1, "an identical resend is still a duplicate");
+
+        using var edited = await client.PostAsync(FormTestKit.Path, FormTestKit.ContactForm(token, body: "It jams every time. Edited after Back.").WithSubmitId(id), TestContext.Current.CancellationToken);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.Found);
+        edited.StatusCode.ShouldBe(HttpStatusCode.Found);
+        factory.Api.Count(HttpMethod.Post, FormTestKit.ApiTicketsPath).ShouldBe(2);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Contact_the_same_id_with_a_different_attachment_is_a_new_message_and_calls_the_api_again()
+    {
+        await using var factory = Host();
+        var (client, token, id) = await OpenContactAsync(factory);
+        using var _ = client;
+        var one = new PostedFile("a.txt", [1, 2, 3]);
+        var other = new PostedFile("b.txt", [1, 2, 3]);
+
+        using var first = await client.PostAsync(FormTestKit.Path, FormTestKit.ContactForm(token, files: one).WithSubmitId(id), TestContext.Current.CancellationToken);
+        using var same = await client.PostAsync(FormTestKit.Path, FormTestKit.ContactForm(token, files: one).WithSubmitId(id), TestContext.Current.CancellationToken);
+        factory.Api.Count(HttpMethod.Post, FormTestKit.ApiTicketsPath).ShouldBe(1);
+
+        using var different = await client.PostAsync(FormTestKit.Path, FormTestKit.ContactForm(token, files: other).WithSubmitId(id), TestContext.Current.CancellationToken);
+
+        different.StatusCode.ShouldBe(HttpStatusCode.Found);
+        factory.Api.Count(HttpMethod.Post, FormTestKit.ApiTicketsPath).ShouldBe(2);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Lost_link_the_same_id_with_another_email_asks_again()
+    {
+        await using var factory = Host();
+        factory.Api.OnStatus(HttpMethod.Post, LinkApi, HttpStatusCode.Accepted);
+        var (client, token, id) = await OpenLostLinkAsync(factory);
+        using var _ = client;
+
+        using var first = await PostLostLink(client, token, id, TestContext.Current.CancellationToken);
+        var other = new MultipartFormDataContent { { new StringContent("lost-link"), "_handler" }, { new StringContent(token), "__RequestVerificationToken" }, { new StringContent("grace@example.com"), "Form.Email" } };
+        using var second = await client.PostAsync(LostLinkPath, other.WithSubmitId(id), TestContext.Current.CancellationToken);
+
+        second.StatusCode.ShouldBe(HttpStatusCode.Found);
+        factory.Api.Count(HttpMethod.Post, LinkApi).ShouldBe(2);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Reply_the_same_id_with_edited_text_sends_again_and_an_identical_resend_does_not()
+    {
+        await using var factory = ReplyHost();
+        var (client, token, id) = await OpenTicketAsync(factory, TicketTestKit.Path);
+        using var _ = client;
+
+        using var first = await PostReply(client, TicketTestKit.Path, token, id, TestContext.Current.CancellationToken);
+        using var same = await PostReply(client, TicketTestKit.Path, token, id, TestContext.Current.CancellationToken);
+        factory.Api.Count(HttpMethod.Post, TicketTestKit.ReplyApi).ShouldBe(1);
+
+        using var edited = await client.PostAsync(TicketTestKit.Path, Reply(token, id, "Still broken, and now it smokes."), TestContext.Current.CancellationToken);
+
+        edited.StatusCode.ShouldBe(HttpStatusCode.Found);
+        factory.Api.Count(HttpMethod.Post, TicketTestKit.ReplyApi).ShouldBe(2);
     }
 
     [Fact(Timeout = 10000)]
@@ -230,7 +301,9 @@ public sealed class DoubleSendHostTests
         using var second = await PostContact(client, token, id, TestContext.Current.CancellationToken);
 
         first.StatusCode.ShouldBe(HttpStatusCode.ServiceUnavailable);
-        (await first.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldContain("We could not send that just now.");
+        var unknown = await first.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        unknown.ShouldContain("We could not confirm it was sent. Check your email before sending again.");
+        unknown.ShouldNotContain("We could not send that just now.");
         second.StatusCode.ShouldBe(HttpStatusCode.Found);
         second.Headers.Location!.ToString().ShouldBe(ReceivedNoRef);
         factory.Api.Count(HttpMethod.Post, FormTestKit.ApiTicketsPath).ShouldBe(1);

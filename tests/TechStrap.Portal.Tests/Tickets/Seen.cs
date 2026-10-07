@@ -10,10 +10,11 @@ namespace TechStrap.Portal.Tests.Tickets;
 internal sealed record Seen(HttpStatusCode Status, string Body, string Headers, int ApiCalls)
 {
     /// <summary>
-    /// The headers that vary per request by design: the clock, the request's own correlation id and the framing; and the two the framework's antiforgery step adds only to a response that rendered a form (the
-    /// antiforgery <c>Set-Cookie</c> and <c>Pragma: no-cache</c>), which a post to a product that vanished after its form was served still carries. Nothing is leaked: a visitor holding that form already knew the product.
+    /// The headers that vary per request by design: the clock, the request's own correlation id and the framing; and the antiforgery <c>Set-Cookie</c> that the framework adds only to a response that rendered a form,
+    /// which a post to a product that vanished after its form was served still carries. <c>Pragma: no-cache</c> comes with that step and is ignored only when the antiforgery cookie is in play, set by the response or sent with the request (see
+    /// <see cref="OfAsync"/>); on any other response it is compared like every other header. Nothing is leaked: a visitor holding that form already knew the product.
     /// </summary>
-    private static readonly HashSet<string> PerRequest = new(["Date", "X-Correlation-Id", "Content-Length", "Transfer-Encoding", "Set-Cookie", "Pragma"], StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> PerRequest = new(["Date", "X-Correlation-Id", "Content-Length", "Transfer-Encoding", "Set-Cookie"], StringComparer.OrdinalIgnoreCase);
 
     private const string AntiforgeryCookiePrefix = ".AspNetCore.Antiforgery.";
 
@@ -23,12 +24,18 @@ internal sealed record Seen(HttpStatusCode Status, string Body, string Headers, 
             ? cookies.Where(c => !c.StartsWith(AntiforgeryCookiePrefix, StringComparison.Ordinal)).Select(c => "Set-Cookie: " + c.Split('=')[0].Trim())
             : [];
 
+    /// <summary>The antiforgery step ran for this response: it set the cookie, or (a post) the request carried the cookie it had set before. Only then does <c>Pragma: no-cache</c> belong to the framework.</summary>
+    private static bool HasAntiforgeryCookie(HttpResponseMessage response) =>
+        (response.Headers.TryGetValues("Set-Cookie", out var cookies) && cookies.Any(c => c.StartsWith(AntiforgeryCookiePrefix, StringComparison.Ordinal)))
+        || (response.RequestMessage?.Headers.TryGetValues("Cookie", out var sent) == true && sent.Any(c => c.Contains(AntiforgeryCookiePrefix, StringComparison.Ordinal)));
+
     public static async Task<Seen> OfAsync(HttpResponseMessage response, int apiCalls, CancellationToken cancellationToken)
     {
+        var antiforgery = HasAntiforgeryCookie(response);
         var headers = string.Join(
             "\n",
             response.Headers.Concat(response.Content.Headers)
-                .Where(h => !PerRequest.Contains(h.Key))
+                .Where(h => !PerRequest.Contains(h.Key) && !(antiforgery && h.Key.Equals("Pragma", StringComparison.OrdinalIgnoreCase)))
                 .OrderBy(h => h.Key, StringComparer.Ordinal)
                 .Select(h => $"{h.Key}: {string.Join(",", h.Value)}")
                 .Concat(CookieNames(response).Order(StringComparer.Ordinal)));

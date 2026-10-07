@@ -1,16 +1,22 @@
 // The Portal's small form helpers (PHASE-09d, D-045 09d addendum). Vanilla JavaScript, no framework and no build step, loaded once from the document shell (App.razor).
 //
-// It does three things, and every page works without it:
+// It does four things, and every page works without it:
 //   1. "Sending" state: when a form that carries data-sending-label is submitted, its submit button is disabled and shows that label, so a double click cannot post twice (the server's one-time id is the
 //      real guard; this is the visible half). The button comes back on pageshow (the back button) and after SENDING_RESET_MS (a post the visitor stopped).
 //   2. <ts-copy-text target="ticket-number" data-label="Copy ticket number" data-copied="Copied" data-failed="..."></ts-copy-text>: a button that copies the text of the element with that id; when the browser
 //      refuses (an insecure page, no permission) the text is selected instead, so Ctrl+C works.
 //   3. <ts-char-count for="body" data-limit="100000" data-template="{0} of {1} characters" data-over="{0} over the limit"></ts-char-count>: a counter for a textarea, shown once the text reaches
 //      NEAR_RATIO of the limit. A line break counts as two characters, because the browser sends CR LF and the server counts what it receives, while the textarea's own maxlength counts one.
+//   4. A fresh one-time id for every form when the page comes back from the back/forward cache (pageshow with persisted): the id the server uses to answer a double click with the first answer (D-045) must
+//      not make a message that the visitor edits after pressing Back look like a repeat. The server also compares what was posted, so this is the second half of the same rule.
 //
 // Why custom elements and document listeners: the Portal's pages are swapped into the open document by Blazor's enhanced navigation, which does NOT run a script that arrives with the new content (the
 // spike of 09d proved it: the kb-suggestions module in a page body never ran after an enhanced click). A module in the document shell runs once, and the browser calls connectedCallback for an element
 // the swap inserts; a listener on the document sees the forms of every later page.
+//
+// Same-page enhanced navigation (a form post that shows errors, a page link on the same route) keeps these elements in the document but replaces their content with the server's (empty, or the no-script fallback),
+// and connectedCallback does not run again. So each element watches its own children with a MutationObserver and builds them again when they are gone. (data-permanent was rejected: it would also keep the old
+// page's attributes, such as the field a counter belongs to or the suggest path of another product.)
 //
 // The words come from the server as data attributes (the *Copy constants), so the page owns its copy. Everything the module touches is passed in (the document, the window, the navigator, the timers), so the
 // behaviour is tested with `node --test` and no browser. Text is put on the page with textContent only; this file never parses text as markup, and a test fails if it starts to.
@@ -19,6 +25,7 @@ export const SENDING_RESET_MS = 60000;
 export const NEAR_RATIO = 0.8;
 export const COUNT_ANNOUNCE_MS = 1000;
 export const COPIED_RESET_MS = 4000;
+export const SUBMIT_ID_SELECTOR = 'input[name$=".SubmitId"]';
 
 /** The length the server will see for a textarea's value: the browser sends each line break as CR LF, so every LF counts as two characters. */
 export function serverLength(value) {
@@ -63,6 +70,41 @@ export function counterText({ used, limit, template, overTemplate }) {
     return { visible: true, over: false, text: fill(template, groupDigits(used), groupDigits(limit)) };
 }
 
+/** A fresh one-time id in the shape the server accepts (SubmitIds.IsWellFormed): 16 random bytes as 22 base64url characters. Null when the browser has no random source. */
+export function newSubmitId(cryptoApi = globalThis.crypto, encode = (text) => globalThis.btoa(text)) {
+    if (!cryptoApi || typeof cryptoApi.getRandomValues !== 'function') {
+        return null;
+    }
+
+    const bytes = cryptoApi.getRandomValues(new Uint8Array(16));
+    return encode(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** Gives every form of the page a new id (after the back button restored the old one with its text). A form whose id cannot be renewed keeps the old one. */
+export function refreshSubmitIds(doc, cryptoApi, encode) {
+    for (const input of doc.querySelectorAll(SUBMIT_ID_SELECTOR)) {
+        const id = newSubmitId(cryptoApi, encode);
+        if (id !== null) {
+            input.value = id;
+        }
+    }
+}
+
+/** Watches the children of `element` and calls `rebuild` when `intact()` turns false (an enhanced navigation replaced them). Returns the observer, or null without MutationObserver. */
+function watchChildren(env, element, intact, rebuild) {
+    if (typeof env.MutationObserver !== 'function') {
+        return null;
+    }
+
+    const observer = new env.MutationObserver(() => {
+        if (!intact()) {
+            rebuild();
+        }
+    });
+    observer.observe(element, { childList: true });
+    return observer;
+}
+
 /** The first submit button of a form, or null. */
 export function submitButtonOf(form) {
     return form.querySelector('button[type="submit"]');
@@ -99,6 +141,11 @@ export function createSendingState({ setTimer = (fn, ms) => setTimeout(fn, ms), 
 
             const text = form.getAttribute('data-sending-label');
             if (typeof text !== 'string' || text.length === 0) {
+                return false;
+            }
+
+            // A submit that something else already cancelled sends nothing, so the button must not be left disabled.
+            if (event.defaultPrevented) {
                 return false;
             }
 
@@ -196,6 +243,7 @@ export function defineElements(env) {
                 status.setAttribute('role', 'status');
                 this.replaceChildren(button, status);
                 this._timer = null;
+                this._rendered = [button, status];
                 this._onClick = async () => {
                     const copied = await copyText((target.textContent ?? '').trim(), env.navigator);
                     if (!copied) {
@@ -211,9 +259,16 @@ export function defineElements(env) {
                 };
                 this._button = button;
                 button.addEventListener('click', this._onClick);
+                this._observer = watchChildren(
+                    env,
+                    this,
+                    () => this._rendered.every((node) => this.contains(node)),
+                    () => { this.disconnectedCallback(); this.connectedCallback(); });
             }
 
             disconnectedCallback() {
+                this._observer?.disconnect();
+                this._observer = null;
                 if (this._button && this._onClick) {
                     this._button.removeEventListener('click', this._onClick);
                 }
@@ -245,6 +300,7 @@ export function defineElements(env) {
                 speech.className = 'visually-hidden';
                 speech.setAttribute('role', 'status');
                 this.replaceChildren(visible, speech);
+                this._rendered = [visible, speech];
                 this._timer = null;
                 this._field = field;
                 this._onInput = () => {
@@ -267,9 +323,16 @@ export function defineElements(env) {
                 this.hidden = true;
                 field.addEventListener('input', this._onInput);
                 this._onInput();
+                this._observer = watchChildren(
+                    env,
+                    this,
+                    () => this._rendered.every((node) => this.contains(node)) && env.document.getElementById(this.getAttribute('for') ?? '') === this._field,
+                    () => { this.disconnectedCallback(); this.connectedCallback(); });
             }
 
             disconnectedCallback() {
+                this._observer?.disconnect();
+                this._observer = null;
                 if (this._field && this._onInput) {
                     this._field.removeEventListener('input', this._onInput);
                 }
@@ -290,7 +353,12 @@ export function defineElements(env) {
 export function installSendingState(env, options) {
     const state = createSendingState(options);
     env.document.addEventListener('submit', (event) => state.onSubmit(event), true);
-    env.window.addEventListener('pageshow', (event) => state.onPageShow(event));
+    env.window.addEventListener('pageshow', (event) => {
+        state.onPageShow(event);
+        if (event && event.persisted) {
+            refreshSubmitIds(env.document, env.crypto, env.btoa);
+        }
+    });
     return state;
 }
 
@@ -301,6 +369,9 @@ if (typeof customElements !== 'undefined' && typeof document !== 'undefined') {
         document,
         window,
         navigator,
+        crypto: globalThis.crypto,
+        btoa: (text) => globalThis.btoa(text),
+        MutationObserver: globalThis.MutationObserver,
         setTimeout: (...args) => setTimeout(...args),
         clearTimeout: (...args) => clearTimeout(...args),
     };

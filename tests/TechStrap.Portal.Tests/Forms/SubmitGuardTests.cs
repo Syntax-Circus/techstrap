@@ -339,9 +339,12 @@ public sealed class SubmitGuardTests
     }
 
     [Fact]
-    public void The_write_deadline_is_the_write_clients_and_a_claim_outlives_it_and_the_reference_outlives_the_claim()
+    public void The_write_deadline_is_just_under_the_write_clients_and_a_claim_outlives_it_and_the_reference_outlives_the_claim()
     {
-        SubmitGuard.WriteTimeout.ShouldBe(TimeSpan.FromSeconds(TechStrap.Portal.Clients.ApiClientRegistration.WriteTimeoutSeconds), "a shorter timeout would show a 503 for an upload that then commits");
+        var client = TimeSpan.FromSeconds(TechStrap.Portal.Clients.ApiClientRegistration.WriteTimeoutSeconds);
+
+        SubmitGuard.WriteTimeout.ShouldBe(client - TimeSpan.FromSeconds(5));
+        (SubmitGuard.WriteTimeout < client).ShouldBeTrue("the guard's deadline must fire before the client's, so a timeout is always unknown and the claim is held");
         (SubmitGuard.WriteTimeout < SubmitGuard.Lifetime).ShouldBeTrue("a claim must outlive the write it guards");
         (SubmitGuard.Lifetime < ReceivedReference.Lifetime).ShouldBeTrue("a stored reference must outlive the claim that holds it");
     }
@@ -382,6 +385,26 @@ public sealed class SubmitGuardTests
 
         SubmitKey.TryCreate("reply", token, Id, foldScope: false)!.Value.Hash.ShouldNotBe(SubmitKey.TryCreate("reply", token.ToLowerInvariant(), Id, foldScope: false)!.Value.Hash);
         SubmitKey.TryCreate("contact", "Paperplane", Id)!.Value.Hash.ShouldBe(SubmitKey.TryCreate("contact", "paperplane", Id)!.Value.Hash);
+    }
+
+    [Fact]
+    public void A_key_depends_on_the_content_digest_and_the_digest_depends_on_the_trimmed_text_and_each_files_name_and_size()
+    {
+        var plain = SubmitKey.TryCreate("reply", "t", Id, SubmitContent.Digest(["Hello"]))!.Value.Hash;
+
+        SubmitKey.TryCreate("reply", "t", Id, SubmitContent.Digest(["Hello"]))!.Value.Hash.ShouldBe(plain);
+        SubmitKey.TryCreate("reply", "t", Id, SubmitContent.Digest(["  Hello \r\n"]))!.Value.Hash.ShouldBe(plain, "the text is compared trimmed, as it is sent");
+        SubmitKey.TryCreate("reply", "t", Id, SubmitContent.Digest(["Hello again"]))!.Value.Hash.ShouldNotBe(plain);
+        SubmitKey.TryCreate("reply", "t", Id)!.Value.Hash.ShouldNotBe(plain);
+
+        SubmitContent.Digest(["ab", "c"]).ShouldNotBe(SubmitContent.Digest(["a", "bc"]), "field boundaries count");
+        SubmitContent.Digest(["x"], [new FakeBrowserFile("a.txt", 5)]).ShouldNotBe(SubmitContent.Digest(["x"], [new FakeBrowserFile("b.txt", 5)]));
+        SubmitContent.Digest(["x"], [new FakeBrowserFile("a.txt", 5)]).ShouldNotBe(SubmitContent.Digest(["x"], [new FakeBrowserFile("a.txt", 6)]));
+        SubmitContent.Digest(["x"], [new FakeBrowserFile("a.txt", 5), new FakeBrowserFile("b.txt", 5)])
+            .ShouldNotBe(SubmitContent.Digest(["x"], [new FakeBrowserFile("b.txt", 5), new FakeBrowserFile("a.txt", 5)]), "order counts");
+        SubmitContent.Digest(["x"], [new FakeBrowserFile("a.txt", 5)]).ShouldBe(SubmitContent.Digest(["x"], [new FakeBrowserFile("a.txt", 5, "image/png")]));
+        SubmitContent.Digest(["x"]).ShouldBe(SubmitContent.Digest(["x"], []));
+        SubmitContent.Digest(["a secret sentence"]).ShouldNotContain("secret");
     }
 
     [Fact(Timeout = 10000)]

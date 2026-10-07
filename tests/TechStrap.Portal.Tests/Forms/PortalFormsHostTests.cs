@@ -178,6 +178,27 @@ public sealed class PortalFormsHostTests
     }
 
     [Fact]
+    public async Task The_script_rendered_elements_are_not_data_permanent_because_a_same_page_navigation_must_refresh_their_attributes_and_the_modules_rebuild_them()
+    {
+        await using var factory = TicketTestKit.Factory();
+        var contact = (await GetAsync(factory, FormTestKit.Path)).Html;
+        var received = (await GetAsync(factory, FormTestKit.ReceivedPath + "?ref=" + ReferenceFor(factory, "PAP-42"))).Html;
+
+        // A permanent element would keep the previous page's field, limit and suggest path through a navigation to another product's page; the modules instead rebuild what the navigation strips.
+        foreach (var (html, tag) in new[] { (contact, "ts-char-count"), (contact, "ts-kb-suggestions"), (received, "ts-copy-text") })
+        {
+            Parse(html).QuerySelectorAll(tag).ShouldNotBeEmpty(tag);
+            Regex.Matches(html, $"<{tag}[^>]*>").ShouldAllBe(match => !match.Value.Contains("data-permanent", StringComparison.Ordinal), tag);
+        }
+
+        using var client = FormTestKit.Client(factory);
+        foreach (var module in new[] { "/js/portal-forms.js", "/js/kb-suggestions.js" })
+        {
+            (await client.GetStringAsync(module, Ct)).ShouldContain("MutationObserver", Case.Sensitive, module);
+        }
+    }
+
+    [Fact]
     public async Task Without_a_valid_reference_there_is_no_number_and_so_no_copy_button()
     {
         await using var factory = FormTestKit.Factory();

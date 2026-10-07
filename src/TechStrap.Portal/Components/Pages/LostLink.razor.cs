@@ -67,7 +67,7 @@ public partial class LostLink : ProductPageBase
         var sent = new SubmitTarget(PortalRoutes.LostLinkSent(Key));
         var email = form.Email!.Trim();
         var outcome = await Guard.RunAsync(
-            SubmitKey.TryCreate(FormHandler, Key, form.SubmitId),
+            SubmitKey.TryCreate(FormHandler, Key, form.SubmitId, SubmitContent.Digest([form.Email])),
             sent,
             async cancellation =>
             {

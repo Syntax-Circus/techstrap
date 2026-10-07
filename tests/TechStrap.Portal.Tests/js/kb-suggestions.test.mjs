@@ -351,6 +351,7 @@ describe('the custom element', () => {
         const registry = new Map();
         const clock = fakeClock();
         const fetchFn = fakeFetch();
+        const observers = [];
         class FakeHTMLElement {
             constructor() { this.attrs = {}; this.children = []; this.hidden = false; }
             getAttribute(name) { return this.attrs[name] ?? null; }
@@ -365,10 +366,15 @@ describe('the custom element', () => {
             setTimeout: clock.setTimer,
             clearTimeout: clock.clearTimer,
             AbortController: class { constructor() { return fakeAbortController(); } },
+            MutationObserver: class {
+                constructor(callback) { this.callback = callback; this.watching = false; observers.push(this); }
+                observe() { this.watching = true; }
+                disconnect() { this.watching = false; }
+            },
             ...overrides,
         };
         defineKbSuggestions(env);
-        return { Element: registry.get('ts-kb-suggestions'), registry, clock, fetchFn };
+        return { Element: registry.get('ts-kb-suggestions'), registry, clock, fetchFn, observers };
     }
 
     function inputField() {
@@ -492,6 +498,51 @@ describe('the custom element', () => {
         fetchFn.calls[0].resolve(ok([item(1)]));
         await flush();
         assert.deepEqual(element.children, []);
+    });
+
+    it('shows its list again, or nothing, when a same-page enhanced navigation put the server fallback back', async () => {
+        const doc = fakeDocument();
+        const field = inputField();
+        doc.byId.set('subject', field);
+        const { element, clock, fetchFn, observers } = connected(doc);
+        element.connectedCallback();
+        assert.equal(observers[0].watching, true);
+
+        // Nothing suggested yet: the fallback link that comes back is removed.
+        element.children = [{ tag: 'a', className: '' }];
+        observers[0].callback([]);
+        assert.deepEqual(element.children, []);
+
+        field.type('printer');
+        clock.advance(300);
+        fetchFn.calls[0].resolve(ok([item(1), item(2)]));
+        await flush();
+        const [heading, list] = element.children;
+        observers[0].callback([]);
+        assert.deepEqual(element.children, [heading, list], 'our own list is left alone');
+
+        element.children = [{ tag: 'a', className: '' }];
+        observers[0].callback([]);
+
+        assert.equal(element.children.length, 2);
+        assert.equal(element.children[0].textContent, '2 articles may help');
+        assert.equal(element.children[1].children.length, 2);
+    });
+
+    it('stops watching when removed, and works without MutationObserver', () => {
+        const doc = fakeDocument();
+        const field = inputField();
+        doc.byId.set('subject', field);
+        const { element, observers } = connected(doc);
+        element.connectedCallback();
+        element.disconnectedCallback();
+        assert.equal(observers[0].watching, false);
+
+        const bare = define(doc, { MutationObserver: undefined });
+        const other = new bare.Element();
+        other.attrs = { field: 'subject', src: '/p/paperplane/suggest' };
+        other.connectedCallback();
+        assert.equal(field.listening(), true);
     });
 
     it('can be removed without ever having connected', () => {

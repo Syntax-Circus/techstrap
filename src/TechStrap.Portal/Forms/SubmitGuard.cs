@@ -1,6 +1,8 @@
+using System.Globalization;
 using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.Caching.Memory;
 using SyntaxCircus.Common;
 using TechStrap.Portal.Clients;
@@ -17,8 +19,9 @@ public readonly record struct SubmitTarget(string? Path)
 }
 
 /// <summary>
-/// What a guarded form post is identified by: the form's name, what the post is about (the product key, or the ticket's access token) and the id the form carried, hashed together. Only the hash is kept, so the
-/// cache never holds a token, and an id made for one form can never claim another form, product or ticket.
+/// What a guarded form post is identified by: the form's name, what the post is about (the product key, or the ticket's access token), the id the form carried and a digest of what was posted
+/// (<see cref="SubmitContent"/>), hashed together. Only the hash is kept, so the cache never holds a token or a word the visitor wrote, and an id made for one form can never claim another form, product or ticket.
+/// The content is part of the key so that the back button, which brings the sent form back with its id, cannot swallow an edited message: an identical resend is a duplicate, an edited one is a new message.
 /// </summary>
 public readonly record struct SubmitKey
 {
@@ -28,15 +31,49 @@ public readonly record struct SubmitKey
 
     /// <summary>The key for a post, or null when the id is missing or malformed (the post is then not guarded and goes through as it always did).</summary>
     /// <remarks>A product key is case-insensitive (<paramref name="foldScope"/>, the default); a ticket's access token is not, so the reply form passes false and the token is hashed as it is.</remarks>
-    public static SubmitKey? TryCreate(string form, string scope, string? id, bool foldScope = true)
+    public static SubmitKey? TryCreate(string form, string scope, string? id, string? content = null, bool foldScope = true)
     {
         if (!SubmitIds.IsWellFormed(id))
         {
             return null;
         }
 
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{form}\0{(foldScope ? scope.ToLowerInvariant() : scope)}\0{id}"));
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{form}\0{(foldScope ? scope.ToLowerInvariant() : scope)}\0{id}\0{content}"));
         return new SubmitKey(Convert.ToBase64String(bytes));
+    }
+}
+
+/// <summary>
+/// A digest of what a form posted, so the guard can tell an identical resend from an edited message under the same id (the back button brings a sent form back with its id and its text, and the visitor may edit it).
+/// The text fields are compared trimmed, as they are sent; each attachment counts by its name and size, in order. Only a hash comes out: the text is never kept or logged.
+/// </summary>
+public static class SubmitContent
+{
+    public static string Digest(IEnumerable<string?> fields, IReadOnlyList<IBrowserFile>? files = null)
+    {
+        ArgumentNullException.ThrowIfNull(fields);
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var field in fields)
+        {
+            Add(hash, (field ?? string.Empty).Trim());
+        }
+
+        hash.AppendData([0xFF]);
+        foreach (var file in files ?? [])
+        {
+            Add(hash, file.Name);
+            Add(hash, file.Size.ToString(CultureInfo.InvariantCulture));
+        }
+
+        return Convert.ToBase64String(hash.GetHashAndReset());
+    }
+
+    // Length first, so ("ab", "c") and ("a", "bc") differ.
+    private static void Add(IncrementalHash hash, string text)
+    {
+        var bytes = Encoding.UTF8.GetBytes(text);
+        hash.AppendData(BitConverter.GetBytes(bytes.Length));
+        hash.AppendData(bytes);
     }
 }
 
@@ -70,7 +107,8 @@ public sealed record SubmitOutcome(SubmitStatus Status, SubmitTarget Target, IRe
 /// <list type="bullet">
 /// <item>The write runs on its own token with a timeout, never on the request's: a real double click aborts the first POST, but the API may already have the ticket, and a request that stops waiting could also lose the
 /// files it is reading (a precaution, not reproduced). So the first request waits for its own write without its abort token (bounded by the timeout), and the write cannot be cut short by the browser.</item>
-/// <item>A failure releases the claim, so a retry writes. A repeat that was already waiting gets the same failure, never a second write. A timeout or a fault keeps the claim as "unknown".</item>
+/// <item>A failure releases the claim, so a retry writes. A repeat that was already waiting gets the same failure, never a second write. A timeout or a fault keeps the claim as "unknown". The guard's deadline
+/// (<see cref="WriteTimeout"/>) is a few seconds shorter than the write client's, so a timeout is always this "unknown" and never a client-side failure that would release the claim.</item>
 /// <item>The cache is this class's own <see cref="MemoryCache"/> with a size cap, never the shared one (the sitemap cache lives there and has no size). A claim lives <see cref="Lifetime"/>, shorter than the
 /// reference it may hold (<see cref="ReceivedReference.Lifetime"/>). When the cap is reached a new post is simply not guarded (the old behaviour), never refused.</item>
 /// <item>The stored target can hold another ticket's access token (a follow-up). It lives in memory only, for <see cref="Lifetime"/>, and this class never logs and never takes a logger.</item>
@@ -81,7 +119,14 @@ public sealed class SubmitGuard : IDisposable
 {
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(6);
 
-    public static readonly TimeSpan WriteTimeout = TimeSpan.FromSeconds(ApiClientRegistration.WriteTimeoutSeconds);
+    /// <summary>How much earlier than the write client the guard gives up on a write.</summary>
+    public static readonly TimeSpan DeadlineMargin = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// The guard's own deadline for a write: the write client's timeout less <see cref="DeadlineMargin"/>. It is deliberately the shorter of the two, so the guard's deadline always fires first and a timeout is always
+    /// "unknown" (the claim is held and a repeat goes to the safe fallback); with equal deadlines the client's own timeout could win a race and release the claim as a failure for an upload that then commits.
+    /// </summary>
+    public static readonly TimeSpan WriteTimeout = TimeSpan.FromSeconds(ApiClientRegistration.WriteTimeoutSeconds) - DeadlineMargin;
 
     public const int MaxClaims = 10_000;
 

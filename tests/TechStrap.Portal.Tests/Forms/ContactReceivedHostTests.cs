@@ -75,7 +75,14 @@ public sealed class ContactReceivedHostTests
         html.ShouldContain("We have emailed you a link to follow it. Check your inbox and your spam folder.");
         html.ShouldNotContain("ts-ticket-number");
         // No number is shown to the visitor. (The skip link keeps the query string of the page it is on, so the text may sit in an href; what matters is the text of the page.)
-        new AngleSharp.Html.Parser.HtmlParser().ParseDocument(html).Body!.TextContent.ShouldNotContain("PAP-42");
+        var document = new AngleSharp.Html.Parser.HtmlParser().ParseDocument(html);
+        document.Body!.TextContent.ShouldNotContain("PAP-42");
+        if (query.Length > 0)
+        {
+            // The skip link repeats the request's own query, spelling and all: its ref is the very value that was sent.
+            var skip = document.QuerySelector("a.ts-skip-link").ShouldNotBeNull().GetAttribute("href").ShouldNotBeNull();
+            System.Text.RegularExpressions.Regex.Match(skip, "[?&]ref=([^&#]*)").Groups[1].Value.ShouldBe(query["?ref=".Length..]);
+        }
     }
 
     [Fact]
