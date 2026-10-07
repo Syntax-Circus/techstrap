@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.WebUtilities;
-
 namespace TechStrap.Portal.Routing;
 
 /// <summary>
@@ -26,9 +24,10 @@ public static class PageLinks
         if (keepQuery)
         {
             var known = KnownParameters(path);
-            var kept = QueryHelpers.ParseQuery(uri.Query)
-                .Where(pair => known.Contains(pair.Key, StringComparer.OrdinalIgnoreCase))
-                .SelectMany(pair => pair.Value.Select(value => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(value ?? string.Empty)}"))
+            // The raw pairs, in the address bar's own spelling (a form's GET submit writes "paper+jam"; re-encoding it as "paper%20jam" would make the href differ from the address and the jump a reload).
+            // Only the KEY is decoded, to decide whether the page reads it; a case-variant key (?PAGE=2) is kept as written, because the canonical name would again differ from the address bar.
+            var kept = uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries)
+                .Where(pair => known.Contains(DecodeKey(pair), StringComparer.OrdinalIgnoreCase))
                 .ToList();
             query = kept.Count == 0 ? string.Empty : "?" + string.Join('&', kept);
         }
@@ -55,6 +54,13 @@ public static class PageLinks
             [var kb, _] when Is(kb, PortalRoutes.KbSegment) => [PortalRoutes.PageParameter],
             _ => None,
         };
+    }
+
+    private static string DecodeKey(string pair)
+    {
+        var eq = pair.IndexOf('=', StringComparison.Ordinal);
+        var key = eq < 0 ? pair : pair[..eq];
+        return Uri.UnescapeDataString(key.Replace('+', ' '));
     }
 
     private static bool Is(string segment, string expected) => segment.Equals(expected, StringComparison.OrdinalIgnoreCase);

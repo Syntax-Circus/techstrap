@@ -45,6 +45,15 @@ public sealed class PageLinksTests
         PageLinks.ToFragment(Host + current, "main", keepQuery: true).ShouldBe(expected);
     }
 
+    [Theory]
+    [InlineData("/p/paperplane/kb/search?q=paper+jam", "/p/paperplane/kb/search?q=paper+jam#main")]
+    [InlineData("/p/paperplane/contact?subject=Printer+jam&utm_source=x", "/p/paperplane/contact?subject=Printer+jam#main")]
+    [InlineData("/p/paperplane/kb/search?PAGE=2&q=a%20b&x=1", "/p/paperplane/kb/search?PAGE=2&q=a%20b#main")]
+    public void The_kept_query_is_the_address_bars_own_spelling_byte_for_byte(string current, string expected)
+    {
+        PageLinks.ToFragment(Host + current, "main", keepQuery: true).ShouldBe(expected);
+    }
+
     [Fact]
     public void A_kept_value_is_escaped_so_it_cannot_add_a_parameter_a_fragment_or_a_tag()
     {
