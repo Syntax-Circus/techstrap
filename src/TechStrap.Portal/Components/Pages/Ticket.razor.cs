@@ -115,7 +115,7 @@ public partial class Ticket
         // ticket's page when the first's answer is unknown. The stored target can be a follow-up's access token: it stays in memory, for two minutes, and is never logged.
         var reply = new CustomerReply(form.Body!.Trim(), AttachmentRules.ToUploads(form.Files));
         var outcome = await Guard.RunAsync(
-            SubmitKey.TryCreate(ReplyHandler, _token.Value, form.SubmitId),
+            SubmitKey.TryCreate(ReplyHandler, _token.Value, form.SubmitId, foldScope: false),
             new SubmitTarget(PortalRoutes.Ticket(_token)),
             async cancellation =>
             {

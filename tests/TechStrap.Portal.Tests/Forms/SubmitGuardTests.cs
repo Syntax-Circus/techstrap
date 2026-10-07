@@ -337,4 +337,78 @@ public sealed class SubmitGuardTests
         constructors.ShouldNotContain(t => t.Name.StartsWith("ILogger", StringComparison.Ordinal));
         (SubmitGuard.Lifetime < ReceivedReference.Lifetime).ShouldBeTrue("a stored reference must outlive the claim that holds it");
     }
+
+    [Fact]
+    public void The_write_deadline_is_the_write_clients_and_a_claim_outlives_it_and_the_reference_outlives_the_claim()
+    {
+        SubmitGuard.WriteTimeout.ShouldBe(TimeSpan.FromSeconds(TechStrap.Portal.Clients.ApiClientRegistration.WriteTimeoutSeconds), "a shorter timeout would show a 503 for an upload that then commits");
+        (SubmitGuard.WriteTimeout < SubmitGuard.Lifetime).ShouldBeTrue("a claim must outlive the write it guards");
+        (SubmitGuard.Lifetime < ReceivedReference.Lifetime).ShouldBeTrue("a stored reference must outlive the claim that holds it");
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task A_claim_is_never_evicted_by_the_caches_own_compaction()
+    {
+        // Compaction removes about 5 % of the cap, so the cap must be big enough for that to be at least one claim.
+        const int cap = 100;
+        using var guard = new SubmitGuard(SubmitGuard.Lifetime, SubmitGuard.WriteTimeout, cap);
+        var calls = 0;
+        Task<Result<SubmitTarget>> Write(CancellationToken _)
+        {
+            calls++;
+            return Ok("/x");
+        }
+
+        var keys = Enumerable.Range(0, cap).Select(_ => Key(id: SubmitIds.New())).ToList();
+        foreach (var key in keys)
+        {
+            await guard.RunAsync(key, Fallback, Write, TestContext.Current.CancellationToken);
+        }
+
+        await guard.RunAsync(Key(id: SubmitIds.New()), Fallback, Write, TestContext.Current.CancellationToken); // over the cap: the cache schedules a compaction
+        await Task.Delay(500, TestContext.Current.CancellationToken);
+        foreach (var key in keys)
+        {
+            await guard.RunAsync(key, Fallback, Write, TestContext.Current.CancellationToken);
+        }
+
+        calls.ShouldBe(cap + 1, "every claim wrote once, then the unguarded post; compaction must not have evicted a claim, so no repeat wrote");
+    }
+
+    [Fact]
+    public void A_ticket_token_scope_is_compared_with_its_case_and_a_product_key_without()
+    {
+        var token = "AbC-_0123456789AbC-_0123456789AbC-_01234567";
+
+        SubmitKey.TryCreate("reply", token, Id, foldScope: false)!.Value.Hash.ShouldNotBe(SubmitKey.TryCreate("reply", token.ToLowerInvariant(), Id, foldScope: false)!.Value.Hash);
+        SubmitKey.TryCreate("contact", "Paperplane", Id)!.Value.Hash.ShouldBe(SubmitKey.TryCreate("contact", "paperplane", Id)!.Value.Hash);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task A_target_and_an_outcome_never_print_their_path()
+    {
+        using var guard = new SubmitGuard();
+        var outcome = await guard.RunAsync(Key(), Fallback, _ => Ok("/t/secret-token"), TestContext.Current.CancellationToken);
+
+        new SubmitTarget("/t/secret-token").ToString().ShouldNotContain("secret-token");
+        outcome.ToString().ShouldNotContain("secret-token");
+        $"{outcome} {outcome.Target}".ShouldNotContain("/t/");
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task A_waiting_repeat_is_released_even_when_the_cache_is_gone_at_shutdown()
+    {
+        var guard = new SubmitGuard();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var first = guard.RunAsync(Key(), Fallback, async _ => { await release.Task; return await Fail("api-unavailable"); }, TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+        var second = guard.RunAsync(Key(), Fallback, _ => throw new InvalidOperationException("a repeat must not write"), TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+
+        guard.Dispose();
+        release.SetResult();
+
+        await Should.ThrowAsync<ObjectDisposedException>(() => first);
+        (await second).Status.ShouldBe(SubmitStatus.Failed);
+    }
 }

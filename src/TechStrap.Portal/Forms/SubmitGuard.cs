@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Caching.Memory;
 using SyntaxCircus.Common;
+using TechStrap.Portal.Clients;
 
 namespace TechStrap.Portal.Forms;
 
@@ -10,6 +11,9 @@ namespace TechStrap.Portal.Forms;
 public readonly record struct SubmitTarget(string? Path)
 {
     public static SubmitTarget None { get; } = new(null);
+
+    /// <summary>A path can be another ticket's access token (a follow-up), so it never prints.</summary>
+    public override string ToString() => "[target]";
 }
 
 /// <summary>
@@ -23,14 +27,15 @@ public readonly record struct SubmitKey
     public string Hash { get; }
 
     /// <summary>The key for a post, or null when the id is missing or malformed (the post is then not guarded and goes through as it always did).</summary>
-    public static SubmitKey? TryCreate(string form, string scope, string? id)
+    /// <remarks>A product key is case-insensitive (<paramref name="foldScope"/>, the default); a ticket's access token is not, so the reply form passes false and the token is hashed as it is.</remarks>
+    public static SubmitKey? TryCreate(string form, string scope, string? id, bool foldScope = true)
     {
         if (!SubmitIds.IsWellFormed(id))
         {
             return null;
         }
 
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{form}\0{scope.ToLowerInvariant()}\0{id}"));
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{form}\0{(foldScope ? scope.ToLowerInvariant() : scope)}\0{id}"));
         return new SubmitKey(Convert.ToBase64String(bytes));
     }
 }
@@ -49,6 +54,9 @@ public enum SubmitStatus
 
 public sealed record SubmitOutcome(SubmitStatus Status, SubmitTarget Target, IReadOnlyList<ResultError> Errors)
 {
+    /// <summary>The target can hold another ticket's access token, so a log call that formats an outcome never prints it.</summary>
+    public override string ToString() => $"SubmitOutcome {{ Status = {Status} }}";
+
     internal static SubmitOutcome Done(SubmitTarget target) => new(SubmitStatus.Done, target, []);
 
     internal static SubmitOutcome Failed(IReadOnlyList<ResultError> errors) => new(SubmitStatus.Failed, default, errors);
@@ -71,9 +79,9 @@ public sealed record SubmitOutcome(SubmitStatus Status, SubmitTarget Target, IRe
 /// </summary>
 public sealed class SubmitGuard : IDisposable
 {
-    public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(2);
+    public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(6);
 
-    public static readonly TimeSpan WriteTimeout = TimeSpan.FromSeconds(30);
+    public static readonly TimeSpan WriteTimeout = TimeSpan.FromSeconds(ApiClientRegistration.WriteTimeoutSeconds);
 
     public const int MaxClaims = 10_000;
 
@@ -182,14 +190,25 @@ public sealed class SubmitGuard : IDisposable
 
         if (attempt.Status == AttemptStatus.Failed)
         {
-            // Released before anyone is told, so a request that arrives after this finds no claim and may write.
-            lock (_gate)
+            // Released before anyone is told, so a request that arrives after this finds no claim and may write. Every failure releases, a 5xx or a transport error too: holding the claim would send a refresh to a
+            // "received" page for a write that may not have happened. Accepted (D-045): a 5xx after which the API had in fact applied the write can still lead to a duplicate on a deliberate retry.
+            try
             {
-                _claims.Remove(key.Hash);
+                lock (_gate)
+                {
+                    _claims.Remove(key.Hash);
+                }
             }
+            finally
+            {
+                // Waiting repeats are always released, even if the cache is already disposed at shutdown.
+                claim.Done.TrySetResult(attempt);
+            }
+
+            return attempt;
         }
 
-        claim.Done.SetResult(attempt);
+        claim.Done.TrySetResult(attempt);
         return attempt;
     }
 

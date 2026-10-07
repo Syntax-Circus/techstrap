@@ -74,7 +74,7 @@ public partial class LostLink : ProductPageBase
                 var result = await Customers.RequestAccessLinkAsync(email, cancellation);
                 return result.IsSuccess ? Result<SubmitTarget>.Success(sent) : Result<SubmitTarget>.Failure(result.Errors[0], [.. result.Errors.Skip(1)]);
             },
-            Http.HttpContext?.RequestAborted ?? CancellationToken.None);
+            RequestAborted);
         if (outcome.Status == SubmitStatus.Done)
         {
             Redirects.NavigateTo(outcome.Target.Path!);

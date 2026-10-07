@@ -50,7 +50,7 @@ builder.Services.AddScoped<ProductScope>();
 builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ReceivedReference>();
 
-// The double-send guard of the three forms: its own capped cache, claims kept for two minutes, in memory only (D-045 09d addendum).
+// The double-send guard of the three forms: its own capped cache, claims kept for six minutes, in memory only (D-045 09d addendum).
 builder.Services.AddSingleton<SubmitGuard>();
 
 // Meta tags, robots.txt and the canonical-host redirect; Seo:BaseUrl comes from the public address (D-045).
