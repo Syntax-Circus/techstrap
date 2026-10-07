@@ -12,8 +12,8 @@ public static partial class KbPlainText
     /// <summary>The longest description: a search engine shows about 160 characters.</summary>
     public const int MaxDescription = 160;
 
-    /// <summary>The longest any one pattern may run on a body. The body is the API's sanitised HTML, which can be large, and an unclosed-tag body makes a lazy pattern quadratic, so a pattern that runs this long ends the description (empty) instead of holding a request.</summary>
-    public const int MatchTimeoutMs = 100;
+    /// <summary>The longest any one pattern may run on a body. The body is the API's sanitised HTML, which can be large, and an unclosed-tag body makes a lazy pattern quadratic, so a pattern that runs this long ends the description (empty) instead of holding a request. It is generous on purpose: a normal body takes microseconds, but a busy runner can stall a small one for over 100 ms, and a description that vanishes at random is worse than a request that waits a second.</summary>
+    public const int MatchTimeoutMs = 1000;
 
     [GeneratedRegex(@"<p(?:\s[^>]*)?>(.*?)</p\s*>", RegexOptions.CultureInvariant | RegexOptions.Singleline | RegexOptions.IgnoreCase, matchTimeoutMilliseconds: MatchTimeoutMs)]
     private static partial Regex FirstParagraph();

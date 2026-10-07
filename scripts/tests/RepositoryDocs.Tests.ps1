@@ -330,6 +330,11 @@ Describe 'D-045 as built in 09c' {
         }
     }
 
+    It 'words the KbPlainText match timeout as 1 s, not 100 ms' {
+        $script:Section | Should -Match ([regex]::Escape('`KbPlainText` patterns have a 1 s match timeout'))
+        $script:Section | Should -Not -Match ([regex]::Escape('100 ms match timeout'))
+    }
+
     It 'records the lower-case-only cache rule, the 09d search-box note and the article-only JSON-LD in the right places' {
         $script:Guide | Should -Match ([regex]::Escape('Only all-lowercase paths are kept'))
         $script:Guide | Should -Not -Match 'known exception'
