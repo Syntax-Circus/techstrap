@@ -1,0 +1,28 @@
+<Project>
+
+  <!-- Imported by every project that ships as a NuGet package. No PackageReference here: it would become a dependency of Contracts (D-016). -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Authors>Syntax Circus LLC</Authors>
+    <Company>Syntax Circus LLC</Company>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Syntax-Circus/techstrap</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Syntax-Circus/techstrap.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildProjectDirectory)/README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

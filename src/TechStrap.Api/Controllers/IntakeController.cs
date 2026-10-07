@@ -13,7 +13,7 @@ namespace TechStrap.Api.Controllers;
 
 /// <summary>Ticket intake for product backends and the SDK, authenticated by a product API key (D-034).</summary>
 [ApiController]
-[Route("api/intake/tickets")]
+[Route(IntakeRoutes.Tickets)]
 [EnableRateLimiting(IntakeRateLimitOptions.KeyPolicyName)]
 [Authorize(Policy = AuthorizationPolicies.ApiKey)]
 public sealed class IntakeController : ControllerBase

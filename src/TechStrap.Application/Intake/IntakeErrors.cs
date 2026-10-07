@@ -1,4 +1,5 @@
 using SyntaxCircus.Common;
+using TechStrap.Contracts.Http;
 using TechStrap.Domain.Rules;
 
 namespace TechStrap.Application.Intake;
@@ -25,5 +26,5 @@ internal static class IntakeErrors
         new("metadata-invalid", message, ResultErrorKind.Validation, "metadata");
 
     public static ResultError IdempotencyKeyInvalid() =>
-        new("idempotency-key-invalid", $"The Idempotency-Key must be 1 to {Contracts.Intake.IntakeLimits.MaxIdempotencyKeyLength} characters.", ResultErrorKind.Validation, "Idempotency-Key");
+        new("idempotency-key-invalid", $"The Idempotency-Key must be 1 to {Contracts.Intake.IntakeLimits.MaxIdempotencyKeyLength} characters.", ResultErrorKind.Validation, HeaderNames.IdempotencyKey);
 }

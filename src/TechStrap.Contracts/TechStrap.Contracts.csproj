@@ -2,4 +2,12 @@
 
   <!-- Dependency-free leaf (D-016): no MVC, EF or ASP.NET, no attributes. Shared by Api, Admin, Portal, Client. -->
 
+  <Import Project="../../eng/Packaging.props" />
+
+  <PropertyGroup>
+    <PackageId>TechStrap.Contracts</PackageId>
+    <Description>Wire contracts for TechStrap: request and response types, header names, routes and limits shared by the API, the portal, the admin and the client SDK.</Description>
+    <PackageTags>techstrap;helpdesk;contracts;dto</PackageTags>
+  </PropertyGroup>
+
 </Project>
