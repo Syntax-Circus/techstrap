@@ -212,8 +212,10 @@ public sealed class TicketHubTests(TestPostgres postgres)
         await using var kim = HubTestSupport.Connect(factory, HubTestSupport.AgentToken("kim", "Kim"));
         using var samSees = new HubTestSupport.Inbox<TicketPresenceDto>(sam, TicketHubMethods.PresenceChanged);
         using var kimSees = new HubTestSupport.Inbox<TicketPresenceDto>(kim, TicketHubMethods.PresenceChanged);
+        using var kimQueue = new HubTestSupport.Inbox<TicketChangedDto>(kim, TicketHubMethods.TicketChanged);
         await sam.StartAsync(ct);
         await kim.StartAsync(ct);
+        await kim.ReadyAsync(ct);
         await sam.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, ticketId, ct);
         await kim.InvokeAsync<TicketPresenceDto>(TicketHubMethods.JoinTicket, ticketId, ct);
         (await samSees.NextAsync()).Viewers.Count.ShouldBe(2);
@@ -222,10 +224,15 @@ public sealed class TicketHubTests(TestPostgres postgres)
         (await samSees.NextAsync()).Viewers.Select(viewer => viewer.DisplayName).ShouldBe(["Sam"]);
 
         // Kim is out of the ticket's group now: a later presence push for the ticket reaches Sam only.
-        kimSees.Pending();
-        await factory.Services.GetRequiredService<ITicketChangeBroadcaster>().PublishPresenceAsync(new TicketPresence(ticketId, []), ct);
+        // The client dispatches handlers apart from invocation completions, so Kim's own leave announcement may still be in flight:
+        // a queue message sent after the push is the barrier (a connection gets its messages in the order they were sent).
+        var broadcaster = factory.Services.GetRequiredService<ITicketChangeBroadcaster>();
+        await broadcaster.PublishPresenceAsync(new TicketPresence(ticketId, []), ct);
         (await samSees.NextAsync()).Viewers.ShouldBeEmpty();
-        kimSees.Pending().ShouldBeEmpty();
+        var barrier = Change();
+        await broadcaster.PublishAsync(barrier, ct);
+        (await kimQueue.NextAsync()).EventId.ShouldBe(barrier.EventId);
+        kimSees.Pending().ShouldAllBe(seen => seen.Viewers.Count > 0);
     }
 
     [Fact(Timeout = 120000)]
