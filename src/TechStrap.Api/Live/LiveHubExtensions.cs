@@ -16,6 +16,7 @@ public static class LiveHubExtensions
     {
         services.AddSignalR();
         services.AddTechStrapPresence();
+        services.AddTechStrapMetrics();
         services.Replace(ServiceDescriptor.Singleton<ITicketChangeBroadcaster, SignalRTicketChangeBroadcaster>());
         services.AddTechStrapTicketChangeListener();
         return services;

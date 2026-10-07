@@ -24,7 +24,7 @@ if (builder.Configuration.ShouldLoadDotEnv(builder.Environment))
     builder.Configuration.AddSyntaxCircusDotEnvFiles(builder.Environment.ContentRootPath);
 }
 
-var telemetry = builder.AddSyntaxCircusObservability(ServiceName);
+var telemetry = builder.AddSyntaxCircusObservability(ServiceName, [TechStrapMetrics.MeterName]);
 builder.AddStandardSerilog(configureEnrichment: logger =>
 {
     telemetry.ConfigureSerilog(logger);
@@ -48,6 +48,7 @@ builder.Services.AddTechStrapHttpClientDefaults();
 builder.Services.AddTechStrapPersistence();
 // A committed change is sent as a Postgres NOTIFY for the Api to relay to its hub (D-018). After AddTechStrapPersistence, whose null broadcaster this replaces.
 builder.Services.AddTechStrapNotifyBroadcaster();
+builder.Services.AddTechStrapMetrics();
 builder.Services.AddTechStrapEmail(builder.Configuration);
 builder.Services.AddHostedService<EmailOutboxWorker>();
 builder.Services.AddTechStrapAutoClose(builder.Configuration);

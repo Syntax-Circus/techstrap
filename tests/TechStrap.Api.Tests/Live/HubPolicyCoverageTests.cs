@@ -67,11 +67,11 @@ public sealed class HubPolicyCoverageTests
     }
 
     [Fact]
-    public void The_hub_depends_only_on_the_presence_handler_and_the_agent_options()
+    public void The_hub_depends_only_on_the_presence_handler_the_agent_options_and_the_metrics()
     {
         var parameters = typeof(TicketHub).GetConstructors().Single().GetParameters().Select(parameter => parameter.ParameterType).ToList();
 
-        parameters.ShouldBe([typeof(IUpdateTicketPresenceHandler), typeof(IOptions<TechStrap.Api.Options.AgentAccessOptions>)], ignoreOrder: true);
+        parameters.ShouldBe([typeof(IUpdateTicketPresenceHandler), typeof(IOptions<TechStrap.Api.Options.AgentAccessOptions>), typeof(TechStrap.Infrastructure.Live.TechStrapMetrics)], ignoreOrder: true);
     }
 
     [Fact]

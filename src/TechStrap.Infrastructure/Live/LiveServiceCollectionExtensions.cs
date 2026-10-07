@@ -22,7 +22,18 @@ public static class LiveServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddTechStrapTicketChangeListener(this IServiceCollection services)
     {
+        services.AddTechStrapMetrics();
         services.AddHostedService<TicketChangeListener>();
+        return services;
+    }
+
+    /// <summary>
+    /// <see cref="TechStrapMetrics"/> as a singleton. The Api and the Worker also pass <see cref="TechStrapMetrics.MeterName"/> to <c>AddSyntaxCircusObservability</c>; without that the instruments
+    /// exist but no exporter ever reads them.
+    /// </summary>
+    public static IServiceCollection AddTechStrapMetrics(this IServiceCollection services)
+    {
+        services.TryAddSingleton<TechStrapMetrics>();
         return services;
     }
 

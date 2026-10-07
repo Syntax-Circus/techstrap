@@ -50,6 +50,7 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
                 Options.Create(new DatabaseConnectionOptions { ConnectionString = connectionString }),
                 _provider.GetRequiredService<IServiceScopeFactory>(),
                 Clock,
+                Metrics,
                 Log);
         }
 
@@ -58,6 +59,8 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
         public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 7, 9, 0, 0, TimeSpan.Zero));
 
         public CapturingLogger Log { get; } = new();
+
+        public TechStrapMetrics Metrics { get; } = new();
 
         public TicketChangeListener Listener { get; }
 
@@ -87,12 +90,16 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
     public async Task A_notification_reaches_the_relay_and_the_broadcaster_once()
     {
         await using var host = new ListenerHost(Database.ConnectionString);
+        using var metrics = new MetricsProbe(host.Metrics);
         await host.StartAsync(TestContext.Current.CancellationToken);
         await WaitForListenerAsync();
         var payload = Payload();
 
         await NotifyTestSupport.NotifyAsync(Database.ConnectionString, payload);
         await NotifyTestSupport.UntilAsync(() => host.Recorder.Attempts.Count >= 1);
+        await NotifyTestSupport.UntilAsync(() => metrics.Sum(TechStrapMetrics.ChangesRelayedName) >= 1);
+        metrics.Sum(TechStrapMetrics.RelayFailuresName).ShouldBe(0);
+        metrics.Sum(TechStrapMetrics.ListenerReconnectsName).ShouldBe(0);
 
         var change = host.Recorder.Attempts.ShouldHaveSingleItem();
         change.ToDto().ShouldBe(JsonSerializer.Deserialize<TicketChangedDto>(payload, JsonSerializerOptions.Web)!);
@@ -102,6 +109,7 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
     public async Task A_bad_payload_is_dropped_without_its_text_in_the_log_and_the_loop_goes_on()
     {
         await using var host = new ListenerHost(Database.ConnectionString);
+        using var metrics = new MetricsProbe(host.Metrics);
         await host.StartAsync(TestContext.Current.CancellationToken);
         await WaitForListenerAsync();
         var oversize = new string('x', TicketLiveLimits.MaxChangePayloadBytes + 10);
@@ -118,6 +126,9 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
         host.Recorder.Attempts.ShouldHaveSingleItem().EventId.ShouldBe(JsonSerializer.Deserialize<TicketChangedDto>(good, JsonSerializerOptions.Web)!.EventId);
         var warnings = host.Log.Entries.Where(entry => entry.Level == LogLevel.Warning).Select(entry => entry.Message).ToList();
         warnings.Count.ShouldBe(5);
+        await NotifyTestSupport.UntilAsync(() => metrics.Sum(TechStrapMetrics.ChangesRelayedName) >= 1);
+        metrics.Sum(TechStrapMetrics.RelayFailuresName).ShouldBe(5);
+        metrics.Sum(TechStrapMetrics.ChangesRelayedName).ShouldBe(1);
         warnings.ShouldAllBe(message => message.Contains("dropped"));
         host.Log.Entries.ShouldAllBe(entry => !entry.Message.Contains("secret-not-json") && !entry.Message.Contains("xxxxx"));
     }
@@ -181,6 +192,7 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
     public async Task Killing_the_connection_leads_to_a_reconnect_and_exactly_one_resync_and_the_relay_still_works()
     {
         await using var host = new ListenerHost(Database.ConnectionString);
+        using var metrics = new MetricsProbe(host.Metrics);
         await host.StartAsync(TestContext.Current.CancellationToken);
         var first = (await WaitForListenerAsync()).Single();
         host.Recorder.Attempts.ShouldBeEmpty();
@@ -195,6 +207,7 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
         await NotifyTestSupport.UntilAsync(() => host.Recorder.Attempts.Count >= 1);
 
         second.ShouldNotBe(first);
+        metrics.Sum(TechStrapMetrics.ListenerReconnectsName).ShouldBe(1);
         host.Recorder.Attempts.ShouldHaveSingleItem().Kind.ShouldBe(TicketChangeKinds.Resync);
         host.Log.Entries.ShouldContain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("lost its connection"));
 
@@ -210,6 +223,7 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
         await NotifyTestSupport.NotifyAsync(Database.ConnectionString, Payload());
         await NotifyTestSupport.UntilAsync(() => host.Recorder.Attempts.Count >= 3);
         host.Recorder.Attempts.Select(change => change.Kind).ShouldBe([TicketChangeKinds.Resync, TicketChangeKinds.Resync, TicketChangeKinds.Updated]);
+        metrics.Sum(TechStrapMetrics.ListenerReconnectsName).ShouldBe(2);
     }
 
     [Fact(Timeout = 180000)]
@@ -244,6 +258,7 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
         probePort.Stop();
         var viaForwarder = new NpgsqlConnectionStringBuilder(Database.ConnectionString) { Host = "127.0.0.1", Port = port, Timeout = 5 }.ConnectionString;
         await using var host = new ListenerHost(viaForwarder);
+        using var metrics = new MetricsProbe(host.Metrics);
         await host.StartAsync(TestContext.Current.CancellationToken);
         await NotifyTestSupport.UntilAsync(
             () => host.Log.Entries.Any(entry => entry.Message.Contains("could not connect")),
@@ -277,6 +292,7 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
         {
             await NotifyTestSupport.UntilAsync(() => host.Recorder.Attempts.Count >= 1, between: () => host.Clock.Advance(TimeSpan.FromMinutes(1)));
             host.Recorder.Attempts.ShouldHaveSingleItem().Kind.ShouldBe(TicketChangeKinds.Resync);
+            metrics.Sum(TechStrapMetrics.ListenerReconnectsName).ShouldBe(1);
         }
         finally
         {
@@ -328,6 +344,7 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
     public async Task A_relay_that_hangs_is_cut_off_and_the_loop_goes_on()
     {
         await using var host = new ListenerHost(Database.ConnectionString);
+        using var metrics = new MetricsProbe(host.Metrics);
         await host.StartAsync(TestContext.Current.CancellationToken);
         await WaitForListenerAsync();
         host.Recorder.Behaviour = (_, cancellationToken) => Task.Delay(Timeout.Infinite, cancellationToken);
@@ -339,6 +356,7 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
         await NotifyTestSupport.UntilAsync(() => host.Recorder.Attempts.Count >= 2);
 
         host.Recorder.Attempts.Count.ShouldBe(2);
+        metrics.Sum(TechStrapMetrics.RelayFailuresName).ShouldBe(1);
     }
 
     [Fact]

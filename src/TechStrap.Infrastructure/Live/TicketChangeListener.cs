@@ -22,6 +22,7 @@ internal sealed class TicketChangeListener(
     IOptions<DatabaseConnectionOptions> database,
     IServiceScopeFactory scopes,
     TimeProvider clock,
+    TechStrapMetrics metrics,
     ILogger<TicketChangeListener> logger) : BackgroundService
 {
     /// <summary>A test seam: runs on the listener's connection right after LISTEN (and the Resync), before the first wait, so a test can have a notification arrive in that window.</summary>
@@ -123,6 +124,8 @@ internal sealed class TicketChangeListener(
         onListening();
         if (resync)
         {
+            metrics.ListenerReconnected();
+
             // Whatever was sent while the connection was down is lost, so tell the clients to reload everything.
             await RelayAsync(JsonSerializer.Serialize(TicketChange.Resync(Guid.CreateVersion7(clock.GetUtcNow()), clock.GetUtcNow()).ToDto(), JsonSerializerOptions.Web), cancellationToken);
         }
@@ -153,14 +156,21 @@ internal sealed class TicketChangeListener(
             bounded.CancelAfter(RelayTimeout);
             await using var scope = scopes.CreateAsyncScope();
             var result = await scope.ServiceProvider.GetRequiredService<IRelayTicketChangeHandler>().HandleAsync(new RelayTicketChangeRequest(payload), bounded.Token);
-            if (result.IsFailure)
+            if (result.IsSuccess)
             {
+                metrics.ChangeRelayed();
+            }
+            else
+            {
+                metrics.RelayFailed();
+
                 // The code only: the payload came off a channel anything can write to and is never logged.
                 logger.LogWarning("A ticket change from the database was dropped ({ErrorCode}).", result.Errors[0].Code);
             }
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
+            metrics.RelayFailed();
             logger.LogWarning("Relaying a ticket change from the database failed ({ExceptionType}).", exception.GetType().Name);
         }
     }

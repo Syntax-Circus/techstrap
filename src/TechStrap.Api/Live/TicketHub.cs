@@ -6,6 +6,7 @@ using TechStrap.Api.Options;
 using TechStrap.Api.Security;
 using TechStrap.Application.Live;
 using TechStrap.Contracts.Live;
+using TechStrap.Infrastructure.Live;
 
 namespace TechStrap.Api.Live;
 
@@ -17,10 +18,11 @@ namespace TechStrap.Api.Live;
 /// and <c>IHttpContextAccessor</c> is never needed inside a hub.
 /// </summary>
 [Authorize(Policy = AuthorizationPolicies.Agent)]
-public sealed class TicketHub(IUpdateTicketPresenceHandler presence, IOptions<AgentAccessOptions> access) : Hub
+public sealed class TicketHub(IUpdateTicketPresenceHandler presence, IOptions<AgentAccessOptions> access, TechStrapMetrics metrics) : Hub
 {
     public override async Task OnConnectedAsync()
     {
+        metrics.AgentConnected(Context.ConnectionId, Subject());
         await Groups.AddToGroupAsync(Context.ConnectionId, TicketHubGroups.Queue, Context.ConnectionAborted);
         await base.OnConnectedAsync();
     }
@@ -60,13 +62,17 @@ public sealed class TicketHub(IUpdateTicketPresenceHandler presence, IOptions<Ag
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
+        metrics.AgentDisconnected(Context.ConnectionId);
+
         // The connection is already gone, so its abort token is spent: cleaning up must not depend on it. SignalR removes the connection from its groups itself.
         await presence.HandleAsync(Request(TicketPresenceActions.LeaveAll, null), CancellationToken.None);
         await base.OnDisconnectedAsync(exception);
     }
 
     private UpdateTicketPresenceRequest Request(string action, Guid? ticketId, bool isComposing = false) =>
-        new(action, ClaimsCurrentAgentClaims.FromPrincipal(Context.User!, access.Value)?.Subject ?? string.Empty, Context.ConnectionId, ticketId, isComposing);
+        new(action, Subject(), Context.ConnectionId, ticketId, isComposing);
+
+    private string Subject() => ClaimsCurrentAgentClaims.FromPrincipal(Context.User!, access.Value)?.Subject ?? string.Empty;
 
     /// <summary>Only the fixed texts of the handler's outcomes reach the client; an unknown ticket is the one the spec names.</summary>
     private static HubException Refusal(ResultError error) =>

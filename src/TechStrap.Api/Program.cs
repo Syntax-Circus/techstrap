@@ -14,6 +14,7 @@ using TechStrap.Hosting.Security;
 using TechStrap.Hosting.Sentry;
 using TechStrap.Hosting.Wiring;
 using TechStrap.Infrastructure.Intake;
+using TechStrap.Infrastructure.Live;
 using TechStrap.Infrastructure.Persistence;
 using TechStrap.Infrastructure.Security;
 using TechStrap.Infrastructure.Seeding;
@@ -27,7 +28,8 @@ if (builder.Configuration.ShouldLoadDotEnv(builder.Environment))
     builder.Configuration.AddSyntaxCircusDotEnvFiles(builder.Environment.ContentRootPath);
 }
 
-var telemetry = builder.AddSyntaxCircusObservability(ServiceName);
+// TechStrap's own meter is exported only when its name is passed here.
+var telemetry = builder.AddSyntaxCircusObservability(ServiceName, [TechStrapMetrics.MeterName]);
 builder.AddStandardSerilog(configureEnrichment: logger =>
 {
     telemetry.ConfigureSerilog(logger);
