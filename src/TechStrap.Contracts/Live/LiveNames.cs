@@ -32,6 +32,12 @@ public static class TicketHubGroups
     public static string Ticket(Guid ticketId) => TicketPrefix + ticketId.ToString("D");
 }
 
+/// <summary>The one message a hub call sends to a client when it names a ticket that does not exist (D-046). Every other refusal sends its own fixed handler text.</summary>
+public static class TicketHubMessages
+{
+    public const string TicketNotFound = "Ticket not found";
+}
+
 /// <summary>Wire names for the kind of a ticket change. Contracts carries no enums (naming rule). <c>Resync</c> names no ticket: the client reloads everything.</summary>
 public static class TicketChangeKinds
 {
