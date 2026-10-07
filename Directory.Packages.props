@@ -15,7 +15,7 @@
     <PackageVersion Include="SyntaxCircus.AspNetCore.Authentication" Version="0.1.5" />
     <PackageVersion Include="SyntaxCircus.AspNetCore.Common" Version="0.1.15" />
     <PackageVersion Include="SyntaxCircus.AspNetCore.Serilog" Version="0.1.4" />
-    <PackageVersion Include="SyntaxCircus.Blazor.Auth" Version="0.1.7" />
+    <PackageVersion Include="SyntaxCircus.Blazor.Auth" Version="0.2.0" />
     <PackageVersion Include="SyntaxCircus.Blazor.Components" Version="0.1.3" />
     <PackageVersion Include="SyntaxCircus.Blazor.Seo" Version="0.1.4" />
     <PackageVersion Include="SyntaxCircus.Common" Version="0.1.3" />

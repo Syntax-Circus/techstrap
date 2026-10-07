@@ -1,6 +1,7 @@
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
+using TechStrap.Admin.Features.Live;
 using TechStrap.Admin.Features.Shell;
 
 namespace TechStrap.Admin.Tests.Support;
@@ -16,6 +17,10 @@ public abstract class AdminComponentTest : BunitContext
         Time = new FakeTimeProvider(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         Services.AddShell();
         Services.AddSingleton<TimeProvider>(Time);
+
+        // Every component that draws live state asks for the client; this one never touches a hub. A test raises its events and reads what the components called.
+        LiveClient = new FakeTicketLiveClient();
+        Services.AddSingleton<ITicketLiveClient>(LiveClient);
 
         Shortcuts = JSInterop.SetupModule("./js/shortcuts.js");
         Shortcuts.SetupVoid("register", _ => true).SetVoidResult();
@@ -46,6 +51,9 @@ public abstract class AdminComponentTest : BunitContext
     }
 
     protected FakeTimeProvider Time { get; }
+
+    /// <summary>The live client every component under test receives (<see cref="ITicketLiveClient"/>): raise changes and presence on it, read the joins and the composing calls.</summary>
+    protected FakeTicketLiveClient LiveClient { get; }
 
     /// <summary>The <c>shortcuts.js</c> module double; use <c>VerifyInvoke("register")</c>.</summary>
     protected BunitJSModuleInterop Shortcuts { get; }

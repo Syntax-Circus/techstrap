@@ -11,6 +11,7 @@ public sealed class AdminRuleTests
         var admin = ProjectGraph.LoadSourceProjects(ProjectGraph.FindRepositoryRoot())[ReferenceRules.Admin];
 
         admin.PackageReferences.ShouldContain("SyntaxCircus.Blazor.Auth", "the scan must read the real Admin project");
+        admin.PackageReferences.ShouldContain("Microsoft.AspNetCore.SignalR.Client", "the live client of PHASE-10b (D-046) is the one new Admin package");
         AdminRules.PackageViolations(admin).ShouldBeEmpty();
     }
 
