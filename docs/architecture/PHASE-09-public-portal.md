@@ -182,10 +182,11 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
   - **Depends on:** P09-T03, P06
   - **Validation:** Host test: valid token renders public messages only; invalid/expired/revoked all return the identical 404 body; response headers asserted; presenter unit test for Closed state.
   - **09b evidence:** `TicketPageHostTests`, `TicketUniformNotFoundHostTests`, `CustomerTicketPresenterTests`, `TicketHeaderHostTests`; `CustomerMessageBody` is the one markup site (`PortalRuleTests`).
-- [ ] **P09-T09** Build `CustomerReplyForm` with attachments, including Closed -> follow-up flow handling
+- [x] **P09-T09** Build `CustomerReplyForm` with attachments, including Closed -> follow-up flow handling
   - **Depends on:** P09-T08
   - **Validation:** Host test: reply on Open ticket refreshes thread; reply on Closed ticket shows follow-up ticket link; oversize/disallowed attachment shows error; double-submit guarded.
   - **09b:** delivered except double-submit (deferred to 09d, D-045 'Known in 09b').
+  - **09d evidence:** the double-send guard: `SubmitGuardTests` and `DoubleSendHostTests` (the same id twice, in a row and at the same time, makes one API call and the same redirect; an aborted first post; an unknown answer goes to the fallback; a 429, 409 or 503 releases the claim; an id cannot cross forms, products or tickets; no token, reference or id in a log), and the sending state in `portal-forms.js` (`portal-forms.test.mjs`).
   - **09b evidence:** `TicketReplyHostTests`, `FollowUpLinkTests`, `ReplyAndEmailRulesTests`: a reply redirects to the same page, a reply on a Closed ticket redirects to the follow-up's own page on this site, a link that cannot be read gives a generic confirmation.
 - [x] **P09-T10** Build `LostLinkPage` (`/p/{key}/lost-link`)
   - **Depends on:** P09-T03
@@ -214,6 +215,7 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
 - [ ] **P09-T16** Apply BRAND.md/UX-BRIEF-portal styling: responsive layout, error summaries, focus states, themed accent usage, no-JS verification
   - **Depends on:** P09-T06, P09-T08, P09-T14
   - **Validation:** UX-BRIEF-portal checklist completed; manual run with JavaScript disabled covers contact -> submitted and ticket view -> reply; axe run has no critical findings; Lighthouse accessibility >= 90 (**Assumption**).
+  - **09d:** the automated part is delivered (`ResponsiveStyleTests`, `TokenContrastTests`, `CspStyleTests`, `HeadingHostTests`, `LayoutLandmarkHostTests`, `ErrorSummaryLinkHostTests`, `PageLinksTests`; the checks in a real browser are in D-045 09d). **Owner evidence pending:** the axe run, the Lighthouse score, the JavaScript-off walk and the screenshots at 360, 768 and 1280 are the owner's checklist in PORTAL-APP.md ("Manual checks"); the task is ticked in the pull request's checklist once they are recorded.
 - [x] **P09-T17** Redact `/t/{token}` and `X-` token headers in portal request logs; add log-redaction test
   - **Depends on:** P09-T08
   - **Validation:** Test host captures Serilog output for a token request and asserts the token string never appears.
@@ -245,13 +247,13 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
 
 ## Success Criteria
 
-- [ ] A customer can open `/p/{key}/contact`, see matching KB suggestions as they type, submit with attachments, and see a confirmation with the ticket number; the form also works with JavaScript disabled (without suggestions).
-- [ ] Following the emailed `/t/{token}` link shows the public conversation; the customer can reply; replying on a Closed ticket creates and links a follow-up ticket.
-- [ ] Invalid, expired and revoked tokens are indistinguishable (identical 404); lost-link responses are identical for known and unknown emails.
-- [ ] Each product's portal pages use its name, logo and accent colour, including readable contrast; an unknown product key shows NotFound.
+- [x] A customer can open `/p/{key}/contact`, see matching KB suggestions as they type, submit with attachments, and see a confirmation with the ticket number; the form also works with JavaScript disabled (without suggestions).
+- [x] Following the emailed `/t/{token}` link shows the public conversation; the customer can reply; replying on a Closed ticket creates and links a follow-up ticket.
+- [x] Invalid, expired and revoked tokens are indistinguishable (identical 404); lost-link responses are identical for known and unknown emails.
+- [x] Each product's portal pages use its name, logo and accent colour, including readable contrast; an unknown product key shows NotFound.
 - [x] KB pages are browsable, searchable, SEO-tagged with sitemap/robots as specified; ticket pages are `noindex`/disallowed.
-- [ ] The contact URL prefills `subject`, `name` and `email` (visible, editable, validated like typed input); "Powered by TechStrap" links to the GitHub repo and disappears when `TECHSTRAP_PORTAL_SHOW_POWERED_BY=false`; agents appear as the resolved public name (D-024).
-- [ ] Portal request logs contain no access tokens; token pages send `no-store` and `no-referrer`.
+- [x] The contact URL prefills `subject`, `name` and `email` (visible, editable, validated like typed input); "Powered by TechStrap" links to the GitHub repo and disappears when `TECHSTRAP_PORTAL_SHOW_POWERED_BY=false`; agents appear as the resolved public name (D-024).
+- [x] Portal request logs contain no access tokens; token pages send `no-store` and `no-referrer`.
 - [ ] Rate limits observe the real client IP through the portal.
 - [ ] `dotnet build`/`dotnet test` green; portal container healthy under compose.
 
