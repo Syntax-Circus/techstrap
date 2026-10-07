@@ -5,7 +5,7 @@ using TechStrap.Tests.Shared;
 
 namespace TechStrap.Portal.Tests;
 
-//// <summary>
+/// <summary>
 /// Both branches of <see cref="StartupFailure"/> (the helper itself is shared with the Admin and Api tests): the direct exception and the disposed-provider race, plus the cases that must fail loudly, and
 /// the Portal factory's sink as the source of the fallback.
 /// </summary>

@@ -11,9 +11,17 @@ internal sealed record Seen(HttpStatusCode Status, string Body, string Headers, 
 {
     /// <summary>
     /// The headers that vary per request by design: the clock, the request's own correlation id and the framing; and the two the framework's antiforgery step adds only to a response that rendered a form (the
-    /// <c>Set-Cookie</c> of the token and <c>Pragma: no-cache</c>), which a post to a product that vanished after its form was served still carries. Nothing is leaked: a visitor holding that form already knew the product.
+    /// antiforgery <c>Set-Cookie</c> and <c>Pragma: no-cache</c>), which a post to a product that vanished after its form was served still carries. Nothing is leaked: a visitor holding that form already knew the product.
     /// </summary>
     private static readonly HashSet<string> PerRequest = new(["Date", "X-Correlation-Id", "Content-Length", "Transfer-Encoding", "Set-Cookie", "Pragma"], StringComparer.OrdinalIgnoreCase);
+
+    private const string AntiforgeryCookiePrefix = ".AspNetCore.Antiforgery.";
+
+    /// <summary>Every cookie except the antiforgery one, by name only (a value may vary): a session or tracking cookie on one kind of 404 and not on another must be seen.</summary>
+    private static IEnumerable<string> CookieNames(HttpResponseMessage response) =>
+        response.Headers.TryGetValues("Set-Cookie", out var cookies)
+            ? cookies.Where(c => !c.StartsWith(AntiforgeryCookiePrefix, StringComparison.Ordinal)).Select(c => "Set-Cookie: " + c.Split('=')[0].Trim())
+            : [];
 
     public static async Task<Seen> OfAsync(HttpResponseMessage response, int apiCalls, CancellationToken cancellationToken)
     {
@@ -22,7 +30,8 @@ internal sealed record Seen(HttpStatusCode Status, string Body, string Headers, 
             response.Headers.Concat(response.Content.Headers)
                 .Where(h => !PerRequest.Contains(h.Key))
                 .OrderBy(h => h.Key, StringComparer.Ordinal)
-                .Select(h => $"{h.Key}: {string.Join(",", h.Value)}"));
+                .Select(h => $"{h.Key}: {string.Join(",", h.Value)}")
+                .Concat(CookieNames(response).Order(StringComparer.Ordinal)));
         return new Seen(response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken), headers, apiCalls);
     }
 

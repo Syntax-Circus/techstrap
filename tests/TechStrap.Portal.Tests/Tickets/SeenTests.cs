@@ -47,6 +47,18 @@ public sealed class SeenTests
     }
 
     [Fact]
+    public async Task A_cookie_that_is_not_the_antiforgery_one_is_compared_by_name_not_value()
+    {
+        var plain = await SeenAsync(_ => { });
+        var session = await SeenAsync(response => response.Headers.TryAddWithoutValidation("Set-Cookie", "session=abc; path=/"));
+        var otherValue = await SeenAsync(response => response.Headers.TryAddWithoutValidation("Set-Cookie", "session=xyz; path=/"));
+
+        session.Headers.ShouldNotBe(plain.Headers);
+        Should.Throw<ShouldAssertException>(() => session.ShouldBeTheNeutralNotFound(plain));
+        otherValue.Headers.ShouldBe(session.Headers);
+    }
+
+    [Fact]
     public async Task The_framing_headers_do_not_count()
     {
         var plain = await SeenAsync(_ => { });
