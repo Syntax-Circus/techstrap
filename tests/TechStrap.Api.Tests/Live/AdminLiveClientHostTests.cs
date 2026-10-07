@@ -183,22 +183,26 @@ public sealed class AdminLiveClientHostTests(TestPostgres postgres)
         });
         var changes = Channel.CreateUnbounded<TicketChangedDto>();
         client.TicketChanged += change => changes.Writer.TryWrite(change);
-        var issuedAtReconnecting = -1;
+        var reconnecting = 0;
         client.StateChanged += state =>
         {
             if (state == LiveConnectionState.Reconnecting)
             {
-                Interlocked.CompareExchange(ref issuedAtReconnecting, Volatile.Read(ref tokensIssued), -1);
+                Interlocked.Exchange(ref reconnecting, 1);
             }
         };
         await client.StartAsync(ct);
 
         var resync = await NextAsync(changes);
 
+        // The Resync is raised only by a completed reconnect. The client asks the provider again rather than reusing the first token
+        // (a client that cached it would issue one token only). The Api's JWT clock skew would still accept the just-expired first
+        // token, so this cannot prove the reconnect needed the fresh one; it pins that the client never caches.
+        // Counting tokens at the moment "Reconnecting" is seen is racy: the first retry has no delay and may fetch its token first.
         resync.Kind.ShouldBe(TicketChangeKinds.Resync);
         resync.TicketId.ShouldBe(Guid.Empty);
-        issuedAtReconnecting.ShouldBeGreaterThanOrEqualTo(1, "the connection was seen reconnecting");
-        tokensIssued.ShouldBeGreaterThan(issuedAtReconnecting, "a token was issued after the reconnect began (the reconnect could not authenticate with the expired first one)");
+        Volatile.Read(ref reconnecting).ShouldBe(1, "the connection was seen reconnecting");
+        Volatile.Read(ref tokensIssued).ShouldBeGreaterThan(1, "a fresh token was issued after the first one");
         await WaitForAsync(() => Task.FromResult(client.State == LiveConnectionState.Connected), "connected again");
     }
 
