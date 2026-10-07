@@ -12,11 +12,27 @@ presence hint.
 
 - **Depends on:** [PHASE-07](PHASE-07-admin-app.md) (admin queue/detail pages, token forwarding); transitively [PHASE-06](PHASE-06-ticket-operations.md) (events written by handlers and the `AutoCloseSolvedTicketsHandler` worker job).
 - **Unblocks:** [PHASE-12](PHASE-12-release-hardening.md).
-- **External prerequisites:** Reverse proxy allows WebSocket upgrade to the API (`/hubs/*`) with adequate idle timeouts; Postgres allows a dedicated long-lived connection for `LISTEN` from the API (not via a transaction-pooling proxy such as PgBouncer in transaction mode).
+- **External prerequisites:** Reverse proxy allows WebSocket upgrade to the API (`/hubs/*`) with adequate idle timeouts; Postgres allows a dedicated long-lived connection for `LISTEN` from the API (not via a transaction-pooling proxy such as PgBouncer in transaction mode). *(Superseded by D-046 for the proxy: browsers never reach `/hubs`, so there is no proxy hub route.)*
+
+### Corrections (D-046, 2026-10-07)
+
+Where this page and D-046 differ, D-046 wins.
+- **Delivery.** Two pull requests: 10a (T01 to T10, the server) and 10b (T11 to T17, the Admin, after a `SyntaxCircus.Blazor.Auth` token-provider release (0.2.0, released)).
+- **Identity.** `ICurrentUserService` does not exist. The hub fills an `UpdateTicketPresenceRequest` from `Context.User` and `Context.ConnectionId`; `ICurrentAgentClaims` and `IHttpContextAccessor` are not used in a hub.
+- **`LiveConnectionState`** is an Admin type (`Features/Live`), not a Contracts type: Contracts allows only `*Dto`, `*Request`, `*Response` and static constants.
+- **Post-commit.** A SaveChanges interceptor fires before the commit. The hook is `TicketChangeCaptureInterceptor` (stages the inserted events) plus `TicketChangePublishingInterceptor` (publishes after the commit, drops on rollback or failure).
+- **Worker sources.** `DrainEmailOutboxHandler` writes no `TicketEvent`; only `AutoCloseSolvedTicketsHandler` publishes from the Worker.
+- **No browser hops.** Browsers never reach `/hubs`; the Admin connects server to server, so the proxy needs nothing new for the hub.
+- **Token by header only.** There is no `access_token` query support and no `OnMessageReceived` change; the tests pin that a query token is refused. P10-T06 shrinks to that pin.
+- **Event id.** `TicketChangedDto` gains `EventId`.
+- **Groups.** `TicketChanged` goes to `queue` only; presence goes to `ticket:{id}`.
+- **Unknown ticket.** `JoinTicket` answers `HubException("Ticket not found")` after an existence check, and returns the current presence to its caller.
+- **Metrics.** The Api and the Worker pass the meter name to `AddSyntaxCircusObservability`.
+- **Detail banner (10b).** A "New activity - refresh" banner; the row version changes only when the agent clicks it. **Presence name (10b):** `Agent.Name`, to other agents only.
 
 ## Architecture Decisions
 
-- **Hub on the API, authenticated by the agent JWT.** `TicketHub` at `/hubs/tickets` requires the same agent authorization policy (group claim) as the REST API. Browsers never connect; the admin's Blazor Server circuit connects server-side with the user's access token from `SyntaxCircus.Blazor.Auth` (token provider per connection). WebSocket token travels as `access_token` query value, accepted only on `/hubs/*` via `JwtBearerEvents.OnMessageReceived`, and redacted from logs (**Assumption** for server-side clients; the header route is used where the transport allows).
+- **Hub on the API, authenticated by the agent JWT.** `TicketHub` at `/hubs/tickets` requires the same agent authorization policy (group claim) as the REST API. Browsers never connect; the admin's Blazor Server circuit connects server-side with the user's access token from `SyntaxCircus.Blazor.Auth` (token provider per connection). WebSocket token travels as `access_token` query value, accepted only on `/hubs/*` via `JwtBearerEvents.OnMessageReceived`, and redacted from logs (**Assumption** for server-side clients; the header route is used where the transport allows). *(Superseded by D-046: no proxy hub route; the token travels in the header only and a query token is refused.)*
 - **One fan-in abstraction, two implementations of `ITicketChangeBroadcaster`:**
   - **API process:** `SignalRTicketChangeBroadcaster` (via `IHubContext<TicketHub>`).
   - **Worker process:** `PgNotifyTicketChangeBroadcaster` runs `SELECT pg_notify('techstrap_ticket_changes', @payload)`.
@@ -30,7 +46,7 @@ presence hint.
 - **Admin client side:** `ITicketLiveClient` (scoped, wraps `HubConnection` with automatic reconnect, `IAsyncDisposable`) exposes events; pages subscribe in code-behind and refresh via the existing typed clients. Queue refresh is debounced (constant 1 s) and shows an "N tickets updated – refresh" banner instead of reordering rows under the agent's cursor. Detail refresh updates timeline/status; the reply draft and selected KB articles are never touched.
 - **Hub method names and group name formats are constants** in `TechStrap.Contracts` (`TicketHubMethods`, `TicketHubGroups`), as they cross the process boundary.
 - **No polling fallback** in the core (**Assumption**); the connection indicator and manual refresh are the fallback.
-- **Security:** hub methods authorize via the policy plus per-call `ICurrentUserService`; `JoinTicket` verifies the ticket exists (cheap read) so group names cannot be probed for arbitrary ids; payloads contain no customer text. Connection token expiry: the admin recreates the connection when the access token it was started with expires (token provider supplies a fresh one on reconnect). **Assumption**; verify Authentik token lifetime in UAT.
+- **Security:** hub methods authorize via the policy plus per-call `ICurrentUserService` *(superseded by D-046: the request record carries the identity)*; `JoinTicket` verifies the ticket exists (cheap read) so group names cannot be probed for arbitrary ids; payloads contain no customer text. Connection token expiry: the admin recreates the connection when the access token it was started with expires (token provider supplies a fresh one on reconnect). **Assumption**; verify Authentik token lifetime in UAT.
 
 ## Application Boundaries
 
@@ -81,43 +97,43 @@ Versions in [03-PACKAGE-MAP.md](03-PACKAGE-MAP.md). `Microsoft.AspNetCore.Signal
 
 ## Deliverables
 
-- [ ] `TicketHub`, `UpdateTicketPresenceHandler`, `ITicketPresenceStore`, `RelayTicketChangeHandler`, `ITicketChangeBroadcaster` (+ SignalR and pg_notify implementations), `TicketChangeListener`.
-- [ ] Post-commit publishing hook in Infrastructure used by API and Worker.
-- [ ] Contracts: `TicketChangedDto`, `TicketPresenceDto`, hub method/group constants, change-kind constants.
+- [x] `TicketHub`, `UpdateTicketPresenceHandler`, `ITicketPresenceStore`, `RelayTicketChangeHandler`, `ITicketChangeBroadcaster` (+ SignalR and pg_notify implementations), `TicketChangeListener` (10a, D-046).
+- [x] Post-commit publishing hook in Infrastructure used by API and Worker (10a, D-046: capture plus publishing interceptors).
+- [x] Contracts: `TicketChangedDto`, `TicketPresenceDto`, hub method/group constants, change-kind constants (10a; `LiveConnectionState` is an Admin type, 10b).
 - [ ] Admin `ITicketLiveClient`, live indicator, queue banner, detail refresh and presence bar.
 - [ ] Reverse-proxy/WebSocket notes added to the compose docs.
 - [ ] Unit, API (in-memory hub), integration (NOTIFY) and bUnit tests.
 
 ## Actionable Tasks
 
-- [ ] **P10-T01** Define `TicketChangedDto`, `TicketPresenceDto`, `LiveConnectionState`, `TicketHubMethods`, `TicketHubGroups` and change-kind constants in `TechStrap.Contracts`
+- [x] **P10-T01** Define `TicketChangedDto`, `TicketPresenceDto`, `LiveConnectionState`, `TicketHubMethods`, `TicketHubGroups` and change-kind constants in `TechStrap.Contracts`
   - **Depends on:** P06
   - **Validation:** Build; Architecture.Tests: Contracts has no inward references; serialization round-trip unit test for each DTO (System.Text.Json, camelCase).
-- [ ] **P10-T02** Define `ITicketChangeBroadcaster` and `ITicketPresenceStore` in Application (with `TicketChange` application model) and implement `InMemoryTicketPresenceStore` (TTL expiry via `TimeProvider`)
+- [x] **P10-T02** Define `ITicketChangeBroadcaster` and `ITicketPresenceStore` in Application (with `TicketChange` application model) and implement `InMemoryTicketPresenceStore` (TTL expiry via `TimeProvider`)
   - **Depends on:** P10-T01
   - **Validation:** Unit tests with `FakeTimeProvider`: composing expires after TTL; leave-all removes every ticket for a connection; concurrent updates safe.
-- [ ] **P10-T03** Implement `UpdateTicketPresenceHandler` (Join/Leave/LeaveAll/SetComposing) returning `Result`, broadcasting presence changes only on actual state change
+- [x] **P10-T03** Implement `UpdateTicketPresenceHandler` (Join/Leave/LeaveAll/SetComposing) returning `Result`, broadcasting presence changes only on actual state change
   - **Depends on:** P10-T02
   - **Validation:** Application.Tests with NSubstitute: unknown ticket -> not-found result; repeated identical state does not broadcast; cancellation passed to the repository call.
-- [ ] **P10-T04** Implement `RelayTicketChangeHandler` (validate payload, drop malformed, forward to broadcaster)
+- [x] **P10-T04** Implement `RelayTicketChangeHandler` (validate payload, drop malformed, forward to broadcaster)
   - **Depends on:** P10-T02
   - **Validation:** Unit tests: valid payload forwarded once; malformed JSON/unknown kind returns failure result without throwing; oversize payload rejected.
-- [ ] **P10-T05** Implement `TicketHub` (auth policy, auto-join `queue`, thin methods delegating to the handler, `OnDisconnectedAsync` -> LeaveAll) and `SignalRTicketChangeBroadcaster`
+- [x] **P10-T05** Implement `TicketHub` (auth policy, auto-join `queue`, thin methods delegating to the handler, `OnDisconnectedAsync` -> LeaveAll) and `SignalRTicketChangeBroadcaster`
   - **Depends on:** P10-T03
   - **Validation:** Api.Tests with in-process test server and `HubConnection`: unauthenticated rejected; two agents on one ticket see each other's presence; `TicketChanged` reaches `queue` members; Architecture.Tests: hub methods only call handlers.
-- [ ] **P10-T06** Configure JWT `OnMessageReceived` for `/hubs`, WebSocket/forwarded-header settings, and log redaction of the `access_token` query value
+- [x] **P10-T06** Configure JWT `OnMessageReceived` for `/hubs`, WebSocket/forwarded-header settings, and log redaction of the `access_token` query value (as built, D-046: reshaped to the pin that a query token is refused and no token reaches a log; no `OnMessageReceived` change)
   - **Depends on:** P10-T05
   - **Validation:** Api.Tests: token via query accepted only on `/hubs/*` (rejected on `/api/*`); log capture never contains the token.
-- [ ] **P10-T07** Implement the post-commit publishing hook (`TicketChangePublishingInterceptor`) in Infrastructure and register it in API (SignalR broadcaster) with failure isolation
+- [x] **P10-T07** Implement the post-commit publishing hook (`TicketChangePublishingInterceptor`) in Infrastructure and register it in API (SignalR broadcaster) with failure isolation
   - **Depends on:** P10-T05
   - **Validation:** Integration test: committing a handler transaction that adds a `TicketEvent` triggers exactly one broadcast per ticket; rollback triggers none; broadcaster exception does not fail the request.
-- [ ] **P10-T08** Implement `PgNotifyTicketChangeBroadcaster` and register it in the Worker host; wire the same hook for `AutoCloseSolvedTicketsHandler` and `DrainEmailOutboxHandler` commits
+- [x] **P10-T08** Implement `PgNotifyTicketChangeBroadcaster` and register it in the Worker host; wire the same hook for `AutoCloseSolvedTicketsHandler` and `DrainEmailOutboxHandler` commits (as built, D-046: `AutoCloseSolvedTicketsHandler` is the one Worker writer; `DrainEmailOutboxHandler` writes no `TicketEvent`)
   - **Depends on:** P10-T07
   - **Validation:** Integration test (Testcontainers): worker-style commit emits a `NOTIFY` with the expected JSON (<8 kB) on channel `techstrap_ticket_changes`.
-- [ ] **P10-T09** Implement `TicketChangeListener` hosted service (dedicated Npgsql connection, LISTEN, backoff reconnect, `Resync` emission) calling `RelayTicketChangeHandler`
+- [x] **P10-T09** Implement `TicketChangeListener` hosted service (dedicated Npgsql connection, LISTEN, backoff reconnect, `Resync` emission) calling `RelayTicketChangeHandler`
   - **Depends on:** P10-T04, P10-T05
   - **Validation:** Integration test: NOTIFY from a second connection reaches a connected hub client; killing the listener connection (`pg_terminate_backend`) results in reconnect and a `Resync` message; listener stops cleanly on shutdown.
-- [ ] **P10-T10** Add observability: connected-agents gauge, changes-relayed counter, relay failures counter, listener-reconnect counter
+- [x] **P10-T10** Add observability: connected-agents gauge, changes-relayed counter, relay failures counter, listener-reconnect counter
   - **Depends on:** P10-T09
   - **Validation:** Meter listener test asserts instruments update; names in constants.
 - [ ] **P10-T11** Implement admin `ITicketLiveClient` / `SignalRTicketLiveClient` (token provider from Blazor.Auth, automatic reconnect with backoff, event de-duplication, `IAsyncDisposable`)
@@ -184,7 +200,7 @@ Versions in [03-PACKAGE-MAP.md](03-PACKAGE-MAP.md). `Microsoft.AspNetCore.Signal
 Before [PHASE-12](PHASE-12-release-hardening.md) starts: hub, listener and
 admin live features work against compose (including the worker-originated
 path); the WebSocket/proxy and `LISTEN` connection requirements are written
-into the compose/self-host notes; hub authentication and the `access_token`
-query-string handling are listed for the security review. D-018 (the post-commit
+into the compose/self-host notes; hub authentication and the header-only
+token (query refused, D-046) are listed for the security review. D-018 (the post-commit
 publishing hook) was approved on 2026-10-02 in
 [04-DECISION-LOG.md](04-DECISION-LOG.md).

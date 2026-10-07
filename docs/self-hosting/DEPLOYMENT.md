@@ -166,6 +166,14 @@ Use root throughout. Both checks read the container's own kernel tables, because
 This proves the Docker path only. The proxy's `X-Forwarded-For` handling has no observation point short of a temporary debug log; add one if you need to see it.
 If either check fails, do not go live: the Api would ignore the forwarded client address.
 
+## Live updates (PHASE-10)
+
+Agents see ticket changes and who else has a ticket open without reloading. Two things matter to the person running the stack:
+
+- **The hub is internal.** The Admin connects to the Api's `/hubs/tickets` server to server (`API__BASEURL`, `http://api/` in the deploy compose). A browser never connects to the hub, so the reverse proxy needs no WebSocket rule or idle-timeout change for it; the Admin's own `/_blazor` circuit already needs upgrade support. Do not publish `/hubs` on the public host. The hub accepts an agent's token in the `Authorization` header only; a token in the URL is refused.
+- **`LISTEN` needs a direct Postgres connection.** The Api holds one long-lived connection that listens for the changes the Worker makes (auto-close) and reconnects by itself with a backoff. Point `ConnectionStrings__TechStrap` at Postgres itself, or at a pooler in session mode; **PgBouncer in transaction mode breaks `LISTEN`**. The connection shows in `pg_stat_activity` with the application name `techstrap-ticket-change-listener`. Presence and the in-process publish live in one Api process, so run one Api instance (D-007).
+- **No new settings.** Nothing in the `deploy/.env.*` files changes for live updates.
+
 ## Health checks and acceptance
 
 ```bash

@@ -5,6 +5,7 @@ using SyntaxCircus.AspNetCore.Common;
 using SyntaxCircus.AspNetCore.Serilog;
 using SyntaxCircus.DotEnv;
 using SyntaxCircus.Observability;
+using TechStrap.Api.Live;
 using TechStrap.Api.Options;
 using TechStrap.Api.Security;
 using TechStrap.Api.Startup;
@@ -13,6 +14,7 @@ using TechStrap.Hosting.Security;
 using TechStrap.Hosting.Sentry;
 using TechStrap.Hosting.Wiring;
 using TechStrap.Infrastructure.Intake;
+using TechStrap.Infrastructure.Live;
 using TechStrap.Infrastructure.Persistence;
 using TechStrap.Infrastructure.Security;
 using TechStrap.Infrastructure.Seeding;
@@ -26,7 +28,8 @@ if (builder.Configuration.ShouldLoadDotEnv(builder.Environment))
     builder.Configuration.AddSyntaxCircusDotEnvFiles(builder.Environment.ContentRootPath);
 }
 
-var telemetry = builder.AddSyntaxCircusObservability(ServiceName);
+// TechStrap's own meter is exported only when its name is passed here.
+var telemetry = builder.AddSyntaxCircusObservability(ServiceName, [TechStrapMetrics.MeterName]);
 builder.AddStandardSerilog(configureEnrichment: logger =>
 {
     telemetry.ConfigureSerilog(logger);
@@ -103,6 +106,8 @@ builder.Services.AddTechStrapIntake(builder.Configuration);
 builder.Services.AddTechStrapTicketOperations(builder.Configuration);
 builder.Services.AddResultProblemDetails();
 builder.Services.AddApplicationHandlers();
+// The agent hub and its broadcaster (D-018). After AddTechStrapPersistence, whose null broadcaster the hub's replaces.
+builder.Services.AddTechStrapLiveHub();
 
 // KB images (D-044): the Api's own public address builds each image URL. Required outside Development; blank there means the request origin.
 builder.Services.AddOptions<ApiPublicUrlOptions>()
@@ -165,6 +170,7 @@ app.MapOpenApi().AllowAnonymous().RequireRateLimiting(PublicRateLimitOptions.Pol
 
 app.MapControllers();
 app.MapKbImages();
+app.MapTechStrapLiveHub();
 
 app.Run();
 
