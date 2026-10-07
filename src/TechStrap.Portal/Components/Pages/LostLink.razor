@@ -20,6 +20,7 @@
         }
         <form method="post" action="@PortalRoutes.LostLink(theme.Key)" novalidate @formname="@FormHandler" @onsubmit="SubmitAsync" class="ts-form">
             <AntiforgeryToken />
+            <FormGuard Name="Form.SubmitId" />
             <FormField Field="@FormFields.Email" Name="Form.Email" Label="@LostLinkCopy.EmailLabel" Value="@Form?.Email" MaxLength="@TechStrap.Contracts.Intake.IntakeLimits.EmailMaxLength" Type="email" Autocomplete="email" Error="@ErrorOf(FormFields.Email)" />
             <button type="submit" class="btn btn-primary">@LostLinkCopy.Submit</button>
         </form>

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using SyntaxCircus.Common;
 using TechStrap.Portal.Clients;
 using TechStrap.Portal.Forms;
 using TechStrap.Portal.Products;
@@ -42,6 +43,9 @@ public partial class Contact : ProductPageBase
     private NavigationManager Redirects { get; set; } = default!;
 
     [Inject]
+    private SubmitGuard Guard { get; set; } = default!;
+
+    [Inject]
     private IHttpContextAccessor Http { get; set; } = default!;
 
     private IReadOnlyList<FormError> Errors { get; set; } = [];
@@ -76,16 +80,27 @@ public partial class Contact : ProductPageBase
 
         var request = new NewTicketRequest(
             form.Email!.Trim(), form.Name!.Trim(), form.Subject!.Trim(), form.Body!.Trim(), form.Website, AttachmentRules.ToUploads(form.Files));
-        var cancellation = Http.HttpContext?.RequestAborted ?? CancellationToken.None;
-        var result = await Tickets.SubmitAsync(Key, request, cancellation);
-        if (result.IsSuccess)
+
+        // A double click sends once: the id this form carried claims the write (D-045 09d addendum). A repeat is sent where the first went, or to the received page without a reference when the first's answer is unknown.
+        var outcome = await Guard.RunAsync(
+            SubmitKey.TryCreate(FormHandler, Key, form.SubmitId),
+            new SubmitTarget(PortalRoutes.ContactReceived(Key)),
+            async cancellation =>
+            {
+                var result = await Tickets.SubmitAsync(Key, request, cancellation);
+                return result.IsSuccess
+                    ? Result<SubmitTarget>.Success(new SubmitTarget(PortalRoutes.ContactReceived(Key, References.Protect(Key, result.Value.TicketNumber))))
+                    : Result<SubmitTarget>.Failure(result.Errors[0], [.. result.Errors.Skip(1)]);
+            },
+            RequestAborted);
+        if (outcome.Status == SubmitStatus.Done)
         {
             // Straight after the redirect: nothing else may run or render.
-            Redirects.NavigateTo(PortalRoutes.ContactReceived(Key, References.Protect(Key, result.Value.TicketNumber)));
+            Redirects.NavigateTo(outcome.Target.Path!);
             return;
         }
 
-        var failure = FormFailure.From(result.Errors);
+        var failure = outcome.Status == SubmitStatus.Failed ? FormFailure.From(outcome.Errors) : FormFailure.Unknown;
         if (failure.IsNotFound)
         {
             NotFoundAfterTheming();

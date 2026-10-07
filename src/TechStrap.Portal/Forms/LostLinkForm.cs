@@ -4,6 +4,9 @@ namespace TechStrap.Portal.Forms;
 public sealed class LostLinkFormViewModel
 {
     public string? Email { get; set; }
+
+    /// <summary>The one-time id of the form (<see cref="SubmitIds"/>), posted in a hidden input; missing or malformed means the post is not guarded.</summary>
+    public string? SubmitId { get; set; }
 }
 
 /// <summary>The words of the lost-link page (UX brief). The confirmation is one sentence that says nothing about whether the address matched: it is the same for every well-formed address.</summary>

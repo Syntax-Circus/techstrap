@@ -40,6 +40,7 @@ else if (UnavailableMessage is not null)
 @code {
     private RenderFragment ReplyForm(string button) => @<form method="post" action="@PortalRoutes.Ticket(_token)" enctype="multipart/form-data" novalidate @formname="@ReplyHandler" @onsubmit="ReplyAsync" class="ts-form">
         <AntiforgeryToken />
+        <FormGuard Name="Reply.SubmitId" />
         <FormField Field="@FormFields.Body" Name="Reply.Body" Label="@TicketCopy.ReplyLabel" Value="@Reply?.Body" MaxLength="@IntakeLimits.BodyMaxLength" Rows="6" Error="@ErrorOf(FormFields.Body)" />
         <AttachmentInput Name="Reply.Files" Error="@ErrorOf(FormFields.Attachments)" Kept="@(Errors.Count > 0 || Notice is not null)" />
         <button type="submit" class="btn btn-primary">@button</button>

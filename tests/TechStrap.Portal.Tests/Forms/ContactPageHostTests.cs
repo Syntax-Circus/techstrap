@@ -155,7 +155,8 @@ public sealed class ContactPageHostTests
         html.ShouldContain("name=\"Form.Subject\" type=\"text\" class=\"form-control\" value=\"Printer jam\" maxlength=\"200\"");
         html.ShouldContain("name=\"Form.Name\" type=\"text\" class=\"form-control\" value=\"Jane Doe\" maxlength=\"100\"");
         html.ShouldContain("name=\"Form.Email\" type=\"email\" class=\"form-control\" value=\"jane@example.com\" maxlength=\"320\"");
-        html.ShouldNotContain("type=\"hidden\" name=\"Form.", Case.Sensitive, "no hidden field carries prefill data");
+        // The one hidden Form field is the double-send id (a random value, never prefill data).
+        System.Text.RegularExpressions.Regex.IsMatch(html, "type=\"hidden\" name=\"Form\\.(?!SubmitId\")").ShouldBeFalse("no hidden field carries prefill data");
         html.ShouldNotContain("value=\"Printer jam\" type=\"hidden\"");
         factory.Api.Count(HttpMethod.Post, FormTestKit.ApiTicketsPath).ShouldBe(0, "a prefill never submits anything");
     }
@@ -185,9 +186,10 @@ public sealed class ContactPageHostTests
         extra.ShouldNotContain("orbitly");
         extra.ShouldNotContain("AbC-_0123456789");
         extra.ShouldNotContain("spam");
-        // The same page, token for token (the antiforgery value differs every time).
-        System.Text.RegularExpressions.Regex.Replace(extra, "value=\"CfDJ[^\"]+\"", "value=\"T\"")
-            .ShouldBe(System.Text.RegularExpressions.Regex.Replace(plain, "value=\"CfDJ[^\"]+\"", "value=\"T\""));
+        // The same page, token for token (the antiforgery value and the double-send id differ every time).
+        static string Same(string page) => System.Text.RegularExpressions.Regex.Replace(
+            System.Text.RegularExpressions.Regex.Replace(page, "value=\"CfDJ[^\"]+\"", "value=\"T\""), "(name=\"Form.SubmitId\" value=\")[^\"]+", "$1I");
+        Same(extra).ShouldBe(Same(plain));
         factory.Api.Count(HttpMethod.Get, "/api/public/products/paperplane").ShouldBe(2, "the product is the page's own, never the query's");
     }
 

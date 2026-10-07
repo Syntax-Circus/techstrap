@@ -38,6 +38,9 @@ public partial class Ticket
     private NavigationManager Navigation { get; set; } = default!;
 
     [Inject]
+    private SubmitGuard Guard { get; set; } = default!;
+
+    [Inject]
     private IHostEnvironment Environment { get; set; } = default!;
 
     [Inject]
@@ -108,19 +111,34 @@ public partial class Ticket
             return;
         }
 
-        var result = await Tickets.ReplyAsync(_token, new CustomerReply(form.Body!.Trim(), AttachmentRules.ToUploads(form.Files)), Cancellation);
-        if (result.IsSuccess)
+        // A double click sends one reply: the id this form carried, with the ticket's token, claims the write (D-045 09d addendum). A repeat goes where the first went (the same page, or the follow-up's page), or back to this
+        // ticket's page when the first's answer is unknown. The stored target can be a follow-up's access token: it stays in memory, for two minutes, and is never logged.
+        var reply = new CustomerReply(form.Body!.Trim(), AttachmentRules.ToUploads(form.Files));
+        var outcome = await Guard.RunAsync(
+            SubmitKey.TryCreate(ReplyHandler, _token.Value, form.SubmitId),
+            new SubmitTarget(PortalRoutes.Ticket(_token)),
+            async cancellation =>
+            {
+                var result = await Tickets.ReplyAsync(_token, reply, cancellation);
+                if (result.IsFailure)
+                {
+                    return Result<SubmitTarget>.Failure(result.Errors[0], [.. result.Errors.Skip(1)]);
+                }
+
+                if (!result.Value.FollowUpCreated)
+                {
+                    return Result<SubmitTarget>.Success(new SubmitTarget(PortalRoutes.Ticket(_token)));
+                }
+
+                return Result<SubmitTarget>.Success(FollowUpLink.TryGetToken(result.Value.FollowUpViewUrl, out var followUp) ? new SubmitTarget(PortalRoutes.Ticket(followUp)) : SubmitTarget.None);
+            },
+            Cancellation);
+        if (outcome.Status == SubmitStatus.Done)
         {
             // Straight after each redirect: nothing else may run or render.
-            if (!result.Value.FollowUpCreated)
+            if (outcome.Target.Path is { } path)
             {
-                Navigation.NavigateTo(PortalRoutes.Ticket(_token));
-                return;
-            }
-
-            if (FollowUpLink.TryGetToken(result.Value.FollowUpViewUrl, out var followUp))
-            {
-                Navigation.NavigateTo(PortalRoutes.Ticket(followUp));
+                Navigation.NavigateTo(path);
                 return;
             }
 
@@ -128,7 +146,7 @@ public partial class Ticket
             return;
         }
 
-        var failure = FormFailure.From(result.Errors);
+        var failure = outcome.Status == SubmitStatus.Failed ? FormFailure.From(outcome.Errors) : FormFailure.Unknown;
         if (failure.IsNotFound)
         {
             Scope.Clear();

@@ -19,6 +19,9 @@ public sealed class ContactFormViewModel
 
     public string? Website { get; set; }
 
+    /// <summary>The one-time id of the form (<see cref="SubmitIds"/>), posted in a hidden input; missing or malformed means the post is not guarded.</summary>
+    public string? SubmitId { get; set; }
+
     public IReadOnlyList<IBrowserFile>? Files { get; set; }
 
     /// <summary>

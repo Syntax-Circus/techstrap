@@ -11,6 +11,9 @@ namespace TechStrap.Portal.Forms;
 /// </summary>
 public sealed record FormFailure(IReadOnlyList<FormError> Errors, string? Notice, int Status, bool IsNotFound)
 {
+    /// <summary>The calm notice for a guarded write whose answer is unknown (it timed out): the same sentence and status as an outage.</summary>
+    public static FormFailure Unknown { get; } = WithNotice(FormCopy.Unavailable, StatusCodes.Status503ServiceUnavailable);
+
     public static FormFailure From(IReadOnlyList<ResultError> errors)
     {
         if (errors.Any(error => error.Kind == ResultErrorKind.NotFound))

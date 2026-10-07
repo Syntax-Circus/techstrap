@@ -15,6 +15,7 @@
     }
     <form method="post" action="@PortalRoutes.Contact(theme.Key)" enctype="multipart/form-data" novalidate @formname="@FormHandler" @onsubmit="SubmitAsync" class="ts-form">
         <AntiforgeryToken />
+        <FormGuard Name="Form.SubmitId" />
         <FormField Field="@FormFields.Name" Name="Form.Name" Label="@ContactCopy.NameLabel" Value="@Form?.Name" MaxLength="@IntakeLimits.NameMaxLength" Autocomplete="name" Error="@ErrorOf(FormFields.Name)" />
         <FormField Field="@FormFields.Email" Name="Form.Email" Label="@ContactCopy.EmailLabel" Value="@Form?.Email" MaxLength="@IntakeLimits.EmailMaxLength" Type="email" Autocomplete="email" Error="@ErrorOf(FormFields.Email)" />
         <FormField Field="@FormFields.Subject" Name="Form.Subject" Label="@ContactCopy.SubjectLabel" Value="@Form?.Subject" MaxLength="@IntakeLimits.SubjectMaxLength" Error="@ErrorOf(FormFields.Subject)" />
