@@ -259,6 +259,30 @@ Describe 'D-045 addendum (PHASE-09c rulings, 2026-10-06)' {
     }
 }
 
+Describe 'D-045 addendum (PHASE-09d rulings, 2026-10-06)' {
+    BeforeAll {
+        $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md'
+        $script:Section = [regex]::Match($script:Log, '(?s)## D-045:.*?(?=\r?\n## D-\d+:|\z)').Value
+    }
+
+    It 'is a dated addendum inside D-045, not a new decision number' {
+        $script:Section | Should -Match '(?m)^### Addendum \(2026-10-06, PHASE-09d portal polish\)'
+        $script:Log | Should -Not -Match '(?m)^## D-046'
+    }
+
+    It 'records each ruling the 09d plan rests on and the spike findings' {
+        foreach ($phrase in 'SubmitId', 'FormGuard', 'SubmitGuard', 'own `MemoryCache`', 'RequestAborted', 'portal-forms.js', 'ts-copy-text', 'ts-char-count', '--ts-reading-width', '--p-error', 'PageLinks.ToFragment',
+                'data-enhance-nav', 'BodyHeadings', 'StartupFailure', 'ResponsiveStyleTests', 'HeadingHostTests', 'Seen', 'Spike findings', 'does not run a script that arrives with swapped content', 'Deviations from the brief') {
+            $script:Section | Should -Match ([regex]::Escape($phrase)) -Because "the addendum must mention $phrase"
+        }
+    }
+
+    It 'words the 09b note about a post to an unknown product as the same request, not a re-execution' {
+        $script:Section | Should -Match ([regex]::Escape('renders the not-found page in the same request'))
+        $script:Section | Should -Not -Match ([regex]::Escape('the framework re-executes the post'))
+    }
+}
+
 Describe 'D-045 as built in 09b' {
     BeforeAll {
         $log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md'

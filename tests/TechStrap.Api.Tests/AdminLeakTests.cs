@@ -10,6 +10,7 @@ using TechStrap.Contracts.DeadLetters;
 using TechStrap.Contracts.Paging;
 using TechStrap.Contracts.Products;
 using TechStrap.Contracts.Tags;
+using TechStrap.Tests.Shared;
 using TechStrap.Tests.Shared.AdminHost;
 
 namespace TechStrap.Api.Tests;

@@ -1,4 +1,5 @@
 using Serilog.Events;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Api.Tests.Hosting;
 

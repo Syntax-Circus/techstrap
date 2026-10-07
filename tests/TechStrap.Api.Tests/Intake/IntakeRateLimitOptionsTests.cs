@@ -1,4 +1,5 @@
 using TechStrap.Api.Options;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Api.Tests.Intake;
 
@@ -16,10 +17,8 @@ public sealed class IntakeRateLimitOptionsTests
         var key = $"{IntakeRateLimitOptions.SectionName}:{property}";
         await using var factory = new ApiFactory(settings: new Dictionary<string, string?> { [key] = "0" });
 
-        var exception = Record.Exception(() => factory.CreateClient());
+        var failure = StartupFailure.Capture(factory, () => factory.LogSink.Events);
 
-        exception.ShouldNotBeNull();
-        exception.ToString().ShouldContain("OptionsValidationException");
-        exception.ToString().ShouldContain(key);
+        failure.Message.ShouldContain(key);
     }
 }

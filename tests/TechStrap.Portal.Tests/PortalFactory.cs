@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -7,20 +6,11 @@ using Serilog.Core;
 using Serilog.Events;
 using TechStrap.Portal.Settings;
 using TechStrap.Portal.Tests.Api;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Portal.Tests;
 
-/// <summary>Captures every Serilog event the host writes so tests can assert on log lines.</summary>
-public sealed class CollectingSink : ILogEventSink
-{
-    private readonly ConcurrentQueue<LogEvent> _events = new();
-
-    public IReadOnlyCollection<LogEvent> Events => _events.ToArray();
-
-    public void Emit(LogEvent logEvent) => _events.Enqueue(logEvent);
-}
-
-/// <summary>
+//// <summary>
 /// Starts the Portal host in-process in the given environment. A developer's gitignored .env.local must never leak into tests, and Production needs a trusted network to start.
 /// The two required settings (the API address and the public URL) get test values; <paramref name="settings"/> is applied on top, so a test can blank one to prove the start fails.
 /// A stub API (<see cref="Api"/>) sits behind the Portal's two named HTTP clients, and <see cref="LogSink"/> records every log event.

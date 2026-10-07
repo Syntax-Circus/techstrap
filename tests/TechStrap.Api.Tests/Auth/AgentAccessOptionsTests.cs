@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using TechStrap.Api.Options;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Api.Tests.Auth;
 
@@ -25,7 +26,7 @@ public sealed class AgentAccessOptionsTests
     {
         await using var factory = new ApiFactory(settings: new Dictionary<string, string?> { [key] = value });
 
-        Should.Throw<OptionsValidationException>(() => factory.CreateClient());
+        StartupFailure.Capture(factory, () => factory.LogSink.Events);
     }
 
     [Fact]
@@ -47,7 +48,7 @@ public sealed class AgentAccessOptionsTests
             environment: "Production",
             settings: new Dictionary<string, string?> { ["ConnectionStrings:TechStrap"] = "Host=localhost;Database=unused;Username=u;Password=p", ["Authentication:JwtBearer:Audiences:0"] = "" });
 
-        Should.Throw<OptionsValidationException>(() => factory.CreateClient());
+        StartupFailure.Capture(factory, () => factory.LogSink.Events);
     }
 
     [Fact]
@@ -57,6 +58,6 @@ public sealed class AgentAccessOptionsTests
             environment: "Production",
             settings: new Dictionary<string, string?> { ["ConnectionStrings:TechStrap"] = "Host=localhost;Database=unused;Username=u;Password=p", ["Authentication:JwtBearer:Authority"] = "" });
 
-        Should.Throw<OptionsValidationException>(() => factory.CreateClient());
+        StartupFailure.Capture(factory, () => factory.LogSink.Events);
     }
 }

@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Options;
 using TechStrap.Admin.Options;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Admin.Tests.Options;
 
@@ -68,6 +68,6 @@ public sealed class PortalUrlOptionsTests
     {
         await using var factory = new AdminFactory(settings: new Dictionary<string, string?> { [PortalUrlOptions.PublicUrlKey] = value });
 
-        Should.Throw<OptionsValidationException>(() => factory.CreateClient()).Message.ShouldContain("TECHSTRAP_PORTAL_PUBLIC_URL");
+        StartupFailure.Capture(factory, () => factory.LogSink.Events).Message.ShouldContain("TECHSTRAP_PORTAL_PUBLIC_URL");
     }
 }

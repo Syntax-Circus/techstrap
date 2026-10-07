@@ -3,15 +3,24 @@ using TechStrap.Portal.Tests.Forms;
 
 namespace TechStrap.Portal.Tests.Tickets;
 
-/// <summary>What a visitor can observe of a response: the status, the body and the headers that matter to the uniform 404 (everything that could tell one failure from another or carry a product's branding).</summary>
+/// <summary>
+/// What a visitor can observe of a response: the status, the body and EVERY header except the few that differ per request by design. A header the Portal adds one day to one kind of 404 and not to another is
+/// then caught without anyone remembering to list it.
+/// </summary>
 internal sealed record Seen(HttpStatusCode Status, string Body, string Headers, int ApiCalls)
 {
+    /// <summary>
+    /// The headers that vary per request by design: the clock, the request's own correlation id and the framing; and the two the framework's antiforgery step adds only to a response that rendered a form (the
+    /// <c>Set-Cookie</c> of the token and <c>Pragma: no-cache</c>), which a post to a product that vanished after its form was served still carries. Nothing is leaked: a visitor holding that form already knew the product.
+    /// </summary>
+    private static readonly HashSet<string> PerRequest = new(["Date", "X-Correlation-Id", "Content-Length", "Transfer-Encoding", "Set-Cookie", "Pragma"], StringComparer.OrdinalIgnoreCase);
+
     public static async Task<Seen> OfAsync(HttpResponseMessage response, int apiCalls, CancellationToken cancellationToken)
     {
         var headers = string.Join(
             "\n",
             response.Headers.Concat(response.Content.Headers)
-                .Where(h => h.Key is "Content-Type" or "Cache-Control" or "Referrer-Policy" or "X-Robots-Tag" or "X-Content-Type-Options" or "X-Frame-Options" or "Content-Security-Policy" or "blazor-enhanced-nav")
+                .Where(h => !PerRequest.Contains(h.Key))
                 .OrderBy(h => h.Key, StringComparer.Ordinal)
                 .Select(h => $"{h.Key}: {string.Join(",", h.Value)}"));
         return new Seen(response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken), headers, apiCalls);

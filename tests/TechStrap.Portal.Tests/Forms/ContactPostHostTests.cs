@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Serilog.Events;
 using TechStrap.Contracts.Intake;
 using TechStrap.Portal.Clients;
+using TechStrap.Portal.Products;
 using TechStrap.Portal.Tests.Api;
 using TechStrap.Portal.Tests.Tickets;
 
@@ -436,6 +437,28 @@ public sealed class ContactPostHostTests
         html.ShouldBe("Cannot submit the form 'contact' because no form on the page currently has that name.");
         response.Headers.GetValues("Cache-Control").Single().ShouldBe("no-store");
         factory.Api.Count(HttpMethod.Post, "/api/public/products/nope/tickets").ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_post_to_an_unknown_product_is_answered_in_one_request_not_re_executed_against_the_not_found_page()
+    {
+        // The wording of D-045 depends on this: NavigationManager.NotFound() renders the not-found page in the SAME request (one dependency scope, and the layout is built once), and the framework then rejects the
+        // post because no form named "contact" was rendered. A re-execution (UseStatusCodePagesWithReExecute) would build a second scope.
+        var scopes = 0;
+        await using var factory = Host(services => services.AddScoped(_ =>
+        {
+            Interlocked.Increment(ref scopes);
+            return new ProductScope();
+        }));
+        factory.Api.OnProblem(HttpMethod.Get, "/api/public/products/nope", HttpStatusCode.NotFound, "product-not-found", "No such product.");
+        var (client, token) = await OpenAsync(factory);
+        using var _ = client;
+        var before = scopes;
+
+        using var response = await client.PostAsync("/p/nope/contact", FormTestKit.ContactForm(token), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (scopes - before).ShouldBe(1, "the post, the not-found page and the layout share one request scope");
     }
 
     // ---- logs ----

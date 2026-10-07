@@ -1,10 +1,14 @@
 using Microsoft.Extensions.Options;
 using Serilog.Events;
 using Serilog.Parsing;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Portal.Tests;
 
-/// <summary>Both branches of <see cref="StartupFailure"/>: the direct exception and the disposed-provider race, plus the cases that must fail loudly.</summary>
+//// <summary>
+/// Both branches of <see cref="StartupFailure"/> (the helper itself is shared with the Admin and Api tests): the direct exception and the disposed-provider race, plus the cases that must fail loudly, and
+/// the Portal factory's sink as the source of the fallback.
+/// </summary>
 public sealed class StartupFailureTests
 {
     private static readonly TimeSpan NoWait = TimeSpan.Zero;
@@ -38,6 +42,33 @@ public sealed class StartupFailureTests
         Should.Throw<InvalidOperationException>(() => StartupFailure.Capture(() => throw new ObjectDisposedException("IServiceProvider"), () => events, NoWait))
             .Message.ShouldContain("did not fail on validation");
         Should.Throw<InvalidOperationException>(() => StartupFailure.Capture(() => throw new ObjectDisposedException("IServiceProvider"), () => [], NoWait));
+    }
+
+    [Fact]
+    public void A_log_event_below_Error_or_about_something_else_is_not_evidence()
+    {
+        var events = new[]
+        {
+            Event(LogEventLevel.Warning, "Hosting failed to start", new InvalidOperationException("outer", Validation)),
+            Event(LogEventLevel.Error, "Something else failed", new InvalidOperationException("outer", Validation)),
+        };
+
+        Should.Throw<InvalidOperationException>(() => StartupFailure.Capture(() => throw new ObjectDisposedException("IServiceProvider"), () => events, NoWait))
+            .Message.ShouldContain("did not fail on validation");
+    }
+
+    [Fact]
+    public async Task The_Portal_host_logs_a_failed_start_to_its_sink()
+    {
+        await using var factory = new PortalFactory(settings: new Dictionary<string, string?> { ["TECHSTRAP_PORTAL_SHOW_POWERED_BY"] = "maybe" });
+
+        var started = StartupFailure.Capture(factory, () => factory.LogSink.Events);
+        started.Message.ShouldContain("TECHSTRAP_PORTAL_SHOW_POWERED_BY");
+
+        // The race case, simulated: the provider is gone, so only the sink can say why the start failed.
+        var fromLog = StartupFailure.Capture(() => throw new ObjectDisposedException("IServiceProvider"), () => factory.LogSink.Events, TimeSpan.FromSeconds(5));
+
+        fromLog.Message.ShouldBe(started.Message);
     }
 
     [Fact]
