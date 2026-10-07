@@ -529,6 +529,32 @@ describe('the custom element', () => {
         assert.equal(element.children[1].children.length, 2);
     });
 
+    it('starts over with the new src and field when a navigation to another product keeps the element', () => {
+        const doc = fakeDocument();
+        const first = inputField();
+        const second = inputField();
+        doc.byId.set('subject', first);
+        doc.byId.set('subject2', second);
+        const { element, clock, fetchFn, observers } = connected(doc);
+        element.connectedCallback();
+
+        element.attrs = { field: 'subject2', src: '/p/other/suggest' };
+        observers[0].callback([]);
+        assert.equal(first.listening(), false);
+        assert.equal(second.listening(), true);
+        second.type('printer');
+        clock.advance(300);
+
+        assert.ok(fetchFn.calls.at(-1).url.startsWith('/p/other/suggest?q='), 'the new src is used');
+        assert.equal(observers.filter((o) => o.watching).length, 1);
+
+        element.attrs = { field: 'subject2', src: '/p/third/suggest' };
+        observers.filter((o) => o.watching)[0].callback([]);
+        second.type('printer jam');
+        clock.advance(300);
+        assert.ok(fetchFn.calls.at(-1).url.startsWith('/p/third/suggest?q='), 'a new src alone is enough');
+    });
+
     it('stops watching when removed, and works without MutationObserver', () => {
         const doc = fakeDocument();
         const field = inputField();
@@ -558,9 +584,10 @@ describe('the source', () => {
     const code = source.split('\n').filter((line) => !line.trim().startsWith('//') && !line.trim().startsWith('*') && !line.trim().startsWith('/**')).join('\n');
 
     it('never builds markup from text: no innerHTML, outerHTML, insertAdjacentHTML, document.write, eval or Function', () => {
-        for (const forbidden of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'eval(', 'new Function', 'setAttribute(\'on', 'srcdoc']) {
+        for (const forbidden of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'eval(', 'new Function', 'srcdoc']) {
             assert.equal(code.includes(forbidden), false, `${forbidden} must not appear`);
         }
+        assert.equal(/setAttribute\(\s*['"`]on|\.on[a-z]+\s*=/.test(code), false, 'no event-handler attribute or property is set');
     });
 
     it('puts server text on the page with textContent', () => {

@@ -184,6 +184,8 @@ export function defineKbSuggestions(env) {
 
             this.replaceChildren();
             this._items = [];
+            this._src = url;
+            this._fieldId = this.getAttribute('field');
             this._input = input;
             this._suggester = createSuggester({
                 url,
@@ -207,11 +209,15 @@ export function defineKbSuggestions(env) {
             // A same-page enhanced navigation keeps this element but puts the server's fallback link back inside it (and connectedCallback does not run again): show the list again, or nothing.
             if (typeof env.MutationObserver === 'function') {
                 this._observer = new env.MutationObserver(() => {
-                    if (!holdsOnlyOurs(this)) {
+                    // A navigation to another product keeps this element with a new src or field: start over with them.
+                    if (this.getAttribute('src') !== this._src || this.getAttribute('field') !== this._fieldId || env.document.getElementById(this._fieldId ?? '') !== this._input) {
+                        this.disconnectedCallback();
+                        this.connectedCallback();
+                    } else if (!holdsOnlyOurs(this)) {
                         render(env.document, this, this._items ?? [], copyFrom(this));
                     }
                 });
-                this._observer.observe(this, { childList: true });
+                this._observer.observe(this, { childList: true, attributes: true, attributeFilter: ['src', 'field'] });
             }
         }
 
