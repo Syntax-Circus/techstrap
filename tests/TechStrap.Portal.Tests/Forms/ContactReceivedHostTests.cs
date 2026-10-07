@@ -39,7 +39,7 @@ public sealed class ContactReceivedHostTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         html.ShouldContain("<title>Request received: Paperplane</title>");
         html.ShouldContain("<h1>We have received your request.</h1>");
-        html.ShouldContain("Your ticket number is <strong class=\"ts-ticket-number\">PAP-42</strong>");
+        html.ShouldContain("Your ticket number is <strong class=\"ts-ticket-number\" id=\"ticket-number\">PAP-42</strong>");
         html.ShouldContain("We have emailed you a link. Use it to follow the conversation and reply.");
         html.ShouldContain("href=\"/p/paperplane/kb\">Browse help articles</a>");
         html.ShouldContain("href=\"/p/paperplane\">Back to Paperplane</a>");

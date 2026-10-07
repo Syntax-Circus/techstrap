@@ -19,6 +19,14 @@ public static class FormCopy
     // The codes the Portal itself adds before it asks the API.
     public const string NameRequiredCode = "name-required";
 
+    /// <summary>The words on the submit button while a form is being sent (<c>portal-forms.js</c> shows them; U+2026 is the ellipsis, written as an escape so the source stays ASCII).</summary>
+    public const string Sending = "Sending\u2026";
+
+    // The character counter under a long text field (<c>portal-forms.js</c>). {0} is the count, {1} the limit; it appears when the text reaches 80 percent of the limit. A line break is posted as two characters, which is why a
+    // text can pass the limit although the browser's own maxlength allowed it.
+    public const string CounterTemplate = "{0} of {1} characters used";
+    public const string CounterOver = "{0} characters over the limit of {1}. A line break counts as two.";
+
     public const string RateLimited = "Too many attempts. Wait a few minutes and try again. What you wrote is still here.";
     public const string Unavailable = "We could not send that just now. What you wrote is still here: try again in a moment.";
 

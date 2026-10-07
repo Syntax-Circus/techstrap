@@ -13,7 +13,7 @@
     {
         <p class="alert alert-warning" role="alert">@Notice</p>
     }
-    <form method="post" action="@PortalRoutes.Contact(theme.Key)" enctype="multipart/form-data" novalidate @formname="@FormHandler" @onsubmit="SubmitAsync" class="ts-form">
+    <form method="post" action="@PortalRoutes.Contact(theme.Key)" enctype="multipart/form-data" novalidate @formname="@FormHandler" @onsubmit="SubmitAsync" class="ts-form" data-sending-label="@FormCopy.Sending">
         <AntiforgeryToken />
         <FormGuard Name="Form.SubmitId" />
         <FormField Field="@FormFields.Name" Name="Form.Name" Label="@ContactCopy.NameLabel" Value="@Form?.Name" MaxLength="@IntakeLimits.NameMaxLength" Autocomplete="name" Error="@ErrorOf(FormFields.Name)" />
@@ -25,7 +25,6 @@
         <HoneypotField Name="Form.Website" Value="@Form?.Website" />
         <button type="submit" class="btn btn-primary">@ContactCopy.Submit</button>
     </form>
-    <script type="module" src="@Assets["js/kb-suggestions.js"]"></script>
 }
 else if (UnavailableMessage is not null)
 {

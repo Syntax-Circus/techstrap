@@ -77,7 +77,7 @@ public sealed class ContactPostHostTests
         var second = await client.GetStringAsync(next, Ct);
 
         first.ShouldContain("We have received your request.");
-        first.ShouldContain("<strong class=\"ts-ticket-number\">PAP-42</strong>");
+        first.ShouldContain("<strong class=\"ts-ticket-number\" id=\"ticket-number\">PAP-42</strong>");
         second.ShouldContain("PAP-42");
         factory.Api.Count(HttpMethod.Post, FormTestKit.ApiTicketsPath).ShouldBe(1, "post, redirect, get: reloading the confirmation never posts again");
     }

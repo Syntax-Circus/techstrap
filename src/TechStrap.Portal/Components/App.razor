@@ -15,6 +15,10 @@
 <body>
     <Routes />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
+    @* One module each, loaded once with the document. Blazor's enhanced navigation swaps page content into the open document and does not run a script that arrives with it, so a script in a page body would
+       never run for a visitor who got there by a click. A module here defines custom elements (and, for the forms, document listeners) that work on whatever the swap inserts. *@
+    <script type="module" src="@Assets["js/kb-suggestions.js"]"></script>
+    <script type="module" src="@Assets["js/portal-forms.js"]"></script>
 </body>
 
 </html>

@@ -45,7 +45,7 @@ public sealed class ContactSuggestionsHostTests
     }
 
     [Fact]
-    public async Task The_page_loads_the_module_as_a_script_file_and_has_no_inline_script()
+    public async Task The_page_loads_the_module_as_a_script_file_from_the_document_shell_and_has_no_inline_script()
     {
         await using var factory = FormTestKit.Factory();
 
@@ -53,6 +53,8 @@ public sealed class ContactSuggestionsHostTests
 
         var script = Regex.Match(html, "<script type=\"module\" src=\"([^\"]*kb-suggestions[^\"]*\\.js)\"></script>");
         script.Success.ShouldBeTrue("the contact page must load the module");
+        Regex.Matches(html, "kb-suggestions[^\"]*\\.js").Count.ShouldBe(1, "once");
+        Regex.Match(html, "<main[^>]*>.*</main>", RegexOptions.Singleline).Value.ShouldNotContain("<script", Case.Sensitive, "not in the page body: a script that arrives with an enhanced navigation does not run");
         Regex.Matches(html, "<script(?![^>]*\\bsrc=)").Count.ShouldBe(0, "no inline script");
         var directives = response.Headers.GetValues("Content-Security-Policy").Single().Split(';', StringSplitOptions.TrimEntries);
         directives.ShouldContain("script-src 'self'", "the module is a same-origin file: the policy is unchanged");
@@ -84,13 +86,16 @@ public sealed class ContactSuggestionsHostTests
     [InlineData("/p/paperplane")]
     [InlineData("/p/paperplane/contact/received")]
     [InlineData("/p/paperplane/lost-link")]
-    public async Task No_other_page_loads_the_module(string path)
+    public async Task Every_page_has_the_module_because_the_document_shell_loads_it_but_only_the_contact_page_has_the_element(string path)
     {
+        // Blazor's enhanced navigation swaps a page into the open document and does not run a script that arrives with it (the 09d spike), so the module cannot depend on the page it was first loaded with:
+        // the shell loads it, and the element upgrades wherever the swap inserts it.
         await using var factory = FormTestKit.Factory();
 
         var (_, html) = await GetAsync(factory, path);
 
-        html.ShouldNotContain("kb-suggestions");
+        Regex.Matches(html, "<script type=\"module\" src=\"[^\"]*kb-suggestions[^\"]*\\.js\"></script>").Count.ShouldBe(1);
+        html.ShouldNotContain("<ts-kb-suggestions");
     }
 
     [Fact]

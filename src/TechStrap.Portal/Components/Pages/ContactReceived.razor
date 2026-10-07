@@ -7,7 +7,7 @@
     <h1>@ContactCopy.ReceivedHeading</h1>
     @if (TicketNumber is not null)
     {
-        <p>@ContactCopy.YourNumber <strong class="ts-ticket-number">@TicketNumber</strong></p>
+        <p>@ContactCopy.YourNumber <strong class="ts-ticket-number" id="ticket-number">@TicketNumber</strong> <ts-copy-text target="ticket-number" data-label="@ContactCopy.CopyNumber" data-copied="@ContactCopy.CopyNumberDone" data-failed="@ContactCopy.CopyNumberFailed" class="ts-copy"></ts-copy-text></p>
         <p>@ContactCopy.ReceivedNext</p>
     }
     else
