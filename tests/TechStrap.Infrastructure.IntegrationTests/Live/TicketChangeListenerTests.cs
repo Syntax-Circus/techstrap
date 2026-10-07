@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -194,7 +196,7 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
 
         second.ShouldNotBe(first);
         host.Recorder.Attempts.ShouldHaveSingleItem().Kind.ShouldBe(TicketChangeKinds.Resync);
-        host.Log.Entries.ShouldContain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("lost its database connection"));
+        host.Log.Entries.ShouldContain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("lost its connection"));
 
         // A good connection resets the backoff: losing it again waits the first delay again, not the next one.
         await NotifyTestSupport.TerminateAsync(Database.ConnectionString, second);
@@ -202,7 +204,7 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
             () => NotifyTestSupport.ListenerPidsAsync(Database.ConnectionString),
             pids => pids.Count == 1 && pids[0] != second,
             between: () => host.Clock.Advance(TimeSpan.FromMinutes(1)));
-        var lost = host.Log.Entries.Where(entry => entry.Message.Contains("lost its database connection")).Select(entry => entry.Message).ToList();
+        var lost = host.Log.Entries.Where(entry => entry.Message.Contains("lost its connection")).Select(entry => entry.Message).ToList();
         lost.ShouldAllBe(message => message.Contains("reconnect in 1s"));
 
         await NotifyTestSupport.NotifyAsync(Database.ConnectionString, Payload());
@@ -218,11 +220,125 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
 
         await host.StartAsync(TestContext.Current.CancellationToken);
         await NotifyTestSupport.UntilAsync(
-            () => host.Log.Entries.Count(entry => entry.Message.Contains("lost its database connection")) >= 3,
+            () => host.Log.Entries.Count(entry => entry.Message.Contains("could not connect")) >= 3,
             between: () => host.Clock.Advance(TimeSpan.FromMinutes(1)));
 
         host.Recorder.Attempts.ShouldBeEmpty();
         await host.StopAsync(TestContext.Current.CancellationToken);
+
+        // Each failure in a row waits twice as long as the one before (the loop's own escalation, not just the BackoffFor arithmetic).
+        var delays = host.Log.Entries.Where(entry => entry.Message.Contains("could not connect")).Take(3).Select(entry => entry.Message).ToList();
+        delays[0].ShouldContain("try again in 1s");
+        delays[1].ShouldContain("try again in 2s");
+        delays[2].ShouldContain("try again in 4s");
+    }
+
+    [Fact(Timeout = 180000)]
+    public async Task A_first_connect_that_failed_is_followed_by_a_resync_once_listening_and_a_clean_start_sends_none()
+    {
+        // A forwarder that is not up yet: the first attempts are refused, then it comes up and forwards to the real database.
+        var real = new NpgsqlConnectionStringBuilder(Database.ConnectionString);
+        var probePort = new TcpListener(IPAddress.Loopback, 0);
+        probePort.Start();
+        var port = ((IPEndPoint)probePort.LocalEndpoint).Port;
+        probePort.Stop();
+        var viaForwarder = new NpgsqlConnectionStringBuilder(Database.ConnectionString) { Host = "127.0.0.1", Port = port, Timeout = 5 }.ConnectionString;
+        await using var host = new ListenerHost(viaForwarder);
+        await host.StartAsync(TestContext.Current.CancellationToken);
+        await NotifyTestSupport.UntilAsync(
+            () => host.Log.Entries.Any(entry => entry.Message.Contains("could not connect")),
+            between: () => { });
+        using var forwarder = new TcpListener(IPAddress.Loopback, port);
+        forwarder.Start();
+        using var stopForwarding = new CancellationTokenSource();
+        var accepting = Task.Run(async () =>
+        {
+            try
+            {
+                while (true)
+                {
+                    var client = await forwarder.AcceptTcpClientAsync(stopForwarding.Token);
+                    _ = Task.Run(async () =>
+                    {
+                        using var upstream = new TcpClient();
+                        await upstream.ConnectAsync(real.Host!, real.Port, stopForwarding.Token);
+                        using var owned = client;
+                        await Task.WhenAny(
+                            client.GetStream().CopyToAsync(upstream.GetStream(), stopForwarding.Token),
+                            upstream.GetStream().CopyToAsync(client.GetStream(), stopForwarding.Token));
+                    }, TestContext.Current.CancellationToken);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }, TestContext.Current.CancellationToken);
+        try
+        {
+            await NotifyTestSupport.UntilAsync(() => host.Recorder.Attempts.Count >= 1, between: () => host.Clock.Advance(TimeSpan.FromMinutes(1)));
+            host.Recorder.Attempts.ShouldHaveSingleItem().Kind.ShouldBe(TicketChangeKinds.Resync);
+        }
+        finally
+        {
+            await stopForwarding.CancelAsync();
+            forwarder.Stop();
+            await accepting;
+        }
+    }
+
+    [Fact(Timeout = 120000)]
+    public async Task A_notification_that_arrives_while_listening_starts_is_relayed_without_waiting_for_another()
+    {
+        await using var host = new ListenerHost(Database.ConnectionString);
+        var payload = Payload();
+        host.Listener.AfterListening = async (connection, cancellationToken) =>
+        {
+            // Sent after the LISTEN, read by the listener's own next command: Npgsql queues it before the first wait.
+            await NotifyTestSupport.NotifyAsync(Database.ConnectionString, payload);
+            await using var command = new NpgsqlCommand("SELECT 1", connection);
+            await command.ExecuteScalarAsync(cancellationToken);
+        };
+
+        await host.StartAsync(TestContext.Current.CancellationToken);
+        await NotifyTestSupport.UntilAsync(() => host.Recorder.Attempts.Count >= 1);
+
+        host.Recorder.Attempts.ShouldHaveSingleItem().ToDto().ShouldBe(JsonSerializer.Deserialize<TicketChangedDto>(payload, JsonSerializerOptions.Web)!);
+    }
+
+    [Fact(Timeout = 120000)]
+    public async Task Several_notifications_already_queued_before_the_first_wait_are_all_relayed_in_order()
+    {
+        await using var host = new ListenerHost(Database.ConnectionString);
+        var payloads = Enumerable.Range(0, 3).Select(_ => Payload()).ToList();
+        host.Listener.AfterListening = async (connection, cancellationToken) =>
+        {
+            await NotifyTestSupport.NotifyTogetherAsync(Database.ConnectionString, payloads);
+            await using var command = new NpgsqlCommand("SELECT 1", connection);
+            await command.ExecuteScalarAsync(cancellationToken);
+        };
+
+        await host.StartAsync(TestContext.Current.CancellationToken);
+        await NotifyTestSupport.UntilAsync(() => host.Recorder.Attempts.Count >= 3);
+
+        host.Recorder.Attempts.Select(change => change.ToDto().EventId).ShouldBe(
+            payloads.Select(payload => JsonSerializer.Deserialize<TicketChangedDto>(payload, JsonSerializerOptions.Web)!.EventId));
+    }
+
+    [Fact(Timeout = 120000)]
+    public async Task A_relay_that_hangs_is_cut_off_and_the_loop_goes_on()
+    {
+        await using var host = new ListenerHost(Database.ConnectionString);
+        await host.StartAsync(TestContext.Current.CancellationToken);
+        await WaitForListenerAsync();
+        host.Recorder.Behaviour = (_, cancellationToken) => Task.Delay(Timeout.Infinite, cancellationToken);
+
+        await NotifyTestSupport.NotifyAsync(Database.ConnectionString, Payload());
+        await NotifyTestSupport.UntilAsync(() => host.Recorder.Attempts.Count >= 1);
+        host.Recorder.Behaviour = null;
+        await NotifyTestSupport.NotifyAsync(Database.ConnectionString, Payload());
+        await NotifyTestSupport.UntilAsync(() => host.Recorder.Attempts.Count >= 2);
+
+        host.Recorder.Attempts.Count.ShouldBe(2);
     }
 
     [Fact]
@@ -267,12 +383,12 @@ public sealed class TicketChangeListenerTests(PostgresFixture postgres) : Postgr
         await host.StartAsync(TestContext.Current.CancellationToken);
         var pid = (await WaitForListenerAsync()).Single();
         await NotifyTestSupport.TerminateAsync(Database.ConnectionString, pid);
-        await NotifyTestSupport.UntilAsync(() => host.Log.Entries.Any(entry => entry.Message.Contains("lost its database connection")));
+        await NotifyTestSupport.UntilAsync(() => host.Log.Entries.Any(entry => entry.Message.Contains("lost its connection")));
 
         // The clock never moved, so the listener is inside its backoff delay.
         await host.StopAsync(TestContext.Current.CancellationToken);
 
-        (await NotifyTestSupport.ListenerPidsAsync(Database.ConnectionString)).ShouldBeEmpty();
+        await NotifyTestSupport.UntilAsync(() => NotifyTestSupport.ListenerPidsAsync(Database.ConnectionString), pids => pids.Count == 0);
     }
 
     [Theory(Timeout = 60000)]

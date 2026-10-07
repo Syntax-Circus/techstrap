@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -23,6 +24,12 @@ internal sealed class TicketChangeListener(
     TimeProvider clock,
     ILogger<TicketChangeListener> logger) : BackgroundService
 {
+    /// <summary>A test seam: runs on the listener's connection right after LISTEN (and the Resync), before the first wait, so a test can have a notification arrive in that window.</summary>
+    internal Func<NpgsqlConnection, CancellationToken, Task>? AfterListening { get; set; }
+
+    /// <summary>The longest one relay (the handler and the hub behind it) may take, so a stuck hub cannot hold the loop for good.</summary>
+    private static readonly TimeSpan RelayTimeout = TimeSpan.FromSeconds(5);
+
     /// <summary>The delay before reconnect number <paramref name="failuresInARow"/> (0 is the first): the initial delay doubled each time, never over the maximum.</summary>
     internal static TimeSpan BackoffFor(int failuresInARow)
     {
@@ -55,15 +62,17 @@ internal sealed class TicketChangeListener(
         while (!stoppingToken.IsCancellationRequested)
         {
             string? lost = null;
+            var listening = false;
             try
             {
                 await ListenAsync(
                     connectionString,
-                    resync: listenedBefore,
+                    resync: listenedBefore || failuresInARow > 0,
                     onListening: () =>
                     {
                         failuresInARow = 0;
                         listenedBefore = true;
+                        listening = true;
                     },
                     stoppingToken);
             }
@@ -80,7 +89,12 @@ internal sealed class TicketChangeListener(
             var delay = BackoffFor(failuresInARow++);
             if (lost is not null)
             {
-                logger.LogWarning("The ticket change listener lost its database connection ({ExceptionType}); it will reconnect in {DelaySeconds}s.", lost, delay.TotalSeconds);
+                logger.LogWarning(
+                    listening
+                        ? "The ticket change listener lost its connection ({ExceptionType}); it will reconnect in {DelaySeconds}s."
+                        : "The ticket change listener could not connect ({ExceptionType}); it will try again in {DelaySeconds}s.",
+                    lost,
+                    delay.TotalSeconds);
             }
 
             try
@@ -98,7 +112,8 @@ internal sealed class TicketChangeListener(
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
-        var received = new Queue<string>();
+        // Npgsql raises Notification on whichever thread reads the connection: a keepalive timer, or the LISTEN command itself (Postgres 15 and later can deliver one there).
+        var received = new ConcurrentQueue<string>();
         connection.Notification += (_, notification) => received.Enqueue(notification.Payload);
         await using (var listen = new NpgsqlCommand($"LISTEN {TicketChangeNotify.Channel}", connection))
         {
@@ -112,13 +127,21 @@ internal sealed class TicketChangeListener(
             await RelayAsync(JsonSerializer.Serialize(TicketChange.Resync(Guid.CreateVersion7(clock.GetUtcNow()), clock.GetUtcNow()).ToDto(), JsonSerializerOptions.Web), cancellationToken);
         }
 
+        if (AfterListening is { } afterListening)
+        {
+            await afterListening(connection, cancellationToken);
+        }
+
         while (true)
         {
-            await connection.WaitAsync(cancellationToken);
+            // Drain before waiting, and as a while: a notification can already be queued (it arrived during LISTEN or on a keepalive) and WaitAsync would not return for it until
+            // another one came, and several can be queued at once.
             while (received.TryDequeue(out var payload))
             {
                 await RelayAsync(payload, cancellationToken);
             }
+
+            await connection.WaitAsync(cancellationToken);
         }
     }
 
@@ -126,15 +149,17 @@ internal sealed class TicketChangeListener(
     {
         try
         {
+            using var bounded = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            bounded.CancelAfter(RelayTimeout);
             await using var scope = scopes.CreateAsyncScope();
-            var result = await scope.ServiceProvider.GetRequiredService<IRelayTicketChangeHandler>().HandleAsync(new RelayTicketChangeRequest(payload), cancellationToken);
+            var result = await scope.ServiceProvider.GetRequiredService<IRelayTicketChangeHandler>().HandleAsync(new RelayTicketChangeRequest(payload), bounded.Token);
             if (result.IsFailure)
             {
                 // The code only: the payload came off a channel anything can write to and is never logged.
                 logger.LogWarning("A ticket change from the database was dropped ({ErrorCode}).", result.Errors[0].Code);
             }
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
             logger.LogWarning("Relaying a ticket change from the database failed ({ExceptionType}).", exception.GetType().Name);
         }

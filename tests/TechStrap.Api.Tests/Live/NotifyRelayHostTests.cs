@@ -51,7 +51,7 @@ public sealed class NotifyRelayHostTests(TestPostgres postgres)
         (await inbox.NextAsync()).ShouldBe(change.ToDto());
 
         // Kill the listener's backend: it reconnects after its backoff (a real second) and tells the hub's clients to reload everything.
-        await database.ExecuteAsync($"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND application_name = '{TicketChangeNotify.ListenerApplicationName}'");
+        await database.ExecuteAsync($"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND application_name = '{TicketChangeNotify.ListenerApplicationName}' AND query LIKE 'LISTEN %'");
         var resync = await inbox.NextAsync();
 
         resync.Kind.ShouldBe(TicketChangeKinds.Resync);
