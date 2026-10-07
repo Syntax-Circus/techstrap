@@ -1,0 +1,7 @@
+@if (Visible)
+{
+    <span class="ts-live ts-live--@StateKey" role="status" aria-live="polite" data-live-state="@StateKey">
+        <span class="ts-live__dot" aria-hidden="true"></span>
+        <span class="visually-hidden">@LiveCopy.Label </span><span class="ts-live__text">@LiveCopy.For(LiveClient.State)</span>
+    </span>
+}

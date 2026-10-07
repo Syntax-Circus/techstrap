@@ -9,6 +9,10 @@
     <QueueViewTabs ActiveView="@_filter.View" Counts="_counts" HrefFor="TabHref" />
     <QueueFilterBar @ref="_filterBar" Filter="_filter" Products="_products" Tags="_tags" OnChanged="OnFilterChangedAsync" OnRefresh="RefreshAsync" />
     <p class="visually-hidden" role="status">@_announcement</p>
+    @if (_liveChanged)
+    {
+        <QueueLiveBanner OnRefresh="RefreshAsync" />
+    }
 
     @if (_loading && _page is null)
     {

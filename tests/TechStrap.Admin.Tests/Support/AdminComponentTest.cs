@@ -19,6 +19,8 @@ public abstract class AdminComponentTest : BunitContext
         Services.AddSingleton<TimeProvider>(Time);
 
         // Every component that draws live state asks for the client; this one never touches a hub. A test raises its events and reads what the components called.
+        // The signed-in agent (Sam) every live component compares a change's actor with; a test that needs another session registers its own after this.
+        Services.AddSingleton(_ => AgentSessions.SignedIn());
         LiveClient = new FakeTicketLiveClient();
         Services.AddSingleton<ITicketLiveClient>(LiveClient);
 

@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
+using TechStrap.Admin.Auth;
 using TechStrap.Admin.Clients;
 using TechStrap.Admin.Components.Ui;
+using TechStrap.Admin.Features.Live;
 using TechStrap.Admin.Features.Shell;
 using TechStrap.Admin.Features.Tickets;
 using TechStrap.Contracts.Tickets;
+using TechStrap.Contracts.Live;
 using TechStrap.Contracts.Paging;
 using TechStrap.Contracts.Products;
 using TechStrap.Contracts.Tags;
@@ -38,6 +41,8 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
     private bool _notSpamBusy;
     private bool _notSpamError;
     private bool _disposed;
+    private bool _liveChanged;
+    private ITimer? _liveTimer;
     private int _selected = -1;
 
     [Inject]
@@ -60,6 +65,15 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
 
     [Inject]
     private IJSRuntime Js { get; set; } = default!;
+
+    [Inject]
+    private ITicketLiveClient LiveClient { get; set; } = default!;
+
+    [Inject]
+    private AgentSession Session { get; set; } = default!;
+
+    [Inject]
+    private TimeProvider Time { get; set; } = default!;
 
     /// <summary>The route segment: <c>unassigned</c>, <c>mine</c>, <c>open</c>, <c>pending</c>, <c>all</c> or <c>spam</c>. Absent means the default view.</summary>
     [Parameter]
@@ -100,7 +114,11 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
         _ => QueueCopy.NoTicketsHeading,
     };
 
-    protected override void OnInitialized() => Shortcuts.Pressed += OnShortcutAsync;
+    protected override void OnInitialized()
+    {
+        Shortcuts.Pressed += OnShortcutAsync;
+        LiveClient.TicketChanged += OnLiveChange;
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -180,6 +198,9 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
         _error = null;
         _notSpamError = false;
 
+        // The reload shows everything up to now: a banner that was waiting (or about to appear) is answered.
+        ClearLiveBanner();
+
         try
         {
             var list = Tickets.ListAsync(filter.ToRequest(), cts.Token);
@@ -246,6 +267,53 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
     }
 
     private Task RefreshAsync() => LoadAsync();
+
+    /// <summary>
+    /// A change reached the queue group (D-046: every change goes to every agent). The agent's own changes are ignored (their own write already refreshed their page); every other change, and a resync, asks for ONE banner
+    /// after a short window. Nothing reloads and nothing reorders until the banner is clicked. It runs on a pool thread, so it hops to the renderer first.
+    /// </summary>
+    private void OnLiveChange(TicketChangedDto change)
+    {
+        if (_disposed || !LiveClient.IsEnabled)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed || _liveChanged || _liveTimer is not null || LiveChangeRules.IsOwn(change, Session.Agent?.Id))
+            {
+                return;
+            }
+
+            _liveTimer = Time.CreateTimer(_ => _ = InvokeAsync(ShowLiveBanner), null, LiveDefaults.QueueBannerWindow, Timeout.InfiniteTimeSpan);
+        });
+    }
+
+    private void ShowLiveBanner()
+    {
+        ReleaseLiveTimer();
+        if (_disposed)
+        {
+            return;
+        }
+
+        _liveChanged = true;
+        _announcement = LiveCopy.QueueUpdated;
+        StateHasChanged();
+    }
+
+    private void ClearLiveBanner()
+    {
+        ReleaseLiveTimer();
+        _liveChanged = false;
+    }
+
+    private void ReleaseLiveTimer()
+    {
+        _liveTimer?.Dispose();
+        _liveTimer = null;
+    }
 
     private Task RetryAsync() => LoadAsync();
 
@@ -383,6 +451,8 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
     {
         _disposed = true;
         Shortcuts.Pressed -= OnShortcutAsync;
+        LiveClient.TicketChanged -= OnLiveChange;
+        ReleaseLiveTimer();
         _lifetime.Cancel();
         _cts?.Dispose();
         _lifetime.Dispose();
