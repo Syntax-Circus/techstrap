@@ -255,7 +255,8 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
 - [x] The contact URL prefills `subject`, `name` and `email` (visible, editable, validated like typed input); "Powered by TechStrap" links to the GitHub repo and disappears when `TECHSTRAP_PORTAL_SHOW_POWERED_BY=false`; agents appear as the resolved public name (D-024).
 - [x] Portal request logs contain no access tokens; token pages send `no-store` and `no-referrer`.
 - [ ] Rate limits observe the real client IP through the portal.
-- [ ] `dotnet build`/`dotnet test` green; portal container healthy under compose.
+- [x] `dotnet build`/`dotnet test` green (the automated half: the CI solution filter and the script and node tests pass on the 09d branch).
+- [ ] Portal container healthy under compose (the other half: the owner's compose smoke, P09-T18).
 
 ## Boundary Validation
 

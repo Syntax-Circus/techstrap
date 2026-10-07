@@ -349,7 +349,8 @@ Describe 'D-045 as built in 09d' {
     It 'ticks T09 and the success criteria the tests prove, and leaves the owner evidence open' {
         $script:Spec | Should -Match '(?m)^- \[x\] A customer can open'
         $script:Spec | Should -Match '(?m)^- \[ \] Rate limits observe the real client IP through the portal\.'
-        $script:Spec | Should -Match '(?m)^- \[ \] `dotnet build`/`dotnet test` green; portal container healthy under compose\.'
+        $script:Spec | Should -Match '(?m)^- \[x\] `dotnet build`/`dotnet test` green \(the automated half'
+        $script:Spec | Should -Match '(?m)^- \[ \] Portal container healthy under compose \(the other half: the owner''s compose smoke, P09-T18\)\.'
     }
 }
 
