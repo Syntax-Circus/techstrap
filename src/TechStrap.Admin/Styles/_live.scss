@@ -40,3 +40,21 @@
     margin: 0;
   }
 }
+
+// The presence bar sits above the timeline; an empty one takes no room but stays in the page so a newcomer is announced.
+.ts-presence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0 0 8px;
+  font: 500 .75rem var(--ts-font-mono);
+  color: var(--ink-2);
+}
+
+.ts-presence--empty {
+  margin: 0;
+}
+
+.ts-presence__item--replying {
+  color: var(--ink);
+}

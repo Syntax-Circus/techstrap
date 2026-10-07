@@ -1,0 +1,12 @@
+<div class="ts-presence @(Viewers.Count == 0 ? "ts-presence--empty" : null)" role="status" aria-live="polite" aria-label="@PresenceCopy.Label">
+    @foreach (var viewer in Viewers)
+    {
+        <span @key="viewer.AgentId" class="ts-presence__item @(viewer.IsReplying ? "ts-presence__item--replying" : null)">@viewer.Text</span>
+    }
+</div>
+
+@code {
+    /// <summary>The other agents on this ticket (the agent themself already removed by <see cref="PresenceViewModelFactory"/>).</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<PresenceViewModel> Viewers { get; set; } = [];
+}

@@ -1,3 +1,4 @@
+using TechStrap.Admin.Tests.Support;
 using TechStrap.Contracts.Live;
 using TechStrap.Contracts.Tickets;
 
@@ -5,9 +6,14 @@ namespace TechStrap.Admin.Tests.Live;
 
 internal static class LiveTestData
 {
-    public static readonly Guid TicketId = Guid.Parse("0197f2a0-0000-7000-8000-000000000001");
+    /// <summary>The ticket of <c>TestData.Detail()</c>, so a change for it concerns the page the component tests open.</summary>
+    public static readonly Guid TicketId = TestData.TicketId;
+
     public static readonly Guid OtherTicketId = Guid.Parse("0197f2a0-0000-7000-8000-000000000009");
-    public static readonly Guid MeId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+    /// <summary>The agent of <c>AgentSessions.SignedIn()</c>.</summary>
+    public static readonly Guid MeId = AgentSessions.SamId;
+
     public static readonly Guid ColleagueId = Guid.Parse("0197f2a0-0000-7000-8000-0000000000aa");
     public static readonly DateTimeOffset At = new(2026, 10, 7, 9, 30, 0, TimeSpan.Zero);
 

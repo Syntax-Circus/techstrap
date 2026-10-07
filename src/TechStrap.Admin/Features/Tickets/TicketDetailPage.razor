@@ -18,11 +18,19 @@ else
 {
     <article class="ts-ticket">
         <TicketHeader Ticket="_model" />
+        @if (LiveClient.IsEnabled)
+        {
+            <TicketPresenceBar Viewers="_viewers" />
+        }
         @if (!string.IsNullOrEmpty(_error))
         {
             <ErrorState Message="@_error" OnRetry="RefreshAsync" />
         }
         <TicketActions Ticket="_model" OnState="OnStateChangedAsync" OnConflict="OnConflictAsync" OnGone="RefreshAsync" OnReload="ReloadAfterConflictAsync" />
+        @if (_liveChanged)
+        {
+            <ChangedTicketBanner OnRefresh="ApplyLiveRefreshAsync" />
+        }
         <ConflictBanner State="_conflict" LatestChange="@_latestChange" Reloading="_reloading" OnReload="ReloadAfterConflictAsync" OnDismiss="DismissConflict" />
         <div class="ts-ticket-layout">
             <section class="ts-conversation" aria-label="@TicketCopy.ConversationLabel">

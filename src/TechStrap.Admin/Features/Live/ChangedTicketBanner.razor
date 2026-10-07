@@ -1,0 +1,9 @@
+<div class="ts-live-banner" role="status">
+    <button type="button" class="btn btn-outline-secondary" @onclick="OnRefresh">@LiveCopy.NewActivity</button>
+</div>
+
+@code {
+    /// <summary>Raised on click: the page reloads the timeline and the status and takes the new row version. Until then nothing on the page has changed.</summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnRefresh { get; set; }
+}

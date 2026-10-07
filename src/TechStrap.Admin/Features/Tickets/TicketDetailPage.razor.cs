@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Logging;
 using SyntaxCircus.Common;
 using TechStrap.Admin.Auth;
 using TechStrap.Admin.Clients;
+using TechStrap.Admin.Features.Live;
 using TechStrap.Admin.Features.Shell;
+using TechStrap.Contracts.Live;
 using TechStrap.Contracts.Tickets;
 
 namespace TechStrap.Admin.Features.Tickets;
@@ -28,6 +31,13 @@ public sealed partial class TicketDetailPage : IDisposable
     private bool _reloading;
     private string? _latestChange;
     private IDisposable? _palette;
+    private bool _liveChanged;
+    private int _liveChanges;
+    private Guid? _joinedTicket;
+    private TicketPresenceDto? _presence;
+    private IReadOnlyList<PresenceViewModel> _viewers = [];
+    private bool _composingExpired;
+    private ITimer? _composingTimer;
 
     [Inject]
     private TicketDetailPresenter Presenter { get; set; } = default!;
@@ -44,13 +54,27 @@ public sealed partial class TicketDetailPage : IDisposable
     [Inject]
     private AgentSession Session { get; set; } = default!;
 
+    [Inject]
+    private ITicketLiveClient LiveClient { get; set; } = default!;
+
+    [Inject]
+    private TimeProvider Time { get; set; } = default!;
+
+    [Inject]
+    private ILogger<TicketDetailPage> Logger { get; set; } = default!;
+
     /// <summary>The ticket number from the route, for example <c>ORB-42</c>.</summary>
     [Parameter]
     public string Number { get; set; } = string.Empty;
 
     private sealed record GoneMessage(string Heading, string Body);
 
-    protected override void OnInitialized() => Shortcuts.Pressed += OnShortcutAsync;
+    protected override void OnInitialized()
+    {
+        Shortcuts.Pressed += OnShortcutAsync;
+        LiveClient.TicketChanged += OnLiveChange;
+        LiveClient.PresenceChanged += OnPresenceChanged;
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -102,6 +126,9 @@ public sealed partial class TicketDetailPage : IDisposable
         _load?.Dispose();
         var cts = _load = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
 
+        // A change that arrives while this load runs is newer than what it fetches: the banner is cleared only when nothing arrived meanwhile.
+        var changesSeen = _liveChanges;
+
         Result<TicketDetailViewModel> result;
         try
         {
@@ -123,6 +150,12 @@ public sealed partial class TicketDetailPage : IDisposable
             _model = result.Value;
             SyncPalette();
             _error = string.Empty;
+            if (changesSeen == _liveChanges)
+            {
+                _liveChanged = false;
+            }
+
+            SyncLiveGroup();
             return true;
         }
 
@@ -131,6 +164,7 @@ public sealed partial class TicketDetailPage : IDisposable
         {
             _model = null;
             SyncPalette();
+            SyncLiveGroup();
             _gone = silent
                 ? new GoneMessage(TicketCopy.GoneHeading, TicketCopy.GoneBody)
                 : new GoneMessage(TicketCopy.NotFoundHeading, TicketCopy.NotFoundBody);
@@ -140,6 +174,143 @@ public sealed partial class TicketDetailPage : IDisposable
         // A failed refresh keeps the ticket on screen with an inline alert; a failed first load shows the alert alone.
         _error = $"{TicketCopy.LoadFailed} {error.Message}";
         return true;
+    }
+
+    /// <summary>
+    /// Another agent, the customer or the Worker changed a ticket (D-046: every change reaches every agent, so the page filters). A change to THIS ticket by someone else, or a resync, only raises the banner:
+    /// <c>_model</c>, its row version and the composer's draft stay exactly as they are until the agent clicks it, so a send in between still gets the 409 and nobody acts on a version they have not seen.
+    /// The agent's own changes are ignored (their own write already refreshed the page). It runs on a pool thread, so it hops to the renderer first.
+    /// </summary>
+    private void OnLiveChange(TicketChangedDto change)
+    {
+        if (_disposed || !LiveClient.IsEnabled)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed || _model is null || !LiveChangeRules.Concerns(change, _model.Id) || LiveChangeRules.IsOwn(change, Session.Agent?.Id))
+            {
+                return;
+            }
+
+            _liveChanges++;
+            _liveChanged = true;
+            StateHasChanged();
+        });
+    }
+
+    /// <summary>The click: the ordinary silent refresh, which replaces the timeline, the status and the row version. The draft lives in <c>DraftStore</c> and is not part of it.</summary>
+    private Task ApplyLiveRefreshAsync() => RefreshAsync();
+
+    private void OnPresenceChanged(TicketPresenceDto presence)
+    {
+        if (_disposed || !LiveClient.IsEnabled)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(() => ApplyPresence(presence));
+    }
+
+    private void ApplyPresence(TicketPresenceDto? presence)
+    {
+        if (_disposed || presence is null || presence.TicketId != _joinedTicket)
+        {
+            return;
+        }
+
+        _presence = presence;
+        _composingExpired = false;
+        RebuildViewers();
+        ArmComposingTimer();
+        StateHasChanged();
+    }
+
+    private void RebuildViewers() => _viewers = PresenceViewModelFactory.Create(_presence, Session.Agent?.Id, _composingExpired);
+
+    /// <summary>
+    /// The hub does not tell us when a "replying" hint lapses (its lease is 10 seconds and the composer refreshes it every 4): after the lease with no news, the hint is shown as "viewing". Every presence message restarts it.
+    /// </summary>
+    private void ArmComposingTimer()
+    {
+        _composingTimer?.Dispose();
+        _composingTimer = null;
+        if (PresenceViewModelFactory.AnyoneReplying(_presence, Session.Agent?.Id))
+        {
+            _composingTimer = Time.CreateTimer(_ => _ = InvokeAsync(ExpireComposing), null, TimeSpan.FromSeconds(TicketLiveLimits.ComposingTtlSeconds), Timeout.InfiniteTimeSpan);
+        }
+    }
+
+    private void ExpireComposing()
+    {
+        _composingTimer?.Dispose();
+        _composingTimer = null;
+        if (_disposed)
+        {
+            return;
+        }
+
+        _composingExpired = true;
+        RebuildViewers();
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Keeps the hub group in step with the ticket on screen: joins after a load (the model has the id the hub needs), leaves the old one when the route moves to another ticket or the ticket is gone.
+    /// A prerender instance records the join on a client that is never started, which does nothing.
+    /// </summary>
+    private void SyncLiveGroup()
+    {
+        var wanted = LiveClient.IsEnabled ? _model?.Id : null;
+        if (wanted == _joinedTicket)
+        {
+            return;
+        }
+
+        var previous = _joinedTicket;
+        _joinedTicket = wanted;
+        _presence = null;
+        _viewers = [];
+        _composingExpired = false;
+        _composingTimer?.Dispose();
+        _composingTimer = null;
+        _liveChanged = false;
+        if (previous is { } old)
+        {
+            _ = LeaveGroupAsync(old);
+        }
+
+        if (wanted is { } joined)
+        {
+            _ = JoinGroupAsync(joined);
+        }
+    }
+
+    private async Task JoinGroupAsync(Guid ticketId)
+    {
+        try
+        {
+            var presence = await LiveClient.JoinTicketAsync(ticketId);
+            await InvokeAsync(() => ApplyPresence(presence));
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning("Joining the live group of a ticket failed ({ExceptionType}).", exception.GetType().Name);
+        }
+    }
+
+    private async Task LeaveGroupAsync(Guid ticketId)
+    {
+        try
+        {
+            await LiveClient.LeaveTicketAsync(ticketId);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning("Leaving the live group of a ticket failed ({ExceptionType}).", exception.GetType().Name);
+        }
     }
 
     /// <summary>Replaces the status fields and RowVersion from a write's response. Used by the composer, the sidebar and the actions.</summary>
@@ -245,6 +416,15 @@ public sealed partial class TicketDetailPage : IDisposable
         _disposed = true;
         _palette?.Dispose();
         Shortcuts.Pressed -= OnShortcutAsync;
+        LiveClient.TicketChanged -= OnLiveChange;
+        LiveClient.PresenceChanged -= OnPresenceChanged;
+        _composingTimer?.Dispose();
+        if (_joinedTicket is { } joined)
+        {
+            _joinedTicket = null;
+            _ = LeaveGroupAsync(joined);
+        }
+
         _lifetime.Cancel();
         _load?.Dispose();
         _lifetime.Dispose();
