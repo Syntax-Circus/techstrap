@@ -49,6 +49,7 @@ The Admin refuses to start with a message that names the missing variable. Value
 | `TECHSTRAP_ADMIN_GROUP` | no | `techstrap-admins` | Same. |
 | `TECHSTRAP_GROUP_CLAIM_TYPE` | no | `groups` | Same. |
 | `TECHSTRAP_PORTAL_PUBLIC_URL` | no | | The customer portal's public base URL, the same key the API reads. The Admin uses it only for the "View on portal" link of a published article; blank hides the link. Absolute http or https, no query or fragment (the Admin refuses to start otherwise). |
+| `LIVEUPDATES__ENABLED` | no | `true` | The live-updates kill switch (10b): `false` opens no hub connection and draws no indicator, banner or presence bar (see Live updates (10b)). The hub address is `API__BASEURL` plus `/hubs/tickets`. |
 | `DATAPROTECTION__KEYRINGPATH` | in containers | | Persistent folder for the cookie and antiforgery keys. |
 | `TRUSTEDPROXY__*`, `ALLOWEDHOSTS` | production | | Trust only your reverse proxy, so the sign-in redirect URI is built with the public scheme and host. |
 | `SENTRY__*`, `OPENTELEMETRY__*`, `SERILOG__MINIMUMLEVEL__DEFAULT` | no | | Observability; see the `.env.example`. |
@@ -137,6 +138,7 @@ src/TechStrap.Admin/
     Shell/        StatusMessageService, ShortcutService, ShortcutCatalog, CommandRegistry (the palette's commands), LocalTimeService (the browser's time zone), UncertainMarks (writes held until a later read)
     Queue/        TicketQueuePage and its filter bar, tabs and row
     Tickets/      TicketDetailPage, presenter, timeline factory, ReplyComposer, TicketSidebar, TagPicker, TicketActions
+    Live/         Live updates (10b): ITicketLiveClient and SignalRTicketLiveClient (one per circuit; NullTicketLiveClient when the switch is off), LiveConnectionIndicator (the one place the connection starts), QueueLiveBanner, ChangedTicketBanner, TicketPresenceBar, PresenceViewModelFactory, LiveChangeRules (own change, this ticket), LiveRetryPolicy
     Settings/     Admin only. Products/ (ProductsPage, ProductEditorPage, ProductKeysPage, ApiKeysPanel, NewApiKeyDialog; the logo rule is `BrandingRules.IsAcceptableLogoUrl` in Contracts.Branding), Agents/ (AgentsPage), Tags/ (TagsPage),
                   Audit/ (AdminEventsPage, AdminEventSummaryFactory), EmailKinds
     Ops/          Admin only. DeadLetters/ (DeadLettersPage)
@@ -203,7 +205,7 @@ The ticket commands raise the same shortcut action as their key, so the composer
 ## What an agent can do here (07a)
 
 - **Queue**: six views (Unassigned is the default, then Mine, Open, Pending, All and the separate Spam view), counts per view (Spam muted), filters (product, status, priority, tag), search, 25 per page. Every filter is in
-  the URL, so views can be bookmarked. The queue refreshes when you press Refresh; live updates arrive with PHASE-10.
+  the URL, so views can be bookmarked. The queue refreshes when you press Refresh, and a banner offers the same refresh when something changes (Live updates (10b), below).
 - **Ticket**: one timeline of messages and changes (customer white, public reply canary, internal note pink with a dashed edge), the requester, metadata labelled **Untrusted** unless it came from a trusted key,
   attachments as downloads (served through the Admin, never inline), and a link to the parent of a follow-up.
 - **Reply or note**: separate drafts per mode, files (up to 5, 10 MB each), Pending by default or "Send and solve". A failed send, or a conflict, never loses the text or the files.
@@ -364,7 +366,7 @@ render, so read it before the action; services cannot be added after the first r
 
 Recorded in D-040 and tracked for later phases: no counts in the erase and delete dialogs and no list of a ticket's follow-ups (the API offers neither); the requester card has no ticket count or first-seen date;
 times are shown in UTC (07c shows them in the browser's zone); "Apply my change again" after a conflict is not built (Reload only); a lost circuit loses an unsent draft (the leave-warning covers a reload);
-no knowledge-base article picker (added in 08); no presence or live updates (PHASE-10); no command palette (added in 07c); the manual sign-in check against a real Authentik is outstanding.
+no knowledge-base article picker (added in 08); no presence or live updates (added in 10b); no command palette (added in 07c); the manual sign-in check against a real Authentik is outstanding.
 
 ## Decisions that changed during 07b
 
@@ -383,7 +385,7 @@ Recorded in D-041 and tracked for later phases:
 - Ticket counts on the tags page, and the count in the delete dialog, are read when the list loads. A tag that gains tickets meanwhile is caught by the API (409 `tag-in-use`) and shown again with its new count.
 - The audit log filters by what changed and by who only: the API has no event-type or date filter. Events show ids, slugs, prefixes and counts and never names, because a payload carries none.
 - My settings has the new-ticket alerts only: the UX brief's assignment-alert switch has no API field yet.
-- Discard on a failed email takes no reason (the API has none). The failed-emails count in the navigation is read when the shell loads and after you act on the page; it is not live (PHASE-10).
+- Discard on a failed email takes no reason (the API has none). The failed-emails count in the navigation is read when the shell loads and after you act on the page; it is not live: the hub does not drive it (see Known gaps in 10b).
 - Times were shown in UTC, as in 07a, until 07c.
 - The OpenAPI security schemes, the CSP and the responsive and accessibility pass were done in 07c.
 
@@ -411,3 +413,46 @@ Recorded in D-044 and tracked for later phases:
 - Pictures (API side, for the operator): an upload is checked by its real type (PNG, JPEG, GIF, WebP) and only the first 1024 bytes are scanned for markup; the defences are the sniffed type, `X-Content-Type-Options: nosniff`, a CSP `sandbox` on the picture and serving it from the API's own origin. `/kb-images/{key}` (GET and HEAD) has no rate limit: rely on the proxy or CDN. Picture addresses are built from `TECHSTRAP_API_PUBLIC_URL` (the local compose sets `http://localhost:8080`); a path prefix in that address needs the proxy to strip it before the API.
 - Public API (for the portal): every text field of the public knowledge base DTOs, snippets included, is **plain text**; only `Html` is HTML, so the portal must HTML-encode the rest. A malformed slug or key answers an empty result or 404, never a 500. The agent `/api/kb` responses carry `Cache-Control: no-store`, and the JSON body limit is 2 MiB. Every mutating knowledge base call checks that the agent is still active.
 - The manual checks (write and publish an article with a picture; the picture loads through the API's public address behind the proxy; a linked article appears in a reply email) are the owner's.
+
+## Live updates (10b)
+
+What an agent sees (PHASE-10, D-046). Nothing here moves a page by itself: a change only raises a banner, and the agent decides when to take it.
+
+- **Indicator.** A small status line above the status bar says "Live", "Connecting", "Reconnecting" or "Offline". It is a polite live region, so a screen reader hears a change without being interrupted, and the state is always written, never colour alone. It is drawn once the agent is admitted, and it is the only place the connection starts.
+- **Queue.** When another agent, the customer or the Worker (auto-close) changes any ticket, or the connection comes back after a gap, one banner "Queue updated – refresh" appears after a one-second window, however many changes there were. Nothing reloads or reorders until the banner is clicked; the click is the ordinary Refresh with the current filters. Your own changes raise nothing.
+- **Ticket.** A change to the open ticket by someone else raises "New activity – refresh". Until the click the page keeps what it shows, including the row version, so a send in between still gets "This ticket changed since you opened it" and the draft is kept. The click reloads the timeline, the status and the row version. Your own changes (this tab or another) raise nothing; a send from another tab of yours still meets the 409.
+- **Presence.** "Ada Admin is viewing" or "is replying" above the timeline: the other agents on the ticket, by their agent name (the email when there is none), never the customer-facing name and never yourself. "Replying" is sent while you type (at most every 4 seconds); it ends when you leave the box, send, empty the box, open another ticket or close the tab, and it lapses on its own after 10 seconds.
+- **Reconnect.** While the session lives the Admin keeps trying (at once, then after 2, 5 and 10 seconds, then every 30), asks for a fresh token each time, joins the open ticket again and raises both banners (notifications of the gap are gone). It stops, showing "Offline", when the session has lapsed, no token is available (the agent is not signed out; only the live connection stays off), or the hub refuses the connection for good.
+- **A live failure never reaches a page.** A hub, token or network failure is logged (the exception type only, never a token or a message) and shows as "Reconnecting" or "Offline"; the page, the composer and the draft work as before.
+
+### The kill switch
+
+`LIVEUPDATES__ENABLED` (`LiveUpdates:Enabled`, default `true`) in `.env.admin` or `.env.local`. `false`: no connection is ever opened and no indicator, banner or presence bar is drawn; the Admin behaves exactly as it did before PHASE-10. Restart the Admin to change it. Compose does not set it, so the env file is the one place; the numbers (backoff, the one-second window, the 4-second hint) are constants.
+
+### Manual check against a real identity provider (owner)
+
+Two browsers, two agents (A and B), the stack running with the Worker.
+
+1. A and B open the queue: both show "Live". B changes a ticket's status: A sees "Queue updated – refresh" within about two seconds and B does not. Clicking it reloads A's queue with A's filters.
+2. A and B open the same ticket: each sees the other as viewing. B types: A sees "B is replying" within about two seconds, and it goes when B leaves the box, sends or closes the tab.
+3. A types a draft; B replies. A sees "New activity – refresh" and the draft is untouched. A sends before clicking: "This ticket changed since you opened it", the draft is kept; the banner then shows B's reply.
+4. Worker auto-close: with the seed data (`TECHSTRAP_SEED_DEV_DATA=true`, `docs/development/DEV-DATA.md`), make a Solved ticket whose `solved_at` is older than the auto-close days (the smallest is `TECHSTRAP_AUTOCLOSE_DAYS=1`, so backdate it in the database: `UPDATE tickets SET solved_at = now() - interval '2 days' WHERE number = '<the ticket number>' AND status = 'Solved';`), start the Worker with `AUTOCLOSE__INTERVALMINUTES=1`: within a minute A's open queue shows the banner once, and the ticket is Closed.
+5. Stop the Api for a minute: the indicator says "Reconnecting"; start it again: "Live", and both banners appear.
+6. Set `LIVEUPDATES__ENABLED=false` and restart the Admin: no indicator, no banner, no presence bar, and no request to `/hubs/tickets` in the Api log.
+
+The automated end-to-end test (`AdminLiveClientHostTests`) runs the Worker's auto-close handler, NOTIFY, the Api's listener and hub and the Admin's real client in one process; the compose smoke script is unchanged.
+
+## Known gaps in 10b
+
+- The connection is per circuit (per open tab): two tabs are two connections. The browser tests that would prove "one connection per circuit" in a real browser do not exist (Playwright is deferred); it is proved by the client's start guard, the single starter and the prerender test.
+- After a reconnect both banners are raised even when nothing changed, because notifications are at most once and the gap cannot be told from a quiet minute.
+- A "replying" hint that is not refreshed within 10 seconds is shown as "viewing" by a timer in the page; the hub does not push the lapse.
+- The reconnect schedule has no jitter: after an Api restart every open tab retries on the same schedule.
+- A hub that ends because the session ended is not reported to the session: the indicator says "Offline" and the session-expired banner appears with the next call to the API.
+- The failed-emails badge in the navigation is still read when the shell loads and after an action; it is not driven by the hub.
+- Erasing a requester publishes nothing, so an open ticket keeps its old text until the next load (D-046, known limit).
+- A deactivated agent's already-open connection keeps receiving changes until its token expires (D-046, known limit).
+- Presence and the in-process publish are for one Api instance (D-007).
+- A live change that arrives while the page is reloading is not lost: the banner stays, but a reload that fails keeps the banner too.
+- A change made before the live connection is first established (on either page), or while a ticket's first load runs, raises no banner (on the ticket a send still gets the 409; the queue shows it at the next refresh).
+- When the hub refuses the connection for good (it closes it with no reconnect allowed), the indicator stays "Offline" until the page is reloaded; the client does not restart on its own yet.

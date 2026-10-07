@@ -5,6 +5,7 @@ using SyntaxCircus.Common;
 using TechStrap.Admin.Clients;
 using TechStrap.Admin.Components.Ui;
 using TechStrap.Admin.Features.Kb;
+using TechStrap.Admin.Features.Live;
 using TechStrap.Admin.Features.Shell;
 using TechStrap.Contracts.Intake;
 using TechStrap.Contracts.Tickets;
@@ -29,6 +30,9 @@ public sealed partial class ReplyComposer : IDisposable
     private bool _disposed;
     private bool _filesDropped;
     private bool _pickerOpen;
+    private bool _composing;
+    private Guid _composingTicket;
+    private DateTimeOffset _composingSentAt;
 
     [Inject]
     private ITicketsClient Tickets { get; set; } = default!;
@@ -44,6 +48,12 @@ public sealed partial class ReplyComposer : IDisposable
 
     [Inject]
     private ShortcutService Shortcuts { get; set; } = default!;
+
+    [Inject]
+    private ITicketLiveClient LiveClient { get; set; } = default!;
+
+    [Inject]
+    private TimeProvider Time { get; set; } = default!;
 
     [Parameter, EditorRequired]
     public Guid TicketId { get; set; }
@@ -116,6 +126,15 @@ public sealed partial class ReplyComposer : IDisposable
             {
                 _draft.NoteText = value;
             }
+
+            if (string.IsNullOrEmpty(value))
+            {
+                StopComposing();
+            }
+            else
+            {
+                NoteTyping();
+            }
         }
     }
 
@@ -129,6 +148,12 @@ public sealed partial class ReplyComposer : IDisposable
 
     protected override void OnParametersSet()
     {
+        // The hint belongs to the ticket it was sent for: moving to another ticket clears it first.
+        if (_draftTicket != TicketId)
+        {
+            StopComposing();
+        }
+
         // A ticket that moves to another product can no longer link that product's own articles (the API refuses them): those chips go and the shared ones stay.
         if (_draftTicket == TicketId && _draftProduct != Guid.Empty && _draftProduct != ProductId)
         {
@@ -218,6 +243,8 @@ public sealed partial class ReplyComposer : IDisposable
         {
             return;
         }
+
+        StopComposing();
 
         var mode = _draft.Mode;
         var text = mode == ComposerMode.PublicReply ? _draft.PublicText : _draft.NoteText;
@@ -416,9 +443,59 @@ public sealed partial class ReplyComposer : IDisposable
         await _text.FocusAsync();
     }
 
+    /// <summary>
+    /// The agent is typing: tell the hub, at most once per <see cref="LiveDefaults.ComposingThrottle"/> (the server's lease is 10 seconds, so a refresh every 4 keeps "replying" alive for the others).
+    /// Never awaited and never throws: a hub that is down must not touch the composer.
+    /// </summary>
+    private void NoteTyping()
+    {
+        if (!LiveClient.IsEnabled)
+        {
+            return;
+        }
+
+        var now = Time.GetUtcNow();
+        if (_composing && now - _composingSentAt < LiveDefaults.ComposingThrottle)
+        {
+            return;
+        }
+
+        _composing = true;
+        _composingSentAt = now;
+        _composingTicket = TicketId;
+        _ = SendComposingAsync(_composingTicket, true);
+    }
+
+    /// <summary>Blur, submit, an emptied text box, another ticket and disposal all end the hint, once.</summary>
+    private void StopComposing()
+    {
+        if (!_composing)
+        {
+            return;
+        }
+
+        _composing = false;
+        _ = SendComposingAsync(_composingTicket, false);
+    }
+
+    private void OnBlur() => StopComposing();
+
+    private async Task SendComposingAsync(Guid ticketId, bool isComposing)
+    {
+        try
+        {
+            await LiveClient.SetComposingAsync(ticketId, isComposing);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning("The composing hint could not be sent ({ExceptionType}).", ex.GetType().Name);
+        }
+    }
+
     public void Dispose()
     {
         _disposed = true;
+        StopComposing();
         Shortcuts.Pressed -= OnShortcutAsync;
         _draft.Changed -= OnDraftChanged;
 

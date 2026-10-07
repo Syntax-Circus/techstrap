@@ -29,6 +29,7 @@ Where this page and D-046 differ, D-046 wins.
 - **Unknown ticket.** `JoinTicket` answers `HubException("Ticket not found")` after an existence check, and returns the current presence to its caller.
 - **Metrics.** The Api and the Worker pass the meter name to `AddSyntaxCircusObservability`.
 - **Detail banner (10b).** A "New activity - refresh" banner; the row version changes only when the agent clicks it. **Presence name (10b):** `Agent.Name`, to other agents only.
+- **Kill switch (10b addendum, 2026-10-07).** One setting, `LiveUpdates:Enabled` (`LIVEUPDATES__ENABLED`, default `true`), supersedes "no new setting" for the Admin only; off, a no-op client is used and nothing live is drawn. P10-T16's ".env.example keys" is this one key; the hub address is derived from `API__BASEURL`.
 
 ## Architecture Decisions
 
@@ -100,9 +101,9 @@ Versions in [03-PACKAGE-MAP.md](03-PACKAGE-MAP.md). `Microsoft.AspNetCore.Signal
 - [x] `TicketHub`, `UpdateTicketPresenceHandler`, `ITicketPresenceStore`, `RelayTicketChangeHandler`, `ITicketChangeBroadcaster` (+ SignalR and pg_notify implementations), `TicketChangeListener` (10a, D-046).
 - [x] Post-commit publishing hook in Infrastructure used by API and Worker (10a, D-046: capture plus publishing interceptors).
 - [x] Contracts: `TicketChangedDto`, `TicketPresenceDto`, hub method/group constants, change-kind constants (10a; `LiveConnectionState` is an Admin type, 10b).
-- [ ] Admin `ITicketLiveClient`, live indicator, queue banner, detail refresh and presence bar.
-- [ ] Reverse-proxy/WebSocket notes added to the compose docs.
-- [ ] Unit, API (in-memory hub), integration (NOTIFY) and bUnit tests.
+- [x] Admin `ITicketLiveClient`, live indicator, queue banner, detail refresh and presence bar (10b, D-046).
+- [x] Reverse-proxy/WebSocket notes added to the compose docs (10a: DEPLOYMENT.md "Live updates (PHASE-10)"; 10b adds the kill switch).
+- [x] Unit, API (in-memory hub), integration (NOTIFY) and bUnit tests.
 
 ## Actionable Tasks
 
@@ -136,37 +137,44 @@ Versions in [03-PACKAGE-MAP.md](03-PACKAGE-MAP.md). `Microsoft.AspNetCore.Signal
 - [x] **P10-T10** Add observability: connected-agents gauge, changes-relayed counter, relay failures counter, listener-reconnect counter
   - **Depends on:** P10-T09
   - **Validation:** Meter listener test asserts instruments update; names in constants.
-- [ ] **P10-T11** Implement admin `ITicketLiveClient` / `SignalRTicketLiveClient` (token provider from Blazor.Auth, automatic reconnect with backoff, event de-duplication, `IAsyncDisposable`)
+- [x] **P10-T11** Implement admin `ITicketLiveClient` / `SignalRTicketLiveClient` (token provider from Blazor.Auth, automatic reconnect with backoff, event de-duplication, `IAsyncDisposable`)
   - **Depends on:** P10-T05, P07-T02
   - **Validation:** Unit tests with a fake connection abstraction: reconnect state transitions raised; duplicate event ids ignored; disposal stops the connection and unsubscribes.
-- [ ] **P10-T12** Build `LiveConnectionIndicator` and place it in `MainLayout`
+  - **As built (10b):** `SignalRTicketLiveClient` over `ILiveConnection` (the unit tests use a scripted connection), scoped per circuit, started once by the indicator after its first render; token from `IUserAccessTokenProvider` (0.2.0) on every attempt, header only; a custom retry policy that never gives up (0, 2, 5, 10, then 30 s) and stops for a lapsed session or a missing token; re-joins its tickets and raises a synthetic `Resync` after a reconnect; last 256 event ids de-duplicated; `NullTicketLiveClient` behind `LiveUpdates:Enabled`.
+- [x] **P10-T12** Build `LiveConnectionIndicator` and place it in `MainLayout`
   - **Depends on:** P10-T11
   - **Validation:** bUnit: renders each state with appropriate text/`aria-live`; unsubscribes on dispose.
-- [ ] **P10-T13** Add queue live refresh: subscription in `TicketQueuePage`, `QueueLiveBanner`, debounced counter and explicit refresh
+  - **As built (10b):** `LiveConnectionIndicator` in `MainLayout` (outside `AgentGate`: it draws and starts only when the session is Ready); states Live, Connecting, Reconnecting, Offline in a polite status region; the one place the client starts.
+- [x] **P10-T13** Add queue live refresh: subscription in `TicketQueuePage`, `QueueLiveBanner`, debounced counter and explicit refresh
   - **Depends on:** P10-T11, P07-T07
   - **Validation:** bUnit with `FakeTimeProvider`: a burst of changes yields one banner update; accepting refreshes with current filters; rows not reordered before acceptance.
-- [ ] **P10-T14** Add detail live refresh: join/leave ticket group in `TicketDetailPage`, `ChangedTicketBanner`, reload timeline preserving composer draft and updating the concurrency token
+  - **As built (10b):** `QueueLiveBanner` ("Queue updated – refresh"): one banner per one-second window for any change by another agent or a resync, the agent's own changes ignored; the click is the existing load with the current filters; the debounce is a window, not a restarted timer, so a steady trickle still shows it.
+- [x] **P10-T14** Add detail live refresh: join/leave ticket group in `TicketDetailPage`, `ChangedTicketBanner`, reload timeline preserving composer draft and updating the concurrency token
   - **Depends on:** P10-T11, P07-T08, P07-T11
   - **Validation:** bUnit: change for the open ticket reloads timeline; draft text untouched; change for another ticket ignored; leaves the group on navigation/dispose.
-- [ ] **P10-T15** Build `TicketPresenceBar` + `PresenceViewModelFactory` and throttled `SetComposing` in `ReplyComposer`
+  - **As built (10b):** `ChangedTicketBanner` ("New activity – refresh"): the model, the row version and the draft stay as they are until the click (D-046), so a send before it still gets the 409; join after load, leave on navigation and disposal; a change that arrives while a reload runs keeps the banner.
+- [x] **P10-T15** Build `TicketPresenceBar` + `PresenceViewModelFactory` and throttled `SetComposing` in `ReplyComposer`
   - **Depends on:** P10-T14
   - **Validation:** Factory theory (viewing only, replying only, both, self excluded, ordering); bUnit with fake timers: typing sends at most one `SetComposing(true)` per throttle window and `false` on submit/blur/dispose.
-- [ ] **P10-T16** Document and verify reverse-proxy WebSocket requirements (upgrade headers, idle timeout, buffering) in compose docs; add the connection settings as `.env.example` keys
+  - **As built (10b):** `TicketPresenceBar` and `PresenceViewModelFactory` (self excluded by agent id, repliers first); the composer sends the hint from the `Text` setter at most every 4 seconds and clears it on blur, send, empty text, another ticket and disposal; a hint not refreshed within the server's 10-second lease is shown as "viewing".
+- [x] **P10-T16** Document and verify reverse-proxy WebSocket requirements (upgrade headers, idle timeout, buffering) in compose docs; add the connection settings as `.env.example` keys
   - **Depends on:** P10-T06
   - **Validation:** Manual UAT check: two browsers behind the proxy see presence and refresh within 2 s; connection survives a 5-minute idle period (keepalive configured).
-- [ ] **P10-T17** End-to-end verification script/test: worker auto-close of a Solved ticket updates an open admin queue without manual reload
+  - **As built (10b):** Superseded by D-046 for the proxy (browsers never reach `/hubs`); the runbook note of 10a stays, and the one setting is `LIVEUPDATES__ENABLED` (the four edits of D-043). The manual UAT is the checklist in ADMIN-APP.md ("Manual check against a real identity provider").
+- [x] **P10-T17** End-to-end verification script/test: worker auto-close of a Solved ticket updates an open admin queue without manual reload
   - **Depends on:** P10-T08, P10-T09, P10-T13
   - **Validation:** Compose-based test (or documented manual run with seed data): shorten auto-close to 1 minute, observe banner in admin; no duplicate notifications.
+  - **As built (10b):** `AdminLiveClientHostTests` in `TechStrap.Api.Tests` (the one test project that references the Api, the Worker and the Admin): the Worker's real auto-close handler closes a backdated Solved ticket in Postgres, NOTIFY reaches the Api's real listener and hub, and the Admin's real client raises exactly one change (a barrier message proves no second copy); the compose smoke script is unchanged and the compose-based run is the owner's manual check.
 
 ## Success Criteria
 
-- [ ] An agent opening a ticket sees other agents viewing it and, within about 2 seconds, sees "replying…" when another agent types; presence clears after leaving or the TTL.
-- [ ] A change made by one agent (reply, status, assignment) shows on another agent's open queue (banner) and open ticket (timeline refresh) without reloading; typed drafts are never lost.
-- [ ] A worker-originated change (auto-close) reaches admin clients through NOTIFY -> listener -> hub.
-- [ ] Losing the DB listener or the hub connection results in automatic recovery and a resync; the UI shows connection state.
-- [ ] Unauthenticated or non-agent users cannot connect or join; payloads contain no message content.
-- [ ] Rolled-back transactions never produce notifications; broadcast failure never fails a user request.
-- [ ] `dotnet build`/`dotnet test` green including Testcontainers integration tests; no new database migration required.
+- [x] An agent opening a ticket sees other agents viewing it and, within about 2 seconds, sees "replying…" when another agent types; presence clears after leaving or the TTL.
+- [x] A change made by one agent (reply, status, assignment) shows on another agent's open queue (banner) and open ticket (banner, then a click refreshes the timeline; D-046) without reloading the page; typed drafts are never lost.
+- [x] A worker-originated change (auto-close) reaches admin clients through NOTIFY -> listener -> hub.
+- [x] Losing the DB listener or the hub connection results in automatic recovery and a resync; the UI shows connection state.
+- [x] Unauthenticated or non-agent users cannot connect or join; payloads contain no message content.
+- [x] Rolled-back transactions never produce notifications; broadcast failure never fails a user request.
+- [x] `dotnet build`/`dotnet test` green including Testcontainers integration tests; no new database migration required.
 
 ## Boundary Validation
 

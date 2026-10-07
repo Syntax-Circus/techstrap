@@ -5,6 +5,7 @@ using TechStrap.Admin.Auth;
 using TechStrap.Admin.Clients;
 using TechStrap.Admin.Components;
 using TechStrap.Admin.Features.Kb;
+using TechStrap.Admin.Features.Live;
 using TechStrap.Admin.Features.Shell;
 using TechStrap.Admin.Features.Tickets;
 using TechStrap.Admin.Options;
@@ -41,6 +42,8 @@ builder.Services.AddTechStrapApiClients();
 builder.Services.AddShell();
 builder.Services.AddTicketFeatures();
 builder.Services.AddKbFeatures();
+// The live connection to the Api ticket hub (one per circuit), or a client that does nothing when LiveUpdates:Enabled is false.
+builder.Services.AddLiveFeatures(builder.Configuration);
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

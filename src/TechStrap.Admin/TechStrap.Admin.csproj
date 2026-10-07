@@ -14,6 +14,7 @@
     <PackageReference Include="AspNetCore.SassCompiler" />
     <PackageReference Include="GitVersion.MsBuild" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
     <PackageReference Include="Microsoft.Web.LibraryManager.Build" PrivateAssets="all" />
     <PackageReference Include="SyntaxCircus.AspNetCore.Common" />
     <PackageReference Include="SyntaxCircus.AspNetCore.Serilog" />

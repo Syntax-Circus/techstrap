@@ -8,6 +8,7 @@ using TechStrap.Admin.Auth;
 using TechStrap.Admin.Clients;
 using TechStrap.Admin.Components.Layout;
 using TechStrap.Admin.Components.Ui;
+using TechStrap.Admin.Features.Live;
 using TechStrap.Admin.Features.Shell;
 using TechStrap.Admin.Tests.Support;
 using TechStrap.Contracts.Agents;
@@ -28,9 +29,13 @@ public sealed class LayoutResilienceTests : BunitContext
 
     public LayoutResilienceTests()
     {
+        DefaultWaitTimeout = TimeSpan.FromSeconds(10);
         Services.AddLogging(logging => logging.AddProvider(_logs));
         Services.AddShell();
         Services.AddSingleton<TimeProvider>(new FakeTimeProvider());
+
+        // MainLayout draws the live indicator, which asks for the client; this class is not an AdminComponentTest, so it registers one itself.
+        Services.AddSingleton<ITicketLiveClient>(new FakeTicketLiveClient());
     }
 
     private void NoLeak() =>

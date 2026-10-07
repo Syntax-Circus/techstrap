@@ -18,11 +18,21 @@ else
 {
     <article class="ts-ticket">
         <TicketHeader Ticket="_model" />
+        @if (LiveClient.IsEnabled)
+        {
+            <TicketPresenceBar Viewers="_viewers" />
+        }
         @if (!string.IsNullOrEmpty(_error))
         {
             <ErrorState Message="@_error" OnRetry="RefreshAsync" />
         }
         <TicketActions Ticket="_model" OnState="OnStateChangedAsync" OnConflict="OnConflictAsync" OnGone="RefreshAsync" OnReload="ReloadAfterConflictAsync" />
+        @* A permanent region: one that is inserted together with its text is often not announced. *@
+        <p class="visually-hidden" role="status">@(_liveChanged ? LiveCopy.NewActivity : null)</p>
+        @if (_liveChanged)
+        {
+            <ChangedTicketBanner OnRefresh="ApplyLiveRefreshAsync" />
+        }
         <ConflictBanner State="_conflict" LatestChange="@_latestChange" Reloading="_reloading" OnReload="ReloadAfterConflictAsync" OnDismiss="DismissConflict" />
         <div class="ts-ticket-layout">
             <section class="ts-conversation" aria-label="@TicketCopy.ConversationLabel">

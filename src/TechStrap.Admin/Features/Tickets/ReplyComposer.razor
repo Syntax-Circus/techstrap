@@ -24,7 +24,7 @@
     <label for="@TextId" class="visually-hidden">@(IsPublic ? ReplyComposerCopy.PublicTab : ReplyComposerCopy.NoteTab)</label>
     <textarea id="@TextId" @ref="_text" class="form-control" rows="6" disabled="@Sending"
               placeholder="@(IsPublic ? ReplyComposerCopy.ReplyPlaceholder : ReplyComposerCopy.NotePlaceholder)"
-              @bind="Text" @bind:event="oninput"></textarea>
+              @bind="Text" @bind:event="oninput" @onblur="OnBlur"></textarea>
 
     @if (IsPublic)
     {

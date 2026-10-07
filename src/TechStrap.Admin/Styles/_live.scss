@@ -1,0 +1,56 @@
+// PHASE-10b: the live-connection indicator and the "refresh" banners. Nothing here moves the page: the banners only offer a reload, and the indicator never uses colour alone (its text always says the state).
+
+.ts-live {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 2px 16px;
+  font: 500 .6875rem var(--ts-font-mono);
+  color: var(--ink-2);
+}
+
+.ts-live__dot {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 50%;
+}
+
+.ts-live--connected .ts-live__dot {
+  background: var(--st-open);
+}
+
+.ts-live--connecting .ts-live__dot,
+.ts-live--reconnecting .ts-live__dot {
+  background: var(--st-pending);
+}
+
+.ts-live-banner {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: var(--sheet);
+  border: 2px solid var(--st-pending);
+}
+
+// The presence bar sits above the timeline; an empty one takes no room but stays in the page so a newcomer is announced.
+.ts-presence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0 0 8px;
+  font: 500 .75rem var(--ts-font-mono);
+  color: var(--ink-2);
+}
+
+.ts-presence--empty {
+  margin: 0;
+}
+
+.ts-presence__item--replying {
+  color: var(--ink);
+}

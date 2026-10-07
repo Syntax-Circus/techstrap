@@ -17,6 +17,7 @@ public static partial class AdminRules
         "AspNetCore.SassCompiler",
         "GitVersion.MsBuild",
         "Microsoft.AspNetCore.Authentication.OpenIdConnect",
+        "Microsoft.AspNetCore.SignalR.Client",
         "Microsoft.Web.LibraryManager.Build",
         "SyntaxCircus.AspNetCore.Common",
         "SyntaxCircus.AspNetCore.Serilog",

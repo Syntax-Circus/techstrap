@@ -492,26 +492,34 @@ Describe 'D-046 (live updates)' {
         }
     }
 
-    It 'ticks only what 10a delivers: P10-T01 to T10 and the three server deliverables, with the Admin work still open' {
+    It 'ticks all of PHASE-10 after 10b: P10-T01 to T17, every deliverable and every success criterion' {
         $spec = Get-RepoText 'docs/architecture/PHASE-10-live-updates.md'
-        foreach ($number in 1..10) {
+        foreach ($number in 1..17) {
             $id = 'P10-T{0:00}' -f $number
-            $spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is delivered by 10a"
+            $spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is delivered by 10a or 10b"
         }
         foreach ($number in 11..17) {
             $id = 'P10-T{0:00}' -f $number
-            $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is 10b"
+            # The note must sit inside the task's own block: a lazy match would run on into the next task.
+            $spec | Should -Match ('(?s)- \[x\] \*\*' + $id + '\*\*(?:(?!- \[[x ]\] \*\*P10-T).)*?\*\*As built \(10b\):\*\*') -Because "$id carries its as-built note"
         }
-        $spec | Should -Match '(?m)^- \[x\] `TicketHub`, `UpdateTicketPresenceHandler`'
-        $spec | Should -Match '(?m)^- \[x\] Post-commit publishing hook in Infrastructure'
-        $spec | Should -Match '(?m)^- \[x\] Contracts: `TicketChangedDto`'
-        $spec | Should -Match '(?m)^- \[ \] Admin `ITicketLiveClient`'
-        $spec | Should -Match '(?m)^- \[ \] Reverse-proxy/WebSocket notes'
+        # The as-built notes quote the banner copy of the UI, which has an en dash.
+        $spec | Should -Match ('QueueLiveBanner` \("Queue updated {0} refresh"\)' -f [char]0x2013)
+        $spec | Should -Match ('ChangedTicketBanner` \("New activity {0} refresh"\)' -f [char]0x2013)
+        $deliverables = ($spec -split '(?m)^## Deliverables')[1] -split '(?m)^## Actionable Tasks' | Select-Object -First 1
+        $deliverables | Should -Not -Match '- \[ \]'
+        $criteria = ($spec -split '(?m)^## Success Criteria')[1] -split '(?m)^## Boundary Validation' | Select-Object -First 1
+        $criteria | Should -Not -Match '- \[ \]'
+        $spec | Should -Match '(?m)^- \[x\] Admin `ITicketLiveClient`'
+        $spec | Should -Match '(?m)^- \[x\] Reverse-proxy/WebSocket notes'
+        $spec | Should -Match '\*\*Kill switch \(10b addendum, 2026-10-07\)\.\*\*'
     }
 
-    It 'says in the roadmap and discovery rows that 10a is complete pending merge and 10b is ready to start using Blazor.Auth 0.2.0' {
+    It 'says in the roadmap and discovery rows that 10a is merged and PHASE-10 is complete pending merge' {
         foreach ($file in 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md', 'docs/architecture/00-DISCOVERY-INDEX.md') {
-            (Get-RepoText $file) | Should -Match '(?m)^\| 10 \|.*\| 10a complete \(pending merge\); 10b \(Admin\) ready to start after 10a merges, using SyntaxCircus\.Blazor\.Auth 0\.2\.0 \|'
+            $text = Get-RepoText $file
+            $text | Should -Match '(?m)^\| 10 \|.*\| 10a merged \(PR #18\); 10b complete \(pending merge\); PHASE-10 complete \(pending merge\): the owner'
+            $text | Should -Not -Match '10a complete \(pending merge\)'
         }
     }
 
@@ -527,6 +535,45 @@ Describe 'D-046 (live updates)' {
         $map = Get-RepoText 'docs/architecture/03-PACKAGE-MAP.md'
         $map | Should -Match 'TechStrap\.Api\.Tests` connects a real `HubConnection` in 10a'
         $map | Should -Match 'A direct reference of `TechStrap\.Infrastructure` \(10a, D-046\)'
+    }
+}
+
+Describe 'D-046 addendum (PHASE-10b, live updates in the Admin)' {
+    BeforeAll { $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md' }
+
+    It 'records the owner rulings and the spike findings as an addendum of D-046, not as a new decision' {
+        $script:Log | Should -Match '(?m)^### Addendum \(2026-10-07, PHASE-10b live updates in the Admin\)'
+        $script:Log | Should -Not -Match '(?m)^## D-047'
+        $addendum = ($script:Log -split '(?m)^### Addendum \(2026-10-07, PHASE-10b live updates in the Admin\)')[1]
+        foreach ($phrase in 'LiveUpdates:Enabled', 'LIVEUPDATES__ENABLED', 'NullTicketLiveClient', 'AdminLiveClientHostTests', 'Own changes are ignored', ('Queue updated {0} refresh' -f [char]0x2013), 'IUserAccessTokenProvider',
+                'OnAfterRenderAsync', 'compose is not edited', 'Known limits (10b)', 'There is no new decision number', 'does not sign the agent out') {
+            $addendum | Should -Match ([regex]::Escape($phrase)) -Because "the 10b addendum must mention $phrase"
+        }
+    }
+
+    It 'documents live updates for agents and operators, with the manual check and the known gaps, and no longer says they are coming' {
+        $admin = Get-RepoText 'docs/development/ADMIN-APP.md'
+        $admin | Should -Match '(?m)^## Live updates \(10b\)'
+        $admin | Should -Match '(?m)^### Manual check against a real identity provider \(owner\)'
+        $admin | Should -Match '(?m)^## Known gaps in 10b'
+        $admin | Should -Match 'before the live connection is first established \(on either page\), or while a ticket.s first load runs, raises no banner'
+        $admin | Should -Match '(?s)## Known gaps in 10b.*refuses the connection for good'
+        $admin | Should -Match "UPDATE tickets SET solved_at = now\(\) - interval '2 days' WHERE number"
+        $admin | Should -Match ('New activity {0} refresh' -f [char]0x2013)
+        $admin | Should -Match ('Queue updated {0} refresh' -f [char]0x2013)
+        $admin | Should -Match '(?m)^\| `LIVEUPDATES__ENABLED` \| no \| `true` \|'
+        $admin | Should -Not -Match 'live updates arrive with PHASE-10'
+        $admin | Should -Not -Match 'it is not live \(PHASE-10\)'
+        $runbook = Get-RepoText 'docs/self-hosting/DEPLOYMENT.md'
+        $runbook | Should -Match 'LIVEUPDATES__ENABLED'
+    }
+
+    It 'maps the packages 10b uses: Blazor.Auth 0.2.0 with the token provider, and the SignalR client in the Admin' {
+        $map = Get-RepoText 'docs/architecture/03-PACKAGE-MAP.md'
+        $map | Should -Match '\| `SyntaxCircus\.Blazor\.Auth` \| 0\.2\.0 \|'
+        $map | Should -Match 'dragon-poop 0\.1\.7; TechStrap first on 0\.2\.0'
+        $map | Should -Match 'IUserAccessTokenProvider'
+        $map | Should -Match 'SignalRTicketLiveClient'
     }
 }
 

@@ -350,6 +350,19 @@ Describe 'the config contract of the local compose' {
         @($admin | Sort-Object) | Should -Be @('API__BASEURL', 'ASPNETCORE_ENVIRONMENT', 'DATAPROTECTION__KEYRINGPATH', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TRUSTEDPROXY__TRUSTEDNETWORKS__0')
     }
 
+    It 'the live-updates kill switch is an operator setting (PHASE-10b, D-043): both Admin env templates list it as true, and neither compose file sets it' {
+        foreach ($file in 'src/TechStrap.Admin/.env.example', 'deploy/.env.admin.example') {
+            $entries = @(Get-EnvEntries -Path (Join-Path $script:RepoRoot $file) | Where-Object { $_.Key -eq 'LIVEUPDATES__ENABLED' })
+            $entries.Count | Should -Be 1 -Because "$file lists LIVEUPDATES__ENABLED once"
+            $entries[0].Commented | Should -BeFalse
+            $entries[0].Value | Should -Be 'true'
+        }
+        foreach ($compose in 'docker-compose.yml', 'deploy/docker-compose.yml') {
+            (Get-ComposeEnvironmentKeys -File $compose)['admin'] | Should -Not -Contain 'LIVEUPDATES__ENABLED' -Because "$compose must leave the switch to the operator's env file, which a compose environment: entry would override"
+        }
+        (Get-Content -LiteralPath (Join-Path $script:RepoRoot 'src/TechStrap.Admin/appsettings.json') -Raw | ConvertFrom-Json).LiveUpdates.Enabled | Should -BeTrue
+    }
+
     It 'the local compose gives the Portal exactly the API address, the public URL, the trusted proxy and the key ring (D-045)' {
         $portal = (Get-ComposeEnvironmentKeys -File 'docker-compose.yml')['portal']
         @($portal | Sort-Object) | Should -Be @('API__BASEURL', 'ASPNETCORE_ENVIRONMENT', 'DATAPROTECTION__KEYRINGPATH', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TRUSTEDPROXY__TRUSTEDNETWORKS__0')

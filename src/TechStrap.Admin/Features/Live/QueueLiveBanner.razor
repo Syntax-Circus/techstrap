@@ -1,0 +1,9 @@
+<div class="ts-live-banner">
+    <button type="button" class="btn btn-outline-secondary" @onclick="OnRefresh">@LiveCopy.QueueUpdated</button>
+</div>
+
+@code {
+    /// <summary>Raised on click: the page runs its ordinary load with the current filters.</summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnRefresh { get; set; }
+}
