@@ -19,6 +19,7 @@ Approval basis:
 - **Owner decision (2026-10-05, scoped configuration and deployment, before PHASE-08):** D-043, the owner decisions on one image-only deploy compose, scoped env files on the host, a separate Postgres and explicit image tags. Its technical decisions were proposed in the plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-05, PHASE-08 planning):** D-044, the owner decisions on slugs across scopes, the image URL setting, no KB audit and the single PR. Its defaults and technical decisions were proposed in the PHASE-08 plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-05, PHASE-09 planning):** D-045, the owner decisions on the three-PR split, vanilla-JS KB suggestions, the two small public API additions, the root page and ticket theming. Its technical rulings were proposed in the PHASE-09a plan and approved when the owner approved the plan.
+- **Owner decision (2026-10-07, PHASE-10 planning):** D-046, the owner decisions on the two-pull-request split, the detail page's "New activity" banner, the presence name and the hub token source. Its technical rulings were proposed in the PHASE-10a plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -73,6 +74,7 @@ Approval basis:
 | D-043 | Scoped per-project configuration (every key in `appsettings.json`, a `.env.example` and a deploy env template per host) and one image-only deploy compose for UAT and production, with a separate Postgres | Approved (owner 2026-10-05; technical decisions at plan review) | 2026-10-05 | PHASE-12, PHASE-08, PHASE-09 |
 | D-044 | PHASE-08: slugs unique across scopes, a separate KB Markdown profile, image URLs from `TECHSTRAP_API_PUBLIC_URL`, 400 outcomes for publish and image errors, public routes with the product key, reply-link validation and email links | Approved (owner 2026-10-05; defaults at PHASE-08 plan review) | 2026-10-05 | PHASE-08, PHASE-09, PHASE-12 |
 | D-045 | PHASE-09: three pull requests, vanilla-JS KB suggestions, two small public API additions, a default-product root page, per-product theming from the DTO, a Portal API client, per-path headers, the real Blazor.Seo API | Approved (owner 2026-10-05; technical rulings at PHASE-09a plan review) | 2026-10-05 | PHASE-09, PHASE-12 |
+| D-046 | PHASE-10: two pull requests, identity in the request record, a two-part post-commit hook, header-only hub token, presence by `Agent.Name`, the detail page's "New activity" banner | Approved (owner 2026-10-07; technical rulings at PHASE-10a plan review) | 2026-10-07 | PHASE-10, 02-ARCHITECTURE |
 
 ---
 
@@ -1827,3 +1829,59 @@ The owner's rulings for PHASE-09d, and what the plan's spike proved. They extend
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-09 planning)
 - **Approved on:** 2026-10-05
+
+## D-046: PHASE-10: live updates (two pull requests, identity in the request, a two-part post-commit hook, header-only hub token, presence names, the detail banner)
+
+- **Status:** Approved (owner 2026-10-07; technical rulings at PHASE-10a plan review)
+- **Date:** 2026-10-07
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-007, D-016, D-018, D-040, D-043, D-045, `docs/architecture/PHASE-10-live-updates.md`, `docs/superpowers/plans/2026-10-07-phase-10a-live-server.md`
+
+### Context
+PHASE-09 is merged, so PHASE-10 can start. Reading the code before planning found these gaps between the spec and what exists:
+- **`ICurrentUserService` does not exist.** The Application abstraction is `ICurrentAgentClaims`, backed by `IHttpContextAccessor`, which is not reliable inside a hub.
+- **`LiveConnectionState` cannot live in Contracts.** `ContractNamingRules` allows only `*Dto`, `*Request`, `*Response` and static constant classes there, and Contracts carries no enums.
+- **A SaveChanges interceptor alone is not post-commit.** `UnitOfWork` commits the transaction after SaveChanges, so SaveChanges' own "saved" event fires before the commit.
+- **`DrainEmailOutboxHandler` writes no `TicketEvent`.** Only `AutoCloseSolvedTicketsHandler` publishes from the Worker.
+- **Browsers never reach `/hubs`.** The Admin connects server to server (`API__BASEURL: http://api/`), so the reverse proxy needs nothing new for the hub.
+- **The hub token needs no query string.** The .NET client sends `Authorization: Bearer` on every transport; the query form is a browser habit and a leak surface.
+- **`TicketChangedDto` has no event id** for the client's de-duplication.
+- **No custom meter exists**, and `AddSyntaxCircusObservability` exports a custom meter only when its name is passed to it.
+- **The spec and 02-ARCHITECTURE disagree on a join for an unknown ticket** (`HubException` or an aborted connection).
+- **Presence names and the detail page's behaviour when another agent changes the ticket** were open.
+
+### Decision
+**Owner decisions (2026-10-07)**
+- **Delivery.** Two pull requests: **10a**, the server (T01 to T10), and **10b**, the Admin (T11 to T17), which starts only after a package prerequisite.
+- **Detail page on another agent's change (10b).** A "New activity - refresh" banner. When the agent clicks it the page reloads the timeline and status and takes the new row version. The draft is never touched. Until the click a send still gets the existing 409, so an agent never acts on an unseen version.
+- **Presence name (10b).** The agent's own `Agent.Name` (the internal name; the email when there is none), shown to other agents only. The customer-facing `PublicDisplayName` is never used.
+- **Hub token source (10b).** `SyntaxCircus.Blazor.Auth` (sibling repository) gains a public token-provider API and is published as a new package version before 10b starts.
+
+**Technical rulings (proposed in the 10a plan; approved when the owner approves it)**
+- **Identity travels in the request.** The hub builds an `UpdateTicketPresenceRequest` (action, agent subject, connection id, ticket id, composing flag) from `Context.User` and `Context.ConnectionId`; handlers never read claims or the HTTP context. The Agent policy is on the route and on the hub class.
+- **The post-commit hook has two parts.** `TicketChangeCaptureInterceptor` (a `SaveChangesInterceptor`) notes the `TicketEvent` rows being inserted and stages them per context; `TicketChangePublishingInterceptor` (a `DbTransactionInterceptor`) publishes after `TransactionCommitted` and drops the staging on a rollback or failure. A save with no explicit transaction publishes from its own "saved" event. One change per ticket per commit; a deleted ticket, or an event for a ticket the context does not track, becomes one `Resync`. A broadcaster failure or a hang (5 seconds) is logged by exception type and never fails the request. `TechStrapDatabase.Configure` keeps its two-argument shape; the interceptors are added where the container is, in `AddTechStrapPersistence`, and `NullTicketChangeBroadcaster` is the default until the Api or the Worker replaces it.
+- **Header token only.** An `access_token` query value is not read on `/hubs` (the JWT bearer default); tests pin the refusal and that no token reaches a log at any level. `CloseOnAuthenticationExpiration` closes a connection when its token expires, and a deactivated agent is refused at the handshake by the Agent policy.
+- **Groups.** `TicketChanged` goes to group `queue` only and clients filter by ticket id; presence goes to `ticket:{id}`. `JoinTicket` checks the ticket exists through `ITicketRepository.GetStateAsync` and answers an unknown id with `HubException("Ticket not found")` before any group is joined. `JoinTicket` returns the current presence to its caller, so a second tab of the same agent (for whom nothing changed) still learns the state.
+- **Presence.** In memory, one lock, one entry per agent however many tabs; Composing wins. A composing lease lasts 10 seconds. "Changed" means what other agents would see differs or a lease was extended: a refresh is the heartbeat the client's clear-after-TTL depends on, so it is sent; a repeat that moves nothing is not.
+- **The relay.** The Worker's `PgNotifyTicketChangeBroadcaster` sends `pg_notify('techstrap_ticket_changes', json)` after the commit; the Api's `TicketChangeListener` holds one dedicated, unpooled, named connection with a keepalive, hands each payload to `RelayTicketChangeHandler` (validate, 2,048-byte cap, forward; bad input is a failure Result, never an exception), reconnects with a 1, 2, 4, up to 30 second backoff and relays one `Resync` after each reconnect. The listener never notifies, so nothing echoes.
+- **Metrics.** `TechStrapMetrics` (meter `TechStrap`): `techstrap.live.connected_agents` (distinct agents), `techstrap.live.changes_relayed`, `techstrap.live.relay_failures`, `techstrap.live.listener_reconnects`. The Api and the Worker pass the meter name to `AddSyntaxCircusObservability`. Handlers cannot take a meter, so the hub and the listener record.
+- **No new setting, no migration.** Every number is a constant. `Microsoft.AspNetCore.SignalR.Client` is added to `TechStrap.Api.Tests` only (already pinned); `Npgsql` becomes a direct reference of Infrastructure.
+
+### Alternatives Considered
+- **Accept `access_token` on `/hubs`.** Rejected: the header works on every transport the Admin uses (proved over real WebSockets), and a query token would reach logs, spans and proxies.
+- **Publish from SaveChanges' "saved" event.** Rejected: it fires before the commit, so a rolled-back conflict could announce a change that never happened.
+- **A `Removed` change kind for a deleted ticket.** Rejected for now: a `Resync` already makes every queue reload, and delete is an Admin-only rare operation.
+- **Server-side expiry of a composing hint.** Rejected: it needs a timer and a handler action; the lease plus the heartbeat gives the same result.
+- **Reading the identity through `IHttpContextAccessor` in the hub.** Rejected: it is not reliable there, and the request record keeps handlers transport-free.
+
+### Consequences
+- **Spec corrections.** `PHASE-10-live-updates.md` and `02-ARCHITECTURE.md` carry the corrections above; `LiveConnectionState` is an Admin type (10b).
+- **A deleted ticket publishes a `Resync`** (queues reload; an open detail page shows "gone" on its next load).
+- **Single Api instance.** Presence and the in-process publish do not span instances (D-007). The listener needs a direct Postgres connection: PgBouncer in transaction mode breaks `LISTEN` (DEPLOYMENT.md).
+- **As built in 10a: the proof.** The hub is exercised through a real `HubConnection` on the in-memory server (long polling) and, for the header token, over real WebSockets on a loopback Kestrel port; the hook, the broadcaster and the listener run against Postgres (Testcontainers), including `pg_terminate_backend` of the listener's backend, which ends in a reconnect and one `Resync`.
+- **As built in 10a: the Admin is not changed.** 10b adds the client, the indicator, the banners and the presence bar; the hub contract (Contracts `Live`) is what it builds on.
+- **Known: the first 10a host test of a meter needs an async disposal.** A meter provider subscribes to every meter of that name in the process, so a host that is only disposed synchronously keeps observing the next one's instruments; the registration test disposes each host before it starts the next.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-10 planning)
+- **Approved on:** 2026-10-07

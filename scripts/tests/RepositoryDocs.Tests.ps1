@@ -105,7 +105,7 @@ Describe 'D-044 (the knowledge base)' {
         }
     }
 
-    It 'ticks every PHASE-08 task P08-T01 to P08-T20 and the Admin deliverable, and the roadmap row says the phase is complete, pending merge' {
+    It 'ticks every PHASE-08 task P08-T01 to P08-T20 and the Admin deliverable, and the roadmap row says the phase is merged' {
         $phase = Get-RepoText 'docs/architecture/PHASE-08-knowledge-base.md'
         foreach ($number in 1..20) {
             $id = 'P08-T{0:00}' -f $number
@@ -113,8 +113,8 @@ Describe 'D-044 (the knowledge base)' {
         }
         $phase | Should -Match '(?m)^- \[x\] Admin KB list, editor with live preview and image upload, categories page, article picker in the reply composer\.'
         $phase | Should -Match '(?m)^- \[x\] Reply-article linking validated and surfaced in the timeline\.'
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 08 \|.*D-044.*\| PHASE-08 complete \(pending merge\)'
-        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 08 \|.*\| PHASE-08 complete \(pending merge\)'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 08 \|.*D-044.*\| PHASE-08 merged \(PR #13\)'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 08 \|.*\| PHASE-08 merged \(PR #13\)'
         (Get-RepoText 'docs/development/ADMIN-APP.md') | Should -Match '(?m)^## Knowledge base \(08\)'
     }
 
@@ -163,7 +163,7 @@ Describe 'D-045 (the public portal)' {
         (Get-RepoText 'docs/architecture/03-PACKAGE-MAP.md') | Should -Match 'MapSeoRobotsTxt'
     }
 
-    It 'ticks only the tasks and deliverables 09a to 09d fully deliver, and the roadmap and discovery rows say PHASE-09 is complete, pending merge' {
+    It 'ticks only the tasks and deliverables 09a to 09d fully deliver, and the roadmap and discovery rows say PHASE-09 is complete and all four pull requests merged' {
         $spec = Get-RepoText 'docs/architecture/PHASE-09-public-portal.md'
         foreach ($number in 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 19, 21, 22, 23) {
             $id = 'P09-T{0:00}' -f $number
@@ -182,8 +182,8 @@ Describe 'D-045 (the public portal)' {
         $spec | Should -Match '(?m)^- \[x\] Customer ticket view, reply \(incl\. Closed -> follow-up\), lost-link, attachment pass-through\.'
         $spec | Should -Match '(?m)^- \[x\] Typed clients for public product, public ticket, customer ticket, public KB\.'
         $spec | Should -Match '(?m)^- \[x\] KB home/category/search/article pages'
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 09 \|.*D-045.*\| 09a merged \(PR #14\); 09b merged \(PR #15\); 09c merged \(PR #16\); PHASE-09 complete \(pending merge\)'
-        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 09 \|.*\| 09a merged \(PR #14\); 09b merged \(PR #15\); 09c merged \(PR #16\); PHASE-09 complete \(pending merge\)'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 09 \|.*D-045.*\| 09a merged \(PR #14\); 09b merged \(PR #15\); 09c merged \(PR #16\); 09d merged \(PR #17\); PHASE-09 complete:'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 09 \|.*\| 09a merged \(PR #14\); 09b merged \(PR #15\); 09c merged \(PR #16\); 09d merged \(PR #17\); PHASE-09 complete:'
     }
 
     It 'has a Portal developer guide, linked from the README, that lists every setting and the known gaps' {
@@ -210,7 +210,6 @@ Describe 'D-045 addendum (PHASE-09b rulings, 2026-10-06)' {
 
     It 'is a dated addendum inside D-045, not a new decision number' {
         $script:Section | Should -Match '(?m)^### Addendum \(2026-10-06, PHASE-09b customer flows\)'
-        $script:Log | Should -Not -Match '(?m)^## D-046'
     }
 
     It 'records each ruling the 09b plan rests on' {
@@ -241,7 +240,6 @@ Describe 'D-045 addendum (PHASE-09c rulings, 2026-10-06)' {
 
     It 'is a dated addendum inside D-045, not a new decision number' {
         $script:Section | Should -Match '(?m)^### Addendum \(2026-10-06, PHASE-09c knowledge base pages, SEO and caching\)'
-        $script:Log | Should -Not -Match '(?m)^## D-046'
     }
 
     It 'records each ruling the 09c plan rests on' {
@@ -268,7 +266,6 @@ Describe 'D-045 addendum (PHASE-09d rulings, 2026-10-06)' {
 
     It 'is a dated addendum inside D-045, not a new decision number' {
         $script:Section | Should -Match '(?m)^### Addendum \(2026-10-06, PHASE-09d portal polish\)'
-        $script:Log | Should -Not -Match '(?m)^## D-046'
     }
 
     It 'records each ruling the 09d plan rests on and the spike findings' {
@@ -455,6 +452,43 @@ Describe 'the deployment runbook' {
         $links.Count | Should -BeGreaterThan 1
         foreach ($link in $links) {
             Test-Path -LiteralPath (Join-Path $script:RepoRoot 'docs' 'self-hosting' $link) | Should -BeTrue -Because "DEPLOYMENT.md links to $link"
+        }
+    }
+}
+
+Describe 'D-046 (live updates)' {
+    BeforeAll { $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md' }
+
+    It 'is in the decision log with its date, its status, a header bullet and an index row' {
+        $script:Log | Should -Match '(?m)^## D-046: PHASE-10: live updates'
+        $script:Log | Should -Match '(?s)## D-046:.*?- \*\*Status:\*\* Approved \(owner 2026-10-07.*?- \*\*Date:\*\* 2026-10-07'
+        $script:Log | Should -Match '(?m)^\| D-046 \|.*\| 2026-10-07 \|'
+        $script:Log | Should -Match '(?m)^- \*\*Owner decision \(2026-10-07, PHASE-10 planning\):\*\* D-046'
+    }
+
+    It 'records the owner decisions and the technical rulings the two pull requests rely on' {
+        foreach ($phrase in 'Two pull requests', 'New activity - refresh', 'Agent.Name', 'public token-provider API', 'UpdateTicketPresenceRequest', 'TicketChangeCaptureInterceptor', 'TicketChangePublishingInterceptor',
+                'HubException("Ticket not found")', 'An `access_token` query value is not read', 'CloseOnAuthenticationExpiration', 'techstrap_ticket_changes', 'Resync', 'techstrap.live.connected_agents', 'PgBouncer', 'No new setting, no migration') {
+            $script:Log | Should -Match ([regex]::Escape($phrase)) -Because "D-046 must mention $phrase"
+        }
+    }
+
+    It 'corrects the PHASE-10 spec and the handler table' {
+        $spec = Get-RepoText 'docs/architecture/PHASE-10-live-updates.md'
+        $spec | Should -Match '(?m)^### Corrections \(D-046, 2026-10-07\)'
+        foreach ($phrase in 'ICurrentUserService', 'LiveConnectionState', 'EventId', 'access_token', 'UpdateTicketPresenceRequest') {
+            $spec | Should -Match ([regex]::Escape($phrase))
+        }
+        $architecture = Get-RepoText 'docs/architecture/02-ARCHITECTURE.md'
+        $architecture | Should -Not -Match 'unauthorized joins abort the connection'
+        $architecture | Should -Match 'TicketChangeCaptureInterceptor'
+    }
+
+    It 'no longer says a merged phase is pending merge in the roadmap and discovery rows' {
+        foreach ($file in 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md', 'docs/architecture/00-DISCOVERY-INDEX.md') {
+            $text = Get-RepoText $file
+            $text | Should -Match '(?m)^\| 07 \|.*\| Complete: 07a merged \(PR #9\), 07b merged \(PR #10\), 07c merged \(PR #11\)'
+            $text | Should -Not -Match '(?m)^\| 0[789] \|.*pending merge'
         }
     }
 }

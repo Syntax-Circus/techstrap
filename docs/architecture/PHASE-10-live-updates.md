@@ -14,6 +14,22 @@ presence hint.
 - **Unblocks:** [PHASE-12](PHASE-12-release-hardening.md).
 - **External prerequisites:** Reverse proxy allows WebSocket upgrade to the API (`/hubs/*`) with adequate idle timeouts; Postgres allows a dedicated long-lived connection for `LISTEN` from the API (not via a transaction-pooling proxy such as PgBouncer in transaction mode).
 
+### Corrections (D-046, 2026-10-07)
+
+Where this page and D-046 differ, D-046 wins.
+- **Delivery.** Two pull requests: 10a (T01 to T10, the server) and 10b (T11 to T17, the Admin, after a `SyntaxCircus.Blazor.Auth` token-provider release).
+- **Identity.** `ICurrentUserService` does not exist. The hub fills an `UpdateTicketPresenceRequest` from `Context.User` and `Context.ConnectionId`; `ICurrentAgentClaims` and `IHttpContextAccessor` are not used in a hub.
+- **`LiveConnectionState`** is an Admin type (`Features/Live`), not a Contracts type: Contracts allows only `*Dto`, `*Request`, `*Response` and static constants.
+- **Post-commit.** A SaveChanges interceptor fires before the commit. The hook is `TicketChangeCaptureInterceptor` (stages the inserted events) plus `TicketChangePublishingInterceptor` (publishes after the commit, drops on rollback or failure).
+- **Worker sources.** `DrainEmailOutboxHandler` writes no `TicketEvent`; only `AutoCloseSolvedTicketsHandler` publishes from the Worker.
+- **No browser hops.** Browsers never reach `/hubs`; the Admin connects server to server, so the proxy needs nothing new for the hub.
+- **Token by header only.** There is no `access_token` query support and no `OnMessageReceived` change; the tests pin that a query token is refused. P10-T06 shrinks to that pin.
+- **Event id.** `TicketChangedDto` gains `EventId`.
+- **Groups.** `TicketChanged` goes to `queue` only; presence goes to `ticket:{id}`.
+- **Unknown ticket.** `JoinTicket` answers `HubException("Ticket not found")` after an existence check, and returns the current presence to its caller.
+- **Metrics.** The Api and the Worker pass the meter name to `AddSyntaxCircusObservability`.
+- **Detail banner (10b).** A "New activity - refresh" banner; the row version changes only when the agent clicks it. **Presence name (10b):** `Agent.Name`, to other agents only.
+
 ## Architecture Decisions
 
 - **Hub on the API, authenticated by the agent JWT.** `TicketHub` at `/hubs/tickets` requires the same agent authorization policy (group claim) as the REST API. Browsers never connect; the admin's Blazor Server circuit connects server-side with the user's access token from `SyntaxCircus.Blazor.Auth` (token provider per connection). WebSocket token travels as `access_token` query value, accepted only on `/hubs/*` via `JwtBearerEvents.OnMessageReceived`, and redacted from logs (**Assumption** for server-side clients; the header route is used where the transport allows).
