@@ -4,7 +4,7 @@ namespace TechStrap.Application.Agents;
 
 /// <summary>
 /// The signed-in agent as the identity provider describes them. This is the project-specific identity abstraction (instead
-/// of SyntaxCircus.Common.ICurrentUserService, which carries no groups). Application code never reads claims directly.
+/// of SyntaxCircus.AspNetCore.Common.ICurrentUserService, which carries no groups). Application code never reads claims directly.
 /// </summary>
 public interface ICurrentAgentClaims
 {
