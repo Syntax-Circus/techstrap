@@ -81,7 +81,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [SECURITY.md](SECURI
 
 ## Packages
 
-The client SDK is published to nuget.org as `TechStrap.Contracts`, `TechStrap.Client` and `TechStrap.Client.Maui` (the first release candidate is `v1.0.0-rc.1`). Start with the
+The client SDK will be published to nuget.org as `TechStrap.Contracts`, `TechStrap.Client` and `TechStrap.Client.Maui`, starting with `v1.0.0-rc.1`. Start with the
 [TechStrap.Client README](src/TechStrap.Client/README.md); how releases are cut is in [RELEASING.md](docs/development/RELEASING.md).
 
 ## Documentation

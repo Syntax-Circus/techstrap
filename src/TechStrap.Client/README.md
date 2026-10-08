@@ -27,7 +27,7 @@ var request = new SubmitTicketRequest(
     ExternalUserRef: null,
     Metadata: null);
 
-// A stable key makes a retry safe: the same key never creates a second ticket.
+// Keep this key and reuse it if you retry this ticket; a new key on a retry can create a duplicate.
 Result<SubmitTicketResponse> result = await client.SubmitTicketAsync(request, Guid.NewGuid().ToString("N"));
 ```
 

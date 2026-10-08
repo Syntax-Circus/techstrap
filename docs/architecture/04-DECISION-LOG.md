@@ -2054,7 +2054,7 @@ D-047 and D-048 left the publishing half of PHASE-11 to 11c: per-package READMEs
 
 ### Decision
 **Owner decisions (2026-10-08)**
-1. **nuget.org is ready.** The `TechStrap.*` package IDs are reserved. Each package has a Trusted Publishing policy bound to the repository `Syntax-Circus/techstrap`, the workflow file `publish-nuget.yml` and the environment `release`. The repository secret `NUGET_USER` is set, and the GitHub environment `release` has required reviewers.
+1. **nuget.org is ready.** The `TechStrap.*` package IDs are reserved. Each package has a Trusted Publishing policy bound to the repository `Syntax-Circus/techstrap`, the workflow file `publish-nuget.yml` and the environment `release`. `NUGET_USER` is set as an organization secret available to the repository (not a repository secret). The GitHub environment `release` has a required reviewer and a deployment rule "Selected branches and tags" with the tag pattern `v*` ("Protected branches only" would block tag refs). The controller created the environment on 2026-10-08 and verified both with `gh api repos/Syntax-Circus/techstrap/environments/release`.
 2. **XML documentation is on for every package member.** `GenerateDocumentationFile` is enabled in `eng/Packaging.props`, and every public member is documented.
 3. **The post-publish check runs against the local compose stack.** UAT is not deployed, so the UAT submit moves to PHASE-12 (P12-T14).
 4. **The publish design is approved:** a tag-triggered `publish-nuget.yml` plus a GitHub Release, the version from the tag, a console sample with compiled README snippets, no MAUI sample project, and source-generated JSON.
@@ -2064,6 +2064,7 @@ D-047 and D-048 left the publishing half of PHASE-11 to 11c: per-package READMEs
 - **Triggers.** `publish-nuget.yml` runs on a `v*` tag push and on `workflow_dispatch`. It has no `pull_request` trigger; `ci.yml` keeps the pack dry run on pull requests. A dispatch is a dry run: the version is `0.0.0-dryrun.<run number>`, and the `publish` job is skipped.
 - **Jobs.** The `pack` job takes the version from the tag (a tag that is not `v<semver>` fails), runs `dotnet test --solution TechStrap.CI.slnf`, packs the three packages, runs `scripts/Test-PackageContents.ps1` and uploads them. The `publish` job needs `pack`, runs in the `release` environment, and checks that every package file name carries the version.
 - **Publish guard.** The `publish` job runs only if `github.ref_type == 'tag' && github.event_name == 'push'`, so a `workflow_dispatch` started on a tag ref stays a dry run.
+- **Contracts stability scope.** `v1.0.0` locks the SDK-facing surface of `TechStrap.Contracts`: the `TechStrap.Contracts.Intake` namespace (`SubmitTicketRequest`, `SubmitTicketResponse`, `IntakeLimits`, `IntakeRoutes`, `IntakeWarnings`, `TicketMetadataKeys`) and `TechStrap.Contracts.Http.HeaderNames`. The other namespaces (Admin, Agents, ApiKeys, Kb, Live, AdminEvents, Tickets and so on) are TechStrap's own app wire shapes, shared with its Admin and Portal, and may change in minor versions. The Contracts README and `CLIENT-SDK.md` say the same.
 - **Trusted Publishing only.** `NuGet/login@v1` exchanges the OIDC token (secret `NUGET_USER`) for a short-lived key, and `dotnet nuget push --skip-duplicate` uses it. There is no `NUGET_API_KEY` fallback, and `PublishWorkflow.Tests.ps1` fails if any workflow reads that secret.
 - **The GitHub Release comes from `publish-nuget.yml`:** `gh release create` with `--generate-notes`, the three packages and their symbol packages attached, and `--prerelease` when the version has a hyphen. `release.yml` still builds and pushes the GHCR images; it only gained a comment that points to the new workflow.
 - **Documentation file.** `GenerateDocumentationFile` is set in `eng/Packaging.props`. `scripts/Test-PackageContents.ps1` fails when `lib/net10.0/<id>.xml` is missing, and the build fails on a missing doc comment (CS1591 under `TreatWarningsAsErrors`).
@@ -2075,7 +2076,7 @@ D-047 and D-048 left the publishing half of PHASE-11 to 11c: per-package READMEs
 - **Tests.** `scripts/tests/PublishWorkflow.Tests.ps1` pins the workflow, `RepositoryDocs.Tests.ps1` pins this decision and the spec ticks, and `Test-PackageContents.ps1` is fixture-tested.
 
 ### Alternatives Considered
-- **`GitVersion.MsBuild` in the packages.** Rejected: the tag already is the version, and a second source could disagree with it. The pack stamps the package version while assembly versions keep the build's own value.
+- **`GitVersion.MsBuild` in the packages.** Rejected: the tag already is the version, and a second source could disagree with it. The `Build` step passes `-p:Version=<tag>`, so the package and the assembly versions both carry the tag.
 - **Publishing on pull requests.** Rejected: nothing may reach nuget.org from an unreviewed change. `ci.yml` dry-runs the pack on pull requests instead.
 - **A `NUGET_API_KEY` fallback.** Rejected: a long-lived key in a secret is the risk Trusted Publishing removes.
 - **Creating the GitHub Release from `release.yml`.** Rejected: that workflow builds images; the Release lists the packages, so it belongs with the workflow that makes them.
@@ -2089,7 +2090,9 @@ D-047 and D-048 left the publishing half of PHASE-11 to 11c: per-package READMEs
 - **Known limits**
   - The `v*` tag also publishes the GHCR images at that tag (`release.yml`). That is intended: PHASE-12 deploys the release candidate to UAT.
   - Packages are immutable on nuget.org: a fix is a new version, and a bad version is unlisted, not deleted.
-  - Each publish waits for an approval in the `release` environment.
+  - Each publish waits for an approval in the `release` environment. The environment's deployment rule must allow `v*` tags; "Protected branches only" would block the tag ref. `NUGET_USER` is an organization secret, so the repository only sees it while the organization grants access.
+  - The `v1.0.0` SemVer promise covers only the SDK-facing surface of `TechStrap.Contracts` (the `Intake` namespace and `Http.HeaderNames`); the other namespaces are TechStrap's own wire shapes and may change in minor versions.
+  - `Test-PackageContents.ps1` checks the README, license, repository URL, dependency set, symbol package and xml documentation. It does not check for secrets or package size; those checks remain open (PHASE-12 or a later 11c follow-up).
   - `--generate-notes` builds the release notes from pull request titles; PHASE-12 may replace them with a Conventional Commits changelog.
   - The UAT submit (the spec's original T16 validation) moves to PHASE-12 (P12-T14).
   - Attachments remain 11d, which first needs multipart intake.

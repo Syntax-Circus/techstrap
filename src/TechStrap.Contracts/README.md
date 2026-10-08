@@ -12,7 +12,7 @@ The wire contracts of TechStrap, the self-hosted support desk: the request and r
 
 ## Stability
 
-The types and constants here are the public API surface. The package follows semantic versioning: a breaking change ships only in a new major version, and `v1.0.0` locks the API. Before 1.0.0, a release candidate can still change it. Package validation is enabled; its baseline comparison against the previous release starts after 1.0.0.
+The package follows semantic versioning, scoped as follows. `v1.0.0` locks the SDK-facing surface of `TechStrap.Contracts`: the `TechStrap.Contracts.Intake` namespace (`SubmitTicketRequest`, `SubmitTicketResponse`, `IntakeLimits`, `IntakeRoutes`, `IntakeWarnings`, `TicketMetadataKeys`) and `TechStrap.Contracts.Http.HeaderNames`. The other namespaces (Admin, Agents, ApiKeys, Kb, Live, AdminEvents, Tickets and so on) are TechStrap's own app wire shapes, shared with its Admin and Portal, and may change in minor versions. Before 1.0.0, a release candidate can still change the SDK-facing surface; after it, a breaking change there ships only in a new major version. Package validation is enabled; its baseline comparison against the previous release starts after 1.0.0.
 
 ## Using it
 

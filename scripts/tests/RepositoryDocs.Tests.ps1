@@ -750,6 +750,14 @@ Describe 'D-049 (publishing)' {
         (Get-RepoText 'docs/development/CLIENT-SDK.md') | Should -Not -Match '(?i)until 11c|arrives in 11c|in 11c\b'
         $doc = Get-RepoText 'docs/development/RELEASING.md'
         $doc | Should -Match 'only be dispatched once it is on `main`'
-        $doc | Should -Match 'assembly versions keep'
+        $doc | Should -Match 'assembly versions carry the tag too|stamps the assembly versions'
+        $doc | Should -Match 'organization secret'
+        $doc | Should -Match 'Selected branches and tags'
+    }
+
+    It 'scopes the Contracts SemVer promise to the SDK-facing surface in the README, the decision and the SDK guide' {
+        foreach ($file in 'src/TechStrap.Contracts/README.md', 'docs/architecture/04-DECISION-LOG.md', 'docs/development/CLIENT-SDK.md') {
+            (Get-RepoText $file) | Should -Match 'SDK-facing surface' -Because "$file scopes the stability promise"
+        }
     }
 }

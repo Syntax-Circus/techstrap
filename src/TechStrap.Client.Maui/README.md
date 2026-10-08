@@ -87,6 +87,7 @@ To redact a value, set `DeviceContextOptions.Redact`, a `Func<string, string, st
 - The collected keys (up to 19) count toward the 50 metadata keys a ticket may carry, so an app can rely on 31 of its own.
 - A key of the table above (or any key in `TicketMetadataKeys`) in the draft's `Metadata` is ignored: the collected value, or none, is sent.
 - A blank value is skipped, a value is cut to 1000 characters, a key is at most 64 characters.
+- A blank key or a key longer than 64 characters in the draft's `Metadata` also fails locally with `metadata-invalid` and nothing is sent.
 - More than 50 keys, or more than 16,000 characters of serialized metadata, fails locally with the code `metadata-invalid` and nothing is sent.
 
 ## Compatibility
