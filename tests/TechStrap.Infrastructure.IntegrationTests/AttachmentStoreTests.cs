@@ -6,6 +6,7 @@ using SyntaxCircus.Storage;
 using TechStrap.Application.Attachments;
 using TechStrap.Domain.Tickets;
 using TechStrap.Infrastructure.Attachments;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
 
@@ -121,6 +122,50 @@ public sealed class AttachmentStoreTests : IDisposable
 
         stored.FileName.ShouldBe("passwd.txt");
         Path.GetFullPath(Path.Combine(_root, stored.StorageKey)).ShouldStartWith(Path.GetFullPath(_root));
+    }
+
+    public static IEnumerable<TheoryDataRow<string>> HostileUploads() => HostileUploadCorpus.Rows();
+
+    private string[] FilesOnDisk() => Directory.Exists(_root) ? Directory.GetFiles(_root, "*", SearchOption.AllDirectories) : [];
+
+    [Theory(Timeout = 30_000)]
+    [MemberData(nameof(HostileUploads))]
+    public async Task Every_hostile_upload_gets_its_recorded_outcome(string id)
+    {
+        var upload = HostileUploadCorpus.Get(id);
+        var expected = upload.Attachment;
+        var ticketId = Guid.CreateVersion7();
+
+        var result = await _store.SaveAsync(ticketId, Upload(upload.FileName, upload.DeclaredContentType, upload.Content), TestContext.Current.CancellationToken);
+
+        if (!expected.Stored)
+        {
+            result.Errors.ShouldHaveSingleItem().Code.ShouldBe(expected.ErrorCode);
+            FilesOnDisk().ShouldBeEmpty();
+            return;
+        }
+
+        var stored = result.Value;
+        expected.NameMatches(stored.FileName).ShouldBeTrue($"stored as '{stored.FileName}'");
+        if (expected.ContentType is not null)
+        {
+            stored.ContentType.ShouldBe(expected.ContentType);
+        }
+
+        stored.StorageKey.ShouldMatch($"^attachments/{ticketId:N}/[0-9a-f]{{32}}$");
+        var files = FilesOnDisk();
+        files.ShouldHaveSingleItem();
+        Path.GetFullPath(files[0]).ShouldBe(Path.GetFullPath(Path.Combine(_root, stored.StorageKey)));
+        Path.GetFullPath(files[0]).ShouldStartWith(Path.GetFullPath(_root));
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task A_zero_byte_file_is_refused_as_attachment_empty()
+    {
+        var result = await _store.SaveAsync(Guid.CreateVersion7(), Upload("empty.txt", "text/plain", []), TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("attachment-empty");
+        FilesOnDisk().ShouldBeEmpty();
     }
 
     [Fact]

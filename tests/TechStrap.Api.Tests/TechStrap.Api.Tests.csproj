@@ -10,7 +10,8 @@
   <ItemGroup>
     <!-- The Admin host test helpers (settings, stub API, Test sign-in) are shared with TechStrap.Admin.Tests. -->
     <Compile Include="../Shared/AdminHost/*.cs" LinkBase="Shared/AdminHost" />
-    <Compile Include="../Shared/CollectingSink.cs;../Shared/StartupFailure.cs" LinkBase="Shared" />
+    <Compile Include="../Shared/CollectingSink.cs;../Shared/StartupFailure.cs;../Shared/HostileUploadCorpus.cs" LinkBase="Shared" />
+    <None Include="../Shared/Fixtures/**" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

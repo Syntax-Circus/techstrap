@@ -71,15 +71,15 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 | Check | Evidence or finding |
 | --- | --- |
 | Size and count limits (per file, six files, 25 MiB per submission) | `AttachmentStoreTests.An_oversize_file_is_rejected_even_if_its_declared_length_lies`; `SubmitTicketRequestHandlerTests` (six files, 25 MiB); `PublicIntakeEndpointTests.Six_files_is_400_attachments_too_many`, `PublicIntakeEndpointTests.A_form_body_over_the_limit_is_413`; `RequestTooLargeMiddlewareTests`; Portal `AttachmentRulesTests` |
-| Extension allow-list and magic-byte check | `AttachmentStoreTests.A_renamed_executable_is_rejected_by_its_leading_bytes`, `AttachmentStoreTests.A_declared_type_that_does_not_match_the_content_is_rejected`, `AttachmentStoreTests.Text_with_binary_content_is_rejected`, `PublicIntakeEndpointTests.An_executable_renamed_to_pdf_is_400_attachment_type_not_allowed_and_nothing_is_stored`; text that contains HTML is SR-04 |
-| Zero-byte files | Portal `AttachmentRulesTests.An_empty_file_is_named`; Task 3 adds the server-side `AttachmentStoreTests.A_zero_byte_file_is_refused_as_attachment_empty` |
-| Hostile file names | Domain `AttachmentFileNameTests`, `AttachmentStoreTests.A_path_traversal_file_name_never_escapes_the_root`, Portal `TicketAttachmentHostTests.A_right_to_left_override_and_quotes_are_removed_from_the_name`, `TicketAttachmentHostTests.A_name_that_could_split_a_header_cannot`; Task 3 adds the corpus theories |
+| Extension allow-list and magic-byte check | `AttachmentStoreTests.A_renamed_executable_is_rejected_by_its_leading_bytes`, `AttachmentStoreTests.A_declared_type_that_does_not_match_the_content_is_rejected`, `AttachmentStoreTests.Text_with_binary_content_is_rejected`, `PublicIntakeEndpointTests.An_executable_renamed_to_pdf_is_400_attachment_type_not_allowed_and_nothing_is_stored`; the corpus rows `double-extension`, `png-named-pdf`, `svg-as-png` and `oversize` in the three theories above; text that contains HTML is SR-04 (corpus row `html-as-txt`) |
+| Zero-byte files | Portal `AttachmentRulesTests.An_empty_file_is_named`; server-side `AttachmentStoreTests.A_zero_byte_file_is_refused_as_attachment_empty` and the corpus `zero-byte` row (`attachment-empty`; the KB image store answers `kb-image-type-not-allowed`, it has no empty code) |
+| Hostile file names | Domain `AttachmentFileNameTests`, `AttachmentStoreTests.A_path_traversal_file_name_never_escapes_the_root`, Portal `TicketAttachmentHostTests.A_right_to_left_override_and_quotes_are_removed_from_the_name`, `TicketAttachmentHostTests.A_name_that_could_split_a_header_cannot`; the hostile-upload corpus (`tests/Shared/Fixtures/hostile-uploads`: traversal, backslash, RTL override, NUL, 300-character and double-extension names) through `AttachmentStoreTests.Every_hostile_upload_gets_its_recorded_outcome`, `KbImageStoreTests.Every_hostile_upload_gets_its_recorded_kb_outcome` and `PublicIntakeEndpointTests.Every_hostile_upload_through_the_multipart_form_gets_its_recorded_outcome` |
 | Random storage keys | `AttachmentStoreTests.A_png_is_stored_under_a_random_key_with_its_canonical_type_and_reads_back`, `KbImageStoreTests.Two_uploads_of_the_same_file_get_different_keys`; time-ordered v7 ids are SR-05 |
 | Served as attachment with nosniff and a sandbox header | Api `AttachmentDownloadEndpointTests`, `CustomerAttachmentEndpointTests`; Portal `TicketAttachmentHostTests`; Admin `AttachmentPassThroughTests` |
 | SVG and HTML images refused | `KbImageStoreTests.Anything_that_is_not_a_plain_png_jpeg_gif_or_webp_is_refused_and_nothing_is_stored` |
 | Knowledge-base prefix isolation from attachments | `KbImageStoreTests.An_attachment_cannot_be_reached_through_the_image_reader`, `KbImageStoreTests.A_name_the_store_could_not_have_written_is_never_opened`; Api `KbImageServingTests` |
 | Download authorization | `GetAttachmentRequestHandlerTests.An_anonymous_caller_is_refused_without_a_lookup`, `AttachmentDownloadEndpointTests.An_anonymous_caller_is_401` |
-| Disk full or storage failure | `SubmitTicketRequestHandlerTests.An_exception_removes_the_files_the_attempt_stored_and_propagates`, `SubmitTicketIntegrationTests.A_failure_after_creation_leaves_no_rows_and_no_orphan_file`; Task 3 adds the HTTP-level tests; no quota is SR-11 |
+| Disk full or storage failure | `SubmitTicketRequestHandlerTests.An_exception_removes_the_files_the_attempt_stored_and_propagates`, `SubmitTicketIntegrationTests.A_failure_after_creation_leaves_no_rows_and_no_orphan_file`; HTTP level: `DiskFullIntakeTests.A_full_disk_on_the_second_file_is_a_clean_problem_response_with_no_ticket_and_no_file` and `KbImageDiskFullTests.A_full_disk_on_a_kb_image_upload_is_a_clean_problem_response_and_leaves_no_file`; no quota is SR-11 |
 | Antivirus | SR-08 |
 
 ### 4. Sanitiser and rendering
@@ -148,7 +148,7 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 - Path group: 3. Uploads
 - Severity: Low
 - Status: Accepted
-- Evidence: a `.txt` or `.log` file whose text is HTML passes the signature check as `text/plain`. It is neutralised by `Content-Disposition: attachment`, `nosniff` and the download sandbox header, and is never rendered inline.
+- Evidence: a `.txt` or `.log` file whose text is HTML passes the signature check as `text/plain`. It is neutralised by `Content-Disposition: attachment`, `nosniff` and the download sandbox header, and is never rendered inline. The corpus row `html-as-txt` pins it: `page.txt` holding `<html><script>` is stored as `text/plain` by the attachment store and refused by the KB image store.
 
 ### SR-05: Storage keys are time-ordered GUIDs
 - Path group: 3. Uploads
@@ -189,8 +189,8 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 ### SR-11: No attachment storage quota
 - Path group: 3. Uploads
 - Severity: Low
-- Status: Open
-- Evidence: there is no storage quota; a full disk is handled by cleanup and a clean error. Closed by Task 3.
+- Status: Accepted
+- Evidence: there is no storage quota and none is planned for 0.x; operators monitor the volume (release 12b documents it). A full disk is handled by cleanup and a clean error: `DiskFullIntakeTests` (second file of a submission fails after the first was stored and the failed copy left a partial object) and `KbImageDiskFullTests` prove a 500 ProblemDetails with only the generic detail (no exception text, no stack frame), no ticket, message or attachment row, and no file left under the storage root.
 
 ### SR-12: Public key extractable from a shipped app
 - Path group: 2. API keys
