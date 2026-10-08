@@ -11,7 +11,7 @@ public sealed class SubmitMappingTests
     private const string ServerSecret = "db01.internal SELECT secret FROM keys";
 
     private static async Task<Result<SubmitTicketResponse>> Submit(ClientFixture fixture, CancellationToken ct) =>
-        await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, ct);
+        await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), ct);
 
     [Fact(Timeout = 10_000)]
     public async Task A_201_with_a_readable_body_is_a_success()

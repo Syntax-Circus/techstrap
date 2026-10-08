@@ -68,6 +68,42 @@ public sealed class ApiKeyHandlerTests
     }
 
     [Fact]
+    public async Task A_foreign_authority_message_does_not_print_user_info()
+    {
+        var (invoker, inner) = Create("https://user:pw@support.example.com/");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://user:pw@evil.example.com/api/intake/tickets");
+
+        var failure = await Should.ThrowAsync<InvalidOperationException>(() => invoker.SendAsync(request, Xunit.TestContext.Current.CancellationToken));
+
+        inner.Requests.ShouldBeEmpty();
+        failure.Message.ShouldContain("https://evil.example.com");
+        failure.Message.ShouldNotContain("pw");
+    }
+
+    [Theory]
+    [InlineData("http://[::1]/", "http://[::1]/api/intake/tickets", true)]
+    [InlineData("http://[::1]/", "http://[::2]/api/intake/tickets", false)]
+    [InlineData("https://h:443/", "https://h/api/intake/tickets", true)]
+    [InlineData("https://h/", "https://h:443/api/intake/tickets", true)]
+    [InlineData("https://h/", "https://h:444/api/intake/tickets", false)]
+    public async Task The_authority_comparison_handles_ipv6_and_default_ports(string baseAddress, string url, bool allowed)
+    {
+        var (invoker, inner) = Create(baseAddress);
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+
+        if (allowed)
+        {
+            using var response = await invoker.SendAsync(request, Xunit.TestContext.Current.CancellationToken);
+            inner.Requests.Count.ShouldBe(1);
+        }
+        else
+        {
+            await Should.ThrowAsync<InvalidOperationException>(() => invoker.SendAsync(request, Xunit.TestContext.Current.CancellationToken));
+            inner.Requests.ShouldBeEmpty();
+        }
+    }
+
+    [Fact]
     public async Task The_authority_comparison_ignores_case_and_the_path()
     {
         var (invoker, inner) = Create("https://Support.Example.com/base/");

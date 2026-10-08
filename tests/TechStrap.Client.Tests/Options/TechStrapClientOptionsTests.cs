@@ -10,8 +10,20 @@ public sealed class TechStrapClientOptionsTests
         var text = options.ToString();
 
         text.ShouldContain("TechStrapClientOptions");
-        text.ShouldContain("https://support.example.com/");
+        text.ShouldContain("https://support.example.com");
         text.ShouldNotContain("sk_live_topsecret");
+    }
+
+    [Fact]
+    public void Options_ToString_does_not_print_user_info_in_the_address()
+    {
+        var options = new TechStrapClientOptions { BaseAddress = new Uri("https://user:pw@h/") };
+
+        var text = options.ToString();
+
+        text.ShouldContain("https://h");
+        text.ShouldNotContain("pw");
+        text.ShouldNotContain("user");
     }
 
     [Fact]

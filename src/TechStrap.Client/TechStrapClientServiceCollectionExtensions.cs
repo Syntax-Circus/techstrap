@@ -59,13 +59,28 @@ public static class TechStrapClientServiceCollectionExtensions
             .RemoveAllLoggers()
             .ConfigureHttpClient((provider, client) =>
             {
-                client.BaseAddress = provider.GetRequiredService<IOptions<TechStrapClientOptions>>().Value.BaseAddress;
+                // A base address with a path ("https://host/support") would lose the path when the relative route is resolved against it, so the path ends with a slash.
+                var address = provider.GetRequiredService<IOptions<TechStrapClientOptions>>().Value.BaseAddress;
+                client.BaseAddress = address is { IsAbsoluteUri: true } && !address.AbsolutePath.EndsWith('/') ? new UriBuilder(address) { Path = address.AbsolutePath + "/" }.Uri : address;
 
                 // The resilience pipeline owns the deadline (the total budget in the options), so the HttpClient's own timeout stays off.
                 client.Timeout = Timeout.InfiniteTimeSpan;
                 client.MaxResponseContentBufferSize = TechStrapClientDefaults.MaxResponseBytes;
             })
             .AddHttpMessageHandler<ApiKeyHandler>()
+            .ConfigureAdditionalHttpMessageHandlers((handlers, _) =>
+            {
+                // Handlers from the host's ConfigureHttpClientDefaults (for example a standard resilience handler) are applied before this client's own and would sit outside the key handler: they would
+                // retry a call that has no idempotency key and could see the key header. Drop everything before the key handler; handlers registered on this client after AddTechStrapClient stay.
+                var keyHandler = handlers.Select((handler, index) => (handler, index)).FirstOrDefault(entry => entry.handler is ApiKeyHandler);
+                if (keyHandler.handler is not null)
+                {
+                    for (var index = keyHandler.index - 1; index >= 0; index--)
+                    {
+                        handlers.RemoveAt(index);
+                    }
+                }
+            })
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
 
         // One client for the process: it owns the resilience pipeline, so the circuit breaker is shared by every caller.
@@ -79,8 +94,14 @@ public static class TechStrapClientServiceCollectionExtensions
     {
         if (configuration[TechStrapClientOptions.BaseAddressKey] is { Length: > 0 } address)
         {
-            // An unparsable value leaves the address unset, so the validator reports it by name on first use.
-            options.BaseAddress = Uri.TryCreate(address.Trim(), UriKind.Absolute, out var uri) ? uri : null;
+            if (Uri.TryCreate(address.Trim(), UriKind.Absolute, out var uri))
+            {
+                options.BaseAddress = uri;
+            }
+            else
+            {
+                unreadable?.Add($"{TechStrapClientOptions.BaseAddressKey} must be an absolute http or https URL.");
+            }
         }
 
         if (configuration[TechStrapClientOptions.ApiKeyKey] is { } key)

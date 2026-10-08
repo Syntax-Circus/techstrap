@@ -18,7 +18,7 @@ public sealed class SubmitAgainstTheApiTests(TestPostgres postgres)
         await using var api = await ApiHarness.StartAsync(postgres);
         using var sdk = SdkHost.ForTestServer(api.Factory, api.Seed.OrbitlyTrusted);
 
-        var result = await sdk.Client.SubmitTicketAsync(Sample, null, Xunit.TestContext.Current.CancellationToken);
+        var result = await sdk.Client.SubmitTicketAsync(Sample, Xunit.TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.TicketNumber.ShouldBe("ORB-1");
@@ -35,7 +35,7 @@ public sealed class SubmitAgainstTheApiTests(TestPostgres postgres)
         await using var api = await ApiHarness.StartAsync(postgres);
         using var sdk = SdkHost.ForTestServer(api.Factory, api.Seed.OrbitlyPublic);
 
-        var result = await sdk.Client.SubmitTicketAsync(Sample, null, Xunit.TestContext.Current.CancellationToken);
+        var result = await sdk.Client.SubmitTicketAsync(Sample, Xunit.TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.Warnings.ShouldBe(["external-user-ref-ignored"]);
@@ -58,7 +58,7 @@ public sealed class SubmitAgainstTheApiTests(TestPostgres postgres)
         };
         using var sdk = SdkHost.ForTestServer(api.Factory, key);
 
-        var result = await sdk.Client.SubmitTicketAsync(Sample, null, Xunit.TestContext.Current.CancellationToken);
+        var result = await sdk.Client.SubmitTicketAsync(Sample, Xunit.TestContext.Current.CancellationToken);
 
         result.Errors.ShouldHaveSingleItem().Code.ShouldBe(TechStrapClientErrorCodes.InvalidApiKey);
         (await api.Database.ScalarAsync<long>("SELECT count(*) FROM tickets")).ShouldBe(0);
@@ -70,7 +70,7 @@ public sealed class SubmitAgainstTheApiTests(TestPostgres postgres)
         await using var api = await ApiHarness.StartAsync(postgres);
         using var sdk = SdkHost.ForTestServer(api.Factory, api.Seed.OrbitlyTrusted);
 
-        var result = await sdk.Client.SubmitTicketAsync(Sample with { Email = "not-an-email" }, null, Xunit.TestContext.Current.CancellationToken);
+        var result = await sdk.Client.SubmitTicketAsync(Sample with { Email = "not-an-email" }, Xunit.TestContext.Current.CancellationToken);
 
         var error = result.Errors.ShouldHaveSingleItem();
         error.Kind.ShouldBe(ResultErrorKind.Validation);
@@ -86,7 +86,7 @@ public sealed class SubmitAgainstTheApiTests(TestPostgres postgres)
         using var sdk = SdkHost.ForKestrel(api.Factory, api.Seed.OrbitlyTrusted);
         var oversized = Sample with { Body = new string('x', (int)IntakeRequestLimits.JsonBodyBytes + 1) };
 
-        var result = await sdk.Client.SubmitTicketAsync(oversized, null, Xunit.TestContext.Current.CancellationToken);
+        var result = await sdk.Client.SubmitTicketAsync(oversized, Xunit.TestContext.Current.CancellationToken);
 
         result.Errors.ShouldHaveSingleItem().Code.ShouldBe(TechStrapClientErrorCodes.PayloadTooLarge);
         (await api.Database.ScalarAsync<long>("SELECT count(*) FROM tickets")).ShouldBe(0);
@@ -98,8 +98,8 @@ public sealed class SubmitAgainstTheApiTests(TestPostgres postgres)
         await using var api = await ApiHarness.StartAsync(postgres, extraSettings: new Dictionary<string, string?> { ["RateLimiting:Intake:TrustedKeyPermitLimit"] = "1" });
         using var sdk = SdkHost.ForTestServer(api.Factory, api.Seed.OrbitlyTrusted);
 
-        (await sdk.Client.SubmitTicketAsync(Sample, null, Xunit.TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
-        var second = await sdk.Client.SubmitTicketAsync(Sample, null, Xunit.TestContext.Current.CancellationToken);
+        (await sdk.Client.SubmitTicketAsync(Sample, Xunit.TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        var second = await sdk.Client.SubmitTicketAsync(Sample, Xunit.TestContext.Current.CancellationToken);
 
         second.Errors.ShouldHaveSingleItem().Code.ShouldBe(TechStrapClientErrorCodes.RateLimited);
         (await api.Database.ScalarAsync<long>("SELECT count(*) FROM tickets")).ShouldBe(1);

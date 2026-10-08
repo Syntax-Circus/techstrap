@@ -21,7 +21,7 @@ public sealed partial class SubmitRetryTests
         using var fixture = new ClientFixture();
         fixture.Stub.Respond(status).Respond(status).Created();
 
-        var result = await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken);
+        var result = await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         fixture.Stub.Requests.Count.ShouldBe(3);
@@ -40,7 +40,7 @@ public sealed partial class SubmitRetryTests
         using var fixture = new ClientFixture();
         fixture.Stub.Respond(status, "{}", "application/problem+json").Created();
 
-        var result = await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken);
+        var result = await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
 
         result.IsFailure.ShouldBeTrue();
         fixture.Stub.Requests.Count.ShouldBe(1);
@@ -52,7 +52,7 @@ public sealed partial class SubmitRetryTests
         using var fixture = new ClientFixture(o => o.MaxAttempts = 4);
         fixture.Stub.Throw(() => new HttpRequestException("down"), times: 4).Created();
 
-        var result = await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken);
+        var result = await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
 
         result.Errors.ShouldHaveSingleItem().Code.ShouldBe(TechStrapClientErrorCodes.ApiUnavailable);
         fixture.Stub.Requests.Count.ShouldBe(4);
@@ -64,7 +64,7 @@ public sealed partial class SubmitRetryTests
         using var fixture = new ClientFixture();
         fixture.Stub.Throw(() => new HttpRequestException("down")).Created();
 
-        var result = await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken);
+        var result = await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         fixture.Stub.Requests.Count.ShouldBe(2);
@@ -76,7 +76,7 @@ public sealed partial class SubmitRetryTests
         using var fixture = new ClientFixture(o => o.MaxAttempts = 1);
         fixture.Stub.Respond(HttpStatusCode.ServiceUnavailable).Created();
 
-        var result = await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken);
+        var result = await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
 
         result.Errors.ShouldHaveSingleItem().Code.ShouldBe(TechStrapClientErrorCodes.ApiUnavailable);
         fixture.Stub.Requests.Count.ShouldBe(1);
@@ -88,7 +88,7 @@ public sealed partial class SubmitRetryTests
         using var fixture = new ClientFixture(o => o.MaxAttempts = 2);
         fixture.Stub.Respond(HttpStatusCode.ServiceUnavailable, times: 5);
 
-        await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken);
+        await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
 
         fixture.Stub.Requests.Count.ShouldBe(2);
     }
@@ -124,8 +124,8 @@ public sealed partial class SubmitRetryTests
         using var fixture = new ClientFixture();
         fixture.Stub.Respond(HttpStatusCode.ServiceUnavailable).Created().Created();
 
-        await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken);
-        await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken);
+        await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
+        await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
 
         var keys = fixture.Stub.Requests.Select(r => r.Header(HeaderNames.IdempotencyKey)!).ToList();
         keys.Count.ShouldBe(3);
@@ -191,7 +191,7 @@ public sealed partial class SubmitRetryTests
         using var fixture = new ClientFixture();
         fixture.Stub.Respond(HttpStatusCode.ServiceUnavailable, times: 2).Created();
 
-        await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken);
+        await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
 
         var sent = fixture.Stub.Requests;
         sent.Count.ShouldBe(3);

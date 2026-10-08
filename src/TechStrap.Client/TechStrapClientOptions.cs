@@ -42,6 +42,6 @@ public sealed class TechStrapClientOptions
     /// <summary>The longest wait between two tries.</summary>
     public TimeSpan MaxRetryDelay { get; set; } = TimeSpan.FromSeconds(5);
 
-    /// <summary>The type name and the address only, never the key.</summary>
-    public override string ToString() => $"{nameof(TechStrapClientOptions)} {{ {nameof(BaseAddress)} = {BaseAddress} }}";
+    /// <summary>The type name and the address (scheme, host and port) only, never the key or any user info.</summary>
+    public override string ToString() => $"{nameof(TechStrapClientOptions)} {{ {nameof(BaseAddress)} = {(BaseAddress is { IsAbsoluteUri: true } ? ApiKeyHandler.Authority(BaseAddress) : null)} }}";
 }

@@ -12,7 +12,7 @@ public sealed class SubmitBudgetAndCircuitTests
         using var fixture = new ClientFixture(o => o.Timeout = TimeSpan.FromSeconds(10), fakeTime: true);
         fixture.Stub.Hang();
 
-        var call = fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken);
+        var call = fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
         await fixture.Stub.Received.WaitAsync(Xunit.TestContext.Current.CancellationToken);
         call.IsCompleted.ShouldBeFalse();
         fixture.Time!.Advance(TimeSpan.FromSeconds(11));
@@ -43,19 +43,19 @@ public sealed class SubmitBudgetAndCircuitTests
 
         for (var i = 0; i < ResilienceDefaults.CircuitMinimumThroughput; i++)
         {
-            (await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken)).IsFailure.ShouldBeTrue();
+            (await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken)).IsFailure.ShouldBeTrue();
         }
 
         fixture.Stub.Requests.Count.ShouldBe(ResilienceDefaults.CircuitMinimumThroughput);
 
-        var blocked = await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken);
+        var blocked = await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
 
         blocked.Errors.ShouldHaveSingleItem().Code.ShouldBe(TechStrapClientErrorCodes.ApiUnavailable);
         fixture.Stub.Requests.Count.ShouldBe(ResilienceDefaults.CircuitMinimumThroughput);
 
         fixture.Time!.Advance(ResilienceDefaults.CircuitBreakDuration + TimeSpan.FromSeconds(1));
         fixture.Stub.Created();
-        var recovered = await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken);
+        var recovered = await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
 
         recovered.IsSuccess.ShouldBeTrue();
         fixture.Stub.Requests.Count.ShouldBe(ResilienceDefaults.CircuitMinimumThroughput + 1);
@@ -68,7 +68,7 @@ public sealed class SubmitBudgetAndCircuitTests
         fixture.Stub.Hang();
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(Xunit.TestContext.Current.CancellationToken);
 
-        var call = fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, cts.Token);
+        var call = fixture.Client.SubmitTicketAsync(ClientFixture.Request(), cts.Token);
         await fixture.Stub.Received.WaitAsync(Xunit.TestContext.Current.CancellationToken);
         await cts.CancelAsync();
 
@@ -84,7 +84,7 @@ public sealed class SubmitBudgetAndCircuitTests
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(Xunit.TestContext.Current.CancellationToken);
         await cts.CancelAsync();
 
-        await Should.ThrowAsync<OperationCanceledException>(() => fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, cts.Token));
+        await Should.ThrowAsync<OperationCanceledException>(() => fixture.Client.SubmitTicketAsync(ClientFixture.Request(), cts.Token));
         await Should.ThrowAsync<OperationCanceledException>(() => fixture.Client.SubmitTicketOnceAsync(ClientFixture.Request(), cts.Token));
 
         fixture.Stub.Requests.ShouldBeEmpty();
@@ -97,7 +97,7 @@ public sealed class SubmitBudgetAndCircuitTests
         fixture.Stub.Respond(HttpStatusCode.ServiceUnavailable, times: ResilienceDefaults.CircuitMinimumThroughput);
         for (var i = 0; i < ResilienceDefaults.CircuitMinimumThroughput; i++)
         {
-            await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken);
+            await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
         }
 
         var blocked = await fixture.Client.SubmitTicketOnceAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
@@ -117,7 +117,7 @@ public sealed class SubmitBudgetAndCircuitTests
             throw new HttpRequestException("down");
         });
 
-        await Should.ThrowAsync<OperationCanceledException>(() => fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, cts.Token));
+        await Should.ThrowAsync<OperationCanceledException>(() => fixture.Client.SubmitTicketAsync(ClientFixture.Request(), cts.Token));
     }
 
     [Fact(Timeout = 10_000)]
@@ -125,7 +125,7 @@ public sealed class SubmitBudgetAndCircuitTests
     {
         using var fixture = new ClientFixture();
 
-        await Should.ThrowAsync<ArgumentNullException>(() => fixture.Client.SubmitTicketAsync(null!, null, Xunit.TestContext.Current.CancellationToken));
+        await Should.ThrowAsync<ArgumentNullException>(() => fixture.Client.SubmitTicketAsync(null!, Xunit.TestContext.Current.CancellationToken));
         await Should.ThrowAsync<ArgumentNullException>(() => fixture.Client.SubmitTicketOnceAsync(null!, Xunit.TestContext.Current.CancellationToken));
     }
 
@@ -134,7 +134,7 @@ public sealed class SubmitBudgetAndCircuitTests
     {
         using var fixture = new ClientFixture(o => o.ApiKey = null);
 
-        var failure = await Should.ThrowAsync<OptionsValidationException>(() => fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken));
+        var failure = await Should.ThrowAsync<OptionsValidationException>(() => fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken));
 
         failure.Message.ShouldContain("ApiKey");
         fixture.Stub.Requests.ShouldBeEmpty();

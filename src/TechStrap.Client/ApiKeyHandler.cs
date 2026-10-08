@@ -9,11 +9,14 @@ namespace TechStrap.Client;
 /// </summary>
 internal sealed class ApiKeyHandler(IOptions<TechStrapClientOptions> options) : DelegatingHandler
 {
+    /// <summary>Scheme, host and port (a default port is left out), never user info, so a message that names it cannot leak a credential embedded in an address.</summary>
+    internal static string Authority(Uri uri) => uri.GetComponents(UriComponents.SchemeAndServer, UriFormat.UriEscaped);
+
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var settings = options.Value;
-        var expected = settings.BaseAddress!.GetLeftPart(UriPartial.Authority);
-        var actual = request.RequestUri?.GetLeftPart(UriPartial.Authority);
+        var expected = Authority(settings.BaseAddress!);
+        var actual = request.RequestUri is { IsAbsoluteUri: true } uri ? Authority(uri) : null;
 
         if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
         {

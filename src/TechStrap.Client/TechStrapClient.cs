@@ -22,17 +22,22 @@ internal sealed class TechStrapClient(IHttpClientFactory httpClients, IOptions<T
     private readonly Lock _gate = new();
     private HttpRequestResiliencePipeline? _pipeline;
 
-    public Task<Result<SubmitTicketResponse>> SubmitTicketAsync(SubmitTicketRequest request, string? idempotencyKey = null, CancellationToken ct = default)
+    public Task<Result<SubmitTicketResponse>> SubmitTicketAsync(SubmitTicketRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var key = idempotencyKey is null ? Guid.NewGuid().ToString("N") : ValidateKey(idempotencyKey);
-        return SendAsync(request, key, HttpRequestReplaySafety.Replayable, ct);
+        return SendAsync(request, Guid.NewGuid().ToString("N"), HttpRequestReplaySafety.Replayable, cancellationToken);
     }
 
-    public Task<Result<SubmitTicketResponse>> SubmitTicketOnceAsync(SubmitTicketRequest request, CancellationToken ct = default)
+    public Task<Result<SubmitTicketResponse>> SubmitTicketAsync(SubmitTicketRequest request, string idempotencyKey, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return SendAsync(request, null, HttpRequestReplaySafety.NotReplayable, ct);
+        return SendAsync(request, ValidateKey(idempotencyKey), HttpRequestReplaySafety.Replayable, cancellationToken);
+    }
+
+    public Task<Result<SubmitTicketResponse>> SubmitTicketOnceAsync(SubmitTicketRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return SendAsync(request, null, HttpRequestReplaySafety.NotReplayable, cancellationToken);
     }
 
     private static string ValidateKey(string idempotencyKey)

@@ -69,11 +69,10 @@ public sealed class AddTechStrapClientTests
     }
 
     [Fact]
-    public void Missing_configuration_keys_keep_their_defaults_and_a_junk_address_is_reported_by_the_validator()
+    public void A_missing_base_address_key_is_reported_by_the_validator_on_first_use()
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["BaseAddress"] = "not a url",
             ["ApiKey"] = "sk_live_0123456789abcdef",
         }).Build();
         using var provider = Build(services => services.AddTechStrapClient(configuration));

@@ -13,12 +13,37 @@ public sealed class SubmitRequestShapeTests
         using var fixture = new ClientFixture();
         fixture.Stub.Created();
 
-        await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken);
+        await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
 
         // Seeing the request here also proves the stub replaced the default SocketsHttpHandler as the primary handler.
         var sent = fixture.Stub.Requests.ShouldHaveSingleItem();
         sent.Method.ShouldBe(HttpMethod.Post);
         sent.Uri.ShouldBe(new Uri(ClientFixture.BaseAddress, IntakeRoutes.Tickets));
+    }
+
+    [Theory(Timeout = 10_000)]
+    [InlineData("https://h/support")]
+    [InlineData("https://h/support/")]
+    public async Task A_base_address_path_is_kept_with_or_without_a_trailing_slash(string baseAddress)
+    {
+        using var fixture = new ClientFixture(options => options.BaseAddress = new Uri(baseAddress));
+        fixture.Stub.Created();
+
+        await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
+
+        fixture.Stub.Requests.ShouldHaveSingleItem().Uri.ShouldBe(new Uri("https://h/support/" + IntakeRoutes.Tickets));
+    }
+
+    [Fact(Timeout = 10_000)]
+    public async Task Submitting_with_only_a_cancellation_token_compiles_and_generates_a_key()
+    {
+        using var fixture = new ClientFixture();
+        fixture.Stub.Created();
+        var ct = Xunit.TestContext.Current.CancellationToken;
+
+        await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), ct);
+
+        fixture.Stub.Requests.ShouldHaveSingleItem().Header(HeaderNames.IdempotencyKey).ShouldNotBeNullOrWhiteSpace();
     }
 
     [Fact(Timeout = 10_000)]

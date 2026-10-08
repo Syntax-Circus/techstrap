@@ -17,13 +17,14 @@ public sealed class IdempotencyAgainstTheApiTests(TestPostgres postgres)
         var lost = new LoseFirstResponseHandler();
         using var sdk = SdkHost.ForTestServer(api.Factory, api.Seed.OrbitlyTrusted, lost);
 
-        var result = await sdk.Client.SubmitTicketAsync(Sample, null, Xunit.TestContext.Current.CancellationToken);
+        var result = await sdk.Client.SubmitTicketAsync(Sample, Xunit.TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.TicketNumber.ShouldBe("ORB-1");
         lost.IdempotencyKeys.Count.ShouldBe(2);
         lost.IdempotencyKeys[0].ShouldNotBeNullOrWhiteSpace();
         lost.IdempotencyKeys[1].ShouldBe(lost.IdempotencyKeys[0]);
+        lost.ApiKeyPresent.ShouldBe([true, true]);
         (await api.Database.ScalarAsync<long>("SELECT count(*) FROM tickets")).ShouldBe(1);
     }
 

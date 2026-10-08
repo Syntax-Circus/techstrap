@@ -10,7 +10,7 @@ namespace TechStrap.Architecture.Tests;
 /// </summary>
 public static partial class WireLiteralRules
 {
-    public static IReadOnlyList<string> Literals { get; } = ["X-Api-Key", "X-Ticket-Token", "Idempotency-Key", "api/intake/tickets"];
+    public static IReadOnlyList<string> Literals { get; } = ["X-Api-Key", "X-Ticket-Token", "Idempotency-Key", "api/intake/tickets", "/api/intake/tickets"];
 
     /// <summary>Repository-relative paths (forward slashes) that may hold the literals.</summary>
     public static IReadOnlyList<string> AllowedPaths { get; } =

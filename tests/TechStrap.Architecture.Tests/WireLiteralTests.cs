@@ -18,6 +18,7 @@ public sealed class WireLiteralTests
     [InlineData("X-Ticket-Token")]
     [InlineData("Idempotency-Key")]
     [InlineData("api/intake/tickets")]
+    [InlineData("/api/intake/tickets")]
     public void Each_wire_literal_is_flagged(string literal)
     {
         WireLiteralRules.Evaluate([("src/TechStrap.Api/Bad.cs", $"var x = \"{literal}\";")]).ShouldHaveSingleItem();

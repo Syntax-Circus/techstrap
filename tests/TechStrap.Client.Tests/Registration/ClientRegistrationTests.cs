@@ -79,6 +79,7 @@ public sealed class ClientRegistrationTests
 
         client.MaxResponseContentBufferSize.ShouldBe(TechStrapClientDefaults.MaxResponseBytes);
     }
+
     [Fact]
     public void The_configuration_overload_registers_the_client_too()
     {
@@ -105,16 +106,17 @@ public sealed class ClientRegistrationTests
         failure.Message.ShouldNotContain(Key);
     }
 
-    [Fact]
-    public void A_relative_base_address_is_left_unset_for_the_validator_to_report()
+    [Theory]
+    [InlineData("/just/a/path")]
+    [InlineData("not a uri")]
+    public void An_unparsable_base_address_fails_at_registration_and_names_the_key_not_the_value(string value)
     {
-        var configuration = Config(("BaseAddress", "/just/a/path"), ("ApiKey", Key));
-        var services = new ServiceCollection();
-        services.AddTechStrapClient(configuration);
-        using var provider = services.BuildServiceProvider();
+        var configuration = Config(("BaseAddress", value), ("ApiKey", Key));
 
-        var failure = Should.Throw<OptionsValidationException>(() => provider.GetRequiredService<IOptions<TechStrapClientOptions>>().Value);
+        var failure = Should.Throw<OptionsValidationException>(() => new ServiceCollection().AddTechStrapClient(configuration));
 
         failure.Message.ShouldContain("BaseAddress");
+        failure.Message.ShouldNotContain(value);
+        failure.Message.ShouldNotContain(Key);
     }
 }

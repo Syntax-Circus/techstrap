@@ -12,11 +12,17 @@ internal sealed class LoseFirstResponseHandler : DelegatingHandler
     private readonly ConcurrentQueue<string?> _keys = new();
     private int _calls;
 
+    private readonly ConcurrentQueue<bool> _apiKeyPresent = new();
+
     public IReadOnlyList<string?> IdempotencyKeys => [.. _keys];
+
+    /// <summary>Whether each request that reached this handler carried the API key header.</summary>
+    public IReadOnlyList<bool> ApiKeyPresent => [.. _apiKeyPresent];
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         _keys.Enqueue(request.Headers.TryGetValues(HeaderNames.IdempotencyKey, out var values) ? values.Single() : null);
+        _apiKeyPresent.Enqueue(request.Headers.Contains(HeaderNames.ApiKey));
         var response = await base.SendAsync(request, cancellationToken);
         if (Interlocked.Increment(ref _calls) == 1)
         {
