@@ -51,7 +51,7 @@ Where this page and D-050 differ, D-050 wins. The build differs from the text ab
 - **Redirects.** Only GET and HEAD are redirected; the same-host canonical redirect is an absolute `https://{storedHost}/...`.
 - **No interactive circuit.** The Portal is static SSR; there is no circuit to test on a product host.
 - **Sitemap and robots.** The static `/` sitemap entry moved into the provider; `robots.txt` on a product host names the default host's sitemap (`SyntaxCircus.Blazor.Seo` builds it from `SeoOptions.BaseUrl`).
-- **Known limits** are listed in D-050 (unique-index race, `IsArticleLink`, no `Cache-Control` on the 301s, unbounded output-cache keys per Host value, the 60 s snapshot against a fresh sitemap list).
+- **Known limits** are listed in D-050 (unique-index race, `IsArticleLink`, no `Cache-Control` on the 301s, unbounded output-cache keys per Host value, a pre-11e caller clearing a host, Contracts binary compatibility).
 
 ## Application Boundaries
 
@@ -131,7 +131,7 @@ upgraded in this phase.
 
 ## Success Criteria
 
-- [x] A product with `PortalHost` set is reachable at `https://{host}/` with clean paths (`/`, `/contact`, `/kb/...`, `/t/{token}`); its emails and Admin "View on portal" link there; the default host answers `/p/{key}/...` for that product with a 301 to the clean URL.
+- [x] A product with `PortalHost` set is reachable at `https://{host}/` with clean paths (`/`, `/contact`, `/kb/...`, `/t/{token}`); its emails and Admin "View on portal" link there; the default host answers `/p/{key}/...` for that product with a 301 to the clean URL. **As built (11e):** verified by unit and host tests; the compose check exercised the same-host 301.
 - [x] A product without a host is unchanged: served on the default host under `/p/{key}`, and the default product at `/`.
 - [x] An unknown or hostile `Host` header behaves as the default host and leaks nothing: no Host-derived text in any URL, header, body, log line or redirect target.
 - [x] Setting an invalid or duplicate host in the Admin fails with `product-host-invalid` or `product-host-taken` and a clear field message; hosts are stored lowercase and are unique case-insensitively.
@@ -160,15 +160,15 @@ upgraded in this phase.
 
 ## Risks and Open Questions
 
-- [ ] **Caddy and DNS per host is operator work.** Each product host needs a DNS record and a Caddy site proxying to the Portal; it belongs to the PHASE-12 UAT configuration, documented in DEPLOYMENT.md here.
-- [ ] **HSTS `includeSubDomains` interplay.** A product host under the same registrable domain as another site inherits HSTS from a parent that sets `includeSubDomains`. Documented in DEPLOYMENT.md; confirm with the owner for each real host.
-- [ ] **Output-cache key growth per host.** Varying by host multiplies entries by the number of hosts. Product hosts are few and the unknown-host case renders the default host's pages, but unknown hosts still add cache keys per distinct `Host` value; confirm the cache has a size bound, or key unknown hosts to one variant.
-- [ ] **Api load from unknown hosts.** Every unknown host triggers a `GET api/public/products` refresh; bounded to one per 10 s by the refresh rule, and tested.
-- [ ] **Blazor base URI on a rewritten path.** The circuit URL and the displayed URL can differ after a rewrite. The rewrite must happen before `UseRouting` and the Blazor hub must still connect; the host tests (P11e-T05) verify an interactive page on a product host, including `NavigationManager` navigation to a clean link.
-- [ ] **Sitemap discoverability.** A product with a host is no longer in the default host's sitemap (intended); its own host serves its sitemap and `robots.txt`.
-- [ ] **D-002 cost accepted.** D-002 warned that per-product domains multiply the TLS and DNS burden; D-050 accepts that cost for products that ask for a host.
-- [ ] **Host changes break old links.** Changing or clearing a product's `PortalHost` leaves emailed links to the old host dead until DNS is removed; the old host then falls to default-host behaviour. Operators should keep the old host's Caddy site until old links age out (**Assumption**: no redirect table is kept).
-- [ ] **Local development.** Host-based behaviour is tested with the test server and a hosts-file entry; `http://localhost:8082` stays the default host.
+- [x] **Caddy and DNS per host is operator work.** Each product host needs a DNS record and a Caddy site proxying to the Portal; it belongs to the PHASE-12 UAT configuration, documented in DEPLOYMENT.md here.
+- [x] **HSTS `includeSubDomains` interplay.** A product host under the same registrable domain as another site inherits HSTS from a parent that sets `includeSubDomains`. Documented in DEPLOYMENT.md; confirm with the owner for each real host.
+- [x] **Output-cache key growth per host.** Varying by host multiplies entries by the number of hosts. Product hosts are few and the unknown-host case renders the default host's pages, but unknown hosts still add cache keys per distinct `Host` value; confirm the cache has a size bound, or key unknown hosts to one variant. **As built (11e):** not bounded; deferred to PHASE-12 hardening (D-050 known limit).
+- [x] **Api load from unknown hosts.** Every unknown host triggers a `GET api/public/products` refresh; bounded to one per 10 s by the refresh rule, and tested.
+- [x] **Blazor base URI on a rewritten path.** The circuit URL and the displayed URL can differ after a rewrite. The rewrite must happen before `UseRouting` and the Blazor hub must still connect; the host tests (P11e-T05) verify an interactive page on a product host, including `NavigationManager` navigation to a clean link. **As built (11e):** the Portal is static SSR with no interactive page and no circuit, so there is no hub to connect; the host tests cover the rewrite and the clean links.
+- [x] **Sitemap discoverability.** A product with a host is no longer in the default host's sitemap (intended); its own host serves its sitemap and `robots.txt`. **As built (11e):** its own host serves its sitemap, but `robots.txt` on a product host names the default host's sitemap (D-050 known limit).
+- [x] **D-002 cost accepted.** D-002 warned that per-product domains multiply the TLS and DNS burden; D-050 accepts that cost for products that ask for a host.
+- [x] **Host changes break old links.** Changing or clearing a product's `PortalHost` leaves emailed links to the old host dead until DNS is removed; the old host then falls to default-host behaviour. Operators should keep the old host's Caddy site until old links age out (**Assumption**: no redirect table is kept). **As built (11e):** keeping the old host's Caddy site preserves `/t/` links only; old help-centre links on it answer 404 (D-050).
+- [x] **Local development.** Host-based behaviour is tested with the test server and a hosts-file entry; `http://localhost:8082` stays the default host.
 
 ## Handoff
 

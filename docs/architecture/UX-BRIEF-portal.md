@@ -19,8 +19,9 @@
 
 - **Application purpose:** `TechStrap.Portal` is the public Blazor SSR site of
   TechStrap, a self-hosted helpdesk for one company supporting many products.
-  One portal deployment serves every product under `/p/{key}` on the default host, and a product may have its own host with clean paths (D-050). Customers use it to
-  find help (knowledge base), contact support, and follow a conversation about
+  One portal deployment serves every product under `/p/{key}` on the default
+  host, and a product may have its own host with clean paths (D-050). Customers
+  use it to find help (knowledge base), contact support, and follow a conversation about
   their ticket without creating an account.
 - **Primary business/user outcome:** a customer either finds the answer without
   opening a ticket (deflection), or submits a ticket in under a minute, knows it

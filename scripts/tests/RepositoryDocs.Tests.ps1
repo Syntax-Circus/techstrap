@@ -808,6 +808,19 @@ Describe 'D-050 (product hosts)' {
         }
     }
 
+    It 'does not overstate what survives a host change and states the setup order' {
+        $section = ($script:Log -split '(?m)^## D-050:')[1]
+        $section | Should -Not -Match 'never breaks a ticket link'
+        $section | Should -Not -Match 'disagree for up to 60'
+        $section | Should -Match 'product-host-reserved'
+        $deploy = Get-RepoText 'docs/self-hosting/DEPLOYMENT.md'
+        $deploy | Should -Not -Match 'so they keep working on the default host'
+        $deploy | Should -Match 'preserves `/t/` links only'
+        $deploy | Should -Match '(?s)Only then set the "Portal host" field'
+        $deploy | Should -Match '<TECHSTRAP_PORTAL_PORT>'
+        (Get-RepoText 'docs/development/PORTAL-APP.md') | Should -Not -Match 'ticket link keeps working after a host change'
+    }
+
     It 'has the 11e row in the roadmap and the discovery index' {
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11e \|.*D-050.*\| 11e complete \(pending merge\)'
         (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11e \|.*\| 11e complete \(pending merge\)'
