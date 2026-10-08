@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/TechStrap.Client.Maui/TechStrap.Client.Maui.csproj" />
+    <ProjectReference Include="../../src/TechStrap.Client/TechStrap.Client.csproj" />
+    <ProjectReference Include="../../src/TechStrap.Contracts/TechStrap.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- To compile against the Essentials interfaces the helper reads. BuildServiceProvider comes transitively through TechStrap.Client, as in TechStrap.Client.Tests. -->
+    <PackageReference Include="Microsoft.Maui.Essentials" />
+  </ItemGroup>
+
+</Project>
