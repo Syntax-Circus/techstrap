@@ -1,17 +1,15 @@
-using Microsoft.Extensions.DependencyInjection.Extensions;
-
 namespace TechStrap.Portal.Hosting;
 
 /// <summary>Registers and uses the product hosts (PHASE-11e).</summary>
 public static class ProductHostRegistration
 {
-    /// <summary>The host map (one for the process), its resolver and the per-request <see cref="ProductHostContext"/>. The clock is the system's unless a test registers its own.</summary>
+    /// <summary>The host map (one for the process), its resolver and the per-request <see cref="ProductHostContext"/>. The context is read from the request, not made by the scope: the not-found and error pages are re-executed in a scope of their own and must see the same host. The host map needs the application's TimeProvider (registered by the host).</summary>
     public static IServiceCollection AddProductHosts(this IServiceCollection services)
     {
-        services.TryAddSingleton(TimeProvider.System);
+        services.AddHttpContextAccessor();
         services.AddSingleton<ProductHostMap>();
         services.AddSingleton<IProductHostResolver, ProductHostResolver>();
-        services.AddScoped<ProductHostContext>();
+        services.AddScoped(provider => provider.GetRequiredService<IHttpContextAccessor>().HttpContext?.Features.Get<ProductHostContext>() ?? new ProductHostContext());
         return services;
     }
 

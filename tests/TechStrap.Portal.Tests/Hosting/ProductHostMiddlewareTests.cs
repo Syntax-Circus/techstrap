@@ -37,7 +37,7 @@ public sealed class ProductHostMiddlewareTests
         services.AddScoped(_ => client);
         var provider = services.BuildServiceProvider();
         var options = Options.Create(new PortalOptions { PublicUrl = PublicUrl + "/", ApiBaseUrl = "http://api.test/" });
-        var map = new ProductHostMap(provider.GetRequiredService<IServiceScopeFactory>(), new FakeTimeProvider(), NullLogger<ProductHostMap>.Instance);
+        var map = new ProductHostMap(provider.GetRequiredService<IServiceScopeFactory>(), new FakeTimeProvider(), NullLogger<ProductHostMap>.Instance, new HttpContextAccessor());
         var resolver = new ProductHostResolver(map, options);
 
         var http = new DefaultHttpContext { RequestAborted = ct };
@@ -45,7 +45,6 @@ public sealed class ProductHostMiddlewareTests
         http.Request.Host = new HostString(host);
         http.Request.Path = path;
         http.Request.QueryString = new QueryString(query);
-        var context = new ProductHostContext();
         var nextCalled = false;
         string? nextPath = null;
         string? nextQuery = null;
@@ -55,8 +54,8 @@ public sealed class ProductHostMiddlewareTests
             nextPath = next.Request.Path.Value;
             nextQuery = next.Request.QueryString.Value;
             return Task.CompletedTask;
-        }).InvokeAsync(http, resolver, context, map, options);
-        return new Outcome(http, context, nextCalled, nextPath, nextQuery);
+        }).InvokeAsync(http, resolver, map, options);
+        return new Outcome(http, http.Features.Get<ProductHostContext>().ShouldNotBeNull(), nextCalled, nextPath, nextQuery);
     }
 
     [Theory(Timeout = 30_000)]
@@ -261,21 +260,20 @@ public sealed class ProductHostMiddlewareTests
         outcome.Context.Host.ShouldBe(DragonHost);
     }
 
-    [Theory(Timeout = 30_000)]
+    [Theory]
     [InlineData("/p/dragon-poop", "dragon-poop", "")]
     [InlineData("/p/dragon-poop/", "dragon-poop", "/")]
     [InlineData("/p/dragon-poop/kb/a", "dragon-poop", "/kb/a")]
     [InlineData("/P/Dragon-Poop/kb", "Dragon-Poop", "/kb")]
     public void TryStripProductPrefix_splits_the_key_and_the_rest(string path, string key, string rest)
     {
-        var ct = TestContext.Current.CancellationToken;
         PortalRoutes.TryStripProductPrefix(path, out var actualKey, out var actualRest).ShouldBeTrue();
 
         actualKey.ShouldBe(key);
         (actualRest.Value ?? string.Empty).ShouldBe(rest);
     }
 
-    [Theory(Timeout = 30_000)]
+    [Theory]
     [InlineData("/")]
     [InlineData("/p")]
     [InlineData("/p/")]
@@ -284,7 +282,6 @@ public sealed class ProductHostMiddlewareTests
     [InlineData("/t/p/x")]
     public void TryStripProductPrefix_rejects_other_paths(string path)
     {
-        var ct = TestContext.Current.CancellationToken;
         PortalRoutes.TryStripProductPrefix(path, out _, out _).ShouldBeFalse();
     }
 }

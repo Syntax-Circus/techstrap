@@ -95,6 +95,19 @@ public sealed class ProductHostHostTests
     }
 
     [Fact(Timeout = 30_000)]
+    public async Task An_unknown_path_on_a_product_host_is_the_not_found_page()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var factory = Host();
+        using var client = Client(factory);
+
+        var (response, body) = await SendAsync(ct, client, "/nope", DragonHost);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        body.ShouldContain("Page not found");
+    }
+
+    [Fact(Timeout = 30_000)]
     public async Task A_ticket_page_is_served_on_any_host()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -148,6 +161,7 @@ public sealed class ProductHostHostTests
         onProduct.StatusCode.ShouldBe(onDefault.StatusCode, "the hub path is not rewritten or redirected");
         onProduct.StatusCode.ShouldNotBe(HttpStatusCode.MovedPermanently);
     }
+
     [Fact(Timeout = 30_000)]
     public async Task A_post_on_a_product_host_is_rewritten_not_redirected()
     {

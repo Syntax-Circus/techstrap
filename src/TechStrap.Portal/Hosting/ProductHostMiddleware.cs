@@ -15,17 +15,16 @@ namespace TechStrap.Portal.Hosting;
 /// </summary>
 public sealed class ProductHostMiddleware(RequestDelegate next)
 {
-    /// <summary>The paths every host serves as they are (the ticket pages, the framework and static assets, the SEO files, the health checks and the host's own error pages).</summary>
+    /// <summary>The paths every host serves as they are, by whole segment (the ticket pages, the framework and static assets, the SEO files, the health checks and the host's own error pages).</summary>
     public static readonly IReadOnlyList<string> PassThroughPrefixes =
     [
-        $"{PortalRoutes.TicketPrefix}/",
+        PortalRoutes.TicketPrefix,
         PortalRoutes.FrameworkPrefix,
         PortalRoutes.BlazorPrefix,
         PortalRoutes.ContentPrefix,
         PortalRoutes.CssPrefix,
         PortalRoutes.JsPrefix,
         PortalRoutes.ImgPrefix,
-        PortalRoutes.FaviconPrefix,
         PortalRoutes.SitemapPath,
         PortalRoutes.RobotsPath,
         PortalRoutes.HealthPrefix,
@@ -43,12 +42,11 @@ public sealed class ProductHostMiddleware(RequestDelegate next)
         PortalRoutes.SuggestPath,
     ];
 
-    /// <summary>Resolves the request's host, fills the scoped <paramref name="productHost"/>, then rewrites or redirects.</summary>
-    public async Task InvokeAsync(HttpContext context, IProductHostResolver resolver, ProductHostContext productHost, ProductHostMap map, IOptions<PortalOptions> options)
+    /// <summary>Resolves the request's host and keeps the result on the request (<see cref="ProductHostRegistration"/> hands it to every scope), then rewrites or redirects.</summary>
+    public async Task InvokeAsync(HttpContext context, IProductHostResolver resolver, ProductHostMap map, IOptions<PortalOptions> options)
     {
-        var resolved = await resolver.ResolveAsync(context, context.RequestAborted);
-        productHost.Key = resolved.Key;
-        productHost.Host = resolved.Host;
+        var productHost = await resolver.ResolveAsync(context, context.RequestAborted);
+        context.Features.Set(productHost);
 
         var request = context.Request;
         if (PortalRoutes.TryStripProductPrefix(request.Path, out var key, out var rest))
@@ -91,6 +89,11 @@ public sealed class ProductHostMiddleware(RequestDelegate next)
             : null;
     }
 
+    // Whole segments: /css and /css/app.css, not /cssx. The favicon files (/favicon.ico, /favicon-32.png) share a name prefix instead.
+    private static bool IsPassThrough(PathString path) =>
+        PassThroughPrefixes.Any(prefix => path.StartsWithSegments(prefix, StringComparison.OrdinalIgnoreCase))
+        || (path.Value?.StartsWith(PortalRoutes.FaviconPrefix, StringComparison.OrdinalIgnoreCase) ?? false);
+
     private static bool TryRewrite(PathString path, string key, out PathString rewritten)
     {
         rewritten = default;
@@ -101,7 +104,7 @@ public sealed class ProductHostMiddleware(RequestDelegate next)
             return true;
         }
 
-        if (PassThroughPrefixes.Any(prefix => value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+        if (IsPassThrough(path))
         {
             return false;
         }

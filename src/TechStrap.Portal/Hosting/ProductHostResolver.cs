@@ -25,7 +25,7 @@ public sealed class ProductHostResolver(ProductHostMap map, IOptions<PortalOptio
             return resolved;
         }
 
-        var key = await map.FindKeyAsync(host, refreshOnMiss: true, cancellationToken);
+        var key = await map.FindKeyAsync(host, cancellationToken);
         if (key is not null && map.TryGetHost(key, out var stored))
         {
             resolved.Key = key;
