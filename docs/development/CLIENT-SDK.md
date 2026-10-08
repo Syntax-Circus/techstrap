@@ -179,7 +179,7 @@ Docker is required for any run of this project today: the linked `TestPostgres` 
 `TechStrap.Client.Maui` (11b, D-048) adds two things on top of `TechStrap.Client`: a collector that reads device and app facts through the MAUI Essentials
 interfaces, and a submit helper that merges them into the ticket's `metadata`. It targets plain `net10.0` and depends on `Microsoft.Maui.Essentials`, not on
 `Microsoft.Maui.Controls`: no workload, no `UseMaui`, no platform target frameworks, no macOS runner. An architecture rule (`ClientMauiRules`) pins the package set, allows
-project references to Client and Contracts only and fails the build if the csproj ever mentions `UseMaui`.
+project references to Client and Contracts only and the architecture tests fail if the csproj sets `<UseMaui>`.
 
 ### Registration
 
@@ -201,9 +201,9 @@ var draft = new MauiTicketDraft("Crash on save", "It closes when I tap Save.", "
 Result<SubmitTicketResponse> result = await submitter.SubmitAsync(draft, cancellationToken);
 ```
 
-Resolving `IMauiTicketSubmitter` without `AddTechStrapClient` throws `InvalidOperationException` naming `AddTechStrapClient`. The Essentials defaults (`AppInfo.Current`,
+Resolving `IMauiTicketSubmitter` without `AddTechStrapClient` throws `InvalidOperationException` naming `AddTechStrapClient`; resolution is lazy, so the order of the two calls does not matter. The Essentials defaults (`AppInfo.Current`,
 `DeviceInfo.Current`, `Connectivity.Current`, `DeviceDisplay.Current`, `Battery.Default`) are registered with `TryAddSingleton` as factories: nothing reads them at
-registration (on plain `net10.0` `DeviceInfo.Current.Model` throws), an app that registered its own `IDeviceInfo` and the like wins, and a second call changes nothing.
+registration (on plain `net10.0` `DeviceInfo.Current.Model` throws), an app that registered its own `IDeviceInfo` and the like wins, and service registrations are idempotent (configure delegates stack like any Options configure).
 
 ### What is collected
 
@@ -224,15 +224,15 @@ matching option is switched on.
 | `device.type` | `IDeviceInfo.DeviceType` | Default |
 | `locale` | Current culture name | Default |
 | `timezone` | Local time zone id | Default |
-| `network.access` | `IConnectivity.NetworkAccess` | Default |
+| `network.access` | `IConnectivity.NetworkAccess` (Android needs the `ACCESS_NETWORK_STATE` permission) | Default |
 | `display.width` | `IDeviceDisplay.MainDisplayInfo` | Extra (`IncludeDisplay`) |
 | `display.height` | `IDeviceDisplay.MainDisplayInfo` | Extra (`IncludeDisplay`) |
 | `display.density` | `IDeviceDisplay.MainDisplayInfo`, invariant culture, for example "2.625" | Extra (`IncludeDisplay`) |
 | `display.orientation` | `IDeviceDisplay.MainDisplayInfo` | Extra (`IncludeDisplay`) |
-| `battery.state` | `IBattery.State` | Extra (`IncludeBattery`) |
-| `battery.level` | `IBattery.ChargeLevel` as a rounded whole percent; left out when the level is negative | Extra (`IncludeBattery`) |
+| `battery.state` | `IBattery.State` (Android needs `BATTERY_STATS`) | Extra (`IncludeBattery`) |
+| `battery.level` | `IBattery.ChargeLevel` as a rounded whole percent; left out when the level is negative (Android needs `BATTERY_STATS`) | Extra (`IncludeBattery`) |
 
-Each field is read in its own try/catch. A field whose accessor throws is skipped (the package does no logging), so `Collect()` never throws. Values are trimmed, a blank
+Each field is read in its own try/catch. A field whose accessor throws is skipped (the package does no logging), so `Collect()` never throws. A missing Android permission (`BATTERY_STATS`, `ACCESS_NETWORK_STATE`) skips its field silently. Values are trimmed, a blank
 value is dropped, a value is cut to `IntakeLimits.MaxMetadataValueLength` and trimmed again.
 
 ### Privacy and redaction
@@ -241,7 +241,7 @@ The helper never collects advertising or device ids, location, contacts, an IP a
 turns it all off. The metadata is sent under the product's API key like any other metadata: from a Public key it is stored but flagged untrusted (D-001), so treat it as a
 hint, not as proof.
 
-`DeviceContextOptions.Redact` is a `Func<string, string, string?>` called with the key and the value after the trimming and truncation. Return a changed value to
+`DeviceContextOptions.Redact` is a `Func<string, string, string?>` called with the key and the value after the trimming and truncation. It is applied to each collected device-context value only; the draft's own `Metadata` is not passed through it. Return a changed value to
 replace it, or `null` to drop the field. A redactor that throws drops only that field, and its result is validated again (blank is dropped, too long is cut).
 
 ### Merge rule and local limits
@@ -249,16 +249,17 @@ replace it, or `null` to drop the field. A redactor that throws drops only that 
 `SubmitAsync(MauiTicketDraft, CancellationToken)` takes the draft (`Subject`, `Message`, `RequesterEmail`, optional `RequesterName`, `Metadata` and `IdempotencyKey`) and
 sends one `SubmitTicketRequest`:
 - The collected keys and every key in `TicketMetadataKeys.All` are reserved. An app value for a reserved key is ignored; the collected value (or none) is sent.
-- A blank app key, or one over 64 characters, is a failure. A blank app value is skipped. A value is cut to 1000 characters.
+- A blank key, or one over 64 characters, is a failure. A blank value is skipped. A value is cut to 1000 characters. The same checks apply to collected entries, so a custom `IDeviceContextCollector` cannot break the "nothing is sent" promise.
+- The collected keys (up to 19) count toward the 50, so an app can rely on 31 of its own.
 - More than 50 keys, or more than 16,000 characters when serialized (`JsonSerializerDefaults.Web`), is a local failure with the code `metadata-invalid`
   (`TechStrapMauiErrorCodes.MetadataInvalid`, a validation error on target `metadata`). Nothing is sent. The code repeats the server's wire string on purpose.
 - With no `IdempotencyKey` the helper calls the unkeyed `SubmitTicketAsync`, which generates one; with a key it calls the keyed overload. A caller that retries a failed
   submit itself must supply a stable key (the same rule as `TechStrap.Client`).
-- The client's `Result<SubmitTicketResponse>` is returned unchanged. A null draft throws `ArgumentNullException`.
+- The client's `Result<SubmitTicketResponse>` is returned unchanged. A null draft throws `ArgumentNullException`, a blank, non-ASCII or over-200-character `IdempotencyKey` throws `ArgumentException`, and cancellation throws `OperationCanceledException`.
 
 ### Tests
 
-`tests/TechStrap.Client.Maui.Tests` is a plain `net10.0` test project (47 tests) that fakes the Essentials interfaces with NSubstitute. It needs no device and no Docker:
+`tests/TechStrap.Client.Maui.Tests` is a plain `net10.0` test project (52 tests) that fakes the Essentials interfaces with NSubstitute. It needs no device and no Docker:
 
 ```
 dotnet test --project tests/TechStrap.Client.Maui.Tests -c Release
@@ -266,7 +267,11 @@ dotnet test --project tests/TechStrap.Client.Maui.Tests -c Release
 
 ### Known limits
 
-- Consumers need MAUI >= 10.0.110; the package pins Essentials at 10.0.110 and lifts an older app's.
+- Consumers need MAUI >= 10.0.0; the package pins Essentials at 10.0.0, the lowest version with every API the helper uses, so it forces no patch upgrade of Core, Graphics or WindowsAppSDK.
+- A field that fails to read is skipped silently (the package does no logging).
+- A caller who retries a failed submit must supply a stable `IdempotencyKey`, or a retry can create a second ticket.
+- On iOS, display values may be missing when `SubmitAsync` runs off the UI thread (the UIKit thread check). `IncludeDisplay` is opt-in and a failure never crashes.
+- AOT and full-trim apps need a source-generated JSON context (11c).
 - No screenshot and no attachments until 11d, which first needs multipart intake.
 - No platform target frameworks. Platform-specific code would need them later; adding them is non-breaking.
 - `MainDisplayInfo` is read per field, so a rotation between reads can mix values.

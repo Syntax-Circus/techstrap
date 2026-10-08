@@ -35,7 +35,7 @@ Where this page and D-047 differ, D-047 wins.
 
 Where this page and D-048 differ, D-048 wins.
 - **Target framework.** `TechStrap.Client.Maui` has a single `net10.0` target, not `net10.0-android;net10.0-ios;net10.0`. There is no MAUI workload, no `UseMaui` and no macOS runner (owner action #10 is no longer needed).
-- **Essentials, not Controls.** The package depends on `Microsoft.Maui.Essentials` 10.0.110 (plus `Microsoft.Extensions.DependencyInjection.Abstractions` and `Microsoft.Extensions.Options`, and the `TechStrap.Client` and `TechStrap.Contracts` references), not on `Microsoft.Maui.Controls`.
+- **Essentials, not Controls.** The package depends on `Microsoft.Maui.Essentials` 10.0.0 (plus `Microsoft.Extensions.DependencyInjection.Abstractions` and `Microsoft.Extensions.Options`, and the `TechStrap.Client` and `TechStrap.Contracts` references), not on `Microsoft.Maui.Controls`.
 - **`TicketMetadataKeys`** is created in `TechStrap.Contracts` (13 default keys and 6 extras), with `IntakeLimits.MaxMetadataJsonLength`.
 - **Submit helper.** `IMauiTicketSubmitter.SubmitAsync(MauiTicketDraft, CancellationToken)` takes a draft record; there is no `FileResult` or `TicketAttachment` parameter until 11d adds attachments.
 - **Extras are flags.** Display and battery metadata are `DeviceContextOptions.IncludeDisplay` and `IncludeBattery` (both off by default), not a list of extras.
@@ -136,7 +136,7 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 - [x] **P11-T07** Create `TechStrap.Client.Maui` project (net10.0-android;net10.0-ios;net10.0) with pack metadata and README; define `IDeviceContextCollector`, options (`IncludeDeviceContext`, extras, redaction callback)
   - **Depends on:** P11-T02
   - **Validation:** `dotnet workload restore` + build on macOS for all targets; pack succeeds; plain `net10.0` target compiles without MAUI platform APIs.
-  - **As built (11b):** A single `net10.0` target (D-048), so there is no workload restore and no macOS build. The package depends on `Microsoft.Maui.Essentials` 10.0.110; `ClientMauiRules` pins the package set and rejects `UseMaui`, and the CI pack dry run packs all three packages and checks the five nuspec dependencies.
+  - **As built (11b):** A single `net10.0` target (D-048), so there is no workload restore and no macOS build. The package depends on `Microsoft.Maui.Essentials` 10.0.0; `ClientMauiRules` pins the package set and rejects `UseMaui`, and the CI pack dry run packs all three packages and checks the five nuspec dependencies.
 - [x] **P11-T08** Implement `MauiDeviceContextCollector` over injected Essentials abstractions with truncation to `TicketMetadataLimits` and the never-collect list
   - **Depends on:** P11-T07, P11-T01
   - **Validation:** Unit tests with NSubstitute for `IAppInfo`/`IDeviceInfo`/`IConnectivity`/`IDeviceDisplay`: exact key set emitted by default; extras only when enabled; redaction callback applied; long values truncated; no key outside `TicketMetadataKeys`.

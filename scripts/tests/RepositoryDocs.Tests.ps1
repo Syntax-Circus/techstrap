@@ -654,7 +654,7 @@ Describe 'D-048 (MAUI helper)' {
     It 'records the owner decisions, the technical rulings and the known limits' {
         $section = ($script:Log -split '(?m)^## D-048:')[1]
         foreach ($phrase in 'Single net10.0', 'Microsoft.Maui.Essentials', 'TicketMetadataKeys', 'MauiTicketDraft', 'UseMaui', 'NETSDK1147',
-                'Owner decisions (2026-10-07)', 'Technical rulings', '**Known limits**', 'metadata-invalid', 'MAUI >= 10.0.110') {
+                'Owner decisions (2026-10-07)', 'Technical rulings', '**Known limits**', 'metadata-invalid', 'MAUI >= 10.0.0') {
             $section | Should -Match ([regex]::Escape($phrase)) -Because "D-048 must mention $phrase"
         }
     }
@@ -674,14 +674,14 @@ Describe 'D-048 (MAUI helper)' {
 
     It 'maps the Essentials package and the Maui project in the package map' {
         $map = Get-RepoText 'docs/architecture/03-PACKAGE-MAP.md'
-        $map | Should -Match '(?m)^\| `Microsoft\.Maui\.Essentials` \| Selected \| 10\.0\.110 \|.*\| P11 \|'
+        $map | Should -Match '(?m)^\| `Microsoft\.Maui\.Essentials` \| Selected \| 10\.0\.0 \|.*\| P11 \|'
         $map | Should -Match '(?m)^\| `TechStrap\.Client\.Maui` \|.*Microsoft\.Maui\.Essentials.*\(D-048\)'
         $map | Should -Not -Match 'MAUI workload build'
         (Get-RepoText 'docs/architecture/02-ARCHITECTURE.md') | Should -Match 'TechStrap\.Client\.Maui\.Tests` was created in PHASE-11b'
     }
 
     It 'retires owner action 10 in the roadmap' {
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match 'no longer needed \(D-048: single net10\.0, no macOS runner\)'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match 'Withdrawn \(D-048\): single net10\.0, no macOS runner'
     }
 
     It 'documents the MAUI helper for maintainers' {
