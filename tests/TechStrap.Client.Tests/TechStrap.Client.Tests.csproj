@@ -3,10 +3,18 @@
   <ItemGroup>
     <ProjectReference Include="../../src/TechStrap.Client/TechStrap.Client.csproj" />
     <ProjectReference Include="../../src/TechStrap.Contracts/TechStrap.Contracts.csproj" />
+    <ProjectReference Include="../../src/TechStrap.Api/TechStrap.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The reusable Api test plumbing (Postgres fixture, database helpers, test issuer, intake seed) is linked, not copied. -->
+    <Compile Include="../TechStrap.Api.Tests/TestPostgres.cs;../TechStrap.Api.Tests/Auth/ApiTestDatabase.cs;../TechStrap.Api.Tests/Auth/TestJwt.cs;../TechStrap.Api.Tests/Intake/IntakeTestData.cs;../TechStrap.Api.Tests/SetRemoteIpAddressStartupFilter.cs" LinkBase="ApiTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
   </ItemGroup>
 
 </Project>

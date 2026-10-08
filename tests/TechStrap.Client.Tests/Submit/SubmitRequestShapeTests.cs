@@ -33,7 +33,7 @@ public sealed class SubmitRequestShapeTests
         var sent = fixture.Stub.Requests.ShouldHaveSingleItem();
         sent.Header(HeaderNames.ApiKey).ShouldBe(ClientFixture.ApiKey);
         sent.Content!.Headers.ContentType!.MediaType.ShouldBe("application/json");
-        sent.Body!.ShouldContain("\"email\"");
+        sent.Body!.ShouldContain("\"email\"", Case.Sensitive);
         var round = JsonSerializer.Deserialize<SubmitTicketRequest>(sent.Body!, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         round.ShouldNotBeNull();
         round.Email.ShouldBe("ada@example.com");
