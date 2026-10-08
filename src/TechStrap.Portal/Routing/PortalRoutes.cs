@@ -61,6 +61,50 @@ public static class PortalRoutes
     public const string TicketTemplate = "/t/{token}";
     public const string TicketAttachmentTemplate = "/t/{token}/attachments/{id}";
 
+    // Paths served on every host (a product host does not rewrite them): the framework's and the static assets, the SEO files, the health checks and the host's own error pages.
+    public const string FrameworkPrefix = "/_framework";
+    public const string BlazorPrefix = "/_blazor";
+    public const string ContentPrefix = "/_content";
+    public const string CssPrefix = "/css";
+    public const string JsPrefix = "/js";
+    public const string ImgPrefix = "/img";
+    public const string FaviconPrefix = "/favicon";
+    public const string SitemapPath = "/sitemap.xml";
+    public const string RobotsPath = "/robots.txt";
+    public const string HealthPrefix = "/health";
+
+    // The paths a product host answers with the clean form of a /p/{key} page: the product's own pages without their /p/{key} prefix.
+    public static readonly string ContactPath = $"/{ContactSegment}";
+    public static readonly string LostLinkPath = $"/{LostLinkSegment}";
+    public static readonly string KbPath = $"/{KbSegment}";
+    public static readonly string SuggestPath = $"/{SuggestSegment}";
+
+    /// <summary>
+    /// Splits <c>/p/{key}</c> and <c>/p/{key}/more</c> into the key and the rest (<paramref name="rest"/> is empty or starts with a slash). Any other path, and a path with an empty key, is not a product path.
+    /// </summary>
+    public static bool TryStripProductPrefix(PathString path, out string key, out PathString rest)
+    {
+        key = string.Empty;
+        rest = PathString.Empty;
+        var value = path.Value;
+        if (value is null || !value.StartsWith($"{ProductPrefix}/", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var afterPrefix = value[(ProductPrefix.Length + 1)..];
+        var slash = afterPrefix.IndexOf('/');
+        var candidate = slash < 0 ? afterPrefix : afterPrefix[..slash];
+        if (candidate.Length == 0)
+        {
+            return false;
+        }
+
+        key = candidate;
+        rest = slash < 0 ? PathString.Empty : new PathString(afterPrefix[slash..]);
+        return true;
+    }
+
     public static string ProductHome(string key) => $"{ProductPrefix}/{Escape(key)}";
 
     public static string Contact(string key) => $"{ProductHome(key)}/contact";
