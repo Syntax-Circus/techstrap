@@ -48,7 +48,7 @@ jobs:
           dotnet restore TechStrap.CI.slnf
 
       - name: Build
-        run: dotnet build TechStrap.CI.slnf -c Release --no-restore
+        run: dotnet build TechStrap.CI.slnf -c Release --no-restore -p:Version=${{ steps.version.outputs.version }}
 
       # Testcontainers uses the runner's Docker daemon.
       - name: Test
@@ -115,7 +115,9 @@ jobs:
 
       # The .snupkg symbol packages in the same folder are pushed along with their .nupkg.
       - name: Push to nuget.org
-        run: dotnet nuget push "artifacts/*.nupkg" --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push "artifacts/*.nupkg" --api-key $NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: GitHub Release
         shell: pwsh
@@ -127,4 +129,4 @@ jobs:
           $flags = @()
           if ($v -match '-') { $flags += '--prerelease' }
           $files = @(Get-ChildItem artifacts -File | Where-Object { $_.Name -match '\.s?nupkg$' } | ForEach-Object { $_.FullName })
-          gh release create $env:REF_NAME @files --title "TechStrap $v" --generate-notes @flags
+          gh release create $env:REF_NAME @files --title "TechStrap $v" --generate-notes --verify-tag @flags

@@ -61,6 +61,17 @@ Describe 'publish-nuget.yml' {
         $script:Pack | Should -Not -Match 'nuget push'
     }
 
+    It 'pack: the Build step stamps the assembly versions from the tag' {
+        $script:Pack | Should -Match 'dotnet build TechStrap\.CI\.slnf -c Release --no-restore -p:Version=\$\{\{ steps\.version\.outputs\.version \}\}'
+    }
+
+    It 'publish: passes the temporary key through env and the release verifies the tag' {
+        $script:Publish | Should -Match ([regex]::Escape('NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}'))
+        $script:Publish | Should -Match ([regex]::Escape('--api-key $NUGET_API_KEY'))
+        $script:Publish | Should -Not -Match ([regex]::Escape('--api-key ${{'))
+        $script:Publish | Should -Match '--verify-tag'
+    }
+
     It 'pack: expects the same dependency map as ci.yml' {
         $ci = Get-RepoText '.github/workflows/ci.yml'
         $lines = [regex]::Matches($ci, "(?m)^\s*'TechStrap\.[A-Za-z.]+'\s*=\s*@\([^\r\n]*\)")
