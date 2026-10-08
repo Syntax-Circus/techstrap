@@ -162,7 +162,7 @@ public sealed partial class SubmitRetryTests
     [InlineData("   ")]
     [InlineData("two words")]
     [InlineData("tab\there")]
-    [InlineData("café")]
+    [InlineData("caf\u00e9")]
     [InlineData("line\nbreak")]
     public async Task An_invalid_key_throws_before_anything_is_sent(string key)
     {

@@ -53,6 +53,33 @@ public sealed class ClientRegistrationTests
     }
 
     [Fact]
+    public void A_client_the_host_registered_first_wins()
+    {
+        var services = new ServiceCollection();
+        var fake = Substitute.For<ITechStrapClient>();
+        services.AddSingleton(fake);
+        services.AddTechStrapClient(_ => { });
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<ITechStrapClient>().ShouldBeSameAs(fake);
+    }
+
+    [Fact]
+    public void The_named_client_caps_the_buffered_response_size()
+    {
+        var services = new ServiceCollection();
+        services.AddTechStrapClient(o =>
+        {
+            o.BaseAddress = new Uri("https://support.example.com/");
+            o.ApiKey = Key;
+        });
+        using var provider = services.BuildServiceProvider();
+
+        using var client = provider.GetRequiredService<IHttpClientFactory>().CreateClient(TechStrapClientDefaults.HttpClientName);
+
+        client.MaxResponseContentBufferSize.ShouldBe(TechStrapClientDefaults.MaxResponseBytes);
+    }
+    [Fact]
     public void The_configuration_overload_registers_the_client_too()
     {
         var configuration = Config(("BaseAddress", "https://support.example.com/"), ("ApiKey", Key));

@@ -10,7 +10,7 @@ namespace TechStrap.Client;
 public interface ITechStrapClient
 {
     /// <summary>
-    /// Submits a ticket and retries a transient failure (timeouts, 408, 502, 503, 504, a dropped connection) up to <c>MaxAttempts</c> times, sending the same <c>Idempotency-Key</c> on every attempt so the
+    /// Submits a ticket and retries a transient failure (timeouts, 408, 502, 503, 504, a dropped connection), making up to <c>MaxAttempts</c> attempts in total and sending the same <c>Idempotency-Key</c> on every attempt so the
     /// API creates the ticket once.
     /// </summary>
     /// <param name="request">The ticket.</param>

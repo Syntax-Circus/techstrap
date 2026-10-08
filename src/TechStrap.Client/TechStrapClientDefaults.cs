@@ -8,4 +8,7 @@ public static class TechStrapClientDefaults
 
     /// <summary>The configuration section a host binds to the client options.</summary>
     public const string ConfigurationSection = "TechStrap";
+
+    /// <summary>The most response body the named client buffers (the intake response is a few hundred bytes).</summary>
+    public const long MaxResponseBytes = 1024 * 1024;
 }

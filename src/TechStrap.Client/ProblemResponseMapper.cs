@@ -31,7 +31,7 @@ internal static class ProblemResponseMapper
                 return [new ResultError(TechStrapClientErrorCodes.UnsupportedMediaType, TechStrapClientMessages.UnsupportedMediaType, ResultErrorKind.Failure)];
             case 429:
                 return [new ResultError(TechStrapClientErrorCodes.RateLimited, TechStrapClientMessages.RateLimited, ResultErrorKind.Failure)];
-            case >= 500:
+            case 408 or >= 500:
                 return [Unavailable()];
             default:
                 return [new ResultError(TechStrapClientErrorCodes.ApiError, TechStrapClientMessages.ApiError, ResultErrorKind.Failure)];

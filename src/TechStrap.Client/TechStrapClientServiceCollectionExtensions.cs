@@ -63,13 +63,14 @@ public static class TechStrapClientServiceCollectionExtensions
 
                 // The resilience pipeline owns the deadline (the total budget in the options), so the HttpClient's own timeout stays off.
                 client.Timeout = Timeout.InfiniteTimeSpan;
+                client.MaxResponseContentBufferSize = TechStrapClientDefaults.MaxResponseBytes;
             })
             .AddHttpMessageHandler<ApiKeyHandler>()
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
 
         // One client for the process: it owns the resilience pipeline, so the circuit breaker is shared by every caller.
         services.TryAddSingleton(TimeProvider.System);
-        services.AddSingleton<ITechStrapClient, TechStrapClient>();
+        services.TryAddSingleton<ITechStrapClient, TechStrapClient>();
         return services;
     }
 

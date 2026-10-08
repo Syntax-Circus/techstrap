@@ -91,6 +91,36 @@ public sealed class SubmitBudgetAndCircuitTests
     }
 
     [Fact(Timeout = 10_000)]
+    public async Task An_open_circuit_also_short_circuits_the_once_path()
+    {
+        using var fixture = new ClientFixture(o => o.MaxAttempts = 1, fakeTime: true);
+        fixture.Stub.Respond(HttpStatusCode.ServiceUnavailable, times: ResilienceDefaults.CircuitMinimumThroughput);
+        for (var i = 0; i < ResilienceDefaults.CircuitMinimumThroughput; i++)
+        {
+            await fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, Xunit.TestContext.Current.CancellationToken);
+        }
+
+        var blocked = await fixture.Client.SubmitTicketOnceAsync(ClientFixture.Request(), Xunit.TestContext.Current.CancellationToken);
+
+        blocked.Errors.ShouldHaveSingleItem().Code.ShouldBe(TechStrapClientErrorCodes.ApiUnavailable);
+        fixture.Stub.Requests.Count.ShouldBe(ResilienceDefaults.CircuitMinimumThroughput);
+    }
+
+    [Fact(Timeout = 10_000)]
+    public async Task A_caller_cancellation_wins_over_a_transport_failure()
+    {
+        using var fixture = new ClientFixture(o => o.MaxAttempts = 1);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(Xunit.TestContext.Current.CancellationToken);
+        fixture.Stub.Then(_ =>
+        {
+            cts.Cancel();
+            throw new HttpRequestException("down");
+        });
+
+        await Should.ThrowAsync<OperationCanceledException>(() => fixture.Client.SubmitTicketAsync(ClientFixture.Request(), null, cts.Token));
+    }
+
+    [Fact(Timeout = 10_000)]
     public async Task A_null_request_throws()
     {
         using var fixture = new ClientFixture();

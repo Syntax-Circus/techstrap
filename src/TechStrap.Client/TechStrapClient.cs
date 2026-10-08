@@ -103,6 +103,8 @@ internal sealed class TechStrapClient(IHttpClientFactory httpClients, IOptions<T
         }
         catch (Exception ex) when (IsUnavailable(ex, ct))
         {
+            // A caller who cancelled wins over whatever the pipeline surfaced.
+            ct.ThrowIfCancellationRequested();
             return Result<SubmitTicketResponse>.Failure(ProblemResponseMapper.Unavailable());
         }
 
@@ -130,6 +132,11 @@ internal sealed class TechStrapClient(IHttpClientFactory httpClients, IOptions<T
     /// <summary>Built on first use, so invalid options surface as an <see cref="OptionsValidationException"/> from the first call and a failed build is retried by the next.</summary>
     private HttpRequestResiliencePipeline Pipeline()
     {
+        if (Volatile.Read(ref _pipeline) is { } existing)
+        {
+            return existing;
+        }
+
         lock (_gate)
         {
             if (_pipeline is not null)
@@ -138,7 +145,7 @@ internal sealed class TechStrapClient(IHttpClientFactory httpClients, IOptions<T
             }
 
             var settings = options.Value;
-            return _pipeline = new HttpRequestResiliencePipeline(
+            var created = new HttpRequestResiliencePipeline(
                 ResilienceDefaults.PipelineName,
                 new HttpRequestResilienceOptions
                 {
@@ -164,6 +171,8 @@ internal sealed class TechStrapClient(IHttpClientFactory httpClients, IOptions<T
                     CircuitBreakDuration = ResilienceDefaults.CircuitBreakDuration,
                     TimeProvider = timeProvider,
                 });
+            Volatile.Write(ref _pipeline, created);
+            return created;
         }
     }
 }

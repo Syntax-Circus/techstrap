@@ -144,6 +144,7 @@ public sealed class SubmitMappingTests
     [Theory(Timeout = 10_000)]
     [InlineData(HttpStatusCode.BadGateway)]
     [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.RequestTimeout)]
     [InlineData(HttpStatusCode.GatewayTimeout)]
     public async Task A_retryable_status_that_stays_failing_ends_as_api_unavailable(HttpStatusCode status)
     {
@@ -166,11 +167,15 @@ public sealed class SubmitMappingTests
     [InlineData(HttpStatusCode.UnsupportedMediaType)]
     [InlineData(HttpStatusCode.TooManyRequests)]
     [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.RequestTimeout)]
+    [InlineData(HttpStatusCode.BadGateway)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.GatewayTimeout)]
     [InlineData(HttpStatusCode.Found)]
     public async Task Server_text_of_non_400_responses_never_reaches_the_result(HttpStatusCode status)
     {
         using var fixture = new ClientFixture();
-        fixture.Stub.Respond(status, $$$"""{"detail":"{{{ServerSecret}}}","title":"{{{ServerSecret}}}","errors":{"x":["{{{ServerSecret}}}"]}}""", ProblemJson);
+        fixture.Stub.Respond(status, $$$"""{"detail":"{{{ServerSecret}}}","title":"{{{ServerSecret}}}","errors":{"x":["{{{ServerSecret}}}"]}}""", ProblemJson, times: 3);
 
         var result = await Submit(fixture, Xunit.TestContext.Current.CancellationToken);
 
