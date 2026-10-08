@@ -1,0 +1,174 @@
+# PHASE-11e Product hosts: Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Let a product have its own public hostname (`support.dragonpoop.com`) with clean paths, while the default host (`TECHSTRAP_PORTAL_PUBLIC_URL`) keeps serving every product under `/p/{key}`; emails, admin links, canonical URLs and the sitemap follow the product host. One pull request (PHASE-11e), recorded as D-050 (amends D-002).
+
+**Architecture:** The mapping is data on the `Product` (`PortalHost`, unique, lowercase, validated by a Domain `HostNameShape` rule) carried additively in the product DTOs. The Api builds ticket and article links from the product's stored host (never from a request header). The Portal matches the request host against a 60-second-cached map of stored hosts in a middleware that runs before routing and rewrites clean paths to the existing `/p/{key}/...` routes (or 301s to a product's canonical host), so pages and `ProductPageBase` are unchanged; a scoped `PortalLinks` service generates links that fit the current host, replacing direct `PortalRoutes.*` use in components; SEO and the output cache become host-aware. The raw Host header is only ever a lookup key.
+
+**Tech Stack:** .NET 10, EF Core (Npgsql) migration, Blazor Server Portal, Razor Admin, xUnit v3 + Shouldly + NSubstitute + bUnit, Testcontainers (Postgres) for the integration tests, Pester.
+
+**Spec:** `docs/architecture/PHASE-11e-product-hosts.md` (the owner-approved spec, 2026-10-08; P11e-T01..T07 map to the tasks below); `docs/architecture/04-DECISION-LOG.md` D-002 (amended by D-050 in Task 7), D-044, D-045.
+
+### Owner decisions (2026-10-08), recorded as D-050
+1. Per-product hosts land as their own small phase (11e) before PHASE-12, amending D-002.
+2. The host-to-product mapping lives on the Product (Admin-editable), not in configuration.
+3. URLs on a product host are clean (`/`, `/contact`, `/kb/...`, `/t/{token}`); the default host keeps `/p/{key}/...` and 301s a product that has a host to it.
+
+### Decisions made while drafting (D-050 records them)
+- **Host shape** (`HostNameShape.TryNormalize(string? input, out string? host)`): trim, lowercase; reject a scheme (`://`), a port (`:`), a path (`/`), userinfo (`@`), whitespace, non-ASCII, underscores; labels 1..63 chars of `[a-z0-9-]` not starting/ending with `-`; at least two labels; total <= `DomainLimits.HostNameMaxLength` (253). Empty/whitespace input normalises to `null` (clears the host).
+- **Uniqueness** is enforced by the unique index AND a repository pre-check in the handlers (`IProductRepository.IsPortalHostTakenAsync(host, exceptProductId, ct)`) so the handler can answer `product-host-taken` (409) deterministically; the index is the safety net (a `DbUpdateException` on it also maps to the same code).
+- **Link building**: `PortalLinkOptions` gains `TicketLink(string? portalHost, string token)` and `ArticleLink(string? portalHost, string productKey, string categorySlug, string articleSlug)` (nullable host, not the `Product` type - Application handlers hold the aggregate but notification code sometimes has only the key/host); `ProductHostBase(host) => $"https://{host}"`. Product hosts are always https. `ArticlePath` keeps the `/p/{key}` shape; new `ArticlePathOnHost(categorySlug, articleSlug) => $"/kb/{category}/{slug}"`; the Worker's `EndsWith(ArticlePath(...))` check becomes `PortalLinkOptions.IsArticleLink(url, productKey, category, slug)` matching either shape.
+- **Where the host comes from in the intake handlers**: `SubmitTicketRequestHandler` and `AddCustomerReplyRequestHandler` already resolve the product by id; they read `product.PortalHost`. `TicketNotificationPlanner` already loads the `Product`.
+- **Host map in the Portal**: `ProductHostMap` (singleton; `IMemoryCache` entry `portal:product-hosts` holding `IReadOnlyDictionary<string, string>` host->key, TTL `ProductHostMapOptions.Ttl = 60 s`; `TryResolve(host, out key)`; a miss triggers `RefreshAsync` only if the last refresh is older than `MissRefreshInterval = 10 s`), fed by `IPublicProductClient.ListAsync(ct)` (summaries carry `PortalHost`). The middleware resolves per request into a scoped `ProductHostContext { string? Key; string? Host; bool IsProductHost => Key is not null; }`.
+- **Middleware order**: `app.UseMiddleware<ProductHostMiddleware>()` after `app.UsePortalSeo()` (the package's legacy-host redirect wins first) and before `app.UsePortalOutputCache()` (the cache keys on the rewritten path and varies by host).
+- **Rewrite table** (product host only): `/` -> `/p/{key}`; `/contact`, `/contact/received`, `/lost-link`, `/kb`, `/kb/...`, `/suggest` -> `/p/{key}` + path. Pass-through prefixes (one constant list `ProductHostMiddleware.PassThroughPrefixes`): `/t/`, `/_framework`, `/_blazor`, `/_content`, `/css`, `/js`, `/img`, `/favicon`, `/sitemap.xml`, `/robots.txt`, `/health`, `/not-found`, `/error`, `/_styleguide`. `/p/{sameKey}` or `/p/{sameKey}/x` -> 301 `/` or `/x` (query preserved). `/p/{otherKey}/x` -> 301 to that product's canonical URL (its `https://{host}/x` if it has a host, else `{PublicUrl}/p/{otherKey}/x`). On the default host: `/p/{key}/x` for a product with a host -> 301 `https://{host}/x`. Only GET/HEAD are redirected; a POST to a `/p/{key}/...` path on the wrong host is rewritten/served, never redirected (a 301 would drop the body). Unknown host = default host.
+- **`PortalLinks`** (scoped; `TechStrap.Portal/Routing/PortalLinks.cs`): takes `ProductHostContext`, `ProductHostMap`, `PortalOptions`. `ProductHome(key)`, `Contact(key)`, `ContactReceived(key[, reference])`, `LostLink(key)`, `LostLinkSent(key)`, `KbHome(key)`, `KbCategory(key, category[, page])`, `KbArticle(key, category, slug)`, `KbSearch(key[, text, page])`, `Suggest(key)`, `Ticket(token)`, `TicketAttachment(token, id)`, `Absolute(string path)`. Rule: if `key == Context.Key` -> `PortalRoutes.X(key)` with the `/p/{key}` prefix stripped (`/` for the home); else if the map has a host for `key` -> `https://{host}` + stripped path; else `PortalRoutes.X(key)`. Ticket paths are host-neutral (relative, never prefixed). `Absolute(path)`: on a product host `https://{Context.Host}{path}`, else `PortalOptions.PublicBaseUrl + path`. An architecture test (`PortalRules`) forbids `PortalRoutes.` in `src/TechStrap.Portal/**/*.razor` and `*.razor.cs` and in `Seo/*` except `PortalLinks.cs`.
+- **SEO**: canonical and JSON-LD URLs come from `PortalLinks.Absolute`; `PortalSitemapBuilder` takes the host context: on a product host only that product's entries with clean paths on `https://{host}`; on the default host only products with `PortalHost == null` (plus the static `/` entry rule unchanged). The sitemap cache key includes the host (`PortalSitemapCache` keyed by host; same 15-minute TTL).
+- **Output cache**: `SetVaryByHost(true)`; the "never vary by host" test becomes "varies by host".
+- **Admin**: `ProductEditorViewModel.PortalHost` (string, trimmed; `Check("PortalHost", ...)` applies `HostNameShape` from Domain - the Admin references Contracts+Hosting only (architecture rule), so the shape rule is COPIED into Contracts as `TechStrap.Contracts.Products.ProductHostRules.TryNormalize` with a parity test against the Domain rule, like `IntakeLimits`); `To*Request` sends `null` for blank; `product-host-taken` from the Api maps to a field message. The product list gets a "Portal host" column. "View on portal" uses `https://{PortalHost}/` when set.
+- **Contracts stays additive**: new optional record parameters go LAST with defaults (`string? PortalHost = null`) so 0.1.0 consumers' positional construction still compiles; `PublicProductDto`/`PublicProductSummaryDto` likewise.
+- **Migration**: `dotnet ef migrations add AddProductPortalHost --project src/TechStrap.Infrastructure --startup-project src/TechStrap.Api` (the repo's `ef-migrate` skill wraps this); `ExpectedMigrations.cs` in Api.Tests lists migrations - add the new name.
+
+## Global Constraints
+- Build: SDK 10.0.401, `TreatWarningsAsErrors`, `EnforceCodeStyleInBuild`; `dotnet build TechStrap.slnx -c Release` ends with 0 warnings (incl. XML docs for every new public member of Contracts). `_camelCase` private fields, PascalCase constants, file-scoped namespaces.
+- Architecture rules (tests/TechStrap.Architecture.Tests): Domain and Contracts stay dependency-free; the Admin references Contracts + Hosting only; the Portal references Contracts + Hosting only; no `HttpClient` in `.razor`/`.razor.cs`; no inline `<script>`/`<style>`; route literals only in `PortalRoutes` (`RouteLiteralTests`); public classes for Razor components; copy in `*Copy` classes; repeated numbers are named constants.
+- Contracts package compatibility: additive only; new parameters last with defaults; the OpenAPI contract test (Client.Tests) must still pass.
+- Security: the raw `Host` header never reaches a URL, log, header or redirect target; redirect targets are built only from a stored `PortalHost` or `TECHSTRAP_PORTAL_PUBLIC_URL`; product hosts are always `https`.
+- Config (D-043): no new setting. Docs that mention "never the Host header" are updated, not deleted.
+- Encoding: non-ASCII in C# only as `\u` escapes; new files LF; existing files via the Edit tool (CRLF preserved); docs ASCII.
+- Tests: xUnit v3 + Shouldly + NSubstitute (+ bUnit in Admin.Tests, Testcontainers in Infrastructure.IntegrationTests/Api.Tests); every awaiting test carries `Timeout` and `Xunit.TestContext.Current.CancellationToken`; no sleeps; host tests set `request.Headers.Host` (pattern: `tests/TechStrap.Portal.Tests/Caching/OutputCachePipelineTests.cs:77`). TDD with RED recorded; mutations run against committed code and restored with `git checkout -- <file>`.
+- Commits: Conventional Commits, staged by explicit path (never `git add -A`/`-f`, never `.superpowers/`), `git diff --cached --stat` first, each ending with exactly:
+  ```
+  Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+  Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
+  ```
+- Verification (whole PR): `dotnet build TechStrap.slnx -c Release`; `dotnet test --solution TechStrap.CI.slnf -c Release --no-build` (Docker); `pwsh -File scripts/Invoke-ScriptTests.ps1`; `pwsh -File scripts/Check-PackageVersions.ps1`; `dotnet ef migrations has-pending-model-changes --project src/TechStrap.Infrastructure --startup-project src/TechStrap.Api --configuration Release --no-build` (no changes after the migration is added); a manual compose check with a hosts-file entry (Task 7).
+
+## Review Focus
+1. A hostile `Host` (`evil.example`, `[::1]:8082`, `support.dragonpoop.com.evil`) must render the default host's pages with every URL on the configured public URL and nothing Host-derived in body/headers/redirects - Task 6 `A_hostile_host_leaks_nothing`.
+2. A POST (contact form) arriving on a product host with the clean path must be served (rewritten), never 301'd (which would drop the body) - Task 5 `A_post_on_a_product_host_is_rewritten_not_redirected`.
+3. Two products whose hosts differ only by case must collide (`product-host-taken`), and an uppercase input is stored lowercase - Task 2 `Hosts_differing_only_by_case_collide`.
+4. The Blazor circuit must work on a product host after the rewrite (interactive page renders and a `NavigationManager` navigation to a clean link lands) - Task 5 `The_blazor_hub_connects_on_a_product_host`.
+5. Changing a product's host must not break `/t/{token}` links already sent (ticket pages are host-neutral and served on every host) - Task 3/5 `A_ticket_page_is_served_on_any_host`.
+
+---
+
+### Task 1: Domain and Infrastructure - `Product.PortalHost`, `HostNameShape`, mapping and migration
+
+**Files:**
+- Create: `src/TechStrap.Domain/Rules/HostNameShape.cs`
+- Modify: `src/TechStrap.Domain/Rules/DomainLimits.cs` (`HostNameMaxLength = 253`), `src/TechStrap.Domain/Products/Product.cs` (property, `Restore`, `SetPortalHost`), `src/TechStrap.Infrastructure/Persistence/Records/ProductRecord*.cs` (the record/mapping - find the record class used by `ProductRecordConfiguration`), `src/TechStrap.Infrastructure/Persistence/Configurations/ProductRecordConfiguration.cs` (property + unique index), the product repository (`IsPortalHostTakenAsync`, mapping both ways), `src/TechStrap.Application/Persistence/IProductRepository.cs` (new method), `tests/TechStrap.Api.Tests/ExpectedMigrations.cs`
+- Create: migration `src/TechStrap.Infrastructure/Migrations/<timestamp>_AddProductPortalHost.cs` (+ Designer, snapshot update) via `dotnet ef migrations add`
+- Test: `tests/TechStrap.Domain.Tests/Rules/HostNameShapeTests.cs`, `tests/TechStrap.Domain.Tests/Products/ProductPortalHostTests.cs`, `tests/TechStrap.Infrastructure.IntegrationTests/Products/ProductPortalHostPersistenceTests.cs`
+
+**Interfaces:**
+- Produces: `public static class HostNameShape { public static bool TryNormalize(string? input, out string? host); public static bool IsWellFormed(string host); }` (TryNormalize: blank -> true with `null`; invalid -> false); `DomainLimits.HostNameMaxLength = 253`; `Product.PortalHost { get; private set; }` (string?); `DomainResult Product.SetPortalHost(string? input)` (failure code `product-host-invalid`, message "Use a hostname such as support.example.com: letters, digits and hyphens, no scheme, port or path."); `Product.Restore(..., string? portalHost)`; `Task<bool> IProductRepository.IsPortalHostTakenAsync(string host, Guid? exceptProductId, CancellationToken ct)`.
+
+- [ ] **Step 1: Failing Domain tests.** `HostNameShapeTests` theories: accepted (`support.dragonpoop.com`, `A-B.Example.CO.UK` -> `a-b.example.co.uk`, `x1.y2`, a 253-char valid name); rejected (bare `localhost`, `https://x.y`, `x.y:443`, `x.y/path`, `u@x.y`, `-a.b`, `a-.b`, `a..b`, `a_b.c`, `é.example`, a 254-char name, `x.y ` with inner whitespace); blank/whitespace -> `true` + `null`. `ProductPortalHostTests`: `SetPortalHost` lowercases; invalid -> `DomainResult` failure `product-host-invalid`; `SetPortalHost(null)` clears; `Restore` round-trips the host.
+- [ ] **Step 2: RED** `dotnet test --project tests/TechStrap.Domain.Tests -c Release` (compile failure).
+- [ ] **Step 3: Implement** `HostNameShape`, `DomainLimits`, `Product` (follow `Guard`/`DomainResult` conventions in the file; `UpdateDetails` untouched).
+- [ ] **Step 4: Infrastructure.** Record property `PortalHost` (string?), configuration `builder.Property(p => p.PortalHost).HasMaxLength(DomainLimits.HostNameMaxLength); builder.HasIndex(p => p.PortalHost).IsUnique();` (Postgres unique index ignores nulls - multiple null hosts allowed), repository mapping + `IsPortalHostTakenAsync` (`AnyAsync(p => p.PortalHost == host && (exceptProductId == null || p.Id != exceptProductId))`). Add the migration with the EF command; add its name to `ExpectedMigrations.cs`.
+- [ ] **Step 5: Failing then passing integration tests** (Testcontainers, pattern of the existing `Infrastructure.IntegrationTests`): two products with `support.x.com` fail on the unique index (`DbUpdateException`), two with `null` succeed; `IsPortalHostTakenAsync` true/false incl. the `exceptProductId` case; the migration applies to an empty database (the fixture does this) and `has-pending-model-changes` reports none.
+- [ ] **Step 6: GREEN + mutations.** Allow a trailing hyphen (theory dies); drop the lowercase normalisation (Domain test dies); drop `IsUnique` (integration test dies); restore each.
+- [ ] **Step 7: Commit** `feat(domain): Product.PortalHost with HostNameShape, unique index and migration (P11e-T01)`.
+
+### Task 2: Contracts and Api - DTO fields, handler validation, public projections
+
+**Files:**
+- Modify: `src/TechStrap.Contracts/Products/ProductDtos.cs` (`ProductDto(..., string? PortalHost = null)`, `CreateProductRequest(..., string? PortalHost = null)`, `UpdateProductRequest(..., string? PortalHost = null)`), `PublicProductDto.cs` (`string? PortalHost = null` last), `PublicProductSummaryDto.cs` (`string? PortalHost = null`), `src/TechStrap.Application/Products/CreateProductRequestHandler.cs`, `UpdateProductRequestHandler.cs`, `ProductMapping.cs`, `GetPublicProductRequestHandler.cs`, `ListPublicProductsRequestHandler.cs`, `ProductErrors.cs` (`HostInvalid()`, `HostTaken()`), `src/TechStrap.Infrastructure/Products/*` read models if the public list is a projection
+- Create: `src/TechStrap.Contracts/Products/ProductHostRules.cs` (`TryNormalize` + `HostNameMaxLength = 253`, a copy of the Domain rule for the Admin's instant validation), `tests/TechStrap.Application.Tests/Products/ProductHostRulesParityTests.cs`
+- Test: `tests/TechStrap.Application.Tests/Products/CreateProductRequestHandlerTests.cs`, `UpdateProductRequestHandlerTests.cs`, `GetPublicProductRequestHandlerTests.cs`, `ListPublicProductsRequestHandlerTests.cs` (extend), `tests/TechStrap.Api.Tests/Products/*` (status codes 400/409; public endpoints carry the host)
+
+**Interfaces:**
+- Consumes: Task 1.
+- Produces: DTOs with `PortalHost`; `ProductErrors.HostInvalid()` (`product-host-invalid`, Validation, target `portalHost`), `ProductErrors.HostTaken()` (`product-host-taken`, Conflict); `ProductHostRules.TryNormalize(string?, out string?)` in Contracts; public endpoints return `portalHost`.
+
+- [ ] **Step 1: Failing tests.** Handler: create with `Support.Dragonpoop.COM` stores `support.dragonpoop.com`; invalid -> `product-host-invalid`; host used by another product -> `product-host-taken` (repository `IsPortalHostTakenAsync` substituted true); update with its own host -> no conflict (`exceptProductId` = its id); update with `null` clears; public get/list return the host (null when unset). Parity: `ProductHostRules.HostNameMaxLength == DomainLimits.HostNameMaxLength` and both `TryNormalize`s agree on a shared theory of 12 inputs. Api: `POST api/products` bad host -> 400 with `errorCodes.portalHost = ["product-host-invalid"]`; duplicate -> 409 `product-host-taken`; `GET api/public/products` summaries carry `portalHost`; the Client.Tests OpenAPI contract test still passes (intake unchanged).
+- [ ] **Step 2: RED**, **Step 3: implement** (handlers: normalise via `HostNameShape`, pre-check `IsPortalHostTakenAsync`, then `product.SetPortalHost`; catch the unique-index `DbUpdateException` path in the repository as `HostTaken` if the repository already maps `KeyTaken` that way - mirror it), **Step 4: GREEN**: `dotnet test --project tests/TechStrap.Application.Tests`, `tests/TechStrap.Api.Tests --filter-class "*Product*"` (Docker), `tests/TechStrap.Client.Tests` contract test, Architecture tests, build 0 warnings (Contracts XML docs for the new members).
+- [ ] **Step 5: Mutations.** Skip the pre-check (409 handler test dies); compare hosts case-sensitively in the pre-check (parity/case test dies); put the new DTO parameter first (the Client.Tests contract test or a positional-construction test dies); restore.
+- [ ] **Step 6: Commit** `feat(api): PortalHost on product DTOs and handlers; product-host-invalid/taken (P11e-T02)`.
+
+### Task 3: Links - product-aware `PortalLinkOptions`, call sites, Worker compatibility, Admin "View on portal"
+
+**Files:**
+- Modify: `src/TechStrap.Application/Intake/PortalLinkOptions.cs`, `src/TechStrap.Application/Intake/SubmitTicketRequestHandler.cs:243,294`, `src/TechStrap.Application/Tickets/Customer/AddCustomerReplyRequestHandler.cs:275`, the notification planner (`grep -rl "class TicketNotificationPlanner" src/TechStrap.Application`), `src/TechStrap.Worker/**/DrainEmailOutboxHandler.cs` (~line 170 `EndsWith(ArticlePath(...))`), `src/TechStrap.Admin/Options/PortalUrlOptions.cs` (+ its callers that have a `ProductDto`)
+- Test: `tests/TechStrap.Application.Tests/Intake/PortalLinkOptionsTests.cs` (new), the handler/planner tests (extend), the Worker drain test (extend), `tests/TechStrap.Admin.Tests/**/PortalUrlOptionsTests.cs` (extend or create)
+
+**Interfaces:**
+- Produces: `string PortalLinkOptions.TicketLink(string? portalHost, string token)`; `string ArticleLink(string? portalHost, string productKey, string categorySlug, string articleSlug)`; `static string ArticlePathOnHost(string categorySlug, string articleSlug)`; `static bool IsArticleLink(string url, string productKey, string categorySlug, string articleSlug)` (true for either shape; ordinal); `static string ProductHostBase(string host) => $"https://{host}"`. Existing `TicketLink(token)`/`ArticleLink(key, ...)`/`ArticlePath` stay (callers without a product).
+
+- [ ] **Step 1: Failing tests.** `PortalLinkOptionsTests`: host set -> `https://support.dragonpoop.com/t/{token}` and `https://support.dragonpoop.com/kb/{cat}/{slug}`; host null -> `{PublicUrl}/t/{token}` and `{PublicUrl}/p/{key}/kb/{cat}/{slug}`; `IsArticleLink` true for both shapes and false for another product/slug; escaping of slugs preserved. Handler tests: submit for a product with a host -> confirmation email link and `ViewUrl` on the host; without -> unchanged; customer reply follow-up link likewise; planner article/ticket links likewise. Worker: an outbox row whose article URL is the host shape is matched (the linked-article enrichment still happens). Admin: `PortalUrlOptions` yields `https://{host}/` for a product with a host, else the public URL product page.
+- [ ] **Step 2: RED**, **Step 3: implement** (read `product.PortalHost` where the product is already loaded; do not add repository calls), **Step 4: GREEN** (`Application.Tests`, `Worker` tests project, `Admin.Tests` filtered), build 0 warnings.
+- [ ] **Step 5: Mutations.** Use `http://` for product hosts (link test dies); keep `/p/{key}` on the host shape (link + Worker tests die); make `IsArticleLink` match only the old shape (Worker test dies); restore.
+- [ ] **Step 6: Commit** `feat(links): ticket and article links use the product host (P11e-T03)`.
+
+### Task 4: Admin - "Portal host" editor field and list column
+
+**Files:**
+- Modify: `src/TechStrap.Admin/Features/Settings/Products/ProductEditorViewModel.cs` (`PortalHost` string; `From(ProductDto)`; `ToCreateRequest`/`ToUpdateRequest` pass `string.IsNullOrWhiteSpace(PortalHost) ? null : normalised`; `Check("PortalHost", ...)` via `ProductHostRules.TryNormalize` -> field message), `ProductFields.cs`/`ProductEditorContent.razor(.cs)` (the input, help text "Optional. The product's own support hostname, e.g. support.example.com. Needs DNS and a proxy site."), the product list component (column), the `*Copy` class for the new strings, the 409 mapping (`product-host-taken` -> field message "Another product already uses this hostname.")
+- Test: `tests/TechStrap.Admin.Tests/Components/ProductEditorTests.cs` (bUnit), `ProductEditorRealApiTests.cs` (one case: duplicate host -> message), `ProductEditorViewModelTests` (if present; else add to the component tests)
+
+- [ ] **Step 1: Failing tests.** VM: valid host maps lowercase into both requests; blank -> `null`; invalid -> `Check` returns the message; `From` round-trips. Component: the field renders with the help text; typing an invalid host blocks save with the message; a `product-host-taken` result shows the conflict message on the field; the list shows the host or an empty cell.
+- [ ] **Step 2: RED**, **Step 3: implement** (paired `.razor`/`.razor.cs`; copy in the `*Copy` class; no inline logic), **Step 4: GREEN** (`dotnet test --project tests/TechStrap.Admin.Tests -c Release --filter-class "*ProductEditor*"`, Architecture tests), build 0 warnings.
+- [ ] **Step 5: Mutations.** Send the raw (unlowercased) host (VM test dies); send `""` instead of `null` for blank (test dies); restore.
+- [ ] **Step 6: Commit** `feat(admin): Portal host field on the product editor and list (P11e-T04)`.
+
+### Task 5: Portal host resolution - map, context, middleware, redirects
+
+**Files:**
+- Create: `src/TechStrap.Portal/Hosting/ProductHostMapOptions.cs` (constants `Ttl = 60 s`, `MissRefreshInterval = 10 s`), `ProductHostMap.cs` (singleton; `IMemoryCache`, `IPublicProductClient` via `IServiceScopeFactory` or a singleton-safe client - check how `IPublicProductClient` is registered (scoped `ApiConnection`): use `IServiceScopeFactory` to create a scope per refresh), `ProductHostContext.cs` (scoped), `IProductHostResolver.cs` + `ProductHostResolver.cs`, `ProductHostMiddleware.cs`, `ProductHostRegistration.cs` (`AddProductHosts()` / `UseProductHosts()`)
+- Modify: `src/TechStrap.Portal/Program.cs` (register; `app.UseProductHosts()` after `app.UsePortalSeo()`, before `app.UsePortalOutputCache()`), `src/TechStrap.Portal/Routing/PortalRoutes.cs` (expose `TryStripProductPrefix(path, out key, out rest)` helper if not present)
+- Test: `tests/TechStrap.Portal.Tests/Hosting/ProductHostMapTests.cs`, `ProductHostMiddlewareTests.cs` (unit, with a stub resolver and `DefaultHttpContext`), `ProductHostHostTests.cs` (host tests through `PortalFactory` with a stub `IPublicProductClient` returning two products: `dragon-poop` with host `support.dragonpoop.com`, `who-flung-poo` without)
+
+**Interfaces:**
+- Produces: `ProductHostContext { string? Key; string? Host; bool IsProductHost }`; `IProductHostResolver.ResolveAsync(HttpContext, CancellationToken) -> ValueTask<ProductHostContext>`; `ProductHostMap.TryResolve(string host, out string key)`, `RefreshAsync(ct)`, `TryGetHost(string key, out string host)` (used by Task 6); middleware behaviour per the drafting rules.
+
+- [ ] **Step 1: Failing unit tests.** Map: resolves a known host; unknown host -> false and triggers one refresh; a second unknown-host lookup inside 10 s causes no second client call (fake `TimeProvider`); after 60 s the entry refreshes; hosts compared lowercase. Middleware (unit, `DefaultHttpContext`): rewrite table cases; pass-through cases unchanged; `/p/{sameKey}/contact?x=1` -> 301 `/contact?x=1`; `/p/{otherKey}/kb` -> 301 to `https://other.host/kb` or `{PublicUrl}/p/other/kb`; default host `/p/dragon-poop/contact` -> 301 `https://support.dragonpoop.com/contact`; POST on a product host to `/contact` is rewritten and NOT redirected; unknown host behaves as default (no rewrite, no redirect); the context is populated.
+- [ ] **Step 2: Failing host tests** (`[Fact(Timeout = ...)]`, `request.Headers.Host = "support.dragonpoop.com"`): `/` renders the dragon-poop product home; `/contact` renders its contact page; `/kb` renders; `/t/{token}` is served (stub ticket client) on the product host; `/sitemap.xml`, `/robots.txt`, `/health` respond; the Blazor hub negotiation `/_blazor/negotiate` (POST) returns 200 on the product host; `A_post_on_a_product_host_is_rewritten_not_redirected` (contact form post reaches the handler stub); `A_hostile_host_leaks_nothing` (Host `evil.example` and `support.dragonpoop.com.evil` -> default host home, no `evil` substring in body/headers/location).
+- [ ] **Step 3: RED**, **Step 4: implement**, **Step 5: GREEN** (`dotnet test --project tests/TechStrap.Portal.Tests -c Release`), build 0 warnings. Note the existing `OutputCachePipelineTests` "never vary by host" still passes at this point (cache change is Task 6).
+- [ ] **Step 6: Mutations.** Redirect POSTs too (POST test dies); build the redirect from `Request.Host` instead of the stored host (hostile test dies); drop the 10 s guard (map test dies); place the middleware after `UseRouting` (host tests die); restore.
+- [ ] **Step 7: Commit** `feat(portal): resolve the product from the request host; clean paths and canonical redirects (P11e-T05)`.
+
+### Task 6: Portal links, SEO and cache - `PortalLinks`, component migration, per-host sitemap, vary by host
+
+**Files:**
+- Create: `src/TechStrap.Portal/Routing/PortalLinks.cs`, `tests/TechStrap.Portal.Tests/Routing/PortalLinksTests.cs`, `tests/TechStrap.Architecture.Tests/PortalLinkRuleTests.cs` (+ rule in `PortalRules.cs`)
+- Modify: every `.razor`/`.razor.cs` under `src/TechStrap.Portal/Components` that calls `PortalRoutes.*` (inject `PortalLinks Links` in code-behind; `ProductPageBase` exposes `Links`), `Seo/PortalSeoRegistration.cs`, `Seo/PortalSitemapBuilder.cs`, `Seo/PortalSitemapCache.cs` (key by host), the canonical/JSON-LD builders (`KbStructuredData`), `Caching/PortalOutputCache.cs` (`SetVaryByHost(true)`), `tests/TechStrap.Portal.Tests/Caching/OutputCachePipelineTests.cs:~220` (flip to "two hosts, two entries"), `tests/TechStrap.Portal.Tests/Seo/*` (per-host cases)
+
+**Interfaces:**
+- Consumes: Task 5 (`ProductHostContext`, `ProductHostMap.TryGetHost`).
+- Produces: `PortalLinks` per the drafting rules; architecture rule "no `PortalRoutes.` in Portal `.razor`/`.razor.cs`/`Seo/*` except `PortalLinks.cs`".
+
+- [ ] **Step 1: Failing tests.** `PortalLinksTests` (three outcomes per builder: same-host product -> clean path; other product with a host -> absolute https; no host -> `/p/{key}`; `Ticket` always relative; `Absolute` on product host vs default). Architecture: the live scan passes only after migration; fixture flags a `.razor` using `PortalRoutes.`. SEO host tests: on `support.dragonpoop.com` the canonical of `/kb/a/b` is `https://support.dragonpoop.com/kb/a/b`, JSON-LD URLs likewise, `/sitemap.xml` lists only dragon-poop with clean paths; on the default host the sitemap lists only `who-flung-poo` (no `dragon-poop` entries) and canonicals keep `/p/{key}`. Cache: `/p/who-flung-poo/kb/accounts` on hosts A and B -> two cache entries (flip the existing test). Follow-up redirect still uses the last token segment (existing test stays green).
+- [ ] **Step 2: RED**, **Step 3: implement** (migrate components file by file; keep `RouteLiteralTests` green; `PortalSitemapBuilder.Build(ProductHostContext)`; `PortalSitemapCache` keyed by `Context.Host ?? "default"`), **Step 4: GREEN** (`Portal.Tests`, Architecture tests), build 0 warnings.
+- [ ] **Step 5: Mutations.** `PortalLinks` returns `/p/{key}` on the same host (clean-path tests die); sitemap on a product host includes other products (sitemap test dies); `SetVaryByHost(false)` (cache test dies); restore.
+- [ ] **Step 6: Commit** `feat(portal): host-aware links, canonical URLs, sitemap and output cache (P11e-T06)`.
+
+### Task 7: Docs and close-out - D-050, deployment/portal docs, roadmap, pins, manual check
+
+**Files:**
+- Modify: `docs/architecture/04-DECISION-LOG.md` (Approval-basis bullet; index row; D-050 section after D-049 in the house format; D-002 gets a one-line "Amended by D-050 (2026-10-08): products may have their own portal host" under its Status), `docs/architecture/PHASE-11e-product-hosts.md` (tick T01-T07 with `**As built (11e):**` notes; Deliverables/Success Criteria ticks), `docs/architecture/99-IMPLEMENTATION-ROADMAP.md` (new row `11e | Product hosts | 09, 05, 04, 07 | 12 | D-050 | 11e complete (pending merge)`; P11e task index; section 6/7 notes: UAT config needs a Caddy site + DNS per product host), `docs/architecture/00-DISCOVERY-INDEX.md` (row), `docs/architecture/05-SCHEMA.md` (products.PortalHost column + unique index), `docs/architecture/02-ARCHITECTURE.md` (the D-002 restatement at ~:448), `docs/architecture/UX-BRIEF-portal.md:22` ("One portal domain serves every product" -> "... and a product may have its own host"), `docs/development/PORTAL-APP.md:~175` (Host-header sentence), `docs/self-hosting/DEPLOYMENT.md` (section "Product hosts": DNS, one Caddy site per host proxying to the Portal with the same forwarded headers, `ALLOWEDHOSTS` note, HSTS `includeSubDomains` caveat, "the Portal needs no new setting"), `scripts/tests/RepositoryDocs.Tests.ps1` (row 11e pins; D-050 pins: heading/status/date/index row/approval bullet; phrases `PortalHost`, `HostNameShape`, `ProductHostMiddleware`, `PortalLinks`, `never the Host header` absent / `lookup key` present in PORTAL-APP.md; DEPLOYMENT.md has `## Product hosts`), `docs/superpowers/plans/2026-10-08-phase-11e-product-hosts.md` (ticks + As-built notes)
+
+- [ ] **Step 1: Pins first (RED)**, **Step 2: docs**, **Step 3: GREEN** (`pwsh -File scripts/Invoke-ScriptTests.ps1`, `Check-PackageVersions.ps1`, build, `SourceEncodingTests`, `has-pending-model-changes` none).
+- [ ] **Step 4: Manual compose check** (record in the plan's As-built and the report): `docker compose up -d` with dev data; add `127.0.0.1 support.dragonpoop.test` to the hosts file (or use `curl -H "Host: support.dragonpoop.test" http://localhost:8082/`) after setting the Orbitly dev product's host to `support.dragonpoop.test` via the Admin or `psql`; `GET /` on that host renders the product home with clean links; `GET http://localhost:8082/p/<key>/contact` -> 301 `https://support.dragonpoop.test/contact`; `GET /` on `localhost:8082` still renders the default page. Restore the dev product's host to null afterwards (`psql`), `docker compose down` (never `-v`).
+- [ ] **Step 5: Mutation.** Break the D-050 index row (pin dies); restore.
+- [ ] **Step 6: Commit** `docs: PHASE-11e close-out, D-050 (amends D-002), deployment notes and pins`.
+
+## Verification (whole PR)
+```
+dotnet build TechStrap.slnx -c Release                       # 0 warnings
+dotnet test --solution TechStrap.CI.slnf -c Release --no-build    # Docker running
+pwsh -File scripts/Invoke-ScriptTests.ps1
+pwsh -File scripts/Check-PackageVersions.ps1
+dotnet ef migrations has-pending-model-changes --project src/TechStrap.Infrastructure --startup-project src/TechStrap.Api --configuration Release --no-build
+# plus Task 7's manual compose check with a Host header
+```
+Then `superpowers:finishing-a-development-branch`: PR "PHASE-11e: product hosts (D-050)" against `main`. The Contracts change is additive; the next package version (0.2.0) is tagged when the owner decides (not part of this PR).
+
+## Risks / open items
+- `IPublicProductClient` is scoped (per-request `ApiConnection`): the singleton map must refresh through `IServiceScopeFactory`; verify no captive dependency.
+- Blazor Server circuit on a rewritten path: the host tests pin `/_blazor/negotiate` and an interactive render; if the circuit's base URI confuses `NavigationManager`, set `<base href="/">` handling or use `NavigationManager.ToAbsoluteUri` carefully in `PortalLinks.Absolute` (never from `Request.Host`).
+- Output-cache growth per unknown host: unknown hosts render default pages; the cache keys per distinct Host value - acceptable for v0.x; a bound is a PHASE-12 hardening item.
+- HSTS `includeSubDomains` on parent domains and DNS/Caddy per host are operator work (DEPLOYMENT.md).
+- Changing a host orphans emailed links to the old host (documented; no redirect table).
