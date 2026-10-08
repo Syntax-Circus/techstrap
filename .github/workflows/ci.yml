@@ -38,6 +38,17 @@ jobs:
       - name: Test
         run: dotnet test --solution TechStrap.CI.slnf -c Release --no-build
 
+      # The packages are not published from CI yet; this proves they still pack with the README, the MIT license and the intended dependencies.
+      - name: Pack dry run (TechStrap.Contracts, TechStrap.Client)
+        shell: pwsh
+        run: |
+          dotnet pack src/TechStrap.Contracts -c Release --no-build -p:Version=0.0.0-ci -o "${{ runner.temp }}/pack"
+          dotnet pack src/TechStrap.Client -c Release --no-build -p:Version=0.0.0-ci -o "${{ runner.temp }}/pack"
+          ./scripts/Test-PackageContents.ps1 -PackageDirectory "${{ runner.temp }}/pack" -Expected @{
+              'TechStrap.Contracts' = @()
+              'TechStrap.Client'    = @('TechStrap.Contracts', 'SyntaxCircus.Http.Resilience', 'SyntaxCircus.Common', 'Microsoft.Extensions.Http', 'Microsoft.Extensions.Options', 'Microsoft.Extensions.DependencyInjection.Abstractions')
+          }
+
       - name: Check for pending EF model changes
         run: dotnet ef migrations has-pending-model-changes --project src/TechStrap.Infrastructure --startup-project src/TechStrap.Api --configuration Release --no-build
 

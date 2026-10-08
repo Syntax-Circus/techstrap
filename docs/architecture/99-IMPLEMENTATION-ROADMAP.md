@@ -26,8 +26,8 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 | 07 | [Admin app](PHASE-07-admin-app.md) | 02, 06 | 08 (editor UI), 10 | 11 alongside; 08 API work alongside | D-017, D-022, D-040, D-041 | Complete: 07a merged (PR #9), 07b merged (PR #10), 07c merged (PR #11); owner action 7 (Authentik) still open, so P07-T02 stays unticked |
 | 08 | [Knowledge base](PHASE-08-knowledge-base.md) | 06 (07 for the editor UI) | 09 | API tasks T01 to T12 alongside 07; editor tasks wait for 07 | D-011, D-014, D-021, D-044 | PHASE-08 merged (PR #13): the API (Tasks 1-8) and the Admin (editor, categories, article picker); the owner's manual checks are open |
 | 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 | 10 and 11 alongside | D-002, D-017, D-019, D-045 | 09a merged (PR #14); 09b merged (PR #15); 09c merged (PR #16); 09d merged (PR #17); PHASE-09 complete: the owner evidence for P09-T16 (axe, Lighthouse, the JavaScript-off walk, screenshots) and the compose run of P09-T18 are open, P09-T20 is deferred |
-| 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | 08, 09, 11 alongside | D-007, D-018, D-046 | 10a merged (PR #18); 10b complete (pending merge); PHASE-10 complete (pending merge): the owner's manual checks with a real identity provider (two browsers, a worker auto-close, the kill switch) are open |
-| 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | Alongside 06 to 10 | D-005, D-020 | Not started |
+| 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | 08, 09, 11 alongside | D-007, D-018, D-046 | 10a merged (PR #18); 10b merged (PR #19); PHASE-10 complete: the owner's manual checks with a real identity provider (two browsers, a worker auto-close, the kill switch) are open |
+| 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | Alongside 06 to 10 | D-005, D-020, D-047 | 11a complete (pending merge): T01, T02, T03, T04, T06, T10, T17; 11b (MAUI, T07 to T09) and 11c (READMEs, samples, publish workflow, nuget.org, rc.1; T11 to T16) not started; T05 (attachments) deferred to 11d, which first needs multipart intake |
 | 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 | Last; security, load, restore and UAT tasks can overlap once their inputs exist | D-003, D-022 | Not started |
 
 Edges: 01 to 02 and 03; 03 to 04 to 05 to 06; 05 to 11; 02 and 06 to 07; 06 and 07 to 08; 02, 06 and 08 to 09; 07 to 10; all to 12.
@@ -282,7 +282,7 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P11-T02 | `TechStrap.Client` project with pack metadata |
 | P11-T03 | `TechStrapClientOptions` and `ApiKeyHandler` |
 | P11-T04 | `ITechStrapClient.SubmitTicketAsync` and DI extension with resilience |
-| P11-T05 | `TicketAttachment` helpers |
+| P11-T05 | `TicketAttachment` helpers (deferred, D-047) |
 | P11-T06 | `TechStrap.Client.Tests` with real-API integration and OpenAPI contract test |
 | P11-T07 | `TechStrap.Client.Maui` project |
 | P11-T08 | `MauiDeviceContextCollector` |
@@ -328,7 +328,7 @@ Run from the repository root. PHASE-01 creates the files these commands need; be
 
 | Purpose | Command | Expect |
 | --- | --- | --- |
-| Build, warnings as errors | `dotnet build TechStrap.slnx -warnaserror` (releases: add `-c Release`) | Exit 0; `TechStrap.Client.Maui` excluded by the solution filter until PHASE-11 |
+| Build, warnings as errors | `dotnet build TechStrap.slnx -warnaserror` (releases: add `-c Release`) | Exit 0; `TechStrap.Client.Maui` excluded by the solution filter until 11b |
 | Full test run | `dotnet test` | All pass; Docker must be running for Testcontainers |
 | One test project | `dotnet test tests/TechStrap.Architecture.Tests` (or any test project) | Pass |
 | One test class | `dotnet test --filter "FullyQualifiedName~MigrationStartupTests"` | Pass |
@@ -404,8 +404,8 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 | 6 | Choose the visual direction and approve `docs/BRAND.md` | P02-T01 to P02-T03 |
 | 7 | Set up the Authentik application and groups per the `syntax-circus-authentik` repo: a confidential OIDC client for Admin (code plus PKCE, `offline_access`, group claim in the id and access tokens), a provider for the API audience, and groups mapped to `TECHSTRAP_AGENT_GROUP` and `TECHSTRAP_ADMIN_GROUP`; the first admin is whoever is in the admin group (D-029) | P04-T14, P07-T02, P12-T17 |
 | 8 | Supply the reverse-proxy address and trusted network values for UAT and production (Q-08: the `REVERSE_PROXY_CIDR` input of `deploy/.env.<env>.local`), create the shared Postgres Docker network and the scoped env files under `/etc/techstrap/<env>/` (D-043), and an SMTP relay for UAT | P01-T16, P12-T14 |
-| 9 | Create the nuget.org publishing setup: reserve the `TechStrap.*` package IDs, create a Trusted Publishing policy per package, add the repository secret `NUGET_USER` (fallback `NUGET_API_KEY`) and a GitHub environment `release` with required reviewers | P11-T15 |
-| 10 | Provide a macOS runner (or approve the macOS CI cost) for the MAUI workload build | P11-T07 |
+| 9 | Create the nuget.org publishing setup: reserve the `TechStrap.*` package IDs, create a Trusted Publishing policy per package, add the repository secret `NUGET_USER` (fallback `NUGET_API_KEY`) and a GitHub environment `release` with required reviewers (needed for 11c) | P11-T15 |
+| 10 | Provide a macOS runner (or approve the macOS CI cost) for the MAUI workload build (needed for 11b; iOS on tag only, D-047) | P11-T07 |
 | 11 | Provide a scratch environment for the restore drill and agree load-test scheduling on the shared UAT host | P12-T12, P12-T15 |
 | 12 | Confirm the flagged Assumptions that need an owner answer (for example honeypot fake success, dropping a Public key's external user ref, Solved notice email) | PHASE-05, PHASE-06 |
 | 13 | Review the discovery set and select the first phase (expected: PHASE-01) | Now |

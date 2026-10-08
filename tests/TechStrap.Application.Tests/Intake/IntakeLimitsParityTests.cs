@@ -19,6 +19,14 @@ public sealed class IntakeLimitsParityTests
         HeaderNames.ApiKey.ShouldBe("X-Api-Key");
 
     [Fact]
+    public void The_intake_route_and_header_wire_names_are_pinned()
+    {
+        IntakeRoutes.Tickets.ShouldBe("api/intake/tickets");
+        HeaderNames.IdempotencyKey.ShouldBe("Idempotency-Key");
+        HeaderNames.TicketToken.ShouldBe("X-Ticket-Token");
+    }
+
+    [Fact]
     public void The_text_limits_the_portal_forms_use_match_the_domain()
     {
         // D-045 addendum (2026-10-06): Contracts repeats these so the contact form never offers a longer value than the API accepts.

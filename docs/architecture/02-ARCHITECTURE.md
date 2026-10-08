@@ -42,7 +42,7 @@ techstrap/
     TechStrap.Admin           Blazor Server, typed clients, ViewModels, SCSS
     TechStrap.Portal          Blazor SSR, typed clients, ViewModels, SCSS
     TechStrap.Worker          Hosted loops: outbox drain, auto-close
-    TechStrap.Client          SDK over Contracts (NuGet)
+    TechStrap.Client          SDK over Contracts (NuGet): JSON submit, retry only with an Idempotency-Key (D-047)
     TechStrap.Client.Maui     MAUI helper over Client (NuGet)
   tests/
     TechStrap.Domain.Tests  TechStrap.Application.Tests  TechStrap.Infrastructure.IntegrationTests
@@ -50,7 +50,7 @@ techstrap/
     TechStrap.Admin.Tests  TechStrap.Portal.Tests  TechStrap.Client.Tests
 ```
 
-The first five test projects are created in PHASE-01; `TechStrap.Admin.Tests` (bUnit), `TechStrap.Portal.Tests` (bUnit and host tests) and `TechStrap.Client.Tests` are created in their owning phases (PHASE-07, PHASE-09, PHASE-11).
+The first five test projects are created in PHASE-01; `TechStrap.Admin.Tests` (bUnit), `TechStrap.Portal.Tests` (bUnit and host tests) and `TechStrap.Client.Tests` are created in their owning phases (PHASE-07, PHASE-09, PHASE-11); `TechStrap.Client.Tests` was created in PHASE-11a.
 
 Allowed project references (enforced by `TechStrap.Architecture.Tests`, PHASE-01):
 
@@ -99,7 +99,7 @@ Other conventions: handlers sealed with `I…Handler` interfaces; constants and 
 | Postgres listener (Api hosted service) | Dedicated connection `LISTEN techstrap_ticket_changes`, passes payloads to `RelayTicketChangeHandler`, reconnects with backoff |
 | Worker loops | Poll outbox (`EmailOutboxWorker` to `DrainEmailOutboxHandler`), scheduled auto-close (`AutoCloseWorker` to `AutoCloseSolvedTicketsHandler`); own cadence, cancellation, error logging; map handler outcome to loop behavior |
 | Admin / Portal | Presentation only; typed clients with `Http.Resilience`; Portal adds `.AddForwardedClientIp()` (D-019) |
-| Client / Client.Maui | Submit-ticket SDK and device/app metadata capture |
+| Client / Client.Maui | Submit-ticket SDK (JSON submit, retry only with an Idempotency-Key, D-047) and device/app metadata capture (11b) |
 
 ### 3.1 Application abstractions
 

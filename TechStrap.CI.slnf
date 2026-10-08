@@ -16,6 +16,7 @@
       "tests/TechStrap.Api.Tests/TechStrap.Api.Tests.csproj",
       "tests/TechStrap.Application.Tests/TechStrap.Application.Tests.csproj",
       "tests/TechStrap.Architecture.Tests/TechStrap.Architecture.Tests.csproj",
+      "tests/TechStrap.Client.Tests/TechStrap.Client.Tests.csproj",
       "tests/TechStrap.Domain.Tests/TechStrap.Domain.Tests.csproj",
       "tests/TechStrap.Infrastructure.IntegrationTests/TechStrap.Infrastructure.IntegrationTests.csproj",
       "tests/TechStrap.Portal.Tests/TechStrap.Portal.Tests.csproj"

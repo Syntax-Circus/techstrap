@@ -515,10 +515,10 @@ Describe 'D-046 (live updates)' {
         $spec | Should -Match '\*\*Kill switch \(10b addendum, 2026-10-07\)\.\*\*'
     }
 
-    It 'says in the roadmap and discovery rows that 10a is merged and PHASE-10 is complete pending merge' {
+    It 'says in the roadmap and discovery rows that 10a and 10b are merged and PHASE-10 is complete' {
         foreach ($file in 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md', 'docs/architecture/00-DISCOVERY-INDEX.md') {
             $text = Get-RepoText $file
-            $text | Should -Match '(?m)^\| 10 \|.*\| 10a merged \(PR #18\); 10b complete \(pending merge\); PHASE-10 complete \(pending merge\): the owner'
+            $text | Should -Match '(?m)^\| 10 \|.*\| 10a merged \(PR #18\); 10b merged \(PR #19\); PHASE-10 complete: the owner'
             $text | Should -Not -Match '10a complete \(pending merge\)'
         }
     }
@@ -543,7 +543,6 @@ Describe 'D-046 addendum (PHASE-10b, live updates in the Admin)' {
 
     It 'records the owner rulings and the spike findings as an addendum of D-046, not as a new decision' {
         $script:Log | Should -Match '(?m)^### Addendum \(2026-10-07, PHASE-10b live updates in the Admin\)'
-        $script:Log | Should -Not -Match '(?m)^## D-047'
         $addendum = ($script:Log -split '(?m)^### Addendum \(2026-10-07, PHASE-10b live updates in the Admin\)')[1]
         foreach ($phrase in 'LiveUpdates:Enabled', 'LIVEUPDATES__ENABLED', 'NullTicketLiveClient', 'AdminLiveClientHostTests', 'Own changes are ignored', ('Queue updated {0} refresh' -f [char]0x2013), 'IUserAccessTokenProvider',
                 'OnAfterRenderAsync', 'compose is not edited', 'Known limits (10b)', 'There is no new decision number', 'does not sign the agent out') {
@@ -574,6 +573,71 @@ Describe 'D-046 addendum (PHASE-10b, live updates in the Admin)' {
         $map | Should -Match 'dragon-poop 0\.1\.7; TechStrap first on 0\.2\.0'
         $map | Should -Match 'IUserAccessTokenProvider'
         $map | Should -Match 'SignalRTicketLiveClient'
+    }
+}
+
+Describe 'D-047 (client SDK)' {
+    BeforeAll { $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md' }
+
+    It 'is in the decision log with its date, its status, a header bullet and an index row' {
+        $script:Log | Should -Match '(?m)^## D-047: PHASE-11: client SDK'
+        $script:Log | Should -Match '(?s)## D-047:.*?- \*\*Status:\*\* Approved \(owner 2026-10-07.*?- \*\*Date:\*\* 2026-10-07'
+        $script:Log | Should -Match '(?m)^\| D-047 \|.*HttpRequestResiliencePipeline.*\| 2026-10-07 \|'
+        $script:Log | Should -Match '(?m)^- \*\*Owner decision \(2026-10-07, PHASE-11 planning\):\*\* D-047'
+    }
+
+    It 'records the owner decisions, the technical rulings and the known limits' {
+        $section = ($script:Log -split '(?m)^## D-047:')[1]
+        foreach ($phrase in 'Three pull requests', 'JSON-only', 'HttpRequestResiliencePipeline', 'TechStrapClientErrorCodes', 'NotReplayable', 'Microsoft.AspNetCore.App', 'eng/Packaging.props', 'P11-T05',
+                'Owner decisions (2026-10-07)', 'Technical rulings', '**Known limits**', 'Retry-After', 'one circuit per DI container', 'net10.0') {
+            $section | Should -Match ([regex]::Escape($phrase)) -Because "D-047 must mention $phrase"
+        }
+    }
+
+    It 'corrects the PHASE-11 spec and ticks what 11a delivered, leaving attachments open' {
+        $spec = Get-RepoText 'docs/architecture/PHASE-11-client-sdk.md'
+        $spec | Should -Match '(?m)^### Corrections \(D-047, 2026-10-07\)'
+        $spec | Should -Match 'Where this page and D-047 differ, D-047 wins\.'
+        foreach ($id in 'P11-T01', 'P11-T02', 'P11-T03', 'P11-T04', 'P11-T06', 'P11-T10', 'P11-T17') {
+            $spec | Should -Match ('(?s)- \[x\] \*\*' + $id + '\*\*(?:(?!- \[[x ]\] \*\*P11-T).)*?\*\*As built \(11a\):\*\*') -Because "$id carries its as-built note"
+        }
+        $spec | Should -Match '(?m)^- \[ \] \*\*P11-T05\*\*.*\(deferred, D-047\)'
+        foreach ($id in 'P11-T07', 'P11-T08', 'P11-T09', 'P11-T11', 'P11-T12', 'P11-T13', 'P11-T14', 'P11-T15', 'P11-T16') {
+            $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not delivered by 11a"
+        }
+    }
+
+    It 'says in the roadmap and discovery rows that 10b is merged and 11a is complete pending merge' {
+        foreach ($file in 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md', 'docs/architecture/00-DISCOVERY-INDEX.md') {
+            $text = Get-RepoText $file
+            $text | Should -Match '(?m)^\| 10 \|.*\| 10a merged \(PR #18\); 10b merged \(PR #19\); PHASE-10 complete: the owner'
+            $text | Should -Not -Match '10b complete \(pending merge\)'
+            $text | Should -Match '(?m)^\| 11 \|.*11a complete \(pending merge\): T01, T02, T03, T04, T06, T10, T17; 11b \(MAUI, T07 to T09\) and 11c'
+            $text | Should -Match 'T05 \(attachments\) deferred to 11d, which first needs multipart intake'
+        }
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11-T05 \|.*\(deferred, D-047\)'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match 'excluded by the solution filter until 11b'
+    }
+
+    It 'maps the SDK dependencies: the pipeline, not a plain HttpClient, and the web-neutral Common' {
+        $map = Get-RepoText 'docs/architecture/03-PACKAGE-MAP.md'
+        $map | Should -Not -Match 'plain `HttpClient`'
+        $map | Should -Match 'HttpRequestResiliencePipeline'
+        $map | Should -Match '\| `SyntaxCircus\.Common` \| 0\.2\.0 \|'
+        $map | Should -Match '\| `SyntaxCircus\.AspNetCore\.Common` \| 0\.1\.16 \|'
+        $architecture = Get-RepoText 'docs/architecture/02-ARCHITECTURE.md'
+        $architecture | Should -Match 'TechStrap\.Client\.Tests` was created in PHASE-11a'
+        $architecture | Should -Match 'retry only with an Idempotency-Key \(D-047\)'
+    }
+
+    It 'documents the SDK for maintainers' {
+        $doc = Get-RepoText 'docs/development/CLIENT-SDK.md'
+        foreach ($heading in 'Packages', 'Local pack', 'Configuration', 'Retry and idempotency', 'Error codes', 'Key safety', 'Tests', 'Known limits') {
+            $doc | Should -Match ('(?m)^## ' + [regex]::Escape($heading)) -Because "CLIENT-SDK.md needs a $heading section"
+        }
+        foreach ($phrase in 'Test-PackageContents.ps1', 'AddTechStrapClient', 'Replayable', 'NotReplayable', 'TechStrapClientErrorCodes', 'Integration', 'one new ticket') {
+            $doc | Should -Match ([regex]::Escape($phrase)) -Because "CLIENT-SDK.md must mention $phrase"
+        }
     }
 }
 

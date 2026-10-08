@@ -18,6 +18,20 @@ tag, a runnable sample, and a README per package.
 - **Unblocks:** [PHASE-12](PHASE-12-release-hardening.md). Can run in parallel with Phases 07–10.
 - **External prerequisites:** nuget.org account/organization owning the `TechStrap.*` ID prefix (reserve IDs); NuGet **Trusted Publishing** policy for the GitHub repo/workflow (as used by SyntaxCircus.Maui.TokenStorage) and repository secret `NUGET_USER` (**Assumption**; API-key fallback `NUGET_API_KEY`); GitHub environment `release` with required reviewers; macOS runner for the MAUI workload.
 
+### Corrections (D-047, 2026-10-07)
+
+Where this page and D-047 differ, D-047 wins.
+- **Delivery.** Three pull requests: 11a (T01, T02, T03, T04, T06, T10, T17: the SDK core and the packaging of Contracts and Client), 11b (MAUI, T07 to T09) and 11c (READMEs, samples, publish workflow, nuget.org, `v1.0.0-rc.1`; T11 to T16). 11b and 11c wait on owner actions #10 and #9.
+- **JSON-only.** The intake endpoint takes `[FromBody] SubmitTicketRequest` (D-034). There is no `TicketAttachment` and no multipart; P11-T05 and the MAUI screenshot adapter are deferred to 11d, which first needs multipart intake. The surface is `SubmitTicketAsync(SubmitTicketRequest, CancellationToken)` (the SDK generates the key), `SubmitTicketAsync(SubmitTicketRequest, string idempotencyKey, CancellationToken)` (the caller's stable key) and `SubmitTicketOnceAsync`.
+- **Resilience.** The SDK uses `HttpRequestResiliencePipeline` directly, not `AddResilientHttpClient`, `AddTypedClient` or `ApiClientBase`: the package's client registration retries every request, POST included. A submit with an `Idempotency-Key` is replayable; `SubmitTicketOnceAsync` sends once. There is no `retryCount`; the option is `MaxAttempts` (attempts in total).
+- **Constant names.** `TechStrapHeaders` is `HeaderNames`; `TicketMetadataLimits` is `IntakeLimits`; `IntakeRoutes.Tickets` is new. `TicketMetadataKeys` is created in 11b.
+- **Error codes** are `TechStrapClientErrorCodes` in `TechStrap.Client`, not Contracts constants.
+- **429.** It is surfaced as `rate-limited` and not retried, and `Retry-After` is not carried: the server sends it, but `ResultError` has no slot for it. A 500 is not retried either, and an exhausted 408 is `api-unavailable`.
+- **MAUI CI (11b).** `net10.0` and Android build on the existing runner; iOS builds only on a `v*` tag, on macOS.
+- **Common.** `SyntaxCircus.Common` 0.2.0 is web-neutral (no `Microsoft.AspNetCore.App` framework reference); `ICurrentUserService` moved to `SyntaxCircus.AspNetCore.Common` 0.1.16.
+- **Packaging.** `eng/Packaging.props` carries the pack metadata for Contracts and Client. `GitVersion.MsBuild`, the documentation file and a SourceLink package are deferred to 11c; a local pack passes `-p:Version=`.
+- **OpenAPI contract test.** The Api documents no response schemas, so the test pins the request, the security scheme and the `Idempotency-Key` parameter, not the 201 body (a PHASE-05 follow-up).
+
 ## Architecture Decisions
 
 - **Three packages, not two.** `TechStrap.Client` depends on `TechStrap.Contracts`, so Contracts must be a public package (`TechStrap.Contracts`; DTOs and constants only, no inward project references). The plan listed two; this is a necessary addition (see Risks). All three share one lockstep version from GitVersion and the `v*` tag (**Assumption**; independent versioning rejected for simplicity).
@@ -73,34 +87,39 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 
 ## Deliverables
 
-- [ ] `src/TechStrap.Contracts` pack metadata + README; `src/TechStrap.Client` and `src/TechStrap.Client.Maui` projects with pack metadata + README each.
-- [ ] `ITechStrapClient`, options, DI extension, `ApiKeyHandler`, `Result` mapping, attachment type.
+- [ ] `src/TechStrap.Contracts` pack metadata + README; `src/TechStrap.Client` and `src/TechStrap.Client.Maui` projects with pack metadata + README each. *(11a: Contracts and Client; `TechStrap.Client.Maui` is still the placeholder, 11b.)*
+- [ ] `ITechStrapClient`, options, DI extension, `ApiKeyHandler`, `Result` mapping, attachment type. *(11a: all but the attachment type, deferred by D-047.)*
 - [ ] `IDeviceContextCollector`, `MauiDeviceContextCollector`, `IMauiTicketSubmitter`, `AddTechStrapMaui`.
-- [ ] `tests/TechStrap.Client.Tests` (unit + API-contract integration), created in this phase (listed in `02-ARCHITECTURE.md`).
+- [x] `tests/TechStrap.Client.Tests` (unit + API-contract integration), created in this phase (listed in `02-ARCHITECTURE.md`). *(Created in 11a.)*
 - [ ] Console sample (+ optional MAUI sample); README usage snippets.
-- [ ] `.github/workflows/publish-nuget.yml` and package validation (readme/license/symbols/dependency check), dry-run on non-tag builds.
+- [ ] `.github/workflows/publish-nuget.yml` and package validation (readme/license/symbols/dependency check), dry-run on non-tag builds. *(11a delivers the pack dry run in `ci.yml` and `scripts/Test-PackageContents.ps1`; the workflow itself is 11c.)*
 - [ ] First prerelease (`v1.0.0-rc.1`) published and consumed from nuget.org by the sample.
 
 ## Actionable Tasks
 
-- [ ] **P11-T01** Add shared SDK constants to Contracts (`TechStrapHeaders` created in P05-T01, `TicketMetadataKeys`, `TicketMetadataLimits`, error code constants) and confirm the header names and limits against P05's implementation
+- [x] **P11-T01** Add shared SDK constants to Contracts (`TechStrapHeaders` created in P05-T01, `TicketMetadataKeys`, `TicketMetadataLimits`, error code constants) and confirm the header names and limits against P05's implementation
   - **Depends on:** P05
   - **Validation:** API uses the same constants (compile-time); Api.Tests assert the header name and limits are enforced; no duplicate literals in Api/Client (grep/architecture test).
-- [ ] **P11-T02** Create `TechStrap.Client` project with pack metadata modeled on `SyntaxCircus.Maui.TokenStorage.csproj`; add `PackageReadmeFile`, SourceLink, snupkg, `GitVersion.MsBuild`, `EnablePackageValidation`
+  - **As built (11a):** `HeaderNames` and `IntakeLimits` already existed (the spec's `TechStrapHeaders` and `TicketMetadataLimits`); `IntakeRoutes.Tickets` is new and the controller uses it. `WireLiteralRules` allows the four quoted wire literals in `src/` only in `HeaderNames.cs`, `IntakeRoutes.cs` and the named Sentry exemption. Error codes live in the Client (`TechStrapClientErrorCodes`); `TicketMetadataKeys` is 11b.
+- [x] **P11-T02** Create `TechStrap.Client` project with pack metadata modeled on `SyntaxCircus.Maui.TokenStorage.csproj`; add `PackageReadmeFile`, SourceLink, snupkg, `GitVersion.MsBuild`, `EnablePackageValidation`
   - **Depends on:** P11-T01, P01
   - **Validation:** `dotnet pack` produces `.nupkg` + `.snupkg`; unzip shows README, MIT license expression, repository URL, dependency list exactly `TechStrap.Contracts`, `SyntaxCircus.Http.Resilience`, `SyntaxCircus.Common`, `Microsoft.Extensions.*`.
-- [ ] **P11-T03** Implement `TechStrapClientOptions` (BaseAddress, ApiKey, Timeout) with validation and `ApiKeyHandler` (header injection; key never logged)
+  - **As built (11a):** `eng/Packaging.props` (imported by Contracts and Client only) carries the metadata; `GitVersion.MsBuild`, the documentation file and a SourceLink package are deferred to 11c. The dependency set is pinned by an architecture rule and checked in CI by `scripts/Test-PackageContents.ps1`: Contracts has none; Client has the six ids (Contracts, `SyntaxCircus.Http.Resilience`, `SyntaxCircus.Common` and three `Microsoft.Extensions.*`).
+- [x] **P11-T03** Implement `TechStrapClientOptions` (BaseAddress, ApiKey, Timeout) with validation and `ApiKeyHandler` (header injection; key never logged)
   - **Depends on:** P11-T02
   - **Validation:** Unit tests: missing/invalid base URL or key fails on first use with a clear message; handler sets the header; log/exception capture never contains the key.
-- [ ] **P11-T04** Implement `ITechStrapClient`/`TechStrapClient.SubmitTicketAsync` (multipart with attachments, cancellation, `Result` mapping, `RetryAfter` parsing) and `AddTechStrapClient` DI extension using `AddResilientHttpClient`; submit retries only when an `Idempotency-Key` is set (D-020), otherwise `retryCount: 0`
+  - **As built (11a):** `TechStrapClientOptions` also has `MaxAttempts`, `RetryBaseDelay` and `MaxRetryDelay`; an internal validator fails with `OptionsValidationException` on first use (no `ValidateOnStart`) and never echoes the key. `ApiKeyHandler` replaces a caller-set header and refuses a request to another authority; the named client has no logging handlers and no redirects.
+- [x] **P11-T04** Implement `ITechStrapClient`/`TechStrapClient.SubmitTicketAsync` (multipart with attachments, cancellation, `Result` mapping, `RetryAfter` parsing) and `AddTechStrapClient` DI extension using `AddResilientHttpClient`; submit retries only when an `Idempotency-Key` is set (D-020), otherwise `retryCount: 0`
   - **Depends on:** P11-T03
   - **Validation:** Stub-handler tests: 201 -> response mapped; 400 field errors; 401/403; 413/415; 429 with `Retry-After`; 503 -> `Unavailable`; without a key the call is not retried (handler invoked once), with a key it is retried with the identical `Idempotency-Key` on every attempt; circuit breaker opens after N failures; cancellation aborts the request.
-- [ ] **P11-T05** Add `TicketAttachment` helpers (stream, file name, content type; guard against disposed streams; pre-check size/type against Contracts limits)
+  - **As built (11a):** JSON only, no attachments; `HttpRequestResiliencePipeline` replaces `AddResilientHttpClient`; three methods (`SubmitTicketAsync` with a generated key, `SubmitTicketAsync` with the caller's key, `SubmitTicketOnceAsync`) instead of `SubmitOptions`. Host-wide `ConfigureHttpClientDefaults` handlers are removed from the SDK's named client (they would retry a call that has no key); a handler of your own goes on `TechStrapClientDefaults.HttpClientName` after `AddTechStrapClient`. A 429 maps to `rate-limited` without a retry and without `Retry-After` (no slot in `ResultError`); 500 is not retried; an exhausted 408 or a 5xx is `api-unavailable`. The circuit opens when at least half of the last 5+ calls in a 30 s window failed (the package defaults) and stays open 30 s; there is one circuit per DI container (per `TechStrapClient` singleton).
+- [ ] **P11-T05** (deferred, D-047) Add `TicketAttachment` helpers (stream, file name, content type; guard against disposed streams; pre-check size/type against Contracts limits). The SDK v1 is JSON-only; this waits for multipart intake (11d).
   - **Depends on:** P11-T04
   - **Validation:** Unit tests: oversize/disallowed type fail locally with the same error codes as the server without sending the request.
-- [ ] **P11-T06** Create `tests/TechStrap.Client.Tests` with an integration test hosting the API (`WebApplicationFactory` + Testcontainers.PostgreSql) and a contract test against `/openapi/v1.json`
+- [x] **P11-T06** Create `tests/TechStrap.Client.Tests` with an integration test hosting the API (`WebApplicationFactory` + Testcontainers.PostgreSql) and a contract test against `/openapi/v1.json`
   - **Depends on:** P11-T04
   - **Validation:** SDK submits a ticket to the in-test API with a Public and a Trusted key; ticket exists with expected channel/metadata trust flag; OpenAPI contract test fails if the operation, request fields or security scheme drift.
+  - **As built (11a):** 162 tests, unit and `[Trait("Integration","Docker")]`. The test project references `src/TechStrap.Api` and links the `Api.Tests` helpers. The contract test pins the POST operation, the `application/json` request properties, the `ApiKey` scheme and the `Idempotency-Key` parameter; the Api documents no response schemas, so the 201 body is pinned by the real-API tests instead (known gap, a PHASE-05 follow-up).
 - [ ] **P11-T07** Create `TechStrap.Client.Maui` project (net10.0-android;net10.0-ios;net10.0) with pack metadata and README; define `IDeviceContextCollector`, options (`IncludeDeviceContext`, extras, redaction callback)
   - **Depends on:** P11-T02
   - **Validation:** `dotnet workload restore` + build on macOS for all targets; pack succeeds; plain `net10.0` target compiles without MAUI platform APIs.
@@ -110,9 +129,10 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 - [ ] **P11-T09** Implement `IMauiTicketSubmitter` (`SubmitAsync`, `FileResult` -> `TicketAttachment` adapter) and `AddTechStrapMaui` DI extension
   - **Depends on:** P11-T08, P11-T04
   - **Validation:** Unit tests: collected context + app metadata merged with app-supplied values winning only for non-reserved keys; disabling context sends no `device.*` keys; `FileResult` adapter streams and disposes correctly; DI resolves the full graph.
-- [ ] **P11-T10** Add `TechStrap.Contracts` pack metadata + README (and verify it has no dependency on non-public projects)
+- [x] **P11-T10** Add `TechStrap.Contracts` pack metadata + README (and verify it has no dependency on non-public projects)
   - **Depends on:** P11-T01
   - **Validation:** Pack output dependency list contains only framework/third-party packages; consumer sample restores with Contracts only transitively through Client.
+  - **As built (11a):** the Contracts nuspec has zero dependencies; CI packs Contracts and Client with `-p:Version=0.0.0-ci` and `scripts/Test-PackageContents.ps1` checks README, license, repository URL, symbols and the exact dependency set. The consumer sample is 11c.
 - [ ] **P11-T11** Write per-package READMEs (what it is, install, minimal example, configuration, Trusted vs Public key guidance, error handling, privacy of collected metadata, versioning/compat)
   - **Depends on:** P11-T04, P11-T09
   - **Validation:** Every README code block is compiled from the samples (snippets copied by a CI check or `#region` extraction); links resolve; README present in each nupkg.
@@ -131,17 +151,18 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 - [ ] **P11-T16** Publish `v1.0.0-rc.1` packages and run the post-publish check: fresh project restores `TechStrap.Client` and `TechStrap.Client.Maui` from nuget.org and submits a ticket to UAT
   - **Depends on:** P11-T12, P11-T15, P05 deployed to UAT
   - **Validation:** Restore from nuget.org succeeds (indexed); sample submits against UAT and the ticket arrives with metadata flagged untrusted for a Public key.
-- [ ] **P11-T17** Rely on server-side idempotency for submit retries (D-020): generate an `Idempotency-Key` per `SubmitTicketAsync` call, allow the caller to supply one, enable retries for submit only when a key is present, and document the behavior in the READMEs; if the owner rejects D-020, keep retries disabled and record that in [04-DECISION-LOG.md](04-DECISION-LOG.md)
+- [x] **P11-T17** Rely on server-side idempotency for submit retries (D-020): generate an `Idempotency-Key` per `SubmitTicketAsync` call, allow the caller to supply one, enable retries for submit only when a key is present, and document the behavior in the READMEs; if the owner rejects D-020, keep retries disabled and record that in [04-DECISION-LOG.md](04-DECISION-LOG.md)
   - **Depends on:** P11-T04, P05-T17
   - **Validation:** `Client.Tests` integration test against the real API: a simulated timeout followed by a retry with the same key yields exactly one ticket and the same `SubmitTicketResponse`; a call without a key is never retried; D-020 status is reflected in [04-DECISION-LOG.md](04-DECISION-LOG.md).
+  - **As built (11a):** a lost first response followed by a retry with the same key leaves exactly one ticket row and returns the same ticket number; `SubmitTicketOnceAsync` after a lost response makes one attempt and leaves one row. The key is a generated GUID unless the caller supplies one; the README note is 11c (see `docs/development/CLIENT-SDK.md` for now). D-020 stands (approved).
 
 ## Success Criteria
 
-- [ ] A .NET app can `dotnet add package TechStrap.Client`, configure base URL + key, and create a ticket; the response gives the ticket number and view URL.
+- [ ] A .NET app can `dotnet add package TechStrap.Client`, configure base URL + key, and create a ticket; the response gives the ticket number and view URL. *(11a proved the call against the real Api with project references, not the package, so this stays open; consuming the packed package is the 11c sample, and the nuget.org install is 11c.)*
 - [ ] A MAUI app can `dotnet add package TechStrap.Client.Maui`, submit a ticket with device/app metadata and an optional screenshot, with metadata truncation and opt-out working.
-- [ ] Failure modes (bad key, rate limit, validation, attachments, outage) return typed `Result` failures; submit is never silently duplicated by retries.
+- [ ] Failure modes (bad key, rate limit, validation, attachments, outage) return typed `Result` failures; submit is never silently duplicated by retries. *(Partial in 11a: all but attachments, deferred to 11d by D-047; 413 and 415 are mapped.)*
 - [ ] Pushing tag `v*` builds, tests, packs and publishes `TechStrap.Contracts`, `TechStrap.Client` and `TechStrap.Client.Maui` to nuget.org with symbols and READMEs, through OIDC (no long-lived key in the repo).
-- [ ] Contract test proves the SDK matches the API's OpenAPI document and the real intake endpoint.
+- [x] Contract test proves the SDK matches the API's OpenAPI document and the real intake endpoint. *(Response schema not pinned, see Corrections.)*
 - [ ] Each package has a README; samples compile and run.
 - [ ] `dotnet build`, `dotnet test` green; MAUI targets build on macOS CI.
 
@@ -164,16 +185,17 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 
 ## Risks and Open Questions
 
+- [ ] **Resilience and Common as public dependencies.** Settled (D-047): `SyntaxCircus.Http.Resilience` 0.2.2 and `SyntaxCircus.Common` 0.2.0 (web-neutral, so no `Microsoft.AspNetCore.App` framework reference reaches a consumer) are the Client's runtime dependencies, with three `Microsoft.Extensions.*` packages; an architecture rule pins the set.
 - [ ] **Contracts becomes a public API.** Breaking DTO changes after 1.0 need semantic-versioning discipline (additive only; `EnablePackageValidation` baseline after 1.0.0). Plan lists two packages; confirm the third (`TechStrap.Contracts`) is acceptable, or inline a trimmed copy into Client (rejected: drift).
-- [ ] **Non-idempotent submit vs retries** (see P11-T17, D-020). Default: no automatic retry on submit unless an `Idempotency-Key` is set.
-- [ ] **Header names and trusted/public behavior** (`X-Api-Key`, `Idempotency-Key`) must exactly match P05/`AspNetCore.Authentication`; they are Contracts constants.
-- [ ] **MAUI workload build** needs macOS runners (cost/time); consider building only `net10.0` + android on Linux/Windows and iOS only for tags (**Assumption**: macOS for all MAUI jobs, as the reference repo does).
+- [ ] **Non-idempotent submit vs retries** (see P11-T17, D-020). Default: no automatic retry on submit unless an `Idempotency-Key` is set. Settled (D-047): `HttpRequestResiliencePipeline` with a per-call replay flag; `SubmitTicketOnceAsync` never retries; D-020 is approved and proved end to end by P11-T17.
+- [ ] **Header names and trusted/public behavior** (`X-Api-Key`, `Idempotency-Key`) must exactly match P05/`AspNetCore.Authentication`; they are Contracts constants. Settled (D-047): they are `HeaderNames` (not `TechStrapHeaders`), and an architecture rule keeps the literals out of the rest of `src/`.
+- [ ] **MAUI workload build** needs macOS runners (cost/time); consider building only `net10.0` + android on Linux/Windows and iOS only for tags (**Assumption**: macOS for all MAUI jobs, as the reference repo does). Settled (D-047): `net10.0` and Android on the existing runner; iOS only on a `v*` tag on macOS (11b).
 - [ ] **Public keys are extractable.** Client-side mitigations (honeypot is portal-only) do not exist; abuse relies on server rate limits and untrusted metadata flags — highlight in README and in the security review ([PHASE-12](PHASE-12-release-hardening.md)).
 - [ ] **Privacy of collected metadata** (OS/model/locale/timezone/network): document, default to the minimal set, offer opt-out and redaction.
 - [ ] `net10.0`-only targeting excludes older consumers; revisit after 1.0.
 - [ ] Trusted Publishing needs `NUGET_USER` and a policy per package ID; the first publish of a new ID may require manual ownership steps.
 - [ ] `TechStrap.Client.Tests` is listed in the test layout in `02-ARCHITECTURE.md`; sample projects are not part of the test list.
-- [ ] Carried forward from PHASE-05 (D-034): API-key intake is JSON-only; add multipart attachments if the SDK or the MAUI helper needs screenshots.
+- [ ] Carried forward from PHASE-05 (D-034): API-key intake is JSON-only; add multipart attachments if the SDK or the MAUI helper needs screenshots. Settled (D-047): the SDK v1 is JSON-only; attachments (P11-T05) wait for multipart intake (11d).
 
 ## Handoff
 

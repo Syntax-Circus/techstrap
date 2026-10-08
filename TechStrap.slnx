@@ -29,6 +29,7 @@
     <Project Path="tests/TechStrap.Api.Tests/TechStrap.Api.Tests.csproj" />
     <Project Path="tests/TechStrap.Application.Tests/TechStrap.Application.Tests.csproj" />
     <Project Path="tests/TechStrap.Architecture.Tests/TechStrap.Architecture.Tests.csproj" />
+    <Project Path="tests/TechStrap.Client.Tests/TechStrap.Client.Tests.csproj" />
     <Project Path="tests/TechStrap.Domain.Tests/TechStrap.Domain.Tests.csproj" />
     <Project Path="tests/TechStrap.Infrastructure.IntegrationTests/TechStrap.Infrastructure.IntegrationTests.csproj" />
     <Project Path="tests/TechStrap.Portal.Tests/TechStrap.Portal.Tests.csproj" />

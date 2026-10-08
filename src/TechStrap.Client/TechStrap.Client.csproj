@@ -1,7 +1,29 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- Public NuGet package: JSON-only ticket submit over the TechStrap intake API. References Contracts only (D-005). -->
+
+  <Import Project="../../eng/Packaging.props" />
+
+  <PropertyGroup>
+    <PackageId>TechStrap.Client</PackageId>
+    <Description>Client SDK for TechStrap: submit support tickets to a TechStrap API from any .NET app, with an API key, retries and typed errors.</Description>
+    <PackageTags>techstrap;helpdesk;client;sdk</PackageTags>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="../TechStrap.Contracts/TechStrap.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SyntaxCircus.Http.Resilience" />
+    <PackageReference Include="SyntaxCircus.Common" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="TechStrap.Client.Tests" />
   </ItemGroup>
 
 </Project>
