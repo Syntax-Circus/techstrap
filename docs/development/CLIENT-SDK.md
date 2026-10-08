@@ -6,8 +6,8 @@ itself accepts is in [INTAKE.md](INTAKE.md). The decisions behind the SDK are in
 page is [PHASE-11-client-sdk.md](../architecture/PHASE-11-client-sdk.md).
 
 PHASE-11 is delivered in three pull requests. **11a** (this page describes it): `TechStrap.Contracts` and `TechStrap.Client` as packable projects, the real-API
-tests, the pack dry run in CI. **11b**: `TechStrap.Client.Maui` (device and app metadata, a submit helper). **11c**: per-package READMEs, samples, the publish
-workflow, nuget.org and `v1.0.0-rc.1`. Nothing is published to nuget.org yet.
+tests, the pack dry run in CI. **11b**: `TechStrap.Client.Maui` (device and app metadata, a submit helper; see the section [TechStrap.Client.Maui](#techstrapclientmaui)
+below, D-048). **11c**: per-package READMEs, samples, the publish workflow, nuget.org and `v1.0.0-rc.1`. Nothing is published to nuget.org yet.
 
 ## Packages
 
@@ -15,9 +15,9 @@ workflow, nuget.org and `v1.0.0-rc.1`. Nothing is published to nuget.org yet.
 | --- | --- | --- |
 | `TechStrap.Contracts` | The public DTOs, header names, limits and routes the API and the SDK share (`SubmitTicketRequest`, `SubmitTicketResponse`, `HeaderNames`, `IntakeLimits`, `IntakeRoutes`). | None. |
 | `TechStrap.Client` | `ITechStrapClient`, `TechStrapClientOptions`, `AddTechStrapClient`, `ApiKeyHandler`, the `Result` mapping. | `TechStrap.Contracts`, `SyntaxCircus.Http.Resilience`, `SyntaxCircus.Common`, `Microsoft.Extensions.Http`, `Microsoft.Extensions.Options`, `Microsoft.Extensions.DependencyInjection.Abstractions`. |
-| `TechStrap.Client.Maui` | 11b. A placeholder project today. | 11b. |
+| `TechStrap.Client.Maui` | `IMauiTicketSubmitter`, `MauiTicketDraft`, `IDeviceContextCollector`, `AddTechStrapMaui` (11b). | `TechStrap.Client`, `TechStrap.Contracts`, `Microsoft.Maui.Essentials`, `Microsoft.Extensions.DependencyInjection.Abstractions`, `Microsoft.Extensions.Options`. |
 
-Both packages target `net10.0` and carry their pack metadata from `eng/Packaging.props` (author, MIT license, repository URL, symbol package, package validation).
+All three packages target `net10.0` and carry their pack metadata from `eng/Packaging.props` (author, MIT license, repository URL, symbol package, package validation).
 The root `Directory.Build.props` sets `IsPackable=false`, so no other project is ever packed by accident. `SyntaxCircus.Common` is web-neutral since 0.2.0: a consumer
 inherits no `Microsoft.AspNetCore.App` framework reference. The set of dependencies is pinned by an architecture rule (`ClientRules`), so adding one is a deliberate edit.
 
@@ -30,15 +30,17 @@ GitVersion is not wired in yet (11c), so a pack needs an explicit version:
 ```
 dotnet pack src/TechStrap.Contracts -c Release -p:Version=0.0.0-local -o ./pack
 dotnet pack src/TechStrap.Client -c Release -p:Version=0.0.0-local -o ./pack
+dotnet pack src/TechStrap.Client.Maui -c Release -p:Version=0.0.0-local -o ./pack
 pwsh -File scripts/Test-PackageContents.ps1 -PackageDirectory ./pack -Expected @{
     'TechStrap.Contracts' = @()
     'TechStrap.Client'    = @('TechStrap.Contracts', 'SyntaxCircus.Http.Resilience', 'SyntaxCircus.Common', 'Microsoft.Extensions.Http', 'Microsoft.Extensions.Options', 'Microsoft.Extensions.DependencyInjection.Abstractions')
+    'TechStrap.Client.Maui' = @('TechStrap.Client', 'TechStrap.Contracts', 'Microsoft.Maui.Essentials', 'Microsoft.Extensions.DependencyInjection.Abstractions', 'Microsoft.Extensions.Options')
 }
 ```
 
 `Test-PackageContents.ps1` fails (exit 1, one line per defect, as `id: defect`) when a package is missing, when `README.md` is not at the package root and named in the
 nuspec, when the license is not the MIT expression, when the repository URL is missing, when the dependency ids differ from the expected set, or when the `.snupkg`
-is missing. CI runs the same two packs with `-p:Version=0.0.0-ci` after the tests (the "Pack dry run" step of `ci.yml`). Keep the `./pack` folder out of git.
+is missing. CI runs the same three packs with `-p:Version=0.0.0-ci` after the tests (the "Pack dry run" step of `ci.yml`). Keep the `./pack` folder out of git.
 
 ## Configuration
 
@@ -171,3 +173,106 @@ Docker is required for any run of this project today: the linked `TestPostgres` 
 - Docker is needed for every run of `TechStrap.Client.Tests`, not only the Docker-tagged classes (the eagerly started assembly fixture). A lazily started fixture used by the Docker-tagged classes only is a follow-up.
 - Interface additions before 1.0 are breaking for implementers of `ITechStrapClient` (fakes in consumers' tests); there are no default interface methods.
 - The generated idempotency key is not returned to the caller. Exposing it (so a caller can retry a no-key submit safely) is deferred to the 11c design.
+
+## TechStrap.Client.Maui
+
+`TechStrap.Client.Maui` (11b, D-048) adds two things on top of `TechStrap.Client`: a collector that reads device and app facts through the MAUI Essentials
+interfaces, and a submit helper that merges them into the ticket's `metadata`. It targets plain `net10.0` and depends on `Microsoft.Maui.Essentials`, not on
+`Microsoft.Maui.Controls`: no workload, no `UseMaui`, no platform target frameworks, no macOS runner. An architecture rule (`ClientMauiRules`) pins the package set, allows
+project references to Client and Contracts only and the architecture tests fail if the csproj sets `<UseMaui>`.
+
+### Registration
+
+`AddTechStrapMaui` has two overloads. Use the first when `AddTechStrapClient` is already called, the second to register both at once:
+
+```csharp
+// The client is registered separately (AddTechStrapClient must come first)
+services.AddTechStrapClient(options => { options.BaseAddress = baseAddress; options.ApiKey = apiKey; });
+services.AddTechStrapMaui(device => device.IncludeBattery = true);
+
+// Both in one call
+services.AddTechStrapMaui(
+    client => { client.BaseAddress = baseAddress; client.ApiKey = apiKey; },
+    device => device.IncludeDisplay = true);
+
+// In a page or view model
+var draft = new MauiTicketDraft("Crash on save", "It closes when I tap Save.", "ana@example.com",
+    RequesterName: "Ana", Metadata: new Dictionary<string, string> { ["plan"] = "pro" });
+Result<SubmitTicketResponse> result = await submitter.SubmitAsync(draft, cancellationToken);
+```
+
+Resolving `IMauiTicketSubmitter` without `AddTechStrapClient` throws `InvalidOperationException` naming `AddTechStrapClient`; resolution is lazy, so the order of the two calls does not matter. The Essentials defaults (`AppInfo.Current`,
+`DeviceInfo.Current`, `Connectivity.Current`, `DeviceDisplay.Current`, `Battery.Default`) are registered with `TryAddSingleton` as factories: nothing reads them at
+registration (on plain `net10.0` `DeviceInfo.Current.Model` throws), an app that registered its own `IDeviceInfo` and the like wins, and service registrations are idempotent (configure delegates stack like any Options configure).
+
+### What is collected
+
+The keys are the constants in `TicketMetadataKeys` (Contracts). `Defaults` are collected when `IncludeDeviceContext` is true (the default); the extras only when the
+matching option is switched on.
+
+| Key | Source | Default or extra |
+| --- | --- | --- |
+| `app.name` | `IAppInfo.Name` | Default |
+| `app.version` | `IAppInfo.VersionString` | Default |
+| `app.build` | `IAppInfo.BuildString` | Default |
+| `app.package` | `IAppInfo.PackageName` | Default |
+| `os.platform` | `IDeviceInfo.Platform` | Default |
+| `os.version` | `IDeviceInfo.VersionString` | Default |
+| `device.manufacturer` | `IDeviceInfo.Manufacturer` | Default |
+| `device.model` | `IDeviceInfo.Model` | Default |
+| `device.idiom` | `IDeviceInfo.Idiom` | Default |
+| `device.type` | `IDeviceInfo.DeviceType` | Default |
+| `locale` | Current culture name | Default |
+| `timezone` | Local time zone id | Default |
+| `network.access` | `IConnectivity.NetworkAccess` (Android needs the `ACCESS_NETWORK_STATE` permission) | Default |
+| `display.width` | `IDeviceDisplay.MainDisplayInfo` | Extra (`IncludeDisplay`) |
+| `display.height` | `IDeviceDisplay.MainDisplayInfo` | Extra (`IncludeDisplay`) |
+| `display.density` | `IDeviceDisplay.MainDisplayInfo`, invariant culture, for example "2.625" | Extra (`IncludeDisplay`) |
+| `display.orientation` | `IDeviceDisplay.MainDisplayInfo` | Extra (`IncludeDisplay`) |
+| `battery.state` | `IBattery.State` (Android needs `BATTERY_STATS`) | Extra (`IncludeBattery`) |
+| `battery.level` | `IBattery.ChargeLevel` as a rounded whole percent; left out when the level is negative (Android needs `BATTERY_STATS`) | Extra (`IncludeBattery`) |
+
+Each field is read in its own try/catch. A field whose accessor throws is skipped (the package does no logging), so `Collect()` never throws. A missing Android permission (`BATTERY_STATS`, `ACCESS_NETWORK_STATE`) skips its field silently. Values are trimmed, a blank
+value is dropped, a value is cut to `IntakeLimits.MaxMetadataValueLength` and trimmed again.
+
+### Privacy and redaction
+
+The helper never collects advertising or device ids, location, contacts, an IP address or user names. The set above is the whole set, and `IncludeDeviceContext = false`
+turns it all off. The metadata is sent under the product's API key like any other metadata: from a Public key it is stored but flagged untrusted (D-001), so treat it as a
+hint, not as proof.
+
+`DeviceContextOptions.Redact` is a `Func<string, string, string?>` called with the key and the value after the trimming and truncation. It is applied to each collected device-context value only; the draft's own `Metadata` is not passed through it. Return a changed value to
+replace it, or `null` to drop the field. A redactor that throws drops only that field, and its result is validated again (blank is dropped, too long is cut).
+
+### Merge rule and local limits
+
+`SubmitAsync(MauiTicketDraft, CancellationToken)` takes the draft (`Subject`, `Message`, `RequesterEmail`, optional `RequesterName`, `Metadata` and `IdempotencyKey`) and
+sends one `SubmitTicketRequest`:
+- The collected keys and every key in `TicketMetadataKeys.All` are reserved. An app value for a reserved key is ignored; the collected value (or none) is sent.
+- A blank key, or one over 64 characters, is a failure. A blank value is skipped. A value is cut to 1000 characters. The same checks apply to collected entries, so a custom `IDeviceContextCollector` cannot break the "nothing is sent" promise.
+- The collected keys (up to 19) count toward the 50, so an app can rely on 31 of its own.
+- More than 50 keys, or more than 16,000 characters when serialized (`JsonSerializerDefaults.Web`), is a local failure with the code `metadata-invalid`
+  (`TechStrapMauiErrorCodes.MetadataInvalid`, a validation error on target `metadata`). Nothing is sent. The code repeats the server's wire string on purpose.
+- With no `IdempotencyKey` the helper calls the unkeyed `SubmitTicketAsync`, which generates one; with a key it calls the keyed overload. A caller that retries a failed
+  submit itself must supply a stable key (the same rule as `TechStrap.Client`).
+- The client's `Result<SubmitTicketResponse>` is returned unchanged. A null draft throws `ArgumentNullException`, a blank, non-ASCII or over-200-character `IdempotencyKey` throws `ArgumentException`, and cancellation throws `OperationCanceledException`.
+
+### Tests
+
+`tests/TechStrap.Client.Maui.Tests` is a plain `net10.0` test project (52 tests) that fakes the Essentials interfaces with NSubstitute. It needs no device and no Docker:
+
+```
+dotnet test --project tests/TechStrap.Client.Maui.Tests -c Release
+```
+
+### Known limits
+
+- Consumers need MAUI >= 10.0.0; the package pins Essentials at 10.0.0, the lowest version with every API the helper uses, so it forces no patch upgrade of Core, Graphics or WindowsAppSDK.
+- A field that fails to read is skipped silently (the package does no logging).
+- A caller who retries a failed submit must supply a stable `IdempotencyKey`, or a retry can create a second ticket.
+- On iOS, display values may be missing when `SubmitAsync` runs off the UI thread (the UIKit thread check). `IncludeDisplay` is opt-in and a failure never crashes.
+- AOT and full-trim apps need a source-generated JSON context (11c).
+- No screenshot and no attachments until 11d, which first needs multipart intake.
+- No platform target frameworks. Platform-specific code would need them later; adding them is non-breaking.
+- `MainDisplayInfo` is read per field, so a rotation between reads can mix values.
+- Metadata from a Public key is untrusted on the server (D-001).

@@ -44,6 +44,10 @@ public sealed class IntakeLimitsParityTests
     }
 
     [Fact]
+    public void Metadata_json_length_matches_the_domain() =>
+        IntakeLimits.MaxMetadataJsonLength.ShouldBe(DomainLimits.MetadataMaxLength);
+
+    [Fact]
     public void Allowed_extensions_are_lower_case_and_dotted() =>
         IntakeLimits.AllowedExtensions.ShouldAllBe(extension => extension.StartsWith('.') && extension == extension.ToLowerInvariant());
 }

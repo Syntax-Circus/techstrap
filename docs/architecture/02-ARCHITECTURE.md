@@ -43,14 +43,14 @@ techstrap/
     TechStrap.Portal          Blazor SSR, typed clients, ViewModels, SCSS
     TechStrap.Worker          Hosted loops: outbox drain, auto-close
     TechStrap.Client          SDK over Contracts (NuGet): JSON submit, retry only with an Idempotency-Key (D-047)
-    TechStrap.Client.Maui     MAUI helper over Client (NuGet)
+    TechStrap.Client.Maui     MAUI helper over Client (NuGet, net10.0, Essentials abstractions)
   tests/
     TechStrap.Domain.Tests  TechStrap.Application.Tests  TechStrap.Infrastructure.IntegrationTests
     TechStrap.Api.Tests  TechStrap.Architecture.Tests
-    TechStrap.Admin.Tests  TechStrap.Portal.Tests  TechStrap.Client.Tests
+    TechStrap.Admin.Tests  TechStrap.Portal.Tests  TechStrap.Client.Tests  TechStrap.Client.Maui.Tests
 ```
 
-The first five test projects are created in PHASE-01; `TechStrap.Admin.Tests` (bUnit), `TechStrap.Portal.Tests` (bUnit and host tests) and `TechStrap.Client.Tests` are created in their owning phases (PHASE-07, PHASE-09, PHASE-11); `TechStrap.Client.Tests` was created in PHASE-11a.
+The first five test projects are created in PHASE-01; `TechStrap.Admin.Tests` (bUnit), `TechStrap.Portal.Tests` (bUnit and host tests), `TechStrap.Client.Tests` and `TechStrap.Client.Maui.Tests` are created in their owning phases (PHASE-07, PHASE-09, PHASE-11); `TechStrap.Client.Tests` was created in PHASE-11a and `TechStrap.Client.Maui.Tests` was created in PHASE-11b.
 
 Allowed project references (enforced by `TechStrap.Architecture.Tests`, PHASE-01):
 
@@ -99,7 +99,7 @@ Other conventions: handlers sealed with `I…Handler` interfaces; constants and 
 | Postgres listener (Api hosted service) | Dedicated connection `LISTEN techstrap_ticket_changes`, passes payloads to `RelayTicketChangeHandler`, reconnects with backoff |
 | Worker loops | Poll outbox (`EmailOutboxWorker` to `DrainEmailOutboxHandler`), scheduled auto-close (`AutoCloseWorker` to `AutoCloseSolvedTicketsHandler`); own cadence, cancellation, error logging; map handler outcome to loop behavior |
 | Admin / Portal | Presentation only; typed clients with `Http.Resilience`; Portal adds `.AddForwardedClientIp()` (D-019) |
-| Client / Client.Maui | Submit-ticket SDK (JSON submit, retry only with an Idempotency-Key, D-047) and device/app metadata capture (11b) |
+| Client / Client.Maui | Submit-ticket SDK (JSON submit, retry only with an Idempotency-Key, D-047) and device/app metadata capture over Essentials abstractions on `net10.0` (11b, D-048) |
 
 ### 3.1 Application abstractions
 

@@ -163,13 +163,20 @@ Describe 'the pack dry run in CI' {
         $script:Slnf = Get-Content -LiteralPath (Join-Path $script:RepoRoot 'TechStrap.CI.slnf') -Raw
     }
 
-    It 'packs both packages and checks their contents between Test and the EF check' {
-        $script:Workflow | Should -Match '(?s)- name: Test\s.*- name: Pack dry run \(TechStrap\.Contracts, TechStrap\.Client\).*scripts/Test-PackageContents\.ps1.*- name: Check for pending EF model changes'
+    It 'packs all three packages and checks their contents between Test and the EF check' {
+        $script:Workflow | Should -Match '(?s)- name: Test\s.*- name: Pack dry run \(TechStrap\.Contracts, TechStrap\.Client, TechStrap\.Client\.Maui\).*scripts/Test-PackageContents\.ps1.*- name: Check for pending EF model changes'
         $script:Workflow | Should -Match 'dotnet pack src/TechStrap\.Contracts -c Release --no-build -p:Version=0\.0\.0-ci'
         $script:Workflow | Should -Match 'dotnet pack src/TechStrap\.Client -c Release --no-build -p:Version=0\.0\.0-ci'
+        $script:Workflow | Should -Match 'dotnet pack src/TechStrap\.Client\.Maui -c Release --no-build -p:Version=0\.0\.0-ci'
+        $script:Workflow | Should -Match "'TechStrap\.Client\.Maui'\s*=\s*@\("
     }
 
     It 'lists the client tests in the CI solution filter' {
         $script:Slnf | Should -Match 'tests/TechStrap\.Client\.Tests/TechStrap\.Client\.Tests\.csproj'
+    }
+
+    It 'lists the Client.Maui project and its tests in the CI solution filter' {
+        $script:Slnf | Should -Match 'src/TechStrap\.Client\.Maui/TechStrap\.Client\.Maui\.csproj'
+        $script:Slnf | Should -Match 'tests/TechStrap\.Client\.Maui\.Tests/TechStrap\.Client\.Maui\.Tests\.csproj'
     }
 }

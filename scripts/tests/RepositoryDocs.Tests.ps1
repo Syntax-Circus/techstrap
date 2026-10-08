@@ -602,7 +602,7 @@ Describe 'D-047 (client SDK)' {
             $spec | Should -Match ('(?s)- \[x\] \*\*' + $id + '\*\*(?:(?!- \[[x ]\] \*\*P11-T).)*?\*\*As built \(11a\):\*\*') -Because "$id carries its as-built note"
         }
         $spec | Should -Match '(?m)^- \[ \] \*\*P11-T05\*\*.*\(deferred, D-047\)'
-        foreach ($id in 'P11-T07', 'P11-T08', 'P11-T09', 'P11-T11', 'P11-T12', 'P11-T13', 'P11-T14', 'P11-T15', 'P11-T16') {
+        foreach ($id in 'P11-T11', 'P11-T12', 'P11-T13', 'P11-T14', 'P11-T15', 'P11-T16') {
             $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not delivered by 11a"
         }
     }
@@ -612,11 +612,11 @@ Describe 'D-047 (client SDK)' {
             $text = Get-RepoText $file
             $text | Should -Match '(?m)^\| 10 \|.*\| 10a merged \(PR #18\); 10b merged \(PR #19\); PHASE-10 complete: the owner'
             $text | Should -Not -Match '10b complete \(pending merge\)'
-            $text | Should -Match '(?m)^\| 11 \|.*11a complete \(pending merge\): T01, T02, T03, T04, T06, T10, T17; 11b \(MAUI, T07 to T09\) and 11c'
+            $text | Should -Match '(?m)^\| 11 \|.*11a merged \(PR #20\); 11b complete \(pending merge\): T07, T08, T09; 11c \(READMEs, samples, publish workflow, nuget\.org, rc\.1; T11 to T16\) not started'
             $text | Should -Match 'T05 \(attachments\) deferred to 11d, which first needs multipart intake'
         }
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11-T05 \|.*\(deferred, D-047\)'
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match 'excluded by the solution filter until 11b'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Not -Match 'excluded by the solution filter until 11b'
     }
 
     It 'maps the SDK dependencies: the pipeline, not a plain HttpClient, and the web-neutral Common' {
@@ -641,3 +641,54 @@ Describe 'D-047 (client SDK)' {
     }
 }
 
+Describe 'D-048 (MAUI helper)' {
+    BeforeAll { $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md' }
+
+    It 'is in the decision log with its date, its status, a header bullet and an index row' {
+        $script:Log | Should -Match '(?m)^## D-048: PHASE-11b: MAUI helper'
+        $script:Log | Should -Match '(?s)## D-048:.*?- \*\*Status:\*\* Approved \(owner 2026-10-07.*?- \*\*Date:\*\* 2026-10-07'
+        $script:Log | Should -Match '(?m)^\| D-048 \|.*TicketMetadataKeys.*\| 2026-10-07 \|'
+        $script:Log | Should -Match '(?m)^- \*\*Owner decision \(2026-10-07, PHASE-11b planning\):\*\* D-048'
+    }
+
+    It 'records the owner decisions, the technical rulings and the known limits' {
+        $section = ($script:Log -split '(?m)^## D-048:')[1]
+        foreach ($phrase in 'Single net10.0', 'Microsoft.Maui.Essentials', 'TicketMetadataKeys', 'MauiTicketDraft', 'UseMaui', 'NETSDK1147',
+                'Owner decisions (2026-10-07)', 'Technical rulings', '**Known limits**', 'metadata-invalid', 'MAUI >= 10.0.0') {
+            $section | Should -Match ([regex]::Escape($phrase)) -Because "D-048 must mention $phrase"
+        }
+    }
+
+    It 'corrects the PHASE-11 spec and ticks T07 to T09 with as-built notes, leaving attachments open' {
+        $spec = Get-RepoText 'docs/architecture/PHASE-11-client-sdk.md'
+        $spec | Should -Match '(?m)^### Corrections \(D-048, 2026-10-07\)'
+        $spec | Should -Match 'Where this page and D-048 differ, D-048 wins\.'
+        foreach ($id in 'P11-T07', 'P11-T08', 'P11-T09') {
+            $spec | Should -Match ('(?s)- \[x\] \*\*' + $id + '\*\*(?:(?!- \[[x ]\] \*\*P11-T).)*?\*\*As built \(11b\):\*\*') -Because "$id carries its as-built note"
+        }
+        $spec | Should -Match '(?m)^- \[ \] \*\*P11-T05\*\*.*\(deferred, D-047\)'
+        foreach ($id in 'P11-T11', 'P11-T12', 'P11-T13', 'P11-T14', 'P11-T15', 'P11-T16') {
+            $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not delivered by 11b"
+        }
+    }
+
+    It 'maps the Essentials package and the Maui project in the package map' {
+        $map = Get-RepoText 'docs/architecture/03-PACKAGE-MAP.md'
+        $map | Should -Match '(?m)^\| `Microsoft\.Maui\.Essentials` \| Selected \| 10\.0\.0 \|.*\| P11 \|'
+        $map | Should -Match '(?m)^\| `TechStrap\.Client\.Maui` \|.*Microsoft\.Maui\.Essentials.*\(D-048\)'
+        $map | Should -Not -Match 'MAUI workload build'
+        (Get-RepoText 'docs/architecture/02-ARCHITECTURE.md') | Should -Match 'TechStrap\.Client\.Maui\.Tests` was created in PHASE-11b'
+    }
+
+    It 'retires owner action 10 in the roadmap' {
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match 'Withdrawn \(D-048\): single net10\.0, no macOS runner'
+    }
+
+    It 'documents the MAUI helper for maintainers' {
+        $doc = Get-RepoText 'docs/development/CLIENT-SDK.md'
+        $doc | Should -Match '(?m)^## TechStrap\.Client\.Maui'
+        foreach ($phrase in 'AddTechStrapMaui', 'MauiTicketDraft', 'TicketMetadataKeys', 'metadata-invalid', 'UseMaui') {
+            $doc | Should -Match ([regex]::Escape($phrase)) -Because "CLIENT-SDK.md must mention $phrase"
+        }
+    }
+}
