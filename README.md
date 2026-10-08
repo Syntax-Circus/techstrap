@@ -6,7 +6,7 @@
 
 **Support for Technical Support.** A lightweight, open-source, self-hosted helpdesk for one company that supports many products.
 
-> **Status:** pre-1.0, feature-complete for v1 (PHASE-01 to PHASE-11 done: foundation, brand and UX, domain and persistence, agent auth and admin config, intake with email and the worker, ticket operations, the Admin app, knowledge base, public portal, live updates, and the client SDK). PHASE-12 (release hardening: security review, load and restore drills, UAT) is next, then `v1.0.0`. The SDK packages are published on nuget.org as `0.1.0`; the hosts are published as GHCR images per tag. See the [roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md).
+> **Status:** pre-1.0, feature-complete for v1 (PHASE-01 to PHASE-11 done: foundation, brand and UX, domain and persistence, agent auth and admin config, intake with email and the worker, ticket operations, the Admin app, knowledge base, public portal, live updates, and the client SDK). PHASE-12 (release hardening: security review, load and restore drills, UAT) is next, then `v1.0.0`. The SDK packages are published on nuget.org as `0.2.0`; the hosts are published as GHCR images per tag. See the [roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md).
 
 ## What it is
 
@@ -81,7 +81,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [SECURITY.md](SECURI
 
 ## Packages
 
-The client SDK is published on nuget.org at `0.1.0`: [TechStrap.Contracts](https://www.nuget.org/packages/TechStrap.Contracts), [TechStrap.Client](https://www.nuget.org/packages/TechStrap.Client) and [TechStrap.Client.Maui](https://www.nuget.org/packages/TechStrap.Client.Maui), released as the `v0.1.0` tag and GitHub Release. Start with the
+The client SDK is published on nuget.org at `0.2.0`: [TechStrap.Contracts](https://www.nuget.org/packages/TechStrap.Contracts), [TechStrap.Client](https://www.nuget.org/packages/TechStrap.Client) and [TechStrap.Client.Maui](https://www.nuget.org/packages/TechStrap.Client.Maui), released as the `v0.2.0` tag and GitHub Release (0.1.0 was the first release; the 0.2.0 Version notes in the Contracts README name the recompile). Start with the
 [TechStrap.Client README](src/TechStrap.Client/README.md); how releases are cut is in [RELEASING.md](docs/development/RELEASING.md).
 
 ## Documentation
