@@ -589,7 +589,7 @@ Describe 'D-047 (client SDK)' {
     It 'records the owner decisions, the technical rulings and the known limits' {
         $section = ($script:Log -split '(?m)^## D-047:')[1]
         foreach ($phrase in 'Three pull requests', 'JSON-only', 'HttpRequestResiliencePipeline', 'TechStrapClientErrorCodes', 'NotReplayable', 'Microsoft.AspNetCore.App', 'eng/Packaging.props', 'P11-T05',
-                'Owner decisions (2026-10-07)', 'Technical rulings', '**Known limits**', 'Retry-After', 'one circuit per process', 'net10.0') {
+                'Owner decisions (2026-10-07)', 'Technical rulings', '**Known limits**', 'Retry-After', 'one circuit per DI container', 'net10.0') {
             $section | Should -Match ([regex]::Escape($phrase)) -Because "D-047 must mention $phrase"
         }
     }

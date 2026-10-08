@@ -58,7 +58,7 @@ services.AddTechStrapClient(configuration.GetSection("TechStrap"));
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `BaseAddress` | none | The TechStrap API address. Absolute http or https; no user info, query or fragment. Plain `http` is accepted only for loopback (`localhost`, `127.0.0.1`, `[::1]`). |
+| `BaseAddress` | none | The TechStrap API address. Absolute http or https; no user info, query or fragment. Plain `http` is accepted only for loopback (`localhost`, `127.0.0.1`, `[::1]`). A path is kept: `https://host/support` and `https://host/support/` both send to `https://host/support/api/intake/tickets`. |
 | `ApiKey` | none | The product's API key. Not blank, and safe to put in a header. |
 | `Timeout` | `00:00:30` | The total budget of one call: every attempt and every delay between them. At most 10 minutes. |
 | `MaxAttempts` | `3` | Attempts in total, the first included. `1` means never retry. 1 to 10. |
@@ -66,8 +66,8 @@ services.AddTechStrapClient(configuration.GetSection("TechStrap"));
 | `MaxRetryDelay` | `00:00:05` | The longest single delay. Not below `RetryBaseDelay`. |
 
 Bad values fail loudly. The options validator throws `OptionsValidationException` the first time the client is used (there is no `ValidateOnStart`, because a MAUI
-app has no generic host), and its message names the key and never contains the API key. The configuration overload binds `BaseAddress` with `Uri.TryCreate` and
-fails at registration, naming the key, when `Timeout`, `MaxAttempts`, `RetryBaseDelay` or `MaxRetryDelay` does not parse. A second `AddTechStrapClient` call changes
+app has no generic host), and its message names the key and never contains the API key. The configuration overload fails at registration, naming the key, when `BaseAddress` is not an absolute URL, and
+also when `Timeout`, `MaxAttempts`, `RetryBaseDelay` or `MaxRetryDelay` does not parse. A second `AddTechStrapClient` call changes
 nothing. `ITechStrapClient` and `TimeProvider` are added with `TryAddSingleton`, so a host that registered its own earlier (a fake client in a test, a fake clock) wins.
 
 ## Retry and idempotency
@@ -80,11 +80,17 @@ replay flag:
 
 | Method | Key | Replay safety | Sends |
 | --- | --- | --- | --- |
-| `SubmitTicketAsync(request, idempotencyKey = null, ct)` | The caller's, or a generated GUID in "N" format | `Replayable` | Up to `MaxAttempts`; a fresh request and the identical `Idempotency-Key` on every attempt. |
+| `SubmitTicketAsync(request, ct)` | A generated GUID in "N" format | `Replayable` | Up to `MaxAttempts`; a fresh request and the identical `Idempotency-Key` on every attempt. |
+| `SubmitTicketAsync(request, idempotencyKey, ct)` | The caller's | `Replayable` | The same as above. |
 | `SubmitTicketOnceAsync(request, ct)` | None | `NotReplayable` | Exactly one. |
 
-A supplied key must be non-blank, visible ASCII and at most `IntakeLimits.MaxIdempotencyKeyLength` characters, else the call throws `ArgumentException` (a programmer
+A supplied key (the second overload) must be non-blank, visible ASCII and at most `IntakeLimits.MaxIdempotencyKeyLength` characters, else the call throws `ArgumentException` (a programmer
 error, not a `Result`).
+
+**If you retry a failed submit yourself, supply your own stable key.** The generated key is not returned, so a second call to the overload without a key uses a new
+key and can create a duplicate ticket. Keep one key per logical submission and reuse it on every retry. `api-unavailable` means the ticket may or may not have been
+created (the response can be lost after the server stored the ticket); retry with the same key and the server returns the first ticket. `rate-limited` means retry later
+with the same key.
 
 - **Retried:** transport errors, timeouts, and the statuses 408, 502, 503 and 504.
 - **Not retried:** 429 and 500. A 500 is the API's own answer. A 429 is returned as `rate-limited`: the server does send `Retry-After`, but `ResultError` has no slot to carry it
@@ -92,9 +98,9 @@ error, not a `Result`).
 - **Budget:** `Timeout` is one deadline over all sends and all backoff delays. When it runs out the call ends as `api-unavailable`. A cancellation by the caller always wins and
   propagates as `OperationCanceledException`.
 - **Circuit:** the circuit breaker counts logical calls, not attempts. Its constants are in the internal `ResilienceDefaults`: failure ratio 0.5, minimum throughput 5, sampling
-  duration 30 s, break duration 30 s (the package defaults, made explicit). Five failing calls in a row open it; while it is open a call returns `api-unavailable` without a send;
+  duration 30 s, break duration 30 s (the package defaults, made explicit). It opens when at least half of the last 5+ calls in a 30 s window failed (the package defaults) and stays open 30 s; while it is open a call returns `api-unavailable` without a send;
   after the break it lets a call through. It applies to `SubmitTicketOnceAsync` too.
-- **One circuit per process.** The pipeline is built once, lazily, under a lock, and shared by every caller of `ITechStrapClient` in the process. A failing API opens the
+- **One circuit per DI container (per `TechStrapClient` singleton).** The pipeline is built once, lazily, under a lock, and shared by every caller that resolves the same `ITechStrapClient`. A failing API opens the
   circuit for all of them.
 - **Server retention.** The server keeps a key for 24 hours (D-020). A key replayed after that creates one new ticket. A caller that supplies its own key and reuses it for
   longer than the retention window gets a duplicate, not the first ticket.
@@ -123,8 +129,12 @@ The API key travels in the `X-Api-Key` header only. It is never in a URL, a log,
 
 - The named client (`"TechStrap"`) has `RemoveAllLoggers()`, so no logging handler sees the request, and the client itself does not log.
 - The primary handler is `SocketsHttpHandler { AllowAutoRedirect = false }`: a redirect would replay the key to another host. The response buffer is capped at 1 MiB.
-- `ApiKeyHandler` sets the header and replaces a value the caller set. It refuses a request whose authority differs from `BaseAddress` (`InvalidOperationException`, nothing is sent).
-- `TechStrapClientOptions` is a sealed class, and its `ToString()` prints `BaseAddress` only.
+- `ApiKeyHandler` sets the header and replaces a value the caller set. It refuses a request whose scheme, host and port differ from `BaseAddress` (`InvalidOperationException`, nothing is sent; a default port equals no port, and the message never prints user info).
+- `TechStrapClientOptions` is a sealed class, and its `ToString()` prints the scheme, host and port of `BaseAddress` only (never user info).
+- Handlers a host adds to every client with `ConfigureHttpClientDefaults` (the Aspire ServiceDefaults template adds a standard resilience handler) are removed from the SDK's
+  client. Such a handler would sit outside `ApiKeyHandler`, retry a call that has no `Idempotency-Key` (and a 500 or 429 the SDK does not retry) and could see the key header.
+  `AddTechStrapClient` drops every handler that comes before `ApiKeyHandler` in the named client's chain. To add a handler of your own, register it on the named client after
+  `AddTechStrapClient`: `services.AddHttpClient(TechStrapClientDefaults.HttpClientName).AddHttpMessageHandler(...)`. Handlers registered there afterwards are kept.
 - Use a Trusted key only from server-side code. A Public key is extractable from an app by design; the server marks its metadata untrusted and ignores `ExternalUserRef`.
 - The wire literals (`"X-Api-Key"`, `"X-Ticket-Token"`, `"Idempotency-Key"`, `"api/intake/tickets"`) exist in `src/` only in `HeaderNames.cs` and `IntakeRoutes.cs` (and the Sentry
   header scrubber); the architecture tests (`WireLiteralRules`) fail otherwise.
@@ -133,7 +143,7 @@ The API key travels in the `X-Api-Key` header only. It is never in a URL, a log,
 
 `tests/TechStrap.Client.Tests` has two kinds of test.
 
-- **Unit tests** need no Docker. They use a scripted handler and `FakeTimeProvider`: options and validator, the handler, registration, the status mapping, the retry rules (the
+- **Unit tests** do not themselves use Docker (but see below: the project needs Docker to run at all today). They use a scripted handler and `FakeTimeProvider`: options and validator, the handler, registration, the status mapping, the retry rules (the
   same key on every attempt; 429, 500 and 400 not retried; `SubmitTicketOnceAsync` sends once), the budget, the circuit, cancellation and the request shape.
 - **Integration tests** carry `[Trait("Integration","Docker")]` and need Docker running. `ClientApiFactory` hosts `src/TechStrap.Api` over Postgres (Testcontainers) and the SDK
   talks to it: Trusted and Public key submits with SQL assertions, revoked, unknown and deactivated keys, a validation error, a 413 over Kestrel, the rate limit, the
@@ -146,15 +156,18 @@ dotnet test --project tests/TechStrap.Client.Tests -c Release --filter-not-trait
 dotnet test --project tests/TechStrap.Client.Tests -c Release --filter-trait "Integration=Docker"
 ```
 
-The first runs everything and needs Docker; the second is the fast loop without Docker; the third runs the Docker tests alone. The Pester pins for the docs are in
+Docker is required for any run of this project today: the linked `TestPostgres` carries an assembly fixture that xUnit starts eagerly, so even the second command starts Postgres. The first runs everything; the second skips only the Docker-tagged classes; the third runs the Docker tests alone. The Pester pins for the docs are in
 `scripts/tests/RepositoryDocs.Tests.ps1` and for the pack check in `scripts/tests/Test-PackageContents.Tests.ps1` (`pwsh -File scripts/Invoke-ScriptTests.ps1`).
 
 ## Known limits
 
 - A 429 is surfaced as `rate-limited` and not retried, and `Retry-After` is not carried (the server sends it; `ResultError` has no slot). Follow-up: a slot in `SyntaxCircus.Common`.
 - The Api documents no response schemas, so the OpenAPI contract test cannot pin the 201 `SubmitTicketResponse` schema; the real-API tests pin the response shape. A PHASE-05 follow-up.
-- One circuit per process: a failing API opens it for every caller of the SDK in that process.
+- One circuit per DI container (per `TechStrapClient` singleton): a failing API opens it for every caller that shares that client.
 - `net10.0` only; multi-targeting is a post-1.0 question.
 - No attachments (P11-T05): deferred to 11d, which first needs multipart intake.
 - GitVersion, the documentation file and a SourceLink package are deferred to 11c, so a local pack needs `-p:Version=`.
 - An idempotency key older than the server's retention window (24 hours) no longer protects a retry: replaying it creates one new ticket.
+- Docker is needed for every run of `TechStrap.Client.Tests`, not only the Docker-tagged classes (the eagerly started assembly fixture). A lazily started fixture used by the Docker-tagged classes only is a follow-up.
+- Interface additions before 1.0 are breaking for implementers of `ITechStrapClient` (fakes in consumers' tests); there are no default interface methods.
+- The generated idempotency key is not returned to the caller. Exposing it (so a caller can retry a no-key submit safely) is deferred to the 11c design.

@@ -4,7 +4,7 @@ The wire contracts of TechStrap, the self-hosted support desk: request and respo
 
 ## Stability
 
-The types and constants here are the public API surface. A breaking change ships only in a new major version, and package validation checks every release against the previous one.
+The types and constants here are the public API surface. A breaking change ships only in a new major version. Package validation is enabled; its baseline comparison against the previous release starts after 1.0.0.
 
 ## Using it
 
