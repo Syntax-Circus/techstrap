@@ -71,6 +71,7 @@ public sealed class CreateProductRequestHandler(
         var committed = await scope.CommitAsync(cancellationToken);
         if (committed.IsFailure)
         {
+            // A concurrent writer racing past IsPortalHostTakenAsync also lands here (unique index on portal_host); the generic code is accepted (D-050).
             return Result<ProductDto>.Failure(committed.Errors[0].Code == PersistenceErrorCodes.Duplicate ? ProductErrors.KeyTaken() : committed.Errors[0]);
         }
 

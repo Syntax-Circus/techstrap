@@ -16,6 +16,7 @@ using TechStrap.Application.Tickets.Notifications;
 using TechStrap.Contracts.Intake;
 using TechStrap.Contracts.Tickets;
 using TechStrap.Domain;
+using TechStrap.Domain.Products;
 using TechStrap.Domain.Requesters;
 using TechStrap.Domain.Rules;
 using TechStrap.Domain.Tickets;
@@ -30,6 +31,7 @@ public sealed class AddCustomerReplyRequestHandlerTests
     private readonly IAccessTokenService _tokens = Substitute.For<IAccessTokenService>();
     private readonly ITicketRepository _tickets = TicketRepositorySubstitute.Create();
     private readonly IRequesterRepository _requesters = Substitute.For<IRequesterRepository>();
+    private readonly IProductRepository _products = Substitute.For<IProductRepository>();
     private readonly ITicketNumberAllocator _allocator = Substitute.For<ITicketNumberAllocator>();
     private readonly IAttachmentStore _store = Substitute.For<IAttachmentStore>();
     private readonly IHtmlSanitizer _sanitizer = Substitute.For<IHtmlSanitizer>();
@@ -91,7 +93,7 @@ public sealed class AddCustomerReplyRequestHandlerTests
     }
 
     private AddCustomerReplyRequestHandler Handler(IUnitOfWork? unitOfWork = null) =>
-        new(_tokens, _tickets, _requesters, _allocator, _store, _sanitizer, _planner, unitOfWork ?? UnitOfWorkSubstitute.Create(), _clock,
+        new(_tokens, _tickets, _requesters, _products, _allocator, _store, _sanitizer, _planner, unitOfWork ?? UnitOfWorkSubstitute.Create(), _clock,
             Options.Create(_portal), NullLogger<AddCustomerReplyRequestHandler>.Instance);
 
     private Task<Result<CustomerReplyResponse>> Reply(
@@ -184,6 +186,30 @@ public sealed class AddCustomerReplyRequestHandlerTests
             r => r.TicketNumber.ShouldBe("ORB-77"),
             r => r.FollowUpCreated.ShouldBeTrue(),
             r => r.FollowUpViewUrl.ShouldBe("https://help.test/t/fresh-token"));
+    }
+
+    [Fact]
+    public async Task A_follow_up_link_is_on_the_product_host_when_the_product_has_one()
+    {
+        var product = Product.Create("orbitly", "Orbitly", "ORB", null, _clock).Value;
+        product.SetPortalHost("support.dragonpoop.com").IsSuccess.ShouldBeTrue();
+        _products.GetByIdAsync(_productId, Arg.Any<CancellationToken>()).Returns(product);
+        GivenTicket(TicketStatus.Closed);
+
+        var result = await Reply("It broke again");
+
+        result.Value.FollowUpViewUrl.ShouldBe("https://support.dragonpoop.com/t/fresh-token");
+    }
+
+    [Fact]
+    public async Task A_follow_up_link_falls_back_to_the_default_host_when_the_product_is_missing()
+    {
+        _products.GetByIdAsync(_productId, Arg.Any<CancellationToken>()).Returns((Product?)null);
+        GivenTicket(TicketStatus.Closed);
+
+        var result = await Reply("It broke again");
+
+        result.Value.FollowUpViewUrl.ShouldBe("https://help.test/t/fresh-token");
     }
 
     [Fact]

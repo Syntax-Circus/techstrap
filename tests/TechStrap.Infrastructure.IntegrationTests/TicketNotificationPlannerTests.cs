@@ -48,7 +48,7 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
             services.AddTechStrapTicketOperations(configuration);
         });
 
-    private static async Task<Seed> SeedAsync(PersistenceTestHost host, bool eraseRequester = false)
+    private static async Task<Seed> SeedAsync(PersistenceTestHost host, bool eraseRequester = false, string? portalHost = null)
     {
         Guid productId = default, otherId = default, requesterId = default, ticketId = default, samId = default, alexId = default, inactiveId = default;
         (await host.CommitAsync(sp =>
@@ -56,6 +56,11 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
             var products = sp.GetRequiredService<IProductRepository>();
             var product = Product.Create("orbitly", "Orbitly", "ORB", null, host.Clock).Value;
             var other = Product.Create("nimbus", "Nimbus", "NIM", null, host.Clock).Value;
+            if (portalHost is not null)
+            {
+                product.SetPortalHost(portalHost).IsSuccess.ShouldBeTrue();
+            }
+
             products.Add(product);
             products.Add(other);
             var requester = Requester.Create("pat@example.com", "Pat", null, host.Clock).Value;
@@ -123,6 +128,37 @@ public sealed class TicketNotificationPlannerTests(PostgresFixture postgres) : P
         payload.ShouldContain("https://help.test/p/orbitly/kb/general/shared-tips");
         payload.ShouldNotContain("//p/");
         payload.ShouldNotContain("nimbus");
+    }
+
+    [Fact]
+    public async Task A_product_with_a_host_gets_the_ticket_and_article_links_on_its_host()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host, portalHost: "support.dragonpoop.com");
+
+        (await host.CommitAsync(sp => PlanAsync(sp, seed, (planner, ticket, sam, _) =>
+            planner.PlanAgentReplyAsync(ticket, AgentMessage(host, seed, sam), sam, false, [new ReplyArticleLink("Reset your password", "account", "reset-password")], Ct)))).IsSuccess.ShouldBeTrue();
+
+        var payload = await TextAsync("SELECT payload::text FROM email_outbox");
+        payload.ShouldContain("https://support.dragonpoop.com/kb/account/reset-password");
+        payload.ShouldContain("https://support.dragonpoop.com/t/");
+        payload.ShouldNotContain("help.test");
+    }
+
+    [Fact]
+    public async Task Access_links_use_the_host_of_each_tickets_product()
+    {
+        await using var host = NewHost();
+        var seed = await SeedAsync(host, portalHost: "support.dragonpoop.com");
+        var (requester, links) = await AddTicketsAsync(host, seed, 1);
+        var all = new List<RequesterTicketLink> { new(seed.TicketId, seed.ProductId, "ORB-1", "Cannot log in", host.Clock.GetUtcNow()) };
+        all.AddRange(links);
+
+        (await host.CommitAsync(sp => sp.GetRequiredService<ITicketNotificationPlanner>().PlanAccessLinksAsync(requester, all, Ct))).IsSuccess.ShouldBeTrue();
+
+        var payload = await TextAsync("SELECT payload::text FROM email_outbox");
+        System.Text.RegularExpressions.Regex.Matches(payload, "https://support.dragonpoop.com/t/").Count.ShouldBe(2);
+        payload.ShouldNotContain("help.test");
     }
 
     [Fact]

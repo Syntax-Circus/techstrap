@@ -13,8 +13,8 @@ public sealed class ProductHostRulesParityTests
     [
         "support.example.com", "Support.DragonPoop.COM", "  support.example.com  ", "a.b", "a-b.example.com", "-a.example.com", "a-.example.com",
         "example", "", "   ", "https://support.example.com", "support.example.com:8443", "support.example.com/path", "user@support.example.com",
-        "support..example.com", ".example.com", "example.com.", "sup port.example.com", "support_1.example.com", "münchen.example.com",
-        "K.example.com", "1.2.3.4", "example.123", "example.1a", new string('a', 63) + ".com", new string('a', 64) + ".com",
+        "support..example.com", ".example.com", "example.com.", "sup port.example.com", "support_1.example.com", "m\u00fcnchen.example.com",
+        "\u212a.example.com", "1.2.3.4", "example.123", "example.1a", new string('a', 63) + ".com", new string('a', 64) + ".com",
         Padded(253), Padded(254),
     ];
 

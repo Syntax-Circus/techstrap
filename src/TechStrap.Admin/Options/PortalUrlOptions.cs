@@ -26,8 +26,21 @@ public sealed class PortalUrlOptions
     /// The public address of a published article, <c>{portal}/p/{product key}/kb/{category slug}/{slug}</c> (the route PHASE-09 serves), or null when the portal address is blank or one of the three
     /// parts is. Each part is escaped, so a slug can never add a path segment or a query.
     /// </summary>
-    public string? ArticleUrl(string? productKey, string? categorySlug, string? slug)
+    public string? ArticleUrl(string? productKey, string? categorySlug, string? slug) => ArticleUrl(null, productKey, categorySlug, slug);
+
+    /// <summary>
+    /// As <see cref="ArticleUrl(string?, string?, string?)"/>, but a product with a portal host is linked on its own host, <c>https://{host}/kb/{category slug}/{slug}</c> (no product key in the path), which needs
+    /// no portal address. A blank host means the default-host shape.
+    /// </summary>
+    public string? ArticleUrl(string? portalHost, string? productKey, string? categorySlug, string? slug)
     {
+        if (!string.IsNullOrWhiteSpace(portalHost))
+        {
+            return string.IsNullOrWhiteSpace(categorySlug) || string.IsNullOrWhiteSpace(slug)
+                ? null
+                : $"https://{portalHost.Trim()}/kb/{Uri.EscapeDataString(categorySlug)}/{Uri.EscapeDataString(slug)}";
+        }
+
         if (string.IsNullOrWhiteSpace(PublicUrl) || string.IsNullOrWhiteSpace(productKey) || string.IsNullOrWhiteSpace(categorySlug) || string.IsNullOrWhiteSpace(slug))
         {
             return null;

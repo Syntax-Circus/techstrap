@@ -191,7 +191,7 @@ public sealed class SubmitTicketRequestHandler(
                     && await tickets.GetByIdAsync(entry.TicketId, cancellationToken) is { } original
                     && JsonSerializer.Deserialize<SubmitTicketResponse>(entry.ResponseJson, JsonOptions) is { } storedResponse)
                 {
-                    return await ReplayAsync(scope, original, storedResponse, cancellationToken);
+                    return await ReplayAsync(scope, original, product, storedResponse, cancellationToken);
                 }
 
                 idempotency.Remove(entry);
@@ -240,7 +240,7 @@ public sealed class SubmitTicketRequestHandler(
         }
 
         tickets.AddAccessToken(issued.Value.Token);
-        var link = portal.Value.TicketLink(issued.Value.PlaintextToken);
+        var link = portal.Value.TicketLink(product.PortalHost, issued.Value.PlaintextToken);
 
         EnqueueConfirmation(number, ticket.Value, requester.Value, product, link);
         await planner.PlanNewTicketAsync(ticket.Value, requester.Value, isFollowUp: false, cancellationToken);
@@ -280,7 +280,7 @@ public sealed class SubmitTicketRequestHandler(
             false);
     }
 
-    private async Task<Attempt> ReplayAsync(IUnitOfWorkScope scope, Ticket original, SubmitTicketResponse storedResponse, CancellationToken cancellationToken)
+    private async Task<Attempt> ReplayAsync(IUnitOfWorkScope scope, Ticket original, Product product, SubmitTicketResponse storedResponse, CancellationToken cancellationToken)
     {
         var issued = tokens.Issue(original.Id, original.RequesterId);
         if (issued.IsFailure)
@@ -291,7 +291,7 @@ public sealed class SubmitTicketRequestHandler(
         tickets.AddAccessToken(issued.Value.Token);
         var committed = await scope.CommitAsync(cancellationToken);
         return committed.IsSuccess
-            ? new Attempt(Result<SubmitTicketResponse>.Success(storedResponse with { ViewUrl = portal.Value.TicketLink(issued.Value.PlaintextToken) }), false, false)
+            ? new Attempt(Result<SubmitTicketResponse>.Success(storedResponse with { ViewUrl = portal.Value.TicketLink(product.PortalHost, issued.Value.PlaintextToken) }), false, false)
             : Fail(committed.Errors[0]);
     }
 

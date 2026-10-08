@@ -87,7 +87,7 @@ public sealed partial class KbArticleEditorPage : IDisposable
 
     // Only a published article has an address on the portal, and it is the stored one: the category on screen may not be saved yet.
     private string? PortalUrl => _model.IsPublished && !_creating
-        ? Portal.Value.ArticleUrl(_lookups.PortalProductKey(_model.ProductId), _lookups.CategorySlug(_saved.CategoryId), _model.Slug)
+        ? Portal.Value.ArticleUrl(_lookups.PortalProductHost(_model.ProductId), _lookups.PortalProductKey(_model.ProductId), _lookups.CategorySlug(_saved.CategoryId), _model.Slug)
         : null;
 
     protected override async Task OnParametersSetAsync()

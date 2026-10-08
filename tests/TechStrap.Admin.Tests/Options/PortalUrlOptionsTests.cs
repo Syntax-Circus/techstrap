@@ -27,6 +27,22 @@ public sealed class PortalUrlOptionsTests
         PortalUrlOptions.IsValidBase(value).ShouldBe(valid);
 
     [Fact]
+    public void A_product_with_a_host_is_linked_on_its_host_without_the_key_or_the_portal_address()
+    {
+        new PortalUrlOptions { PublicUrl = "https://help.example.com" }.ArticleUrl("support.dragonpoop.com", "orbitly", "a/b", "x y")
+            .ShouldBe("https://support.dragonpoop.com/kb/a%2Fb/x%20y");
+        new PortalUrlOptions().ArticleUrl("support.dragonpoop.com", "orbitly", "account", "reset")
+            .ShouldBe("https://support.dragonpoop.com/kb/account/reset");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(" ")]
+    public void A_blank_host_keeps_the_public_url_shape(string? host) =>
+        new PortalUrlOptions { PublicUrl = "https://help.example.com" }.ArticleUrl(host, "orbitly", "account", "reset")
+            .ShouldBe("https://help.example.com/p/orbitly/kb/account/reset");
+
+    [Fact]
     public void An_article_address_follows_the_portal_route_and_a_trailing_slash_makes_no_difference()
     {
         new PortalUrlOptions { PublicUrl = "https://help.example.com/" }.ArticleUrl("orbitly", "account", "reset-password")
