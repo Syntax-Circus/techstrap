@@ -45,7 +45,7 @@ internal static class PortalHeaderRules
             && value.Split('/', StringSplitOptions.RemoveEmptyEntries) is [var cleanPage, .. var cleanTail]
             && IsFormPage(cleanPage, cleanTail));
 
-    // The shape after the product: contact, contact/received, lost-link or suggest. The clean form (/contact ...) is what a product host receives before its middleware rewrites it; on the default host it is a 404, which the header step skips.
+    // The shape after the product: contact, contact/received, lost-link or suggest. The clean form (/contact ...) is what a product host receives before its middleware rewrites it; on the default host it is a 404 that merely carries no-store (and noindex), which is harmless.
     private static bool IsFormPage(string page, string[] tail) =>
         Is(page, PortalRoutes.ContactSegment) ? tail.Length == 0 || (tail.Length == 1 && Is(tail[0], PortalRoutes.ReceivedSegment))
             : (Is(page, PortalRoutes.LostLinkSegment) || Is(page, PortalRoutes.SuggestSegment)) && tail.Length == 0;

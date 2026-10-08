@@ -39,7 +39,7 @@ internal sealed class PortalSitemapBuilder(IPublicProductClient products, IPubli
         {
             var productHost = string.IsNullOrWhiteSpace(product.PortalHost) ? null : product.PortalHost.Trim().ToLowerInvariant();
             var listedHere = host.IsProductHost
-                ? string.Equals(product.Key, host.Key, StringComparison.OrdinalIgnoreCase) && productHost is not null
+                ? string.Equals(product.Key, host.Key, StringComparison.OrdinalIgnoreCase) && string.Equals(productHost, host.Host, StringComparison.Ordinal)
                 : productHost is null;
             if (!listedHere)
             {

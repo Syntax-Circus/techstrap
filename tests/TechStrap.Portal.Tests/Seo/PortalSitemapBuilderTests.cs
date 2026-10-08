@@ -274,11 +274,11 @@ public sealed class PortalSitemapBuilderTests
     }
 
     // Review F5: the addresses come from the fresh product list, never from the map's snapshot, which may be up to a minute old.
-    [Fact]
+    [Fact(Timeout = 20_000)]
     public async Task A_host_cleared_in_the_fresh_list_gives_default_host_addresses_even_while_the_map_still_has_it()
     {
         using var api = HostHarness();
-        await api.Get<ProductHostMap>().RefreshAsync(Ct);
+        await api.Get<ProductHostMap>().RefreshAsync(TestContext.Current.CancellationToken);
         api.Get<ProductHostMap>().TryGetHost("acme", out _).ShouldBeTrue("the snapshot still holds the old host");
         api.Stub.OnJson(HttpMethod.Get, "/api/public/products", new[] { new PublicProductSummaryDto("acme", "Acme"), new PublicProductSummaryDto("orbitly", "Orbitly") });
 
