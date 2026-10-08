@@ -7,7 +7,7 @@ page is [PHASE-11-client-sdk.md](../architecture/PHASE-11-client-sdk.md).
 
 PHASE-11 is delivered in three pull requests. **11a** (this page describes it): `TechStrap.Contracts` and `TechStrap.Client` as packable projects, the real-API
 tests, the pack dry run in CI. **11b**: `TechStrap.Client.Maui` (device and app metadata, a submit helper; see the section [TechStrap.Client.Maui](#techstrapclientmaui)
-below, D-048). **11c**: per-package READMEs, samples, the publish workflow, nuget.org and `v1.0.0-rc.1`. Nothing is published to nuget.org yet.
+below, D-048). **11c** (D-049): per-package READMEs, the console sample, XML documentation, the source-generated JSON context and the publish workflow. Nothing is published to nuget.org until the owner pushes the `v1.0.0-rc.1` tag.
 
 ## Packages
 
@@ -25,7 +25,7 @@ The submit takes JSON only. There is no attachment type: the intake endpoint is 
 
 ## Local pack
 
-GitVersion is not wired in yet (11c), so a pack needs an explicit version. Publishing to nuget.org (a `v*` tag, Trusted Publishing, rollback) is described in [RELEASING.md](RELEASING.md).
+The packages take their version from the release tag, not from GitVersion, so a local pack needs an explicit `-p:Version=`. Publishing to nuget.org (a `v*` tag, Trusted Publishing, rollback) is described in [RELEASING.md](RELEASING.md).
 
 ```
 dotnet pack src/TechStrap.Contracts -c Release -p:Version=0.0.0-local -o ./pack
@@ -193,11 +193,12 @@ Docker is required for any run of this project today: the linked `TestPostgres` 
 - `net10.0` only; multi-targeting is a post-1.0 question.
 - AOT-compatible: serialization is source-generated (`TechStrapJsonContext`).
 - No attachments (P11-T05): deferred to 11d, which first needs multipart intake.
-- GitVersion and a SourceLink package are deferred to 11c, so a local pack needs `-p:Version=`.
+- The packages are versioned from the release tag (`-p:Version=`), so a local pack needs an explicit version; there is no GitVersion in the packages and no SourceLink package (it is bundled in the SDK).
+- Source generation has no encoder option, so the SDK and the server both use the default JSON encoder; the parity tests prove identical output.
 - An idempotency key older than the server's retention window (24 hours) no longer protects a retry: replaying it creates one new ticket.
 - Docker is needed for every run of `TechStrap.Client.Tests`, not only the Docker-tagged classes (the eagerly started assembly fixture). A lazily started fixture used by the Docker-tagged classes only is a follow-up.
 - Interface additions before 1.0 are breaking for implementers of `ITechStrapClient` (fakes in consumers' tests); there are no default interface methods.
-- The generated idempotency key is not returned to the caller. Exposing it (so a caller can retry a no-key submit safely) is deferred to the 11c design.
+- The generated idempotency key is not returned to the caller. Exposing it (so a caller can retry a no-key submit safely) is not part of 11c and stays open.
 
 ## TechStrap.Client.Maui
 

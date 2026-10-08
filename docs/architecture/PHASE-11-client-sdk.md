@@ -45,6 +45,17 @@ Where this page and D-048 differ, D-048 wins.
 - **MAUI CI.** D-047's MAUI CI bullet (Android on the existing runner, iOS on macOS on a tag) is withdrawn: the one `net10.0` target builds and tests on the ubuntu CI.
 - **OpenAPI contract test.** The Api documents no response schemas, so the test pins the request, the security scheme and the `Idempotency-Key` parameter, not the 201 body (a PHASE-05 follow-up).
 
+### Corrections (D-049, 2026-10-08)
+
+Where this page and D-049 differ, D-049 wins.
+- **Version from the tag.** The packages take their version from the release tag (`dotnet pack -p:Version=<tag>`), not from `GitVersion.MsBuild`; the hosts keep GitVersion. There is no `Microsoft.SourceLink.GitHub` package: SourceLink is bundled in the SDK.
+- **When the workflow runs.** `publish-nuget.yml` runs on a `v*` tag push and on `workflow_dispatch`; it has no `pull_request` trigger (`ci.yml` dry-runs the pack on pull requests). A dispatch is a dry run: it packs and validates and publishes nothing. A new workflow can only be dispatched once it is on `main`.
+- **Publishing.** NuGet Trusted Publishing only: there is no `NUGET_API_KEY` fallback. The GitHub Release is created by `publish-nuget.yml` (with generated notes, as a prerelease when the version has a hyphen), not by `release.yml`, which still pushes the GHCR images.
+- **README snippets** are compiled `#region readme:*` blocks (in the console sample and in `tests/TechStrap.Client.Maui.Tests`), and `scripts/tests/ReadmeSnippets.Tests.ps1` checks that each README block matches its region. There is no MAUI sample project.
+- **Documentation file.** `GenerateDocumentationFile` is on for every package, every public member is documented, and `Test-PackageContents.ps1` fails when `lib/net10.0/<id>.xml` is missing.
+- **AOT.** `TechStrap.Client` and `TechStrap.Client.Maui` are AOT-compatible: JSON goes through the source-generated `TechStrapJsonContext`, and `IsAotCompatible` is on with no suppressions.
+- **T16 validation.** UAT is not deployed, so the post-publish check runs against the local compose stack; the UAT submit moves to PHASE-12 (P12-T14).
+
 ## Architecture Decisions
 
 - **Three packages, not two.** `TechStrap.Client` depends on `TechStrap.Contracts`, so Contracts must be a public package (`TechStrap.Contracts`; DTOs and constants only, no inward project references). The plan listed two; this is a necessary addition (see Risks). All three share one lockstep version from GitVersion and the `v*` tag (**Assumption**; independent versioning rejected for simplicity).
@@ -104,9 +115,9 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 - [ ] `ITechStrapClient`, options, DI extension, `ApiKeyHandler`, `Result` mapping, attachment type. *(11a: all but the attachment type, deferred by D-047.)*
 - [x] `IDeviceContextCollector`, `MauiDeviceContextCollector`, `IMauiTicketSubmitter`, `AddTechStrapMaui`. *(11b.)*
 - [x] `tests/TechStrap.Client.Tests` (unit + API-contract integration), created in this phase (listed in `02-ARCHITECTURE.md`). *(Created in 11a.)*
-- [ ] Console sample (+ optional MAUI sample); README usage snippets.
-- [ ] `.github/workflows/publish-nuget.yml` and package validation (readme/license/symbols/dependency check), dry-run on non-tag builds. *(11a delivers the pack dry run in `ci.yml` and `scripts/Test-PackageContents.ps1`; the workflow itself is 11c.)*
-- [ ] First prerelease (`v1.0.0-rc.1`) published and consumed from nuget.org by the sample.
+- [x] Console sample (+ optional MAUI sample); README usage snippets. *(11c: the console sample and compiled README snippets; no MAUI sample project, D-049.)*
+- [x] `.github/workflows/publish-nuget.yml` and package validation (readme/license/symbols/dependency check), dry-run on non-tag builds. *(11a delivered the pack dry run in `ci.yml` and `scripts/Test-PackageContents.ps1`; 11c added the workflow.)*
+- [ ] First prerelease (`v1.0.0-rc.1`) published and consumed from nuget.org by the sample. *(Pending the owner's tag push, P11-T16.)*
 
 ## Actionable Tasks
 
@@ -149,24 +160,30 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
   - **Depends on:** P11-T01
   - **Validation:** Pack output dependency list contains only framework/third-party packages; consumer sample restores with Contracts only transitively through Client.
   - **As built (11a):** the Contracts nuspec has zero dependencies; CI packs Contracts and Client with `-p:Version=0.0.0-ci` and `scripts/Test-PackageContents.ps1` checks README, license, repository URL, symbols and the exact dependency set. The consumer sample is 11c.
-- [ ] **P11-T11** Write per-package READMEs (what it is, install, minimal example, configuration, Trusted vs Public key guidance, error handling, privacy of collected metadata, versioning/compat)
+- [x] **P11-T11** Write per-package READMEs (what it is, install, minimal example, configuration, Trusted vs Public key guidance, error handling, privacy of collected metadata, versioning/compat)
   - **Depends on:** P11-T04, P11-T09
   - **Validation:** Every README code block is compiled from the samples (snippets copied by a CI check or `#region` extraction); links resolve; README present in each nupkg.
-- [ ] **P11-T12** Build `samples/TechStrap.Client.Samples.Console` (and optional MAUI sample) using the SDK against a local compose stack
+  - **As built (11c):** full READMEs for `TechStrap.Contracts`, `TechStrap.Client` (error-code table, Trusted vs Public keys, retries and idempotency, configuration, compatibility) and `TechStrap.Client.Maui` (19-key table, platform permissions, privacy, limits). The register, submit and errors snippets are compiled `#region readme:*` blocks, and `scripts/tests/ReadmeSnippets.Tests.ps1` checks each README block against its region. The XML documentation file is enabled for every package (`GenerateDocumentationFile`); 154 undocumented public members in Contracts were documented, and `Test-PackageContents.ps1` fails when the `.xml` file is missing.
+- [x] **P11-T12** Build `samples/TechStrap.Client.Samples.Console` (and optional MAUI sample) using the SDK against a local compose stack
   - **Depends on:** P11-T04, P11-T09
   - **Validation:** Running the console sample against `docker compose up` prints a ticket number and view URL; the ticket appears in admin; MAUI sample (if built) compiles on macOS.
-- [ ] **P11-T13** Add `.github/workflows/publish-nuget.yml`: on push to any branch/PR build+test+pack (artifact, no publish); on tag `v*` verify tag == packed version, then publish via `NuGet/login@v1` OIDC in the `release` environment with `--skip-duplicate`, create a GitHub Release for the tag
+  - **As built (11c):** `samples/TechStrap.Client.Samples.Console` (in `TechStrap.slnx` and `TechStrap.CI.slnf`, built but not a test) reads `--base-address` and `--api-key` or the `TECHSTRAP__*` environment variables and calls `AddTechStrapClient`. It exits 0 with `Ticket <n>` and `View: <url>`, 1 with an SDK failure `<code>: <message>`, 2 for a configuration problem, and never prints the key. A live run against the compose stack printed `ORB-7` and its view URL (exit 0); a wrong key gave `invalid-api-key` (exit 1) and no key gave exit 2. There is no MAUI sample project (D-049); the MAUI snippets compile in `tests/TechStrap.Client.Maui.Tests`. The sample's one new central pin is `Microsoft.Extensions.Hosting` 10.0.12. `docs/development/CLIENT-SDK.md` has a "Running the sample" section.
+- [x] **P11-T13** Add `.github/workflows/publish-nuget.yml`: on push to any branch/PR build+test+pack (artifact, no publish); on tag `v*` verify tag == packed version, then publish via `NuGet/login@v1` OIDC in the `release` environment with `--skip-duplicate`, create a GitHub Release for the tag
   - **Depends on:** P11-T02, P11-T07, P11-T10, P01 CI
   - **Validation:** Dry run on a branch produces three `.nupkg` + `.snupkg` artifacts; a test tag `v0.0.0-test.1` on a fork/branch (publish step guarded) passes the version-match check; prerelease tags publish as prerelease only.
-- [ ] **P11-T14** Add package content validation script (CI step): README present, license metadata, symbol packages, expected dependency set, no secrets, size sanity
+  - **As built (11c):** the workflow triggers on a `v*` tag push and `workflow_dispatch`, with no `pull_request` trigger. The `pack` job takes the version from the tag (a tag that is not `v<semver>` fails; a dispatch uses `0.0.0-dryrun.<run_number>`), runs `dotnet test --solution TechStrap.CI.slnf`, packs the three packages with `-p:Version`, runs `Test-PackageContents.ps1` and uploads the packages. The `publish` job runs only for `github.ref_type == 'tag' && github.event_name == 'push'`, needs `pack`, uses the `release` environment with `id-token: write`, checks the file-name versions, logs in with `NuGet/login@v1` (`secrets.NUGET_USER`), pushes with `--skip-duplicate` and runs `gh release create --generate-notes` (`--prerelease` when the version has a hyphen). `scripts/tests/PublishWorkflow.Tests.ps1` pins it. GitHub cannot dispatch a workflow that is not on `main`, so the dry run happens after the merge, before the first tag (see `docs/development/RELEASING.md`).
+- [x] **P11-T14** Add package content validation script (CI step): README present, license metadata, symbol packages, expected dependency set, no secrets, size sanity
   - **Depends on:** P11-T13
   - **Validation:** CI fails when a README or dependency is missing (verified with a deliberately broken pack in a draft PR).
-- [ ] **P11-T15** Reserve package IDs and configure nuget.org Trusted Publishing policy + `release` environment; document the one-time setup in the repo (not secrets)
+  - **As built (11c):** `scripts/Test-PackageContents.ps1` came with 11a; 11c adds the check for `lib/net10.0/<id>.xml` (fixture-tested) and runs the script with the three-package map in both `ci.yml` (pack dry run) and `publish-nuget.yml`.
+- [x] **P11-T15** Reserve package IDs and configure nuget.org Trusted Publishing policy + `release` environment; document the one-time setup in the repo (not secrets)
   - **Depends on:** P11-T13
   - **Validation:** Owner confirms IDs and policy; a prerelease tag publishes all three packages without a stored API key.
+  - **As built (11c):** the owner confirmed on 2026-10-08 that the `TechStrap.*` IDs are reserved, each package has a Trusted Publishing policy (repository `Syntax-Circus/techstrap`, workflow `publish-nuget.yml`, environment `release`), the repository secret `NUGET_USER` is set and the `release` environment has required reviewers. `docs/development/RELEASING.md` records the values (no secrets). That a prerelease tag publishes all three packages without a stored key is proven by T16.
 - [ ] **P11-T16** Publish `v1.0.0-rc.1` packages and run the post-publish check: fresh project restores `TechStrap.Client` and `TechStrap.Client.Maui` from nuget.org and submits a ticket to UAT
   - **Depends on:** P11-T12, P11-T15, P05 deployed to UAT
   - **Validation:** Restore from nuget.org succeeds (indexed); sample submits against UAT and the ticket arrives with metadata flagged untrusted for a Public key.
+  - **Pending (11c):** the owner's `v1.0.0-rc.1` tag push after the merge. The post-publish check runs against the local compose stack (UAT is not deployed; the UAT submit is PHASE-12, P12-T14). T16 is ticked in a follow-up docs commit once the packages restore from nuget.org.
 - [x] **P11-T17** Rely on server-side idempotency for submit retries (D-020): generate an `Idempotency-Key` per `SubmitTicketAsync` call, allow the caller to supply one, enable retries for submit only when a key is present, and document the behavior in the READMEs; if the owner rejects D-020, keep retries disabled and record that in [04-DECISION-LOG.md](04-DECISION-LOG.md)
   - **Depends on:** P11-T04, P05-T17
   - **Validation:** `Client.Tests` integration test against the real API: a simulated timeout followed by a retry with the same key yields exactly one ticket and the same `SubmitTicketResponse`; a call without a key is never retried; D-020 status is reflected in [04-DECISION-LOG.md](04-DECISION-LOG.md).
@@ -177,9 +194,9 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 - [ ] A .NET app can `dotnet add package TechStrap.Client`, configure base URL + key, and create a ticket; the response gives the ticket number and view URL. *(11a proved the call against the real Api with project references, not the package, so this stays open; consuming the packed package is the 11c sample, and the nuget.org install is 11c.)*
 - [ ] A MAUI app can `dotnet add package TechStrap.Client.Maui`, submit a ticket with device/app metadata and an optional screenshot, with metadata truncation and opt-out working. *(Partial in 11b: submit with device/app metadata, truncation, redaction and opt-out are built and tested; there is no screenshot until 11d adds attachments, and the package is not on nuget.org until 11c.)*
 - [ ] Failure modes (bad key, rate limit, validation, attachments, outage) return typed `Result` failures; submit is never silently duplicated by retries. *(Partial in 11a: all but attachments, deferred to 11d by D-047; 413 and 415 are mapped.)*
-- [ ] Pushing tag `v*` builds, tests, packs and publishes `TechStrap.Contracts`, `TechStrap.Client` and `TechStrap.Client.Maui` to nuget.org with symbols and READMEs, through OIDC (no long-lived key in the repo).
+- [ ] Pushing tag `v*` builds, tests, packs and publishes `TechStrap.Contracts`, `TechStrap.Client` and `TechStrap.Client.Maui` to nuget.org with symbols and READMEs, through OIDC (no long-lived key in the repo). *(Workflow in place and pinned; dry run and rc.1 publish follow the merge.)*
 - [x] Contract test proves the SDK matches the API's OpenAPI document and the real intake endpoint. *(Response schema not pinned, see Corrections.)*
-- [ ] Each package has a README; samples compile and run.
+- [x] Each package has a README; samples compile and run. *(11c: the console sample builds in CI and ran against the compose stack; the README snippets are compiled.)*
 - [x] `dotnet build`, `dotnet test` green; the single net10.0 target builds and tests on the ubuntu CI (D-048).
 
 ## Boundary Validation

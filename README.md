@@ -79,6 +79,11 @@ Each project's `appsettings.json` lists every setting the host reads, with its d
 `src/TechStrap.<Host>/.env.local` (gitignored; copy the `.env.example` next to it, which documents the same keys as `SECTION__KEY`).
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [SECURITY.md](SECURITY.md) to report a vulnerability.
 
+## Packages
+
+The client SDK is published to nuget.org as `TechStrap.Contracts`, `TechStrap.Client` and `TechStrap.Client.Maui` (the first release candidate is `v1.0.0-rc.1`). Start with the
+[TechStrap.Client README](src/TechStrap.Client/README.md); how releases are cut is in [RELEASING.md](docs/development/RELEASING.md).
+
 ## Documentation
 
 Start at the [discovery index](docs/architecture/00-DISCOVERY-INDEX.md).

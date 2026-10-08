@@ -50,7 +50,7 @@ techstrap/
     TechStrap.Admin.Tests  TechStrap.Portal.Tests  TechStrap.Client.Tests  TechStrap.Client.Maui.Tests
 ```
 
-The first five test projects are created in PHASE-01; `TechStrap.Admin.Tests` (bUnit), `TechStrap.Portal.Tests` (bUnit and host tests), `TechStrap.Client.Tests` and `TechStrap.Client.Maui.Tests` are created in their owning phases (PHASE-07, PHASE-09, PHASE-11); `TechStrap.Client.Tests` was created in PHASE-11a and `TechStrap.Client.Maui.Tests` was created in PHASE-11b.
+The first five test projects are created in PHASE-01; `TechStrap.Admin.Tests` (bUnit), `TechStrap.Portal.Tests` (bUnit and host tests), `TechStrap.Client.Tests` and `TechStrap.Client.Maui.Tests` are created in their owning phases (PHASE-07, PHASE-09, PHASE-11); `TechStrap.Client.Tests` was created in PHASE-11a and `TechStrap.Client.Maui.Tests` was created in PHASE-11b. The `samples/` folder holds `samples/TechStrap.Client.Samples.Console` (PHASE-11c, D-049), a console app that submits a ticket through `TechStrap.Client`; it is built by CI, is not a test project, and is the source of the compiled README snippets.
 
 Allowed project references (enforced by `TechStrap.Architecture.Tests`, PHASE-01):
 

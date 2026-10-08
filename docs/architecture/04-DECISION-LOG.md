@@ -22,6 +22,7 @@ Approval basis:
 - **Owner decision (2026-10-07, PHASE-10 planning):** D-046, the owner decisions on the two-pull-request split, the detail page's "New activity" banner, the presence name and the hub token source. Its technical rulings were proposed in the PHASE-10a plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-07, PHASE-11 planning):** D-047, the owner decisions on the three-PR split, the JSON-only SDK, the SDK's dependencies and the Common split, and the MAUI CI split. Its technical rulings were proposed in the PHASE-11a plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-07, PHASE-11b planning):** D-048, the owner decisions on the single net10.0 target framework, the one-pull-request delivery and the approved MAUI helper design. Its technical rulings were proposed in the PHASE-11b plan and approved when the owner approved the plan.
+- **Owner decision (2026-10-08, PHASE-11c planning):** D-049, the owner decisions that nuget.org is ready (IDs, Trusted Publishing policy, NUGET_USER, the release environment), that the XML documentation file is enabled for every package member, that the post-publish check runs against the local compose stack until UAT exists, and the approved publish design. Its technical rulings were proposed in the PHASE-11c plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -79,6 +80,7 @@ Approval basis:
 | D-046 | PHASE-10: two pull requests, identity in the request record, a two-part post-commit hook, header-only hub token, presence by `Agent.Name`, the detail page's "New activity" banner | Approved (owner 2026-10-07; technical rulings at PHASE-10a plan review) | 2026-10-07 | PHASE-10, 02-ARCHITECTURE |
 | D-047 | PHASE-11: three pull requests, JSON-only SDK v1, web-neutral SyntaxCircus.Common 0.2.0 + Http.Resilience as dependencies, retry only with an Idempotency-Key through HttpRequestResiliencePipeline | Approved (owner 2026-10-07; technical rulings at PHASE-11a plan review) | 2026-10-07 | PHASE-11, 03-PACKAGE-MAP |
 | D-048 | PHASE-11b: TechStrap.Client.Maui on a single net10.0 target with Microsoft.Maui.Essentials, TicketMetadataKeys in Contracts, MauiTicketDraft submit helper, lazy Essentials defaults | Approved (owner 2026-10-07; technical rulings at PHASE-11b plan review) | 2026-10-07 | PHASE-11, 03-PACKAGE-MAP |
+| D-049 | PHASE-11c: tag-triggered publish-nuget.yml with NuGet Trusted Publishing and a GitHub Release, version from the tag, XML documentation and AOT-safe JSON in the packages, compiled README snippets and a console sample | Approved (owner 2026-10-08; technical rulings at PHASE-11c plan review) | 2026-10-08 | PHASE-11, PHASE-12, 03-PACKAGE-MAP |
 
 ---
 
@@ -2035,3 +2037,65 @@ The PHASE-11 spec and D-047 assumed `TechStrap.Client.Maui` multi-targets `net10
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-11b planning)
 - **Approved on:** 2026-10-07
+
+## D-049: PHASE-11c: publishing (tag-triggered publish-nuget.yml, Trusted Publishing, version from the tag, XML documentation, source-generated JSON, compiled README snippets, console sample)
+
+- **Status:** Approved (owner 2026-10-08; technical rulings at PHASE-11c plan review)
+- **Date:** 2026-10-08
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-003, D-005, D-047, D-048, PHASE-11, PHASE-12, `docs/superpowers/plans/2026-10-08-phase-11c-publish.md`, `docs/development/RELEASING.md`, `docs/development/CLIENT-SDK.md`
+
+### Context
+D-047 and D-048 left the publishing half of PHASE-11 to 11c: per-package READMEs, a sample, the publish workflow, the nuget.org setup, XML documentation, GitVersion and SourceLink for the packages, and the `v1.0.0-rc.1` publish. On 2026-10-08:
+- **nuget.org is ready.** Owner action #9 is done (see decision 1 below).
+- **UAT is not deployed.** The post-publish check that the spec ran against UAT has nothing to run against.
+- **`release.yml` builds and pushes the GHCR images on a `v*` tag** and publishes nothing to nuget.org. Until 11c, `ci.yml` only dry-runs the pack on pull requests (`-p:Version=0.0.0-ci`).
+- **Contracts had 154 undocumented public members;** Client and Client.Maui were already documented. The Client and Maui packages serialized with reflection, which is not AOT-safe.
+
+### Decision
+**Owner decisions (2026-10-08)**
+1. **nuget.org is ready.** The `TechStrap.*` package IDs are reserved. Each package has a Trusted Publishing policy bound to the repository `Syntax-Circus/techstrap`, the workflow file `publish-nuget.yml` and the environment `release`. The repository secret `NUGET_USER` is set, and the GitHub environment `release` has required reviewers.
+2. **XML documentation is on for every package member.** `GenerateDocumentationFile` is enabled in `eng/Packaging.props`, and every public member is documented.
+3. **The post-publish check runs against the local compose stack.** UAT is not deployed, so the UAT submit moves to PHASE-12 (P12-T14).
+4. **The publish design is approved:** a tag-triggered `publish-nuget.yml` plus a GitHub Release, the version from the tag, a console sample with compiled README snippets, no MAUI sample project, and source-generated JSON.
+
+**Technical rulings (proposed in the 11c plan; approved when the owner approved it)**
+- **Version from the tag.** The packages take their version from the tag through `dotnet pack -p:Version=<semver>`, not from `GitVersion.MsBuild`; the hosts keep GitVersion. There is no `Microsoft.SourceLink.GitHub` package, because SourceLink is bundled in the SDK.
+- **Triggers.** `publish-nuget.yml` runs on a `v*` tag push and on `workflow_dispatch`. It has no `pull_request` trigger; `ci.yml` keeps the pack dry run on pull requests. A dispatch is a dry run: the version is `0.0.0-dryrun.<run number>`, and the `publish` job is skipped.
+- **Jobs.** The `pack` job takes the version from the tag (a tag that is not `v<semver>` fails), runs `dotnet test --solution TechStrap.CI.slnf`, packs the three packages, runs `scripts/Test-PackageContents.ps1` and uploads them. The `publish` job needs `pack`, runs in the `release` environment, and checks that every package file name carries the version.
+- **Publish guard.** The `publish` job runs only if `github.ref_type == 'tag' && github.event_name == 'push'`, so a `workflow_dispatch` started on a tag ref stays a dry run.
+- **Trusted Publishing only.** `NuGet/login@v1` exchanges the OIDC token (secret `NUGET_USER`) for a short-lived key, and `dotnet nuget push --skip-duplicate` uses it. There is no `NUGET_API_KEY` fallback, and `PublishWorkflow.Tests.ps1` fails if any workflow reads that secret.
+- **The GitHub Release comes from `publish-nuget.yml`:** `gh release create` with `--generate-notes`, the three packages and their symbol packages attached, and `--prerelease` when the version has a hyphen. `release.yml` still builds and pushes the GHCR images; it only gained a comment that points to the new workflow.
+- **Documentation file.** `GenerateDocumentationFile` is set in `eng/Packaging.props`. `scripts/Test-PackageContents.ps1` fails when `lib/net10.0/<id>.xml` is missing, and the build fails on a missing doc comment (CS1591 under `TreatWarningsAsErrors`).
+- **Source-generated JSON.** `TechStrap.Client.Json.TechStrapJsonContext` (public) has camelCase names, case-insensitive reading and numbers readable from strings, and covers `SubmitTicketRequest`, `SubmitTicketResponse` and `Dictionary<string,string>`. `TechStrapClient` and `MauiMetadataMerger` use its typed infos. `IsAotCompatible` is on for Client and Client.Maui with the AOT analyzers clean and no suppressions. Parity tests prove the output is byte-identical to `JsonSerializerDefaults.Web`, which the server uses.
+- **`TicketViews` docs corrected.** `Open` is New and Open; `Unassigned` and `Mine` are New, Open and Pending; none includes spam, which matches the repository's status sets.
+- **Compiled README snippets.** The snippets are `#region readme:*` blocks: `client-register`, `client-submit` and `client-errors` in the console sample's `Program.cs`, `maui-register` and `maui-submit` in `tests/TechStrap.Client.Maui.Tests/Snippets/MauiReadmeSnippets.cs`. `scripts/tests/ReadmeSnippets.Tests.ps1` extracts each region and fails if a README block differs.
+- **The console sample.** `samples/TechStrap.Client.Samples.Console` uses `Host.CreateApplicationBuilder`, takes `--base-address` and `--api-key` (or `TECHSTRAP__BASEADDRESS` and `TECHSTRAP__APIKEY`), calls `AddTechStrapClient`, and exits 0 with `Ticket <n>` and `View: <url>`, 1 with an SDK failure, or 2 for a configuration problem. It never prints the key. It is in `TechStrap.slnx` and `TechStrap.CI.slnf` (built, not a test). Its one new central pin is `Microsoft.Extensions.Hosting` 10.0.12.
+- **Dispatch needs `main`.** GitHub can only dispatch a workflow that is on the default branch, so the first dry run of `publish-nuget.yml` happens right after the merge and before the first tag (`docs/development/RELEASING.md`).
+- **Tests.** `scripts/tests/PublishWorkflow.Tests.ps1` pins the workflow, `RepositoryDocs.Tests.ps1` pins this decision and the spec ticks, and `Test-PackageContents.ps1` is fixture-tested.
+
+### Alternatives Considered
+- **`GitVersion.MsBuild` in the packages.** Rejected: the tag already is the version, and a second source could disagree with it. The pack stamps the package version while assembly versions keep the build's own value.
+- **Publishing on pull requests.** Rejected: nothing may reach nuget.org from an unreviewed change. `ci.yml` dry-runs the pack on pull requests instead.
+- **A `NUGET_API_KEY` fallback.** Rejected: a long-lived key in a secret is the risk Trusted Publishing removes.
+- **Creating the GitHub Release from `release.yml`.** Rejected: that workflow builds images; the Release lists the packages, so it belongs with the workflow that makes them.
+- **A MAUI sample project.** Rejected: it needs a workload and a macOS runner (D-048 withdrew both). The MAUI snippets compile in `TechStrap.Client.Maui.Tests`.
+- **README snippets as plain text.** Rejected: they drift from the API. Compiled regions with a README check fail the build instead.
+- **A UAT post-publish check now.** Deferred: UAT is not deployed. The check runs against the local compose stack, and the UAT submit is PHASE-12 (P12-T14).
+
+### Consequences
+- **Spec corrections.** `PHASE-11-client-sdk.md` carries a third Corrections block, ticks T11 to T15 with as-built notes and leaves T16 open; `03-PACKAGE-MAP.md`, `02-ARCHITECTURE.md`, the roadmap and the discovery index are updated; owner action #9 is done. `RELEASING.md` is the release guide, `CLIENT-SDK.md` gains "Running the sample", and the root README names the packages.
+- **P11-T16 is post-merge.** The owner pushes `v1.0.0-rc.1`, approves the `release` environment, and checks that the packages restore from nuget.org. Then the post-publish check runs against the compose stack and T16 is ticked in a follow-up docs change.
+- **Known limits**
+  - The `v*` tag also publishes the GHCR images at that tag (`release.yml`). That is intended: PHASE-12 deploys the release candidate to UAT.
+  - Packages are immutable on nuget.org: a fix is a new version, and a bad version is unlisted, not deleted.
+  - Each publish waits for an approval in the `release` environment.
+  - `--generate-notes` builds the release notes from pull request titles; PHASE-12 may replace them with a Conventional Commits changelog.
+  - The UAT submit (the spec's original T16 validation) moves to PHASE-12 (P12-T14).
+  - Attachments remain 11d, which first needs multipart intake.
+  - Source generation has no encoder option, so the SDK and the server both use the default encoder; parity holds because they match.
+  - A new workflow can only be dispatched once it is on `main`, so the first dry run follows the merge.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-11c planning)
+- **Approved on:** 2026-10-08

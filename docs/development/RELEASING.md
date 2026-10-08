@@ -20,6 +20,7 @@ before anything is packed.
 
 - The tag is the version: `v1.2.3` publishes `1.2.3`, and `v1.2.3-rc.1` publishes `1.2.3-rc.1`, which nuget.org shows as a prerelease and the GitHub Release marks as a prerelease.
 - A version with a hyphen is a prerelease. Use `-rc.N` for release candidates.
+- `dotnet pack --no-build -p:Version=<tag>` stamps the package (nuspec) version, while the assembly versions keep the build's own value. The hosts use GitVersion; the packages do not.
 - The hosts (Api, Admin, Portal, Worker) use GitVersion for their informational version only. It does not decide the version of the packages.
 - A published package version can never change. A mistake ships as the next version.
 
@@ -39,8 +40,10 @@ No long-lived API key exists. `NuGet/login` exchanges the workflow's OIDC token 
 
 ## Dry run
 
-Run the workflow by hand: Actions > Publish NuGet packages > Run workflow, on any branch. It packs at version `0.0.0-dryrun.<run number>`, runs the tests and the package-content check and
-uploads the packages as the `nuget-packages` artifact. The `publish` job is skipped, so nothing reaches nuget.org and no Release is created.
+Run the workflow by hand: Actions > Publish NuGet packages > Run workflow, on any branch or tag. It packs at version `0.0.0-dryrun.<run number>`, runs the tests and the package-content check and
+uploads the packages as the `nuget-packages` artifact. The `publish` job is skipped, so nothing reaches nuget.org and no Release is created. Only a tag push publishes: a run started by hand on a tag ref is still a dry run.
+
+GitHub's rule is that a new or changed workflow can only be dispatched once it is on `main`. The first dry run of `publish-nuget.yml` therefore happens right after its merge and before the first tag.
 
 The same pack and check run locally with the commands under "Local pack" in [CLIENT-SDK.md](CLIENT-SDK.md).
 
