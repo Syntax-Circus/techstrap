@@ -614,8 +614,10 @@ public sealed class ProductEditorTests : AdminPageTest
         model.ToUpdateRequest().PortalHost.ShouldBe(string.Empty);
         model.Check(ApiFields.PortalHost, creating: false).ShouldBeNull();
 
-        model.PortalHost = "not a host";
+        model.PortalHost = " not a host ";
         model.Check(ApiFields.PortalHost, creating: false).ShouldBe(ProductsCopy.PortalHostInvalid);
+        model.ToCreateRequest().PortalHost.ShouldBeNull();
+        model.ToUpdateRequest().PortalHost.ShouldBe("not a host", "an invalid value is sent as typed, never as the explicit clear");
     }
 
     // ---- create --------------------------------------------------------------------------------------------------

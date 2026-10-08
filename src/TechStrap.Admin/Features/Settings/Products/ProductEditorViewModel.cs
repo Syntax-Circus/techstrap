@@ -69,8 +69,9 @@ internal sealed partial class ProductEditorViewModel
     private ProductBrandingRequest ToBranding() =>
         new(DisplayName.Trim(), Blank(LogoPath), Blank(AccentColour), Blank(FromAddress), Blank(ReplyTo));
 
-    // Update: null would mean "unchanged" to the Api, so a blanked field is sent as "" (the explicit clear); a valid host goes trimmed and lower-case.
-    private string NormalisedHostForUpdate() => string.IsNullOrWhiteSpace(PortalHost) ? string.Empty : NormalisedHost() ?? string.Empty;
+    // Update: null would mean "unchanged" to the Api, so a blanked field is sent as "" (the explicit clear); a valid host goes trimmed and lower-case. An invalid value
+    // (which Check refuses before a save) is sent as typed, never as "": the Api answers 400 on the field rather than clearing a stored host.
+    private string NormalisedHostForUpdate() => string.IsNullOrWhiteSpace(PortalHost) ? string.Empty : NormalisedHost() ?? PortalHost.Trim();
 
     // Create form: blank (or an invalid value, which Check has already refused) goes as null; a valid host goes trimmed and lower-case.
     private string? NormalisedHost() => ProductHostRules.TryNormalize(PortalHost, out var host) ? host : null;
