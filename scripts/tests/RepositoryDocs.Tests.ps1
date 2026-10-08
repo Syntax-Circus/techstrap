@@ -46,6 +46,18 @@ Describe 'README.md' {
         $text | Should -Match 'docs/architecture/00-DISCOVERY-INDEX\.md'
     }
 
+    It 'states the current status: PHASE-12 is next and the SDK is published as 0.1.0' {
+        $text = Get-RepoText 'README.md'
+        $status = ($text -split '\r?\n' | Where-Object { $_ -like '> **Status:**' + '*' }) -join ' '
+        $status | Should -Match 'PHASE-01 to PHASE-11'
+        $status | Should -Match 'PHASE-12'
+        $status | Should -Match '0\.1\.0'
+        $text | Should -Not -Match 'will be published'
+        foreach ($doc in 'CLIENT-SDK', 'INTAKE', 'DEPLOYMENT', 'RELEASING', 'TICKET-OPERATIONS', 'DEV-DATA', 'AGENT-AUTHENTICATION') {
+            $text | Should -Match ([regex]::Escape($doc + '.md'))
+        }
+    }
+
     It 'links only to files that exist' {
         $text = Get-RepoText 'README.md'
         $links = [regex]::Matches($text, '\]\((?<path>(?!https?:|#)[^)\s]+)\)') | ForEach-Object { $_.Groups['path'].Value }
