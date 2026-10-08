@@ -612,7 +612,7 @@ Describe 'D-047 (client SDK)' {
             $text = Get-RepoText $file
             $text | Should -Match '(?m)^\| 10 \|.*\| 10a merged \(PR #18\); 10b merged \(PR #19\); PHASE-10 complete: the owner'
             $text | Should -Not -Match '10b complete \(pending merge\)'
-            $text | Should -Match '(?m)^\| 11 \|.*11a merged \(PR #20\); 11b merged \(PR #21\); 11c complete \(pending merge\): T11 to T15, T16 pending the rc\.1 tag'
+            $text | Should -Match '(?m)^\| 11 \|.*11a merged \(PR #20\); 11b merged \(PR #21\); 11c merged \(PR #22\); T16 pending the v0\.1\.0 tag'
             $text | Should -Match 'T05 \(attachments\) deferred to 11d, which first needs multipart intake'
         }
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11-T05 \|.*\(deferred, D-047\)'
@@ -722,9 +722,20 @@ Describe 'D-049 (publishing)' {
         $spec | Should -Match '(?m)^- \[ \] \*\*P11-T16\*\*'
     }
 
-    It 'says in the roadmap and discovery rows that 11c is complete pending merge and T16 waits for the rc.1 tag' {
+    It 'records the first version as v0.1.0 in a D-049 addendum and in the PHASE-11 corrections' {
+        $section = ($script:Log -split '(?m)^## D-049:')[1]
+        $section | Should -Match '(?m)^### Addendum \(2026-10-08, first version\)'
+        $section | Should -Match 'the first published version is `v0\.1\.0`'
+        $spec = Get-RepoText 'docs/architecture/PHASE-11-client-sdk.md'
+        $spec | Should -Match '(?s)### Corrections \(D-049, 2026-10-08\).*?First version: `v0\.1\.0`, not `v1\.0\.0-rc\.1` \(D-049 addendum, 2026-10-08\)'
+        foreach ($file in 'docs/architecture/PHASE-11-client-sdk.md', 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md', 'docs/development/RELEASING.md', 'README.md') {
+            (Get-RepoText $file) | Should -Match 'v0\.1\.0' -Because "$file names the first version"
+        }
+    }
+
+    It 'says in the roadmap and discovery rows that 11c is merged and T16 waits for the v0.1.0 tag' {
         foreach ($file in 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md', 'docs/architecture/00-DISCOVERY-INDEX.md') {
-            (Get-RepoText $file) | Should -Match '(?m)^\| 11 \|.*11c complete \(pending merge\): T11 to T15, T16 pending the rc\.1 tag; T05 \(attachments\) deferred to 11d'
+            (Get-RepoText $file) | Should -Match '(?m)^\| 11 \|.*11c merged \(PR #22\); T16 pending the v0\.1\.0 tag; T05 \(attachments\) deferred to 11d'
         }
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 9 \|.*Done 2026-10-08'
     }

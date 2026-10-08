@@ -2046,7 +2046,7 @@ The PHASE-11 spec and D-047 assumed `TechStrap.Client.Maui` multi-targets `net10
 - **Related artifacts:** D-003, D-005, D-047, D-048, PHASE-11, PHASE-12, `docs/superpowers/plans/2026-10-08-phase-11c-publish.md`, `docs/development/RELEASING.md`, `docs/development/CLIENT-SDK.md`
 
 ### Context
-D-047 and D-048 left the publishing half of PHASE-11 to 11c: per-package READMEs, a sample, the publish workflow, the nuget.org setup, XML documentation, GitVersion and SourceLink for the packages, and the `v1.0.0-rc.1` publish. On 2026-10-08:
+D-047 and D-048 left the publishing half of PHASE-11 to 11c: per-package READMEs, a sample, the publish workflow, the nuget.org setup, XML documentation, GitVersion and SourceLink for the packages, and the first publish (`v0.1.0`, see the addendum). On 2026-10-08:
 - **nuget.org is ready.** Owner action #9 is done (see decision 1 below).
 - **UAT is not deployed.** The post-publish check that the spec ran against UAT has nothing to run against.
 - **`release.yml` builds and pushes the GHCR images on a `v*` tag** and publishes nothing to nuget.org. Until 11c, `ci.yml` only dry-runs the pack on pull requests (`-p:Version=0.0.0-ci`).
@@ -2086,9 +2086,9 @@ D-047 and D-048 left the publishing half of PHASE-11 to 11c: per-package READMEs
 
 ### Consequences
 - **Spec corrections.** `PHASE-11-client-sdk.md` carries a third Corrections block, ticks T11 to T15 with as-built notes and leaves T16 open; `03-PACKAGE-MAP.md`, `02-ARCHITECTURE.md`, the roadmap and the discovery index are updated; owner action #9 is done. `RELEASING.md` is the release guide, `CLIENT-SDK.md` gains "Running the sample", and the root README names the packages.
-- **P11-T16 is post-merge.** The owner pushes `v1.0.0-rc.1`, approves the `release` environment, and checks that the packages restore from nuget.org. Then the post-publish check runs against the compose stack and T16 is ticked in a follow-up docs change.
+- **P11-T16 is post-merge.** The owner pushes `v0.1.0`, approves the `release` environment, and checks that the packages restore from nuget.org. Then the post-publish check runs against the compose stack and T16 is ticked in a follow-up docs change.
 - **Known limits**
-  - The `v*` tag also publishes the GHCR images at that tag (`release.yml`). That is intended: PHASE-12 deploys the release candidate to UAT.
+  - The `v*` tag also publishes the GHCR images at that tag (`release.yml`). That is intended: PHASE-12 deploys the first version to UAT.
   - Packages are immutable on nuget.org: a fix is a new version, and a bad version is unlisted, not deleted.
   - Each publish waits for an approval in the `release` environment. The environment's deployment rule must allow `v*` tags; "Protected branches only" would block the tag ref. `NUGET_USER` is an organization secret, so the repository only sees it while the organization grants access.
   - The `v1.0.0` SemVer promise covers only the SDK-facing surface of `TechStrap.Contracts` (the `Intake` namespace and `Http.HeaderNames`); the other namespaces are TechStrap's own wire shapes and may change in minor versions.
@@ -2102,3 +2102,9 @@ D-047 and D-048 left the publishing half of PHASE-11 to 11c: per-package READMEs
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-11c planning)
 - **Approved on:** 2026-10-08
+
+### Addendum (2026-10-08, first version)
+The owner's decision on the first published version. It extends D-049; where it differs from the text above, it wins. There is no new decision number.
+
+- **The first published version is `v0.1.0`.** Not `v1.0.0-rc.1`. The packages stay in the 0.x range, like the other Syntax Circus packages, until the SDK-facing surface of `TechStrap.Contracts` is locked; `v1.0.0` follows then.
+- **The release logic is unchanged.** `0.1.0` has no hyphen, so it is a normal release on nuget.org and a normal (non-`--prerelease`) GitHub Release, as for the other Syntax Circus packages. `publish-nuget.yml` derives the version from the tag and needs no change.

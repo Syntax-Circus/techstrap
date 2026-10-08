@@ -7,7 +7,7 @@ page is [PHASE-11-client-sdk.md](../architecture/PHASE-11-client-sdk.md).
 
 PHASE-11 is delivered in three pull requests. **11a** (this page describes it): `TechStrap.Contracts` and `TechStrap.Client` as packable projects, the real-API
 tests, the pack dry run in CI. **11b**: `TechStrap.Client.Maui` (device and app metadata, a submit helper; see the section [TechStrap.Client.Maui](#techstrapclientmaui)
-below, D-048). **11c** (D-049): per-package READMEs, the console sample, XML documentation, the source-generated JSON context and the publish workflow. Nothing is published to nuget.org until the owner pushes the `v1.0.0-rc.1` tag.
+below, D-048). **11c** (D-049): per-package READMEs, the console sample, XML documentation, the source-generated JSON context and the publish workflow. Nothing is published to nuget.org until the owner pushes the `v0.1.0` tag.
 
 ## Packages
 

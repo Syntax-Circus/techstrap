@@ -137,7 +137,7 @@ phase verifies configuration and upgrades only for security fixes.
 - [ ] **P12-T13** Write `docs/runbooks/backup-restore.md` and the backup script(s); schedule on UAT
   - **Depends on:** P01 compose, P05 storage layout, P08 image prefix
   - **Validation:** Reviewed against the actual volume/DB names in compose; script produces encrypted dump + volume archive; retention pruning verified on a test directory.
-- [ ] **P12-T14** Deploy a release candidate (`v1.0.0-rc.1`) to UAT with `deploy/docker-compose.yml`, the env files made from the `deploy/.env.<app>.example` templates and `deploy/.env.uat.example` (D-043); wire dashboards and alerts
+- [ ] **P12-T14** Deploy the first published version (`v0.1.0`) to UAT with `deploy/docker-compose.yml`, the env files made from the `deploy/.env.<app>.example` templates and `deploy/.env.uat.example` (D-043); wire dashboards and alerts. The first published version is `v0.1.0` (D-049 addendum); `v1.0.0` is cut when the SDK-facing Contracts surface is locked.
   - **Depends on:** P12-T10 (or accepted open items), P11-T16
   - **Validation:** All four containers healthy; migrations applied once by the API; agent signs in via the owner's Authentik; a ticket submitted through the portal, SDK sample and email link works end to end; alerts fire in a forced-failure test (stop worker -> outbox lag alert).
 - [ ] **P12-T15** Perform the restore drill from a UAT backup into a scratch stack and record timings and verification results in the runbook

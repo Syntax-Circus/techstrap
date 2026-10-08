@@ -215,10 +215,11 @@
   - **As built:** the folded-in items from the Task 4 review were done here: the publish condition guard with its pin, and the two `RELEASING.md` additions. The root README gained a "Packages" section; the `RepositoryDocs.Tests.ps1` D-047 and D-048 pins now leave only T16 unticked. T16 is post-merge (the owner's `v1.0.0-rc.1` tag push). Final review: the Contracts README, D-049 and `CLIENT-SDK.md` scope the `v1.0.0` SemVer promise to the SDK-facing surface (the `Intake` namespace and `Http.HeaderNames`), pinned by a `RepositoryDocs.Tests.ps1` check for the phrase "SDK-facing surface"; the other namespaces are TechStrap's own wire shapes and may change in minor versions.
 
 ## Post-merge: P11-T16 (owner tag push + post-publish check)
-1. Owner: `git tag -a v1.0.0-rc.1 -m "TechStrap 1.0.0-rc.1" <merge commit on main>` and `git push origin v1.0.0-rc.1`; approve the `release` environment when the `publish` job waits. Both workflows run: `release.yml` pushes GHCR `1.0.0-rc.1` images (not `latest`); `publish-nuget.yml` pushes the three packages and creates the prerelease.
-2. Verify: nuget.org shows `TechStrap.Contracts`, `TechStrap.Client`, `TechStrap.Client.Maui` at `1.0.0-rc.1` (indexing can take minutes); the GitHub Release exists with notes and the six package files.
-3. Post-publish check: in the scratchpad, `dotnet new console`, `dotnet add package TechStrap.Client --version 1.0.0-rc.1` and `TechStrap.Client.Maui --version 1.0.0-rc.1`, copy the sample's submit code, run against `docker compose up` with the dev key: a ticket number prints and the ticket shows in the Admin; a Public key run shows the metadata flagged untrusted. Record the outputs.
-4. Tick T16 in `PHASE-11-client-sdk.md`, Deliverable 7 and the roadmap row (`11c merged (PR #N); v1.0.0-rc.1 published`), with pins, in a small docs PR (or PHASE-12's first commit).
+**As built (2026-10-08):** the owner chose v0.1.0 as the first version (D-049 addendum); steps below apply with that tag.
+1. Owner: `git tag -a v0.1.0 -m "TechStrap 0.1.0" <merge commit on main>` and `git push origin v0.1.0`; approve the `release` environment when the `publish` job waits. Both workflows run: `release.yml` pushes GHCR `0.1.0` images (not `latest`); `publish-nuget.yml` pushes the three packages and creates the (non-prerelease) release.
+2. Verify: nuget.org shows `TechStrap.Contracts`, `TechStrap.Client`, `TechStrap.Client.Maui` at `0.1.0` (indexing can take minutes); the GitHub Release exists with notes and the six package files.
+3. Post-publish check: in the scratchpad, `dotnet new console`, `dotnet add package TechStrap.Client --version 0.1.0` and `TechStrap.Client.Maui --version 0.1.0`, copy the sample's submit code, run against `docker compose up` with the dev key: a ticket number prints and the ticket shows in the Admin; a Public key run shows the metadata flagged untrusted. Record the outputs.
+4. Tick T16 in `PHASE-11-client-sdk.md`, Deliverable 7 and the roadmap row (`11c merged (PR #N); v0.1.0 published`), with pins, in a small docs PR (or PHASE-12's first commit).
 
 ## Verification (whole PR)
 ```
@@ -236,6 +237,6 @@ Then `superpowers:finishing-a-development-branch`: PR "PHASE-11c: publish workfl
 ## Risks / open items
 - `IsAotCompatible` analyzers may flag `SyntaxCircus.Common`/`Http.Resilience` call paths outside our control; if so, record the specific warning and decide (suppress with justification or drop `IsAotCompatible` while keeping the context) - report, do not silently suppress.
 - `NuGet/login@v1` needs the Trusted Publishing policy bound to this repo + workflow file name (`publish-nuget.yml`); a mismatch fails the first publish with an auth error - RELEASING.md names the exact values the policy must carry.
-- The `rc.1` tag also publishes GHCR images at `1.0.0-rc.1` (release.yml) - intended (PHASE-12 deploys the RC to UAT).
+- The `v0.1.0` tag also publishes GHCR images at `0.1.0` (release.yml) - intended (PHASE-12 deploys it to UAT).
 - `--generate-notes` quality depends on PR titles; PHASE-12 may replace it with a Conventional Commits changelog.
 - The `Microsoft.Extensions.Hosting`/`Configuration.*` pins for the sample may be new central pins (package-map rows) - Task 3 checks before adding.
