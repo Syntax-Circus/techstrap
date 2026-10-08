@@ -25,7 +25,7 @@ The submit takes JSON only. There is no attachment type: the intake endpoint is 
 
 ## Local pack
 
-GitVersion is not wired in yet (11c), so a pack needs an explicit version:
+GitVersion is not wired in yet (11c), so a pack needs an explicit version. Publishing to nuget.org (a `v*` tag, Trusted Publishing, rollback) is described in [RELEASING.md](RELEASING.md).
 
 ```
 dotnet pack src/TechStrap.Contracts -c Release -p:Version=0.0.0-local -o ./pack
