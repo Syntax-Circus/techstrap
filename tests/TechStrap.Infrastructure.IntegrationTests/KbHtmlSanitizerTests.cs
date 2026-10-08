@@ -1,3 +1,4 @@
+using TechStrap.Tests.Shared;
 using AngleSharp.Html.Parser;
 using TechStrap.Infrastructure.Content;
 
@@ -103,4 +104,11 @@ public sealed class KbHtmlSanitizerTests
     [Fact]
     public void Every_link_gets_the_safe_rel() =>
         _sanitizer.Sanitize("<a href=\"https://example.com\" rel=\"opener\">x</a>").ShouldBe("<a href=\"https://example.com\" rel=\"noopener noreferrer nofollow\">x</a>");
+
+    [Theory]
+    [MemberData(nameof(CorpusRows))]
+    public void Every_corpus_vector_sanitises_to_no_active_content(string vector) =>
+        XssAssertions.ShouldHaveNoActiveContent(_sanitizer.Sanitize(vector), vector);
+
+    public static IEnumerable<TheoryDataRow<string>> CorpusRows() => XssCorpus.Rows();
 }

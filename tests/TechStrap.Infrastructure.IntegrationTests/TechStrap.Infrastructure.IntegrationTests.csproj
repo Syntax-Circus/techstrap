@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <!-- The hostile-upload corpus is shared with TechStrap.Api.Tests. -->
-    <Compile Include="../Shared/HostileUploadCorpus.cs" LinkBase="Shared" />
+    <Compile Include="../Shared/HostileUploadCorpus.cs;../Shared/XssAssertions.cs;../Shared/XssCorpus.cs" LinkBase="Shared" />
     <None Include="../Shared/Fixtures/**" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

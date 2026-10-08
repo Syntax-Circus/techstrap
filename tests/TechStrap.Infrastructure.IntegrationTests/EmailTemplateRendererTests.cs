@@ -1,3 +1,5 @@
+using TechStrap.Infrastructure.Content;
+using TechStrap.Tests.Shared;
 using Microsoft.Extensions.Options;
 using TechStrap.Application.Email;
 using TechStrap.Infrastructure.Email;
@@ -359,5 +361,39 @@ public sealed class EmailTemplateRendererTests
         var html = new string('x', 0) + string.Concat(Enumerable.Repeat("<div>", 10_000)) + "innermost" + string.Concat(Enumerable.Repeat("</div>", 10_000));
 
         HtmlText.ToPlainText(html).ShouldContain("innermost");
+    }
+
+    public static IEnumerable<TheoryDataRow<string>> CorpusRows() => XssCorpus.Rows();
+
+    // The template's own <head> carries two <meta> tags (charset, viewport); they are the template's, not customer text, so the detector
+    // sees the document from <body> on. Anything a vector could inject lands in the body.
+    private static string WithoutTemplateHead(string html) => System.Text.RegularExpressions.Regex.Replace(html, "<head>.*?</head>", string.Empty, System.Text.RegularExpressions.RegexOptions.Singleline);
+
+    [Theory]
+    [MemberData(nameof(CorpusRows))]
+    public void Every_corpus_vector_is_encoded_in_the_subject_name_and_article_title_fields(string vector)
+    {
+        var confirmation = Renderer().RenderTicketConfirmation(Model with { Subject = vector, RequesterName = vector }, Orbitly);
+        var reply = Renderer().RenderAgentReply(
+            Reply(requester: vector) with { Subject = vector, Articles = [new ArticleLinkEntry(vector, "https://help.test/p/orbitly/kb/a/b")] },
+            "<p>Hi</p>", Orbitly);
+        var solved = Renderer().RenderTicketSolved(new("ORB-42", vector, vector, "https://help.test/t/abc", 7), Orbitly);
+
+        foreach (var email in new[] { confirmation, reply, solved })
+        {
+            XssAssertions.ShouldHaveNoActiveContent(WithoutTemplateHead(email.Html), vector);
+            email.Text.ShouldContain(vector);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(CorpusRows))]
+    public void The_sanitised_reply_body_stays_inert_in_the_email(string vector)
+    {
+        var sanitised = new HtmlSanitizerAdapter().Sanitize(vector);
+
+        var email = Renderer().RenderAgentReply(Reply(), sanitised, Orbitly);
+
+        XssAssertions.ShouldHaveNoActiveContent(WithoutTemplateHead(email.Html), vector);
     }
 }

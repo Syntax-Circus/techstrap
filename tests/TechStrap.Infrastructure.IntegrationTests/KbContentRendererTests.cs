@@ -1,3 +1,4 @@
+using TechStrap.Tests.Shared;
 using TechStrap.Infrastructure.Content;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
@@ -185,5 +186,17 @@ public sealed class KbContentRendererTests
     public void An_empty_source_renders_nothing()
     {
         _renderer.Render(string.Empty).ShouldBeEmpty();
+    }
+
+    public static IEnumerable<TheoryDataRow<string>> CorpusRows() => XssCorpus.Rows();
+
+    // The renderer has one entry point: raw HTML typed in the Markdown source is the same string, so the vector is rendered as a
+    // whole document and after a heading (where it sits in a later block).
+    [Theory]
+    [MemberData(nameof(CorpusRows))]
+    public void Every_corpus_vector_renders_inert_as_markdown_and_as_html(string vector)
+    {
+        XssAssertions.ShouldHaveNoActiveContent(_renderer.Render(vector), vector);
+        XssAssertions.ShouldHaveNoActiveContent(_renderer.Render("# Title\n\n" + vector),"# Title + " + vector);
     }
 }
