@@ -31,6 +31,10 @@ public abstract class ProductPageBase : ComponentBase
     [Inject]
     private IHttpContextAccessor HttpContextAccessor { get; set; } = default!;
 
+    /// <summary>The host-aware links of the page (clean paths on the product's own host).</summary>
+    [Inject]
+    protected PortalLinks Links { get; set; } = default!;
+
     /// <summary>The product's theme once it has loaded; null when the product is unknown or the API failed.</summary>
     protected ProductThemeViewModel? Theme => Scope.Theme;
 

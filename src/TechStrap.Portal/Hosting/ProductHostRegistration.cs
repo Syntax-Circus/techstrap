@@ -10,6 +10,7 @@ public static class ProductHostRegistration
         services.AddSingleton<ProductHostMap>();
         services.AddSingleton<IProductHostResolver, ProductHostResolver>();
         services.AddScoped(provider => provider.GetRequiredService<IHttpContextAccessor>().HttpContext?.Features.Get<ProductHostContext>() ?? new ProductHostContext());
+        services.AddScoped<TechStrap.Portal.Routing.PortalLinks>();
         return services;
     }
 

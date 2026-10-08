@@ -38,6 +38,9 @@ public partial class Ticket
     private NavigationManager Navigation { get; set; } = default!;
 
     [Inject]
+    private PortalLinks Links { get; set; } = default!;
+
+    [Inject]
     private SubmitGuard Guard { get; set; } = default!;
 
     [Inject]
@@ -116,7 +119,7 @@ public partial class Ticket
         var reply = new CustomerReply(form.Body!.Trim(), AttachmentRules.ToUploads(form.Files));
         var outcome = await Guard.RunAsync(
             SubmitKey.TryCreate(ReplyHandler, _token.Value, form.SubmitId, SubmitContent.Digest([form.Body], form.Files), foldScope: false),
-            new SubmitTarget(PortalRoutes.Ticket(_token)),
+            new SubmitTarget(Links.Ticket(_token)),
             async cancellation =>
             {
                 var result = await Tickets.ReplyAsync(_token, reply, cancellation);
@@ -127,10 +130,10 @@ public partial class Ticket
 
                 if (!result.Value.FollowUpCreated)
                 {
-                    return Result<SubmitTarget>.Success(new SubmitTarget(PortalRoutes.Ticket(_token)));
+                    return Result<SubmitTarget>.Success(new SubmitTarget(Links.Ticket(_token)));
                 }
 
-                return Result<SubmitTarget>.Success(FollowUpLink.TryGetToken(result.Value.FollowUpViewUrl, out var followUp) ? new SubmitTarget(PortalRoutes.Ticket(followUp)) : SubmitTarget.None);
+                return Result<SubmitTarget>.Success(FollowUpLink.TryGetToken(result.Value.FollowUpViewUrl, out var followUp) ? new SubmitTarget(Links.Ticket(followUp)) : SubmitTarget.None);
             },
             Cancellation);
         if (outcome.Status == SubmitStatus.Done)

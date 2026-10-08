@@ -210,6 +210,22 @@ public sealed class OutputCachePipelineTests
     }
 
     [Fact]
+    public async Task The_host_is_part_of_the_key_two_hosts_two_entries()
+    {
+        var counter = new Counter();
+        await using var app = await StartAsync(counter);
+        using var client = app.GetTestClient();
+
+        (await (await GetAsync(client, "/p/paperplane/kb/accounts", host: "one.example")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 1");
+        (await (await GetAsync(client, "/p/paperplane/kb/accounts", host: "two.example")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 2");
+        counter.Calls.ShouldBe(2, "each host has its own entry");
+
+        (await (await GetAsync(client, "/p/paperplane/kb/accounts", host: "one.example")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 1");
+        (await (await GetAsync(client, "/p/paperplane/kb/accounts", host: "two.example")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 2");
+        counter.Calls.ShouldBe(2, "each host is then served from its own stored copy");
+    }
+
+    [Fact]
     public async Task Only_the_page_value_changes_the_key_and_a_category_with_any_other_query_is_answered_but_never_stored()
     {
         var counter = new Counter();
@@ -217,8 +233,6 @@ public sealed class OutputCachePipelineTests
         using var client = app.GetTestClient();
 
         (await (await GetAsync(client, "/p/paperplane/kb/accounts")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 1");
-        (await (await GetAsync(client, "/p/paperplane/kb/accounts", host: "other.example")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 1");
-        counter.Calls.ShouldBe(1, "the host is not part of the key");
 
         // Any other raw query is answered afresh each time (the page's links repeat the address bar's own spelling, so a stored copy must never serve another spelling).
         (await (await GetAsync(client, "/p/paperplane/kb/accounts?utm=1")).Content.ReadAsStringAsync(Ct)).ShouldBe("page 2");

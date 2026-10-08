@@ -8,14 +8,14 @@
 }
 else if (Theme is { } theme && Categories is { } categories)
 {
-    <SeoHead Title="@KbCopy.HomeTitle(theme.DisplayName)" Description="@KbCopy.HomeDescription(theme.DisplayName)" RelativeUrl="@PortalRoutes.KbHome(theme.Key)" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" />
+    <SeoHead Title="@KbCopy.HomeTitle(theme.DisplayName)" Description="@KbCopy.HomeDescription(theme.DisplayName)" RelativeUrl="@Links.Absolute(Links.KbHome(theme.Key))" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" />
     <KbBreadcrumbs Crumbs="@Crumbs(theme)" />
     <h1>@KbCopy.HomeHeading</h1>
     <KbSearchBox ProductKey="@theme.Key" />
     @if (categories.Count == 0)
     {
         <StateMessage Heading="@KbCopy.EmptyHomeHeading">
-            <p>@KbCopy.EmptyHomeText <a href="@PortalRoutes.Contact(theme.Key)">@KbCopy.ContactUs</a></p>
+            <p>@KbCopy.EmptyHomeText <a href="@Links.Contact(theme.Key)">@KbCopy.ContactUs</a></p>
         </StateMessage>
     }
     else
@@ -25,7 +25,7 @@ else if (Theme is { } theme && Categories is { } categories)
             {
                 <li>
                     <article class="ts-kb-card">
-                        <h2><a href="@PortalRoutes.KbCategory(theme.Key, category.Slug)">@category.Name</a></h2>
+                        <h2><a href="@Links.KbCategory(theme.Key, category.Slug)">@category.Name</a></h2>
                         @if (!string.IsNullOrWhiteSpace(category.Description))
                         {
                             <p class="ts-kb-summary">@category.Description</p>

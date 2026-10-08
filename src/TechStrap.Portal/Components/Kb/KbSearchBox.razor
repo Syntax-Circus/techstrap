@@ -1,4 +1,4 @@
-<form method="get" action="@PortalRoutes.KbSearch(ProductKey)" role="search" class="ts-help-search">
+<form method="get" action="@Links.KbSearch(ProductKey)" role="search" class="ts-help-search">
     <label for="kb-search" class="form-label">@ShellCopy.SearchLabel</label>
     <div class="ts-help-search-row">
         <input id="kb-search" name="@PortalRoutes.QueryParameter" type="search" class="form-control" maxlength="@KbLimits.MaxSearchTextChars" autocomplete="off" value="@Query" />
@@ -7,6 +7,9 @@
 </form>
 
 @code {
+    [Inject]
+    private PortalLinks Links { get; set; } = default!;
+
     [Parameter, EditorRequired]
     public string ProductKey { get; set; } = string.Empty;
 

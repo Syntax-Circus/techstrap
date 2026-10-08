@@ -1,6 +1,7 @@
 using Bunit;
 using TechStrap.Portal.Components.Kb;
 using TechStrap.Portal.Components.Ui;
+using TechStrap.Portal.Tests.Routing;
 
 namespace TechStrap.Portal.Tests.Components;
 
@@ -10,6 +11,8 @@ namespace TechStrap.Portal.Tests.Components;
 /// </summary>
 public sealed class KbComponentTests : BunitContext
 {
+    public KbComponentTests() => Services.AddPortalLinks();
+
     [Fact]
     public void An_article_card_is_a_heading_link_with_an_optional_summary_and_meta_line()
     {

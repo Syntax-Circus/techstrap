@@ -9,6 +9,7 @@ using TechStrap.Contracts.Products;
 using TechStrap.Portal.Clients;
 using TechStrap.Portal.Components.Pages;
 using TechStrap.Portal.Products;
+using TechStrap.Portal.Tests.Routing;
 
 namespace TechStrap.Portal.Tests.Products;
 
@@ -44,6 +45,7 @@ public sealed class ProductPageBaseTests : BunitContext
         var fake = new FakeProducts(answer);
         Services.AddSingleton<IPublicProductClient>(fake);
         Services.AddSingleton<ProductScope>();
+        Services.AddPortalLinks();
         Services.AddSingleton<IHostEnvironment>(new Environment());
         Services.AddSingleton<IHttpContextAccessor>(new HttpContextAccessor());
         return fake;

@@ -1,8 +1,11 @@
 <nav class="ts-product-footer" aria-label="@ShellCopy.FooterNavLabel">
-    <a href="@PortalRoutes.LostLink(Theme.Key)">@ShellCopy.LostLinkPrompt</a>
+    <a href="@Links.LostLink(Theme.Key)">@ShellCopy.LostLinkPrompt</a>
 </nav>
 
 @code {
+    [Inject]
+    private PortalLinks Links { get; set; } = default!;
+
     [Parameter, EditorRequired]
     public ProductThemeViewModel Theme { get; set; } = default!;
 }

@@ -57,6 +57,25 @@ public sealed class PortalSitemapCacheTests
     }
 
     [Fact]
+    public async Task Each_host_has_its_own_entry_and_a_failure_on_one_host_does_not_touch_another()
+    {
+        var cache = Cache();
+        var builds = new Builds();
+
+        var dragon = await cache.GetAsync(builds.Succeeding("dragon"), Ct, "support.dragonpoop.com");
+        var standard = await cache.GetAsync(builds.Succeeding("default"), Ct, PortalSitemapCache.DefaultKey);
+        var dragonAgain = await cache.GetAsync(builds.Succeeding("never-used"), Ct, "support.dragonpoop.com");
+        await Should.ThrowAsync<SitemapBuildException>(() => cache.GetAsync(builds.Failing(), Ct, "other.example.com"));
+        var untouched = await cache.GetAsync(builds.Succeeding("never-used"), Ct, PortalSitemapCache.DefaultKey);
+
+        dragon[0].Url.ShouldBe("https://portal.test/dragon");
+        standard[0].Url.ShouldBe("https://portal.test/default");
+        dragonAgain[0].Url.ShouldBe("https://portal.test/dragon");
+        untouched[0].Url.ShouldBe("https://portal.test/default");
+        builds.Count.ShouldBe(3, "one build per host, then each is served from its own entry");
+    }
+
+    [Fact]
     public async Task A_second_request_within_the_lifetime_is_served_from_the_cache_without_a_build()
     {
         var cache = Cache();

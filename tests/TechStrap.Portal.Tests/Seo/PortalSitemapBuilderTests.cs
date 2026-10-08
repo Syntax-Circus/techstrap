@@ -5,6 +5,8 @@ using SyntaxCircus.AspNetCore.Common;
 using TechStrap.Contracts.Kb;
 using TechStrap.Contracts.Products;
 using TechStrap.Portal.Clients;
+using TechStrap.Portal.Hosting;
+using TechStrap.Portal.Routing;
 using TechStrap.Portal.Seo;
 using TechStrap.Portal.Settings;
 using TechStrap.Portal.Tests.Api;
@@ -23,8 +25,8 @@ public sealed class PortalSitemapBuilderTests
 
     private static KbSitemapEntryDto Article(string? product, string category, string slug, DateTimeOffset updated) => new(product, category, slug, updated);
 
-    private static async Task<IReadOnlyList<SitemapEntry>> BuildAsync(ApiHarness api, int reservedForStatic = 0) =>
-        await api.Get<PortalSitemapBuilder>().BuildAsync(reservedForStatic, Ct);
+    private static async Task<IReadOnlyList<SitemapEntry>> BuildAsync(ApiHarness api, int reservedForStatic = 0, ProductHostContext? host = null) =>
+        await api.Get<PortalSitemapBuilder>().BuildAsync(reservedForStatic, host ?? new ProductHostContext(), Ct);
 
     private static ApiHarness Harness()
     {
@@ -234,10 +236,49 @@ public sealed class PortalSitemapBuilderTests
         entries.ShouldBe(expected is null ? [] : [expected]);
     }
 
+    private static ApiHarness HostHarness()
+    {
+        var api = ApiHarness.Create();
+        api.Stub.OnJson(HttpMethod.Get, "/api/public/products", new[] { new PublicProductSummaryDto("acme", "Acme", "support.acme.test"), new PublicProductSummaryDto("orbitly", "Orbitly") });
+        api.Stub.OnJson(HttpMethod.Get, "/api/public/kb/acme/sitemap", new[] { Article("acme", "accounts", "reset", Newer) });
+        api.Stub.OnJson(HttpMethod.Get, "/api/public/kb/orbitly/sitemap", new[] { Article("orbitly", "billing", "invoices", Older) });
+        return api;
+    }
+
+    [Fact]
+    public async Task On_a_product_host_only_that_product_is_listed_with_clean_paths_on_its_host()
+    {
+        using var api = HostHarness();
+
+        var urls = (await BuildAsync(api, host: new ProductHostContext { Key = "acme", Host = "support.acme.test" })).Select(entry => entry.Url).ToList();
+
+        urls.ShouldBe(
+        [
+            "https://support.acme.test/",
+            "https://support.acme.test/kb",
+            "https://support.acme.test/kb/accounts",
+            "https://support.acme.test/kb/accounts/reset",
+        ]);
+        api.Stub.Requests.ShouldNotContain(request => request.Path.Contains("orbitly", StringComparison.Ordinal), "the other product's articles are not even asked for");
+    }
+
+    [Fact]
+    public async Task On_the_default_host_a_product_with_its_own_host_is_not_listed()
+    {
+        using var api = HostHarness();
+
+        var urls = (await BuildAsync(api)).Select(entry => entry.Url).ToList();
+
+        urls.ShouldBe(["https://portal.test/p/orbitly", "https://portal.test/p/orbitly/kb", "https://portal.test/p/orbitly/kb/billing", "https://portal.test/p/orbitly/kb/billing/invoices"]);
+        urls.ShouldNotContain(url => url.Contains("acme", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void The_entries_of_a_product_are_relative_when_there_is_no_public_address()
     {
-        var entries = PortalSitemapBuilder.EntriesOf(string.Empty, "acme", [Article("acme", "accounts", "reset", Newer)]).Select(entry => entry.Url).ToList();
+        using var api = Harness();
+        var links = new PortalLinks(new ProductHostContext(), api.Get<ProductHostMap>(), Microsoft.Extensions.Options.Options.Create(new PortalOptions()));
+        var entries = PortalSitemapBuilder.EntriesOf(links, "acme", [Article("acme", "accounts", "reset", Newer)]).Select(entry => entry.Url).ToList();
 
         entries.ShouldBe(["/p/acme", "/p/acme/kb", "/p/acme/kb/accounts", "/p/acme/kb/accounts/reset"]);
     }

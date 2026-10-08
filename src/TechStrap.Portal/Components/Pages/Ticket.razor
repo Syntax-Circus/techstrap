@@ -8,7 +8,7 @@
     <div class="ts-reading">
     <h1><span class="ts-ticket-number">@ticket.Number</span> <span class="ts-ticket-subject">@ticket.Subject</span></h1>
     <TicketStatusBanner Label="@ticket.StatusLabel" Note="@ticket.StatusNote" IsClosed="@ticket.IsClosed" />
-    <a class="ts-jump-reply" href="@PageLinks.ToFragment(Navigation.Uri, "reply", keepQuery: false)" data-enhance-nav="false">@TicketCopy.JumpToReply</a>
+    <a class="ts-jump-reply" href="@Links.ToFragment(Navigation.Uri, "reply", keepQuery: false)" data-enhance-nav="false">@TicketCopy.JumpToReply</a>
     <MessageThread Messages="@ticket.Messages" />
     <h2 id="reply" tabindex="-1" class="h5">@TicketCopy.ReplyHeading</h2>
     @if (FollowUpConfirmation)
@@ -42,7 +42,7 @@ else if (UnavailableMessage is not null)
 }
 
 @code {
-    private RenderFragment ReplyForm(string button) => @<form method="post" action="@PortalRoutes.Ticket(_token)" enctype="multipart/form-data" novalidate @formname="@ReplyHandler" @onsubmit="ReplyAsync" class="ts-form" data-sending-label="@FormCopy.Sending">
+    private RenderFragment ReplyForm(string button) => @<form method="post" action="@Links.Ticket(_token)" enctype="multipart/form-data" novalidate @formname="@ReplyHandler" @onsubmit="ReplyAsync" class="ts-form" data-sending-label="@FormCopy.Sending">
         <AntiforgeryToken />
         <FormGuard Name="Reply.SubmitId" />
         <FormField Field="@FormFields.Body" Name="Reply.Body" Label="@TicketCopy.ReplyLabel" Value="@Reply?.Body" MaxLength="@IntakeLimits.BodyMaxLength" Rows="6" Error="@ErrorOf(FormFields.Body)" />

@@ -8,20 +8,20 @@
     <PageTitle>@ContactCopy.Title(theme.DisplayName)</PageTitle>
     <div class="ts-reading">
     <h1>@ContactCopy.Heading</h1>
-    <p class="ts-help-link"><a href="@PortalRoutes.KbHome(theme.Key)">@ContactCopy.BrowseHelp</a></p>
+    <p class="ts-help-link"><a href="@Links.KbHome(theme.Key)">@ContactCopy.BrowseHelp</a></p>
     <ErrorSummary Errors="Errors" />
     @if (Notice is not null)
     {
         <p class="alert alert-warning" role="alert">@Notice</p>
     }
     <p class="ts-form-note">@ContactCopy.RequiredNote</p>
-    <form method="post" action="@PortalRoutes.Contact(theme.Key)" enctype="multipart/form-data" novalidate @formname="@FormHandler" @onsubmit="SubmitAsync" class="ts-form" data-sending-label="@FormCopy.Sending">
+    <form method="post" action="@Links.Contact(theme.Key)" enctype="multipart/form-data" novalidate @formname="@FormHandler" @onsubmit="SubmitAsync" class="ts-form" data-sending-label="@FormCopy.Sending">
         <AntiforgeryToken />
         <FormGuard Name="Form.SubmitId" />
         <FormField Field="@FormFields.Name" Name="Form.Name" Label="@ContactCopy.NameLabel" Value="@Form?.Name" MaxLength="@IntakeLimits.NameMaxLength" Autocomplete="name" Error="@ErrorOf(FormFields.Name)" />
         <FormField Field="@FormFields.Email" Name="Form.Email" Label="@ContactCopy.EmailLabel" Value="@Form?.Email" MaxLength="@IntakeLimits.EmailMaxLength" Type="email" Autocomplete="email" Error="@ErrorOf(FormFields.Email)" />
         <FormField Field="@FormFields.Subject" Name="Form.Subject" Label="@ContactCopy.SubjectLabel" Value="@Form?.Subject" MaxLength="@IntakeLimits.SubjectMaxLength" Error="@ErrorOf(FormFields.Subject)" />
-        <ts-kb-suggestions field="@FormFields.Subject" src="@PortalRoutes.Suggest(theme.Key)" data-count-one="@ContactCopy.SuggestOne" data-count-many="@ContactCopy.SuggestMany" data-new-tab="@ContactCopy.SuggestNewTab" class="ts-suggestions" aria-live="polite"><a href="@PortalRoutes.KbSearch(theme.Key)">@ContactCopy.SuggestFallback</a></ts-kb-suggestions>
+        <ts-kb-suggestions field="@FormFields.Subject" src="@Links.Suggest(theme.Key)" data-count-one="@ContactCopy.SuggestOne" data-count-many="@ContactCopy.SuggestMany" data-new-tab="@ContactCopy.SuggestNewTab" class="ts-suggestions" aria-live="polite"><a href="@Links.KbSearch(theme.Key)">@ContactCopy.SuggestFallback</a></ts-kb-suggestions>
         <FormField Field="@FormFields.Body" Name="Form.Body" Label="@ContactCopy.BodyLabel" Value="@Form?.Body" MaxLength="@IntakeLimits.BodyMaxLength" Rows="8" Error="@ErrorOf(FormFields.Body)" />
         <AttachmentInput Name="Form.Files" Error="@ErrorOf(FormFields.Attachments)" Kept="@(Errors.Count > 0 || Notice is not null)" />
         <HoneypotField Name="Form.Website" Value="@Form?.Website" />

@@ -54,6 +54,6 @@ public partial class KbCategory : ProductPageBase
         Listing = result.Value;
     }
 
-    private static IReadOnlyList<KbCrumb> Crumbs(ProductThemeViewModel theme, string categoryName) =>
-        [new KbCrumb(theme.DisplayName, PortalRoutes.ProductHome(theme.Key)), new KbCrumb(KbCopy.HomeHeading, PortalRoutes.KbHome(theme.Key)), new KbCrumb(categoryName)];
+    private IReadOnlyList<KbCrumb> Crumbs(ProductThemeViewModel theme, string categoryName) =>
+        [new KbCrumb(theme.DisplayName, Links.ProductHome(theme.Key)), new KbCrumb(KbCopy.HomeHeading, Links.KbHome(theme.Key)), new KbCrumb(categoryName)];
 }

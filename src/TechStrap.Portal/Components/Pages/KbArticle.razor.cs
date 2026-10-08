@@ -61,12 +61,14 @@ public partial class KbArticle : ProductPageBase
 
         Trail =
         [
-            new KbCrumb(theme.DisplayName, PortalRoutes.ProductHome(theme.Key)),
-            new KbCrumb(KbCopy.HomeHeading, PortalRoutes.KbHome(theme.Key)),
-            new KbCrumb(article.CategoryName, PortalRoutes.KbCategory(theme.Key, article.CategorySlug)),
+            new KbCrumb(theme.DisplayName, Links.ProductHome(theme.Key)),
+            new KbCrumb(KbCopy.HomeHeading, Links.KbHome(theme.Key)),
+            new KbCrumb(article.CategoryName, Links.KbCategory(theme.Key, article.CategorySlug)),
             new KbCrumb(article.Title),
         ];
-        StructuredData = KbStructuredData.ForArticle(Urls.AbsoluteUrl, theme, article, Description, Trail);
+        // The page and the trail are on the product's host; the image (a logo, or the Portal's own fallback asset that only the default host serves) is made the way the og:image is.
+        StructuredData = KbStructuredData.ForArticle(
+            path => path == KbSeo.Image(theme) ? Urls.AbsoluteUrl(path) : Links.Absolute(path), Links.KbArticle(theme.Key, article.CategorySlug, article.Slug), theme, article, Description, Trail);
         Article = article;
     }
 }

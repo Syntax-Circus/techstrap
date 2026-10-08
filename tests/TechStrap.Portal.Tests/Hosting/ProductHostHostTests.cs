@@ -190,6 +190,27 @@ public sealed class ProductHostHostTests
     }
 
     [Fact(Timeout = 30_000)]
+    public async Task A_contact_post_on_a_product_host_redirects_straight_to_the_clean_received_path()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var factory = Host();
+        factory.Api.OnJson(HttpMethod.Post, "/api/public/products/dragon-poop/tickets", new SubmitTicketResponse("DRP-1", null, []), HttpStatusCode.Created);
+        using var client = Client(factory);
+        var (_, page) = await SendAsync(ct, client, "/contact", DragonHost);
+
+        using var request = Request(HttpMethod.Post, "/contact", DragonHost);
+        request.Content = FormTestKit.ContactForm(FormTestKit.TokenFrom(page));
+        using var response = await client.SendAsync(request, ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Found);
+        // The framework makes the redirect absolute against the host the post arrived on, which on a product host is the stored host itself.
+        var location = response.Headers.Location!;
+        location.Host.ShouldBe(DragonHost);
+        location.PathAndQuery.ShouldStartWith("/contact/received?ref=");
+        location.PathAndQuery.ShouldNotContain("/p/");
+    }
+
+    [Fact(Timeout = 30_000)]
     public async Task A_products_own_prefix_on_its_host_is_a_301_to_the_clean_path_and_a_post_to_it_is_not()
     {
         var ct = TestContext.Current.CancellationToken;

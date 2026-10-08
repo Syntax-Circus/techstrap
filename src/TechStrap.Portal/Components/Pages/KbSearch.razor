@@ -8,7 +8,7 @@
 }
 else if (Theme is { } theme)
 {
-    <SeoHead Title="@KbCopy.SearchTitle(theme.DisplayName)" Description="@KbCopy.SearchDescription(theme.DisplayName)" RelativeUrl="@PortalRoutes.KbSearch(theme.Key)" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" NoIndex="@(Text.Length > 0)" />
+    <SeoHead Title="@KbCopy.SearchTitle(theme.DisplayName)" Description="@KbCopy.SearchDescription(theme.DisplayName)" RelativeUrl="@Links.Absolute(Links.KbSearch(theme.Key))" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" NoIndex="@(Text.Length > 0)" />
     <KbBreadcrumbs Crumbs="@Crumbs(theme)" />
     <h1>@KbCopy.SearchPageHeading</h1>
     <KbSearchBox ProductKey="@theme.Key" Query="@Text" />
@@ -21,7 +21,7 @@ else if (Theme is { } theme)
     else if (Results is { Items.Count: 0 })
     {
         <StateMessage Heading="@KbCopy.NoResultsHeading">
-            <p>@KbCopy.NoResultsText <a href="@PortalRoutes.Contact(theme.Key)">@KbCopy.ContactUs</a></p>
+            <p>@KbCopy.NoResultsText <a href="@Links.Contact(theme.Key)">@KbCopy.ContactUs</a></p>
         </StateMessage>
     }
     else if (Results is { } results)
@@ -31,9 +31,9 @@ else if (Theme is { } theme)
         <ul class="ts-kb-list">
             @foreach (var hit in results.Items)
             {
-                <li><KbArticleCard Href="@PortalRoutes.KbArticle(theme.Key, hit.CategorySlug, hit.Slug)" Title="@hit.Title" Summary="@hit.Snippet" Meta="@hit.CategoryName" /></li>
+                <li><KbArticleCard Href="@Links.KbArticle(theme.Key, hit.CategorySlug, hit.Slug)" Title="@hit.Title" Summary="@hit.Snippet" Meta="@hit.CategoryName" /></li>
             }
         </ul>
-        <Pager Page="@results.Page" PageSize="@results.PageSize" TotalCount="@results.TotalCount" HrefFor="@(page => PortalRoutes.KbSearch(theme.Key, Text, page))" />
+        <Pager Page="@results.Page" PageSize="@results.PageSize" TotalCount="@results.TotalCount" HrefFor="@(page => Links.KbSearch(theme.Key, Text, page))" />
     }
 }
