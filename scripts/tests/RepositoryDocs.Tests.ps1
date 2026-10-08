@@ -51,7 +51,7 @@ Describe 'README.md' {
         $status = ($text -split '\r?\n' | Where-Object { $_ -like '> **Status:**' + '*' }) -join ' '
         $status | Should -Match 'PHASE-01 to PHASE-11'
         $status | Should -Match 'PHASE-12'
-        $status | Should -Match '0\.1\.0'
+        $status | Should -Match '0\.2\.0'
         $text | Should -Not -Match 'will be published'
         foreach ($doc in 'CLIENT-SDK', 'INTAKE', 'DEPLOYMENT', 'RELEASING', 'TICKET-OPERATIONS', 'DEV-DATA', 'AGENT-AUTHENTICATION') {
             $text | Should -Match ([regex]::Escape($doc + '.md'))
