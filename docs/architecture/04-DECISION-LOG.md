@@ -21,6 +21,7 @@ Approval basis:
 - **Owner decision (2026-10-05, PHASE-09 planning):** D-045, the owner decisions on the three-PR split, vanilla-JS KB suggestions, the two small public API additions, the root page and ticket theming. Its technical rulings were proposed in the PHASE-09a plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-07, PHASE-10 planning):** D-046, the owner decisions on the two-pull-request split, the detail page's "New activity" banner, the presence name and the hub token source. Its technical rulings were proposed in the PHASE-10a plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-07, PHASE-11 planning):** D-047, the owner decisions on the three-PR split, the JSON-only SDK, the SDK's dependencies and the Common split, and the MAUI CI split. Its technical rulings were proposed in the PHASE-11a plan and approved when the owner approved the plan.
+- **Owner decision (2026-10-07, PHASE-11b planning):** D-048, the owner decisions on the single net10.0 target framework, the one-pull-request delivery and the approved MAUI helper design. Its technical rulings were proposed in the PHASE-11b plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -77,6 +78,7 @@ Approval basis:
 | D-045 | PHASE-09: three pull requests, vanilla-JS KB suggestions, two small public API additions, a default-product root page, per-product theming from the DTO, a Portal API client, per-path headers, the real Blazor.Seo API | Approved (owner 2026-10-05; technical rulings at PHASE-09a plan review) | 2026-10-05 | PHASE-09, PHASE-12 |
 | D-046 | PHASE-10: two pull requests, identity in the request record, a two-part post-commit hook, header-only hub token, presence by `Agent.Name`, the detail page's "New activity" banner | Approved (owner 2026-10-07; technical rulings at PHASE-10a plan review) | 2026-10-07 | PHASE-10, 02-ARCHITECTURE |
 | D-047 | PHASE-11: three pull requests, JSON-only SDK v1, web-neutral SyntaxCircus.Common 0.2.0 + Http.Resilience as dependencies, retry only with an Idempotency-Key through HttpRequestResiliencePipeline | Approved (owner 2026-10-07; technical rulings at PHASE-11a plan review) | 2026-10-07 | PHASE-11, 03-PACKAGE-MAP |
+| D-048 | PHASE-11b: TechStrap.Client.Maui on a single net10.0 target with Microsoft.Maui.Essentials, TicketMetadataKeys in Contracts, MauiTicketDraft submit helper, lazy Essentials defaults | Approved (owner 2026-10-07; technical rulings at PHASE-11b plan review) | 2026-10-07 | PHASE-11, 03-PACKAGE-MAP |
 
 ---
 
@@ -1981,4 +1983,55 @@ PHASE-05 is merged, so PHASE-11 can start. Reading the code and the packages bef
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-11 planning)
+- **Approved on:** 2026-10-07
+
+## D-048: PHASE-11b: MAUI helper (single net10.0 target, Essentials abstractions, TicketMetadataKeys, MauiTicketDraft, lazy Essentials defaults)
+
+- **Status:** Approved (owner 2026-10-07; technical rulings at PHASE-11b plan review)
+- **Date:** 2026-10-07
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-001, D-005, D-047, `docs/architecture/PHASE-11-client-sdk.md`, `docs/superpowers/plans/2026-10-07-phase-11b-maui.md`, `docs/development/CLIENT-SDK.md`
+
+### Context
+The PHASE-11 spec and D-047 assumed `TechStrap.Client.Maui` multi-targets `net10.0-android;net10.0-ios;net10.0`, with Android built on the existing runner and iOS only on a `v*` tag on a macOS runner (owner action #10). A spike on 2026-10-07 in `mcr.microsoft.com/dotnet/sdk:10.0`, with no workloads installed, found:
+- **Restore, build and test pass with `Microsoft.Maui.Essentials` 10.0.110 on plain `net10.0`.** The Essentials interfaces (`IAppInfo`, `IDeviceInfo`, `IConnectivity`, `IDeviceDisplay`, `IBattery`) are all the helper needs.
+- **`UseMaui` fails with NETSDK1147,** because it needs a workload. A MAUI workload build would need `dotnet workload restore` on every runner, and macOS for iOS.
+- **`Microsoft.Maui.Controls` would carry about 19 transitive packages;** `Microsoft.Maui.Essentials` carries 3. The helper has no UI.
+- **`DeviceInfo.Current.Model` on plain `net10.0` throws `NotImplementedInReferenceAssemblyException`** (an internal type). The statics must not be touched at registration or in tests.
+- **`TicketMetadataKeys` does not exist** (D-047 left it to 11b), and the spec's positional `SubmitAsync` with a `FileResult` has nothing to send to: the intake endpoint is JSON-only (D-034, D-047).
+
+### Decision
+**Owner decisions (2026-10-07)**
+- **Single target framework.** Single net10.0 for `TechStrap.Client.Maui`. The spec's multi-target and D-047's MAUI CI split (Android on the existing runner, iOS on macOS on a tag) are withdrawn. No workload, no macOS runner, no `UseMaui`: owner action #10 is no longer needed.
+- **Delivery.** One pull request for P11-T07, T08 and T09 plus the close-out.
+- **Design.** The MAUI helper design below is approved.
+
+**Technical rulings (proposed in the 11b plan; approved when the owner approved it)**
+- **Essentials, not Controls.** The package depends on `Microsoft.Maui.Essentials` 10.0.110 (it replaces the unused `Microsoft.Maui.Controls` pin in `Directory.Packages.props`), `Microsoft.Extensions.DependencyInjection.Abstractions` and `Microsoft.Extensions.Options`, and references `TechStrap.Client` and `TechStrap.Contracts`. The nuspec has five dependencies: those three packages plus `TechStrap.Client` and `TechStrap.Contracts`. `ClientMauiRules` pins the package set, the project references (Client and Contracts only), no framework reference and no `UseMaui` (read from the csproj text). `Test-PackageContents.ps1` checks the five ids in the CI pack dry run, which now packs all three packages.
+- **`TicketMetadataKeys` lives in Contracts.** It holds 13 default keys (`app.name`, `app.version`, `app.build`, `app.package`, `os.platform`, `os.version`, `device.manufacturer`, `device.model`, `device.idiom`, `device.type`, `locale`, `timezone`, `network.access`) and 6 extras (`display.width`, `display.height`, `display.density`, `display.orientation`, `battery.state`, `battery.level`), with `Defaults` and `All` as frozen ordinal sets. `IntakeLimits.MaxMetadataJsonLength` is 16,000, parity-tested against `DomainLimits.MetadataMaxLength`.
+- **The collector.** `IDeviceContextCollector.Collect()` is synchronous and never throws. `MauiDeviceContextCollector` takes the five Essentials interfaces and `IOptions<DeviceContextOptions>` by injection. `DeviceContextOptions` is `IncludeDeviceContext` (true), `IncludeDisplay` (false), `IncludeBattery` (false) and a `Redact(key, value)` callback. Each field is read in its own try/catch, and a failing field is skipped. Values are trimmed, blank values dropped, values cut to `IntakeLimits.MaxMetadataValueLength` and trimmed again, then passed to `Redact` (null drops the field; a throwing redactor drops only that field; its result is validated again). Numbers use the invariant culture: `display.density` as "2.625", `battery.level` as a rounded whole percent, left out when the charge level is negative. Never collected: advertising or device ids, location, contacts, IP address, user names.
+- **The submit helper takes a draft.** `IMauiTicketSubmitter.SubmitAsync(MauiTicketDraft draft, CancellationToken ct = default)` returns `Task<Result<SubmitTicketResponse>>`. `MauiTicketDraft` is a record: `Subject`, `Message`, `RequesterEmail`, `RequesterName`, `Metadata`, `IdempotencyKey`. A record can gain an `Attachments` member in 11d without a new `SubmitAsync` overload. A null draft throws `ArgumentNullException`.
+- **Merge rule.** Collected keys and every key in `TicketMetadataKeys.All` are reserved: an app value for one is ignored (reject-versus-ignore: ignore, as the spec says). A blank app key or one over 64 characters is a failure; a blank app value is skipped; a value is cut to 1000 characters. More than 50 keys, or more than 16,000 characters serialized (`JsonSerializerDefaults.Web`), is a local failure with code `metadata-invalid` (`TechStrapMauiErrorCodes.MetadataInvalid`, `ResultErrorKind.Validation`, target `metadata`) and nothing is sent. That constant repeats the server's wire string on purpose. The request goes through `ITechStrapClient`: the unkeyed `SubmitTicketAsync` without an `IdempotencyKey`, the keyed overload with one. The client's result is returned unchanged.
+- **Registration and lazy defaults.** `AddTechStrapMaui(Action<DeviceContextOptions>? configure = null)` needs `AddTechStrapClient` first (resolving the submitter without it throws `InvalidOperationException` naming `AddTechStrapClient`). `AddTechStrapMaui(Action<TechStrapClientOptions> configureClient, Action<DeviceContextOptions>? configure = null)` calls `AddTechStrapClient` first. The Essentials defaults (`AppInfo.Current`, `DeviceInfo.Current`, `Connectivity.Current`, `DeviceDisplay.Current`, `Battery.Default`) are registered with `TryAddSingleton` as factories, so nothing reads them at registration, an app's own registration wins and a second call changes nothing.
+- **Tests need no device and no Docker.** `tests/TechStrap.Client.Maui.Tests` (plain `net10.0`, NSubstitute over the Essentials interfaces, 47 tests) covers the collector, the merger, the submitter, registration and options. `DeviceContextOptionsTests` exists because an empty test project makes `dotnet test` exit 8. `NotImplementedInReferenceAssemblyException` is internal, so the throwing-accessor test uses other exception types (the collector catches `Exception`). The lazy-defaults pin asserts the descriptors are factories. The size-boundary test includes escaped characters, because a PascalCase policy would not rename dictionary keys.
+
+### Alternatives Considered
+- **Multi-target `net10.0-android;net10.0-ios;net10.0`.** Rejected: the helper has no platform-specific code, and a workload build costs a workload restore on every runner and a macOS runner for iOS.
+- **A dependency on `Microsoft.Maui.Controls`.** Rejected: about 19 transitive packages for a helper that has no UI; Essentials carries 3.
+- **A positional `SubmitAsync(subject, message, ..., attachments)`.** Rejected: 11d adds attachments, and every added parameter would be a new overload. A draft record grows without that.
+- **Eager Essentials defaults** (`services.AddSingleton(AppInfo.Current)` and the like). Rejected: they cannot be tested on a build host, and they throw on desktop at registration.
+- **Rejecting a reserved key an app supplies in its metadata.** Rejected: the spec says ignore, and a silent drop of an app's own value for a key the helper owns does less harm than a failed submit.
+
+### Consequences
+- **Spec corrections.** `PHASE-11-client-sdk.md` carries a second Corrections block and ticks T07, T08 and T09; `03-PACKAGE-MAP.md`, `02-ARCHITECTURE.md` and the roadmap are updated; `CLIENT-SDK.md` has a `TechStrap.Client.Maui` section. `TechStrap.Client.Maui.Tests` is created in 11b. Owner action #10 (macOS runner) is no longer needed; 11c still waits on #9 (nuget.org).
+- **Known limits**
+  - Consumers need MAUI >= 10.0.110: the Essentials pin lifts an older app's Essentials.
+  - A Public key is extractable, so metadata from one is stored but flagged untrusted (D-001); the helper does not change that.
+  - No screenshot and no attachments until 11d, which first needs multipart intake.
+  - Collection skips a failing field silently (the package does no logging). `MainDisplayInfo` is read per field, so a rotation between reads can mix values; this is accepted.
+  - There are no platform target frameworks. Platform-specific code would need them later; adding them is non-breaking.
+  - A caller who retries a failed submit must supply a stable `IdempotencyKey` (the same rule as `TechStrap.Client`).
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-11b planning)
 - **Approved on:** 2026-10-07

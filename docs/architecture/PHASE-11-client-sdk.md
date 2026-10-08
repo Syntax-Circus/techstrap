@@ -30,6 +30,19 @@ Where this page and D-047 differ, D-047 wins.
 - **MAUI CI (11b).** `net10.0` and Android build on the existing runner; iOS builds only on a `v*` tag, on macOS.
 - **Common.** `SyntaxCircus.Common` 0.2.0 is web-neutral (no `Microsoft.AspNetCore.App` framework reference); `ICurrentUserService` moved to `SyntaxCircus.AspNetCore.Common` 0.1.16.
 - **Packaging.** `eng/Packaging.props` carries the pack metadata for Contracts and Client. `GitVersion.MsBuild`, the documentation file and a SourceLink package are deferred to 11c; a local pack passes `-p:Version=`.
+
+### Corrections (D-048, 2026-10-07)
+
+Where this page and D-048 differ, D-048 wins.
+- **Target framework.** `TechStrap.Client.Maui` has a single `net10.0` target, not `net10.0-android;net10.0-ios;net10.0`. There is no MAUI workload, no `UseMaui` and no macOS runner (owner action #10 is no longer needed).
+- **Essentials, not Controls.** The package depends on `Microsoft.Maui.Essentials` 10.0.110 (plus `Microsoft.Extensions.DependencyInjection.Abstractions` and `Microsoft.Extensions.Options`, and the `TechStrap.Client` and `TechStrap.Contracts` references), not on `Microsoft.Maui.Controls`.
+- **`TicketMetadataKeys`** is created in `TechStrap.Contracts` (13 default keys and 6 extras), with `IntakeLimits.MaxMetadataJsonLength`.
+- **Submit helper.** `IMauiTicketSubmitter.SubmitAsync(MauiTicketDraft, CancellationToken)` takes a draft record; there is no `FileResult` or `TicketAttachment` parameter until 11d adds attachments.
+- **Extras are flags.** Display and battery metadata are `DeviceContextOptions.IncludeDisplay` and `IncludeBattery` (both off by default), not a list of extras.
+- **The collector.** `IDeviceContextCollector.Collect()` is synchronous and never throws; a field that fails is skipped.
+- **Registration.** `AddTechStrapMaui` has two overloads: one that needs `AddTechStrapClient` first, and one that takes the client options and calls it.
+- **Lazy defaults.** The Essentials defaults are registered as factories, so nothing reads `AppInfo.Current` and the like at registration; an app's own registration wins.
+- **MAUI CI.** D-047's MAUI CI bullet (Android on the existing runner, iOS on macOS on a tag) is withdrawn: the one `net10.0` target builds and tests on the ubuntu CI.
 - **OpenAPI contract test.** The Api documents no response schemas, so the test pins the request, the security scheme and the `Idempotency-Key` parameter, not the 201 body (a PHASE-05 follow-up).
 
 ## Architecture Decisions
@@ -87,9 +100,9 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 
 ## Deliverables
 
-- [ ] `src/TechStrap.Contracts` pack metadata + README; `src/TechStrap.Client` and `src/TechStrap.Client.Maui` projects with pack metadata + README each. *(11a: Contracts and Client; `TechStrap.Client.Maui` is still the placeholder, 11b.)*
+- [x] `src/TechStrap.Contracts` pack metadata + README; `src/TechStrap.Client` and `src/TechStrap.Client.Maui` projects with pack metadata + README each. *(11a: Contracts and Client; 11b: `TechStrap.Client.Maui`, on a single `net10.0` target.)*
 - [ ] `ITechStrapClient`, options, DI extension, `ApiKeyHandler`, `Result` mapping, attachment type. *(11a: all but the attachment type, deferred by D-047.)*
-- [ ] `IDeviceContextCollector`, `MauiDeviceContextCollector`, `IMauiTicketSubmitter`, `AddTechStrapMaui`.
+- [x] `IDeviceContextCollector`, `MauiDeviceContextCollector`, `IMauiTicketSubmitter`, `AddTechStrapMaui`. *(11b.)*
 - [x] `tests/TechStrap.Client.Tests` (unit + API-contract integration), created in this phase (listed in `02-ARCHITECTURE.md`). *(Created in 11a.)*
 - [ ] Console sample (+ optional MAUI sample); README usage snippets.
 - [ ] `.github/workflows/publish-nuget.yml` and package validation (readme/license/symbols/dependency check), dry-run on non-tag builds. *(11a delivers the pack dry run in `ci.yml` and `scripts/Test-PackageContents.ps1`; the workflow itself is 11c.)*
@@ -120,15 +133,18 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
   - **Depends on:** P11-T04
   - **Validation:** SDK submits a ticket to the in-test API with a Public and a Trusted key; ticket exists with expected channel/metadata trust flag; OpenAPI contract test fails if the operation, request fields or security scheme drift.
   - **As built (11a):** 162 tests, unit and `[Trait("Integration","Docker")]`. The test project references `src/TechStrap.Api` and links the `Api.Tests` helpers. The contract test pins the POST operation, the `application/json` request properties, the `ApiKey` scheme and the `Idempotency-Key` parameter; the Api documents no response schemas, so the 201 body is pinned by the real-API tests instead (known gap, a PHASE-05 follow-up).
-- [ ] **P11-T07** Create `TechStrap.Client.Maui` project (net10.0-android;net10.0-ios;net10.0) with pack metadata and README; define `IDeviceContextCollector`, options (`IncludeDeviceContext`, extras, redaction callback)
+- [x] **P11-T07** Create `TechStrap.Client.Maui` project (net10.0-android;net10.0-ios;net10.0) with pack metadata and README; define `IDeviceContextCollector`, options (`IncludeDeviceContext`, extras, redaction callback)
   - **Depends on:** P11-T02
   - **Validation:** `dotnet workload restore` + build on macOS for all targets; pack succeeds; plain `net10.0` target compiles without MAUI platform APIs.
-- [ ] **P11-T08** Implement `MauiDeviceContextCollector` over injected Essentials abstractions with truncation to `TicketMetadataLimits` and the never-collect list
+  - **As built (11b):** A single `net10.0` target (D-048), so there is no workload restore and no macOS build. The package depends on `Microsoft.Maui.Essentials` 10.0.110; `ClientMauiRules` pins the package set and rejects `UseMaui`, and the CI pack dry run packs all three packages and checks the five nuspec dependencies.
+- [x] **P11-T08** Implement `MauiDeviceContextCollector` over injected Essentials abstractions with truncation to `TicketMetadataLimits` and the never-collect list
   - **Depends on:** P11-T07, P11-T01
   - **Validation:** Unit tests with NSubstitute for `IAppInfo`/`IDeviceInfo`/`IConnectivity`/`IDeviceDisplay`: exact key set emitted by default; extras only when enabled; redaction callback applied; long values truncated; no key outside `TicketMetadataKeys`.
-- [ ] **P11-T09** Implement `IMauiTicketSubmitter` (`SubmitAsync`, `FileResult` -> `TicketAttachment` adapter) and `AddTechStrapMaui` DI extension
+  - **As built (11b):** `MauiDeviceContextCollector` takes `IAppInfo`, `IDeviceInfo`, `IConnectivity`, `IDeviceDisplay`, `IBattery` and the options; it emits the 13 default keys (display and battery only when enabled), reads each field in its own try/catch and never throws. 14 collector tests cover the key set, truncation, redaction, culture and failing accessors.
+- [x] **P11-T09** Implement `IMauiTicketSubmitter` (`SubmitAsync`, `FileResult` -> `TicketAttachment` adapter) and `AddTechStrapMaui` DI extension
   - **Depends on:** P11-T08, P11-T04
   - **Validation:** Unit tests: collected context + app metadata merged with app-supplied values winning only for non-reserved keys; disabling context sends no `device.*` keys; `FileResult` adapter streams and disposes correctly; DI resolves the full graph.
+  - **As built (11b):** `SubmitAsync(MauiTicketDraft, CancellationToken)` merges the collected context with the app's metadata (reserved keys ignored) and sends through `ITechStrapClient`; a draft that breaks the metadata limits fails locally with `metadata-invalid`. There is no `FileResult` adapter (attachments wait for 11d). `AddTechStrapMaui` has two overloads and registers the Essentials defaults lazily; 9 registration tests resolve the graph without a device.
 - [x] **P11-T10** Add `TechStrap.Contracts` pack metadata + README (and verify it has no dependency on non-public projects)
   - **Depends on:** P11-T01
   - **Validation:** Pack output dependency list contains only framework/third-party packages; consumer sample restores with Contracts only transitively through Client.
@@ -159,12 +175,12 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 ## Success Criteria
 
 - [ ] A .NET app can `dotnet add package TechStrap.Client`, configure base URL + key, and create a ticket; the response gives the ticket number and view URL. *(11a proved the call against the real Api with project references, not the package, so this stays open; consuming the packed package is the 11c sample, and the nuget.org install is 11c.)*
-- [ ] A MAUI app can `dotnet add package TechStrap.Client.Maui`, submit a ticket with device/app metadata and an optional screenshot, with metadata truncation and opt-out working.
+- [ ] A MAUI app can `dotnet add package TechStrap.Client.Maui`, submit a ticket with device/app metadata and an optional screenshot, with metadata truncation and opt-out working. *(Partial in 11b: submit with device/app metadata, truncation, redaction and opt-out are built and tested; there is no screenshot until 11d adds attachments, and the package is not on nuget.org until 11c.)*
 - [ ] Failure modes (bad key, rate limit, validation, attachments, outage) return typed `Result` failures; submit is never silently duplicated by retries. *(Partial in 11a: all but attachments, deferred to 11d by D-047; 413 and 415 are mapped.)*
 - [ ] Pushing tag `v*` builds, tests, packs and publishes `TechStrap.Contracts`, `TechStrap.Client` and `TechStrap.Client.Maui` to nuget.org with symbols and READMEs, through OIDC (no long-lived key in the repo).
 - [x] Contract test proves the SDK matches the API's OpenAPI document and the real intake endpoint. *(Response schema not pinned, see Corrections.)*
 - [ ] Each package has a README; samples compile and run.
-- [ ] `dotnet build`, `dotnet test` green; MAUI targets build on macOS CI.
+- [x] `dotnet build`, `dotnet test` green; the single net10.0 target builds and tests on the ubuntu CI (D-048).
 
 ## Boundary Validation
 
@@ -189,7 +205,7 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 - [ ] **Contracts becomes a public API.** Breaking DTO changes after 1.0 need semantic-versioning discipline (additive only; `EnablePackageValidation` baseline after 1.0.0). Plan lists two packages; confirm the third (`TechStrap.Contracts`) is acceptable, or inline a trimmed copy into Client (rejected: drift).
 - [ ] **Non-idempotent submit vs retries** (see P11-T17, D-020). Default: no automatic retry on submit unless an `Idempotency-Key` is set. Settled (D-047): `HttpRequestResiliencePipeline` with a per-call replay flag; `SubmitTicketOnceAsync` never retries; D-020 is approved and proved end to end by P11-T17.
 - [ ] **Header names and trusted/public behavior** (`X-Api-Key`, `Idempotency-Key`) must exactly match P05/`AspNetCore.Authentication`; they are Contracts constants. Settled (D-047): they are `HeaderNames` (not `TechStrapHeaders`), and an architecture rule keeps the literals out of the rest of `src/`.
-- [ ] **MAUI workload build** needs macOS runners (cost/time); consider building only `net10.0` + android on Linux/Windows and iOS only for tags (**Assumption**: macOS for all MAUI jobs, as the reference repo does). Settled (D-047): `net10.0` and Android on the existing runner; iOS only on a `v*` tag on macOS (11b).
+- [ ] **MAUI workload build** needs macOS runners (cost/time); consider building only `net10.0` + android on Linux/Windows and iOS only for tags (**Assumption**: macOS for all MAUI jobs, as the reference repo does). Settled (D-047): `net10.0` and Android on the existing runner; iOS only on a `v*` tag on macOS (11b). Superseded (D-048): a single `net10.0` target with `Microsoft.Maui.Essentials`; no workload, no platform targets and no macOS runner.
 - [ ] **Public keys are extractable.** Client-side mitigations (honeypot is portal-only) do not exist; abuse relies on server rate limits and untrusted metadata flags — highlight in README and in the security review ([PHASE-12](PHASE-12-release-hardening.md)).
 - [ ] **Privacy of collected metadata** (OS/model/locale/timezone/network): document, default to the minimal set, offer opt-out and redaction.
 - [ ] `net10.0`-only targeting excludes older consumers; revisit after 1.0.
