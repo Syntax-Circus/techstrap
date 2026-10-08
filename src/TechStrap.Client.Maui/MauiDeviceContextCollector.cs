@@ -65,7 +65,7 @@ public sealed class MauiDeviceContextCollector(
         if (settings.IncludeBattery)
         {
             Put(values, redact, TicketMetadataKeys.BatteryState, () => battery.State.ToString());
-            Put(values, redact, TicketMetadataKeys.BatteryLevel, () => Math.Round(battery.ChargeLevel * 100).ToString("0", CultureInfo.InvariantCulture));
+            Put(values, redact, TicketMetadataKeys.BatteryLevel, () => battery.ChargeLevel < 0 ? null : Math.Round(battery.ChargeLevel * 100).ToString("0", CultureInfo.InvariantCulture));
         }
 
         return new ReadOnlyDictionary<string, string>(values);
@@ -76,32 +76,38 @@ public sealed class MauiDeviceContextCollector(
         string? value;
         try
         {
-            value = read()?.Trim();
+            value = Clean(read());
+            if (value is not null && redact is not null)
+            {
+                // The redactor's answer is untrusted too: it is cleaned again so it cannot exceed the limits.
+                value = Clean(redact(key, value));
+            }
         }
         catch (Exception)
         {
             return;
         }
 
+        if (value is not null)
+        {
+            values[key] = value;
+        }
+    }
+
+    private static string? Clean(string? value)
+    {
+        value = value?.Trim();
         if (string.IsNullOrEmpty(value))
         {
-            return;
+            return null;
         }
 
         if (value.Length > IntakeLimits.MaxMetadataValueLength)
         {
-            value = value[..IntakeLimits.MaxMetadataValueLength];
+            // A cut can leave trailing whitespace.
+            value = value[..IntakeLimits.MaxMetadataValueLength].TrimEnd();
         }
 
-        if (redact is not null)
-        {
-            value = redact(key, value);
-            if (value is null)
-            {
-                return;
-            }
-        }
-
-        values[key] = value;
+        return value.Length == 0 ? null : value;
     }
 }

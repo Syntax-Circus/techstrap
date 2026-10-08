@@ -10,7 +10,18 @@ public sealed class MauiDeviceContextCollectorTests
     [Fact]
     public void Default_collection_emits_exactly_the_thirteen_default_keys()
     {
-        var result = EssentialsFakes.Default().Collector().Collect();
+        // A CI host without LANG has the invariant culture (empty name), which would drop locale.
+        var original = CultureInfo.CurrentCulture;
+        IReadOnlyDictionary<string, string> result;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("en-US");
+            result = EssentialsFakes.Default().Collector().Collect();
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
 
         result.Keys.ToHashSet().SetEquals(TicketMetadataKeys.Defaults).ShouldBeTrue();
         result[TicketMetadataKeys.AppName].ShouldBe("Puppies Plus");
@@ -86,6 +97,66 @@ public sealed class MauiDeviceContextCollectorTests
         fakes.DeviceInfo.Model.Returns("  Pixel 8  ");
 
         fakes.Collector().Collect()[TicketMetadataKeys.DeviceModel].ShouldBe("Pixel 8");
+
+        fakes.DeviceInfo.Model.Returns("  " + new string('m', 1_500));
+        var longValue = fakes.Collector().Collect()[TicketMetadataKeys.DeviceModel];
+        longValue.Length.ShouldBe(IntakeLimits.MaxMetadataValueLength);
+        longValue.ShouldBe(longValue.Trim());
+    }
+
+    [Fact]
+    public void A_cut_that_leaves_trailing_whitespace_is_trimmed_again()
+    {
+        var fakes = EssentialsFakes.Default();
+        fakes.DeviceInfo.Model.Returns(new string('m', IntakeLimits.MaxMetadataValueLength - 1) + "   tail");
+
+        var value = fakes.Collector().Collect()[TicketMetadataKeys.DeviceModel];
+
+        value.ShouldBe(new string('m', IntakeLimits.MaxMetadataValueLength - 1));
+    }
+
+    [Fact]
+    public void A_throwing_redactor_drops_the_field_only()
+    {
+        var result = EssentialsFakes.Default().Collector(new DeviceContextOptions
+        {
+            Redact = (key, value) => key == TicketMetadataKeys.DeviceModel ? throw new InvalidOperationException("boom") : value,
+        }).Collect();
+
+        result.ContainsKey(TicketMetadataKeys.DeviceModel).ShouldBeFalse();
+        result[TicketMetadataKeys.AppName].ShouldBe("Puppies Plus");
+        result.Count.ShouldBe(TicketMetadataKeys.Defaults.Count - 1);
+    }
+
+    [Fact]
+    public void A_redactor_result_is_trimmed_truncated_and_blank_dropped()
+    {
+        var result = EssentialsFakes.Default().Collector(new DeviceContextOptions
+        {
+            Redact = (key, value) => key switch
+            {
+                TicketMetadataKeys.DeviceModel => "  " + new string('r', 1_500),
+                TicketMetadataKeys.AppName => "  padded  ",
+                TicketMetadataKeys.AppPackage => "   ",
+                _ => value,
+            },
+        }).Collect();
+
+        result[TicketMetadataKeys.DeviceModel].ShouldBe(new string('r', IntakeLimits.MaxMetadataValueLength));
+        result[TicketMetadataKeys.AppName].ShouldBe("padded");
+        result.ContainsKey(TicketMetadataKeys.AppPackage).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void An_unknown_battery_level_is_omitted()
+    {
+        var fakes = EssentialsFakes.Default();
+        fakes.Battery.ChargeLevel.Returns(-1d);
+
+        var result = fakes.Collector(new DeviceContextOptions { IncludeBattery = true }).Collect();
+
+        result.ContainsKey(TicketMetadataKeys.BatteryLevel).ShouldBeFalse();
+        result[TicketMetadataKeys.BatteryState].ShouldBe("Charging");
     }
 
     [Fact]
