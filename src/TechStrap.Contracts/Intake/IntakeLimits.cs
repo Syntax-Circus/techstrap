@@ -22,6 +22,9 @@ public static class IntakeLimits
     public const int MaxMetadataKeys = 50;
     public const int MaxMetadataKeyLength = 64;
     public const int MaxMetadataValueLength = 1_000;
+
+    // The Domain owns the value (DomainLimits.MetadataMaxLength); IntakeLimitsParityTests keeps this copy equal.
+    public const int MaxMetadataJsonLength = 16_000;
     public const int MaxIdempotencyKeyLength = 200;
     public static readonly IReadOnlyList<string> AllowedExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf", ".txt", ".log", ".csv", ".zip"];
 }
