@@ -81,7 +81,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [SECURITY.md](SECURI
 
 ## Packages
 
-The client SDK is published on nuget.org at `0.2.0`: [TechStrap.Contracts](https://www.nuget.org/packages/TechStrap.Contracts), [TechStrap.Client](https://www.nuget.org/packages/TechStrap.Client) and [TechStrap.Client.Maui](https://www.nuget.org/packages/TechStrap.Client.Maui), released as the `v0.2.0` tag and GitHub Release (0.1.0 was the first release; the 0.2.0 Version notes in the Contracts README name the recompile). Start with the
+The client SDK is published on nuget.org at `0.2.0`: [TechStrap.Contracts](https://www.nuget.org/packages/TechStrap.Contracts), [TechStrap.Client](https://www.nuget.org/packages/TechStrap.Client) and [TechStrap.Client.Maui](https://www.nuget.org/packages/TechStrap.Client.Maui), released as the `v0.2.0` tag and GitHub Release (the first release was `v0.1.0`; the 0.2.0 Version notes in the Contracts README name the recompile). Start with the
 [TechStrap.Client README](src/TechStrap.Client/README.md); how releases are cut is in [RELEASING.md](docs/development/RELEASING.md).
 
 ## Documentation
