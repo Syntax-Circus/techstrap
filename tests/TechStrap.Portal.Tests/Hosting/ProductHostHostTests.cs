@@ -132,6 +132,7 @@ public sealed class ProductHostHostTests
     [InlineData("/sitemap.xml")]
     [InlineData("/css/app.css")]
     [InlineData("/favicon.ico")]
+    [InlineData("/icon-512.png")]
     public async Task The_seo_files_the_health_checks_and_the_static_assets_answer_on_a_product_host(string path)
     {
         var ct = TestContext.Current.CancellationToken;

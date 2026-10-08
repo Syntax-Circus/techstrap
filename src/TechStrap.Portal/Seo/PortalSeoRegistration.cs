@@ -17,7 +17,7 @@ public static class PortalSeoRegistration
     public static IServiceCollection AddPortalSeo(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddSyntaxCircusSeo(configuration);
-        // Host-aware URLs (D-050 amendment): the package's builder stays the default-host path; the decorator follows ProductHostContext. On Blazor.Seo 0.1.4 the last registration wins, on 0.1.5 TryAddScoped leaves this one alone.
+        // Host-aware URLs (D-050 amendment): the package's builder stays the default-host path; the decorator follows ProductHostContext. Registered after AddSyntaxCircusSeo, so it wins by last registration on 0.1.4 (AddScoped) and on 0.1.5 (TryAddScoped adds the package builder first).
         services.AddScoped<SeoUrlBuilder>();
         services.AddScoped<ISeoUrlBuilder, ProductHostSeoUrlBuilder>();
         services.AddOptions<SeoOptions>().PostConfigure<IOptions<PortalOptions>>((seo, portal) => seo.BaseUrl = portal.Value.PublicBaseUrl);

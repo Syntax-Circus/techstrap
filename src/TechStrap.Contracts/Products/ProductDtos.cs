@@ -50,5 +50,5 @@ public sealed record CreateProductRequest(string? Key, string? Name, string? Num
 /// <param name="Branding">The branding input.</param>
 /// <param name="IsActive">Whether the product is active.</param>
 /// <param name="Version">The version last read.</param>
-/// <param name="PortalHost">The product's own public hostname (lower-case, e.g. support.example.com), or null when it is served only on the default portal host. Null leaves the stored host unchanged; an empty or whitespace value clears it; any other value is normalised, validated and set (before 0.2.0, null cleared it).</param>
+/// <param name="PortalHost">The product's own public hostname (lower-case, e.g. support.example.com), or null when it is served only on the default portal host. Null leaves the stored host unchanged; an empty or whitespace value clears it; any other value is normalised, validated and set.</param>
 public sealed record UpdateProductRequest(string? Name, ProductBrandingRequest Branding, bool IsActive, uint Version, string? PortalHost = null);
