@@ -40,7 +40,7 @@ public sealed class PublicProductEndpointTests(TestPostgres postgres) : IAsyncLi
     }
 
     [Fact]
-    public async Task The_anonymous_list_names_the_active_products_by_key_and_display_name_only_with_public_caching()
+    public async Task The_anonymous_list_names_the_active_products_by_key_display_name_and_portal_host_only_with_public_caching()
     {
         // Arrange
         var (factory, _, _) = await StartAsync();
@@ -60,7 +60,7 @@ public sealed class PublicProductEndpointTests(TestPostgres postgres) : IAsyncLi
         raw.ShouldNotContain("dormant");
         raw.ShouldNotContain("logoPath");
         raw.ShouldNotContain("accentColour");
-        System.Text.Json.JsonDocument.Parse(raw).RootElement[0].EnumerateObject().Select(property => property.Name).ShouldBe(["key", "displayName"]);
+        System.Text.Json.JsonDocument.Parse(raw).RootElement[0].EnumerateObject().Select(property => property.Name).ShouldBe(["key", "displayName", "portalHost"]);
     }
 
     [Theory]

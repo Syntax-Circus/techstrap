@@ -66,9 +66,21 @@ public sealed class ListPublicProductsRequestHandlerTests
     }
 
     [Fact]
-    public void The_summary_dto_has_the_key_and_the_display_name_only()
+    public async Task The_summary_carries_the_portal_host_or_null()
     {
-        typeof(PublicProductSummaryDto).GetProperties().Select(property => property.Name).Order().ShouldBe(["DisplayName", "Key"]);
+        var withHost = Product.Restore(Guid.CreateVersion7(), "orbitly", "Orbitly", "ORB", ProductBranding.Restore("Orbitly", null, "#7C3AED", null, null), true, 1, "support.orbitly.example");
+        _products.ListAsync(true, Arg.Any<CancellationToken>()).Returns([withHost, Stored("acme", "Acme Corp", true)]);
+
+        var result = await new ListPublicProductsRequestHandler(_products).HandleAsync(Ct);
+
+        result.Value.ShouldBe([new PublicProductSummaryDto("acme", "Acme Corp"), new PublicProductSummaryDto("orbitly", "Orbitly", "support.orbitly.example")]);
+        result.Value[0].PortalHost.ShouldBeNull();
+    }
+
+    [Fact]
+    public void The_summary_dto_has_the_key_the_display_name_and_the_portal_host_only()
+    {
+        typeof(PublicProductSummaryDto).GetProperties().Select(property => property.Name).Order().ShouldBe(["DisplayName", "Key", "PortalHost"]);
         PublicProductLimits.MaxListed.ShouldBe(1_000);
     }
 }

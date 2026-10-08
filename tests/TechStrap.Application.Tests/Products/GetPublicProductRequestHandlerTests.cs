@@ -43,6 +43,19 @@ public sealed class GetPublicProductRequestHandlerTests
     }
 
     [Theory]
+    [InlineData("support.orbitly.example")]
+    [InlineData(null)]
+    public async Task The_public_product_carries_its_portal_host_or_null(string? host)
+    {
+        var branding = ProductBranding.Restore("Orbitly", null, "#7C3AED", null, null);
+        _products.GetByKeyAsync("orbitly", Arg.Any<CancellationToken>()).Returns(Product.Restore(Guid.CreateVersion7(), "orbitly", "Orbitly", "ORB", branding, true, 1, host));
+
+        var result = await new GetPublicProductRequestHandler(_products).HandleAsync("orbitly", TestContext.Current.CancellationToken);
+
+        result.Value.PortalHost.ShouldBe(host);
+    }
+
+    [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("missing")]

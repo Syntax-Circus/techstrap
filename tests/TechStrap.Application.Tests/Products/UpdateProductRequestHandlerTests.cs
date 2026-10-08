@@ -54,6 +54,83 @@ public sealed class UpdateProductRequestHandlerTests
             e.Type == AdminEventType.ProductUpdated && e.ActorId == _admin.Id && e.PayloadJson == "{\"changed\":[\"name\",\"branding\",\"isActive\"]}"));
     }
 
+    private Product StoreWithHost(string? host)
+    {
+        var stored = Product.Restore(
+            _product.Id, "orbitly", "Orbitly", "ORB", ProductBranding.Restore("Orbitly", null, "#1F6FEB", null, null), isActive: true, version: 7, portalHost: host);
+        _products.GetByIdAsync(_product.Id, Arg.Any<CancellationToken>()).Returns(stored);
+        return stored;
+    }
+
+    [Fact]
+    public async Task The_portal_host_is_normalised_and_checked_against_other_products_only()
+    {
+        var request = new UpdateProductRequest("Orbitly", SameBranding, true, 7, " Support.Example.COM ");
+
+        var result = await Handler().HandleAsync(_product.Id, request, TestContext.Current.CancellationToken);
+
+        result.Value.PortalHost.ShouldBe("support.example.com");
+        await _products.Received(1).IsPortalHostTakenAsync("support.example.com", _product.Id, Arg.Any<CancellationToken>());
+        _products.Received(1).Update(_product);
+        _events.Received(1).Add(Arg.Is<AdminEvent>(e => e.PayloadJson == "{\"changed\":[\"portalHost\"]}"));
+    }
+
+    [Fact]
+    public async Task Keeping_the_products_own_host_is_not_a_conflict_and_not_a_change()
+    {
+        var stored = StoreWithHost("support.example.com");
+        _products.IsPortalHostTakenAsync("support.example.com", stored.Id, Arg.Any<CancellationToken>()).Returns(false);
+
+        var result = await Handler().HandleAsync(stored.Id, new UpdateProductRequest("Orbitly", SameBranding, true, 7, "SUPPORT.example.com"), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.PortalHost.ShouldBe("support.example.com");
+        _products.DidNotReceive().Update(Arg.Any<Product>());
+    }
+
+    [Fact]
+    public async Task A_null_portal_host_clears_it()
+    {
+        var stored = StoreWithHost("support.example.com");
+
+        var result = await Handler().HandleAsync(stored.Id, new UpdateProductRequest("Orbitly", SameBranding, true, 7, null), TestContext.Current.CancellationToken);
+
+        result.Value.PortalHost.ShouldBeNull();
+        stored.PortalHost.ShouldBeNull();
+        _products.Received(1).Update(stored);
+        await _products.DidNotReceive().IsPortalHostTakenAsync(Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_malformed_portal_host_is_a_field_error_reported_before_the_repository_is_asked()
+    {
+        var result = await Handler().HandleAsync(
+            _product.Id, new UpdateProductRequest("Orbitly", SameBranding, true, 7, "support.example.com/path"), TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            error => error.Kind.ShouldBe(ResultErrorKind.Validation),
+            error => error.Code.ShouldBe("product-host-invalid"),
+            error => error.Target.ShouldBe("portalHost"));
+        await _products.DidNotReceive().IsPortalHostTakenAsync(Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
+        _products.DidNotReceive().Update(Arg.Any<Product>());
+    }
+
+    [Fact]
+    public async Task A_portal_host_used_by_another_product_is_a_conflict_and_nothing_is_saved()
+    {
+        _products.IsPortalHostTakenAsync("support.example.com", _product.Id, Arg.Any<CancellationToken>()).Returns(true);
+
+        var result = await Handler().HandleAsync(
+            _product.Id, new UpdateProductRequest("Orbitly", SameBranding, true, 7, "Support.Example.com"), TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            error => error.Kind.ShouldBe(ResultErrorKind.Conflict),
+            error => error.Code.ShouldBe("product-host-taken"));
+        _product.PortalHost.ShouldBeNull();
+        _products.DidNotReceive().Update(Arg.Any<Product>());
+        _events.DidNotReceive().Add(Arg.Any<AdminEvent>());
+    }
+
     [Fact]
     public async Task A_stale_version_is_a_conflict_and_nothing_is_saved()
     {

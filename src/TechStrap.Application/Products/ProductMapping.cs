@@ -21,6 +21,7 @@ internal static class ProductMapping
             product.NumberPrefix,
             product.IsActive,
             new ProductBrandingDto(branding.DisplayName, branding.LogoPath, colours.Accent, colours.OnAccent, colours.AccentInk, branding.FromAddress, branding.ReplyTo),
-            product.Version);
+            product.Version,
+            product.PortalHost);
     }
 }

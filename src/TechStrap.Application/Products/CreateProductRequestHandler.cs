@@ -6,6 +6,7 @@ using TechStrap.Application.Results;
 using TechStrap.Contracts.Products;
 using TechStrap.Domain.Admin;
 using TechStrap.Domain.Products;
+using TechStrap.Domain.Rules;
 
 namespace TechStrap.Application.Products;
 
@@ -50,7 +51,19 @@ public sealed class CreateProductRequestHandler(
             return Result<ProductDto>.Failure(created.Error!.ToError());
         }
 
+        // The shape is checked before the repository is asked, so a malformed name never costs a query; the host is stored lower-case and compared as stored.
+        if (!HostNameShape.TryNormalize(request.PortalHost, out var host))
+        {
+            return Result<ProductDto>.Failure(ProductErrors.HostInvalid());
+        }
+
+        if (host is not null && await products.IsPortalHostTakenAsync(host, exceptProductId: null, cancellationToken))
+        {
+            return Result<ProductDto>.Failure(ProductErrors.HostTaken());
+        }
+
         var product = created.Value;
+        product.SetPortalHost(host);
         products.Add(product);
         AdminAudit.Record(adminEvents, AdminEventType.ProductCreated, actor.Value, AdminSubjectType.Product, product.Id,
             new { productKey = product.Key, numberPrefix = product.NumberPrefix }, clock);

@@ -84,6 +84,55 @@ public sealed class CreateProductRequestHandlerTests
     }
 
     [Fact]
+    public async Task The_portal_host_is_trimmed_lower_cased_and_stored()
+    {
+        var result = await Handler().HandleAsync(
+            new CreateProductRequest("orbitly", "Orbitly", "ORB", null, " Support.Dragonpoop.COM "), TestContext.Current.CancellationToken);
+
+        result.Value.PortalHost.ShouldBe("support.dragonpoop.com");
+        _added!.PortalHost.ShouldBe("support.dragonpoop.com");
+        await _products.Received(1).IsPortalHostTakenAsync("support.dragonpoop.com", null, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_blank_portal_host_is_stored_as_null_and_the_repository_is_not_asked()
+    {
+        var result = await Handler().HandleAsync(new CreateProductRequest("orbitly", "Orbitly", "ORB", null, "  "), TestContext.Current.CancellationToken);
+
+        result.Value.PortalHost.ShouldBeNull();
+        await _products.DidNotReceive().IsPortalHostTakenAsync(Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_malformed_portal_host_is_a_field_error_reported_before_the_repository_is_asked()
+    {
+        var result = await Handler().HandleAsync(
+            new CreateProductRequest("orbitly", "Orbitly", "ORB", null, "https://support.example.com"), TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            error => error.Kind.ShouldBe(ResultErrorKind.Validation),
+            error => error.Code.ShouldBe("product-host-invalid"),
+            error => error.Target.ShouldBe("portalHost"));
+        await _products.DidNotReceive().IsPortalHostTakenAsync(Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
+        _products.DidNotReceive().Add(Arg.Any<Product>());
+    }
+
+    [Fact]
+    public async Task A_portal_host_used_by_another_product_is_a_conflict_and_nothing_is_staged()
+    {
+        _products.IsPortalHostTakenAsync("support.example.com", null, Arg.Any<CancellationToken>()).Returns(true);
+
+        var result = await Handler().HandleAsync(
+            new CreateProductRequest("orbitly", "Orbitly", "ORB", null, "Support.Example.com"), TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            error => error.Kind.ShouldBe(ResultErrorKind.Conflict),
+            error => error.Code.ShouldBe("product-host-taken"));
+        _products.DidNotReceive().Add(Arg.Any<Product>());
+        _events.DidNotReceive().Add(Arg.Any<AdminEvent>());
+    }
+
+    [Fact]
     public async Task A_deactivated_actor_is_refused_before_the_request_is_validated_and_nothing_is_staged()
     {
         var inactive = Agent.Create("admin", "Sam", "sam@example.com", AgentRole.Admin, _clock).Value;

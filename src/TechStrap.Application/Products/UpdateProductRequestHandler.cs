@@ -6,6 +6,7 @@ using TechStrap.Application.Results;
 using TechStrap.Contracts.Products;
 using TechStrap.Domain.Admin;
 using TechStrap.Domain.Products;
+using TechStrap.Domain.Rules;
 
 namespace TechStrap.Application.Products;
 
@@ -54,6 +55,17 @@ public sealed class UpdateProductRequestHandler(
             return Result<ProductDto>.Failure(ProductErrors.Stale());
         }
 
+        // The shape is checked before the repository is asked; the product's own host is excluded from the uniqueness check.
+        if (!HostNameShape.TryNormalize(request.PortalHost, out var host))
+        {
+            return Result<ProductDto>.Failure(ProductErrors.HostInvalid());
+        }
+
+        if (host is not null && await products.IsPortalHostTakenAsync(host, product.Id, cancellationToken))
+        {
+            return Result<ProductDto>.Failure(ProductErrors.HostTaken());
+        }
+
         var changed = new List<string>();
         if (!string.Equals(product.Name, request.Name?.Trim(), StringComparison.Ordinal))
         {
@@ -70,11 +82,18 @@ public sealed class UpdateProductRequestHandler(
             changed.Add("isActive");
         }
 
+        if (!string.Equals(product.PortalHost, host, StringComparison.Ordinal))
+        {
+            changed.Add("portalHost");
+        }
+
         var updated = product.UpdateDetails(request.Name, branding.Value);
         if (updated.IsFailure)
         {
             return Result<ProductDto>.Failure(updated.Error!.ToError());
         }
+
+        product.SetPortalHost(host);
 
         if (changed.Count == 0)
         {
