@@ -1,6 +1,7 @@
 name: Release
 
 # Pushing a tag such as v0.1.0 or v0.1.0-rc.1 publishes multi-arch images to GHCR.
+# NuGet packages and the GitHub Release come from publish-nuget.yml on the same tag.
 on:
   push:
     tags: ['v*']

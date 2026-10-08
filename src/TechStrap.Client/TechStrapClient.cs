@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Options;
 using SyntaxCircus.Common;
 using SyntaxCircus.Http.Resilience;
+using TechStrap.Client.Json;
 using TechStrap.Contracts.Http;
 using TechStrap.Contracts.Intake;
 
@@ -17,8 +18,6 @@ namespace TechStrap.Client;
 /// </summary>
 internal sealed class TechStrapClient(IHttpClientFactory httpClients, IOptions<TechStrapClientOptions> options, TimeProvider timeProvider) : ITechStrapClient
 {
-    private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
-
     private readonly Lock _gate = new();
     private HttpRequestResiliencePipeline? _pipeline;
 
@@ -63,7 +62,7 @@ internal sealed class TechStrapClient(IHttpClientFactory httpClients, IOptions<T
     /// <summary>A new message and new content for every attempt: the pipeline disposes both after each send.</summary>
     private static HttpRequestMessage BuildRequest(SubmitTicketRequest request, string? key)
     {
-        var message = new HttpRequestMessage(HttpMethod.Post, IntakeRoutes.Tickets) { Content = JsonContent.Create(request, options: _json) };
+        var message = new HttpRequestMessage(HttpMethod.Post, IntakeRoutes.Tickets) { Content = JsonContent.Create(request, TechStrapJsonContext.Default.SubmitTicketRequest) };
         if (key is not null)
         {
             message.Headers.TryAddWithoutValidation(HeaderNames.IdempotencyKey, key);
@@ -123,7 +122,7 @@ internal sealed class TechStrapClient(IHttpClientFactory httpClients, IOptions<T
 
             try
             {
-                var value = await response.Content.ReadFromJsonAsync<SubmitTicketResponse>(_json, ct);
+                var value = await response.Content.ReadFromJsonAsync(TechStrapJsonContext.Default.SubmitTicketResponse, ct);
                 return value is null || string.IsNullOrWhiteSpace(value.TicketNumber) ? Result<SubmitTicketResponse>.Failure(ProblemResponseMapper.Unexpected()) : Result<SubmitTicketResponse>.Success(value);
             }
             catch (Exception ex) when (ex is JsonException or NotSupportedException or InvalidOperationException)

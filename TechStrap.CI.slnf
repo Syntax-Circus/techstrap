@@ -2,6 +2,7 @@
   "solution": {
     "path": "TechStrap.slnx",
     "projects": [
+      "samples/TechStrap.Client.Samples.Console/TechStrap.Client.Samples.Console.csproj",
       "src/TechStrap.Admin/TechStrap.Admin.csproj",
       "src/TechStrap.Api/TechStrap.Api.csproj",
       "src/TechStrap.Application/TechStrap.Application.csproj",

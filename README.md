@@ -79,6 +79,11 @@ Each project's `appsettings.json` lists every setting the host reads, with its d
 `src/TechStrap.<Host>/.env.local` (gitignored; copy the `.env.example` next to it, which documents the same keys as `SECTION__KEY`).
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [SECURITY.md](SECURITY.md) to report a vulnerability.
 
+## Packages
+
+The client SDK will be published to nuget.org as `TechStrap.Contracts`, `TechStrap.Client` and `TechStrap.Client.Maui`, starting with `v1.0.0-rc.1`. Start with the
+[TechStrap.Client README](src/TechStrap.Client/README.md); how releases are cut is in [RELEASING.md](docs/development/RELEASING.md).
+
 ## Documentation
 
 Start at the [discovery index](docs/architecture/00-DISCOVERY-INDEX.md).
@@ -95,6 +100,7 @@ Start at the [discovery index](docs/architecture/00-DISCOVERY-INDEX.md).
 | [Ticket operations](docs/development/TICKET-OPERATIONS.md) | Agent ticket API: curl examples, RowVersion, email kinds |
 | [Admin app](docs/development/ADMIN-APP.md) | The agent app: configuration, sign-in, Authentik setup, shortcuts, known limits |
 | [Portal app](docs/development/PORTAL-APP.md) | The customer portal: configuration, how a page is served, the API client, headers, known gaps |
+| [Releasing](docs/development/RELEASING.md) | A `v*` tag: images to GHCR, NuGet packages to nuget.org, the GitHub Release, rollback |
 | [Implementation roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md) | Phases 01–12, task index, validation commands |
 
 ## License

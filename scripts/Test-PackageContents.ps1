@@ -8,7 +8,8 @@
     - the license is not <license type="expression">MIT</license>,
     - the nuspec has no repository url,
     - the dependency ids (all target framework groups, case-insensitive) differ from the expected set,
-    - the matching .snupkg symbol package is missing.
+    - the matching .snupkg symbol package is missing,
+    - the XML documentation file lib/net10.0/<id>.xml is not in the package.
   All problems are reported, one line each, as "<id>: <what is wrong>".
 .PARAMETER PackageDirectory
   Directory holding the packed .nupkg / .snupkg files.
@@ -94,6 +95,10 @@ foreach ($id in ($Expected.Keys | Sort-Object)) {
     $symbols = [System.IO.Path]::ChangeExtension($file.FullName, '.snupkg')
     if (-not (Test-Path -LiteralPath $symbols -PathType Leaf)) {
         $problems.Add("the symbol package $([System.IO.Path]::GetFileName($symbols)) is missing (no snupkg).")
+    }
+
+    if ($entryNames -cnotcontains "lib/net10.0/$id.xml") {
+        $problems.Add("the XML documentation file lib/net10.0/$id.xml is missing.")
     }
 
     if ($problems.Count -gt 0) {

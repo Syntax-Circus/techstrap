@@ -602,7 +602,7 @@ Describe 'D-047 (client SDK)' {
             $spec | Should -Match ('(?s)- \[x\] \*\*' + $id + '\*\*(?:(?!- \[[x ]\] \*\*P11-T).)*?\*\*As built \(11a\):\*\*') -Because "$id carries its as-built note"
         }
         $spec | Should -Match '(?m)^- \[ \] \*\*P11-T05\*\*.*\(deferred, D-047\)'
-        foreach ($id in 'P11-T11', 'P11-T12', 'P11-T13', 'P11-T14', 'P11-T15', 'P11-T16') {
+        foreach ($id in 'P11-T16') {
             $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not delivered by 11a"
         }
     }
@@ -612,7 +612,7 @@ Describe 'D-047 (client SDK)' {
             $text = Get-RepoText $file
             $text | Should -Match '(?m)^\| 10 \|.*\| 10a merged \(PR #18\); 10b merged \(PR #19\); PHASE-10 complete: the owner'
             $text | Should -Not -Match '10b complete \(pending merge\)'
-            $text | Should -Match '(?m)^\| 11 \|.*11a merged \(PR #20\); 11b complete \(pending merge\): T07, T08, T09; 11c \(READMEs, samples, publish workflow, nuget\.org, rc\.1; T11 to T16\) not started'
+            $text | Should -Match '(?m)^\| 11 \|.*11a merged \(PR #20\); 11b merged \(PR #21\); 11c complete \(pending merge\): T11 to T15, T16 pending the rc\.1 tag'
             $text | Should -Match 'T05 \(attachments\) deferred to 11d, which first needs multipart intake'
         }
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11-T05 \|.*\(deferred, D-047\)'
@@ -632,7 +632,7 @@ Describe 'D-047 (client SDK)' {
 
     It 'documents the SDK for maintainers' {
         $doc = Get-RepoText 'docs/development/CLIENT-SDK.md'
-        foreach ($heading in 'Packages', 'Local pack', 'Configuration', 'Retry and idempotency', 'Error codes', 'Key safety', 'Tests', 'Known limits') {
+        foreach ($heading in 'Packages', 'Local pack', 'Configuration', 'Retry and idempotency', 'Error codes', 'Key safety', 'Running the sample', 'Tests', 'Known limits') {
             $doc | Should -Match ('(?m)^## ' + [regex]::Escape($heading)) -Because "CLIENT-SDK.md needs a $heading section"
         }
         foreach ($phrase in 'Test-PackageContents.ps1', 'AddTechStrapClient', 'Replayable', 'NotReplayable', 'TechStrapClientErrorCodes', 'Integration', 'one new ticket') {
@@ -667,7 +667,7 @@ Describe 'D-048 (MAUI helper)' {
             $spec | Should -Match ('(?s)- \[x\] \*\*' + $id + '\*\*(?:(?!- \[[x ]\] \*\*P11-T).)*?\*\*As built \(11b\):\*\*') -Because "$id carries its as-built note"
         }
         $spec | Should -Match '(?m)^- \[ \] \*\*P11-T05\*\*.*\(deferred, D-047\)'
-        foreach ($id in 'P11-T11', 'P11-T12', 'P11-T13', 'P11-T14', 'P11-T15', 'P11-T16') {
+        foreach ($id in 'P11-T16') {
             $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not delivered by 11b"
         }
     }
@@ -689,6 +689,75 @@ Describe 'D-048 (MAUI helper)' {
         $doc | Should -Match '(?m)^## TechStrap\.Client\.Maui'
         foreach ($phrase in 'AddTechStrapMaui', 'MauiTicketDraft', 'TicketMetadataKeys', 'metadata-invalid', 'UseMaui') {
             $doc | Should -Match ([regex]::Escape($phrase)) -Because "CLIENT-SDK.md must mention $phrase"
+        }
+    }
+}
+
+Describe 'D-049 (publishing)' {
+    BeforeAll { $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md' }
+
+    It 'is in the decision log with its date, its status, a header bullet and an index row' {
+        $script:Log | Should -Match '(?m)^## D-049: PHASE-11c: publishing'
+        $script:Log | Should -Match '(?s)## D-049:.*?- \*\*Status:\*\* Approved \(owner 2026-10-08.*?- \*\*Date:\*\* 2026-10-08'
+        $script:Log | Should -Match '(?m)^\| D-049 \|.*publish-nuget\.yml.*\| 2026-10-08 \|'
+        $script:Log | Should -Match '(?m)^- \*\*Owner decision \(2026-10-08, PHASE-11c planning\):\*\* D-049'
+    }
+
+    It 'records the owner decisions, the technical rulings, the alternatives and the known limits' {
+        $section = ($script:Log -split '(?m)^## D-049:')[1]
+        foreach ($phrase in 'publish-nuget.yml', 'Trusted Publishing', 'GenerateDocumentationFile', 'TechStrapJsonContext',
+                'samples/TechStrap.Client.Samples.Console', 'RELEASING.md', 'Owner decisions (2026-10-08)', 'Technical rulings',
+                'Alternatives Considered', '**Known limits**', 'NUGET_USER') {
+            $section | Should -Match ([regex]::Escape($phrase)) -Because "D-049 must mention $phrase"
+        }
+    }
+
+    It 'corrects the PHASE-11 spec, ticks T11 to T15 with as-built notes and leaves T16 open' {
+        $spec = Get-RepoText 'docs/architecture/PHASE-11-client-sdk.md'
+        $spec | Should -Match '(?m)^### Corrections \(D-049, 2026-10-08\)'
+        $spec | Should -Match 'Where this page and D-049 differ, D-049 wins\.'
+        foreach ($id in 'P11-T11', 'P11-T12', 'P11-T13', 'P11-T14', 'P11-T15') {
+            $spec | Should -Match ('(?s)- \[x\] \*\*' + $id + '\*\*(?:(?!- \[[x ]\] \*\*P11-T).)*?\*\*As built \(11c\):\*\*') -Because "$id carries its as-built note"
+        }
+        $spec | Should -Match '(?m)^- \[ \] \*\*P11-T16\*\*'
+    }
+
+    It 'says in the roadmap and discovery rows that 11c is complete pending merge and T16 waits for the rc.1 tag' {
+        foreach ($file in 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md', 'docs/architecture/00-DISCOVERY-INDEX.md') {
+            (Get-RepoText $file) | Should -Match '(?m)^\| 11 \|.*11c complete \(pending merge\): T11 to T15, T16 pending the rc\.1 tag; T05 \(attachments\) deferred to 11d'
+        }
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 9 \|.*Done 2026-10-08'
+    }
+
+    It 'maps the SDK packaging in the package map and names the sample in the architecture' {
+        $map = Get-RepoText 'docs/architecture/03-PACKAGE-MAP.md'
+        $map | Should -Match '(?m)^\| `Microsoft\.Extensions\.Hosting` \|'
+        $map | Should -Match 'hosts only; packages take their version from the release tag \(D-049\)'
+        $map | Should -Match 'not referenced: SourceLink is bundled in the SDK \(D-049\)'
+        (Get-RepoText 'docs/architecture/02-ARCHITECTURE.md') | Should -Match ([regex]::Escape('samples/TechStrap.Client.Samples.Console'))
+    }
+
+    It 'names the three packages in the root README and links the SDK README and the release guide' {
+        $readme = Get-RepoText 'README.md'
+        foreach ($id in 'TechStrap.Contracts', 'TechStrap.Client', 'TechStrap.Client.Maui') {
+            $readme | Should -Match ([regex]::Escape($id)) -Because "README names $id"
+        }
+        $readme | Should -Match ([regex]::Escape('(src/TechStrap.Client/README.md)'))
+        $readme | Should -Match ([regex]::Escape('(docs/development/RELEASING.md)'))
+    }
+
+    It 'has no stale 11c deferral in the SDK guide and explains the dry run and the package version' {
+        (Get-RepoText 'docs/development/CLIENT-SDK.md') | Should -Not -Match '(?i)until 11c|arrives in 11c|in 11c\b'
+        $doc = Get-RepoText 'docs/development/RELEASING.md'
+        $doc | Should -Match 'only be dispatched once it is on `main`'
+        $doc | Should -Match 'assembly versions carry the tag too|stamps the assembly versions'
+        $doc | Should -Match 'organization secret'
+        $doc | Should -Match 'Selected branches and tags'
+    }
+
+    It 'scopes the Contracts SemVer promise to the SDK-facing surface in the README, the decision and the SDK guide' {
+        foreach ($file in 'src/TechStrap.Contracts/README.md', 'docs/architecture/04-DECISION-LOG.md', 'docs/development/CLIENT-SDK.md') {
+            (Get-RepoText $file) | Should -Match 'SDK-facing surface' -Because "$file scopes the stability promise"
         }
     }
 }

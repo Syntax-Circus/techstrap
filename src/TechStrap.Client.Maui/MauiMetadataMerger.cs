@@ -1,13 +1,12 @@
 using System.Text.Json;
 using SyntaxCircus.Common;
+using TechStrap.Client.Json;
 using TechStrap.Contracts.Intake;
 
 namespace TechStrap.Client.Maui;
 
 internal static class MauiMetadataMerger
 {
-    private static readonly JsonSerializerOptions SizeOptions = new(JsonSerializerDefaults.Web);
-
     public static Result<IReadOnlyDictionary<string, string>> Merge(IReadOnlyDictionary<string, string> collected, IReadOnlyDictionary<string, string>? app)
     {
         var merged = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -38,7 +37,7 @@ internal static class MauiMetadataMerger
             }
         }
 
-        if (merged.Count > IntakeLimits.MaxMetadataKeys || JsonSerializer.Serialize(merged, SizeOptions).Length > IntakeLimits.MaxMetadataJsonLength)
+        if (merged.Count > IntakeLimits.MaxMetadataKeys || JsonSerializer.Serialize(merged, TechStrapJsonContext.Default.DictionaryStringString).Length > IntakeLimits.MaxMetadataJsonLength)
         {
             return Invalid();
         }
