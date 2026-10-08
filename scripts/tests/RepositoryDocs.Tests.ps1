@@ -890,3 +890,35 @@ Describe 'D-051 (release hardening)' {
         (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 12 \|.*12a'
     }
 }
+
+Describe 'Security review (PHASE-12a)' {
+    BeforeAll { $script:Review = Get-RepoText 'docs/security/SECURITY-REVIEW.md' }
+
+    It 'has the method, the severity scale, the finding template and a Release 0.3.0 section' {
+        foreach ($heading in 'Purpose and method', 'Severity scale', 'Finding template', 'Release 0.3.0', 'Findings') {
+            $script:Review | Should -Match ('(?m)^## ' + [regex]::Escape($heading) + '\s*$') -Because "the review needs a $heading section"
+        }
+        foreach ($level in 'Critical', 'High', 'Medium', 'Low', 'Info') { $script:Review | Should -Match ('(?m)^- \*\*' + $level + '\*\*') }
+    }
+
+    It 'has the six path-group checklists' {
+        foreach ($group in '1\. Customer access tokens', '2\. API keys', '3\. Uploads', '4\. Sanitiser and rendering', '5\. Authorization and headers', '6\. Privacy and operations') {
+            $script:Review | Should -Match ('(?m)^### ' + $group + '\s*$')
+        }
+    }
+
+    It 'gives every SR finding a path group, a severity, a status and evidence' {
+        $findings = [regex]::Matches($script:Review, '(?ms)^### (SR-\d\d): .*?(?=^### |^## |\z)')
+        $findings.Count | Should -BeGreaterOrEqual 16
+        foreach ($finding in $findings) {
+            $finding.Value | Should -Match '(?m)^- Path group: .+$' -Because $finding.Groups[1].Value
+            $finding.Value | Should -Match '(?m)^- Severity: (Critical|High|Medium|Low|Info)\s*$' -Because $finding.Groups[1].Value
+            $finding.Value | Should -Match '(?m)^- Status: (Open|Fixed|Accepted)\s*$' -Because $finding.Groups[1].Value
+            $finding.Value | Should -Match '(?m)^- Evidence: .+$' -Because $finding.Groups[1].Value
+        }
+    }
+
+    It 'has no TODO anywhere' { $script:Review | Should -Not -Match 'TODO' }
+
+    It 'is ASCII only' { ([regex]::IsMatch($script:Review, '[^\x00-\x7F]')) | Should -BeFalse }
+}
