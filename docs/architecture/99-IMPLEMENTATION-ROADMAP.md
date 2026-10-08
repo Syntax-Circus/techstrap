@@ -423,7 +423,7 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 | 12 | Confirm the flagged Assumptions that need an owner answer (for example honeypot fake success, dropping a Public key's external user ref, Solved notice email) | PHASE-05, PHASE-06 |
 | 13 | Review the discovery set and select the first phase (expected: PHASE-01) | Now |
 | 14 | For each product host (D-050): add a DNS record and one Caddy site that proxies to the Portal, then set the host on the product in the Admin. UAT needs DNS and one Caddy site per product host (`docs/self-hosting/DEPLOYMENT.md`, "Product hosts") | P12-T14 |
-| 15 | Tag v0.2.0 after the D-050 limits PR merges (`publish-nuget.yml`) and paste the Contracts README `## Version notes` entry into the GitHub Release: the owner decision is to publish 0.2.0 with the binary and behavioural break named (D-050 amendment). Concretely: tag v0.2.0 after this PR merges | D-050 |
+| 15 | Tag v0.2.0 after this PR merges (`publish-nuget.yml`) and paste the Contracts README `## Version notes` entry into the GitHub Release: the owner decision is to publish 0.2.0 with the binary and behavioural break named (D-050 amendment) | D-050 |
 | 16 | Bump SyntaxCircus.Blazor.Seo to 0.1.5 once published (the Portal works on 0.1.4: the last registration wins; 0.1.5 changes its registration to `TryAddScoped`) | D-050 |
 
 ## 8. Decisions still open
