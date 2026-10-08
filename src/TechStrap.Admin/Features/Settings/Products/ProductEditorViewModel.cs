@@ -64,12 +64,15 @@ internal sealed partial class ProductEditorViewModel
 
     public CreateProductRequest ToCreateRequest() => new(Key.Trim(), Name.Trim(), NumberPrefix.Trim(), ToBranding(), NormalisedHost());
 
-    public UpdateProductRequest ToUpdateRequest() => new(Name.Trim(), ToBranding(), IsActive, Version, NormalisedHost());
+    public UpdateProductRequest ToUpdateRequest() => new(Name.Trim(), ToBranding(), IsActive, Version, NormalisedHostForUpdate());
 
     private ProductBrandingRequest ToBranding() =>
         new(DisplayName.Trim(), Blank(LogoPath), Blank(AccentColour), Blank(FromAddress), Blank(ReplyTo));
 
-    // Blank (or an invalid value, which Check has already refused) goes as null; a valid host goes trimmed and lower-case.
+    // Update: null would mean "unchanged" to the Api, so a blanked field is sent as "" (the explicit clear); a valid host goes trimmed and lower-case.
+    private string NormalisedHostForUpdate() => string.IsNullOrWhiteSpace(PortalHost) ? string.Empty : NormalisedHost() ?? string.Empty;
+
+    // Create form: blank (or an invalid value, which Check has already refused) goes as null; a valid host goes trimmed and lower-case.
     private string? NormalisedHost() => ProductHostRules.TryNormalize(PortalHost, out var host) ? host : null;
 
     private bool LogoUnchanged => OriginalLogoPath.Length > 0 && string.Equals(LogoPath.Trim(), OriginalLogoPath, StringComparison.Ordinal);

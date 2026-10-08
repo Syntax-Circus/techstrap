@@ -27,7 +27,7 @@ public interface IProductsClient
 
     /// <summary>
     /// <c>PUT /api/products/{id}</c> (Admin): sends <see cref="UpdateProductRequest.Version"/> and <see cref="UpdateProductRequest.IsActive"/>, which is not nullable, so a
-    /// caller always passes the current value (an absent flag would deactivate the product). 409 concurrency-conflict when the version is stale. Returns the re-read product.
+    /// caller always passes the current value (an absent flag would deactivate the product). <see cref="UpdateProductRequest.PortalHost"/> null leaves the host unchanged; send an empty string to clear it. 409 concurrency-conflict when the version is stale. Returns the re-read product.
     /// </summary>
     Task<Result<ProductDto>> UpdateAsync(Guid id, UpdateProductRequest request, CancellationToken cancellationToken);
 

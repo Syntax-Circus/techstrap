@@ -92,16 +92,58 @@ public sealed class UpdateProductRequestHandlerTests
     }
 
     [Fact]
-    public async Task A_null_portal_host_clears_it()
+    public async Task A_null_portal_host_leaves_the_stored_host_unchanged()
+    {
+        var stored = StoreWithHost("support.dragonpoop.com");
+
+        var result = await Handler().HandleAsync(stored.Id, new UpdateProductRequest("Orbitly Cloud", SameBranding, true, 7, null), TestContext.Current.CancellationToken);
+
+        result.Value.PortalHost.ShouldBe("support.dragonpoop.com");
+        stored.PortalHost.ShouldBe("support.dragonpoop.com");
+        _products.Received(1).Update(stored);
+        _events.Received(1).Add(Arg.Is<AdminEvent>(e => e.PayloadJson == "{\"changed\":[\"name\"]}"));
+        await _products.DidNotReceive().IsPortalHostTakenAsync(Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("  ")]
+    [InlineData("\t")]
+    public async Task A_blank_portal_host_clears_it(string blank)
     {
         var stored = StoreWithHost("support.example.com");
 
-        var result = await Handler().HandleAsync(stored.Id, new UpdateProductRequest("Orbitly", SameBranding, true, 7, null), TestContext.Current.CancellationToken);
+        var result = await Handler().HandleAsync(stored.Id, new UpdateProductRequest("Orbitly", SameBranding, true, 7, blank), TestContext.Current.CancellationToken);
 
         result.Value.PortalHost.ShouldBeNull();
         stored.PortalHost.ShouldBeNull();
         _products.Received(1).Update(stored);
+        _events.Received(1).Add(Arg.Is<AdminEvent>(e => e.PayloadJson == "{\"changed\":[\"portalHost\"]}"));
         await _products.DidNotReceive().IsPortalHostTakenAsync(Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_null_portal_host_skips_the_reserved_and_taken_checks()
+    {
+        // The stored host is the portal's own host (reserved) and the repository says every host is taken: a null host must not trip either.
+        var stored = StoreWithHost("help.test");
+        _products.IsPortalHostTakenAsync(Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(true);
+
+        var result = await Handler().HandleAsync(stored.Id, new UpdateProductRequest("Orbitly", SameBranding, true, 7, null), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.PortalHost.ShouldBe("help.test");
+        await _products.DidNotReceive().IsPortalHostTakenAsync(Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Clearing_an_absent_host_reports_no_portalHost_change()
+    {
+        var result = await Handler().HandleAsync(_product.Id, new UpdateProductRequest("Orbitly Cloud", SameBranding, true, 7, ""), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.PortalHost.ShouldBeNull();
+        _events.Received(1).Add(Arg.Is<AdminEvent>(e => e.PayloadJson == "{\"changed\":[\"name\"]}"));
     }
 
     [Fact]

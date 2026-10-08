@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using TechStrap.Api.Tests.Auth;
 using TechStrap.Contracts.Products;
@@ -87,26 +88,76 @@ public sealed class ProductPortalHostEndpointTests(TestPostgres postgres)
         (await second.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldContain("product-host-taken");
     }
 
+    // Raw JSON bodies: the typed record always writes portalHost, so only a hand-written body can omit the property.
+    private static Task<HttpResponseMessage> PutRawAsync(HttpClient admin, ProductDto product, string portalHostJson)
+    {
+        var json = $$"""{"name":"Orbitly Cloud","branding":{"displayName":"Orbitly","accentColour":"#7c3aed"},"isActive":true,"version":{{product.Version}}{{portalHostJson}}}""";
+        return admin.PutAsync($"/api/products/{product.Id}", new StringContent(json, Encoding.UTF8, "application/json"), TestContext.Current.CancellationToken);
+    }
+
+    private static async Task<ProductDto> CreateWithHostAsync(HttpClient admin)
+    {
+        using var created = await PostAsync(admin, "orbitly", "ORB", "support.example.com");
+        return (await created.Content.ReadFromJsonAsync<ProductDto>(TestContext.Current.CancellationToken))!;
+    }
+
+    private static async Task<ProductDto> GetAsync(HttpClient admin, Guid id) =>
+        (await admin.GetFromJsonAsync<ProductDto>($"/api/products/{id}", TestContext.Current.CancellationToken))!;
+
     [Fact]
-    public async Task Update_keeps_the_own_host_without_conflict_and_null_clears_it()
+    public async Task Update_keeps_the_own_host_without_conflict()
     {
         var (factory, _, admin) = await StartAsync();
         await using var _ = factory;
         using var __ = admin;
-        using var created = await PostAsync(admin, "orbitly", "ORB", "support.example.com");
-        var product = (await created.Content.ReadFromJsonAsync<ProductDto>(TestContext.Current.CancellationToken))!;
+        var product = await CreateWithHostAsync(admin);
 
-        using var same = await admin.PutAsJsonAsync(
-            $"/api/products/{product.Id}", new UpdateProductRequest("Orbitly Cloud", Branding, true, product.Version, "Support.Example.com"), TestContext.Current.CancellationToken);
-        var renamed = (await same.Content.ReadFromJsonAsync<ProductDto>(TestContext.Current.CancellationToken))!;
-        using var cleared = await admin.PutAsJsonAsync(
-            $"/api/products/{product.Id}", new UpdateProductRequest("Orbitly Cloud", Branding, true, renamed.Version, null), TestContext.Current.CancellationToken);
-        var after = (await cleared.Content.ReadFromJsonAsync<ProductDto>(TestContext.Current.CancellationToken))!;
+        using var same = await PutRawAsync(admin, product, ",\"portalHost\":\"Support.Example.com\"");
 
         same.StatusCode.ShouldBe(HttpStatusCode.OK);
-        renamed.PortalHost.ShouldBe("support.example.com");
-        cleared.StatusCode.ShouldBe(HttpStatusCode.OK);
-        after.PortalHost.ShouldBeNull();
+        (await GetAsync(admin, product.Id)).PortalHost.ShouldBe("support.example.com");
+    }
+
+    [Fact]
+    public async Task Update_with_a_null_portal_host_keeps_the_host()
+    {
+        var (factory, _, admin) = await StartAsync();
+        await using var _ = factory;
+        using var __ = admin;
+        var product = await CreateWithHostAsync(admin);
+
+        using var response = await PutRawAsync(admin, product, ",\"portalHost\":null");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await GetAsync(admin, product.Id)).PortalHost.ShouldBe("support.example.com");
+    }
+
+    [Fact]
+    public async Task Update_without_the_portal_host_property_keeps_the_host()
+    {
+        var (factory, _, admin) = await StartAsync();
+        await using var _ = factory;
+        using var __ = admin;
+        var product = await CreateWithHostAsync(admin);
+
+        using var response = await PutRawAsync(admin, product, "");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await GetAsync(admin, product.Id)).PortalHost.ShouldBe("support.example.com");
+    }
+
+    [Fact]
+    public async Task Update_with_an_empty_portal_host_clears_it()
+    {
+        var (factory, _, admin) = await StartAsync();
+        await using var _ = factory;
+        using var __ = admin;
+        var product = await CreateWithHostAsync(admin);
+
+        using var response = await PutRawAsync(admin, product, ",\"portalHost\":\"\"");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await GetAsync(admin, product.Id)).PortalHost.ShouldBeNull();
     }
 
     [Fact]

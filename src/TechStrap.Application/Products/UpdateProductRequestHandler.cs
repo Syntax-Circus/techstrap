@@ -58,20 +58,32 @@ public sealed class UpdateProductRequestHandler(
             return Result<ProductDto>.Failure(ProductErrors.Stale());
         }
 
-        // The shape is checked before the repository is asked; the product's own host is excluded from the uniqueness check.
-        if (!HostNameShape.TryNormalize(request.PortalHost, out var host))
+        // null = the caller did not send the field (a pre-11e client): leave the host alone, run no host check.
+        // For a supplied value the shape is checked before the repository is asked; the product's own host is excluded from the uniqueness check.
+        var host = product.PortalHost;
+        if (request.PortalHost is not null)
         {
-            return Result<ProductDto>.Failure(ProductErrors.HostInvalid());
-        }
+            if (string.IsNullOrWhiteSpace(request.PortalHost))
+            {
+                host = null; // explicit clear: no TryNormalize
+            }
+            else
+            {
+                if (!HostNameShape.TryNormalize(request.PortalHost, out host))
+                {
+                    return Result<ProductDto>.Failure(ProductErrors.HostInvalid());
+                }
 
-        if (portal.Value.IsDefaultHost(host))
-        {
-            return Result<ProductDto>.Failure(ProductErrors.HostReserved());
-        }
+                if (portal.Value.IsDefaultHost(host))
+                {
+                    return Result<ProductDto>.Failure(ProductErrors.HostReserved());
+                }
 
-        if (host is not null && await products.IsPortalHostTakenAsync(host, product.Id, cancellationToken))
-        {
-            return Result<ProductDto>.Failure(ProductErrors.HostTaken());
+                if (host is not null && await products.IsPortalHostTakenAsync(host, product.Id, cancellationToken))
+                {
+                    return Result<ProductDto>.Failure(ProductErrors.HostTaken());
+                }
+            }
         }
 
         var changed = new List<string>();
@@ -101,7 +113,10 @@ public sealed class UpdateProductRequestHandler(
             return Result<ProductDto>.Failure(updated.Error!.ToError());
         }
 
-        product.SetPortalHost(host);
+        if (request.PortalHost is not null)
+        {
+            product.SetPortalHost(host);
+        }
 
         if (changed.Count == 0)
         {
