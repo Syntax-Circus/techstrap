@@ -134,7 +134,7 @@ The API key travels in the `X-Api-Key` header only. It is never in a URL, a log,
 - Handlers a host adds to every client with `ConfigureHttpClientDefaults` (the Aspire ServiceDefaults template adds a standard resilience handler) are removed from the SDK's
   client. Such a handler would sit outside `ApiKeyHandler`, retry a call that has no `Idempotency-Key` (and a 500 or 429 the SDK does not retry) and could see the key header.
   `AddTechStrapClient` drops every handler that comes before `ApiKeyHandler` in the named client's chain. To add a handler of your own, register it on the named client after
-  `AddTechStrapClient`: `services.AddHttpClient(TechStrapClientDefaults.HttpClientName).AddHttpMessageHandler(...)`. Handlers registered there afterwards are kept.
+  `AddTechStrapClient`: `services.AddHttpClient(TechStrapClientDefaults.HttpClientName).AddHttpMessageHandler(...)`. Handlers registered there afterwards are kept. A handler registered on the named client before `AddTechStrapClient`, or added by an `IHttpMessageHandlerBuilderFilter` or service discovery, is removed too: register yours after.
 - Use a Trusted key only from server-side code. A Public key is extractable from an app by design; the server marks its metadata untrusted and ignores `ExternalUserRef`.
 - The wire literals (`"X-Api-Key"`, `"X-Ticket-Token"`, `"Idempotency-Key"`, `"api/intake/tickets"` and the leading-slash `"/api/intake/tickets"`) exist in `src/` only in `HeaderNames.cs` and `IntakeRoutes.cs` (and the Sentry
   header scrubber); the architecture tests (`WireLiteralRules`) fail otherwise.
