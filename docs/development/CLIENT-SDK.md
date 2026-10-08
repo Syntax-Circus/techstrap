@@ -38,8 +38,10 @@ pwsh -File scripts/Test-PackageContents.ps1 -PackageDirectory ./pack -Expected @
 }
 ```
 
+Each package carries its XML documentation file (`lib/net10.0/<id>.xml`), so the doc comments show up in IntelliSense; `Test-PackageContents.ps1` fails when it is missing.
+
 `Test-PackageContents.ps1` fails (exit 1, one line per defect, as `id: defect`) when a package is missing, when `README.md` is not at the package root and named in the
-nuspec, when the license is not the MIT expression, when the repository URL is missing, when the dependency ids differ from the expected set, or when the `.snupkg`
+nuspec, when the license is not the MIT expression, when the repository URL is missing, when the dependency ids differ from the expected set, or when the `.snupkg` or the XML documentation file
 is missing. CI runs the same three packs with `-p:Version=0.0.0-ci` after the tests (the "Pack dry run" step of `ci.yml`). Keep the `./pack` folder out of git.
 
 ## Configuration
@@ -168,7 +170,7 @@ Docker is required for any run of this project today: the linked `TestPostgres` 
 - One circuit per DI container (per `TechStrapClient` singleton): a failing API opens it for every caller that shares that client.
 - `net10.0` only; multi-targeting is a post-1.0 question.
 - No attachments (P11-T05): deferred to 11d, which first needs multipart intake.
-- GitVersion, the documentation file and a SourceLink package are deferred to 11c, so a local pack needs `-p:Version=`.
+- GitVersion and a SourceLink package are deferred to 11c, so a local pack needs `-p:Version=`.
 - An idempotency key older than the server's retention window (24 hours) no longer protects a retry: replaying it creates one new ticket.
 - Docker is needed for every run of `TechStrap.Client.Tests`, not only the Docker-tagged classes (the eagerly started assembly fixture). A lazily started fixture used by the Docker-tagged classes only is a follow-up.
 - Interface additions before 1.0 are breaking for implementers of `ITechStrapClient` (fakes in consumers' tests); there are no default interface methods.

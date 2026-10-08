@@ -11,7 +11,8 @@ BeforeAll {
             [bool]$ReadmeMetadata = $true,
             [string]$License = '<license type="expression">MIT</license>',
             [string]$Repository = '<repository type="git" url="https://github.com/Syntax-Circus/techstrap.git" />',
-            [bool]$Symbols = $true
+            [bool]$Symbols = $true,
+            [bool]$Xml = $true
         )
 
         Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -41,6 +42,12 @@ BeforeAll {
                 $entry = $zip.CreateEntry('README.md')
                 $writer = New-Object System.IO.StreamWriter($entry.Open())
                 $writer.Write('# readme')
+                $writer.Dispose()
+            }
+            if ($Xml) {
+                $entry = $zip.CreateEntry("lib/net10.0/$Id.xml")
+                $writer = New-Object System.IO.StreamWriter($entry.Open())
+                $writer.Write('<doc><members /></doc>')
                 $writer.Dispose()
             }
         }
@@ -138,6 +145,13 @@ Describe 'Test-PackageContents.ps1' {
         $result = Invoke-Check -Directory $script:Dir
         $result.ExitCode | Should -Be 1
         $result.Output | Should -Match 'Fake\.Contracts: .*snupkg'
+    }
+
+    It 'fails when the XML documentation file is missing' {
+        New-GoodSet -Directory $script:Dir -ClientOverrides @{ Xml = $false }
+        $result = Invoke-Check -Directory $script:Dir
+        $result.ExitCode | Should -Be 1
+        $result.Output | Should -Match 'Fake\.Client: the XML documentation file lib/net10\.0/Fake\.Client\.xml is missing\.'
     }
 
     It 'fails when an expected package is not in the directory' {

@@ -3,8 +3,11 @@ namespace TechStrap.Contracts.Kb;
 /// <summary>Wire names for the KB article status. Contracts carries no enums (naming rule); handlers parse these, case-insensitive.</summary>
 public static class KbArticleStatuses
 {
+    /// <summary>Being written; not visible to customers.</summary>
     public const string Draft = "Draft";
+    /// <summary>Visible to customers on the public knowledge base.</summary>
     public const string Published = "Published";
+    /// <summary>Retired; no longer visible to customers.</summary>
     public const string Archived = "Archived";
 }
 
@@ -29,8 +32,10 @@ public static class KbLimits
     /// </summary>
     public const int MaxRenderedElements = 5_000;
 
+    /// <summary>The number of public search hits returned when the caller names no page size (10).</summary>
     public const int DefaultPublicSearchPageSize = 10;
 
+    /// <summary>The largest page size the public search accepts (25).</summary>
     public const int MaxPublicSearchPageSize = 25;
 
     /// <summary>The category slug the portal reserves for its KB search page; no category may use it.</summary>
