@@ -182,6 +182,21 @@ public sealed class PublicIntakeEndpointTests(TestPostgres postgres) : IAsyncLif
                     {
                         failures.Add($"{upload.Id}: expected one new ticket and one new file, tickets {tickets}->{ticketsNow}, files {files}->{filesNow}");
                     }
+                    else
+                    {
+                        // Attachment ids are time-ordered, so the newest row is the file this request stored.
+                        var storedName = await database.ScalarAsync<string>("SELECT file_name FROM attachments ORDER BY id DESC LIMIT 1");
+                        var storedType = await database.ScalarAsync<string>("SELECT content_type FROM attachments ORDER BY id DESC LIMIT 1");
+                        if (!upload.Attachment.NameMatches(storedName))
+                        {
+                            failures.Add($"{upload.Id}: stored as '{storedName}', which does not match the manifest");
+                        }
+
+                        if (upload.Attachment.ContentType is not null && storedType != upload.Attachment.ContentType)
+                        {
+                            failures.Add($"{upload.Id}: stored with content type '{storedType}', expected '{upload.Attachment.ContentType}'");
+                        }
+                    }
                 }
                 else if (response.StatusCode != HttpStatusCode.BadRequest || !body.Contains(upload.Attachment.ErrorCode!, StringComparison.Ordinal))
                 {

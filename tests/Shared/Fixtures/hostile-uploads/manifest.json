@@ -70,5 +70,23 @@
     "content": "content/hello.txt",
     "attachment": { "stored": true, "storedName": "ab.txt" },
     "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" }
+  },
+  {
+    "id": "exe-with-png-bytes", "fileName": "tool.exe", "declaredContentType": "image/png",
+    "content": "content/pixel.png",
+    "attachment": { "stored": false, "errorCode": "attachment-type-not-allowed" },
+    "kbImage": { "stored": true }
+  },
+  {
+    "id": "bat-with-text", "fileName": "run.bat", "declaredContentType": "text/plain",
+    "content": "content/hello.txt",
+    "attachment": { "stored": false, "errorCode": "attachment-type-not-allowed" },
+    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" }
+  },
+  {
+    "id": "pdf-bytes-named-exe", "fileName": "invoice.exe", "declaredContentType": "application/pdf",
+    "content": "content/minimal.pdf",
+    "attachment": { "stored": false, "errorCode": "attachment-type-not-allowed" },
+    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" }
   }
 ]
