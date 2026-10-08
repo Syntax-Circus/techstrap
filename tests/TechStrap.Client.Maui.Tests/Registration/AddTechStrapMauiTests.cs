@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Devices;
+using Microsoft.Maui.Networking;
 using NSubstitute;
 using TechStrap.Client.Maui.Tests.Infrastructure;
 
@@ -66,6 +68,15 @@ public sealed class AddTechStrapMauiTests
     {
         var services = new ServiceCollection();
         services.AddTechStrapMaui(ConfigureClient);
+
+        // Each default is a factory: registering never captured a static instance.
+        foreach (var type in new[] { typeof(IAppInfo), typeof(IDeviceInfo), typeof(IConnectivity), typeof(IDeviceDisplay), typeof(IBattery) })
+        {
+            var descriptor = services.Single(d => d.ServiceType == type);
+            descriptor.ImplementationInstance.ShouldBeNull();
+            descriptor.ImplementationFactory.ShouldNotBeNull();
+        }
+
         using var provider = services.BuildServiceProvider();
 
         // Resolving the collector builds it from the static defaults without reading a value.
