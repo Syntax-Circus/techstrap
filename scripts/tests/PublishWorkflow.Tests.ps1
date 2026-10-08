@@ -75,7 +75,7 @@ Describe 'publish-nuget.yml' {
 
     It 'publish: runs only for a tag, after pack, in the release environment with OIDC and release permissions' {
         $script:Publish | Should -Match 'needs: pack'
-        $script:Publish | Should -Match "if: github\.ref_type == 'tag'"
+        $script:Publish | Should -Match "if: github\.ref_type == 'tag' && github\.event_name == 'push'"
         $script:Publish | Should -Match 'environment: release'
         $script:Publish | Should -Match '(?ms)permissions:\s*\r?\n\s+contents: write\s*\r?\n\s+id-token: write'
         $script:Publish | Should -Match 'actions/download-artifact@'

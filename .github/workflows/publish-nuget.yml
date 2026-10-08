@@ -77,7 +77,7 @@ jobs:
   publish:
     name: Publish to nuget.org and create the GitHub Release
     needs: pack
-    if: github.ref_type == 'tag'
+    if: github.ref_type == 'tag' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: release
     permissions:
