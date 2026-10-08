@@ -632,7 +632,7 @@ Describe 'D-047 (client SDK)' {
 
     It 'documents the SDK for maintainers' {
         $doc = Get-RepoText 'docs/development/CLIENT-SDK.md'
-        foreach ($heading in 'Packages', 'Local pack', 'Configuration', 'Retry and idempotency', 'Error codes', 'Key safety', 'Tests', 'Known limits') {
+        foreach ($heading in 'Packages', 'Local pack', 'Configuration', 'Retry and idempotency', 'Error codes', 'Key safety', 'Running the sample', 'Tests', 'Known limits') {
             $doc | Should -Match ('(?m)^## ' + [regex]::Escape($heading)) -Because "CLIENT-SDK.md needs a $heading section"
         }
         foreach ($phrase in 'Test-PackageContents.ps1', 'AddTechStrapClient', 'Replayable', 'NotReplayable', 'TechStrapClientErrorCodes', 'Integration', 'one new ticket') {

@@ -143,6 +143,28 @@ The API key travels in the `X-Api-Key` header only. It is never in a URL, a log,
 - The wire literals (`"X-Api-Key"`, `"X-Ticket-Token"`, `"Idempotency-Key"`, `"api/intake/tickets"` and the leading-slash `"/api/intake/tickets"`) exist in `src/` only in `HeaderNames.cs` and `IntakeRoutes.cs` (and the Sentry
   header scrubber); the architecture tests (`WireLiteralRules`) fail otherwise.
 
+## Running the sample
+
+`samples/TechStrap.Client.Samples.Console` is the SDK-based counterpart of `scripts/Send-TestTicket.ps1` (which does the same over raw HTTP). It submits one ticket through `ITechStrapClient` and prints the ticket number and view URL. Its three code blocks are the ones in the `TechStrap.Client` README, and a Pester test keeps them identical (`scripts/tests/ReadmeSnippets.Tests.ps1`).
+
+1. Start the local stack with the development seed data: `TECHSTRAP_SEED_DEV_DATA=true docker compose up -d` (the API listens on `http://localhost:8080`).
+2. Take a development Trusted key from the "Dev API keys" table in [DEV-DATA.md](DEV-DATA.md). It is a fake key that works only against a seeded development database; the sample never embeds a key.
+3. Run it:
+
+```
+dotnet run --project samples/TechStrap.Client.Samples.Console -- --base-address http://localhost:8080 --api-key <key>
+```
+
+The address and key can also come from `appsettings.json` (section `TechStrap`) or from the environment variables `TECHSTRAP__BASEADDRESS` and `TECHSTRAP__APIKEY`; the switches win.
+
+| Exit code | Meaning |
+| --- | --- |
+| `0` | The ticket was created; the output is `Ticket <number>` and `View: <url>`. |
+| `1` | The SDK reported a failure; each error is printed as `<code>: <message>` (for example `invalid-api-key: ...`). |
+| `2` | The configuration is missing or invalid (`OptionsValidationException`); the failures are printed. |
+
+Anything else is a bug and crashes the process visibly.
+
 ## Tests
 
 `tests/TechStrap.Client.Tests` has two kinds of test.

@@ -11,6 +11,9 @@
     <File Path="global.json" />
     <File Path="README.md" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/TechStrap.Client.Samples.Console/TechStrap.Client.Samples.Console.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/TechStrap.Admin/TechStrap.Admin.csproj" />
     <Project Path="src/TechStrap.Api/TechStrap.Api.csproj" />
