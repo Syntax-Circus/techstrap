@@ -112,7 +112,7 @@ public sealed class CreateProductRequestHandlerTests
         result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
             error => error.Kind.ShouldBe(ResultErrorKind.Validation),
             error => error.Code.ShouldBe("product-host-invalid"),
-            error => error.Target.ShouldBe("portalHost"));
+            error => error.Target.ShouldBe("portal-host"));
         await _products.DidNotReceive().IsPortalHostTakenAsync(Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
         _products.DidNotReceive().Add(Arg.Any<Product>());
     }

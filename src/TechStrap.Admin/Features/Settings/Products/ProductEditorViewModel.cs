@@ -40,6 +40,8 @@ internal sealed partial class ProductEditorViewModel
 
     public string ReplyTo { get; set; } = string.Empty;
 
+    public string PortalHost { get; set; } = string.Empty;
+
     public bool IsActive { get; set; } = true;
 
     public uint Version { get; set; }
@@ -55,16 +57,20 @@ internal sealed partial class ProductEditorViewModel
         AccentColour = product.Branding.AccentColour,
         FromAddress = product.Branding.FromAddress ?? string.Empty,
         ReplyTo = product.Branding.ReplyTo ?? string.Empty,
+        PortalHost = product.PortalHost ?? string.Empty,
         IsActive = product.IsActive,
         Version = product.Version,
     };
 
-    public CreateProductRequest ToCreateRequest() => new(Key.Trim(), Name.Trim(), NumberPrefix.Trim(), ToBranding());
+    public CreateProductRequest ToCreateRequest() => new(Key.Trim(), Name.Trim(), NumberPrefix.Trim(), ToBranding(), NormalisedHost());
 
-    public UpdateProductRequest ToUpdateRequest() => new(Name.Trim(), ToBranding(), IsActive, Version);
+    public UpdateProductRequest ToUpdateRequest() => new(Name.Trim(), ToBranding(), IsActive, Version, NormalisedHost());
 
     private ProductBrandingRequest ToBranding() =>
         new(DisplayName.Trim(), Blank(LogoPath), Blank(AccentColour), Blank(FromAddress), Blank(ReplyTo));
+
+    // Blank (or an invalid value, which Check has already refused) goes as null; a valid host goes trimmed and lower-case.
+    private string? NormalisedHost() => ProductHostRules.TryNormalize(PortalHost, out var host) ? host : null;
 
     private bool LogoUnchanged => OriginalLogoPath.Length > 0 && string.Equals(LogoPath.Trim(), OriginalLogoPath, StringComparison.Ordinal);
 
@@ -84,6 +90,7 @@ internal sealed partial class ProductEditorViewModel
         ApiFields.AccentColour => string.IsNullOrWhiteSpace(AccentColour) || Regex.IsMatch(AccentColour.Trim(), BrandingRules.ColourPattern) ? null : ProductsCopy.AccentInvalid,
         ApiFields.FromAddress => IsEmailOrBlank(FromAddress) ? null : ProductsCopy.EmailInvalid,
         ApiFields.ReplyTo => IsEmailOrBlank(ReplyTo) ? null : ProductsCopy.EmailInvalid,
+        ApiFields.PortalHost => ProductHostRules.TryNormalize(PortalHost, out _) ? null : ProductsCopy.PortalHostInvalid,
         _ => null,
     };
 

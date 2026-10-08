@@ -255,6 +255,10 @@ public sealed partial class ProductEditorContent : IDisposable
         {
             _formError = ProductsCopy.ProductKeyTaken;
         }
+        else if (first.Code == ApiErrorCodes.ProductHostTaken)
+        {
+            _errors.TryAdd(ApiFields.PortalHost, ProductsCopy.PortalHostTaken);
+        }
         else if (ApiErrorCodes.IsUncertainWrite(first.Code))
         {
             _uncertain = true;

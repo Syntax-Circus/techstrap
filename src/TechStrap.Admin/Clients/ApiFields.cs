@@ -15,6 +15,7 @@ public static class ApiFields
     public const string AccentColour = "accent-colour";
     public const string FromAddress = "from-address";
     public const string ReplyTo = "reply-to";
+    public const string PortalHost = "portal-host";
 
     // API keys.
     public const string Kind = "kind";

@@ -504,6 +504,120 @@ public sealed class ProductEditorTests : AdminPageTest
         Value(cut, "ts-product-logo").ShouldBe("https://blocked.example/logo.png");
     }
 
+    // ---- portal host ---------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void The_portal_host_field_shows_the_saved_host_with_its_help_text()
+    {
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(portalHost: "support.orbitly.test")));
+
+        var cut = RenderEdit();
+
+        Value(cut, "ts-product-host").ShouldBe("support.orbitly.test");
+        cut.Find("#ts-product-host-help").TextContent.ShouldBe("Optional. The product's own support hostname, e.g. support.example.com. Needs DNS and a proxy site.");
+    }
+
+    [Fact]
+    public void A_mixed_case_portal_host_is_sent_lower_case_on_an_update()
+    {
+        var cut = RenderEdit();
+
+        Type(cut, "ts-product-host", "  Support.Orbitly.TEST ");
+        Save(cut);
+
+        Updates.ShouldHaveSingleItem().PortalHost.ShouldBe("support.orbitly.test");
+    }
+
+    [Fact]
+    public void A_blank_portal_host_is_sent_as_null()
+    {
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(portalHost: "support.orbitly.test")));
+        var cut = RenderEdit();
+
+        Type(cut, "ts-product-host", "   ");
+        Save(cut);
+
+        Updates.ShouldHaveSingleItem().PortalHost.ShouldBeNull();
+    }
+
+    [Fact]
+    public void An_invalid_portal_host_blocks_the_save_with_the_field_message()
+    {
+        var cut = RenderEdit();
+
+        Type(cut, "ts-product-host", "https://support.example.com/x");
+        cut.Find("#ts-product-host").Blur();
+        FieldError(cut, "ts-product-host").ShouldBe(ProductsCopy.PortalHostInvalid);
+        Save(cut);
+
+        Updates.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_new_product_sends_its_normalised_portal_host()
+    {
+        var cut = RenderNew();
+        Type(cut, "ts-product-key", "nimbus");
+        Type(cut, "ts-product-name", "Nimbus");
+        Type(cut, "ts-product-prefix", "NIM");
+        Type(cut, "ts-product-display", "Nimbus Cloud");
+        Type(cut, "ts-product-host", "Help.Nimbus.test");
+
+        Save(cut);
+
+        Creates.ShouldHaveSingleItem().PortalHost.ShouldBe("help.nimbus.test");
+    }
+
+    [Fact]
+    public void A_400_product_host_invalid_with_the_portal_host_target_shows_at_the_host_field()
+    {
+        _products.UpdateAsync(TestData.OrbitlyId, Arg.Any<UpdateProductRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Result<ProductDto>.Failure(new ResultError("product-host-invalid", "That is not a valid hostname.", ResultErrorKind.Validation, "portal-host")));
+        var cut = RenderEdit();
+        Type(cut, "ts-product-host", "support.orbitly.test");
+
+        Save(cut);
+
+        FieldError(cut, "ts-product-host").ShouldBe("That is not a valid hostname.");
+        cut.FindAll("p.ts-form-error").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_409_product_host_taken_shows_the_conflict_message_at_the_host_field_not_above_the_form()
+    {
+        _products.UpdateAsync(TestData.OrbitlyId, Arg.Any<UpdateProductRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Fail<ProductDto>(ApiErrorCodes.ProductHostTaken, "Another product already uses this portal hostname.", ResultErrorKind.Conflict));
+        var cut = RenderEdit();
+        Type(cut, "ts-product-host", "support.orbitly.test");
+
+        Save(cut);
+
+        FieldError(cut, "ts-product-host").ShouldBe(ProductsCopy.PortalHostTaken);
+        cut.FindAll("p.ts-form-error").ShouldBeEmpty();
+        Value(cut, "ts-product-host").ShouldBe("support.orbitly.test");
+    }
+
+    [Fact]
+    public void The_view_model_round_trips_the_portal_host_and_maps_blank_and_invalid()
+    {
+        var model = ProductEditorViewModel.From(TestData.ProductDetail(portalHost: "support.orbitly.test"));
+        model.PortalHost.ShouldBe("support.orbitly.test");
+        ProductEditorViewModel.From(TestData.ProductDetail()).PortalHost.ShouldBe(string.Empty);
+
+        model.PortalHost = "Support.Orbitly.TEST";
+        model.ToCreateRequest().PortalHost.ShouldBe("support.orbitly.test");
+        model.ToUpdateRequest().PortalHost.ShouldBe("support.orbitly.test");
+        model.Check(ApiFields.PortalHost, creating: false).ShouldBeNull();
+
+        model.PortalHost = " ";
+        model.ToCreateRequest().PortalHost.ShouldBeNull();
+        model.ToUpdateRequest().PortalHost.ShouldBeNull();
+        model.Check(ApiFields.PortalHost, creating: false).ShouldBeNull();
+
+        model.PortalHost = "not a host";
+        model.Check(ApiFields.PortalHost, creating: false).ShouldBe(ProductsCopy.PortalHostInvalid);
+    }
+
     // ---- create --------------------------------------------------------------------------------------------------
 
     [Fact]

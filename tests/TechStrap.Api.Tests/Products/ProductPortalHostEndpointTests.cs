@@ -48,7 +48,7 @@ public sealed class ProductPortalHostEndpointTests(TestPostgres postgres)
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
-        body.RootElement.GetProperty("errorCodes").GetProperty("portalHost").EnumerateArray().Select(code => code.GetString()).ShouldBe(["product-host-invalid"]);
+        body.RootElement.GetProperty("errorCodes").GetProperty("portal-host").EnumerateArray().Select(code => code.GetString()).ShouldBe(["product-host-invalid"]);
     }
 
     [Fact]
