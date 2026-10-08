@@ -109,6 +109,8 @@ public sealed class ClientRegistrationTests
     [Theory]
     [InlineData("/just/a/path")]
     [InlineData("not a uri")]
+    [InlineData("file:///c/x")]
+    [InlineData("ftp://h/")]
     public void An_unparsable_base_address_fails_at_registration_and_names_the_key_not_the_value(string value)
     {
         var configuration = Config(("BaseAddress", value), ("ApiKey", Key));

@@ -94,7 +94,7 @@ public static class TechStrapClientServiceCollectionExtensions
     {
         if (configuration[TechStrapClientOptions.BaseAddressKey] is { Length: > 0 } address)
         {
-            if (Uri.TryCreate(address.Trim(), UriKind.Absolute, out var uri))
+            if (Uri.TryCreate(address.Trim(), UriKind.Absolute, out var uri) && (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) || uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
             {
                 options.BaseAddress = uri;
             }

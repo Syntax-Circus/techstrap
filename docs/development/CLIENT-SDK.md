@@ -136,7 +136,7 @@ The API key travels in the `X-Api-Key` header only. It is never in a URL, a log,
   `AddTechStrapClient` drops every handler that comes before `ApiKeyHandler` in the named client's chain. To add a handler of your own, register it on the named client after
   `AddTechStrapClient`: `services.AddHttpClient(TechStrapClientDefaults.HttpClientName).AddHttpMessageHandler(...)`. Handlers registered there afterwards are kept.
 - Use a Trusted key only from server-side code. A Public key is extractable from an app by design; the server marks its metadata untrusted and ignores `ExternalUserRef`.
-- The wire literals (`"X-Api-Key"`, `"X-Ticket-Token"`, `"Idempotency-Key"`, `"api/intake/tickets"`) exist in `src/` only in `HeaderNames.cs` and `IntakeRoutes.cs` (and the Sentry
+- The wire literals (`"X-Api-Key"`, `"X-Ticket-Token"`, `"Idempotency-Key"`, `"api/intake/tickets"` and the leading-slash `"/api/intake/tickets"`) exist in `src/` only in `HeaderNames.cs` and `IntakeRoutes.cs` (and the Sentry
   header scrubber); the architecture tests (`WireLiteralRules`) fail otherwise.
 
 ## Tests
