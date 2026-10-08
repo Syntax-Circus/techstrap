@@ -60,6 +60,7 @@ public sealed class MessageBodyXssEndpointTests(TestPostgres postgres)
                 foreach (var message in detail.Messages)
                 {
                     Check(failures, "agent", body, message.BodyHtml);
+                    PinOutput(failures, "agent", body, message.BodyHtml);
                 }
 
                 var token = submitted.ViewUrl![(submitted.ViewUrl!.IndexOf(TokenMarker, StringComparison.Ordinal) + TokenMarker.Length)..];
@@ -72,6 +73,7 @@ public sealed class MessageBodyXssEndpointTests(TestPostgres postgres)
                 foreach (var message in customer.Messages)
                 {
                     Check(failures, "customer", body, message.BodyHtml);
+                    PinOutput(failures, "customer", body, message.BodyHtml);
                 }
             }
 
@@ -83,6 +85,25 @@ public sealed class MessageBodyXssEndpointTests(TestPostgres postgres)
             {
                 Directory.Delete(storage, true);
             }
+        }
+    }
+
+    // What the sanitiser actually leaves of each vector (the message pipeline shows raw HTML as encoded text; the body is never empty).
+    private static readonly Dictionary<string, string> _expected = new()
+    {
+        ["<script>alert(1)</script>"] = "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>",
+        ["<img src=x onerror=alert(1)>"] = "<p>&lt;img src=x onerror=alert(1)&gt;</p>",
+        ["<svg onload=alert(1)>"] = "<p>&lt;svg onload=alert(1)&gt;</p>",
+        ["<a href=\"javascript:alert(1)\">x</a>"] = "<p>&lt;a href=\"javascript:alert(1)\"&gt;x&lt;/a&gt;</p>",
+        ["<iframe srcdoc=\"<script>alert(1)</script>\"></iframe>"] = "<p>&lt;iframe srcdoc=\"&lt;script&gt;alert(1)&lt;/script&gt;\"&gt;&lt;/iframe&gt;</p>",
+    };
+
+    private static void PinOutput(List<string> failures, string view, string body, string html)
+    {
+        html.ShouldNotBeNullOrWhiteSpace();
+        if (html.Trim() != _expected[body])
+        {
+            failures.Add($"{view}: {body} -> unexpected output {html}");
         }
     }
 

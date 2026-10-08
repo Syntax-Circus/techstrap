@@ -14,6 +14,12 @@ public sealed class XssAssertionsTests
     [InlineData("<form action=y>")]
     [InlineData("<math>")]
     [InlineData("<template>")]
+    [InlineData("<a title=\"a>b\" href=\"javascript:x\">")]
+    [InlineData("<img alt=\"x>y\" onerror=alert(1)>")]
+    [InlineData("<img src=\"x\"onerror=alert(1)>")]
+    [InlineData("<style>x</style>")]
+    [InlineData("<link rel=\"stylesheet\" href=\"x\">")]
+    [InlineData("<frameset onload=x>")]
     public void Active_content_is_flagged(string html)
     {
         XssAssertions.ContainsNoActiveContent(html).ShouldBeFalse();

@@ -190,13 +190,13 @@ public sealed class KbContentRendererTests
 
     public static IEnumerable<TheoryDataRow<string>> CorpusRows() => XssCorpus.Rows();
 
-    // The renderer has one entry point: raw HTML typed in the Markdown source is the same string, so the vector is rendered as a
-    // whole document and after a heading (where it sits in a later block).
+    // Markdig runs with DisableHtml, so raw HTML in the source is escaped before KbHtmlSanitizer sees it: this test covers the Markdown path
+    // (the vector alone, and under a heading). The HTML-sanitiser path is covered by KbHtmlSanitizerTests and KbPreviewXssTests.
     [Theory]
     [MemberData(nameof(CorpusRows))]
-    public void Every_corpus_vector_renders_inert_as_markdown_and_as_html(string vector)
+    public void Every_corpus_vector_renders_inert_from_markdown_source_alone_and_under_a_heading(string vector)
     {
         XssAssertions.ShouldHaveNoActiveContent(_renderer.Render(vector), vector);
-        XssAssertions.ShouldHaveNoActiveContent(_renderer.Render("# Title\n\n" + vector),"# Title + " + vector);
+        XssAssertions.ShouldHaveNoActiveContent(_renderer.Render("# Title\n\n" + vector), "# Title + " + vector);
     }
 }

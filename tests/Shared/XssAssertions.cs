@@ -5,19 +5,19 @@ namespace TechStrap.Tests.Shared;
 /// <summary>Detects active content in rendered HTML (attribute patterns are matched inside a tag, so encoded text such as <c>&amp;lt;a href="javascript:x"&amp;gt;</c> is inert): executable or embedding tags, in-tag event handlers, script-bearing attribute values, srcdoc and CSS expression().</summary>
 public static partial class XssAssertions
 {
-    [GeneratedRegex(@"<(script|iframe|object|embed|base|meta|form|math|template)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"<(script|iframe|object|embed|base|meta|form|math|template|style|link|frameset)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ActiveTag();
 
-    [GeneratedRegex(@"<[^>]*[\s/""']on[a-z]+\s*=", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"<(?:[^>""']|""[^""]*""|'[^']*')*(?:[\s/]|(?<=[""']))on[a-z]+\s*=", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex EventHandler();
 
-    [GeneratedRegex(@"<[^>]*=\s*[""']?\s*(javascript|vbscript|data:text/html)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"<(?:[^>""']|""[^""]*""|'[^']*')*=\s*[""']?\s*(javascript|vbscript|data:text/html)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ScriptScheme();
 
-    [GeneratedRegex(@"<[^>]*\bsrcdoc\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"<(?:[^>""']|""[^""]*""|'[^']*')*\bsrcdoc\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SrcDoc();
 
-    [GeneratedRegex(@"<[^>]*expression\s*\(", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"<(?:[^>""']|""[^""]*""|'[^']*')*[""']?[^""'>]*expression\s*\(", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CssExpression();
 
     /// <summary>True when <paramref name="html"/> holds none of the active-content patterns.</summary>
