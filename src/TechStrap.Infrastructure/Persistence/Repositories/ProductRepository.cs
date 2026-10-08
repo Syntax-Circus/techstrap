@@ -26,6 +26,9 @@ internal sealed class ProductRepository(TechStrapDbContext context) : IProductRe
         return [.. records.Select(p => p.ToDomain())];
     }
 
+    public Task<bool> IsPortalHostTakenAsync(string host, Guid? exceptProductId, CancellationToken cancellationToken) =>
+        context.Set<ProductRecord>().AnyAsync(p => p.PortalHost == host && (exceptProductId == null || p.Id != exceptProductId), cancellationToken);
+
     public void Add(Product product) => context.Set<ProductRecord>().Add(product.ToRecord());
 
     public void Update(Product product)

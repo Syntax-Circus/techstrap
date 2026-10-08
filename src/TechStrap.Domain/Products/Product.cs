@@ -77,8 +77,9 @@ public sealed record ProductBranding
 /// <summary>A product (a customer application) that receives tickets. The number prefix is fixed at creation (D-009).</summary>
 public sealed class Product
 {
-    private Product(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive, uint version)
+    private Product(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive, uint version, string? portalHost)
     {
+        PortalHost = portalHost;
         Id = id;
         Key = key;
         Name = name;
@@ -102,6 +103,9 @@ public sealed class Product
 
     public bool IsActive { get; private set; }
 
+    /// <summary>The public hostname this product's portal is served on (lower-case, unique), or null when it has none (D-050).</summary>
+    public string? PortalHost { get; private set; }
+
     /// <summary>
     /// Opaque optimistic-concurrency token as loaded (Postgres <c>xmin</c>); 0 for a product that was never stored. The persistence layer
     /// applies it as the original token when the product is updated, so a stale copy is rejected on save.
@@ -124,11 +128,26 @@ public sealed class Product
         }
 
         var defaultBranding = ProductBranding.Create(productName.Value, null, null, null, null).Value;
-        return DomainResult<Product>.Ok(new Product(EntityId.New(clock), slug.Value, productName.Value, prefix!, branding ?? defaultBranding, isActive: true, version: 0));
+        return DomainResult<Product>.Ok(new Product(EntityId.New(clock), slug.Value, productName.Value, prefix!, branding ?? defaultBranding, isActive: true, version: 0, portalHost: null));
     }
 
-    public static Product Restore(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive, uint version) =>
-        new(id, key, name, numberPrefix, branding, isActive, version);
+    public static Product Restore(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive, uint version, string? portalHost = null) =>
+        new(id, key, name, numberPrefix, branding, isActive, version, portalHost);
+
+    /// <summary>Sets the portal hostname from user input (trimmed and lower-cased); a blank input clears it. Uniqueness across products is the caller's check.</summary>
+    public DomainResult SetPortalHost(string? input)
+    {
+        if (!HostNameShape.TryNormalize(input, out var host))
+        {
+            return DomainErrors.Validation(
+                "product-host-invalid",
+                "Use a hostname such as support.example.com: letters, digits and hyphens, no scheme, port or path.",
+                "portal-host");
+        }
+
+        PortalHost = host;
+        return DomainResult.Ok();
+    }
 
     public DomainResult UpdateDetails(string? name, ProductBranding branding)
     {
