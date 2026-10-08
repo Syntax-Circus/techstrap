@@ -107,7 +107,7 @@ public sealed class UpdateProductRequestHandler(
         var committed = await scope.CommitAsync(cancellationToken);
         if (committed.IsFailure)
         {
-            // A concurrent writer racing past IsPortalHostTakenAsync also lands here (unique index on portal_host); the generic code is accepted (D-050).
+            // A concurrent writer racing past IsPortalHostTakenAsync also lands here (unique index on portal_host); the persistence error is returned as is (D-050 known limit).
             return Result<ProductDto>.Failure(committed.Errors[0]);
         }
 
