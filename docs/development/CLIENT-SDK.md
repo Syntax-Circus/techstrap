@@ -169,6 +169,7 @@ Docker is required for any run of this project today: the linked `TestPostgres` 
 - The Api documents no response schemas, so the OpenAPI contract test cannot pin the 201 `SubmitTicketResponse` schema; the real-API tests pin the response shape. A PHASE-05 follow-up.
 - One circuit per DI container (per `TechStrapClient` singleton): a failing API opens it for every caller that shares that client.
 - `net10.0` only; multi-targeting is a post-1.0 question.
+- AOT-compatible: serialization is source-generated (`TechStrapJsonContext`).
 - No attachments (P11-T05): deferred to 11d, which first needs multipart intake.
 - GitVersion and a SourceLink package are deferred to 11c, so a local pack needs `-p:Version=`.
 - An idempotency key older than the server's retention window (24 hours) no longer protects a retry: replaying it creates one new ticket.
@@ -273,7 +274,7 @@ dotnet test --project tests/TechStrap.Client.Maui.Tests -c Release
 - A field that fails to read is skipped silently (the package does no logging).
 - A caller who retries a failed submit must supply a stable `IdempotencyKey`, or a retry can create a second ticket.
 - On iOS, display values may be missing when `SubmitAsync` runs off the UI thread (the UIKit thread check). `IncludeDisplay` is opt-in and a failure never crashes.
-- AOT and full-trim apps need a source-generated JSON context (11c).
+- AOT-compatible: serialization is source-generated (`TechStrapJsonContext`).
 - No screenshot and no attachments until 11d, which first needs multipart intake.
 - No platform target frameworks. Platform-specific code would need them later; adding them is non-breaking.
 - `MainDisplayInfo` is read per field, so a rotation between reads can mix values.

@@ -8,6 +8,7 @@
     <PackageId>TechStrap.Client</PackageId>
     <Description>Client SDK for TechStrap: submit support tickets to a TechStrap API from any .NET app, with an API key, retries and typed errors.</Description>
     <PackageTags>techstrap;helpdesk;client;sdk</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>

@@ -8,6 +8,7 @@
     <PackageId>TechStrap.Client.Maui</PackageId>
     <Description>Device and app metadata capture and a submit-ticket helper for MAUI apps, on top of TechStrap.Client.</Description>
     <PackageTags>techstrap;helpdesk;sdk;maui</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>
