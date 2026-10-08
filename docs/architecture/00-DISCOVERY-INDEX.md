@@ -32,7 +32,7 @@
 | 08 | [Knowledge base](PHASE-08-knowledge-base.md) | 06 (07 for the editor UI) | 09 | PHASE-08 merged (PR #13): the API (Tasks 1-8) and the Admin (editor, categories, article picker); the owner's manual checks are open |
 | 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 | 09a merged (PR #14); 09b merged (PR #15); 09c merged (PR #16); 09d merged (PR #17); PHASE-09 complete: the owner evidence for P09-T16 (axe, Lighthouse, the JavaScript-off walk, screenshots) and the compose run of P09-T18 are open, P09-T20 is deferred |
 | 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | 10a merged (PR #18); 10b merged (PR #19); PHASE-10 complete: the owner's manual checks with a real identity provider (two browsers, a worker auto-close, the kill switch) are open |
-| 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | 11a merged (PR #20); 11b merged (PR #21); 11c merged (PR #22); T16 pending the v0.1.0 tag; T05 (attachments) deferred to 11d, which first needs multipart intake |
+| 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | 11a merged (PR #20); 11b merged (PR #21); 11c merged (PR #22); v0.1.0 published 2026-10-08 (PHASE-11 complete); T05 (attachments) deferred to 11d, which first needs multipart intake |
 | 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 | Not started |
 
 Phases that can run in parallel: 02 alongside 03–06; 11 alongside 07–10.
