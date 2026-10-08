@@ -6,6 +6,7 @@ using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using SyntaxCircus.Common;
 using TechStrap.Contracts.Products;
+using TechStrap.Portal.Caching;
 using TechStrap.Portal.Clients;
 using TechStrap.Portal.Hosting;
 using TechStrap.Portal.Routing;
@@ -131,6 +132,43 @@ public sealed class ProductHostMiddlewareTests
 
         outcome.Http.Response.StatusCode.ShouldBe(301);
         outcome.Http.Response.Headers.Location.ToString().ShouldBe("https://support.dragonpoop.com/contact");
+    }
+
+    [Theory(Timeout = 30_000)]
+    [InlineData(DragonHost, "/p/dragon-poop/contact", "GET")]
+    [InlineData(DragonHost, "/p/dragon-poop", "GET")]
+    [InlineData(DragonHost, "/p/dragon-poop/contact", "HEAD")]
+    [InlineData(DragonHost, "/p/paper-plane/kb", "GET")]
+    [InlineData(DragonHost, "/p/who-flung-poo/kb", "GET")]
+    [InlineData("portal.test", "/p/dragon-poop/kb", "GET")]
+    [InlineData("evil.example", "/p/dragon-poop/contact", "GET")]
+    public async Task A_canonical_redirect_carries_the_one_hour_public_cache_header(string host, string path, string method)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var outcome = await RunAsync(ct, host, path, method, "?x=1");
+
+        outcome.Http.Response.StatusCode.ShouldBe(301);
+        outcome.Http.Response.Headers.CacheControl.ToString().ShouldBe("public, max-age=3600");
+    }
+
+    [Theory(Timeout = 30_000)]
+    [InlineData(DragonHost, "/kb", "GET")]
+    [InlineData(DragonHost, "/robots.txt", "GET")]
+    [InlineData("portal.test", "/p/dragon-poop/contact", "POST")]
+    public async Task A_rewrite_a_pass_through_and_a_post_carry_no_redirect_cache_header(string host, string path, string method)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var outcome = await RunAsync(ct, host, path, method);
+
+        outcome.NextCalled.ShouldBeTrue();
+        outcome.Http.Response.Headers.CacheControl.ToString().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void The_redirect_cache_constants_agree()
+    {
+        PortalCachePaths.RedirectLifetime.TotalSeconds.ShouldBe(3600);
+        PortalCachePaths.RedirectCacheControl.ShouldBe($"public, max-age={(int)PortalCachePaths.RedirectLifetime.TotalSeconds}");
     }
 
     [Fact(Timeout = 30_000)]

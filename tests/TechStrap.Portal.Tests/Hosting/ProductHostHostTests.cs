@@ -132,6 +132,7 @@ public sealed class ProductHostHostTests
     [InlineData("/sitemap.xml")]
     [InlineData("/css/app.css")]
     [InlineData("/favicon.ico")]
+    [InlineData("/icon-512.png")]
     public async Task The_seo_files_the_health_checks_and_the_static_assets_answer_on_a_product_host(string path)
     {
         var ct = TestContext.Current.CancellationToken;
@@ -224,6 +225,37 @@ public sealed class ProductHostHostTests
         get.Headers.Location!.ToString().ShouldBe("https://support.dragonpoop.com/contact?x=1");
         viaDefault.StatusCode.ShouldBe(HttpStatusCode.MovedPermanently);
         viaDefault.Headers.Location!.ToString().ShouldBe("https://support.dragonpoop.com/kb");
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task A_product_home_redirect_carries_the_cache_header_on_the_wire()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var factory = Host();
+        using var client = Client(factory);
+
+        var (response, _) = await SendAsync(ct, client, "/p/dragon-poop", DragonHost);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.MovedPermanently);
+        response.Headers.Location!.ToString().ShouldBe("https://support.dragonpoop.com/");
+        response.Headers.GetValues("Cache-Control").ShouldBe(["public, max-age=3600"]);
+    }
+
+    // The accepted interaction: the Hosting header step applies the form-page rule after the middleware, and that rule sets no-store, so this 301 is not kept.
+    [Fact(Timeout = 30_000)]
+    public async Task A_form_page_redirect_stays_no_store()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var factory = Host();
+        using var client = Client(factory);
+
+        var (response, _) = await SendAsync(ct, client, "/p/dragon-poop/contact", DragonHost);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.MovedPermanently);
+        response.Headers.Location!.ToString().ShouldBe("https://support.dragonpoop.com/contact");
+        var cacheControl = string.Join(',', response.Headers.GetValues("Cache-Control"));
+        cacheControl.ShouldContain("no-store");
+        cacheControl.ShouldNotContain("public");
     }
 
     [Fact(Timeout = 30_000)]

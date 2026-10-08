@@ -219,4 +219,47 @@ public sealed class SeoProductHostTests
         factory.Api.Count(HttpMethod.Get, "/api/public/kb/dragon-poop/sitemap").ShouldBe(1);
         factory.Api.Count(HttpMethod.Get, "/api/public/kb/who-flung-poo/sitemap").ShouldBe(1, "the hostile host shares the default host's entry");
     }
+
+    [Fact(Timeout = 30_000)]
+    public async Task Robots_on_a_product_host_names_its_own_sitemap_and_still_disallows_tickets()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var factory = Host();
+        using var client = Client(factory);
+
+        var (response, body) = await GetAsync(ct, client, "/robots.txt", DragonHost);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        body.ShouldContain("Sitemap: https://support.dragonpoop.com/sitemap.xml");
+        body.ShouldContain("Disallow: /t/");
+    }
+
+    [Theory(Timeout = 30_000)]
+    [InlineData("evil.example")]
+    [InlineData("support.dragonpoop.com.evil")]
+    public async Task Robots_on_an_unknown_or_hostile_host_names_the_default_sitemap(string host)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var factory = Host();
+        using var client = Client(factory);
+
+        var (_, body) = await GetAsync(ct, client, "/robots.txt", host);
+
+        body.ShouldContain("Sitemap: https://portal.test/sitemap.xml");
+        body.ShouldNotContain("evil");
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task The_og_image_on_a_product_host_is_absolute_on_that_host()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var factory = Host();
+        using var client = Client(factory);
+
+        var (_, onHost) = await GetAsync(ct, client, ArticlePathOnHost, DragonHost);
+        var (_, onDefault) = await GetAsync(ct, client, "/p/who-flung-poo" + ArticlePathOnHost, "portal.test");
+
+        KbTestKit.Meta(KbTestKit.Parse(onHost), "meta[property='og:image']").ShouldBe("https://support.dragonpoop.com/icon-512.png");
+        KbTestKit.Meta(KbTestKit.Parse(onDefault), "meta[property='og:image']").ShouldBe(PortalFactory.PublicUrl + "/icon-512.png");
+    }
 }

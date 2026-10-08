@@ -164,7 +164,7 @@ pwsh -File scripts/Check-PackageVersions.ps1
 dotnet ef migrations has-pending-model-changes --project src/TechStrap.Infrastructure --startup-project src/TechStrap.Api --configuration Release --no-build
 # plus Task 7's manual compose check with a Host header
 ```
-Then `superpowers:finishing-a-development-branch`: PR "PHASE-11e: product hosts (D-050)" against `main`. The Contracts change is additive; the next package version (0.2.0) is tagged when the owner decides (not part of this PR).
+Then `superpowers:finishing-a-development-branch`: PR "PHASE-11e: product hosts (D-050)" against `main`. The Contracts change is additive; the next package version (0.2.0) is tagged when the owner decides (not part of this PR). (Amended 2026-10-08, D-050: see the decision log.)
 
 ## Risks / open items
 - `IPublicProductClient` is scoped (per-request `ApiConnection`): the singleton map must refresh through `IServiceScopeFactory`; verify no captive dependency.
@@ -183,7 +183,7 @@ Deviations from the plan, per task (D-050 records them; where this plan and D-05
 - **Task 4.** The 409 `product-host-taken` is a field error ("Another product already uses this hostname."); the list column is "Portal host"; no maxlength attribute (the shared field fragment has none).
 - **Task 5.** `ProductHostMap` is a `volatile` immutable snapshot driven by `TimeProvider`, not an `IMemoryCache` entry, with stale-while-revalidate. `ProductHostContext` is stored on `HttpContext.Features` and resolved through `IHttpContextAccessor` (re-executed 404 and error pages see it). `UseProductHosts()` sits after `UsePortalSeo()` and before `UseTechStrapErrorPages()` and calls `UseRouting()`. Single-label and IP hosts are never product hosts. Redirects are GET and HEAD only, absolute `https://{storedHost}/...`. The Portal is static SSR: `POST /_blazor/negotiate` is 405 on every host, so Review Focus 4 reduced to `blazor.web.js` 200 on a product host plus negotiate parity.
 - **Task 6.** `PortalLinks` also has `ToFragment`; the architecture rule is `PortalRules` + `PortalLinkRuleTests` and allows `Routing/PageLinks.cs` as well as `Routing/PortalLinks.cs`. Canonical and JSON-LD use `PortalLinks.Absolute` with no package change. The static `/` sitemap entry moved into the provider. `PortalSitemapCache` is keyed by `Context.Host ?? "default"`. `SetVaryByHost(true)`. `robots.txt` on a product host still names the default host's sitemap (package limit).
-- **Task 7.** Pins first (7 red, then 400 green); D-050 in the decision log; the product, roadmap, discovery, schema, architecture, UX, Portal and deployment docs updated. The 301 limit is worded precisely: a 301 on a help-centre path sets no `Cache-Control`, while a 301 on a form page inherits that page's `no-store`.
+- **Task 7.** Pins first (7 red, then 400 green); D-050 in the decision log; the product, roadmap, discovery, schema, architecture, UX, Portal and deployment docs updated. The 301 limit is worded precisely: a 301 on a help-centre path sets no `Cache-Control`, while a 301 on a form page inherits that page's `no-store`. (Amended 2026-10-08, D-050: see the decision log.)
 
 ### Manual compose check (Task 7, Step 4)
 

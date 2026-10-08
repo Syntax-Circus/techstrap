@@ -529,7 +529,7 @@ public sealed class ProductEditorTests : AdminPageTest
     }
 
     [Fact]
-    public void A_blank_portal_host_is_sent_as_null()
+    public void A_blank_portal_host_is_sent_as_empty_so_the_server_clears_it()
     {
         _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(portalHost: "support.orbitly.test")));
         var cut = RenderEdit();
@@ -537,7 +537,7 @@ public sealed class ProductEditorTests : AdminPageTest
         Type(cut, "ts-product-host", "   ");
         Save(cut);
 
-        Updates.ShouldHaveSingleItem().PortalHost.ShouldBeNull();
+        Updates.ShouldHaveSingleItem().PortalHost.ShouldBe(string.Empty);
     }
 
     [Fact]
@@ -611,11 +611,13 @@ public sealed class ProductEditorTests : AdminPageTest
 
         model.PortalHost = " ";
         model.ToCreateRequest().PortalHost.ShouldBeNull();
-        model.ToUpdateRequest().PortalHost.ShouldBeNull();
+        model.ToUpdateRequest().PortalHost.ShouldBe(string.Empty);
         model.Check(ApiFields.PortalHost, creating: false).ShouldBeNull();
 
-        model.PortalHost = "not a host";
+        model.PortalHost = " not a host ";
         model.Check(ApiFields.PortalHost, creating: false).ShouldBe(ProductsCopy.PortalHostInvalid);
+        model.ToCreateRequest().PortalHost.ShouldBeNull();
+        model.ToUpdateRequest().PortalHost.ShouldBe("not a host", "an invalid value is sent as typed, never as the explicit clear");
     }
 
     // ---- create --------------------------------------------------------------------------------------------------

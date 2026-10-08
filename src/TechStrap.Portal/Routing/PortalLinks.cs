@@ -12,8 +12,8 @@ namespace TechStrap.Portal.Routing;
 /// </summary>
 public sealed class PortalLinks(ProductHostContext context, ProductHostMap map, IOptions<PortalOptions> options)
 {
-    private const string HttpsPrefix = "https://";
-    private const string HttpPrefix = "http://";
+    internal const string HttpsPrefix = "https://";
+    internal const string HttpPrefix = "http://";
 
     // True for links made by ForListedProduct: the host map is not asked, because the host was just read from the product list itself.
     private bool IgnoreMap { get; init; }
@@ -59,7 +59,10 @@ public sealed class PortalLinks(ProductHostContext context, ProductHostMap map, 
     public string TicketAttachment(string token, Guid attachmentId) => PortalRoutes.TicketAttachment(token, attachmentId);
 
     /// <summary>The absolute address of a path: on the product host the request arrived on, its stored host; elsewhere the configured public URL. An address that is absolute already is returned as it is.</summary>
-    public string Absolute(string path)
+    public string Absolute(string path) => ComposeAbsolute(context.Host, options.Value.PublicBaseUrl, path);
+
+    /// <summary>The one rule for an absolute address, shared with <see cref="ProductHostSeoUrlBuilder"/>: an address that is absolute already is returned as it is; on a product host its stored host; elsewhere the configured public URL.</summary>
+    internal static string ComposeAbsolute(string? productHost, string publicBaseUrl, string path)
     {
         ArgumentNullException.ThrowIfNull(path);
         if (path.StartsWith(HttpsPrefix, StringComparison.OrdinalIgnoreCase) || path.StartsWith(HttpPrefix, StringComparison.OrdinalIgnoreCase))
@@ -67,7 +70,7 @@ public sealed class PortalLinks(ProductHostContext context, ProductHostMap map, 
             return path;
         }
 
-        return context.Host is { } host ? HttpsPrefix + host + path : options.Value.PublicBaseUrl + path;
+        return productHost is not null ? HttpsPrefix + productHost + path : publicBaseUrl + path;
     }
 
     /// <summary>A link to a place on the current page (<see cref="PageLinks.ToFragment"/>), written the way the visitor sees the page: on its product host the <c>/p/{key}</c> prefix of the rewritten request is left off.</summary>
