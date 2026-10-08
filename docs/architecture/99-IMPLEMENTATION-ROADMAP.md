@@ -28,6 +28,7 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 | 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 | 10 and 11 alongside | D-002, D-017, D-019, D-045 | 09a merged (PR #14); 09b merged (PR #15); 09c merged (PR #16); 09d merged (PR #17); PHASE-09 complete: the owner evidence for P09-T16 (axe, Lighthouse, the JavaScript-off walk, screenshots) and the compose run of P09-T18 are open, P09-T20 is deferred |
 | 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | 08, 09, 11 alongside | D-007, D-018, D-046 | 10a merged (PR #18); 10b merged (PR #19); PHASE-10 complete: the owner's manual checks with a real identity provider (two browsers, a worker auto-close, the kill switch) are open |
 | 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | Alongside 06 to 10 | D-005, D-020, D-047, D-048, D-049 | 11a merged (PR #20); 11b merged (PR #21); 11c merged (PR #22); v0.1.0 published 2026-10-08 (PHASE-11 complete); T05 (attachments) deferred to 11d, which first needs multipart intake |
+| 11e | [Product hosts](PHASE-11e-product-hosts.md) | 09, 05, 04, 07 | 12 | After 11 | D-050 | 11e complete (pending merge): T01 to T07 |
 | 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 | Last; security, load, restore and UAT tasks can overlap once their inputs exist | D-003, D-022 | Not started |
 
 Edges: 01 to 02 and 03; 03 to 04 to 05 to 06; 05 to 11; 02 and 06 to 07; 06 and 07 to 08; 02, 06 and 08 to 09; 07 to 10; all to 12.
@@ -296,6 +297,18 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P11-T16 | Publish `v0.1.0` and run the post-publish check |
 | P11-T17 | Idempotent submit retries through `Idempotency-Key` (D-020) |
 
+### PHASE-11e Product hosts
+
+| ID | Title |
+| --- | --- |
+| P11e-T01 | `Product.PortalHost`, `HostNameShape`, mapping and migration `AddProductPortalHost` |
+| P11e-T02 | Contracts and Api: `PortalHost` on the product DTOs, handler validation, public projections |
+| P11e-T03 | Links: host-aware `PortalLinkOptions`, call sites, Worker compatibility, Admin "View on portal" |
+| P11e-T04 | Admin: "Portal host" editor field and list column |
+| P11e-T05 | Portal host resolution: `ProductHostMap`, `ProductHostContext`, `ProductHostMiddleware` |
+| P11e-T06 | Portal links, SEO and cache: `PortalLinks`, per-host sitemap and canonical, vary by host |
+| P11e-T07 | Docs and close-out: D-050 (amends D-002), deployment and Portal docs, pins |
+
 ### PHASE-12 Release hardening
 
 | ID | Title |
@@ -409,6 +422,7 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 | 11 | Provide a scratch environment for the restore drill and agree load-test scheduling on the shared UAT host | P12-T12, P12-T15 |
 | 12 | Confirm the flagged Assumptions that need an owner answer (for example honeypot fake success, dropping a Public key's external user ref, Solved notice email) | PHASE-05, PHASE-06 |
 | 13 | Review the discovery set and select the first phase (expected: PHASE-01) | Now |
+| 14 | For each product host (D-050): add a DNS record and one Caddy site that proxies to the Portal, then set the host on the product in the Admin. UAT needs DNS and one Caddy site per product host (`docs/self-hosting/DEPLOYMENT.md`, "Product hosts") | P12-T14 |
 
 ## 8. Decisions still open
 

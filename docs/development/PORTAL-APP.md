@@ -172,7 +172,7 @@ refused by `IPublicKbClient` without a call (`KbSlugShape`, like `ProductKeyShap
 ### SEO and structured data
 
 Each page sets its head with `SeoHead` (`SyntaxCircus.Blazor.Seo`): a unique title ("{page} - {product} Help Centre", the product being the site because `Seo:SiteName` is global), a description, the canonical
-address (built from `TECHSTRAP_PORTAL_PUBLIC_URL`, never the Host header; a page of a category names its own page, and a shared article is canonical under the product the visitor is on), Open Graph (the product's logo
+address (on the default host built from `TECHSTRAP_PORTAL_PUBLIC_URL`, on a product host from the product's stored `PortalHost`, through `PortalLinks.Absolute`; the raw Host header is only a lookup key into the host map and never appears in a URL; a page of a category names its own page, and a shared article is canonical under the product the visitor is on), Open Graph (the product's logo
 when it has an acceptable one, else `/icon-512.png`, never the bare site address) and `NoIndex` for a search with a text. The description of an article is its summary, else the first sentence of the body as plain
 text (`KbPlainText`), else the title and product. The article page also writes a `BreadcrumbList` and an `Article` as JSON-LD.
 
@@ -184,7 +184,7 @@ hostile texts live in C# tests. The block is data, not script, so the CSP does n
 ### Caching and the sitemap
 
 The help-centre home, a category page and an article page are kept for 60 seconds by the framework's output cache (`AddPortalOutputCache`, one base policy with the path predicate `PortalCachePaths.IsCacheable`; no
-attribute on a page). The key varies by the `page` query value only and never by host (the framework's default key holds the whole query string and the host, so `?utm=1`, `?utm=2` ... would fill the store); a `page`
+attribute on a page). The key varies by the `page` query value and by host (`SetVaryByHost(true)`, D-050: the same path on two hosts is two entries; the key holds the raw Host value, so unknown hosts each get entries, see Known gaps), but not by the rest of the query string (the framework's default key holds the whole query string, so `?utm=1`, `?utm=2` ... would fill the store); a `page`
 value is kept only on a category page and only from two up (the home and an article ignore `page`; `?page=1` is the page with no value); any other value is answered but never kept. A category page is kept only when its raw `Request.QueryString` is empty or literally `?page=` and 2 to 9999: `?PAGE=2`, `?pa%67e=2`, `?page=%32` and any request with another parameter are answered but never stored, because the page's links repeat the address bar's own spelling and a stored copy would hand one visitor's spelling to the next. Only all-lowercase paths are kept (a path with an upper-case letter is never stored or looked up), so a capitalised path can never be answered from the lower-case entry: `/p/ACME/kb` stays the neutral 404 and `/p/acme/KB` is a 200 that is never stored. The search page, the form pages, `/p/{key}` itself, `/t/*`, the suggest adapter, `/not-found`, the sitemap and every answer that is not a 200 are never kept,
 and the output cache never stores a response that sets a cookie (no help-centre page does). A delivered KB page tells browsers `Cache-Control: public, max-age=60` (`PathHeaderRule.SetOnSuccess` in Hosting: a 404,
 429 or 503 never gets it); the search page is `no-store`. `UsePortalOutputCache` goes after the error pages and before the endpoints (`ProgramOrderTests` pins the order), so the shared security headers and the per-path
@@ -192,7 +192,7 @@ rules are applied to a cached answer too, and it sets the request's own `X-Corre
 
 `/sitemap.xml` is `MapSeoSitemap` with a provider (`PortalSitemap`). A build (`PortalSitemapBuilder`) asks for the active products (`IPublicProductClient.ListAsync`), then for each product's published articles, and
 lists the root page (only when no default product is configured: `/` is then a redirect), each product's home, its help centre home, its categories and its articles; a shared article is listed under each product. Every
-address is absolute (from the public URL) and at most 50,000 are listed, the root page included. `PortalSitemapCache` keeps the result for 15 minutes in an `IMemoryCache` with single-flight (twenty concurrent
+address is absolute (from the public URL, or from the product's host) and at most 50,000 are listed, the root page included. The list is per host (D-050): a product host lists only its own product, with clean paths on `https://{host}`; the default host lists only the products without a host plus the root entry. `PortalSitemapCache` is keyed by the host (`Context.Host ?? "default"`) and keeps each result for 15 minutes in an `IMemoryCache` with single-flight (twenty concurrent
 requests make one build), builds on its own task with its own cancellation token (a crawler that goes away stops waiting but cannot cancel the build), remembers a failed build for one minute while the last good sitemap is
 served, and fails the request (the 500 page) only when there has never been a good one. While a rebuild runs, a request other than the one that started it gets the last good sitemap at once. The build's calls carry the address of the visitor whose request started it (a stand-in `HttpContext`; known gap below).
 
@@ -226,6 +226,17 @@ D-019) and have no logging handlers. `ProblemMapping` turns every answer into a 
 attachment errors, 429 is rate limited, any 5xx or transport error is `api-unavailable`, with fixed sentences from `ProblemCopy`. A call made as a ticket's customer takes a `TicketToken` (43 base64url characters;
 it prints as `[token]`), which becomes the `X-Ticket-Token` header of that request only. The typed clients are `IPublicProductClient`, `IPublicTicketClient` (multipart intake), `ICustomerTicketClient` (view, reply,
 lost link, attachment stream) and `IPublicKbClient` (paged search, categories, a category's articles, the article and the sitemap entries; `IPublicProductClient` also lists the active products for the sitemap). `MultipartForm` builds the bodies (text fields first, one `Attachments` part per file, the file streams owned by the request).
+
+### Product hosts
+
+A product with a `PortalHost` (set in the Admin, D-050) is also served at `https://{host}/` with clean paths (`/`, `/contact`, `/kb/...`); the default host keeps `/p/{key}/...`. The Portal needs no new setting.
+
+- **`ProductHostMiddleware`** (`Hosting/`, registered by `UseProductHosts()` directly after `UsePortalSeo()` and before `UseTechStrapErrorPages()`; it calls `UseRouting()` so endpoint selection follows the rewrite) lowercases the request host and looks it up in the host map. The Host header is only a lookup key: every URL, redirect target and canonical is built from a stored `PortalHost` or `TECHSTRAP_PORTAL_PUBLIC_URL`. An unknown host is the default host. A host that can never be a product host (a single label such as `localhost`, or an IP literal) is neither looked up nor redirected.
+- **The map** (`ProductHostMap`, singleton) is an immutable snapshot built from `IPublicProductClient.ListAsync`, driven by `TimeProvider`: a 60 s TTL, stale-while-revalidate (an expired snapshot is served while at most one background reload runs; only a cold start waits) and a miss refresh at most once per 10 s, which bounds Api calls from unknown hosts. `ProductHostContext` (`Key`, `Host`) is scoped per request and survives the re-execution of the 404 and error pages.
+- **The rewrite table** (product host only): `/` becomes `/p/{key}`; `/contact`, `/contact/received`, `/lost-link`, `/kb...` and `/suggest` become `/p/{key}/...`. Passed through untouched, by segment: `/t`, `/_framework`, `/_blazor`, `/_content`, `/css`, `/js`, `/img`, `/favicon*`, `/sitemap.xml`, `/robots.txt`, `/health`, `/not-found`, `/error`, `/_styleguide`. Any other clean path on a product host passes through unrouted and is a 404. Ticket pages are served on every host, so a ticket link keeps working after a host change.
+- **Canonical 301s** (GET and HEAD only, the query string is kept, always an absolute `https://{storedHost}/...`): `/p/{sameKey}/x` on its own host goes to `/x`; `/p/{otherKey}/x` goes to that product's canonical URL; on the default host `/p/{key}/x` of a hosted product goes to `https://{host}/x`. A POST on a long-form path is rewritten and served, never redirected.
+- **`PortalLinks`** (scoped, `Routing/PortalLinks.cs`) builds every link a component renders: a clean path for the current host's product, `https://{host}` plus a clean path for another hosted product, `/p/{key}/...` otherwise. `PortalLinks.Absolute` feeds the canonical URL and the JSON-LD. An architecture rule forbids the `PortalRoutes` builders in components outside `PortalLinks` and `PageLinks`.
+- **SEO and cache.** `/sitemap.xml` is per host (see Caching and the sitemap); the output cache varies by host (`SetVaryByHost(true)`). `/robots.txt` on a product host still names the default host's sitemap (known gap).
 
 ### Headers, robots.txt and the canonical host
 
@@ -318,6 +329,7 @@ recorded in the pull request (the checklist there is ticked by the owner). Run t
 
 ## Known gaps
 
+- Product hosts (D-050): `robots.txt` on a product host names the default host's sitemap (`SyntaxCircus.Blazor.Seo` builds it from `SeoOptions.BaseUrl`; the host's own `/sitemap.xml` is correct); the output cache keys per raw Host value, so unknown hosts each get entries (a bound is PHASE-12 hardening); the 301s set no `Cache-Control` of their own (a help-centre path has none), so a changed or removed host leaves cached redirects and emailed links pointing at the old host (no redirect table); `PortalLinks` uses the 60 s map snapshot while the sitemap reads a fresh list, so they can disagree for up to 60 s after a host change.
 - The product home has the shared search box (`KbSearchBox`, merged in 09d) and the header's link to the help centre, but still no list of categories.
 - The sitemap build's API calls carry the address of the visitor whose request started it, so each sitemap build makes 1 + N API calls under one forwarded IP, and the API's public limit is 120 per minute per IP:
   with about 120 or more active products the sitemap build is rate-limited and the sitemap goes stale or becomes unavailable. Possible later fixes are a bulk sitemap endpoint, or exempting the Portal's own build traffic from the limit.

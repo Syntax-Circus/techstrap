@@ -23,6 +23,7 @@ Approval basis:
 - **Owner decision (2026-10-07, PHASE-11 planning):** D-047, the owner decisions on the three-PR split, the JSON-only SDK, the SDK's dependencies and the Common split, and the MAUI CI split. Its technical rulings were proposed in the PHASE-11a plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-07, PHASE-11b planning):** D-048, the owner decisions on the single net10.0 target framework, the one-pull-request delivery and the approved MAUI helper design. Its technical rulings were proposed in the PHASE-11b plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-08, PHASE-11c planning):** D-049, the owner decisions that nuget.org is ready (IDs, Trusted Publishing policy, NUGET_USER, the release environment), that the XML documentation file is enabled for every package member, that the post-publish check runs against the local compose stack until UAT exists, and the approved publish design. Its technical rulings were proposed in the PHASE-11c plan and approved when the owner approved the plan.
+- **Owner decision (2026-10-08, PHASE-11e planning):** D-050, the owner decisions that product hosts are their own small phase before PHASE-12, that the host-to-product mapping lives on the Product and not in configuration, that URLs on a product host are clean while the default host keeps `/p/{key}` and 301s a hosted product to its host, and that D-002 is amended. Its technical rulings were proposed in the PHASE-11e plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -81,6 +82,7 @@ Approval basis:
 | D-047 | PHASE-11: three pull requests, JSON-only SDK v1, web-neutral SyntaxCircus.Common 0.2.0 + Http.Resilience as dependencies, retry only with an Idempotency-Key through HttpRequestResiliencePipeline | Approved (owner 2026-10-07; technical rulings at PHASE-11a plan review) | 2026-10-07 | PHASE-11, 03-PACKAGE-MAP |
 | D-048 | PHASE-11b: TechStrap.Client.Maui on a single net10.0 target with Microsoft.Maui.Essentials, TicketMetadataKeys in Contracts, MauiTicketDraft submit helper, lazy Essentials defaults | Approved (owner 2026-10-07; technical rulings at PHASE-11b plan review) | 2026-10-07 | PHASE-11, 03-PACKAGE-MAP |
 | D-049 | PHASE-11c: tag-triggered publish-nuget.yml with NuGet Trusted Publishing and a GitHub Release, version from the tag, XML documentation and AOT-safe JSON in the packages, compiled README snippets and a console sample | Approved (owner 2026-10-08; technical rulings at PHASE-11c plan review) | 2026-10-08 | PHASE-11, PHASE-12, 03-PACKAGE-MAP |
+| D-050 | PHASE-11e: product hosts - PortalHost on the Product, HostNameShape, host-aware links, ProductHostMiddleware with clean paths and canonical 301s, PortalLinks, per-host SEO and output cache (amends D-002) | Approved (owner 2026-10-08; technical rulings at PHASE-11e plan review) | 2026-10-08 | PHASE-11e, PHASE-12, 02-ARCHITECTURE, 05-SCHEMA |
 
 ---
 
@@ -119,6 +121,7 @@ Keys are stored hashed (`IApiKeyHasher`); the plaintext is shown once at creatio
 ## D-002: Single portal domain with per-product theming
 
 - **Status:** Approved
+- **Amended by D-050 (2026-10-08):** products may have their own portal host; the default host keeps `/p/{key}`.
 - **Date:** 2026-10-02
 - **Owner:** Jon Seeley
 - **Related artifacts:** UX-BRIEF-portal, PHASE-02, PHASE-09, 02-ARCHITECTURE
@@ -2109,3 +2112,69 @@ The owner's decision on the first published version. It extends D-049; where it 
 - **The first published version is `v0.1.0`.** Not `v1.0.0-rc.1`. The packages stay in the 0.x range, like the other Syntax Circus packages, until the SDK-facing surface of `TechStrap.Contracts` is locked; `v1.0.0` follows then.
 - **The release logic is unchanged.** `0.1.0` has no hyphen, so it is a normal release on nuget.org and a normal (non-`--prerelease`) GitHub Release, as for the other Syntax Circus packages. `publish-nuget.yml` derives the version from the tag and needs no change.
 - **Published.** v0.1.0 was published on 2026-10-08 (run 37793512118); the post-publish check passed against the local compose stack (ORB-8 trusted, ORB-9 untrusted).
+
+## D-050: PHASE-11e: product hosts (PortalHost on the Product, HostNameShape, host-aware links, ProductHostMiddleware, PortalLinks, per-host SEO and output cache; amends D-002)
+
+- **Status:** Approved (owner 2026-10-08; technical rulings at PHASE-11e plan review)
+- **Date:** 2026-10-08
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-002, D-043, D-045, PHASE-11e, PHASE-12, `docs/superpowers/plans/2026-10-08-phase-11e-product-hosts.md`, `docs/self-hosting/DEPLOYMENT.md`, `docs/development/PORTAL-APP.md`
+
+### Context
+D-002 chose one portal domain for every product, with each product under `/p/{key}` and its own theme. A customer-facing product that wants its own address (for example `support.dragonpoop.com`) could not have one. On 2026-10-08, during PHASE-11e planning, the owner asked for it:
+- **The default host is unchanged.** `TECHSTRAP_PORTAL_PUBLIC_URL` (for example `support.syntaxcircus.com`) keeps serving every product under `/p/{key}` and the default product at `/`.
+- **A product may add its own host,** served by the same Portal deployment, with clean paths.
+- **Emails, Admin links, canonical URLs, JSON-LD and the sitemap** have to follow the product host for that product.
+- **The Contracts package is published as `v0.1.0`,** so the DTO changes have to stay additive.
+
+### Decision
+**Owner decisions (2026-10-08)**
+1. **Product hosts are their own small phase, PHASE-11e, before PHASE-12.** They are not folded into PHASE-12.
+2. **The host-to-product mapping lives on the Product** (an Admin-editable `PortalHost`), not in configuration. No new setting is added.
+3. **URLs on a product host are clean** (`/`, `/contact`, `/kb/...`). The default host keeps `/p/{key}/...` and answers the long form of a hosted product with a 301 to its host.
+4. **D-050 amends D-002.** One portal deployment still serves every product, but a product may have its own host.
+
+**Technical rulings (proposed in the 11e plan; approved when the owner approved it; the as-built corrections are marked)**
+- **Host shape.** `HostNameShape.TryNormalize(string? input, out string? host)` in `TechStrap.Domain.Rules` trims and lowercases, then rejects a scheme, a port, a path, userinfo, whitespace, non-ASCII, underscores, labels that are not 1 to 63 characters of `[a-z0-9-]` or that start or end with `-`, a name with fewer than two labels and a name over `DomainLimits.HostNameMaxLength` (253). Blank input normalises to `null`, which clears the host. *As built:* an all-digit last label is also rejected, so an IP literal is never a product host.
+- **Storage and uniqueness.** `Product.PortalHost` and `Product.SetPortalHost(string?)` (error `product-host-invalid`); EF column `portal_host varchar(253)` with the unique index `ix_products_portal_host` (migration `AddProductPortalHost`). The handlers also pre-check through `IProductRepository.IsPortalHostTakenAsync(host, exceptProductId, ct)` and answer `product-host-taken` (409) deterministically; the index is the safety net.
+- **Contracts stay additive.** `string? PortalHost = null` is the last parameter of `ProductDto`, `CreateProductRequest`, `UpdateProductRequest`, `PublicProductDto` and `PublicProductSummaryDto`, so 0.1.0 positional construction still compiles. The Admin references Contracts only, so the shape rule is copied into Contracts with a parity test, as for the intake limits. *As built:* the copy is `TechStrap.Contracts.Products.ProductHostRules` (with `HostNameMaxLength`), not `ProductLimits`. `ProductErrors.HostInvalid()` is a 400 with the kebab-case target `portal-host`; `ProductErrors.HostTaken()` is a 409 with no target.
+- **Links are built from stored values only.** `PortalLinkOptions.TicketLink(string? portalHost, string token)`, `ArticleLink(string? portalHost, key, category, slug)`, `ArticlePathOnHost` and `ProductHostBase(host) => https://{host}`. A null or blank host gives the unchanged default-host shape. Product hosts are always https. *As built:* the overloads take the host string, not the `Product` type (the spec said `TicketLink(Product, ...)`). The Worker's `EndsWith` check became `PortalLinkOptions.IsArticleLink(url, key, category, slug)`, which matches either shape; the host shape must be exactly `https://{host}/kb/...`. The Admin's `PortalUrlOptions.ArticleUrl(portalHost, ...)` gives `https://{host}/kb/...` for a hosted product even when the portal public URL is blank.
+- **The raw Host header is a lookup key, never a value.** `ProductHostMiddleware` lowercases the request host and looks it up in the map of stored hosts. Every URL, redirect target and canonical is built from a stored `PortalHost` or `TECHSTRAP_PORTAL_PUBLIC_URL`; the header never reaches a URL, a header or a log line. An unknown host behaves as the default host. *As built:* a host that can never be a product host (a single label such as `localhost`, or an IP literal) is neither looked up nor redirected.
+- **Host map.** `ProductHostMap` (singleton) holds a `volatile` immutable snapshot built from `IPublicProductClient.ListAsync` (the summaries carry `PortalHost`), with `ProductHostMapOptions.Ttl = 60 s` and `MissRefreshInterval = 10 s`. *As built:* it is a snapshot driven by `TimeProvider`, not an `IMemoryCache` entry. It is stale-while-revalidate: an expired snapshot is served while at most one background reload runs on a non-request token, and only a cold start awaits. A miss inside the 10 s interval never touches the lock. The background read runs under a synthetic `DefaultHttpContext` that carries only the visitor IP, as the sitemap build does. `ProductHostContext` (`Key`, `Host`, `IsProductHost`) is scoped, stored on `HttpContext.Features` and resolved through `IHttpContextAccessor`, so re-executed 404 and error pages see it.
+- **Middleware order and rewrite table.** `UseProductHosts()` (`ProductHostMiddleware`) runs directly after `UsePortalSeo()` and before `UseTechStrapErrorPages()`, and it calls `UseRouting()` so endpoint selection follows the rewrite. On a product host `/` becomes `/p/{key}`, and `/contact`, `/contact/received`, `/lost-link`, `/kb...` and `/suggest` become `/p/{key}/...`. It passes through, by segment, `/t`, `/_framework`, `/_blazor`, `/_content`, `/css`, `/js`, `/img`, `/favicon*` (name prefix), `/sitemap.xml`, `/robots.txt`, `/health`, `/not-found`, `/error` and `/_styleguide`. An unknown clean path on a product host passes through unrouted and is a 404.
+- **Redirects.** Only GET and HEAD are redirected (a 301 would drop a POST body; a POST on the wrong path is rewritten and served). `/p/{sameKey}/x` gets a 301 to `https://{storedHost}/x`; `/p/{otherKey}/x` gets a 301 to that product's canonical URL (its host with a clean path, else the default host with `/p/{otherKey}/x`); on the default host `/p/{key}/x` of a hosted product gets a 301 to `https://{host}/x`. The query string is kept. *As built:* the same-host canonical redirect is absolute (a relative Location from `/p/key//evil` would be protocol-relative), and no redirect is ever built from `Request.Host`.
+- **`PortalLinks`** (scoped, `TechStrap.Portal/Routing/PortalLinks.cs`) is the single owner of the clean-path rule: the same key as `ProductHostContext.Key` gives the `/p/{key}` path with the prefix stripped (`/` for the home); another product with a host gives `https://{host}` plus the stripped path; otherwise `/p/{key}/...`. `Ticket` and `TicketAttachment` are always relative. `Absolute(path)` is `https://{Context.Host}{path}` on a product host and `PublicBaseUrl + path` otherwise. `PortalLinks.ToFragment` keeps the skip link, the error-summary field links and the ticket reply jump link clean. An architecture rule (`PortalRules`, `PortalLinkRuleTests`) forbids `PortalRoutes.<builder>(` in Portal `.razor`, `.razor.cs` and `Seo/*` except in `Routing/PortalLinks.cs` and `Routing/PageLinks.cs`; the `*Template`, `*Parameter`, `*Segment`, `*Prefix` and `*Path` constants stay allowed.
+- **SEO per host.** The canonical URL and the JSON-LD URLs come from `PortalLinks.Absolute` (the package's `ISeoUrlBuilder.AbsoluteUrl` passes an absolute URL through, so `SyntaxCircus.Blazor.Seo` is unchanged). `/sitemap.xml` on a product host lists only that product, with clean paths on `https://{host}`; on the default host it lists only the products without a host plus the static `/` entry (that entry moved from `MapSeoSitemap` into the provider so product hosts do not list the default `/`). `PortalSitemapCache` is keyed by `Context.Host ?? "default"` with the same 15-minute TTL. The Open Graph image stays on the default host (`/icon-512.png` is not served on product hosts).
+- **Output cache.** `PortalOutputCache` uses `SetVaryByHost(true)`; the former "never vary by host" test became "two hosts, two entries".
+- **Admin.** `ProductEditorViewModel.PortalHost` is normalised through `ProductHostRules.TryNormalize` (blank to `null`); a 400 `product-host-invalid` is routed by its target `portal-host` to the field; a 409 `product-host-taken` is shown as a field error ("Another product already uses this hostname."); the product list has a "Portal host" column.
+- **Ticket pages are host-neutral.** `/t/{token}` is served on every host, so changing a product's host never breaks a ticket link that was already sent.
+- **The Portal is static server-side rendering.** It has no interactive circuit: `POST /_blazor/negotiate` is 405 on every host, so the circuit check reduced to `blazor.web.js` answering 200 on a product host plus negotiate parity.
+- **Tests.** `scripts/tests/RepositoryDocs.Tests.ps1` pins this decision, the D-002 amendment, the roadmap and discovery rows, the Portal and runbook wording and the spec ticks.
+
+### Alternatives Considered
+- **The mapping in configuration or an environment variable.** Rejected: a new product host would need a deploy, and the Admin could not show it. The Product already is the place for per-product data.
+- **A reverse-proxy path rewrite instead of middleware.** Rejected: the proxy is outside the compose files and does not know the product map; the Portal also has to build correct links, canonicals and sitemaps, so it needs the map anyway.
+- **Keeping `/p/{key}` paths on product hosts.** Rejected: the owner wants clean URLs on a product's own address.
+- **A wildcard or any-host mode** (serve any host that points at the Portal). Rejected: the host would become a value instead of a lookup key, and an unknown host could then reach a URL.
+- **`IMemoryCache` for the host map.** Rejected as built: a plain snapshot with `TimeProvider` gives stale-while-revalidate and a testable clock, which a cache entry's eviction does not.
+
+### Consequences
+- **Spec and docs.** `PHASE-11e-product-hosts.md` carries a Corrections block and ticks T01 to T07; `02-ARCHITECTURE.md`, `05-SCHEMA.md`, the roadmap, the discovery index, `UX-BRIEF-portal.md`, `PORTAL-APP.md` and `DEPLOYMENT.md` are updated. D-002 carries an "Amended by D-050" line.
+- **Operator work per host.** A product host needs a DNS record and one Caddy site that proxies to the Portal (`DEPLOYMENT.md`, "Product hosts"). The Portal needs no new setting: the host is set on the product in the Admin. UAT configuration (PHASE-12) adds the real hosts.
+- **The Contracts change is additive.** The next package version (0.2.0) is tagged when the owner decides; it is not part of the PHASE-11e pull request.
+- **Known limits**
+  - A unique-index race that gets past the pre-check surfaces as `product-key-taken` on Create (the Duplicate mapping) and as the raw persistence Duplicate error on Update.
+  - `IsArticleLink` does not check that the host belongs to the product; the stored URL was built by the planner.
+  - Single-label and IP hosts are never product hosts, so on `localhost` a hosted product's `/p/{key}` is not 301'd.
+  - The 301s set no `Cache-Control` of their own (a 301 on a help-centre path has none; on a form page it inherits that page's `no-store` from the per-path rules). Changing or removing a product's host leaves cached redirects and emailed links pointing at the old host; there is no redirect table. Keep the old host's Caddy site until old links age out.
+  - A host that misses while a map refresh is in flight is the default host for that one request.
+  - `robots.txt` on a product host names the default host's sitemap, because `SyntaxCircus.Blazor.Seo` builds the line from `SeoOptions.BaseUrl`; the host's own `/sitemap.xml` is correct. Fixing it is a package enhancement.
+  - The output cache keys per raw Host value, so unknown hosts each get entries. A bound is PHASE-12 hardening.
+  - `PortalLinks` uses the 60 s map snapshot while the sitemap reads a fresh list, so they can disagree for up to 60 s after a host change; a product host whose product is not in the fresh list yields an empty sitemap.
+  - The Blazor form-post redirect Location is absolute on the request host (framework behaviour, pre-existing).
+  - The Portal is static SSR, so there is no circuit to test on a product host.
+  - HSTS `includeSubDomains` on a parent domain also covers a product host under it (`DEPLOYMENT.md`).
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-11e planning)
+- **Approved on:** 2026-10-08
