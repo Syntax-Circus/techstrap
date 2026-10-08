@@ -31,8 +31,8 @@
 | 07 | [Admin app](PHASE-07-admin-app.md) | 02, 06 | 08 (editor UI), 10 | Complete: 07a merged (PR #9), 07b merged (PR #10), 07c merged (PR #11); owner action 7 (Authentik) still open, so P07-T02 stays unticked |
 | 08 | [Knowledge base](PHASE-08-knowledge-base.md) | 06 (07 for the editor UI) | 09 | PHASE-08 merged (PR #13): the API (Tasks 1-8) and the Admin (editor, categories, article picker); the owner's manual checks are open |
 | 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 | 09a merged (PR #14); 09b merged (PR #15); 09c merged (PR #16); 09d merged (PR #17); PHASE-09 complete: the owner evidence for P09-T16 (axe, Lighthouse, the JavaScript-off walk, screenshots) and the compose run of P09-T18 are open, P09-T20 is deferred |
-| 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | 10a merged (PR #18); 10b complete (pending merge); PHASE-10 complete (pending merge): the owner's manual checks with a real identity provider (two browsers, a worker auto-close, the kill switch) are open |
-| 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | Not started |
+| 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | 10a merged (PR #18); 10b merged (PR #19); PHASE-10 complete: the owner's manual checks with a real identity provider (two browsers, a worker auto-close, the kill switch) are open |
+| 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | 11a complete (pending merge): T01, T02, T03, T04, T06, T10, T17; 11b (MAUI, T07 to T09) and 11c (READMEs, samples, publish workflow, nuget.org, rc.1; T11 to T16) not started; T05 (attachments) deferred to 11d, which first needs multipart intake |
 | 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 | Not started |
 
 Phases that can run in parallel: 02 alongside 03–06; 11 alongside 07–10.

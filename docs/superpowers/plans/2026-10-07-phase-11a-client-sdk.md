@@ -24,6 +24,7 @@
 
 ### Decisions made while drafting (D-047 records them)
 - **Retries use `HttpRequestResiliencePipeline`, not `AddResilientHttpClient`.** The package's `AddResilientHttpClient` retries every request (POST included) on 408/429/500/502/503/504 -> duplicate tickets. `HttpRequestResiliencePipeline.SendAsync(requestFactory, sender, completionOption, HttpRequestReplaySafety, ct)` takes a per-call replay flag and a fresh request per attempt. A submit **with** an `Idempotency-Key` is `Replayable` (same key every attempt); **without** one it is `NotReplayable` (sent once). Retryable: transport, timeout, 408, 502, 503, 504. **Not 500** (the Portal's `ApiClientRegistration.IsRetryable` rule: a 500 is the API's own answer). **Not 429**: the pipeline cannot honour or cap `Retry-After` per response and its status set also drives the circuit breaker; a 429 is returned as `rate-limited` for the caller to handle. The Api never emits `Retry-After` today (grep: none in `src/TechStrap.Api`), so the SDK does not carry it (no `ResultError.Target` hack); revisit when the server sends one.
+  - **As built:** the Api does send `Retry-After` on a 429 (the shared rate-limit rejection shape; `Api.Tests` asserts it). The SDK still does not carry it, because `ResultError` has no slot for it and the pipeline cannot honour it per response; the follow-up is a slot in `SyntaxCircus.Common`. D-047 records this under Known limits.
 - **Result mapping mirrors the Portal** (`src/TechStrap.Portal/Clients/ProblemMapping.cs`, `ApiConnection.cs`; copy, the Portal's is `internal`): see the table in Task 3. Caller cancellation propagates as `OperationCanceledException`; programmer errors throw; nothing else does.
 - **Error-code constants live in `TechStrap.Client`** (`TechStrapClientErrorCodes`), not Contracts: produced by the SDK, never on the wire (the Portal and Admin keep local `ApiErrorCodes` for the same reason). Wire codes (400 `errorCodes`, `IntakeWarnings`) pass through unchanged.
 - **Constants reconciled to what exists.** Spec's `TechStrapHeaders` = `TechStrap.Contracts.Http.HeaderNames` (`ApiKey = "X-Api-Key"`, `IdempotencyKey = "Idempotency-Key"`); spec's `TicketMetadataLimits` = `IntakeLimits.MaxMetadata*` (+ `MaxIdempotencyKeyLength = 200`); `TicketMetadataKeys` is 11b. New: `IntakeRoutes.Tickets = "api/intake/tickets"` (precedent `TicketHubRoutes.Path` in `Contracts/Live/LiveNames.cs`), used by the controller.
@@ -91,10 +92,11 @@ Branch `feat/current-user-service`, PR (Syntax-Circus/SyntaxCircus.AspNetCore.Co
 
 Controller ruling (b): Task 1 is done first; this step is the first commit of the branch that needs the published packages. It runs when both PRs are merged and indexed on nuget.org.
 
-- [ ] **0c.1: Versions.** `Directory.Packages.props`: `SyntaxCircus.Common` 0.1.3 -> 0.2.0 and `SyntaxCircus.AspNetCore.Common` 0.1.15 -> 0.1.16 (must move together: 0.1.15 pins Common exactly). The same two rows in `docs/architecture/03-PACKAGE-MAP.md` (`scripts/Check-PackageVersions.ps1` fails when they disagree).
-- [ ] **0c.2: The doc comment.** techstrap uses no `ICurrentUserService` (only a doc comment in `src/TechStrap.Application/Agents/ICurrentAgentClaims.cs:7`); reword it.
-- [ ] **0c.3: Verify and commit.** `dotnet build TechStrap.slnx -c Release` 0 warnings; `pwsh -File scripts/Check-PackageVersions.ps1`; `git diff --cached --stat`; commit `build(deps): SyntaxCircus.Common 0.2.0 and AspNetCore.Common 0.1.16 (D-047)`.
-- [ ] **0c.4: Save this plan.** The plan itself is committed first as `docs(plans): PHASE-11a client SDK core plan (D-047)` in `docs/superpowers/plans/2026-10-07-phase-11a-client-sdk.md`, in the format of `2026-10-07-phase-10b-live-admin.md` (Goal / Architecture / Owner decisions / Decisions made while drafting / Global Constraints / Tasks).
+- [x] **0c.1: Versions.** `Directory.Packages.props`: `SyntaxCircus.Common` 0.1.3 -> 0.2.0 and `SyntaxCircus.AspNetCore.Common` 0.1.15 -> 0.1.16 (must move together: 0.1.15 pins Common exactly). The same two rows in `docs/architecture/03-PACKAGE-MAP.md` (`scripts/Check-PackageVersions.ps1` fails when they disagree).
+- [x] **0c.2: The doc comment.** techstrap uses no `ICurrentUserService` (only a doc comment in `src/TechStrap.Application/Agents/ICurrentAgentClaims.cs:7`); reword it.
+- [x] **0c.3: Verify and commit.** `dotnet build TechStrap.slnx -c Release` 0 warnings; `pwsh -File scripts/Check-PackageVersions.ps1`; `git diff --cached --stat`; commit `build(deps): SyntaxCircus.Common 0.2.0 and AspNetCore.Common 0.1.16 (D-047)`.
+  - **As built:** Step 0c and the plan commit ran after Task 1, because the two upstream publishes gated them; only the commit order differs from the text above.
+- [x] **0c.4: Save this plan.** The plan itself is committed first as `docs(plans): PHASE-11a client SDK core plan (D-047)` in `docs/superpowers/plans/2026-10-07-phase-11a-client-sdk.md`, in the format of `2026-10-07-phase-10b-live-admin.md` (Goal / Architecture / Owner decisions / Decisions made while drafting / Global Constraints / Tasks).
 
 ---
 
@@ -139,21 +141,21 @@ Done: techstrap commit 1912653 (`feat(contracts): IntakeRoutes, wire-literal rul
   - `TechStrapClientDefaults { HttpClientName = "TechStrap"; ConfigurationSection = "TechStrap" }`.
   - `TechStrapClientErrorCodes { InvalidApiKey = "invalid-api-key", ValidationFailed, PayloadTooLarge, UnsupportedMediaType, RateLimited, ApiUnavailable, UnexpectedResponse = "api-unexpected-response", ApiError }`.
 
-- [ ] **Step 1: Branch and project skeleton.**
+- [x] **Step 1: Branch and project skeleton.**
   - `src/TechStrap.Client/TechStrap.Client.csproj`: import the props; `PackageId` TechStrap.Client; `PackageReference`s `SyntaxCircus.Http.Resilience`, `SyntaxCircus.Common`, `Microsoft.Extensions.Http`, `Microsoft.Extensions.Options`, `Microsoft.Extensions.DependencyInjection.Abstractions` (all already pinned); `ProjectReference` Contracts; `InternalsVisibleTo` TechStrap.Client.Tests. Short `README.md`.
   - Create `tests/TechStrap.Client.Tests/TechStrap.Client.Tests.csproj` (refs Client, Contracts, Api; links the files listed in "Decisions made while drafting"; packages `Microsoft.AspNetCore.Mvc.Testing`, `Testcontainers.PostgreSql`, `Microsoft.Extensions.TimeProvider.Testing`, all pinned). Add to `TechStrap.slnx` and `TechStrap.CI.slnf` (Client.Maui stays out).
-- [ ] **Step 2: Architecture rules first (RED).** `tests/TechStrap.Architecture.Tests/ReferenceRules.cs`: `ClientAllowedPackages` = the five packages above; `Evaluate` emits "`TechStrap.Client` must not reference package X"; `ProjectReferenceDirectionTests`: `Client_references_only_Contracts_and_the_reviewed_packages` + a fixture test.
-- [ ] **Step 3: Unit tests (RED, no Docker).**
+- [x] **Step 2: Architecture rules first (RED).** `tests/TechStrap.Architecture.Tests/ReferenceRules.cs`: `ClientAllowedPackages` = the five packages above; `Evaluate` emits "`TechStrap.Client` must not reference package X"; `ProjectReferenceDirectionTests`: `Client_references_only_Contracts_and_the_reviewed_packages` + a fixture test.
+- [x] **Step 3: Unit tests (RED, no Docker).**
   - Validator theories per rule: absolute http/https, no userinfo/query/fragment, https unless loopback; key non-blank and header-safe; `0 < Timeout <= 10 min`; `1 <= MaxAttempts <= 10`; `0 < RetryBaseDelay <= MaxRetryDelay`.
   - Loopback http allowed (`localhost`, `127.0.0.1`, `[::1]`).
   - `Validation_messages_never_contain_the_api_key`; `Options_ToString_does_not_print_the_key`.
   - Handler sets the header (`HeaderNames.ApiKey`) and replaces any caller value; a foreign authority -> nothing sent.
   - `Registration_has_no_logging_handler_on_the_named_client` (inspect the `IHttpMessageHandlerFactory` chain for `Logging*HttpMessageHandler`).
   - `Primary_handler_does_not_follow_redirects` (stub answers 302, no second request).
-- [ ] **Step 4: Implementation (GREEN).** The options class, the validator (messages never contain the key), `ApiKeyHandler` (sets `HeaderNames.ApiKey`, replacing any caller value, and throws without sending for a foreign authority), `TechStrapClientDefaults`, `TechStrapClientErrorCodes`.
-- [ ] **Step 5: Mutations.** Drop the loopback exemption; flip the https rule; skip the authority check; echo the key in a message; `AllowAutoRedirect = true`.
-- [ ] **Step 6: Validate.** `dotnet test --project tests/TechStrap.Client.Tests -c Release --filter-not-trait "Integration=Docker"`; the Architecture tests.
-- [ ] **Step 7: Commit.** `feat(client): TechStrap.Client project, options validation and ApiKeyHandler (P11-T02, P11-T03)`, after `git diff --cached --stat`.
+- [x] **Step 4: Implementation (GREEN).** The options class, the validator (messages never contain the key), `ApiKeyHandler` (sets `HeaderNames.ApiKey`, replacing any caller value, and throws without sending for a foreign authority), `TechStrapClientDefaults`, `TechStrapClientErrorCodes`.
+- [x] **Step 5: Mutations.** Drop the loopback exemption; flip the https rule; skip the authority check; echo the key in a message; `AllowAutoRedirect = true`.
+- [x] **Step 6: Validate.** `dotnet test --project tests/TechStrap.Client.Tests -c Release --filter-not-trait "Integration=Docker"`; the Architecture tests.
+- [x] **Step 7: Commit.** `feat(client): TechStrap.Client project, options validation and ApiKeyHandler (P11-T02, P11-T03)`, after `git diff --cached --stat`.
 
 ---
 
@@ -169,8 +171,9 @@ Done: techstrap commit 1912653 (`feat(contracts): IntakeRoutes, wire-literal rul
   - `ITechStrapClient`: `Task<Result<SubmitTicketResponse>> SubmitTicketAsync(SubmitTicketRequest request, string? idempotencyKey = null, CancellationToken ct = default)`; `SubmitTicketOnceAsync(request, ct)`.
   - `TechStrapClientServiceCollectionExtensions.AddTechStrapClient(Action<TechStrapClientOptions>)` and `AddTechStrapClient(IConfiguration)` (binds the six keys by hand; `Options.ConfigurationExtensions` is not pinned).
 
-- [ ] **Step 1: Spike first (at most 15 minutes, scratch).** Restore `SyntaxCircus.Http.Resilience` 0.2.2 (only 0.2.1 is in the local cache) and confirm: the `HttpRequestResiliencePipeline` / `HttpRequestResilienceOptions` names; that `HttpRequestTimeoutException` and `HttpCircuitOpenException` are public; whether the last attempt rethrows the original exception; whether `TotalRequestTimeout` includes backoff delays; the circuit-breaker defaults. Record the answers in `TechStrapClient` comments and in the D-047 text (Task 6).
-- [ ] **Step 2: Tests first (RED).** Stub handler with a scripted queue, recording requests and headers; the fixture uses 1 ms delays.
+- [x] **Step 1: Spike first (at most 15 minutes, scratch).** Restore `SyntaxCircus.Http.Resilience` 0.2.2 (only 0.2.1 is in the local cache) and confirm: the `HttpRequestResiliencePipeline` / `HttpRequestResilienceOptions` names; that `HttpRequestTimeoutException` and `HttpCircuitOpenException` are public; whether the last attempt rethrows the original exception; whether `TotalRequestTimeout` includes backoff delays; the circuit-breaker defaults. Record the answers in `TechStrapClient` comments and in the D-047 text (Task 6).
+  - **As built (spike, 2026-10-07):** the pipeline returns the final failing response (the caller disposes it) and disposes earlier ones; after `MaxAttempts` exceptions it rethrows the original `HttpRequestException` unwrapped; `TotalRequestTimeout` is one deadline over the sends and the backoff; the circuit counts logical calls and opens after five consecutive failing calls; `HttpRequestResiliencePipeline` is not `IDisposable`; its package dependencies are `Microsoft.Extensions.Http.Resilience` 9.9.0, `Microsoft.Extensions.DependencyInjection` 10.0.0 and `Microsoft.Extensions.Http` 10.0.0, with no framework reference.
+- [x] **Step 2: Tests first (RED).** Stub handler with a scripted queue, recording requests and headers; the fixture uses 1 ms delays.
   - One test per row of the mapping table below; `Server_text_of_non_400_responses_never_reaches_the_result`.
   - Retries: 503/408/502/504 retried with the identical key on every attempt; 500/429/400 not; a transport failure retried then `api-unavailable` after `MaxAttempts`; `MaxAttempts_1_never_retries`; `SubmitTicketOnceAsync` sends no key and one attempt; a generated key is 32 hex and differs per call but not per attempt; a supplied key is sent verbatim; an invalid key throws before sending; `Each_attempt_gets_a_fresh_request_and_body`.
   - Budget: a hanging stub -> `api-unavailable` within `Timeout`.
@@ -178,7 +181,7 @@ Done: techstrap commit 1912653 (`feat(contracts): IntakeRoutes, wire-literal rul
   - Cancellation propagates; a null request throws; invalid options -> `OptionsValidationException` on first use.
   - Request shape: POST to `IntakeRoutes.Tickets`, the web-JSON body round-trips, the key only in the header.
   - DI: the client is a singleton; the `IConfiguration` overload reads the six keys; double registration is safe.
-- [ ] **Step 3: Implementation (GREEN).**
+- [x] **Step 3: Implementation (GREEN).**
   - `TechStrapClient` (singleton; owns one pipeline `"techstrap-submit"` built from options: `MaxAttempts`, `TotalRequestTimeout = Timeout`, `BackoffBaseDelay`/`MaximumDelay` from the delays, `RetryableStatusCodes = {408, 502, 503, 504}`, `RetryableExceptionCategories = {Transport, Timeout}`); a fresh `HttpRequestMessage` + `JsonContent` (`JsonSerializerDefaults.Web`) per attempt to `IntakeRoutes.Tickets`; generated key = `Guid.NewGuid().ToString("N")`; a supplied key is validated: non-blank, at most `IntakeLimits.MaxIdempotencyKeyLength`, visible ASCII, else `ArgumentException`.
   - `ProblemResponseMapper`: a copy of the Portal's `Problem` parsing (accepted as a copy, controller ruling (c)): `errorCodes`/`errors` per field, `field.Length == 0` -> null target.
   - `TechStrapClientMessages`; the DI extensions.
@@ -198,9 +201,10 @@ Done: techstrap commit 1912653 (`feat(contracts): IntakeRoutes, wire-literal rul
 | 5xx (500 not retried); `HttpRequestException`, `TimeoutException`, `HttpRequestTimeoutException`, `HttpCircuitOpenException`, non-caller `OperationCanceledException` | `api-unavailable` (fixed copy, never exception text/host) | Failure |
 | any other status | `api-error` | Failure |
 
-- [ ] **Step 4: Mutations (at most 12).** Add 429/500 to the retryable set; `NotReplayable` -> `Replayable`; regenerate the key per attempt; swap the 401/403 kinds; drop the field target; include the server `detail` for 5xx; cancellation -> Result; reuse the request; ignore `Timeout`; drop 422; attempts-vs-retries off-by-one; key sent from `Once`.
-- [ ] **Step 5: Validate.** `dotnet test --project tests/TechStrap.Client.Tests -c Release --filter-not-trait "Integration=Docker"`; `dotnet build TechStrap.slnx -c Release` 0 warnings.
-- [ ] **Step 6: Commit.** `feat(client): ITechStrapClient with idempotent retries and Result mapping (P11-T04, P11-T17)`, after `git diff --cached --stat`.
+  - **As built:** a follow-up commit (`fix(client): 408 exhausts to api-unavailable, cancellation wins, SDK hardening`) made an exhausted 408 map to `api-unavailable`, made caller cancellation win over any pipeline exception, capped `MaxResponseContentBufferSize` at 1 MiB, and made the `ITechStrapClient` and `TimeProvider` registrations `TryAddSingleton`. `TechStrapClientDefaults` holds the client name, the configuration section and the response cap.
+- [x] **Step 4: Mutations (at most 12).** Add 429/500 to the retryable set; `NotReplayable` -> `Replayable`; regenerate the key per attempt; swap the 401/403 kinds; drop the field target; include the server `detail` for 5xx; cancellation -> Result; reuse the request; ignore `Timeout`; drop 422; attempts-vs-retries off-by-one; key sent from `Once`.
+- [x] **Step 5: Validate.** `dotnet test --project tests/TechStrap.Client.Tests -c Release --filter-not-trait "Integration=Docker"`; `dotnet build TechStrap.slnx -c Release` 0 warnings.
+- [x] **Step 6: Commit.** `feat(client): ITechStrapClient with idempotent retries and Result mapping (P11-T04, P11-T17)`, after `git diff --cached --stat`.
 
 ---
 
@@ -210,19 +214,21 @@ Done: techstrap commit 1912653 (`feat(contracts): IntakeRoutes, wire-literal rul
 
 - Test (create): `tests/TechStrap.Client.Tests/Integration/ClientApiFactory.cs`, `SdkHost.cs`, `SubmitAgainstTheApiTests.cs`, `IdempotencyAgainstTheApiTests.cs`, `OpenApiContractTests.cs`
 
-- [ ] **Step 1: The host.** `ClientApiFactory.cs` (the ~30-line `WebApplicationFactory<TechStrap.Api.Program>` copying `HostFactory`'s defaults). `SdkHost.cs`: `AddTechStrapClient` with `BaseAddress = factory.Server.BaseAddress` (`http://localhost/`, loopback passes validation) + `ConfigurePrimaryHttpMessageHandler(() => factory.Server.CreateHandler())`. Seeding pattern: `IntakeEndpointTests.StartAsync` (Public and Trusted keys via `IntakeTestData`).
-- [ ] **Step 2: Submit tests.**
+- [x] **Step 1: The host.** `ClientApiFactory.cs` (the ~30-line `WebApplicationFactory<TechStrap.Api.Program>` copying `HostFactory`'s defaults). `SdkHost.cs`: `AddTechStrapClient` with `BaseAddress = factory.Server.BaseAddress` (`http://localhost/`, loopback passes validation) + `ConfigurePrimaryHttpMessageHandler(() => factory.Server.CreateHandler())`. Seeding pattern: `IntakeEndpointTests.StartAsync` (Public and Trusted keys via `IntakeTestData`).
+- [x] **Step 2: Submit tests.**
   - Trusted key -> number + `ViewUrl`, `metadata_trusted` true, channel Api.
   - Public key -> `external-user-ref-ignored` warning, untrusted metadata.
   - Revoked / unknown / deactivated-product key -> `invalid-api-key`.
   - Invalid email -> Validation targeting `email`.
   - Oversized body -> `payload-too-large` (`factory.UseKestrel(0)` + real loopback address, as `IntakeEndpointTests`).
   - Rate limit (`RateLimiting:Intake:TrustedKeyPermitLimit=1`, as `IntakeRateLimitTests`) -> `rate-limited`.
-- [ ] **Step 3: T17 idempotency tests.** A handler below `ApiKeyHandler` forwards the first request to the server then throws `HttpRequestException` -> the retry carries the same key -> exactly one `tickets` row, same `TicketNumber`, two requests seen with one key. `SubmitTicketOnceAsync` with the same handler -> one attempt, `api-unavailable`, one ticket. A supplied key replayed in a second call returns the first ticket (D-020).
-- [ ] **Step 4: OpenAPI contract tests.** `/openapi/v1.json` has `paths["/" + IntakeRoutes.Tickets].post`; security `ApiKey` = `{type: apiKey, in: header, name: HeaderNames.ApiKey}`; the request body is `application/json` whose property names equal the camelCase `SubmitTicketRequest` constructor parameters (reflection) and nothing else; the 201 schema matches `SubmitTicketResponse`; the `Idempotency-Key` header parameter is present (assert what is true, note a gap); nothing multipart.
-- [ ] **Step 5: Mutations.** Rename a DTO property; change `HeaderNames.IdempotencyKey`; send a key from `Once`; PascalCase serializer.
-- [ ] **Step 6: Validate.** `dotnet test --project tests/TechStrap.Client.Tests -c Release`; `dotnet test --solution TechStrap.CI.slnf -c Release`; `docker ps` shows no leftovers.
-- [ ] **Step 7: Commit.** `test(client): SDK against the real API, idempotent retry proof and OpenAPI contract (P11-T06, P11-T17)`, after `git diff --cached --stat`.
+- [x] **Step 3: T17 idempotency tests.** A handler below `ApiKeyHandler` forwards the first request to the server then throws `HttpRequestException` -> the retry carries the same key -> exactly one `tickets` row, same `TicketNumber`, two requests seen with one key. `SubmitTicketOnceAsync` with the same handler -> one attempt, `api-unavailable`, one ticket. A supplied key replayed in a second call returns the first ticket (D-020).
+- [x] **Step 4: OpenAPI contract tests.** `/openapi/v1.json` has `paths["/" + IntakeRoutes.Tickets].post`; security `ApiKey` = `{type: apiKey, in: header, name: HeaderNames.ApiKey}`; the request body is `application/json` whose property names equal the camelCase `SubmitTicketRequest` constructor parameters (reflection) and nothing else; the 201 schema matches `SubmitTicketResponse`; the `Idempotency-Key` header parameter is present (assert what is true, note a gap); nothing multipart.
+  - **As built:** the Api documents no response schemas (no controller uses `ProducesResponseType`), so the intake POST appears in OpenAPI as a 200 with no body and the 201 `SubmitTicketResponse` schema assertion does not exist; the real-API tests pin the response shape instead. The rest of the step is as written. No server change was made (a PHASE-05 follow-up, recorded in D-047).
+- [x] **Step 5: Mutations.** Rename a DTO property; change `HeaderNames.IdempotencyKey`; send a key from `Once`; PascalCase serializer.
+  - **As built:** changing `HeaderNames.IdempotencyKey` cannot be caught, by design (client and server share the constant); a client-side literal mutation stood in and was killed.
+- [x] **Step 6: Validate.** `dotnet test --project tests/TechStrap.Client.Tests -c Release`; `dotnet test --solution TechStrap.CI.slnf -c Release`; `docker ps` shows no leftovers.
+- [x] **Step 7: Commit.** `test(client): SDK against the real API, idempotent retry proof and OpenAPI contract (P11-T06, P11-T17)`, after `git diff --cached --stat`.
 
 ---
 
@@ -236,12 +242,12 @@ Done: techstrap commit 1912653 (`feat(contracts): IntakeRoutes, wire-literal rul
 **Interfaces:**
 - Produces: `scripts/Test-PackageContents.ps1` (`-PackageDirectory`, `-Expected` id -> dependency ids). 11c's T14 extends it.
 
-- [ ] **Step 1: Pester first (RED).** `scripts/tests/Test-PackageContents.Tests.ps1` with zip fixtures in `$TestDrive`: one good, one per defect (README missing, license not MIT, repository URL missing, readme unset, dependency set differs, `.snupkg` missing). Pester pin: `ci.yml` contains the pack step; `TechStrap.CI.slnf` lists `TechStrap.Client.Tests`.
-- [ ] **Step 2: The script (GREEN).** Opens each `.nupkg` (`System.IO.Compression`), asserts README.md present, `<license type="expression">MIT</license>`, repository URL and readme set, dependency ids equal the expected set, matching `.snupkg` exists.
-- [ ] **Step 3: CI.** `.github/workflows/ci.yml`, after Test, before the EF pending-model check: `dotnet pack src/TechStrap.Contracts` and `src/TechStrap.Client` with `-c Release --no-build -p:Version=0.0.0-ci -o $RUNNER_TEMP/pack`, then the script with `TechStrap.Contracts = @()` and `TechStrap.Client = @('TechStrap.Contracts','SyntaxCircus.Http.Resilience','SyntaxCircus.Common','Microsoft.Extensions.Http','Microsoft.Extensions.Options','Microsoft.Extensions.DependencyInjection.Abstractions')`.
-- [ ] **Step 4: Mutations.** Drop a dependency from the expected set; remove the README item from the props; break the license.
-- [ ] **Step 5: Validate.** `pwsh -File scripts/Invoke-ScriptTests.ps1`; local pack + script; `pwsh -File scripts/Check-PackageVersions.ps1`.
-- [ ] **Step 6: Commit.** `ci: pack dry run for TechStrap.Contracts and TechStrap.Client (P11-T10)`, after `git diff --cached --stat`.
+- [x] **Step 1: Pester first (RED).** `scripts/tests/Test-PackageContents.Tests.ps1` with zip fixtures in `$TestDrive`: one good, one per defect (README missing, license not MIT, repository URL missing, readme unset, dependency set differs, `.snupkg` missing). Pester pin: `ci.yml` contains the pack step; `TechStrap.CI.slnf` lists `TechStrap.Client.Tests`.
+- [x] **Step 2: The script (GREEN).** Opens each `.nupkg` (`System.IO.Compression`), asserts README.md present, `<license type="expression">MIT</license>`, repository URL and readme set, dependency ids equal the expected set, matching `.snupkg` exists.
+- [x] **Step 3: CI.** `.github/workflows/ci.yml`, after Test, before the EF pending-model check: `dotnet pack src/TechStrap.Contracts` and `src/TechStrap.Client` with `-c Release --no-build -p:Version=0.0.0-ci -o $RUNNER_TEMP/pack`, then the script with `TechStrap.Contracts = @()` and `TechStrap.Client = @('TechStrap.Contracts','SyntaxCircus.Http.Resilience','SyntaxCircus.Common','Microsoft.Extensions.Http','Microsoft.Extensions.Options','Microsoft.Extensions.DependencyInjection.Abstractions')`.
+- [x] **Step 4: Mutations.** Drop a dependency from the expected set; remove the README item from the props; break the license.
+- [x] **Step 5: Validate.** `pwsh -File scripts/Invoke-ScriptTests.ps1`; local pack + script; `pwsh -File scripts/Check-PackageVersions.ps1`.
+- [x] **Step 6: Commit.** `ci: pack dry run for TechStrap.Contracts and TechStrap.Client (P11-T10)`, after `git diff --cached --stat`.
 
 ---
 
@@ -252,21 +258,21 @@ Done: techstrap commit 1912653 (`feat(contracts): IntakeRoutes, wire-literal rul
 - Modify: `docs/architecture/04-DECISION-LOG.md`, `docs/architecture/03-PACKAGE-MAP.md`, `docs/architecture/99-IMPLEMENTATION-ROADMAP.md`, `docs/architecture/00-DISCOVERY-INDEX.md`, `docs/architecture/02-ARCHITECTURE.md`, `docs/architecture/PHASE-11-client-sdk.md`, `scripts/tests/RepositoryDocs.Tests.ps1`
 - Create: `docs/development/CLIENT-SDK.md`
 
-- [ ] **Step 1: Decision log.** `docs/architecture/04-DECISION-LOG.md`:
+- [x] **Step 1: Decision log.** `docs/architecture/04-DECISION-LOG.md`:
   - Approval-basis bullet after D-046's: `**Owner decision (2026-10-07, PHASE-11 planning):** D-047, the owner decisions on the three-PR split, the JSON-only SDK, the SDK's dependencies and the Common split, and the MAUI CI split. Its technical rulings were proposed in the PHASE-11a plan and approved when the owner approved the plan.`
   - Index row: `| D-047 | PHASE-11: three pull requests, JSON-only SDK v1, web-neutral SyntaxCircus.Common 0.2.0 + Http.Resilience as dependencies, retry only with an Idempotency-Key through HttpRequestResiliencePipeline | Approved (owner 2026-10-07; technical rulings at PHASE-11a plan review) | 2026-10-07 | PHASE-11, 03-PACKAGE-MAP |`
   - The full section: Status / Date / Owner / Related D-001, D-005, D-016, D-020, D-034, D-045 / Context = the findings above incl. the Common framework reference / Decision = owner table + technical rulings + the mapping table / Alternatives: `AddResilientHttpClient` (no per-request replay safety), plain `HttpClient`, own result type in Client (rejected: one Result type across Syntax Circus packages), one PR, multipart now, error codes in Contracts, `SubmitOptions` type / Consequences: Contracts public API, spec corrections, `Client.Tests`, 429 surfaced not retried, one circuit per process, net10.0 only, Common 0.2.0 + AspNetCore.Common 0.1.16 bumped / Approval. Fill the measured facts after the Task 3 spike.
-- [ ] **Step 2: Package map.** `03-PACKAGE-MAP.md`: line 24 -> "`TechStrap.Client` (D-047) uses `HttpRequestResiliencePipeline` directly, not `AddResilientHttpClient`: submit is retried only with an `Idempotency-Key`; consumers inherit this package and `SyntaxCircus.Common`" and add P11 to its phase cell; line 115 -> the five dependencies; `SyntaxCircus.Common` row -> 0.2.0, "web-neutral since 0.2.0 (D-047)", P11; `SyntaxCircus.AspNetCore.Common` -> 0.1.16; the `Microsoft.Extensions.*` row mentions the Client.
-- [ ] **Step 3: Roadmap and index.** `99-IMPLEMENTATION-ROADMAP.md`:
+- [x] **Step 2: Package map.** `03-PACKAGE-MAP.md`: line 24 -> "`TechStrap.Client` (D-047) uses `HttpRequestResiliencePipeline` directly, not `AddResilientHttpClient`: submit is retried only with an `Idempotency-Key`; consumers inherit this package and `SyntaxCircus.Common`" and add P11 to its phase cell; line 115 -> the five dependencies; `SyntaxCircus.Common` row -> 0.2.0, "web-neutral since 0.2.0 (D-047)", P11; `SyntaxCircus.AspNetCore.Common` -> 0.1.16; the `Microsoft.Extensions.*` row mentions the Client.
+- [x] **Step 3: Roadmap and index.** `99-IMPLEMENTATION-ROADMAP.md`:
   - Row 10 -> `10a merged (PR #18); 10b merged (PR #19); PHASE-10 complete: the owner's manual checks with a real identity provider (two browsers, a worker auto-close, the kill switch) are open`.
   - Row 11 -> `D-005, D-020, D-047 | 11a complete (pending merge): T01, T02, T03, T04, T06, T10, T17; 11b (MAUI, T07 to T09) and 11c (READMEs, samples, publish workflow, nuget.org, rc.1; T11 to T16) not started; T05 (attachments) deferred to 11d, which first needs multipart intake`.
   - P11 task index: T05 "(deferred, D-047)"; line ~331 "until PHASE-11" -> "until 11b"; owner actions #9/#10 note 11c/11b.
   - `00-DISCOVERY-INDEX.md` rows 10 and 11 likewise.
-- [ ] **Step 4: Architecture doc.** `02-ARCHITECTURE.md` lines ~45/102: "SDK over Contracts (NuGet): JSON submit, retry only with an Idempotency-Key (D-047)"; line ~53: `TechStrap.Client.Tests` "created in PHASE-11a".
-- [ ] **Step 5: The phase page.** `PHASE-11-client-sdk.md`: add `### Corrections (D-047, 2026-10-07)` after External prerequisites (PHASE-10 pattern: "Where this page and D-047 differ, D-047 wins."), covering: three PRs; JSON-only, T05/`TicketAttachment` deferred, signature without attachments; `HttpRequestResiliencePipeline` not `AddResilientHttpClient`/`ApiClientBase`; `HeaderNames`/`IntakeLimits` names; error codes in the Client; `TicketMetadataKeys` in 11b; 429 surfaced not retried; Common 0.2.0 web-neutral; GitVersion/docs-file/SourceLink deferred to 11c. Tick T01, T02, T03, T04, T06, T10, T17 with `**As built (11a):**` notes; T05 unticked "(deferred, D-047)"; tick the matching Deliverables and Success Criteria 1, 3 (partially), 5; update the D-034 risk bullet.
-- [ ] **Step 6: Developer doc.** New `docs/development/CLIENT-SDK.md` (ASCII): packages and local pack; retry/idempotency semantics (incl. retention: a key replayed after the server's retention window creates a new ticket); the error-code table; test layout and Docker; never-log-the-key; redirects off; one circuit per process.
-- [ ] **Step 7: Pester pins (RED first, then GREEN).** `scripts/tests/RepositoryDocs.Tests.ps1`: **remove line 546** (`Should -Not -Match '(?m)^## D-047'`); edit lines 518 to 523 (the row-10 pin) to the new text; add `Describe 'D-047 (client SDK)'` pinning the heading, status, date, index row and approval bullet; the phrases `Three pull requests`, `JSON-only`, `HttpRequestResiliencePipeline`, `TechStrapClientErrorCodes`, `NotReplayable`, `Microsoft.AspNetCore.App`, `eng/Packaging.props`, `P11-T05`; the PHASE-11 Corrections heading and ticks; roadmap/discovery rows 10 and 11; the package map no longer matching ``plain `HttpClient` ``; 02-ARCHITECTURE "11a"; the `CLIENT-SDK.md` headings.
-- [ ] **Step 8: Validate and commit.** `pwsh -File scripts/Invoke-ScriptTests.ps1`; `pwsh -File scripts/Check-PackageVersions.ps1`; `git diff --cached --stat`; commit `docs: PHASE-11a close-out, D-047 and CLIENT-SDK guide`.
+- [x] **Step 4: Architecture doc.** `02-ARCHITECTURE.md` lines ~45/102: "SDK over Contracts (NuGet): JSON submit, retry only with an Idempotency-Key (D-047)"; line ~53: `TechStrap.Client.Tests` "created in PHASE-11a".
+- [x] **Step 5: The phase page.** `PHASE-11-client-sdk.md`: add `### Corrections (D-047, 2026-10-07)` after External prerequisites (PHASE-10 pattern: "Where this page and D-047 differ, D-047 wins."), covering: three PRs; JSON-only, T05/`TicketAttachment` deferred, signature without attachments; `HttpRequestResiliencePipeline` not `AddResilientHttpClient`/`ApiClientBase`; `HeaderNames`/`IntakeLimits` names; error codes in the Client; `TicketMetadataKeys` in 11b; 429 surfaced not retried; Common 0.2.0 web-neutral; GitVersion/docs-file/SourceLink deferred to 11c. Tick T01, T02, T03, T04, T06, T10, T17 with `**As built (11a):**` notes; T05 unticked "(deferred, D-047)"; tick the matching Deliverables and Success Criteria 1, 3 (partially), 5; update the D-034 risk bullet.
+- [x] **Step 6: Developer doc.** New `docs/development/CLIENT-SDK.md` (ASCII): packages and local pack; retry/idempotency semantics (incl. retention: a key replayed after the server's retention window creates a new ticket); the error-code table; test layout and Docker; never-log-the-key; redirects off; one circuit per process.
+- [x] **Step 7: Pester pins (RED first, then GREEN).** `scripts/tests/RepositoryDocs.Tests.ps1`: **remove line 546** (`Should -Not -Match '(?m)^## D-047'`); edit lines 518 to 523 (the row-10 pin) to the new text; add `Describe 'D-047 (client SDK)'` pinning the heading, status, date, index row and approval bullet; the phrases `Three pull requests`, `JSON-only`, `HttpRequestResiliencePipeline`, `TechStrapClientErrorCodes`, `NotReplayable`, `Microsoft.AspNetCore.App`, `eng/Packaging.props`, `P11-T05`; the PHASE-11 Corrections heading and ticks; roadmap/discovery rows 10 and 11; the package map no longer matching ``plain `HttpClient` ``; 02-ARCHITECTURE "11a"; the `CLIENT-SDK.md` headings.
+- [x] **Step 8: Validate and commit.** `pwsh -File scripts/Invoke-ScriptTests.ps1`; `pwsh -File scripts/Check-PackageVersions.ps1`; `git diff --cached --stat`; commit `docs: PHASE-11a close-out, D-047 and CLIENT-SDK guide`.
 
 ---
 
