@@ -4,6 +4,8 @@ using System.Security.Cryptography;
 using System.Text;
 using TechStrap.Api.Tests.Auth;
 using TechStrap.Contracts.ApiKeys;
+using TechStrap.Contracts.Http;
+using TechStrap.Contracts.Intake;
 using TechStrap.Contracts.Products;
 
 namespace TechStrap.Api.Tests.Products;
@@ -135,5 +137,68 @@ public sealed class ApiKeyEndpointTests(TestPostgres postgres)
 
         list.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
         create.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact(Timeout = 60_000)]
+    public async Task A_key_revoked_through_the_api_is_401_on_the_next_intake_call()
+    {
+        var (factory, _, admin, agent) = await StartAsync();
+        await using var _ = factory;
+        using var __ = admin;
+        using var ___ = agent;
+        var product = await CreateProductAsync(admin, "orbitly", "ORB");
+        var key = await CreateKeyAsync(admin, product.Id, "Trusted");
+        using var anonymous = factory.CreateClient();
+        var submit = new SubmitTicketRequest("ada@example.com", "Ada", "Help", "Please help", null, null);
+
+        async Task<HttpResponseMessage> SubmitAsync(string apiKey)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/api/intake/tickets") { Content = JsonContent.Create(submit) };
+            request.Headers.Add(HeaderNames.ApiKey, apiKey);
+            return await anonymous.SendAsync(request, TestContext.Current.CancellationToken);
+        }
+
+        async Task<string> ShapeAsync(HttpResponseMessage response)
+        {
+            var ignored = new[] { "Date", "X-Correlation-Id", "X-Request-Id" };
+            var headers = response.Headers.Concat(response.Content.Headers)
+                .Where(h => !ignored.Contains(h.Key, StringComparer.OrdinalIgnoreCase))
+                .OrderBy(h => h.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(h => $"{h.Key}={string.Join(",", h.Value)}");
+            return $"{(int)response.StatusCode}|{await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)}|{string.Join(";", headers)}";
+        }
+
+        using (var before = await SubmitAsync(key.PlaintextKey))
+        {
+            before.StatusCode.ShouldBe(HttpStatusCode.Created);
+        }
+
+        using (var revoke = await admin.DeleteAsync($"/api/products/{product.Id}/api-keys/{key.Key.Id}", TestContext.Current.CancellationToken))
+        {
+            revoke.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        using var after = await SubmitAsync(key.PlaintextKey);
+        using var unknown = await SubmitAsync("tsk_not-a-real-key");
+        after.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await ShapeAsync(after)).ShouldBe(await ShapeAsync(unknown));
+    }
+
+    [Fact(Timeout = 60_000)]
+    public async Task Revoking_twice_is_204_both_times_and_audits_once()
+    {
+        var (factory, database, admin, agent) = await StartAsync();
+        await using var _ = factory;
+        using var __ = admin;
+        using var ___ = agent;
+        var product = await CreateProductAsync(admin, "orbitly", "ORB");
+        var key = await CreateKeyAsync(admin, product.Id, "Trusted");
+
+        using var first = await admin.DeleteAsync($"/api/products/{product.Id}/api-keys/{key.Key.Id}", TestContext.Current.CancellationToken);
+        using var second = await admin.DeleteAsync($"/api/products/{product.Id}/api-keys/{key.Key.Id}", TestContext.Current.CancellationToken);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await database.ScalarAsync<long>("SELECT count(*) FROM admin_events WHERE type = 'ApiKeyRevoked'")).ShouldBe(1);
     }
 }

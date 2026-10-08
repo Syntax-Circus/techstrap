@@ -50,7 +50,7 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 | Lost-link flow does not reveal which addresses exist | `LostLinkUniformityTests.Known_and_unknown_addresses_are_indistinguishable`, `LostLinkUniformityTests.The_email_goes_only_to_the_requesters_own_address`, `RequestNewAccessLinkRequestHandlerTests`, Portal `LostLinkHostTests`, `CustomerRateLimitTests.Lost_link_requests_are_limited_per_ip` |
 | No token in logs, Referer, caches or search indexes | Portal `TicketTokenLeakTests`, `TicketReplyHostTests.The_token_and_the_reply_text_never_reach_a_log_event_at_any_level`, `TicketHeaderHostTests`; Api `SensitiveQuerySentryProcessorTests`, `LogRedactionTests`, `CustomerErrorPathCacheTests` |
 | Per-IP rate limit on token access | `CustomerRateLimitTests.Token_access_is_limited_per_ip` |
-| A follow-up ticket gets its own token | Task 2 adds `CustomerReplyIntegrationTests.A_follow_up_ticket_token_differs_from_the_parents_and_opens_only_its_own_ticket` |
+| A follow-up ticket gets its own token | `CustomerReplyIntegrationTests.A_follow_up_ticket_token_differs_from_the_parents_and_opens_only_its_own_ticket` |
 
 ### 2. API keys
 
@@ -59,7 +59,7 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 | Hasher: hash at rest, constant-time verify | `ApiKeyHasherTests` including `Verify_compares_in_constant_time` |
 | Lookup by full hash; the prefix is not a lookup key | SR-03 (display, audit and rate-limit partition); SR-10 for invented prefixes |
 | Shown once, never retrievable again | `ApiKeyEndpointTests.Only_the_prefix_and_hash_are_stored_and_the_plaintext_is_shown_once`, `ApiKeyEndpointTests.The_create_response_is_not_cacheable`, `CreateProductApiKeyRequestHandlerTests.The_audit_event_holds_the_prefix_but_no_secret_or_hash`, Admin `NewApiKeyDialogTests` |
-| Revocation takes effect | `ApiKeyAuthTests.A_revoked_key_is_401`, `ApiKeyAuthTests.All_401_responses_are_identical`, `RevokeProductApiKeyRequestHandlerTests`; Task 2 adds `ApiKeyEndpointTests.A_key_revoked_through_the_api_is_401_on_the_next_intake_call` and `ApiKeyEndpointTests.Revoking_twice_is_204_both_times_and_audits_once` (SR-16) |
+| Revocation takes effect | `ApiKeyAuthTests.A_revoked_key_is_401`, `ApiKeyAuthTests.All_401_responses_are_identical`, `RevokeProductApiKeyRequestHandlerTests`, `ApiKeyEndpointTests.A_key_revoked_through_the_api_is_401_on_the_next_intake_call` and `ApiKeyEndpointTests.Revoking_twice_is_204_both_times_and_audits_once` (SR-16) |
 | Trusted versus Public keys | `SubmitTicketRequestHandlerTests.An_untrusted_submission_drops_the_external_ref_with_a_warning_and_marks_metadata_untrusted`, `SubmitTicketRequestHandlerTests.An_untrusted_submitter_never_overwrites_a_known_external_ref`; Api `IntakeEndpointTests.A_public_key_submission_drops_the_external_ref_with_a_warning`; Admin `TicketDetailPageTests` |
 | Product isolation and credential separation | `ApiKeyAuthTests.A_key_creates_tickets_only_for_its_own_product`, `ApiKeyAuthTests.An_agent_bearer_token_is_not_accepted_on_intake`, `ApiKeyAuthTests.An_api_key_is_not_accepted_on_agent_routes`, `ApiKeyEndpointTests.Revoking_a_key_of_another_product_is_404` |
 | Rate limit per key and IP, correct behind the proxy | `IntakeRateLimitTests`, `PublicApiHardeningTests.Behind_a_trusted_proxy_each_forwarded_visitor_has_their_own_limit`, `PublicApiHardeningTests.A_spoofed_forwarded_for_from_an_untrusted_peer_is_ignored`, `TrustedProxyStartupTests` |
@@ -101,7 +101,7 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 | 401 and 403 matrix | `AgentAccessCoverageTests.Anonymous_callers_get_401_and_callers_outside_the_groups_get_403_everywhere`, `AgentAccessCoverageTests.An_agent_group_member_is_refused_on_every_admin_only_route`, `AgentAccessCoverageTests.A_deactivated_agent_is_refused_on_every_agent_endpoint`; Task 5 adds `AgentAccessCoverageTests.The_admin_only_route_set_matches_the_pinned_list` |
 | Group roles (D-029) | `ClaimsCurrentAgentClaimsTests`, `AgentAuthTests`, `AgentAccessOptionsTests`, `AgentProvisioningTests` |
 | Deactivation | `AgentManagementEndpointTests`; Admin `AgentAccessHostTests` |
-| Last-admin guard | SR-14; Task 2 adds the lock-path tests |
+| Last-admin guard | SR-14 (fixed); `UpdateAgentRequestHandlerTests.The_admin_lock_is_taken_before_the_actor_is_read`, `UpdateAgentRequestHandlerTests.An_actor_deactivated_while_waiting_for_the_lock_is_refused`, `AgentAdminLockTests.A_second_counter_waits_for_the_first_unit_of_work_and_sees_its_commit` |
 | Hub authorization | `HubPolicyCoverageTests`, `TicketHubTests`, `HubWebSocketTests` |
 | IDOR | Customer side: rows 1 and 3; keys: `ApiKeyEndpointTests.Revoking_a_key_of_another_product_is_404`; agents are single-tenant (SR-06) |
 | OIDC, PKCE and forwarding | Admin `AdminSignInTests` |
@@ -207,8 +207,8 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 ### SR-14: Last-admin guard read the actor before taking the lock
 - Path group: 5. Authorization and headers
 - Severity: Low
-- Status: Open
-- Evidence: the last-admin guard read the actor before taking the lock. Closed by Task 2.
+- Status: Fixed
+- Evidence: `UpdateAgentRequestHandler` now validates `isActive`, takes the admin row lock (`CountActiveAdminsLockedAsync`), and only then reads the actor, so an actor deactivated by the transaction it queued behind is refused with `agent-inactive`. Proved by `UpdateAgentRequestHandlerTests.The_admin_lock_is_taken_before_the_actor_is_read`, `UpdateAgentRequestHandlerTests.An_actor_deactivated_while_waiting_for_the_lock_is_refused` and the real-Postgres `AgentAdminLockTests.A_second_counter_waits_for_the_first_unit_of_work_and_sees_its_commit` (a second counter blocks on the row lock and sees the first unit of work's commit). Fixed in P12-T03.
 
 ### SR-15: Per-row lookups and uncapped notification preferences
 - Path group: 6. Privacy and operations
@@ -219,8 +219,8 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 ### SR-16: Concurrent double revoke can write and audit twice
 - Path group: 2. API keys
 - Severity: Low
-- Status: Open
-- Evidence: revoke is idempotent but a concurrent double revoke can write and audit twice. Closed by Task 2.
+- Status: Accepted
+- Evidence: revoke is idempotent for sequential calls (`ApiKeyEndpointTests.Revoking_twice_is_204_both_times_and_audits_once`: both 204, one `ApiKeyRevoked` audit row). Two truly concurrent revokes can both pass the `IsRevoked` check and each write and audit; both converge on the same end state (revoked, `revoked_at` set), so there is no security impact, only a possible duplicate audit row. Accepted: no concurrency token and no migration for an admin-only, idempotent, audit-only duplicate.
 
 ## Architecture conformance
 

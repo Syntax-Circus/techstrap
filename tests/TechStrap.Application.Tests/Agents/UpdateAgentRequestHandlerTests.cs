@@ -129,4 +129,36 @@ public sealed class UpdateAgentRequestHandlerTests
         _agents.DidNotReceive().Update(Arg.Any<Agent>());
         _events.DidNotReceive().Add(Arg.Any<AdminEvent>());
     }
+
+    [Fact(Timeout = 60_000)]
+    public async Task The_admin_lock_is_taken_before_the_actor_is_read()
+    {
+        var target = Target(AgentRole.Agent);
+        _agents.CountActiveAdminsLockedAsync(Arg.Any<CancellationToken>()).Returns(2);
+
+        await Handler().HandleAsync(target.Id, new UpdateAgentRequest(false), TestContext.Current.CancellationToken);
+
+        Received.InOrder(() =>
+        {
+            _agents.CountActiveAdminsLockedAsync(Arg.Any<CancellationToken>());
+            _agents.GetBySubjectAsync("actor", Arg.Any<CancellationToken>());
+        });
+    }
+
+    [Fact(Timeout = 60_000)]
+    public async Task An_actor_deactivated_while_waiting_for_the_lock_is_refused()
+    {
+        var target = Target(AgentRole.Agent);
+        _agents.CountActiveAdminsLockedAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            _actor.SetActive(false); // the other transaction committed while this one waited for the lock
+            return 2;
+        });
+
+        var result = await Handler().HandleAsync(target.Id, new UpdateAgentRequest(false), TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("agent-inactive");
+        _agents.DidNotReceive().Update(Arg.Any<Agent>());
+        _events.DidNotReceive().Add(Arg.Any<AdminEvent>());
+    }
 }
