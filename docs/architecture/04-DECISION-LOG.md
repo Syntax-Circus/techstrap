@@ -1932,7 +1932,7 @@ PHASE-05 is merged, so PHASE-11 can start. Reading the code and the packages bef
 - **The spec's constants do not match the code.** The header names are `HeaderNames` and the limits `IntakeLimits` in Contracts, not `TechStrapHeaders` and `TicketMetadataLimits`; the route was a literal in the controller; `TicketMetadataKeys` does not exist.
 - **Contracts is not packable yet** and has no pack metadata, README or guard against the wire literals being copied elsewhere.
 - **`ResultError` has no slot for `Retry-After`,** although the server sends the header on a 429.
-- **The spec's `SubmitOptions`, `retryCount` and `ApiClientBase`** do not exist in the pipeline package: its options are `MaxAttempts` and a per-call replay flag.
+- **The spec's `SubmitOptions` and `retryCount` were not adopted,** and the package's `ApiClientBase` and `AddResilientHttpClient` were not used: the pipeline's own options are `MaxAttempts` and a per-call replay flag.
 
 ### Decision
 **Owner decisions (2026-10-07)**

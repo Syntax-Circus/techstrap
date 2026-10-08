@@ -27,6 +27,7 @@ Where this page and D-047 differ, D-047 wins.
 - **Constant names.** `TechStrapHeaders` is `HeaderNames`; `TicketMetadataLimits` is `IntakeLimits`; `IntakeRoutes.Tickets` is new. `TicketMetadataKeys` is created in 11b.
 - **Error codes** are `TechStrapClientErrorCodes` in `TechStrap.Client`, not Contracts constants.
 - **429.** It is surfaced as `rate-limited` and not retried, and `Retry-After` is not carried: the server sends it, but `ResultError` has no slot for it. A 500 is not retried either, and an exhausted 408 is `api-unavailable`.
+- **MAUI CI (11b).** `net10.0` and Android build on the existing runner; iOS builds only on a `v*` tag, on macOS.
 - **Common.** `SyntaxCircus.Common` 0.2.0 is web-neutral (no `Microsoft.AspNetCore.App` framework reference); `ICurrentUserService` moved to `SyntaxCircus.AspNetCore.Common` 0.1.16.
 - **Packaging.** `eng/Packaging.props` carries the pack metadata for Contracts and Client. `GitVersion.MsBuild`, the documentation file and a SourceLink package are deferred to 11c; a local pack passes `-p:Version=`.
 - **OpenAPI contract test.** The Api documents no response schemas, so the test pins the request, the security scheme and the `Idempotency-Key` parameter, not the 201 body (a PHASE-05 follow-up).
@@ -86,8 +87,8 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 
 ## Deliverables
 
-- [x] `src/TechStrap.Contracts` pack metadata + README; `src/TechStrap.Client` and `src/TechStrap.Client.Maui` projects with pack metadata + README each. *(11a: Contracts and Client; `TechStrap.Client.Maui` is still the placeholder, 11b.)*
-- [x] `ITechStrapClient`, options, DI extension, `ApiKeyHandler`, `Result` mapping, attachment type. *(11a: all but the attachment type, deferred by D-047.)*
+- [ ] `src/TechStrap.Contracts` pack metadata + README; `src/TechStrap.Client` and `src/TechStrap.Client.Maui` projects with pack metadata + README each. *(11a: Contracts and Client; `TechStrap.Client.Maui` is still the placeholder, 11b.)*
+- [ ] `ITechStrapClient`, options, DI extension, `ApiKeyHandler`, `Result` mapping, attachment type. *(11a: all but the attachment type, deferred by D-047.)*
 - [ ] `IDeviceContextCollector`, `MauiDeviceContextCollector`, `IMauiTicketSubmitter`, `AddTechStrapMaui`.
 - [x] `tests/TechStrap.Client.Tests` (unit + API-contract integration), created in this phase (listed in `02-ARCHITECTURE.md`). *(Created in 11a.)*
 - [ ] Console sample (+ optional MAUI sample); README usage snippets.
@@ -159,9 +160,9 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 
 - [x] A .NET app can `dotnet add package TechStrap.Client`, configure base URL + key, and create a ticket; the response gives the ticket number and view URL. *(11a: proven against the real Api and the local pack; the nuget.org install is 11c.)*
 - [ ] A MAUI app can `dotnet add package TechStrap.Client.Maui`, submit a ticket with device/app metadata and an optional screenshot, with metadata truncation and opt-out working.
-- [x] Failure modes (bad key, rate limit, validation, attachments, outage) return typed `Result` failures; submit is never silently duplicated by retries. *(Partial in 11a: all but attachments, which are deferred by D-047; 413 and 415 are mapped.)*
+- [ ] Failure modes (bad key, rate limit, validation, attachments, outage) return typed `Result` failures; submit is never silently duplicated by retries. *(Partial in 11a: all but attachments, deferred to 11d by D-047; 413 and 415 are mapped.)*
 - [ ] Pushing tag `v*` builds, tests, packs and publishes `TechStrap.Contracts`, `TechStrap.Client` and `TechStrap.Client.Maui` to nuget.org with symbols and READMEs, through OIDC (no long-lived key in the repo).
-- [x] Contract test proves the SDK matches the API's OpenAPI document and the real intake endpoint.
+- [x] Contract test proves the SDK matches the API's OpenAPI document and the real intake endpoint. *(Response schema not pinned, see Corrections.)*
 - [ ] Each package has a README; samples compile and run.
 - [ ] `dotnet build`, `dotnet test` green; MAUI targets build on macOS CI.
 
@@ -188,7 +189,7 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 - [ ] **Contracts becomes a public API.** Breaking DTO changes after 1.0 need semantic-versioning discipline (additive only; `EnablePackageValidation` baseline after 1.0.0). Plan lists two packages; confirm the third (`TechStrap.Contracts`) is acceptable, or inline a trimmed copy into Client (rejected: drift).
 - [ ] **Non-idempotent submit vs retries** (see P11-T17, D-020). Default: no automatic retry on submit unless an `Idempotency-Key` is set. Settled (D-047): `HttpRequestResiliencePipeline` with a per-call replay flag; `SubmitTicketOnceAsync` never retries; D-020 is approved and proved end to end by P11-T17.
 - [ ] **Header names and trusted/public behavior** (`X-Api-Key`, `Idempotency-Key`) must exactly match P05/`AspNetCore.Authentication`; they are Contracts constants. Settled (D-047): they are `HeaderNames` (not `TechStrapHeaders`), and an architecture rule keeps the literals out of the rest of `src/`.
-- [ ] **MAUI workload build** needs macOS runners (cost/time); consider building only `net10.0` + android on Linux/Windows and iOS only for tags (**Assumption**: macOS for all MAUI jobs, as the reference repo does).
+- [ ] **MAUI workload build** needs macOS runners (cost/time); consider building only `net10.0` + android on Linux/Windows and iOS only for tags (**Assumption**: macOS for all MAUI jobs, as the reference repo does). Settled (D-047): `net10.0` and Android on the existing runner; iOS only on a `v*` tag on macOS (11b).
 - [ ] **Public keys are extractable.** Client-side mitigations (honeypot is portal-only) do not exist; abuse relies on server rate limits and untrusted metadata flags — highlight in README and in the security review ([PHASE-12](PHASE-12-release-hardening.md)).
 - [ ] **Privacy of collected metadata** (OS/model/locale/timezone/network): document, default to the minimal set, offer opt-out and redaction.
 - [ ] `net10.0`-only targeting excludes older consumers; revisit after 1.0.

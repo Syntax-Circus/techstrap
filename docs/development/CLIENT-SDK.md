@@ -111,7 +111,7 @@ cross the wire):
 | `payload-too-large` | 413. |
 | `unsupported-media-type` | 415. |
 | `rate-limited` | 429. Not retried; no `Retry-After`. |
-| `api-unavailable` | 408 or 500 and up after the retries, a transport error, a timeout, an open circuit. |
+| `api-unavailable` | 408 (after the retries) or any 5xx (500 is never retried; 502/503/504 after the retries), transport failure, timeout, open circuit. |
 | `api-unexpected-response` | A 2xx with no readable body or a blank ticket number. |
 | `api-error` | Any other status. |
 
