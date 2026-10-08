@@ -46,6 +46,18 @@ Describe 'README.md' {
         $text | Should -Match 'docs/architecture/00-DISCOVERY-INDEX\.md'
     }
 
+    It 'states the current status: PHASE-12 is next and the SDK is published as 0.1.0' {
+        $text = Get-RepoText 'README.md'
+        $status = ($text -split '\r?\n' | Where-Object { $_ -like '> **Status:**' + '*' }) -join ' '
+        $status | Should -Match 'PHASE-01 to PHASE-11'
+        $status | Should -Match 'PHASE-12'
+        $status | Should -Match '0\.1\.0'
+        $text | Should -Not -Match 'will be published'
+        foreach ($doc in 'CLIENT-SDK', 'INTAKE', 'DEPLOYMENT', 'RELEASING', 'TICKET-OPERATIONS', 'DEV-DATA', 'AGENT-AUTHENTICATION') {
+            $text | Should -Match ([regex]::Escape($doc + '.md'))
+        }
+    }
+
     It 'links only to files that exist' {
         $text = Get-RepoText 'README.md'
         $links = [regex]::Matches($text, '\]\((?<path>(?!https?:|#)[^)\s]+)\)') | ForEach-Object { $_.Groups['path'].Value }
@@ -603,7 +615,7 @@ Describe 'D-047 (client SDK)' {
         }
         $spec | Should -Match '(?m)^- \[ \] \*\*P11-T05\*\*.*\(deferred, D-047\)'
         foreach ($id in 'P11-T16') {
-            $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not delivered by 11a"
+            $spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id was delivered by 11c"
         }
     }
 
@@ -612,7 +624,7 @@ Describe 'D-047 (client SDK)' {
             $text = Get-RepoText $file
             $text | Should -Match '(?m)^\| 10 \|.*\| 10a merged \(PR #18\); 10b merged \(PR #19\); PHASE-10 complete: the owner'
             $text | Should -Not -Match '10b complete \(pending merge\)'
-            $text | Should -Match '(?m)^\| 11 \|.*11a merged \(PR #20\); 11b merged \(PR #21\); 11c merged \(PR #22\); T16 pending the v0\.1\.0 tag'
+            $text | Should -Match '(?m)^\| 11 \|.*11a merged \(PR #20\); 11b merged \(PR #21\); 11c merged \(PR #22\); v0\.1\.0 published 2026-10-08 \(PHASE-11 complete\)'
             $text | Should -Match 'T05 \(attachments\) deferred to 11d, which first needs multipart intake'
         }
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11-T05 \|.*\(deferred, D-047\)'
@@ -668,7 +680,7 @@ Describe 'D-048 (MAUI helper)' {
         }
         $spec | Should -Match '(?m)^- \[ \] \*\*P11-T05\*\*.*\(deferred, D-047\)'
         foreach ($id in 'P11-T16') {
-            $spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not delivered by 11b"
+            $spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id was delivered by 11c"
         }
     }
 
@@ -712,14 +724,15 @@ Describe 'D-049 (publishing)' {
         }
     }
 
-    It 'corrects the PHASE-11 spec, ticks T11 to T15 with as-built notes and leaves T16 open' {
+    It 'corrects the PHASE-11 spec, ticks T11 to T16 with as-built notes' {
         $spec = Get-RepoText 'docs/architecture/PHASE-11-client-sdk.md'
         $spec | Should -Match '(?m)^### Corrections \(D-049, 2026-10-08\)'
         $spec | Should -Match 'Where this page and D-049 differ, D-049 wins\.'
         foreach ($id in 'P11-T11', 'P11-T12', 'P11-T13', 'P11-T14', 'P11-T15') {
             $spec | Should -Match ('(?s)- \[x\] \*\*' + $id + '\*\*(?:(?!- \[[x ]\] \*\*P11-T).)*?\*\*As built \(11c\):\*\*') -Because "$id carries its as-built note"
         }
-        $spec | Should -Match '(?m)^- \[ \] \*\*P11-T16\*\*'
+        $spec | Should -Match '(?s)- \[x\] \*\*P11-T16\*\*(?:(?!- \[[x ]\] \*\*P11-T).)*?\*\*As built \(11c, 2026-10-08\):\*\*'
+        $spec | Should -Not -Match 'Pending \(11c\)'
     }
 
     It 'records the first version as v0.1.0 in a D-049 addendum and in the PHASE-11 corrections' {
@@ -733,9 +746,9 @@ Describe 'D-049 (publishing)' {
         }
     }
 
-    It 'says in the roadmap and discovery rows that 11c is merged and T16 waits for the v0.1.0 tag' {
+    It 'says in the roadmap and discovery rows that 11c is merged and v0.1.0 is published' {
         foreach ($file in 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md', 'docs/architecture/00-DISCOVERY-INDEX.md') {
-            (Get-RepoText $file) | Should -Match '(?m)^\| 11 \|.*11c merged \(PR #22\); T16 pending the v0\.1\.0 tag; T05 \(attachments\) deferred to 11d'
+            (Get-RepoText $file) | Should -Match '(?m)^\| 11 \|.*11c merged \(PR #22\); v0\.1\.0 published 2026-10-08 \(PHASE-11 complete\); T05 \(attachments\) deferred to 11d'
         }
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 9 \|.*Done 2026-10-08'
     }

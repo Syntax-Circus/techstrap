@@ -6,7 +6,7 @@
 
 **Support for Technical Support.** A lightweight, open-source, self-hosted helpdesk for one company that supports many products.
 
-> **Status:** early development. PHASE-01 (the foundation) is in place: the solution skeleton, health endpoints, database migrations, Docker images, the compose stack and CI. Product features arrive in later phases; see the [roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md).
+> **Status:** pre-1.0, feature-complete for v1 (PHASE-01 to PHASE-11 done: foundation, brand and UX, domain and persistence, agent auth and admin config, intake with email and the worker, ticket operations, the Admin app, knowledge base, public portal, live updates, and the client SDK). PHASE-12 (release hardening: security review, load and restore drills, UAT) is next, then `v1.0.0`. The SDK packages are published on nuget.org as `0.1.0`; the hosts are published as GHCR images per tag. See the [roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md).
 
 ## What it is
 
@@ -81,7 +81,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [SECURITY.md](SECURI
 
 ## Packages
 
-The client SDK will be published to nuget.org as `TechStrap.Contracts`, `TechStrap.Client` and `TechStrap.Client.Maui`, starting with `v0.1.0`. Start with the
+The client SDK is published on nuget.org at `0.1.0`: [TechStrap.Contracts](https://www.nuget.org/packages/TechStrap.Contracts), [TechStrap.Client](https://www.nuget.org/packages/TechStrap.Client) and [TechStrap.Client.Maui](https://www.nuget.org/packages/TechStrap.Client.Maui), released as the `v0.1.0` tag and GitHub Release. Start with the
 [TechStrap.Client README](src/TechStrap.Client/README.md); how releases are cut is in [RELEASING.md](docs/development/RELEASING.md).
 
 ## Documentation
@@ -100,6 +100,9 @@ Start at the [discovery index](docs/architecture/00-DISCOVERY-INDEX.md).
 | [Ticket operations](docs/development/TICKET-OPERATIONS.md) | Agent ticket API: curl examples, RowVersion, email kinds |
 | [Admin app](docs/development/ADMIN-APP.md) | The agent app: configuration, sign-in, Authentik setup, shortcuts, known limits |
 | [Portal app](docs/development/PORTAL-APP.md) | The customer portal: configuration, how a page is served, the API client, headers, known gaps |
+| [Client SDK](docs/development/CLIENT-SDK.md) | Maintainer guide to `TechStrap.Client`: how it is built, how it retries, how to pack and test it |
+| [Ticket intake and email](docs/development/INTAKE.md) | The intake routes, idempotency, attachments and the email outbox |
+| [Deployment](docs/self-hosting/DEPLOYMENT.md) | UAT and production: the image-only deploy compose, scoped env files, runbook |
 | [Releasing](docs/development/RELEASING.md) | A `v*` tag: images to GHCR, NuGet packages to nuget.org, the GitHub Release, rollback |
 | [Implementation roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md) | Phases 01–12, task index, validation commands |
 

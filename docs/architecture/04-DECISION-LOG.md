@@ -2108,3 +2108,4 @@ The owner's decision on the first published version. It extends D-049; where it 
 
 - **The first published version is `v0.1.0`.** Not `v1.0.0-rc.1`. The packages stay in the 0.x range, like the other Syntax Circus packages, until the SDK-facing surface of `TechStrap.Contracts` is locked; `v1.0.0` follows then.
 - **The release logic is unchanged.** `0.1.0` has no hyphen, so it is a normal release on nuget.org and a normal (non-`--prerelease`) GitHub Release, as for the other Syntax Circus packages. `publish-nuget.yml` derives the version from the tag and needs no change.
+- **Published.** v0.1.0 was published on 2026-10-08 (run 37793512118); the post-publish check passed against the local compose stack (ORB-8 trusted, ORB-9 untrusted).
