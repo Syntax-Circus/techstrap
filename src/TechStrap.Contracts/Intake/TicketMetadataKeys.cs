@@ -27,9 +27,9 @@ public static class TicketMetadataKeys
     public const string DeviceIdiom = "device.idiom";
     /// <summary>Whether the app runs on a physical device or a virtual one. Metadata key <c>device.type</c>.</summary>
     public const string DeviceType = "device.type";
-    /// <summary>The device's current locale. Metadata key <c>locale</c>.</summary>
+    /// <summary>The app's current culture name (<c>CultureInfo.CurrentCulture.Name</c>, for example en-GB). Metadata key <c>locale</c>.</summary>
     public const string Locale = "locale";
-    /// <summary>The device's time zone. Metadata key <c>timezone</c>.</summary>
+    /// <summary>The local time zone id (<c>TimeZoneInfo.Local.Id</c>). Metadata key <c>timezone</c>.</summary>
     public const string TimeZone = "timezone";
     /// <summary>The device's network connectivity level at the time of the report. Metadata key <c>network.access</c>.</summary>
     public const string NetworkAccess = "network.access";
@@ -43,7 +43,7 @@ public static class TicketMetadataKeys
     public const string DisplayOrientation = "display.orientation";
     /// <summary>The battery charging state. Metadata key <c>battery.state</c>. Not among the default keys.</summary>
     public const string BatteryState = "battery.state";
-    /// <summary>The battery charge level. Metadata key <c>battery.level</c>. Not among the default keys.</summary>
+    /// <summary>The battery charge level, as a whole-number percent (0-100); omitted when the level is unknown. Metadata key <c>battery.level</c>. Not among the default keys.</summary>
     public const string BatteryLevel = "battery.level";
 
     /// <summary>The thirteen keys the helper sends by default.</summary>

@@ -31,11 +31,11 @@ public static class TicketPriorities
 /// <summary>Queue views (D-024). Spam lists only spam; every other view excludes it.</summary>
 public static class TicketViews
 {
-    /// <summary>Tickets with no assigned agent.</summary>
+    /// <summary>Tickets with no assigned agent that are New, Open or Pending (not spam).</summary>
     public const string Unassigned = "Unassigned";
-    /// <summary>Tickets assigned to the signed-in agent.</summary>
+    /// <summary>Tickets assigned to the signed-in agent that are New, Open or Pending (not spam).</summary>
     public const string Mine = "Mine";
-    /// <summary>Tickets in the Open status.</summary>
+    /// <summary>Tickets that are New or Open (not spam).</summary>
     public const string Open = "Open";
     /// <summary>Tickets in the Pending status.</summary>
     public const string Pending = "Pending";

@@ -5,7 +5,7 @@ public static class AdminEventTypes
 {
     /// <summary>A product was created.</summary>
     public const string ProductCreated = "ProductCreated";
-    /// <summary>A product's settings were changed.</summary>
+    /// <summary>A product's name, branding or active status was changed.</summary>
     public const string ProductUpdated = "ProductUpdated";
     /// <summary>A product API key was created.</summary>
     public const string ApiKeyCreated = "ApiKeyCreated";

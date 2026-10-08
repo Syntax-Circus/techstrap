@@ -55,7 +55,7 @@ public static class TicketChangeKinds
     public const string Created = "Created";
     /// <summary>An existing ticket changed (a message, status, assignment, tag and so on).</summary>
     public const string Updated = "Updated";
-    /// <summary>The client missed changes and must reload everything; it names no ticket.</summary>
+    /// <summary>Changes may have been missed or a ticket was deleted, so the client must reload everything; it names no ticket.</summary>
     public const string Resync = "Resync";
 }
 
