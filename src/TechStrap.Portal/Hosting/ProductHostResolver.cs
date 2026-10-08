@@ -25,11 +25,11 @@ public sealed class ProductHostResolver(ProductHostMap map, IOptions<PortalOptio
             return resolved;
         }
 
-        var key = await map.FindKeyAsync(host, cancellationToken);
-        if (key is not null && map.TryGetHost(key, out var stored))
+        // One answer from one snapshot: the key and the stored host belong together.
+        if (await map.FindAsync(host, cancellationToken) is { } found)
         {
-            resolved.Key = key;
-            resolved.Host = stored;
+            resolved.Key = found.Key;
+            resolved.Host = found.Host;
         }
 
         return resolved;

@@ -42,7 +42,7 @@ public static class ProductsCopy
     public const string FromLabel = "Email from address";
     public const string ReplyToLabel = "Email reply-to address";
     public const string PortalHostLabel = "Portal host";
-    public const string PortalHostHelp = "Optional. The product's own support hostname, e.g. support.example.com. Needs DNS and a proxy site.";
+    public const string PortalHostHelp = "Optional. The product's own support hostname, e.g. support.example.com. Set up DNS and the proxy site first; saving the host switches links and redirects at once.";
     public const string PortalHostInvalid = "Use a hostname such as support.example.com: letters, digits and hyphens, no scheme, port or path.";
     public const string PortalHostTaken = "Another product already uses this hostname.";
     public const string ActiveLabel = "Active";

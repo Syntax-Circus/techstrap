@@ -8,4 +8,7 @@ public static class ProductHostMapOptions
 
     /// <summary>The shortest time between two reads of the product list: a host the map does not know (a typo, a scanner) can cost the API one call in ten seconds, never one per request.</summary>
     public static readonly TimeSpan MissRefreshInterval = TimeSpan.FromSeconds(10);
+
+    /// <summary>How long one read of the product list may take. A read that is still running then is cut off (the previous map is kept), so a hung call can never freeze the map.</summary>
+    public static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(30);
 }

@@ -37,7 +37,7 @@ public sealed class ProductHostMiddlewareTests
         services.AddScoped(_ => client);
         var provider = services.BuildServiceProvider();
         var options = Options.Create(new PortalOptions { PublicUrl = PublicUrl + "/", ApiBaseUrl = "http://api.test/" });
-        var map = new ProductHostMap(provider.GetRequiredService<IServiceScopeFactory>(), new FakeTimeProvider(), NullLogger<ProductHostMap>.Instance, new HttpContextAccessor());
+        var map = new ProductHostMap(provider.GetRequiredService<IServiceScopeFactory>(), new FakeTimeProvider(), NullLogger<ProductHostMap>.Instance, new HttpContextAccessor(), Options.Create(new PortalOptions { PublicUrl = "https://portal.test" }));
         var resolver = new ProductHostResolver(map, options);
 
         var http = new DefaultHttpContext { RequestAborted = ct };

@@ -514,7 +514,7 @@ public sealed class ProductEditorTests : AdminPageTest
         var cut = RenderEdit();
 
         Value(cut, "ts-product-host").ShouldBe("support.orbitly.test");
-        cut.Find("#ts-product-host-help").TextContent.ShouldBe("Optional. The product's own support hostname, e.g. support.example.com. Needs DNS and a proxy site.");
+        cut.Find("#ts-product-host-help").TextContent.ShouldBe("Optional. The product's own support hostname, e.g. support.example.com. Set up DNS and the proxy site first; saving the host switches links and redirects at once.");
     }
 
     [Fact]

@@ -1,6 +1,8 @@
+using Microsoft.Extensions.Options;
 using SyntaxCircus.Common;
 using TechStrap.Contracts.Products;
 using TechStrap.Portal.Clients;
+using TechStrap.Portal.Settings;
 
 namespace TechStrap.Portal.Hosting;
 
@@ -14,7 +16,7 @@ namespace TechStrap.Portal.Hosting;
 /// </list>
 /// The age is measured by the <see cref="TimeProvider"/>, so a test moves the clock instead of waiting (<c>MemoryCacheOptions</c> has no <see cref="TimeProvider"/>, so no <c>IMemoryCache</c> entry is used).
 /// </summary>
-public sealed class ProductHostMap(IServiceScopeFactory scopes, TimeProvider clock, ILogger<ProductHostMap> logger, IHttpContextAccessor accessor)
+public sealed class ProductHostMap(IServiceScopeFactory scopes, TimeProvider clock, ILogger<ProductHostMap> logger, IHttpContextAccessor accessor, IOptions<PortalOptions> options)
 {
     private sealed record Snapshot(IReadOnlyDictionary<string, string> KeyByHost, IReadOnlyDictionary<string, string> HostByKey, DateTimeOffset LoadedAt);
 
@@ -81,22 +83,30 @@ public sealed class ProductHostMap(IServiceScopeFactory scopes, TimeProvider clo
     /// The key of the product whose host this is, or null. On a miss the map is read once more (a host may have been set a moment ago) by the request that finds the read allowed: never twice inside
     /// <see cref="ProductHostMapOptions.MissRefreshInterval"/>, and a request that finds one running does not wait for it.
     /// </summary>
-    public async ValueTask<string?> FindKeyAsync(string host, CancellationToken cancellationToken)
+    public async ValueTask<string?> FindKeyAsync(string host, CancellationToken cancellationToken) => (await FindAsync(host, cancellationToken))?.Key;
+
+    /// <summary>
+    /// The same lookup, answering the key and the stored host together from one snapshot, so a map that is swapped meanwhile can never pair the key of one snapshot with the host of another.
+    /// </summary>
+    public async ValueTask<(string Key, string Host)?> FindAsync(string host, CancellationToken cancellationToken)
     {
         await EnsureFreshAsync(cancellationToken);
-        if (TryResolve(host, out var key))
+        if (Lookup(host) is { } found)
         {
-            return key;
+            return found;
         }
 
         if (Begin() is { } read)
         {
             await read.WaitAsync(cancellationToken);
-            return TryResolve(host, out key) ? key : null;
+            return Lookup(host);
         }
 
         return null;
     }
+
+    private (string Key, string Host)? Lookup(string host) =>
+        _snapshot is { } snapshot && snapshot.KeyByHost.TryGetValue(host, out var key) && snapshot.HostByKey.TryGetValue(key, out var stored) ? (key, stored) : null;
 
     // Starts a read unless one is running or the last one began less than the miss interval ago; null then. The interval is checked before the lock, so a miss inside it never touches the lock.
     private Task? Begin()
@@ -143,7 +153,9 @@ public sealed class ProductHostMap(IServiceScopeFactory scopes, TimeProvider clo
                 scoped.HttpContext = new DefaultHttpContext { Connection = { RemoteIpAddress = visitor } };
             }
 
-            var listed = await scope.ServiceProvider.GetRequiredService<IPublicProductClient>().ListAsync(CancellationToken.None);
+            // The read has a deadline of its own (no request's token is involved): a call that hangs is cut off, the flight completes and the next read can start.
+            using var deadline = new CancellationTokenSource(ProductHostMapOptions.ReadTimeout, clock);
+            var listed = await scope.ServiceProvider.GetRequiredService<IPublicProductClient>().ListAsync(deadline.Token);
             if (listed.IsFailure)
             {
                 logger.LogWarning("The product hosts could not be read ({Code}); the previous map is kept.", listed.Errors[0].Code);
@@ -158,8 +170,9 @@ public sealed class ProductHostMap(IServiceScopeFactory scopes, TimeProvider clo
         }
     }
 
-    private static Snapshot Build(IReadOnlyList<PublicProductSummaryDto> products, DateTimeOffset loadedAt)
+    private Snapshot Build(IReadOnlyList<PublicProductSummaryDto> products, DateTimeOffset loadedAt)
     {
+        var defaultHost = Uri.TryCreate(options.Value.PublicBaseUrl, UriKind.Absolute, out var publicUri) ? publicUri.Host.ToLowerInvariant() : null;
         var keyByHost = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var hostByKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var product in products)
@@ -170,6 +183,13 @@ public sealed class ProductHostMap(IServiceScopeFactory scopes, TimeProvider clo
             }
 
             var host = product.PortalHost.Trim().ToLowerInvariant();
+
+            // The default host is never a product host (the API refuses it too; this is the second line): the entry is dropped and named by key only, never by the host.
+            if (string.Equals(host, defaultHost, StringComparison.Ordinal))
+            {
+                logger.LogWarning("The product {ProductKey} is given the Portal's own host; the host is ignored.", product.Key);
+                continue;
+            }
 
             // Hosts are unique in the API; if one is ever listed twice, the first product keeps it.
             if (keyByHost.TryAdd(host, product.Key))

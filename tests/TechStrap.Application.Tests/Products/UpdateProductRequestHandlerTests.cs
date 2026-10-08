@@ -1,7 +1,9 @@
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using SyntaxCircus.Common;
 using TechStrap.Application.Agents;
+using TechStrap.Application.Intake;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Products;
 using TechStrap.Application.Tests.Support;
@@ -21,6 +23,7 @@ public sealed class UpdateProductRequestHandlerTests
     private readonly IProductRepository _products = Substitute.For<IProductRepository>();
     private readonly IAdminEventRepository _events = Substitute.For<IAdminEventRepository>();
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 10, 3, 9, 0, 0, TimeSpan.Zero));
+    private readonly PortalLinkOptions _portal = new() { PublicUrl = "https://help.test/" };
     private readonly Agent _admin;
     private readonly Product _product;
 
@@ -35,7 +38,7 @@ public sealed class UpdateProductRequestHandlerTests
     }
 
     private UpdateProductRequestHandler Handler(params Result[] commits) =>
-        new(_claims, _agents, _products, _events, UnitOfWorkSubstitute.Create(commits), _clock);
+        new(_claims, _agents, _products, _events, UnitOfWorkSubstitute.Create(commits), Options.Create(_portal), _clock);
 
     [Fact]
     public async Task An_update_changes_name_branding_and_status_and_audits_what_changed()
@@ -252,5 +255,30 @@ public sealed class UpdateProductRequestHandlerTests
         _ = _products.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         _products.DidNotReceive().Update(Arg.Any<Product>());
         _events.DidNotReceive().Add(Arg.Any<AdminEvent>());
+    }
+
+    [Theory]
+    [InlineData("help.test")]
+    [InlineData("HELP.Test")]
+    public async Task The_portals_own_host_is_reserved_and_nothing_is_saved(string host)
+    {
+        var result = await Handler().HandleAsync(_product.Id, new UpdateProductRequest("Orbitly", SameBranding, true, 7, host), TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            error => error.Kind.ShouldBe(ResultErrorKind.Validation),
+            error => error.Code.ShouldBe("product-host-reserved"),
+            error => error.Target.ShouldBe("portal-host"));
+        await _products.DidNotReceive().IsPortalHostTakenAsync(Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
+        _products.DidNotReceive().Update(Arg.Any<Product>());
+        _product.PortalHost.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_different_host_passes_the_reserved_check()
+    {
+        var result = await Handler().HandleAsync(_product.Id, new UpdateProductRequest("Orbitly", SameBranding, true, 7, "support.help.test"), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.PortalHost.ShouldBe("support.help.test");
     }
 }

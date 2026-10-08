@@ -30,7 +30,7 @@ public sealed class PortalLinksTests
         var services = new ServiceCollection();
         services.AddScoped(_ => client);
         var provider = services.BuildServiceProvider();
-        var map = new ProductHostMap(provider.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System, NullLogger<ProductHostMap>.Instance, new HttpContextAccessor());
+        var map = new ProductHostMap(provider.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System, NullLogger<ProductHostMap>.Instance, new HttpContextAccessor(), Options.Create(new PortalOptions { PublicUrl = "https://portal.test" }));
         await map.RefreshAsync(ct);
         return new PortalLinks(new ProductHostContext { Key = requestKey, Host = requestHost }, map, Options.Create(new PortalOptions { PublicUrl = PublicUrl + "/" }));
     }

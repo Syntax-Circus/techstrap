@@ -10,6 +10,9 @@ internal static class ProductErrors
     public static ResultError HostInvalid() =>
         new("product-host-invalid", "Use a hostname such as support.example.com: letters, digits and hyphens, no scheme, port or path.", ResultErrorKind.Validation, "portal-host");
 
+    public static ResultError HostReserved() =>
+        new("product-host-reserved", "This is the portal's own address. Use a hostname of the product's own, such as support.example.com.", ResultErrorKind.Validation, "portal-host");
+
     public static ResultError HostTaken() =>
         new("product-host-taken", "Another product already uses this portal hostname.", ResultErrorKind.Conflict);
 

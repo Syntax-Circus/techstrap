@@ -14,7 +14,7 @@ internal static class PortalLinksKit
 {
     public static IServiceCollection AddPortalLinks(this IServiceCollection services)
     {
-        var map = new ProductHostMap(Substitute.For<IServiceScopeFactory>(), TimeProvider.System, NullLogger<ProductHostMap>.Instance, new HttpContextAccessor());
+        var map = new ProductHostMap(Substitute.For<IServiceScopeFactory>(), TimeProvider.System, NullLogger<ProductHostMap>.Instance, new HttpContextAccessor(), Options.Create(new PortalOptions { PublicUrl = "https://portal.test" }));
         return services.AddSingleton(new PortalLinks(new ProductHostContext(), map, Options.Create(new PortalOptions { PublicUrl = "https://portal.test" })));
     }
 }

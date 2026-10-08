@@ -1,12 +1,15 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using SyntaxCircus.Common;
 using TechStrap.Contracts.Products;
 using TechStrap.Portal.Clients;
+using Microsoft.Extensions.Options;
 using TechStrap.Portal.Hosting;
+using TechStrap.Portal.Settings;
 
 namespace TechStrap.Portal.Tests.Hosting;
 
@@ -32,7 +35,7 @@ public sealed class ProductHostMapTests
             services.AddScoped(_ => Client);
             Provider = services.BuildServiceProvider();
             Clock = new FakeTimeProvider();
-            Map = new ProductHostMap(Provider.GetRequiredService<IServiceScopeFactory>(), Clock, NullLogger<ProductHostMap>.Instance, new HttpContextAccessor());
+            Map = new ProductHostMap(Provider.GetRequiredService<IServiceScopeFactory>(), Clock, NullLogger<ProductHostMap>.Instance, new HttpContextAccessor(), Options.Create(new PortalOptions { PublicUrl = "https://portal.test" }));
         }
 
         public IPublicProductClient Client { get; }
@@ -219,5 +222,91 @@ public sealed class ProductHostMapTests
         (await fixture.Map.FindKeyAsync("support.dragonpoop.com", ct)).ShouldBeNull();
 
         fixture.Calls.ShouldBe(1);
+    }
+
+    // Review F6: the key and the host of one answer come from one snapshot, so a swap between two reads can never pair them.
+    [Fact(Timeout = 30_000)]
+    public async Task A_host_is_found_with_its_key_and_its_stored_host_in_one_answer()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var fixture = new Fixture(Products());
+
+        var found = await fixture.Map.FindAsync("Support.DragonPoop.com", ct);
+
+        found.ShouldNotBeNull();
+        found.Value.Key.ShouldBe("dragon-poop");
+        found.Value.Host.ShouldBe("support.dragonpoop.com");
+        (await fixture.Map.FindAsync("evil.example", ct)).ShouldBeNull();
+    }
+
+    // Review F2b: the default Portal host is never a product host, whatever the API lists.
+    [Fact(Timeout = 30_000)]
+    public async Task A_product_listed_with_the_default_host_is_skipped_and_logged_once_by_key_only()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var lines = new List<string>();
+        var client = Substitute.For<IPublicProductClient>();
+        client.ListAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(Ok(
+            new PublicProductSummaryDto("dragon-poop", "Dragon Poop", "support.dragonpoop.com"),
+            new PublicProductSummaryDto("who-flung-poo", "Who Flung Poo", "Portal.Test"))));
+        var services = new ServiceCollection();
+        services.AddScoped(_ => client);
+        var map = new ProductHostMap(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), new FakeTimeProvider(), new ListLogger(lines), new HttpContextAccessor(), Options.Create(new PortalOptions { PublicUrl = "https://portal.test/" }));
+
+        await map.EnsureFreshAsync(ct);
+
+        map.TryResolve("portal.test", out _).ShouldBeFalse();
+        map.TryGetHost("who-flung-poo", out _).ShouldBeFalse();
+        map.TryGetHost("dragon-poop", out var host).ShouldBeTrue();
+        host.ShouldBe("support.dragonpoop.com");
+        lines.Count.ShouldBe(1);
+        lines[0].ShouldContain("who-flung-poo");
+        lines[0].ShouldNotContain("portal.test", Case.Insensitive);
+    }
+
+    // Review F9: a read that never answers is cut off, the stale map keeps serving, and the next read can start.
+    [Fact(Timeout = 30_000)]
+    public async Task A_read_that_never_answers_is_cut_off_and_the_next_read_can_start()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var fixture = new Fixture(Products());
+        await fixture.Map.FindKeyAsync("support.dragonpoop.com", ct);
+        var begun = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Client.ListAsync(Arg.Any<CancellationToken>()).Returns(call =>
+        {
+            begun.TrySetResult();
+            return NeverAnswers(call.Arg<CancellationToken>());
+        });
+        fixture.Clock.Advance(ProductHostMapOptions.Ttl);
+
+        (await fixture.Map.FindKeyAsync("support.dragonpoop.com", ct)).ShouldBe("dragon-poop", "the stale map answers while the read hangs");
+        await begun.Task;
+        fixture.Map.PendingRefresh.IsCompleted.ShouldBeFalse();
+
+        fixture.Clock.Advance(ProductHostMapOptions.ReadTimeout);
+        await fixture.Map.PendingRefresh;
+
+        fixture.Map.TryResolve("support.dragonpoop.com", out _).ShouldBeTrue("the old map is kept");
+        fixture.Set(new PublicProductSummaryDto("dragon-poop", "Dragon Poop", "help.dragonpoop.com"));
+        await fixture.Map.EnsureFreshAsync(ct);
+        await fixture.Map.PendingRefresh;
+
+        fixture.Map.TryResolve("help.dragonpoop.com", out _).ShouldBeTrue("a new read started after the timeout");
+    }
+
+    private static async Task<Result<IReadOnlyList<PublicProductSummaryDto>>> NeverAnswers(CancellationToken cancellationToken)
+    {
+        await Task.Delay(Timeout.Infinite, cancellationToken);
+        return Ok();
+    }
+
+    private sealed class ListLogger(List<string> lines) : ILogger<ProductHostMap>
+    {
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            lines.Add(formatter(state, exception));
     }
 }

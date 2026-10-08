@@ -83,11 +83,29 @@ public sealed class PortalHeaderRulesTests
     [InlineData("/p/paperplane/kb/suggest")]
     [InlineData("/p/paperplane/kb/search")]
     [InlineData("/p/paperplane/kb/guides/contact")]
-    [InlineData("/contact")]
     [InlineData("/t/x/contact")]
     [InlineData("/pp/paperplane/contact")]
     [InlineData("")]
     public void The_product_home_the_kb_and_every_other_path_are_not(string path) => PortalHeaderRules.IsFormPagePath(path).ShouldBeFalse(path);
+
+    // A product host receives the clean form before its middleware rewrites it, so the rule must know that shape too.
+    [Theory]
+    [InlineData("/contact")]
+    [InlineData("/Contact/")]
+    [InlineData("/contact/received")]
+    [InlineData("/lost-link")]
+    [InlineData("/SUGGEST")]
+    public void The_clean_form_pages_of_a_product_host_are_form_pages(string path) => PortalHeaderRules.IsFormPagePath(path).ShouldBeTrue(path);
+
+    [Theory]
+    [InlineData("/contactor")]
+    [InlineData("/contact/extra")]
+    [InlineData("/contact/received/more")]
+    [InlineData("/received")]
+    [InlineData("/lost-link/more")]
+    [InlineData("/suggestions")]
+    [InlineData("/kb/contact")]
+    public void Near_misses_of_the_clean_form_pages_are_not(string path) => PortalHeaderRules.IsFormPagePath(path).ShouldBeFalse(path);
 
     [Fact]
     public void The_segments_of_the_form_pages_are_the_ones_the_route_templates_end_with()

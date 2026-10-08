@@ -14,7 +14,7 @@ internal sealed class SitemapBuildException(string message) : Exception(message)
 /// <summary>
 /// Builds the Portal's sitemap entries from the API (D-045, PHASE-09c): one call for the active products, then one call per product for its published articles. For each product the entries are its home, its help
 /// centre home (only when it has an article), each category (found from the articles, last changed when its newest article was) and each article; a shared article (no product key) is listed under every product, because each
-/// product's help centre is its own site. Every address is absolute, built by <see cref="PortalLinks"/> (which escapes each segment) from the stored host of the product host the request arrived on, or from <c>TECHSTRAP_PORTAL_PUBLIC_URL</c> on the default host; with no public address (Development only)
+/// product's help centre is its own site. Every address is absolute, built by <see cref="PortalLinks"/> (which escapes each segment) from the host the product has in the fresh product list (never the host map's snapshot), or from <c>TECHSTRAP_PORTAL_PUBLIC_URL</c> on the default host; with no public address (Development only)
 /// they are root-relative. At most <see cref="MaxUrls"/> addresses are listed in all, the limit of one sitemap file, the static entries (the root page) included: the caller says how many of those there are, and the build keeps
 /// the rest of the room for the products; a cut is logged. The build is scoped: it uses the typed clients.
 /// </summary>
@@ -27,23 +27,32 @@ internal sealed class PortalSitemapBuilder(IPublicProductClient products, IPubli
     /// <param name="host">The host the sitemap is for: on a product host only that product is listed, with clean paths on its host; on the default host only the products that have no host of their own.</param>
     public async Task<IReadOnlyList<SitemapEntry>> BuildAsync(int reservedForStatic, ProductHostContext host, CancellationToken cancellationToken)
     {
-        var links = new PortalLinks(host, map, options);
         var listed = await products.ListAsync(cancellationToken);
         if (listed.IsFailure)
         {
             throw new SitemapBuildException($"The product list failed ({listed.Errors[0].Code}).");
         }
 
+        // The hosts come from this fresh list, never from the host map (whose snapshot may be a minute old): the result is kept for a quarter of an hour, so a stale host would stay that long.
         var entries = new List<SitemapEntry>();
-        foreach (var product in listed.Value.Where(product => host.IsProductHost ? string.Equals(product.Key, host.Key, StringComparison.OrdinalIgnoreCase) : product.PortalHost is null))
+        foreach (var product in listed.Value)
         {
+            var productHost = string.IsNullOrWhiteSpace(product.PortalHost) ? null : product.PortalHost.Trim().ToLowerInvariant();
+            var listedHere = host.IsProductHost
+                ? string.Equals(product.Key, host.Key, StringComparison.OrdinalIgnoreCase) && productHost is not null
+                : productHost is null;
+            if (!listedHere)
+            {
+                continue;
+            }
+
             var articles = await kb.GetSitemapAsync(product.Key, cancellationToken);
             if (articles.IsFailure)
             {
                 throw new SitemapBuildException($"The sitemap of a product failed ({articles.Errors[0].Code}).");
             }
 
-            entries.AddRange(EntriesOf(links, product.Key, articles.Value));
+            entries.AddRange(EntriesOf(PortalLinks.ForListedProduct(map, options, product.Key, productHost), product.Key, articles.Value));
         }
 
         var distinct = entries.DistinctBy(entry => entry.Url).ToList();

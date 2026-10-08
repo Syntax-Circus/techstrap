@@ -45,6 +45,12 @@ public sealed class PortalLinkOptions
             && url.IndexOf('/', scheme.Length) == url.Length - path.Length;
     }
 
+    /// <summary>True when <paramref name="normalisedHost"/> (lower case, as the API stores hosts) is the host of <see cref="PublicUrl"/>: the Portal's own address, which no product may have. False when there is no public URL.</summary>
+    public bool IsDefaultHost(string? normalisedHost) =>
+        normalisedHost is not null
+        && Uri.TryCreate(PublicUrl.Trim(), UriKind.Absolute, out var uri)
+        && string.Equals(uri.Host.ToLowerInvariant(), normalisedHost, StringComparison.Ordinal);
+
     /// <summary>The base URL of a product host.</summary>
     public static string ProductHostBase(string host) => $"https://{host}";
 

@@ -15,6 +15,16 @@ public sealed class PortalLinks(ProductHostContext context, ProductHostMap map, 
     private const string HttpsPrefix = "https://";
     private const string HttpPrefix = "http://";
 
+    // True for links made by ForListedProduct: the host map is not asked, because the host was just read from the product list itself.
+    private bool IgnoreMap { get; init; }
+
+    /// <summary>
+    /// The links of one product as the product list that was just read describes it: with a <paramref name="host"/> they are clean paths on that host, without one they are <c>/p/{key}</c> paths on the default host. The host
+    /// map is never asked (its snapshot may be a minute old), so a host that was just cleared or changed is not written into a page that is then kept for a quarter of an hour (the sitemap).
+    /// </summary>
+    public static PortalLinks ForListedProduct(ProductHostMap map, IOptions<PortalOptions> options, string key, string? host) =>
+        new(host is null ? new ProductHostContext() : new ProductHostContext { Key = key, Host = host }, map, options) { IgnoreMap = true };
+
     public string ProductHome(string key) => Localize(key, PortalRoutes.ProductHome(key));
 
     public string Contact(string key) => Localize(key, PortalRoutes.Contact(key));
@@ -74,7 +84,7 @@ public sealed class PortalLinks(ProductHostContext context, ProductHostMap map, 
             return Strip(key, prefixedPath);
         }
 
-        return map.TryGetHost(key, out var host) ? HttpsPrefix + host + Strip(key, prefixedPath) : prefixedPath;
+        return !IgnoreMap && map.TryGetHost(key, out var host) ? HttpsPrefix + host + Strip(key, prefixedPath) : prefixedPath;
     }
 
     private static bool IsUnder(string path, string prefix) =>

@@ -51,6 +51,27 @@ public sealed class ProductPortalHostEndpointTests(TestPostgres postgres)
         body.RootElement.GetProperty("errorCodes").GetProperty("portal-host").EnumerateArray().Select(code => code.GetString()).ShouldBe(["product-host-invalid"]);
     }
 
+    // The Api test host's TECHSTRAP_PORTAL_PUBLIC_URL is https://portal.test (HostFactory), so portal.test is the reserved host.
+    [Fact]
+    public async Task The_portals_own_host_is_400_on_create_and_on_update_with_a_reserved_code()
+    {
+        var (factory, _, admin) = await StartAsync();
+        await using var _ = factory;
+        using var __ = admin;
+
+        using var create = await PostAsync(admin, "orbitly", "ORB", "Portal.Test");
+        create.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        using var createBody = JsonDocument.Parse(await create.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        createBody.RootElement.GetProperty("errorCodes").GetProperty("portal-host").EnumerateArray().Select(code => code.GetString()).ShouldBe(["product-host-reserved"]);
+
+        using var made = await PostAsync(admin, "paperplane", "PAP", null);
+        var product = (await made.Content.ReadFromJsonAsync<ProductDto>(TestContext.Current.CancellationToken))!;
+        using var update = await admin.PutAsJsonAsync($"/api/products/{product.Id}", new UpdateProductRequest(product.Name, Branding, true, product.Version, "portal.test"), TestContext.Current.CancellationToken);
+        update.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        using var updateBody = JsonDocument.Parse(await update.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        updateBody.RootElement.GetProperty("errorCodes").GetProperty("portal-host").EnumerateArray().Select(code => code.GetString()).ShouldBe(["product-host-reserved"]);
+    }
+
     [Fact]
     public async Task Hosts_differing_only_by_case_collide()
     {

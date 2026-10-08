@@ -1,6 +1,8 @@
+using Microsoft.Extensions.Options;
 using SyntaxCircus.Common;
 using TechStrap.Application.Agents;
 using TechStrap.Application.Auditing;
+using TechStrap.Application.Intake;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Results;
 using TechStrap.Contracts.Products;
@@ -22,6 +24,7 @@ public sealed class CreateProductRequestHandler(
     IProductRepository products,
     IAdminEventRepository adminEvents,
     IUnitOfWork unitOfWork,
+    IOptions<PortalLinkOptions> portal,
     TimeProvider clock) : ICreateProductRequestHandler
 {
     public async Task<Result<ProductDto>> HandleAsync(CreateProductRequest request, CancellationToken cancellationToken)
@@ -55,6 +58,11 @@ public sealed class CreateProductRequestHandler(
         if (!HostNameShape.TryNormalize(request.PortalHost, out var host))
         {
             return Result<ProductDto>.Failure(ProductErrors.HostInvalid());
+        }
+
+        if (portal.Value.IsDefaultHost(host))
+        {
+            return Result<ProductDto>.Failure(ProductErrors.HostReserved());
         }
 
         if (host is not null && await products.IsPortalHostTakenAsync(host, exceptProductId: null, cancellationToken))
