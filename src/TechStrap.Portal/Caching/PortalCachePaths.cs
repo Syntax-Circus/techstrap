@@ -17,6 +17,12 @@ internal static partial class PortalCachePaths
     /// <summary>What a browser is told about a delivered KB page (the same minute).</summary>
     public const string BrowserCacheControl = "public, max-age=60";
 
+    /// <summary>How long a browser may keep a canonical product-host 301 (D-050 amendment): long enough to save the hop, short enough that a changed host reaches visitors within the hour.</summary>
+    public static readonly TimeSpan RedirectLifetime = TimeSpan.FromHours(1);
+
+    /// <summary>The <c>Cache-Control</c> of that 301, the same hour as <see cref="RedirectLifetime"/>.</summary>
+    public const string RedirectCacheControl = "public, max-age=3600";
+
     // A page number of two to four digits, no sign and no leading zero, or a single digit from two to nine: the only value a cached category request may carry. Page one is not one of them: it is the page with no value,
     // so ?page=1 would be a second stored copy of the same page. Anything else (text, a huge number, two values) is still answered, but never stored, because each distinct value would be a new key and a visitor
     // could fill the store with them.

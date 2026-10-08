@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using TechStrap.Portal.Caching;
 using TechStrap.Portal.Routing;
 using TechStrap.Portal.Settings;
 
@@ -58,6 +59,7 @@ public sealed class ProductHostMiddleware(RequestDelegate next)
                 {
                     context.Response.StatusCode = StatusCodes.Status301MovedPermanently;
                     context.Response.Headers.Location = address;
+                    context.Response.Headers.CacheControl = PortalCachePaths.RedirectCacheControl;
                     return;
                 }
             }
