@@ -21,7 +21,7 @@ tag, a runnable sample, and a README per package.
 ### Corrections (D-047, 2026-10-07)
 
 Where this page and D-047 differ, D-047 wins.
-- **Delivery.** Three pull requests: 11a (T01, T02, T03, T04, T06, T10, T17: the SDK core and the packaging of Contracts and Client), 11b (MAUI, T07 to T09) and 11c (READMEs, samples, publish workflow, nuget.org, `v1.0.0-rc.1`; T11 to T16). 11b and 11c wait on owner actions #10 and #9.
+- **Delivery.** Three pull requests: 11a (T01, T02, T03, T04, T06, T10, T17: the SDK core and the packaging of Contracts and Client), 11b (MAUI, T07 to T09) and 11c (READMEs, samples, publish workflow, nuget.org, the first version `v0.1.0`; T11 to T16). 11b and 11c wait on owner actions #10 and #9.
 - **JSON-only.** The intake endpoint takes `[FromBody] SubmitTicketRequest` (D-034). There is no `TicketAttachment` and no multipart; P11-T05 and the MAUI screenshot adapter are deferred to 11d, which first needs multipart intake. The surface is `SubmitTicketAsync(SubmitTicketRequest, CancellationToken)` (the SDK generates the key), `SubmitTicketAsync(SubmitTicketRequest, string idempotencyKey, CancellationToken)` (the caller's stable key) and `SubmitTicketOnceAsync`.
 - **Resilience.** The SDK uses `HttpRequestResiliencePipeline` directly, not `AddResilientHttpClient`, `AddTypedClient` or `ApiClientBase`: the package's client registration retries every request, POST included. A submit with an `Idempotency-Key` is replayable; `SubmitTicketOnceAsync` sends once. There is no `retryCount`; the option is `MaxAttempts` (attempts in total).
 - **Constant names.** `TechStrapHeaders` is `HeaderNames`; `TicketMetadataLimits` is `IntakeLimits`; `IntakeRoutes.Tickets` is new. `TicketMetadataKeys` is created in 11b.
@@ -55,6 +55,7 @@ Where this page and D-049 differ, D-049 wins.
 - **Documentation file.** `GenerateDocumentationFile` is on for every package, every public member is documented, and `Test-PackageContents.ps1` fails when `lib/net10.0/<id>.xml` is missing.
 - **AOT.** `TechStrap.Client` and `TechStrap.Client.Maui` are AOT-compatible: JSON goes through the source-generated `TechStrapJsonContext`, and `IsAotCompatible` is on with no suppressions.
 - **T16 validation.** UAT is not deployed, so the post-publish check runs against the local compose stack; the UAT submit moves to PHASE-12 (P12-T14).
+- First version: `v0.1.0`, not `v1.0.0-rc.1` (D-049 addendum, 2026-10-08); `v1.0.0` follows when the SDK-facing Contracts surface is locked.
 
 ## Architecture Decisions
 
@@ -117,7 +118,7 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 - [x] `tests/TechStrap.Client.Tests` (unit + API-contract integration), created in this phase (listed in `02-ARCHITECTURE.md`). *(Created in 11a.)*
 - [x] Console sample (+ optional MAUI sample); README usage snippets. *(11c: the console sample and compiled README snippets; no MAUI sample project, D-049.)*
 - [x] `.github/workflows/publish-nuget.yml` and package validation (readme/license/symbols/dependency check), dry-run on non-tag builds. *(11a delivered the pack dry run in `ci.yml` and `scripts/Test-PackageContents.ps1`; 11c added the workflow.)*
-- [ ] First prerelease (`v1.0.0-rc.1`) published and consumed from nuget.org by the sample. *(Pending the owner's tag push, P11-T16.)*
+- [ ] First version (`v0.1.0`) published and consumed from nuget.org by the sample. *(Pending the owner's tag push, P11-T16.)*
 
 ## Actionable Tasks
 
@@ -179,11 +180,11 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 - [x] **P11-T15** Reserve package IDs and configure nuget.org Trusted Publishing policy + `release` environment; document the one-time setup in the repo (not secrets)
   - **Depends on:** P11-T13
   - **Validation:** Owner confirms IDs and policy; a prerelease tag publishes all three packages without a stored API key.
-  - **As built (11c):** the owner confirmed on 2026-10-08 that the `TechStrap.*` IDs are reserved, each package has a Trusted Publishing policy (repository `Syntax-Circus/techstrap`, workflow `publish-nuget.yml`, environment `release`), `NUGET_USER` is set as an organization secret available to the repository (not a repository secret), and the `release` environment has a required reviewer and a deployment rule "Selected branches and tags" with the tag pattern `v*` ("Protected branches only" blocks tag refs). The controller created the environment on 2026-10-08 and verified both with `gh api repos/Syntax-Circus/techstrap/environments/release`. `docs/development/RELEASING.md` records the values (no secrets). That a prerelease tag publishes all three packages without a stored key is proven by T16.
-- [ ] **P11-T16** Publish `v1.0.0-rc.1` packages and run the post-publish check: fresh project restores `TechStrap.Client` and `TechStrap.Client.Maui` from nuget.org and submits a ticket to UAT
+  - **As built (11c):** the owner confirmed on 2026-10-08 that the `TechStrap.*` IDs are reserved, each package has a Trusted Publishing policy (repository `Syntax-Circus/techstrap`, workflow `publish-nuget.yml`, environment `release`), `NUGET_USER` is set as an organization secret available to the repository (not a repository secret), and the `release` environment has a required reviewer and a deployment rule "Selected branches and tags" with the tag pattern `v*` ("Protected branches only" blocks tag refs). The controller created the environment on 2026-10-08 and verified both with `gh api repos/Syntax-Circus/techstrap/environments/release`. `docs/development/RELEASING.md` records the values (no secrets). That a version tag publishes all three packages without a stored key is proven by T16.
+- [ ] **P11-T16** Publish `v0.1.0` packages and run the post-publish check: fresh project restores `TechStrap.Client` and `TechStrap.Client.Maui` from nuget.org and submits a ticket to UAT
   - **Depends on:** P11-T12, P11-T15, P05 deployed to UAT
   - **Validation:** Restore from nuget.org succeeds (indexed); sample submits against UAT and the ticket arrives with metadata flagged untrusted for a Public key.
-  - **Pending (11c):** the owner's `v1.0.0-rc.1` tag push after the merge. The post-publish check runs against the local compose stack (UAT is not deployed; the UAT submit is PHASE-12, P12-T14). T16 is ticked in a follow-up docs commit once the packages restore from nuget.org.
+  - **Pending (11c):** the owner's `v0.1.0` tag push after the merge. The post-publish check runs against the local compose stack (UAT is not deployed; the UAT submit is PHASE-12, P12-T14). T16 is ticked in a follow-up docs commit once the packages restore from nuget.org.
 - [x] **P11-T17** Rely on server-side idempotency for submit retries (D-020): generate an `Idempotency-Key` per `SubmitTicketAsync` call, allow the caller to supply one, enable retries for submit only when a key is present, and document the behavior in the READMEs; if the owner rejects D-020, keep retries disabled and record that in [04-DECISION-LOG.md](04-DECISION-LOG.md)
   - **Depends on:** P11-T04, P05-T17
   - **Validation:** `Client.Tests` integration test against the real API: a simulated timeout followed by a retry with the same key yields exactly one ticket and the same `SubmitTicketResponse`; a call without a key is never retried; D-020 status is reflected in [04-DECISION-LOG.md](04-DECISION-LOG.md).
@@ -194,7 +195,7 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 - [ ] A .NET app can `dotnet add package TechStrap.Client`, configure base URL + key, and create a ticket; the response gives the ticket number and view URL. *(11a proved the call against the real Api with project references, not the package, so this stays open; consuming the packed package is the 11c sample, and the nuget.org install is 11c.)*
 - [ ] A MAUI app can `dotnet add package TechStrap.Client.Maui`, submit a ticket with device/app metadata and an optional screenshot, with metadata truncation and opt-out working. *(Partial in 11b: submit with device/app metadata, truncation, redaction and opt-out are built and tested; there is no screenshot until 11d adds attachments, and the package is not on nuget.org until 11c.)*
 - [ ] Failure modes (bad key, rate limit, validation, attachments, outage) return typed `Result` failures; submit is never silently duplicated by retries. *(Partial in 11a: all but attachments, deferred to 11d by D-047; 413 and 415 are mapped.)*
-- [ ] Pushing tag `v*` builds, tests, packs and publishes `TechStrap.Contracts`, `TechStrap.Client` and `TechStrap.Client.Maui` to nuget.org with symbols and READMEs, through OIDC (no long-lived key in the repo). *(Workflow in place and pinned; dry run and rc.1 publish follow the merge.)*
+- [ ] Pushing tag `v*` builds, tests, packs and publishes `TechStrap.Contracts`, `TechStrap.Client` and `TechStrap.Client.Maui` to nuget.org with symbols and READMEs, through OIDC (no long-lived key in the repo). *(Workflow in place and pinned; dry run and the v0.1.0 publish follow the merge.)*
 - [x] Contract test proves the SDK matches the API's OpenAPI document and the real intake endpoint. *(Response schema not pinned, see Corrections.)*
 - [x] Each package has a README; samples compile and run. *(11c: the console sample builds in CI and ran against the compose stack; the README snippets are compiled.)*
 - [x] `dotnet build`, `dotnet test` green; the single net10.0 target builds and tests on the ubuntu CI (D-048).
@@ -233,7 +234,7 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
 ## Handoff
 
 Before [PHASE-12](PHASE-12-release-hardening.md) starts: the three packages
-are published as `v1.0.0-rc.1` (or the pack/publish workflow is verified end to
+are published as `v0.1.0` (or the pack/publish workflow is verified end to
 end with a dry run and the nuget.org policy is in place), samples run against
 UAT, READMEs are complete, and the idempotency decision (D-020) and header
 naming are confirmed and recorded. Phase 12 includes the SDK/public-key abuse
