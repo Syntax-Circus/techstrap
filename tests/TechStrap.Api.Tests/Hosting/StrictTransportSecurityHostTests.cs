@@ -22,6 +22,25 @@ public sealed class StrictTransportSecurityHostTests
     [Theory]
     [InlineData("Development", false)]
     [InlineData("Production", true)]
+    public async Task The_Api_sends_Strict_Transport_Security_only_outside_Development(string environment, bool expected)
+    {
+        Environment.SetEnvironmentVariable(TrustedNetworkVariable, "10.20.30.0/24");
+        try
+        {
+            // Outside Development the connection string is required at start; /health/live never opens it.
+            await using var factory = new ApiFactory(environment, new Dictionary<string, string?> { ["ConnectionStrings:TechStrap"] = "Host=localhost;Database=hsts;Username=hsts;Password=hsts" });
+            using var client = factory.CreateClient();
+            (await SendsHstsAsync(client, "/health/live")).ShouldBe(expected);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(TrustedNetworkVariable, null);
+        }
+    }
+
+    [Theory]
+    [InlineData("Development", false)]
+    [InlineData("Production", true)]
     public async Task The_Admin_sends_Strict_Transport_Security_only_outside_Development(string environment, bool expected)
     {
         Environment.SetEnvironmentVariable(TrustedNetworkVariable, "10.20.30.0/24");

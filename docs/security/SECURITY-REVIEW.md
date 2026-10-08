@@ -99,7 +99,7 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 | Check | Evidence or finding |
 | --- | --- |
 | Every route names a policy | `RoutePolicyCoverageTests.Every_api_route_declares_exactly_one_known_policy`, `RoutePolicyCoverageTests.Every_public_and_api_key_route_is_rate_limited`, `PublicApiHardeningTests.The_fallback_authorization_policy_denies_anonymous_callers` |
-| 401 and 403 matrix | `AgentAccessCoverageTests.Anonymous_callers_get_401_and_callers_outside_the_groups_get_403_everywhere`, `AgentAccessCoverageTests.An_agent_group_member_is_refused_on_every_admin_only_route`, `AgentAccessCoverageTests.A_deactivated_agent_is_refused_on_every_agent_endpoint`; Task 5 adds `AgentAccessCoverageTests.The_admin_only_route_set_matches_the_pinned_list` |
+| 401 and 403 matrix | `AgentAccessCoverageTests.Anonymous_callers_get_401_and_callers_outside_the_groups_get_403_everywhere`, `AgentAccessCoverageTests.An_agent_group_member_is_refused_on_every_admin_only_route`, `AgentAccessCoverageTests.A_deactivated_agent_is_refused_on_every_agent_endpoint`; `AgentAccessCoverageTests.The_admin_only_route_set_matches_the_pinned_list` pins the 17 D-022 Admin-only routes (the live Admin-policy set equals a constant, so a demoted or newly added Admin route fails the build; it matches the 17 `(Admin)` rows of `02-ARCHITECTURE.md` section 7, no discrepancy) |
 | Group roles (D-029) | `ClaimsCurrentAgentClaimsTests`, `AgentAuthTests`, `AgentAccessOptionsTests`, `AgentProvisioningTests` |
 | Deactivation | `AgentManagementEndpointTests`; Admin `AgentAccessHostTests` |
 | Last-admin guard | SR-14 (fixed); `UpdateAgentRequestHandlerTests.The_admin_lock_is_taken_before_the_actor_is_read`, `UpdateAgentRequestHandlerTests.An_actor_deactivated_while_waiting_for_the_lock_is_refused`, `AgentAdminLockTests.A_second_counter_waits_for_the_first_unit_of_work_and_sees_its_commit` |
@@ -107,10 +107,22 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 | IDOR | Customer side: rows 1 and 3; keys: `ApiKeyEndpointTests.Revoking_a_key_of_another_product_is_404`; agents are single-tenant (SR-06) |
 | OIDC, PKCE and forwarding | Admin `AdminSignInTests` |
 | Security headers and CSP | `SecurityHeadersHostTests`, `PathHeaderRuleHostTests`, `HealthEndpointTests.Responses_carry_security_headers`, `ContentSecurityPolicyHostTests`, `CspBuilderTests`, `CspStyleTests`, `KbImageCspTests` |
-| HSTS | `StrictTransportSecurityHostTests` (Admin, Portal); Task 5 adds the API case |
-| CORS | SR-07; Task 5 adds `CorsAbsenceHostTests.No_response_carries_an_Access_Control_Allow_Origin_header` |
-| Error responses leak nothing | `ResultMappingTests`; Admin and Portal `UnhandledErrorHostTests`; Task 5 adds `ApiUnhandledErrorHostTests.An_unhandled_exception_in_Production_is_a_problem_response_without_detail_or_stack` |
-| OpenAPI and health documents | `OpenApiSecurityTests`, `OpenApiSurfaceTests`, `HealthEndpointTests.The_OpenAPI_document_is_served_anonymously`; Task 5 adds `PublicDocumentsSecretsTests` |
+| HSTS | `StrictTransportSecurityHostTests` (`The_Api_sends_Strict_Transport_Security_only_outside_Development`, Admin, Portal); the API case found HSTS sent in Development, SR-17 (fixed) |
+| CORS | SR-07; `CorsAbsenceHostTests.No_response_carries_an_Access_Control_Allow_Origin_header` (GET and a preflight OPTIONS with a foreign Origin on `/health/live`, `/openapi/v1.json`, `/api/public/products`, `/api/agents/me`: no Allow-Origin, Allow-Credentials, Allow-Methods, Allow-Headers or `Vary: Origin`) |
+| Error responses leak nothing | `ResultMappingTests`; Admin and Portal `UnhandledErrorHostTests`; `ApiUnhandledErrorHostTests.An_unhandled_exception_in_Production_is_a_problem_response_without_detail_or_stack` (Production: 500 `application/problem+json`, type `internal-error`, the fixed text "An unexpected error occurred.", no exception message, type or stack frame), with `The_throwing_endpoint_is_reached` proving the throwing branch runs |
+| OpenAPI and health documents | `OpenApiSecurityTests`, `OpenApiSurfaceTests`, `HealthEndpointTests.The_OpenAPI_document_is_served_anonymously`; `PublicDocumentsSecretsTests.The_openapi_document_and_readiness_reveal_no_secrets` (Production, owner decision D-051: OpenAPI stays served anonymously; neither it nor `/health/ready` contains the connection string, its password, `Password=`, the JWT signing key, SMTP and Sentry canary values, or anything shaped like an API key `ts[kp]_[A-Za-z0-9_-]{43}`; the literal prefixes `tsk_` and `tsp_` were not asserted absent because the API-key regex is the precise check) |
+
+#### Browser-facing headers per host (P12-T08)
+
+| Header or behaviour | API | Admin | Portal |
+| --- | --- | --- | --- |
+| Content-Security-Policy | `ContentSecurityPolicyHostTests`, `CspBuilderTests`, `HealthEndpointTests.Responses_carry_security_headers` (the API policy allows nothing) | `ContentSecurityPolicyHostTests`, `CspStyleTests`, `AdminRuleTests` | `ContentSecurityPolicyHostTests`, `KbImageCspTests`, `PortalRuleTests` |
+| X-Content-Type-Options nosniff | `SecurityHeadersHostTests`, `HealthEndpointTests.Responses_carry_security_headers` | `SecurityHeadersHostTests`, `PathHeaderRuleHostTests` | `SecurityHeadersHostTests`, `PathHeaderRuleHostTests` |
+| Referrer-Policy | `SecurityHeadersHostTests`, `HealthEndpointTests.Responses_carry_security_headers` | `SecurityHeadersHostTests` | `SecurityHeadersHostTests` |
+| Strict-Transport-Security (not in Development) | `StrictTransportSecurityHostTests.The_Api_sends_Strict_Transport_Security_only_outside_Development` (SR-17, fixed) | `StrictTransportSecurityHostTests.The_Admin_sends_Strict_Transport_Security_only_outside_Development` | `StrictTransportSecurityHostTests.The_Portal_sends_Strict_Transport_Security_only_outside_Development` |
+| No CORS | `CorsAbsenceHostTests.No_response_carries_an_Access_Control_Allow_Origin_header` (SR-07) | none configured (SR-07); not exercised separately, the Admin calls the API server side | none configured (SR-07); not exercised separately, the Portal calls the API server side |
+| Unhandled error is a plain ProblemDetails or error page | `ApiUnhandledErrorHostTests.An_unhandled_exception_in_Production_is_a_problem_response_without_detail_or_stack` | Admin `UnhandledErrorHostTests` | Portal `UnhandledErrorHostTests.An_unhandled_exception_returns_500_with_the_plain_error_page` |
+| No secrets in anonymous documents | `PublicDocumentsSecretsTests.The_openapi_document_and_readiness_reveal_no_secrets` (D-051) | n/a (no OpenAPI) | n/a (no OpenAPI) |
 
 ### 6. Privacy and operations
 
@@ -167,7 +179,7 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 - Path group: 5. Authorization and headers
 - Severity: Info
 - Status: Accepted
-- Evidence: no CORS is configured anywhere, so browsers refuse cross-origin reads by default. Task 5 pins it with `CorsAbsenceHostTests`.
+- Evidence: no CORS is configured anywhere, so browsers refuse cross-origin reads by default. `CorsAbsenceHostTests.No_response_carries_an_Access_Control_Allow_Origin_header` pins it: GET and preflight OPTIONS with a foreign Origin get no CORS header on four representative paths (health, OpenAPI, a public route, an agent route). Mutation check: adding `AddCors` and `UseCors(AllowAnyOrigin)` fails the test on all four paths.
 
 ### SR-08: No antivirus scanning
 - Path group: 3. Uploads
@@ -222,6 +234,12 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 - Severity: Low
 - Status: Accepted
 - Evidence: revoke is idempotent for sequential calls (`ApiKeyEndpointTests.Revoking_twice_is_204_both_times_and_audits_once`: both 204, one `ApiKeyRevoked` audit row). Two truly concurrent revokes can both pass the `IsRevoked` check and each write and audit; both converge on the same end state (revoked, `revoked_at` set), so there is no security impact, only a possible duplicate audit row. Accepted: no concurrency token and no migration for an admin-only, idempotent, audit-only duplicate.
+
+### SR-17: The API sent Strict-Transport-Security in Development
+- Path group: 5. Authorization and headers
+- Severity: Low
+- Status: Fixed
+- Evidence: `StrictTransportSecurityHostTests.The_Api_sends_Strict_Transport_Security_only_outside_Development` failed for Development: the API host sent the header on every response while the Admin and Portal hosts remove it in Development (a browser given HSTS for localhost refuses plain http on that host, whatever the port, for the length of the policy). `src/TechStrap.Api/Program.cs` now registers the same start callback before `UseSecurityHeaders` in Development. Production still sends `max-age=31536000; includeSubDomains`. Fixed in P12-T08.
 
 ## Architecture conformance
 
