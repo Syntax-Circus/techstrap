@@ -3,7 +3,6 @@ using TechStrap.Contracts.Kb;
 using TechStrap.Portal.Components;
 using TechStrap.Portal.Components.Kb;
 using TechStrap.Portal.Products;
-using TechStrap.Portal.Routing;
 
 namespace TechStrap.Portal.Seo;
 
@@ -48,15 +47,17 @@ public sealed record ArticleSchema(
 /// <summary>Builds the structured data of an article page: the breadcrumb trail and the article, each safe to write into a script block.</summary>
 public static class KbStructuredData
 {
-    /// <param name="absoluteUrl">Turns a root-relative path into the absolute address (<c>ISeoUrlBuilder.AbsoluteUrl</c>).</param>
+    /// <param name="absoluteUrl">Turns a root-relative path into the absolute address (<c>PortalLinks.Absolute</c>, which leaves an absolute address as it is).</param>
+    /// <param name="articlePath">The article page's own path or address, built by <c>PortalLinks</c> (the clean path on the product's host).</param>
     public static IReadOnlyList<object> ForArticle(
-        Func<string, string> absoluteUrl, ProductThemeViewModel theme, PublishedKbArticleDto article, string description, IReadOnlyList<KbCrumb> trail)
+        Func<string, string> absoluteUrl, string articlePath, ProductThemeViewModel theme, PublishedKbArticleDto article, string description, IReadOnlyList<KbCrumb> trail)
     {
         ArgumentNullException.ThrowIfNull(absoluteUrl);
+        ArgumentNullException.ThrowIfNull(articlePath);
         ArgumentNullException.ThrowIfNull(theme);
         ArgumentNullException.ThrowIfNull(article);
         ArgumentNullException.ThrowIfNull(trail);
-        var pageUrl = absoluteUrl(PortalRoutes.KbArticle(theme.Key, article.CategorySlug, article.Slug));
+        var pageUrl = absoluteUrl(articlePath);
         var product = new OrganizationLd(JsonLdText.Safe(theme.DisplayName));
         var items = trail
             .Select((crumb, index) => new BreadcrumbItemLd(index + 1, JsonLdText.Safe(crumb.Label), JsonLdText.Safe(crumb.Href is { } href ? absoluteUrl(href) : pageUrl)))

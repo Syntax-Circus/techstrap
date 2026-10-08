@@ -95,6 +95,21 @@ public static partial class PortalRules
             .Where(f => Interactivity().IsMatch(f.Text))
             .Select(f => $"{f.Path} opts in to an interactive render mode. The Portal is static server rendering only; there is no circuit.")];
 
+    /// <summary>
+    /// A component (<c>.razor</c>, <c>.razor.cs</c>) and anything under <c>Seo/</c> builds its links through <c>PortalLinks</c>, which knows the product's own host (PHASE-11e). So no such file calls a link builder of
+    /// <c>PortalRoutes</c> (<c>PortalRoutes.KbArticle(...)</c> and the rest); the route templates, parameter names and segment constants stay allowed (a page declares its route with them). Comments are ignored.
+    /// </summary>
+    public static IReadOnlyList<string> LinkBuilderViolations(IEnumerable<(string Path, string Text)> files) =>
+        [.. files
+            .Select(f => (Path: Normalize(f.Path), Text: Comments().Replace(f.Text, string.Empty)))
+            .Where(f => (f.Path.EndsWith(".razor", StringComparison.OrdinalIgnoreCase) || f.Path.EndsWith(".razor.cs", StringComparison.OrdinalIgnoreCase) || f.Path.StartsWith(PortalRoot + "Seo/", StringComparison.Ordinal))
+                        && f.Path != PortalRoot + "Routing/PortalLinks.cs" && f.Path != PortalRoot + "Routing/PageLinks.cs"
+                        && LinkBuilderCall().IsMatch(f.Text))
+            .Select(f => $"{f.Path} calls a PortalRoutes link builder. Build the link with PortalLinks, which knows the product's host.")];
+
+    [GeneratedRegex(@"\bPortalRoutes\.(?:ProductHome|Contact|ContactReceived|LostLink|LostLinkSent|KbHome|KbCategory|KbArticle|KbSearch|Suggest|Ticket|TicketAttachment)\(", RegexOptions.CultureInvariant)]
+    private static partial Regex LinkBuilderCall();
+
     /// <summary>Every .razor, .razor.cs and .cs file under src/TechStrap.Portal, except bin, obj and node_modules folders inside the project. Paths are relative to the repository root.</summary>
     public static IEnumerable<(string Path, string Text)> Sources(string repositoryRoot)
     {

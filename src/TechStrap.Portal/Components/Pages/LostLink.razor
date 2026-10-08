@@ -9,7 +9,7 @@
     @if (SentFlag == "1")
     {
         <p role="status" class="ts-confirmation">@LostLinkCopy.Confirmation</p>
-        <p><a href="@PortalRoutes.ProductHome(theme.Key)">@LostLinkCopy.BackTo(theme.DisplayName)</a></p>
+        <p><a href="@Links.ProductHome(theme.Key)">@LostLinkCopy.BackTo(theme.DisplayName)</a></p>
     }
     else
     {
@@ -20,7 +20,7 @@
             <p class="alert alert-warning" role="alert">@Notice</p>
         }
         <p class="ts-form-note">@LostLinkCopy.RequiredNote</p>
-        <form method="post" action="@PortalRoutes.LostLink(theme.Key)" novalidate @formname="@FormHandler" @onsubmit="SubmitAsync" class="ts-form" data-sending-label="@FormCopy.Sending">
+        <form method="post" action="@Links.LostLink(theme.Key)" novalidate @formname="@FormHandler" @onsubmit="SubmitAsync" class="ts-form" data-sending-label="@FormCopy.Sending">
             <AntiforgeryToken />
             <FormGuard Name="Form.SubmitId" />
             <FormField Field="@FormFields.Email" Name="Form.Email" Label="@LostLinkCopy.EmailLabel" Value="@Form?.Email" MaxLength="@TechStrap.Contracts.Intake.IntakeLimits.EmailMaxLength" Type="email" Autocomplete="email" Error="@ErrorOf(FormFields.Email)" />

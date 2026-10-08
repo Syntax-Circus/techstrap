@@ -133,6 +133,35 @@ public sealed class SubmitTicketRequestHandlerTests
     }
 
     [Fact]
+    public async Task A_product_with_a_host_gets_its_confirmation_link_and_view_url_on_the_host()
+    {
+        _product.SetPortalHost("support.dragonpoop.com").IsSuccess.ShouldBeTrue();
+
+        var result = await Handler().HandleAsync(Request(externalRef: "u-1"), ApiContext(trusted: true), TestContext.Current.CancellationToken);
+
+        result.Value.ViewUrl.ShouldBe("https://support.dragonpoop.com/t/tok");
+        _outbox.Received(1).Enqueue(Arg.Is<EmailOutboxItem>(i =>
+            i.Kind == "ticket-confirmation" && i.PayloadJson.Contains("\"portalLink\":\"https://support.dragonpoop.com/t/tok\"")));
+    }
+
+    [Fact]
+    public async Task A_replayed_idempotent_submission_links_on_the_product_host()
+    {
+        _product.SetPortalHost("support.dragonpoop.com").IsSuccess.ShouldBeTrue();
+        var (unitOfWork, _) = SingleScope();
+        _unitOfWork = unitOfWork;
+        var ticket = ExistingTicket();
+        var stored = JsonSerializer.Serialize(new SubmitTicketResponse("ORB-7", null, []), Json);
+        _idempotency.FindAsync(_apiKeyId, "k1", Arg.Any<CancellationToken>())
+            .Returns(new IntakeIdempotencyEntry(Guid.CreateVersion7(), _apiKeyId, ticket.Id, stored, _clock.GetUtcNow().AddHours(-1)));
+        _tickets.GetByIdAsync(ticket.Id, Arg.Any<CancellationToken>()).Returns(ticket);
+
+        var result = await Handler().HandleAsync(Request(), ApiContext(idempotencyKey: "k1"), TestContext.Current.CancellationToken);
+
+        result.Value.ViewUrl.ShouldBe("https://support.dragonpoop.com/t/tok");
+    }
+
+    [Fact]
     public async Task A_trusted_api_submission_keeps_the_external_ref_and_trusted_metadata_and_returns_the_view_url()
     {
         var metadata = new Dictionary<string, string> { ["plan"] = "pro" };

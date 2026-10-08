@@ -1,8 +1,10 @@
 using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using TechStrap.Portal.Clients;
+using TechStrap.Portal.Hosting;
 using TechStrap.Portal.Seo;
 using TechStrap.Portal.Settings;
 
@@ -44,6 +46,8 @@ internal sealed class ApiHarness : IDisposable
         services.AddSingleton(Microsoft.Extensions.Options.Options.Create(new PortalOptions { ApiBaseUrl = "http://api.test/", PublicUrl = "https://portal.test" }));
         services.AddPortalApiClients();
         services.AddPortalSitemap();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddProductHosts();
         services.AddStubApi(stub);
         configure?.Invoke(services);
 

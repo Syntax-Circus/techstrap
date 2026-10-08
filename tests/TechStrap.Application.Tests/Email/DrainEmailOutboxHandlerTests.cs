@@ -247,6 +247,17 @@ public sealed class DrainEmailOutboxHandlerTests
     }
 
     [Fact]
+    public async Task A_linked_article_on_a_product_host_keeps_its_enrichment_at_send_time()
+    {
+        const string hostLink = "https://support.dragonpoop.com/kb/account/reset";
+        var rendered = await DrainReplyWithArticlesAsync(
+            [new ArticleLinkEntry("Reset", hostLink, ArticleA), new ArticleLinkEntry("Export", "https://support.dragonpoop.com/kb/general/old", ArticleB)],
+            new PublicKbLinkTarget(ArticleA, "account", "reset"), new PublicKbLinkTarget(ArticleB, "general", "export"));
+
+        rendered!.Articles!.ShouldHaveSingleItem().Url.ShouldBe(hostLink);
+    }
+
+    [Fact]
     public async Task Review_Focus_5_an_article_archived_after_planning_is_dropped_at_send_time()
     {
         var rendered = await DrainReplyWithArticlesAsync(

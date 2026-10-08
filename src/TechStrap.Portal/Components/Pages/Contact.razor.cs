@@ -84,12 +84,12 @@ public partial class Contact : ProductPageBase
         // A double click sends once: the id this form carried claims the write (D-045 09d addendum). A repeat is sent where the first went, or to the received page without a reference when the first's answer is unknown.
         var outcome = await Guard.RunAsync(
             SubmitKey.TryCreate(FormHandler, Key, form.SubmitId, SubmitContent.Digest([form.Name, form.Email, form.Subject, form.Body], form.Files)),
-            new SubmitTarget(PortalRoutes.ContactReceived(Key)),
+            new SubmitTarget(Links.ContactReceived(Key)),
             async cancellation =>
             {
                 var result = await Tickets.SubmitAsync(Key, request, cancellation);
                 return result.IsSuccess
-                    ? Result<SubmitTarget>.Success(new SubmitTarget(PortalRoutes.ContactReceived(Key, References.Protect(Key, result.Value.TicketNumber))))
+                    ? Result<SubmitTarget>.Success(new SubmitTarget(Links.ContactReceived(Key, References.Protect(Key, result.Value.TicketNumber))))
                     : Result<SubmitTarget>.Failure(result.Errors[0], [.. result.Errors.Skip(1)]);
             },
             RequestAborted);

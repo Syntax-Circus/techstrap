@@ -14,7 +14,8 @@ internal static class ProductMappings
             record.NumberPrefix,
             ProductBranding.Restore(record.DisplayName, record.Logo, record.AccentColour, record.FromAddress, record.ReplyTo),
             record.IsActive,
-            record.Version);
+            record.Version,
+            record.PortalHost);
 
     public static ProductRecord ToRecord(this Product product)
     {
@@ -38,6 +39,7 @@ internal static class ProductMappings
         record.FromAddress = product.Branding.FromAddress;
         record.ReplyTo = product.Branding.ReplyTo;
         record.IsActive = product.IsActive;
+        record.PortalHost = product.PortalHost;
     }
 
     public static ProductApiKey ToDomain(this ProductApiKeyRecord record) =>

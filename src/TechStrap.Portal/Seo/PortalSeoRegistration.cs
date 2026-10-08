@@ -33,7 +33,8 @@ public static class PortalSeoRegistration
     public static WebApplication MapPortalSeo(this WebApplication app)
     {
         app.MapSeoRobotsTxt(extraDirectives: [DisallowTickets]);
-        app.MapSeoSitemap(PortalSitemap.StaticEntries(app.Services.GetRequiredService<IOptions<PortalOptions>>().Value), PortalSitemap.ProviderAsync, PortalSitemap.ClientCacheDuration);
+        // The static entries (the default host's root page) come from the provider, so a product host's sitemap does not list an address on another host.
+        app.MapSeoSitemap([], PortalSitemap.ProviderAsync, PortalSitemap.ClientCacheDuration);
         return app;
     }
 }

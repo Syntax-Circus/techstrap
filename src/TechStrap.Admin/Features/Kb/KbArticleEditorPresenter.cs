@@ -24,9 +24,14 @@ internal sealed record KbEditorLookups(IReadOnlyList<ProductDto> Products, IRead
     /// The product key an article's portal address is built with. A shared article is reachable under every product, so the first product by name stands in; null when there is no product to
     /// stand in (no link is shown then).
     /// </summary>
-    public string? PortalProductKey(Guid? productId) => productId is { } id
-        ? Products.FirstOrDefault(p => p.Id == id && p.IsActive)?.Key
-        : Products.Where(p => p.IsActive).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).FirstOrDefault()?.Key;
+    public string? PortalProductKey(Guid? productId) => PortalProduct(productId)?.Key;
+
+    /// <summary>The portal host of the product <see cref="PortalProductKey"/> resolves to, or null when it has none (the default host is used).</summary>
+    public string? PortalProductHost(Guid? productId) => PortalProduct(productId)?.PortalHost;
+
+    private ProductDto? PortalProduct(Guid? productId) => productId is { } id
+        ? Products.FirstOrDefault(p => p.Id == id && p.IsActive)
+        : Products.Where(p => p.IsActive).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
 
     public string? CategorySlug(Guid? categoryId) => categoryId is { } id ? Categories.FirstOrDefault(c => c.Id == id)?.Slug : null;
 }

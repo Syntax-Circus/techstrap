@@ -31,6 +31,7 @@ public sealed class AddCustomerReplyRequestHandler(
     IAccessTokenService accessTokens,
     ITicketRepository tickets,
     IRequesterRepository requesters,
+    IProductRepository products,
     ITicketNumberAllocator allocator,
     IAttachmentStore attachments,
     IHtmlSanitizer sanitizer,
@@ -180,7 +181,7 @@ public sealed class AddCustomerReplyRequestHandler(
 
             tickets.Add(followUp);
             tickets.Update(ticket);
-            var link = IssueLink(followUp.Id, requester.Id);
+            var link = await IssueLinkAsync(followUp.Id, followUp.ProductId, requester.Id, cancellationToken);
             if (link.IsFailure)
             {
                 await stored.DeleteAllAsync();
@@ -220,7 +221,7 @@ public sealed class AddCustomerReplyRequestHandler(
             return null;
         }
 
-        var link = IssueLink(match.TicketId, requesterId);
+        var link = await IssueLinkAsync(match.TicketId, parent.ProductId, requesterId, cancellationToken);
         return link.IsFailure
             ? Result<CustomerReplyResponse>.Failure(link.Errors[0])
             : Result<CustomerReplyResponse>.Success(new CustomerReplyResponse(match.Number, match.FirstMessageId, true, link.Value));
@@ -263,7 +264,7 @@ public sealed class AddCustomerReplyRequestHandler(
         return committed.IsSuccess ? replay : null;
     }
 
-    private Result<string> IssueLink(Guid ticketId, Guid requesterId)
+    private async Task<Result<string>> IssueLinkAsync(Guid ticketId, Guid productId, Guid requesterId, CancellationToken cancellationToken)
     {
         var issued = accessTokens.Issue(ticketId, requesterId);
         if (issued.IsFailure)
@@ -272,7 +273,10 @@ public sealed class AddCustomerReplyRequestHandler(
         }
 
         tickets.AddAccessToken(issued.Value.Token);
-        return Result<string>.Success(portal.Value.TicketLink(issued.Value.PlaintextToken));
+
+        // A missing product only costs the product host: the link falls back to the default host rather than failing the reply.
+        var host = (await products.GetByIdAsync(productId, cancellationToken))?.PortalHost;
+        return Result<string>.Success(portal.Value.TicketLink(host, issued.Value.PlaintextToken));
     }
 
     private static Attempt FromCommitFailure(ResultError error) => error.Code switch

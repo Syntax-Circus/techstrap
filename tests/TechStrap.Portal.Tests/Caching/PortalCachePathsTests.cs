@@ -40,7 +40,6 @@ public sealed class PortalCachePathsTests
     [InlineData("/p/kb")]
     [InlineData("/t/x")]
     [InlineData("/t/kb/accounts")]
-    [InlineData("/kb")]
     [InlineData("/pp/paperplane/kb")]
     [InlineData("/not-found")]
     [InlineData("/error")]
@@ -61,6 +60,32 @@ public sealed class PortalCachePathsTests
     [InlineData("/p/paperplane/search")]
     [InlineData("/t/kb/search")]
     public void Nothing_else_is_the_search_path(string path) => PortalCachePaths.IsKbSearchPath(path).ShouldBeFalse(path);
+
+    [Theory]
+    [InlineData("/kb")]
+    [InlineData("/KB/")]
+    [InlineData("/kb/accounts")]
+    [InlineData("/kb/accounts/reset-password")]
+    public void The_clean_help_centre_pages_of_a_product_host_are_kb_pages(string path) => PortalCachePaths.IsKbPage(path).ShouldBeTrue(path);
+
+    [Theory]
+    [InlineData("/kbx")]
+    [InlineData("/kb/search")]
+    [InlineData("/kb/accounts/reset-password/extra")]
+    [InlineData("/x/kb")]
+    public void Near_misses_of_the_clean_help_centre_are_not_kb_pages(string path) => PortalCachePaths.IsKbPage(path).ShouldBeFalse(path);
+
+    [Theory]
+    [InlineData("/kb/search")]
+    [InlineData("/KB/Search/")]
+    public void The_clean_search_page_is_the_search_path(string path) => PortalCachePaths.IsKbSearchPath(path).ShouldBeTrue(path);
+
+    [Theory]
+    [InlineData("/kb")]
+    [InlineData("/kbx/search")]
+    [InlineData("/kb/search/more")]
+    [InlineData("/search")]
+    public void Near_misses_of_the_clean_search_page_are_not(string path) => PortalCachePaths.IsKbSearchPath(path).ShouldBeFalse(path);
 
     private static bool Cacheable(string path, string query = "")
     {

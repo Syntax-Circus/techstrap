@@ -18,6 +18,7 @@ public static class ProductsCopy
     public const string ColumnName = "Name";
     public const string ColumnKey = "Key";
     public const string ColumnPrefix = "Prefix";
+    public const string ColumnPortalHost = "Portal host";
     public const string ColumnStatus = "Status";
     public const string ColumnActions = "Actions";
 
@@ -40,6 +41,10 @@ public static class ProductsCopy
     public const string AccentHelp = "A # and six hex digits, such as #1D4ED8. Leave it blank for the default.";
     public const string FromLabel = "Email from address";
     public const string ReplyToLabel = "Email reply-to address";
+    public const string PortalHostLabel = "Portal host";
+    public const string PortalHostHelp = "Optional. The product's own support hostname, e.g. support.example.com. Set up DNS and the proxy site first; saving the host switches links and redirects at once.";
+    public const string PortalHostInvalid = "Use a hostname such as support.example.com: letters, digits and hyphens, no scheme, port or path.";
+    public const string PortalHostTaken = "Another product already uses this hostname.";
     public const string ActiveLabel = "Active";
     public const string ActiveHelp = "Inactive products are hidden from the agents' product lists.";
     public const string PreviewHeading = "Preview";

@@ -20,9 +20,13 @@ internal sealed class ProductRecordConfiguration : IEntityTypeConfiguration<Prod
         builder.Property(p => p.AccentColour).HasMaxLength(DomainLimits.ColourHexLength).IsRequired();
         builder.Property(p => p.FromAddress).HasMaxLength(DomainLimits.EmailMaxLength);
         builder.Property(p => p.ReplyTo).HasMaxLength(DomainLimits.EmailMaxLength);
+        builder.Property(p => p.PortalHost).HasMaxLength(DomainLimits.HostNameMaxLength);
         builder.HasXminConcurrencyToken(p => p.Version);
         builder.HasIndex(p => p.Key).IsUnique();
         builder.HasIndex(p => p.NumberPrefix).IsUnique();
+
+        // Postgres unique indexes ignore NULLs, so any number of products can have no host.
+        builder.HasIndex(p => p.PortalHost).IsUnique();
     }
 }
 

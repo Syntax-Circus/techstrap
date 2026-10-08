@@ -1,11 +1,14 @@
+using Microsoft.Extensions.Options;
 using SyntaxCircus.Common;
 using TechStrap.Application.Agents;
 using TechStrap.Application.Auditing;
+using TechStrap.Application.Intake;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Results;
 using TechStrap.Contracts.Products;
 using TechStrap.Domain.Admin;
 using TechStrap.Domain.Products;
+using TechStrap.Domain.Rules;
 
 namespace TechStrap.Application.Products;
 
@@ -24,6 +27,7 @@ public sealed class UpdateProductRequestHandler(
     IProductRepository products,
     IAdminEventRepository adminEvents,
     IUnitOfWork unitOfWork,
+    IOptions<PortalLinkOptions> portal,
     TimeProvider clock) : IUpdateProductRequestHandler
 {
     public async Task<Result<ProductDto>> HandleAsync(Guid productId, UpdateProductRequest request, CancellationToken cancellationToken)
@@ -54,6 +58,22 @@ public sealed class UpdateProductRequestHandler(
             return Result<ProductDto>.Failure(ProductErrors.Stale());
         }
 
+        // The shape is checked before the repository is asked; the product's own host is excluded from the uniqueness check.
+        if (!HostNameShape.TryNormalize(request.PortalHost, out var host))
+        {
+            return Result<ProductDto>.Failure(ProductErrors.HostInvalid());
+        }
+
+        if (portal.Value.IsDefaultHost(host))
+        {
+            return Result<ProductDto>.Failure(ProductErrors.HostReserved());
+        }
+
+        if (host is not null && await products.IsPortalHostTakenAsync(host, product.Id, cancellationToken))
+        {
+            return Result<ProductDto>.Failure(ProductErrors.HostTaken());
+        }
+
         var changed = new List<string>();
         if (!string.Equals(product.Name, request.Name?.Trim(), StringComparison.Ordinal))
         {
@@ -70,11 +90,18 @@ public sealed class UpdateProductRequestHandler(
             changed.Add("isActive");
         }
 
+        if (!string.Equals(product.PortalHost, host, StringComparison.Ordinal))
+        {
+            changed.Add("portalHost");
+        }
+
         var updated = product.UpdateDetails(request.Name, branding.Value);
         if (updated.IsFailure)
         {
             return Result<ProductDto>.Failure(updated.Error!.ToError());
         }
+
+        product.SetPortalHost(host);
 
         if (changed.Count == 0)
         {
@@ -88,6 +115,7 @@ public sealed class UpdateProductRequestHandler(
         var committed = await scope.CommitAsync(cancellationToken);
         if (committed.IsFailure)
         {
+            // A concurrent writer racing past IsPortalHostTakenAsync also lands here (unique index on portal_host); the persistence error is returned as is (D-050 known limit).
             return Result<ProductDto>.Failure(committed.Errors[0]);
         }
 

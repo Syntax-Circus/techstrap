@@ -20,6 +20,8 @@ public sealed class KbStructuredDataTests
         WriteIndented = false,
     };
 
+    private const string ArticlePath = "/p/paperplane/kb/accounts/reset-password";
+
     private static readonly ProductThemeViewModel Theme = new("paperplane", "Paperplane", "#F59E0B", null);
     private static readonly DateTimeOffset Published = new(2026, 9, 1, 8, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset Updated = new(2026, 10, 5, 9, 30, 0, TimeSpan.Zero);
@@ -39,7 +41,7 @@ public sealed class KbStructuredDataTests
     ];
 
     private static string[] Scripts(PublishedKbArticleDto article, string description = "How to reset it") =>
-        [.. KbStructuredData.ForArticle(Absolute, Theme, article, description, Trail(article)).Select(data => JsonSerializer.Serialize(data, data.GetType(), PackageOptions))];
+        [.. KbStructuredData.ForArticle(Absolute, ArticlePath, Theme, article, description, Trail(article)).Select(data => JsonSerializer.Serialize(data, data.GetType(), PackageOptions))];
 
     [Fact]
     public void An_article_has_a_breadcrumb_list_and_an_article_both_schema_org()
@@ -87,7 +89,7 @@ public sealed class KbStructuredDataTests
         var theme = Theme with { LogoUrl = "https://cdn.example.com/paperplane.png" };
         var article = Article();
 
-        var data = KbStructuredData.ForArticle(Absolute, theme, article, "d", Trail(article));
+        var data = KbStructuredData.ForArticle(Absolute, ArticlePath, theme, article, "d", Trail(article));
 
         using var page = JsonDocument.Parse(JsonSerializer.Serialize(data[1], data[1].GetType(), PackageOptions));
         page.RootElement.GetProperty("image").GetString().ShouldBe("https://cdn.example.com/paperplane.png");
@@ -125,7 +127,7 @@ public sealed class KbStructuredDataTests
         var theme = Theme with { DisplayName = "</script><i>Acme</i>" };
         var article = Article();
 
-        var data = KbStructuredData.ForArticle(Absolute, theme, article, "d", Trail(article));
+        var data = KbStructuredData.ForArticle(Absolute, ArticlePath, theme, article, "d", Trail(article));
         var scripts = data.Select(item => JsonSerializer.Serialize(item, item.GetType(), PackageOptions)).ToList();
 
         scripts.ShouldAllBe(script => !script.Contains('<') && !script.Contains('>'));
@@ -138,7 +140,7 @@ public sealed class KbStructuredDataTests
     {
         var article = Article();
 
-        var data = KbStructuredData.ForArticle(Absolute, Theme, article, "d", [new KbCrumb("Only")]);
+        var data = KbStructuredData.ForArticle(Absolute, ArticlePath, Theme, article, "d", [new KbCrumb("Only")]);
 
         using var breadcrumbs = JsonDocument.Parse(JsonSerializer.Serialize(data[0], data[0].GetType(), PackageOptions));
         breadcrumbs.RootElement.GetProperty("itemListElement")[0].GetProperty("item").GetString().ShouldBe("https://portal.test/p/paperplane/kb/accounts/reset-password");
@@ -149,10 +151,10 @@ public sealed class KbStructuredDataTests
     {
         var article = Article();
 
-        Should.Throw<ArgumentNullException>(() => KbStructuredData.ForArticle(null!, Theme, article, "d", []));
-        Should.Throw<ArgumentNullException>(() => KbStructuredData.ForArticle(Absolute, null!, article, "d", []));
-        Should.Throw<ArgumentNullException>(() => KbStructuredData.ForArticle(Absolute, Theme, null!, "d", []));
-        Should.Throw<ArgumentNullException>(() => KbStructuredData.ForArticle(Absolute, Theme, article, "d", null!));
+        Should.Throw<ArgumentNullException>(() => KbStructuredData.ForArticle(null!, ArticlePath, Theme, article, "d", []));
+        Should.Throw<ArgumentNullException>(() => KbStructuredData.ForArticle(Absolute, ArticlePath, null!, article, "d", []));
+        Should.Throw<ArgumentNullException>(() => KbStructuredData.ForArticle(Absolute, ArticlePath, Theme, null!, "d", []));
+        Should.Throw<ArgumentNullException>(() => KbStructuredData.ForArticle(Absolute, ArticlePath, Theme, article, "d", null!));
     }
 
     private const string HostileLogo = "https://cdn.example.com/a</script><img/src=x/onerror=alert(1)>.png";
@@ -163,7 +165,7 @@ public sealed class KbStructuredDataTests
         var theme = Theme with { LogoUrl = HostileLogo };
         var article = Article();
 
-        var data = KbStructuredData.ForArticle(Absolute, theme, article, "d", Trail(article));
+        var data = KbStructuredData.ForArticle(Absolute, ArticlePath, theme, article, "d", Trail(article));
         var scripts = data.Select(item => JsonSerializer.Serialize(item, item.GetType(), PackageOptions)).ToList();
 
         scripts.ShouldAllBe(script => !script.Contains('<') && !script.Contains('>') && !script.Contains('&'));

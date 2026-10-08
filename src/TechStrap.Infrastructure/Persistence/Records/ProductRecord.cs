@@ -23,6 +23,8 @@ internal sealed class ProductRecord
 
     public bool IsActive { get; set; }
 
+    public string? PortalHost { get; set; }
+
     /// <summary>Postgres <c>xmin</c>, the optimistic concurrency token.</summary>
     public uint Version { get; set; }
 }

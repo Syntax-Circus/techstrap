@@ -38,6 +38,7 @@ public static class ApiErrorCodes
     public const string TagInUse = "tag-in-use";
     public const string LastActiveAdmin = "last-active-admin";
     public const string ProductKeyTaken = "product-key-taken";
+    public const string ProductHostTaken = "product-host-taken";
     public const string ApiKeyKindInvalid = "api-key-kind-invalid";
     public const string ApiKeyNotFound = "api-key-not-found";
     public const string ApiKeyRevoked = "api-key-revoked";

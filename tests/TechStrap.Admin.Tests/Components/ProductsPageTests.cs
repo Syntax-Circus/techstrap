@@ -36,6 +36,24 @@ public sealed class ProductsPageTests : AdminPageTest
     }
 
     [Fact]
+    public void The_list_shows_each_products_portal_host_or_an_empty_cell()
+    {
+        _products.ListAsync(Arg.Any<CancellationToken>()).Returns(TestData.Ok<IReadOnlyList<ProductDto>>(
+        [
+            TestData.ProductDetail("Orbitly", key: "orbitly", prefix: "ORB", portalHost: "support.orbitly.test"),
+            TestData.ProductDetail("Acme", id: Guid.Parse("aaaaaaaa-0000-0000-0000-0000000000a2"), key: "acme", prefix: "ACM"),
+        ]));
+
+        var cut = Render<ProductsPage>();
+
+        cut.FindAll("thead th").Select(h => h.TextContent.Trim()).ShouldContain("Portal host");
+        var orbitly = cut.Find("tr[data-product=orbitly]").QuerySelectorAll("td");
+        orbitly[3].TextContent.ShouldBe("support.orbitly.test");
+        orbitly[3].QuerySelector("code").ShouldNotBeNull();
+        cut.Find("tr[data-product=acme]").QuerySelectorAll("td")[3].TextContent.ShouldBeEmpty();
+    }
+
+    [Fact]
     public void Each_row_links_to_its_editor_and_its_keys_and_the_header_links_to_a_new_product()
     {
         var cut = Render<ProductsPage>();

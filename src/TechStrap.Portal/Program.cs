@@ -9,6 +9,7 @@ using TechStrap.Portal.Components;
 using TechStrap.Portal.Components.Ui;
 using TechStrap.Portal.Forms;
 using TechStrap.Portal.Headers;
+using TechStrap.Portal.Hosting;
 using TechStrap.Portal.Products;
 using TechStrap.Portal.Seo;
 using TechStrap.Portal.Settings;
@@ -43,6 +44,9 @@ builder.Services.AddPortalOptions();
 // The two named API clients (reads retried, writes never) and the typed clients: every call forwards the visitor's address (D-019, D-045).
 builder.Services.AddPortalApiClients();
 
+// The hosts of the products that have their own (read from the API, kept for a minute) and the host the current request arrived on (PHASE-11e).
+builder.Services.AddProductHosts();
+
 // The product the current request is about, read by the layout (one per request).
 builder.Services.AddScoped<ProductScope>();
 
@@ -73,6 +77,9 @@ telemetry.LogStartupWarning(app.Logger);
 // plain error page and the not-found page (only 404 is re-executed).
 app.UseTechStrapWebHost(PortalHeaderRules.Rules);
 app.UsePortalSeo();
+
+// A product's own host: its clean paths become the /p/{key} routes, before routing and before the error pages (a 404 re-executed on a product host sees the rewritten path), and before the output cache.
+app.UseProductHosts();
 app.UseTechStrapErrorPages();
 
 // The help-centre pages are kept for a minute (D-045 addendum, PHASE-09c): after the error pages, before the endpoints, so the security headers and the correlation id are the request's own on a cached answer too.

@@ -8,7 +8,7 @@
 }
 else if (Theme is { } theme && Article is { } article)
 {
-    <SeoHead Title="@KbCopy.ArticleTitle(article.Title, theme.DisplayName)" Description="@Description" RelativeUrl="@PortalRoutes.KbArticle(theme.Key, article.CategorySlug, article.Slug)" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" OgType="article" StructuredData="@StructuredData" />
+    <SeoHead Title="@KbCopy.ArticleTitle(article.Title, theme.DisplayName)" Description="@Description" RelativeUrl="@Links.Absolute(Links.KbArticle(theme.Key, article.CategorySlug, article.Slug))" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" OgType="article" StructuredData="@StructuredData" />
     <div class="ts-reading">
     <KbBreadcrumbs Crumbs="@Trail" />
     <article class="ts-kb-article">
@@ -19,7 +19,7 @@ else if (Theme is { } theme && Article is { } article)
     <aside class="ts-kb-help">
         <h2>@KbCopy.StillNeedHelp</h2>
         <p>@KbCopy.StillNeedHelpText</p>
-        <p><a class="btn btn-primary" href="@PortalRoutes.Contact(theme.Key)">@KbCopy.ContactUs</a></p>
+        <p><a class="btn btn-primary" href="@Links.Contact(theme.Key)">@KbCopy.ContactUs</a></p>
     </aside>
     </div>
 }

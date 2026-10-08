@@ -10,7 +10,7 @@ public interface IListPublicProductsRequestHandler
 }
 
 /// <summary>
-/// GET /api/public/products (anonymous, PHASE-09c, D-045 addendum). The ACTIVE products' key and display name, ordered by key and capped at
+/// GET /api/public/products (anonymous, PHASE-09c, D-045 addendum). The ACTIVE products' key, display name and portal host, ordered by key and capped at
 /// <see cref="PublicProductLimits.MaxListed"/>, for the portal's sitemap. An inactive product never appears. Listing the keys is accepted because the sitemap publishes them anyway.
 /// </summary>
 public sealed class ListPublicProductsRequestHandler(IProductRepository products) : IListPublicProductsRequestHandler
@@ -26,6 +26,6 @@ public sealed class ListPublicProductsRequestHandler(IProductRepository products
                 .Where(product => product.IsActive)
                 .OrderBy(product => product.Key, StringComparer.Ordinal)
                 .Take(PublicProductLimits.MaxListed)
-                .Select(product => new PublicProductSummaryDto(product.Key, product.Branding.DisplayName))]);
+                .Select(product => new PublicProductSummaryDto(product.Key, product.Branding.DisplayName, product.PortalHost))]);
     }
 }

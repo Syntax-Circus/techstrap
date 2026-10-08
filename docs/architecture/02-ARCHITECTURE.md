@@ -445,7 +445,7 @@ Full text in `04-DECISION-LOG.md` (D-001 to D-031).
 | ID | Decision (short) | Used in |
 | --- | --- | --- |
 | D-001 | Two API key kinds: Trusted and Public | 4, 7.1, 7.2, 11.2 |
-| D-002 | Single portal domain with product theming (`/p/{key}`) | 7.1, 8.2 |
+| D-002 | Single portal domain with product theming (`/p/{key}`); a product may have its own host (D-050) | 7.1, 8.2 |
 | D-003 | MIT public OSS, GHCR images, GitHub Actions | 11.1 |
 | D-004 | Claim-gated agents (roles from IdP groups only, amended by D-029) | 4, 7.1 |
 | D-005 | Client SDK and MAUI helper in core, over Contracts | 1, 2 |

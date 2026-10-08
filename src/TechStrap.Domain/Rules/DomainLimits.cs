@@ -9,6 +9,9 @@ public static class DomainLimits
     public const int SlugMaxLength = 40;
     public const int KbSlugMaxLength = 80;
     public const int UrlMaxLength = 500;
+
+    /// <summary>The longest hostname a product can be served on (the DNS limit of 253 characters).</summary>
+    public const int HostNameMaxLength = 253;
     public const int TagNameMaxLength = 50;
     public const int PublicDisplayNameMaxLength = 60;
     public const int SubjectMaxLength = 200;

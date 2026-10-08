@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using SyntaxCircus.AspNetCore.Common;
+using TechStrap.Portal.Hosting;
 using TechStrap.Portal.Settings;
 
 namespace TechStrap.Portal.Seo;
@@ -33,18 +34,27 @@ internal static class PortalSitemap
     public static IReadOnlyList<SitemapEntry> StaticEntries(PortalOptions options) =>
         options.DefaultProductKeyOrNull is null ? [new SitemapEntry(options.PublicBaseUrl + "/")] : [];
 
-    public static Task<IReadOnlyList<SitemapEntry>> ProviderAsync(IServiceProvider requestServices, CancellationToken requestAborted)
+    /// <summary>
+    /// The sitemap of the host the request arrived on (PHASE-11e): a product host lists only its own product, with clean paths on its stored host (and no root entry, which belongs to the default host); the default host
+    /// lists the static entries and the products that have no host of their own. Each host has its own cache entry, keyed by the stored host (never the request's Host header).
+    /// </summary>
+    public static async Task<IReadOnlyList<SitemapEntry>> ProviderAsync(IServiceProvider requestServices, CancellationToken requestAborted)
     {
         var visitor = requestServices.GetRequiredService<IHttpContextAccessor>().HttpContext?.Connection.RemoteIpAddress;
-        var reserved = StaticEntries(requestServices.GetRequiredService<IOptions<PortalOptions>>().Value).Count;
+        var requested = requestServices.GetRequiredService<ProductHostContext>();
+        var host = new ProductHostContext { Key = requested.Key, Host = requested.Host };
+        IReadOnlyList<SitemapEntry> statics = host.IsProductHost ? [] : StaticEntries(requestServices.GetRequiredService<IOptions<PortalOptions>>().Value);
         var scopes = requestServices.GetRequiredService<IServiceScopeFactory>();
-        return requestServices.GetRequiredService<PortalSitemapCache>().GetAsync(
+        var built = await requestServices.GetRequiredService<PortalSitemapCache>().GetAsync(
             async buildToken =>
             {
                 await using var scope = scopes.CreateAsyncScope();
                 scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext = new DefaultHttpContext { Connection = { RemoteIpAddress = visitor } };
-                return await scope.ServiceProvider.GetRequiredService<PortalSitemapBuilder>().BuildAsync(reserved, buildToken);
+                return await scope.ServiceProvider.GetRequiredService<PortalSitemapBuilder>().BuildAsync(statics.Count, host, buildToken);
             },
-            requestAborted);
+            requestAborted,
+            host.Host ?? PortalSitemapCache.DefaultKey);
+        return statics.Count == 0 ? built : [.. statics, .. built];
     }
 }
+

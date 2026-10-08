@@ -66,7 +66,7 @@ internal sealed class TicketNotificationPlanner(
                 ? null
                 : [.. articles.Select(article => new ArticleLinkEntry(
                     CapTitle(article.Title),
-                    portalOptions.Value.ArticleLink(product.Key, article.CategorySlug, article.Slug),
+                    portalOptions.Value.ArticleLink(product.PortalHost, product.Key, article.CategorySlug, article.Slug),
                     article.ArticleId))]);
         if (reply.Articles is not null && JsonSerializer.Serialize(reply, PayloadJson).Length > DomainLimits.OutboxPayloadMaxLength)
         {
@@ -200,6 +200,7 @@ internal sealed class TicketNotificationPlanner(
         }
 
         var staged = new List<(RequesterTicketLink Link, AccessLinkEntry Entry, TicketAccessToken Token)>();
+        var hosts = new Dictionary<Guid, string?>();
         foreach (var link in ticketLinks.Take(lostLink.Value.MaxLinks))
         {
             var issued = accessTokens.Issue(link.TicketId, requester.Id);
@@ -209,7 +210,14 @@ internal sealed class TicketNotificationPlanner(
                 continue;
             }
 
-            staged.Add((link, new AccessLinkEntry(link.Number, link.Subject, portalOptions.Value.TicketLink(issued.Value.PlaintextToken)), issued.Value.Token));
+            // Links can span products: each is built on its own product's host (a product that vanished falls back to the default host).
+            if (!hosts.TryGetValue(link.ProductId, out var host))
+            {
+                host = (await products.GetByIdAsync(link.ProductId, cancellationToken))?.PortalHost;
+                hosts[link.ProductId] = host;
+            }
+
+            staged.Add((link, new AccessLinkEntry(link.Number, link.Subject, portalOptions.Value.TicketLink(host, issued.Value.PlaintextToken)), issued.Value.Token));
         }
 
         if (staged.Count == 0)
@@ -295,7 +303,7 @@ internal sealed class TicketNotificationPlanner(
         }
 
         // The token is staged only once the email row is known to be valid, so a failed enqueue never leaves an orphan token.
-        var link = portalOptions.Value.TicketLink(issued.Value.PlaintextToken);
+        var link = portalOptions.Value.TicketLink(product.PortalHost, issued.Value.PlaintextToken);
         Stage(kind, requester.Email, build(requester, product, link), ticket, issued.Value.Token);
     }
 

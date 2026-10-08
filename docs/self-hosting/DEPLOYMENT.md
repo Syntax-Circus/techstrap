@@ -174,6 +174,34 @@ Agents see ticket changes and who else has a ticket open without reloading. Two 
 - **`LISTEN` needs a direct Postgres connection.** The Api holds one long-lived connection that listens for the changes the Worker makes (auto-close) and reconnects by itself with a backoff. Point `ConnectionStrings__TechStrap` at Postgres itself, or at a pooler in session mode; **PgBouncer in transaction mode breaks `LISTEN`**. The connection shows in `pg_stat_activity` with the application name `techstrap-ticket-change-listener`. Presence and the in-process publish live in one Api process, so run one Api instance (D-007).
 - **No new settings for the Api or the Worker.** The Admin has one switch, `LIVEUPDATES__ENABLED` (default `true`, in `.env.admin`): `false` opens no hub connection and draws no indicator, banner or presence bar. Compose does not set it, so the operator's env file decides. The hub address is `API__BASEURL` plus `/hubs/tickets`; the backoff and the debounce are constants.
 
+## Product hosts
+
+A product can have its own public host, for example `support.dragonpoop.com`, served by the same Portal container with clean paths (`/`, `/contact`, `/kb/...`). The default host (`TECHSTRAP_PORTAL_PUBLIC_URL`) keeps serving every product under `/p/{key}` and answers the long form of a hosted product with a 301 to its host (D-050). **The Portal needs no new setting:** the host is set on the product in the Admin (the "Portal host" field), as the last step below, and the Portal picks it up within 60 seconds. The Portal reads the Host header only as a lookup key against the stored hosts and never builds a URL from it.
+
+Per product host, do these in this order. As soon as the host is saved in the Admin, the default host sends permanent 301s for that product and every new email links to `https://{host}`, so the host must work before it is set.
+
+1. **DNS.** Add an A or CNAME record for the host that points at the reverse proxy, like the default host.
+2. **One Caddy site per host, with a working TLS certificate,** proxying to the same Portal loopback port as the default site, with the same forwarded headers. The Portal trusts only `REVERSE_PROXY_CIDR`, so the new site must forward the client address in the same way as the existing one. Caddy's `reverse_proxy` keeps the original Host header and sets `X-Forwarded-For` and `X-Forwarded-Proto` itself; copy any extra header lines from the default site's block. For example:
+
+   ```
+   support.dragonpoop.com {
+       reverse_proxy 127.0.0.1:<TECHSTRAP_PORTAL_PORT>
+   }
+   ```
+
+   Replace `<TECHSTRAP_PORTAL_PORT>` with the value of `TECHSTRAP_PORTAL_PORT`, and apply the same request body limit and rate limit for the form POSTs as on the default site. Product hosts are always `https`: the Portal builds `https://{host}` links, so the site must serve TLS.
+3. **Verify** that `https://{host}/health/live` answers from outside (this proves DNS, the certificate and the proxy site).
+4. **Only then set the "Portal host" field** of the product in the Admin. The Portal picks it up within 60 seconds.
+
+Things to check:
+
+- **`ALLOWEDHOSTS`.** The compose file does not set it. Each `deploy/.env.<app>.example` ships `ALLOWEDHOSTS=*`, which accepts any host behind the proxy, so product hosts need no change. If you narrowed `ALLOWEDHOSTS` in `.env.portal` to the real host names, add every product host to it (keep `localhost` for the health probe).
+- **HSTS `includeSubDomains`.** A product host under a parent domain whose site sends `Strict-Transport-Security` with `includeSubDomains` is forced to https by browsers that saw that header. That is usually what you want, but a product host must have a working TLS site before a visitor reaches it.
+- **Changing or removing a host.** Emailed ticket links are `https://{oldHost}/t/{token}`: they work only while the old host's DNS and Caddy site remain, and nothing sends a customer to the default host. Keeping the old DNS record and proxy site preserves `/t/` links only. The old host is then an unknown host, so old help-centre links on it (emailed, or a 301 a browser cached; the redirects on help-centre paths set no `Cache-Control`) are not rewritten and answer 404, and `/` shows the default root. There is no redirect table.
+- **The Api is down when the Portal starts.** Until the Portal's first successful read of the product list, every product host behaves as the default host (clean paths 404). A failed read is retried at most once per 10 seconds, a read that does not answer is cut off after 30 seconds, and an existing map is kept when a read fails.
+- **The default host.** A product cannot be given the host of `TECHSTRAP_PORTAL_PUBLIC_URL`; the Api answers `product-host-reserved`.
+- **`robots.txt`.** On a product host it names the default host's sitemap; the host's own `/sitemap.xml` lists only that product.
+
 ## Health checks and acceptance
 
 ```bash

@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using TechStrap.Portal.Components.Layout;
 using TechStrap.Portal.Components.Ui;
+using TechStrap.Portal.Tests.Routing;
 using TechStrap.Portal.Products;
 
 namespace TechStrap.Portal.Tests.Components;
@@ -18,6 +19,7 @@ public sealed class PortalLayoutTests : BunitContext
     {
         Services.AddSingleton(Options.Create(new PoweredByOptions()));
         Services.AddSingleton(Scope);
+        Services.AddPortalLinks();
     }
 
     private IRenderedComponent<PortalLayout> RenderLayout() => Render<PortalLayout>(p => p.Add(l => l.Body, "<p id=\"page\">the page</p>"));

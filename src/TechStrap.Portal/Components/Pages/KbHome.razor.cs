@@ -36,6 +36,6 @@ public partial class KbHome : ProductPageBase
         Fail(result.Errors[0]);
     }
 
-    private static IReadOnlyList<KbCrumb> Crumbs(ProductThemeViewModel theme) =>
-        [new KbCrumb(theme.DisplayName, PortalRoutes.ProductHome(theme.Key)), new KbCrumb(KbCopy.HomeHeading)];
+    private IReadOnlyList<KbCrumb> Crumbs(ProductThemeViewModel theme) =>
+        [new KbCrumb(theme.DisplayName, Links.ProductHome(theme.Key)), new KbCrumb(KbCopy.HomeHeading)];
 }

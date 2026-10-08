@@ -70,6 +70,7 @@
                 @Field("ts-product-accent", ProductsCopy.AccentLabel, ApiFields.AccentColour, _model.AccentColour, v => _model.AccentColour = v, ProductsCopy.AccentHelp)
                 @Field("ts-product-from", ProductsCopy.FromLabel, ApiFields.FromAddress, _model.FromAddress, v => _model.FromAddress = v, null, "email")
                 @Field("ts-product-reply", ProductsCopy.ReplyToLabel, ApiFields.ReplyTo, _model.ReplyTo, v => _model.ReplyTo = v, null, "email")
+                @Field("ts-product-host", ProductsCopy.PortalHostLabel, ApiFields.PortalHost, _model.PortalHost, v => _model.PortalHost = v, ProductsCopy.PortalHostHelp)
 
                 @if (!_creating)
                 {

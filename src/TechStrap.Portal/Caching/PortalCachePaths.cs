@@ -25,24 +25,39 @@ internal static partial class PortalCachePaths
     [GeneratedRegex(@"\A\?page=(?:[2-9]|[1-9][0-9]{1,3})\z", RegexOptions.CultureInvariant)]
     private static partial Regex PageQuery();
 
-    /// <summary>A help-centre page of the three kinds above (the search page is not one).</summary>
-    public static bool IsKbPage(PathString path) =>
+    /// <summary>
+    /// A help-centre page of the three kinds above (the search page is not one), under <c>/p/{key}</c> or in the clean form a product host serves (<c>/kb</c>, <c>/kb/{category}</c>, <c>/kb/{category}/{slug}</c>). The header rules
+    /// see the path as it arrives, before a product host's middleware rewrites it, so they need both shapes; on the default host the clean form is a 404, which the header step skips.
+    /// </summary>
+    public static bool IsKbPage(PathString path) => IsProductKbPage(path) || IsCleanKbPage(path);
+
+    /// <summary>Exactly <c>/p/{key}/kb/search</c>, or <c>/kb/search</c> on a product host.</summary>
+    public static bool IsKbSearchPath(PathString path) =>
+        (path.StartsWithSegments(PortalRoutes.ProductPrefix, out var rest)
+         && Segments(rest) is [_, var kb, var search]
+         && Is(kb, PortalRoutes.KbSegment)
+         && Is(search, PortalRoutes.KbSearchSegment))
+        || (Segments(path) is [var cleanKb, var cleanSearch]
+            && Is(cleanKb, PortalRoutes.KbSegment)
+            && Is(cleanSearch, PortalRoutes.KbSearchSegment));
+
+    // The page kinds under /p/{key}: what the output cache keeps (it runs after the product host rewrite, so it only ever sees this shape).
+    private static bool IsProductKbPage(PathString path) =>
         path.StartsWithSegments(PortalRoutes.ProductPrefix, out var rest)
         && Segments(rest) is [_, var kb, .. var tail]
         && Is(kb, PortalRoutes.KbSegment)
         && tail.Length <= 2
         && (tail.Length == 0 || !Is(tail[0], PortalRoutes.KbSearchSegment));
 
-    /// <summary>Exactly <c>/p/{key}/kb/search</c>.</summary>
-    public static bool IsKbSearchPath(PathString path) =>
-        path.StartsWithSegments(PortalRoutes.ProductPrefix, out var rest)
-        && Segments(rest) is [_, var kb, var search]
+    private static bool IsCleanKbPage(PathString path) =>
+        Segments(path) is [var kb, .. var tail]
         && Is(kb, PortalRoutes.KbSegment)
-        && Is(search, PortalRoutes.KbSearchSegment);
+        && tail.Length <= 2
+        && (tail.Length == 0 || !Is(tail[0], PortalRoutes.KbSearchSegment));
 
     /// <summary><c>/p/{key}/kb/{category}</c>: the only kept page that pages (the home and an article ignore <c>page</c>).</summary>
     private static bool IsCategoryPath(PathString path) =>
-        IsKbPage(path)
+        IsProductKbPage(path)
         && path.StartsWithSegments(PortalRoutes.ProductPrefix, out var rest)
         && Segments(rest).Length == 3;
 
@@ -56,7 +71,7 @@ internal static partial class PortalCachePaths
     /// </summary>
     public static bool IsCacheable(HttpRequest request)
     {
-        if (!IsKbPage(request.Path) || request.Path.Value!.AsSpan().IndexOfAnyInRange('A', 'Z') >= 0)
+        if (!IsProductKbPage(request.Path) || request.Path.Value!.AsSpan().IndexOfAnyInRange('A', 'Z') >= 0)
         {
             return false;
         }
@@ -70,7 +85,7 @@ internal static partial class PortalCachePaths
         return !request.Query.ContainsKey(PortalRoutes.PageParameter);
     }
 
-    private static string[] Segments(PathString rest) => rest.Value!.Split('/', StringSplitOptions.RemoveEmptyEntries);
+    private static string[] Segments(PathString rest) => (rest.Value ?? string.Empty).Split('/', StringSplitOptions.RemoveEmptyEntries);
 
     private static bool Is(string segment, string expected) => segment.Equals(expected, StringComparison.OrdinalIgnoreCase);
 }

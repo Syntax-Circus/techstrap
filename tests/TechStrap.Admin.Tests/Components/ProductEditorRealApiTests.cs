@@ -57,6 +57,21 @@ public sealed class ProductEditorRealApiTests : AdminPageTest
     }
 
     [Fact]
+    public async Task A_409_product_host_taken_from_the_api_shows_at_the_portal_host_field()
+    {
+        await using var api = await ApiHarness.CreateAsync(AdminTestPrincipal.Admin);
+        api.Stub.OnJson(HttpMethod.Get, $"/api/products/{TestData.OrbitlyId}", TestData.ProductDetail(version: 7));
+        api.Stub.OnProblem(HttpMethod.Put, $"/api/products/{TestData.OrbitlyId}", HttpStatusCode.Conflict, ApiErrorCodes.ProductHostTaken, "Another product already uses this portal hostname.");
+        Services.AddSingleton(api.Get<IProductsClient>());
+        var cut = Render<ProductEditorPage>(p => p.Add(c => c.Id, TestData.OrbitlyId.ToString()));
+        cut.Find("#ts-product-host").Input("support.orbitly.test");
+
+        cut.Find("form").Submit();
+
+        cut.WaitForAssertion(() => cut.Find("#ts-product-host-error").TextContent.ShouldBe(ProductsCopy.PortalHostTaken));
+    }
+
+    [Fact]
     public async Task A_500_from_the_api_is_an_uncertain_save_not_a_failure()
     {
         await using var api = await ApiHarness.CreateAsync(AdminTestPrincipal.Admin);

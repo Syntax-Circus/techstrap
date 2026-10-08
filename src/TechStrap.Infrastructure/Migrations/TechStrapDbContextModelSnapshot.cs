@@ -661,6 +661,11 @@ namespace TechStrap.Infrastructure.Migrations
                         .HasColumnType("character varying(10)")
                         .HasColumnName("number_prefix");
 
+                    b.Property<string>("PortalHost")
+                        .HasMaxLength(253)
+                        .HasColumnType("character varying(253)")
+                        .HasColumnName("portal_host");
+
                     b.Property<string>("ReplyTo")
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)")
@@ -682,6 +687,10 @@ namespace TechStrap.Infrastructure.Migrations
                     b.HasIndex("NumberPrefix")
                         .IsUnique()
                         .HasDatabaseName("ix_products_number_prefix");
+
+                    b.HasIndex("PortalHost")
+                        .IsUnique()
+                        .HasDatabaseName("ix_products_portal_host");
 
                     b.ToTable("products", (string)null);
                 });

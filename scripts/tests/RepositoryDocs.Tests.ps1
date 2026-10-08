@@ -785,3 +785,68 @@ Describe 'D-049 (publishing)' {
         }
     }
 }
+
+Describe 'D-050 (product hosts)' {
+    BeforeAll { $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md' }
+
+    It 'is in the decision log with its date, its status, a header bullet and an index row' {
+        $script:Log | Should -Match '(?m)^## D-050: PHASE-11e: product hosts'
+        $script:Log | Should -Match '(?s)## D-050:.*?- \*\*Status:\*\* Approved \(owner 2026-10-08.*?- \*\*Date:\*\* 2026-10-08'
+        $script:Log | Should -Match '(?m)^\| D-050 \|.*PortalHost.*\| 2026-10-08 \|'
+        $script:Log | Should -Match '(?m)^- \*\*Owner decision \(2026-10-08, PHASE-11e planning\):\*\* D-050'
+    }
+
+    It 'amends D-002 under its status line' {
+        $script:Log | Should -Match '(?s)## D-002:.*?- \*\*Amended by D-050 \(2026-10-08\):\*\* products may have their own portal host'
+    }
+
+    It 'records the decisions, the alternatives and the known limits' {
+        $section = ($script:Log -split '(?m)^## D-050:')[1]
+        foreach ($phrase in 'PortalHost', 'HostNameShape', 'ProductHostMiddleware', 'PortalLinks', 'SetVaryByHost', 'product-host-taken',
+                'stale-while-revalidate', 'Owner decisions (2026-10-08)', 'Technical rulings', 'Alternatives Considered', '**Known limits**') {
+            $section | Should -Match ([regex]::Escape($phrase)) -Because "D-050 must mention $phrase"
+        }
+    }
+
+    It 'does not overstate what survives a host change and states the setup order' {
+        $section = ($script:Log -split '(?m)^## D-050:')[1]
+        $section | Should -Not -Match 'never breaks a ticket link'
+        $section | Should -Not -Match 'disagree for up to 60'
+        $section | Should -Match 'product-host-reserved'
+        $deploy = Get-RepoText 'docs/self-hosting/DEPLOYMENT.md'
+        $deploy | Should -Not -Match 'so they keep working on the default host'
+        $deploy | Should -Match 'preserves `/t/` links only'
+        $deploy | Should -Match '(?s)Only then set the "Portal host" field'
+        $deploy | Should -Match '<TECHSTRAP_PORTAL_PORT>'
+        (Get-RepoText 'docs/development/PORTAL-APP.md') | Should -Not -Match 'ticket link keeps working after a host change'
+    }
+
+    It 'has the 11e row in the roadmap and the discovery index' {
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11e \|.*D-050.*\| 11e complete \(pending merge\)'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11e \|.*\| 11e complete \(pending merge\)'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11e-T07 \|'
+    }
+
+    It 'says in the Portal guide that the Host header is a lookup key only' {
+        $guide = Get-RepoText 'docs/development/PORTAL-APP.md'
+        $guide | Should -Not -Match 'never the Host header'
+        $guide | Should -Match 'lookup key'
+        $guide | Should -Match '(?m)^### Product hosts'
+    }
+
+    It 'documents product hosts in the runbook and the UX brief' {
+        (Get-RepoText 'docs/self-hosting/DEPLOYMENT.md') | Should -Match '(?m)^## Product hosts'
+        (Get-RepoText 'docs/architecture/UX-BRIEF-portal.md') | Should -Match 'own host'
+        (Get-RepoText 'docs/architecture/05-SCHEMA.md') | Should -Match 'ix_products_portal_host'
+    }
+
+    It 'corrects the PHASE-11e spec and ticks every task' {
+        $spec = Get-RepoText 'docs/architecture/PHASE-11e-product-hosts.md'
+        $spec | Should -Match '(?m)^### Corrections \(D-050, 2026-10-08\)'
+        $spec | Should -Match 'Where this page and D-050 differ, D-050 wins\.'
+        foreach ($n in 1..7) {
+            $spec | Should -Match ('- \[x\] \*\*P11e-T0' + $n + '\*\*') -Because "P11e-T0$n is ticked"
+        }
+        $spec | Should -Not -Match '- \[ \] \*\*P11e-T0'
+    }
+}

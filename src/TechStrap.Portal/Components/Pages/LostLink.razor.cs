@@ -64,7 +64,7 @@ public partial class LostLink : ProductPageBase
         }
 
         // A double click asks for one email, not two: the id this form carried claims the write (D-045 09d addendum). The target never depends on the answer, so a repeat always goes to the same page.
-        var sent = new SubmitTarget(PortalRoutes.LostLinkSent(Key));
+        var sent = new SubmitTarget(Links.LostLinkSent(Key));
         var email = form.Email!.Trim();
         var outcome = await Guard.RunAsync(
             SubmitKey.TryCreate(FormHandler, Key, form.SubmitId, SubmitContent.Digest([form.Email])),

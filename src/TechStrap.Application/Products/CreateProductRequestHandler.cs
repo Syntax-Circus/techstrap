@@ -1,11 +1,14 @@
+using Microsoft.Extensions.Options;
 using SyntaxCircus.Common;
 using TechStrap.Application.Agents;
 using TechStrap.Application.Auditing;
+using TechStrap.Application.Intake;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Results;
 using TechStrap.Contracts.Products;
 using TechStrap.Domain.Admin;
 using TechStrap.Domain.Products;
+using TechStrap.Domain.Rules;
 
 namespace TechStrap.Application.Products;
 
@@ -21,6 +24,7 @@ public sealed class CreateProductRequestHandler(
     IProductRepository products,
     IAdminEventRepository adminEvents,
     IUnitOfWork unitOfWork,
+    IOptions<PortalLinkOptions> portal,
     TimeProvider clock) : ICreateProductRequestHandler
 {
     public async Task<Result<ProductDto>> HandleAsync(CreateProductRequest request, CancellationToken cancellationToken)
@@ -50,7 +54,24 @@ public sealed class CreateProductRequestHandler(
             return Result<ProductDto>.Failure(created.Error!.ToError());
         }
 
+        // The shape is checked before the repository is asked, so a malformed name never costs a query; the host is stored lower-case and compared as stored.
+        if (!HostNameShape.TryNormalize(request.PortalHost, out var host))
+        {
+            return Result<ProductDto>.Failure(ProductErrors.HostInvalid());
+        }
+
+        if (portal.Value.IsDefaultHost(host))
+        {
+            return Result<ProductDto>.Failure(ProductErrors.HostReserved());
+        }
+
+        if (host is not null && await products.IsPortalHostTakenAsync(host, exceptProductId: null, cancellationToken))
+        {
+            return Result<ProductDto>.Failure(ProductErrors.HostTaken());
+        }
+
         var product = created.Value;
+        product.SetPortalHost(host);
         products.Add(product);
         AdminAudit.Record(adminEvents, AdminEventType.ProductCreated, actor.Value, AdminSubjectType.Product, product.Id,
             new { productKey = product.Key, numberPrefix = product.NumberPrefix }, clock);
@@ -58,6 +79,7 @@ public sealed class CreateProductRequestHandler(
         var committed = await scope.CommitAsync(cancellationToken);
         if (committed.IsFailure)
         {
+            // A concurrent writer racing past IsPortalHostTakenAsync also lands here (unique index on portal_host); the generic code is accepted (D-050).
             return Result<ProductDto>.Failure(committed.Errors[0].Code == PersistenceErrorCodes.Duplicate ? ProductErrors.KeyTaken() : committed.Errors[0]);
         }
 

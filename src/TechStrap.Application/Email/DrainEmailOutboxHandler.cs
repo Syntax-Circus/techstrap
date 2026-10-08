@@ -167,7 +167,7 @@ public sealed class DrainEmailOutboxHandler(
         var current = ids.Count == 0 ? new Dictionary<Guid, PublicKbLinkTarget>() : (await knowledgeBase.ListPublicLinkTargetsAsync(productId, ids, cancellationToken)).ToDictionary(t => t.ArticleId);
         var kept = articles
             .Where(a => a is not null && (a.ArticleId is not { } id
-                || (current.TryGetValue(id, out var target) && a.Url.EndsWith(PortalLinkOptions.ArticlePath(product.Key, target.CategorySlug, target.Slug), StringComparison.Ordinal))))
+                || (current.TryGetValue(id, out var target) && PortalLinkOptions.IsArticleLink(a.Url, product.Key, target.CategorySlug, target.Slug))))
             .ToList();
         if (kept.Count < articles.Count)
         {

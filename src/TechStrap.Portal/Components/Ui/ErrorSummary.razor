@@ -1,4 +1,5 @@
 @inject NavigationManager Navigation
+@inject PortalLinks Links
 @if (Errors.Count > 0)
 {
     <section class="ts-error-summary alert alert-danger" role="alert" tabindex="-1" autofocus aria-labelledby="error-summary-heading" data-enhance-nav="false">
@@ -6,7 +7,7 @@
         <ul>
             @foreach (var error in Errors)
             {
-                <li>@if (error.Field is { } field){<a href="@PageLinks.ToFragment(Navigation.Uri, field, keepQuery: false)">@error.Message</a>}else{@error.Message}</li>
+                <li>@if (error.Field is { } field){<a href="@Links.ToFragment(Navigation.Uri, field, keepQuery: false)">@error.Message</a>}else{@error.Message}</li>
             }
         </ul>
     </section>

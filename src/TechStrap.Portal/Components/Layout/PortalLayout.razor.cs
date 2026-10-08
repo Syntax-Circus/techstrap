@@ -14,11 +14,14 @@ public partial class PortalLayout : LayoutComponentBase, IDisposable
     private ProductScope Scope { get; set; } = default!;
 
     [Inject]
+    private PortalLinks Links { get; set; } = default!;
+
+    [Inject]
     private NavigationManager Navigation { get; set; } = default!;
 
     private ProductThemeViewModel? Theme => Scope.Theme;
 
-    private string SkipHref => PageLinks.ToFragment(Navigation.Uri, "main", keepQuery: true);
+    private string SkipHref => Links.ToFragment(Navigation.Uri, "main", keepQuery: true);
 
     protected override void OnInitialized() => Scope.Changed += OnScopeChanged;
 

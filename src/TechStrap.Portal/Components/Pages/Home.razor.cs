@@ -17,11 +17,14 @@ public partial class Home
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
 
+    [Inject]
+    private PortalLinks Links { get; set; } = default!;
+
     protected override void OnInitialized()
     {
         if (Portal.Value.DefaultProductKeyOrNull is { } key)
         {
-            Navigation.NavigateTo(PortalRoutes.ProductHome(key));
+            Navigation.NavigateTo(Links.ProductHome(key));
         }
     }
 }
