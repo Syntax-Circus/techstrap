@@ -860,3 +860,33 @@ Describe 'D-050 (product hosts)' {
         $spec | Should -Not -Match '- \[ \] \*\*P11e-T0'
     }
 }
+
+Describe 'D-051 (release hardening)' {
+    BeforeAll { $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md' }
+
+    It 'is in the decision log with its date, its status, a header bullet and an index row' {
+        $script:Log | Should -Match '(?m)^## D-051: PHASE-12'
+        $script:Log | Should -Match '(?s)## D-051:.*?- \*\*Status:\*\* Approved \(owner 2026-10-08.*?- \*\*Date:\*\* 2026-10-08'
+        $script:Log | Should -Match '(?m)^\| D-051 \|.*v0\.3\.0.*\| 2026-10-08 \|'
+        $script:Log | Should -Match '(?m)^- \*\*Owner decision \(2026-10-08, PHASE-12 planning\):\*\* D-051'
+    }
+
+    It 'records the decisions and the technical rulings' {
+        $section = ($script:Log -split '(?m)^## D-051:')[1]
+        foreach ($phrase in 'v0.3.0', '12a', '12b', '12c', 'SECURITY-REVIEW.md', 'MessageBubble', 'Trivy', 'CycloneDX', 'Alternatives Considered') {
+            $section | Should -Match ([regex]::Escape($phrase)) -Because "D-051 must mention $phrase"
+        }
+    }
+
+    It 'corrects the PHASE-12 spec' {
+        $spec = Get-RepoText 'docs/architecture/PHASE-12-release-hardening.md'
+        $spec | Should -Match '(?m)^### Corrections \(D-051, 2026-10-08\)'
+        $spec | Should -Match 'Where this page and D-051 differ, D-051 wins\.'
+        $spec | Should -Match '\*\*P12-T14\*\*.*latest published tag.*\(D-051\)'
+    }
+
+    It 'has the 12 row in the roadmap and the discovery index' {
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 12 \|.*D-051.*12a'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 12 \|.*12a'
+    }
+}

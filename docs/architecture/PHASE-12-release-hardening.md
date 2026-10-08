@@ -34,6 +34,23 @@ images and packages published.
 - **Release:** `v1.0.0` annotated tag on `main` after docs merge; the tag workflow publishes four GHCR images (`ghcr.io/syntax-circus/techstrap-{api,admin,portal,worker}`), the three NuGet packages, and a GitHub Release with notes (Conventional Commits changelog). Version comes from GitVersion; images also tagged `latest`.
 - **Architecture conformance gate:** every API/worker/hub entry point named in [02-ARCHITECTURE.md](02-ARCHITECTURE.md) appears in exactly one phase table (P04–P06, P08, P10) and every controller action/hub method/hosted loop calls exactly one named handler; verified by Architecture.Tests plus a doc-vs-code reflection report.
 
+### Corrections (D-051, 2026-10-08)
+
+Where this page and D-051 differ, D-051 wins.
+
+- The phase ends at `v0.3.0`, not `v1.0.0` (Objective, Deliverables, T14, T21, Success Criteria, Handoff). `v1.0.0` is a later decision, once the Contracts public surface (`TechStrap.Contracts.Intake` and `Http.HeaderNames`) is deliberately locked; packages stay 0.x until then.
+- There is no `v1.0.0-rc.N`. UAT deploys the latest published tag at the time (currently `v0.2.0`), the soak runs it, and `v0.3.0` is tagged after the soak. T14 says "the latest published tag", not `v0.1.0`.
+- The work ships as three pull requests: 12a hardening (T01 to T10, T19 and the carried-forward PHASE-03/04 items), 12b docs and scripts (T11, T13, T16, T17), 12c UAT and release (T12, T14, T15, T18, T20, T21).
+- The load and recovery budgets are accepted as stated. The UAT box and its Postgres exist; the Authentik clients and groups (owner action #7) must be set up before 12c's T14.
+- OpenAPI stays served anonymously in Production; 12a tests that the document and `/health/ready` reveal no secrets.
+- Scans fail CI on High/Critical from day one: `dotnet list package --vulnerable --include-transitive`, Trivy with a `.trivyignore` for documented waivers, and a CycloneDX SBOM per image attached to the GitHub Release by `release.yml`. Nistify is optional and not wired.
+- The review document is `docs/security/SECURITY-REVIEW.md` (a living document with a "Release 0.3.0" section), not `SECURITY-REVIEW-1.0.md`.
+- `MessageThread` is `MessageBubble` (`Features/Tickets/MessageBubble.razor`); the Admin rule lives in `tests/TechStrap.Admin.Tests/MarkupStringSiteTests`, the Portal rule in Architecture.Tests `PortalRules`.
+- API keys are looked up by the full SHA-256 hash (`src/TechStrap.Api/Security/ProductApiKeyValidator.cs`), not by prefix; the stored prefix is for display, audit and the rate-limit partition.
+- Customer access tokens are compared by a hashed database lookup (no `FixedTimeEquals` on that path); the review records why that is acceptable.
+- `docs/self-hosting.md` and `docs/self-hosting-authentik.md` become the existing `docs/self-hosting/` folder (`DEPLOYMENT.md` and `AGENT-AUTHENTICATION.md` exist); 12b decides the file names.
+- The conformance gate (T19) is an Architecture test that compares reflected controller actions, hub methods and hosted loops to the catalog tables in `02-ARCHITECTURE.md` and fails with a diff.
+
 ## Application Boundaries
 
 Follow _template APPLICATION_ARCHITECTURE.md. Phase 12 adds **no new server
@@ -137,7 +154,7 @@ phase verifies configuration and upgrades only for security fixes.
 - [ ] **P12-T13** Write `docs/runbooks/backup-restore.md` and the backup script(s); schedule on UAT
   - **Depends on:** P01 compose, P05 storage layout, P08 image prefix
   - **Validation:** Reviewed against the actual volume/DB names in compose; script produces encrypted dump + volume archive; retention pruning verified on a test directory.
-- [ ] **P12-T14** Deploy the first published version (`v0.1.0`) to UAT with `deploy/docker-compose.yml`, the env files made from the `deploy/.env.<app>.example` templates and `deploy/.env.uat.example` (D-043); wire dashboards and alerts. The first published version is `v0.1.0` (D-049 addendum); `v1.0.0` is cut when the SDK-facing Contracts surface is locked.
+- [ ] **P12-T14** Deploy the latest published tag (D-051) to UAT with `deploy/docker-compose.yml`, the env files made from the `deploy/.env.<app>.example` templates and `deploy/.env.uat.example` (D-043); wire dashboards and alerts. The first published version was `v0.1.0` (D-049 addendum); the latest published tag is what UAT runs (D-051); `v1.0.0` is cut when the SDK-facing Contracts surface is locked.
   - **Depends on:** P12-T10 (or accepted open items), P11-T16
   - **Validation:** All four containers healthy; migrations applied once by the API; agent signs in via the owner's Authentik; a ticket submitted through the portal, SDK sample and email link works end to end; alerts fire in a forced-failure test (stop worker -> outbox lag alert).
 - [ ] **P12-T15** Perform the restore drill from a UAT backup into a scratch stack and record timings and verification results in the runbook
