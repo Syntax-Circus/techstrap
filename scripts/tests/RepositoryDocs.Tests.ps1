@@ -822,9 +822,19 @@ Describe 'D-050 (product hosts)' {
     }
 
     It 'has the 11e row in the roadmap and the discovery index' {
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11e \|.*D-050.*\| 11e complete \(pending merge\)'
-        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11e \|.*\| 11e complete \(pending merge\)'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11e \|.*D-050.*\| 11e merged \(PR #25\)'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11e \|.*\| 11e merged \(PR #25\)'
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11e-T07 \|'
+    }
+
+    It 'amends the D-050 known limits (clear-vs-keep host, cached 301s, per-host robots.txt) and names the 0.2.0 break' {
+        $section = ($script:Log -split '(?m)^## D-050:')[1]
+        foreach ($phrase in 'Amended 2026-10-08', 'max-age=3600', 'ProductHostSeoUrlBuilder', 'null leaves') {
+            $section | Should -Match ([regex]::Escape($phrase)) -Because "D-050 must mention $phrase"
+        }
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match 'tag v0\.2\.0 after this PR merges'
+        (Get-RepoText 'src/TechStrap.Contracts/README.md') | Should -Match '(?m)^## Version notes'
+        (Get-RepoText 'docs/development/RELEASING.md') | Should -Match 'Version notes'
     }
 
     It 'says in the Portal guide that the Host header is a lookup key only' {

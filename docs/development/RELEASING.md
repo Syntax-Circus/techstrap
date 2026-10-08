@@ -61,6 +61,7 @@ The same pack and check run locally with the commands under "Local pack" in [CLI
    ```
 
 3. Watch both workflows. `release.yml` pushes the images. `publish-nuget.yml` runs `pack`, then waits on the `release` environment: a reviewer approves it.
+   After `gh release create --generate-notes`, paste the Contracts README `## Version notes` entry for the version into the GitHub Release body.
 4. Verify the result: the three packages at that version on nuget.org (indexing can take a few minutes), and the Release page for the tag with the packages attached.
 
 If you re-run a failed `publish` job, the push skips packages that are already on nuget.org as duplicates. If the GitHub Release already exists, `gh release create` fails; attach the files to the existing Release instead with `gh release upload <tag> <files> --clobber`. The Release step uses `--verify-tag`, so it fails rather than create a tag when the tag is missing.
