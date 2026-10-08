@@ -79,7 +79,6 @@ public sealed class Product
 {
     private Product(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive, uint version, string? portalHost)
     {
-        PortalHost = portalHost;
         Id = id;
         Key = key;
         Name = name;
@@ -87,6 +86,7 @@ public sealed class Product
         Branding = branding;
         IsActive = isActive;
         Version = version;
+        PortalHost = portalHost;
     }
 
     public Guid Id { get; }

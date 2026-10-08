@@ -14,6 +14,7 @@ public sealed class HostNameShapeTests
     [InlineData("A-B.Example.CO.UK", "a-b.example.co.uk")]
     [InlineData("  x1.y2  ", "x1.y2")]
     [InlineData("x1.y2", "x1.y2")]
+    [InlineData("a.b1", "a.b1")]
     public void A_well_formed_host_is_trimmed_and_lower_cased(string input, string expected)
     {
         HostNameShape.TryNormalize(input, out var host).ShouldBeTrue();
@@ -53,8 +54,12 @@ public sealed class HostNameShapeTests
     [InlineData(".a.b")]
     [InlineData("a.b.")]
     [InlineData("a_b.c")]
-    [InlineData("é.example")]
-    [InlineData("café.example")]
+    [InlineData("\u00e9.example")]
+    [InlineData("caf\u00e9.example")]
+    [InlineData("\u212A.example")]
+    [InlineData("1.2.3.4")]
+    [InlineData("1.2")]
+    [InlineData("10.0.0.1")]
     [InlineData("x. y")]
     [InlineData("x .y")]
     public void A_malformed_host_is_rejected(string input)
