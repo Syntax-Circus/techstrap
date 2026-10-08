@@ -10,7 +10,17 @@ internal static class MauiMetadataMerger
 
     public static Result<IReadOnlyDictionary<string, string>> Merge(IReadOnlyDictionary<string, string> collected, IReadOnlyDictionary<string, string>? app)
     {
-        var merged = new Dictionary<string, string>(collected, StringComparer.Ordinal);
+        var merged = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        // A custom IDeviceContextCollector gets the same per-entry checks as the app: nothing over the limits is ever sent.
+        foreach (var (key, value) in collected)
+        {
+            if (!TryPut(merged, key, value))
+            {
+                return Invalid();
+            }
+        }
+
         if (app is not null)
         {
             foreach (var (key, value) in app)
@@ -21,23 +31,10 @@ internal static class MauiMetadataMerger
                     continue;
                 }
 
-                if (string.IsNullOrWhiteSpace(key) || key.Length > IntakeLimits.MaxMetadataKeyLength)
+                if (!TryPut(merged, key, value))
                 {
                     return Invalid();
                 }
-
-                var text = value?.Trim();
-                if (string.IsNullOrEmpty(text))
-                {
-                    continue;
-                }
-
-                if (text.Length > IntakeLimits.MaxMetadataValueLength)
-                {
-                    text = text[..IntakeLimits.MaxMetadataValueLength].TrimEnd();
-                }
-
-                merged[key] = text;
             }
         }
 
@@ -47,6 +44,28 @@ internal static class MauiMetadataMerger
         }
 
         return Result<IReadOnlyDictionary<string, string>>.Success(merged);
+    }
+
+    private static bool TryPut(Dictionary<string, string> merged, string? key, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(key) || key.Length > IntakeLimits.MaxMetadataKeyLength)
+        {
+            return false;
+        }
+
+        var text = value?.Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            return true;
+        }
+
+        if (text.Length > IntakeLimits.MaxMetadataValueLength)
+        {
+            text = text[..IntakeLimits.MaxMetadataValueLength].TrimEnd();
+        }
+
+        merged[key] = text;
+        return true;
     }
 
     private static Result<IReadOnlyDictionary<string, string>> Invalid() =>

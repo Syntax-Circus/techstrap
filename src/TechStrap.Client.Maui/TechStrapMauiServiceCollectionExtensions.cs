@@ -33,7 +33,7 @@ public static class TechStrapMauiServiceCollectionExtensions
         services.TryAddSingleton<IBattery>(_ => Battery.Default);
         services.TryAddSingleton<IDeviceContextCollector, MauiDeviceContextCollector>();
         services.TryAddSingleton<IMauiTicketSubmitter>(provider => new MauiTicketSubmitter(
-            provider.GetService<ITechStrapClient>() ?? throw new InvalidOperationException("Call AddTechStrapClient before AddTechStrapMaui, or use the AddTechStrapMaui overload that takes TechStrapClientOptions."),
+            provider.GetService<ITechStrapClient>() ?? throw new InvalidOperationException("Also call AddTechStrapClient (in any order) or use the overload that takes TechStrapClientOptions."),
             provider.GetRequiredService<IDeviceContextCollector>()));
         return services;
     }

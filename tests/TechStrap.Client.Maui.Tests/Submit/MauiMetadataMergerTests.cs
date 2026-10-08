@@ -59,6 +59,26 @@ public sealed class MauiMetadataMergerTests
         result.Value["kept"].ShouldBe("v");
     }
 
+    [Fact]
+    public void A_collected_key_over_the_limit_fails_locally() =>
+        AssertInvalid(MauiMetadataMerger.Merge(new Dictionary<string, string> { [new string('k', IntakeLimits.MaxMetadataKeyLength + 1)] = "v" }, null));
+
+    [Fact]
+    public void A_collected_value_is_truncated_and_a_blank_one_dropped()
+    {
+        var collected = new Dictionary<string, string>
+        {
+            [TicketMetadataKeys.DeviceModel] = new string('m', 1_500),
+            [TicketMetadataKeys.DeviceManufacturer] = "  ",
+        };
+
+        var result = MauiMetadataMerger.Merge(collected, null);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value[TicketMetadataKeys.DeviceModel].Length.ShouldBe(IntakeLimits.MaxMetadataValueLength);
+        result.Value.ContainsKey(TicketMetadataKeys.DeviceManufacturer).ShouldBeFalse();
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]

@@ -108,7 +108,7 @@ public sealed class AddTechStrapMauiTests
         using var provider = services.BuildServiceProvider();
 
         var thrown = Should.Throw<InvalidOperationException>(() => provider.GetRequiredService<IMauiTicketSubmitter>());
-        thrown.Message.ShouldContain("AddTechStrapClient");
+        thrown.Message.ShouldContain("Also call AddTechStrapClient (in any order)");
     }
 
     [Fact]

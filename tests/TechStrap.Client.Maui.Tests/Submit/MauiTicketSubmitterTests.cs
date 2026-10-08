@@ -1,5 +1,6 @@
 using NSubstitute;
 using SyntaxCircus.Common;
+using TechStrap.Client.Maui.Tests.Infrastructure;
 using TechStrap.Contracts.Intake;
 
 namespace TechStrap.Client.Maui.Tests.Submit;
@@ -52,13 +53,49 @@ public sealed class MauiTicketSubmitterTests
     [Fact(Timeout = 10_000)]
     public async Task Disabled_device_context_sends_only_app_metadata()
     {
+        var collector = EssentialsFakes.Default().Collector(new DeviceContextOptions { IncludeDeviceContext = false });
         var app = new Dictionary<string, string> { ["screen"] = "checkout" };
 
-        await Submitter().SubmitAsync(Draft(app), Xunit.TestContext.Current.CancellationToken);
+        await new MauiTicketSubmitter(_client, collector).SubmitAsync(Draft(app), Xunit.TestContext.Current.CancellationToken);
 
         _sent!.Metadata.ShouldNotBeNull();
-        _sent.Metadata.ShouldBe(app);
-        _sent.Metadata.Keys.ShouldAllBe(k => !TicketMetadataKeys.All.Contains(k));
+        _sent.Metadata.Keys.ShouldBe(app.Keys);
+        _sent.Metadata["screen"].ShouldBe("checkout");
+    }
+
+    [Fact(Timeout = 10_000)]
+    public async Task Enabled_device_context_adds_the_collected_keys_to_the_app_metadata()
+    {
+        var collector = EssentialsFakes.Default().Collector(new DeviceContextOptions { IncludeDeviceContext = true });
+        var app = new Dictionary<string, string> { ["screen"] = "checkout" };
+
+        await new MauiTicketSubmitter(_client, collector).SubmitAsync(Draft(app), Xunit.TestContext.Current.CancellationToken);
+
+        _sent!.Metadata.ShouldNotBeNull();
+        _sent.Metadata[TicketMetadataKeys.AppName].ShouldBe("Puppies Plus");
+        _sent.Metadata["screen"].ShouldBe("checkout");
+    }
+
+    [Fact(Timeout = 10_000)]
+    public async Task A_collected_key_over_the_limit_sends_nothing()
+    {
+        _collector.Collect().Returns(new Dictionary<string, string> { [new string('k', IntakeLimits.MaxMetadataKeyLength + 1)] = "v" });
+
+        var result = await Submitter().SubmitAsync(Draft(), Xunit.TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeFalse();
+        result.Errors[0].Code.ShouldBe(TechStrapMauiErrorCodes.MetadataInvalid);
+        _client.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact(Timeout = 10_000)]
+    public async Task A_collected_value_over_the_limit_is_truncated()
+    {
+        _collector.Collect().Returns(new Dictionary<string, string> { [TicketMetadataKeys.DeviceModel] = new string('m', 1_500) });
+
+        await Submitter().SubmitAsync(Draft(), Xunit.TestContext.Current.CancellationToken);
+
+        _sent!.Metadata![TicketMetadataKeys.DeviceModel].Length.ShouldBe(IntakeLimits.MaxMetadataValueLength);
     }
 
     [Fact(Timeout = 10_000)]

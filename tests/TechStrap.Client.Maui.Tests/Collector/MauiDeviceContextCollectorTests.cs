@@ -5,23 +5,14 @@ using TechStrap.Contracts.Intake;
 
 namespace TechStrap.Client.Maui.Tests.Collector;
 
+// A CI host without LANG has the invariant culture (empty name), which would drop locale and change the exact counts.
+[UseCulture("en-US")]
 public sealed class MauiDeviceContextCollectorTests
 {
     [Fact]
     public void Default_collection_emits_exactly_the_thirteen_default_keys()
     {
-        // A CI host without LANG has the invariant culture (empty name), which would drop locale.
-        var original = CultureInfo.CurrentCulture;
-        IReadOnlyDictionary<string, string> result;
-        try
-        {
-            CultureInfo.CurrentCulture = new CultureInfo("en-US");
-            result = EssentialsFakes.Default().Collector().Collect();
-        }
-        finally
-        {
-            CultureInfo.CurrentCulture = original;
-        }
+        var result = EssentialsFakes.Default().Collector().Collect();
 
         result.Keys.ToHashSet().SetEquals(TicketMetadataKeys.Defaults).ShouldBeTrue();
         result[TicketMetadataKeys.AppName].ShouldBe("Puppies Plus");
