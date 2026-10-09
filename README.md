@@ -6,7 +6,7 @@
 
 **Support for Technical Support.** A lightweight, open-source, self-hosted helpdesk for one company that supports many products.
 
-> **Status:** pre-1.0, feature-complete for v1 (PHASE-01 to PHASE-11 done: foundation, brand and UX, domain and persistence, agent auth and admin config, intake with email and the worker, ticket operations, the Admin app, knowledge base, public portal, live updates, and the client SDK). PHASE-12 (release hardening: security review, load and restore drills, UAT) is next, then `v1.0.0`. The SDK packages are published on nuget.org as `0.2.0`; the hosts are published as GHCR images per tag. See the [roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md).
+> **Status:** pre-1.0, feature-complete for v1 (PHASE-01 to PHASE-11 done: foundation, brand and UX, domain and persistence, agent auth and admin config, intake with email and the worker, ticket operations, the Admin app, knowledge base, public portal, live updates, and the client SDK). PHASE-12 (release hardening: security review, load and restore drills, UAT) is next, then v0.3.0 (1.0.0 is a later API-lock decision). The SDK packages are published on nuget.org as `0.2.0`; the hosts are published as GHCR images per tag. See the [roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md).
 
 ## What it is
 
@@ -59,7 +59,7 @@ For production, `REVERSE_PROXY_CIDR` must be the address the containers see the 
 published ports and a proxy on the same host, that is the compose gateway (`172.16.31.1/32`), never a wide range.
 
 UAT and production run from one image-only compose, `deploy/docker-compose.yml`: pinned GHCR image tags (one tag for all four), a scoped env file per service under `/etc/techstrap/<env>/`,
-a required and per-environment `TECHSTRAP_PROJECT`, and a separate Postgres on an external Docker network. The runbook is [DEPLOYMENT.md](docs/self-hosting/DEPLOYMENT.md).
+a required and per-environment `TECHSTRAP_PROJECT`, and a separate Postgres on an external Docker network. The runbook is [DEPLOYMENT.md](docs/self-hosting/DEPLOYMENT.md); the provider-neutral [self-hosting guide](docs/self-hosting/SELF-HOSTING.md) has the env reference.
 
 ### Submit a test ticket
 

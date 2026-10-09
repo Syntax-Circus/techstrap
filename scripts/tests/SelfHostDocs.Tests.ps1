@@ -1,0 +1,155 @@
+BeforeAll {
+    $script:RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..' '..')).Path
+    function Get-RepoText { param([string]$RelativePath) Get-Content -LiteralPath (Join-Path $script:RepoRoot $RelativePath) -Raw }
+
+    # Copies of the ConfigContract.Tests.ps1 helpers (same regexes; those live inside its BeforeAll and cannot be dot-sourced).
+    function ConvertTo-IndexlessKey { param([string]$Key) return ($Key -replace '__\d+(?=__|$)', '__0') }
+    function Get-EnvEntries {
+        param([string]$Path)
+        $entries = @()
+        foreach ($line in (Get-Content -LiteralPath $Path)) {
+            if ($line -match '^(?<hash>#\s?)?(?<key>[A-Za-z][A-Za-z0-9_]*)=(?<value>.*)$') {
+                $entries += [pscustomobject]@{ Key = $Matches['key'].ToUpperInvariant(); Value = $Matches['value'].Trim(); Commented = [bool]$Matches['hash'] }
+            }
+        }
+        return $entries
+    }
+    function Get-EnvKeys { param([string]$Path) return @(Get-EnvEntries -Path $Path | ForEach-Object { ConvertTo-IndexlessKey $_.Key } | Sort-Object -Unique) }
+
+    # Rows of the table under a "### <heading>" in SELF-HOSTING.md: Key (indexless, upper case) and Required (yes or no).
+    function Get-TableRows {
+        param([string]$Document, [string]$Heading)
+        $section = [regex]::Match($Document, '(?ms)^### ' + [regex]::Escape($Heading) + '\s*$(.*?)(?=^### |^## |\z)').Groups[1].Value
+        $rows = foreach ($line in ($section -split "`n")) {
+            if ($line -match '^\|\s*`(?<key>[A-Za-z][A-Za-z0-9_]*)`\s*\|\s*(?<req>yes|no)\s*\|') {
+                [pscustomobject]@{ Key = (ConvertTo-IndexlessKey $Matches['key'].ToUpperInvariant()); Required = $Matches['req'] }
+            }
+        }
+        return @($rows)
+    }
+
+    $script:Guide = Get-RepoText 'docs/self-hosting/SELF-HOSTING.md'
+    $script:Apps = @(
+        @{ Heading = '.env.api'; Example = 'deploy/.env.api.example' },
+        @{ Heading = '.env.worker'; Example = 'deploy/.env.worker.example' },
+        @{ Heading = '.env.admin'; Example = 'deploy/.env.admin.example' },
+        @{ Heading = '.env.portal'; Example = 'deploy/.env.portal.example' }
+    )
+    # The operator-required set mirrors ProductionBlankTemplateTests.cs (tests/TechStrap.Api.Tests, the required-key lists near the top of the file). Keep in step with that C# test.
+    $script:Required = @{
+        '.env.api'    = @('CONNECTIONSTRINGS__TECHSTRAP', 'AUTHENTICATION__JWTBEARER__AUTHORITY', 'AUTHENTICATION__JWTBEARER__AUDIENCES__0', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TECHSTRAP_API_PUBLIC_URL')
+        '.env.worker' = @('CONNECTIONSTRINGS__TECHSTRAP', 'EMAIL__SMTP__HOST', 'EMAIL__SMTP__DEFAULTFROM')
+        '.env.admin'  = @('AUTH__AUTHORITY', 'AUTH__CLIENTID', 'AUTH__CLIENTSECRET')
+        '.env.portal' = @('TECHSTRAP_PORTAL_PUBLIC_URL')
+    }
+    $script:ComposeHeading = 'Compose inputs (deploy/.env.uat.example and deploy/.env.production.example)'
+}
+
+Describe 'SELF-HOSTING.md environment reference (PHASE-12b)' {
+    It 'lists every key of every deploy template' {
+        foreach ($app in $script:Apps) {
+            $documented = (Get-TableRows -Document $script:Guide -Heading $app.Heading).Key
+            foreach ($key in (Get-EnvKeys -Path (Join-Path $script:RepoRoot $app.Example))) {
+                $documented | Should -Contain $key -Because "$($app.Example) has $key but the $($app.Heading) table does not"
+            }
+        }
+    }
+
+    It 'lists no key that is not in a template' {
+        foreach ($app in $script:Apps) {
+            $templateKeys = Get-EnvKeys -Path (Join-Path $script:RepoRoot $app.Example)
+            foreach ($key in (Get-TableRows -Document $script:Guide -Heading $app.Heading).Key) {
+                $templateKeys | Should -Contain $key -Because "the $($app.Heading) table lists $key but $($app.Example) does not"
+            }
+        }
+    }
+
+    It 'lists each key once per table' {
+        foreach ($app in $script:Apps) {
+            $keys = (Get-TableRows -Document $script:Guide -Heading $app.Heading).Key
+            @($keys | Group-Object | Where-Object Count -gt 1) | Should -BeNullOrEmpty -Because $app.Heading
+        }
+    }
+
+    It 'marks exactly the operator-required keys as required' {
+        foreach ($app in $script:Apps) {
+            $rows = Get-TableRows -Document $script:Guide -Heading $app.Heading
+            $required = @($rows | Where-Object Required -eq 'yes' | ForEach-Object Key | Sort-Object)
+            $required | Should -Be @($script:Required[$app.Heading] | Sort-Object) -Because "required set of $($app.Heading)"
+        }
+    }
+
+    It 'documents the compose inputs of both environment templates' {
+        $uat = Get-EnvKeys -Path (Join-Path $script:RepoRoot 'deploy/.env.uat.example')
+        $production = Get-EnvKeys -Path (Join-Path $script:RepoRoot 'deploy/.env.production.example')
+        $uat | Should -Be $production -Because 'the two compose-input templates carry the same keys'
+        $documented = (Get-TableRows -Document $script:Guide -Heading $script:ComposeHeading).Key
+        foreach ($key in $uat) { $documented | Should -Contain $key }
+        foreach ($key in $documented) { $uat | Should -Contain $key }
+    }
+}
+
+Describe 'SELF-HOSTING.md content (PHASE-12b)' {
+    It 'has the section headings' {
+        foreach ($heading in 'Overview and requirements', 'Compose layout', 'OIDC requirements', 'Environment reference', 'Reverse proxy', 'TLS', 'SMTP', 'Volumes', 'First administrator', 'Upgrade and rollback', 'Health checks', 'PgBouncer and LISTEN', 'Backups', 'Other identity providers') {
+            $script:Guide | Should -Match ('(?m)^## ' + [regex]::Escape($heading) + '\s*$') -Because $heading
+        }
+        foreach ($heading in 'Default-site Caddy block', 'Request body size', 'Forwarded headers and the pinned subnet', 'Knowledge-base images') {
+            $script:Guide | Should -Match ('(?m)^### ' + [regex]::Escape($heading) + '\s*$') -Because $heading
+        }
+    }
+
+    It 'states the OIDC contract' {
+        foreach ($phrase in 'audience', 'sub', 'email', 'groups', 'offline_access', '/signin-oidc', '/signout-callback-oidc', 'PKCE', 'confidential', 'TECHSTRAP_AGENT_GROUP', 'TECHSTRAP_ADMIN_GROUP') {
+            $script:Guide | Should -Match ([regex]::Escape($phrase)) -Because $phrase
+        }
+    }
+
+    It 'gives a default-site Caddy block with the body limit, the kb-images route and the forwarded headers' {
+        foreach ($phrase in 'request_body', 'max_size 26MiB', 'reverse_proxy 127.0.0.1:8080', 'reverse_proxy 127.0.0.1:8081', 'reverse_proxy 127.0.0.1:8082', '/kb-images/', 'REVERSE_PROXY_CIDR', 'TECHSTRAP_SUBNET', 'X-Forwarded-For') {
+            $script:Guide | Should -Match ([regex]::Escape($phrase)) -Because $phrase
+        }
+    }
+
+    It 'links the runbook, the Authentik example and the deployment guide, and every link resolves' {
+        foreach ($link in '../runbooks/backup-restore.md', 'AUTHENTIK.md', 'DEPLOYMENT.md') { $script:Guide | Should -Match ([regex]::Escape("]($link")) -Because $link }
+        foreach ($m in [regex]::Matches($script:Guide, '\]\((?<path>(?!https?:|#)[^)\s#]+)')) {
+            # AUTHENTIK.md is written by P12-T17 (the next task); that task removes this exception.
+            if ($m.Groups['path'].Value -eq 'AUTHENTIK.md') { continue }
+            Test-Path -LiteralPath (Join-Path $script:RepoRoot 'docs' 'self-hosting' $m.Groups['path'].Value) | Should -BeTrue -Because $m.Groups['path'].Value
+        }
+    }
+
+    It 'does not tell the reader to install 1.0.0 or an rc and is ASCII' {
+        $script:Guide | Should -Not -Match '1\.0\.0'
+        $script:Guide | Should -Not -Match '(?i)-rc\.?\d'
+        $script:Guide | Should -Not -Match 'down\s+-v(\s|$)'
+        ([regex]::IsMatch($script:Guide, '[^\x00-\x7F]')) | Should -BeFalse
+    }
+}
+
+Describe 'deploy templates and README after 12b' {
+    It 'the two compose-input templates pin 0.2.0 images, no rc and no 1.0.0' {
+        foreach ($file in 'deploy/.env.uat.example', 'deploy/.env.production.example') {
+            $text = Get-RepoText $file
+            $text | Should -Not -Match '-rc\.?\d' -Because $file
+            $text | Should -Not -Match '1\.0\.0' -Because $file
+            foreach ($app in 'api', 'worker', 'admin', 'portal') { $text | Should -Match ("(?m)^TECHSTRAP_$($app.ToUpper())_IMAGE=ghcr\.io/syntax-circus/techstrap-${app}:0\.2\.0\s*$") -Because "$file $app" }
+        }
+    }
+
+    It 'DEPLOYMENT.md names the portal required key and links the new guides' {
+        $text = Get-RepoText 'docs/self-hosting/DEPLOYMENT.md'
+        $text | Should -Not -Match '\| none yet \|'
+        $text | Should -Match '`\.env\.portal` \| `TECHSTRAP_PORTAL_PUBLIC_URL`'
+        $text | Should -Match ([regex]::Escape('](SELF-HOSTING.md)'))
+        $text | Should -Match ([regex]::Escape('](../runbooks/backup-restore.md)'))
+    }
+
+    It 'README says v0.3.0 next and links the self-hosting guide' {
+        $text = Get-RepoText 'README.md'
+        $text | Should -Not -Match 'then `?v1\.0\.0`?'
+        $text | Should -Match ([regex]::Escape('then v0.3.0 (1.0.0 is a later API-lock decision)'))
+        $text | Should -Match ([regex]::Escape('(docs/self-hosting/SELF-HOSTING.md)'))
+    }
+}
