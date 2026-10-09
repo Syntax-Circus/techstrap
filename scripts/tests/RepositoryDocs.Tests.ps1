@@ -922,3 +922,63 @@ Describe 'Security review (PHASE-12a)' {
 
     It 'is ASCII only' { ([regex]::IsMatch($script:Review, '[^\x00-\x7F]')) | Should -BeFalse }
 }
+
+Describe 'PHASE-12a close-out' {
+    BeforeAll {
+        $script:Review = Get-RepoText 'docs/security/SECURITY-REVIEW.md'
+        $script:Spec = Get-RepoText 'docs/architecture/PHASE-12-release-hardening.md'
+        $script:Plan = Get-RepoText 'docs/superpowers/plans/2026-10-08-phase-12a-hardening.md'
+    }
+
+    It 'leaves no finding open and no checklist row waiting for a later task' {
+        $script:Review | Should -Not -Match '(?m)^- Status: Open\s*$'
+        $script:Review | Should -Not -Match 'Task \d adds'
+    }
+
+    It 'has an evidence cell in every checklist row' {
+        $rows = [regex]::Matches($script:Review, '(?m)^\| (?!Check \||Header or behaviour|---)[^\r\n]*\|\s*$')
+        $rows.Count | Should -BeGreaterThan 40
+        foreach ($row in $rows) {
+            $cells = $row.Value.Trim().Trim('|') -split '(?<!\\)\|' | ForEach-Object { $_.Trim() }
+            $cells.Count | Should -BeGreaterOrEqual 2 -Because $row.Value
+            foreach ($cell in $cells) { $cell | Should -Not -BeNullOrEmpty -Because $row.Value }
+        }
+    }
+
+    It 'lists SR-01 to SR-18' {
+        foreach ($n in 1..18) { $script:Review | Should -Match ('(?m)^### SR-{0:D2}: ' -f $n) }
+    }
+
+    It 'reports the architecture conformance gate with 0 discrepancies and signs off the release' {
+        $script:Review | Should -Match '(?m)^## Architecture conformance\s*$'
+        $section = ($script:Review -split '(?m)^## Architecture conformance\s*$')[1]
+        $section | Should -Match '0 discrepancies'
+        $section | Should -Match 'EntryPointCatalogTests'
+        $script:Review | Should -Match 'Release 0\.3\.0 sign-off'
+        $script:Review | Should -Match '(?s)Release 0\.3\.0 sign-off.*?0 open High or Critical.*?2026-10-\d\d'
+    }
+
+    It 'ticks P12-T01 to P12-T10 and P12-T19 with an as-built note and leaves the later tasks open' {
+        foreach ($n in (1..10) + 19) {
+            $id = 'P12-T{0:D2}' -f $n
+            $script:Spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is done in 12a"
+            $block = [regex]::Match($script:Spec, '(?ms)^- \[x\] \*\*' + $id + '\*\*.*?(?=^- \[|^## |\z)').Value
+            $block | Should -Match '\*\*As built \(12a\):\*\*' -Because "$id needs an as-built note"
+        }
+        foreach ($n in (11..18) + 20, 21) {
+            $id = 'P12-T{0:D2}' -f $n
+            $script:Spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not 12a"
+        }
+        $script:Spec | Should -Match '(?m)^- \[x\] `docs/security/SECURITY-REVIEW\.md`'
+    }
+
+    It 'marks phase 12 as 12a complete in the roadmap and the discovery index' {
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 12 \|.*D-051.*12a complete \(pending merge\)'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 12 \|.*12a complete \(pending merge\)'
+    }
+
+    It 'has the 12a plan fully ticked with an As built section' {
+        $script:Plan | Should -Not -Match '(?m)^\s*- \[ \]'
+        $script:Plan | Should -Match '(?m)^## As built\s*$'
+    }
+}

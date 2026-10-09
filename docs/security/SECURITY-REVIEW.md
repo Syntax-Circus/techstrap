@@ -249,4 +249,17 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 
 ## Architecture conformance
 
-Filled in by the conformance gate (P12-T19).
+The conformance gate (P12-T19) is the Architecture test class `EntryPointCatalogTests` (parser and collector: `EntryPointCatalog`; parser fixtures: `EntryPointCatalogParserTests`). It reads the entry-point tables of `docs/architecture/02-ARCHITECTURE.md` sections 7.1 to 7.5 (7.6 is the exempt list and is not read) and compares them, in both directions and by handler name, with reflection over the Api controllers (route templates with constraints stripped), the `TicketHub` methods and the hosted loops of the Api, Infrastructure and Worker assemblies (a loop's handler is found by reading its source for the one `I...Handler` it resolves).
+
+Result: 69 entry points (62 HTTP routes, 3 hub methods, 4 loops: `EmailOutboxWorker`, `OutboxRetentionWorker`, `AutoCloseWorker`, `TicketChangeListener`); each maps to exactly one handler; **0 discrepancies** after the fixes below, and the test prints the full `KIND | KEY | HANDLER | IN DOC | IN CODE` table when it runs.
+
+The first run reported three differences, all fixed in the document (the code was right):
+
+- `POST /api/public/products/{key}/tickets` and `GET /api/public/products/{key}`: the code names the route parameter `productKey`; section 7 (and the rate-limit table and the intake flow text that quote the first route) now say `{productKey}`.
+- Section 7.5 named the listener row only as "API hosted listener"; it now names the hosted class `TicketChangeListener` (Infrastructure, registered by the Api), so the loop exists on both sides.
+
+No production code changed for the gate. The live Admin route set (17 routes) was already equal to the documented set (Task 5); the gate now keeps the whole table honest.
+
+## Release 0.3.0 sign-off
+
+PHASE-12a closes with 18 findings (SR-01 to SR-18): 4 Fixed (SR-14, SR-15, SR-17, SR-18) and 14 Accepted, none Open. 0 open High or Critical findings (the highest severity recorded is Low). Reviewed 2026-10-08. CI fails on vulnerable packages and on High or Critical image findings, and attaches CycloneDX SBOMs to the release (SR-13). Not covered here, by design: antivirus (SR-08), storage quota (SR-11), and the load, backup and UAT work of 12b and 12c. No tag is cut by this phase; `v0.3.0` is tagged after the soak (D-051).

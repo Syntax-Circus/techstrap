@@ -5,6 +5,7 @@
     <ProjectReference Include="../../src/TechStrap.Infrastructure/TechStrap.Infrastructure.csproj" />
     <ProjectReference Include="../../src/TechStrap.Api/TechStrap.Api.csproj" />
     <ProjectReference Include="../../src/TechStrap.Portal/TechStrap.Portal.csproj" />
+    <ProjectReference Include="../../src/TechStrap.Worker/TechStrap.Worker.csproj" />
   </ItemGroup>
 
 </Project>
