@@ -50,6 +50,7 @@ public sealed class DeleteTagRequestHandler(
             return Result.Failure(TagErrors.InUse(carriers.Count));
         }
 
+        // ListTicketIdsWithTagAsync ids are unique (ticket_tags is keyed by ticket and tag), so the strict count check on each batch is safe.
         foreach (var batch in carriers.Chunk(TicketBatchSize))
         {
             var loaded = await tickets.GetByIdsAsync(batch, cancellationToken);

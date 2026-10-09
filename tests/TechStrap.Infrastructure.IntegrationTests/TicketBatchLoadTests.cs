@@ -22,13 +22,9 @@ public sealed class TicketBatchLoadTests(PostgresFixture postgres) : PostgresInt
         var tagged = await scenario.CreateTicketAsync("Tagged", change: t => t.AddTag(tag.Id, scenario.AgentActor, host.Clock).IsSuccess.ShouldBeTrue());
         var plain = await scenario.CreateTicketAsync("Plain");
 
-        var (single, batch) = await host.ReadAsync(async sp =>
-        {
-            var tickets = sp.GetRequiredService<ITicketRepository>();
-            var one = (await tickets.GetByIdAsync(tagged.Id, TestContext.Current.CancellationToken))!;
-            var many = await tickets.GetByIdsAsync([tagged.Id, plain.Id, Guid.CreateVersion7()], TestContext.Current.CancellationToken);
-            return (one, many);
-        });
+        // Separate read scopes (separate contexts): a shared context would fix up tags from the first query and hide a missing Include.
+        var single = (await host.ReadAsync(sp => sp.GetRequiredService<ITicketRepository>().GetByIdAsync(tagged.Id, TestContext.Current.CancellationToken)))!;
+        var batch = await host.ReadAsync(sp => sp.GetRequiredService<ITicketRepository>().GetByIdsAsync([tagged.Id, plain.Id, Guid.CreateVersion7()], TestContext.Current.CancellationToken));
 
         batch.Count.ShouldBe(2);
         var loaded = batch.Single(t => t.Id == tagged.Id);

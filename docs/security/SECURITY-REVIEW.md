@@ -191,7 +191,7 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 - Path group: 6. Privacy and operations
 - Severity: Low
 - Status: Accepted
-- Evidence: the redaction enricher matches emails, tokens, keys and sensitive query values. Display names are not pattern-redacted and `Exception` objects are not rewritten (documented in the enricher remarks). `EraseRequesterEndpointTests.Erasing_a_requester_writes_no_email_name_or_token_to_any_log_event` covers the email, its local part, the name and the token across the intake and the erase at the configured levels, and passes because no handler logs a requester name. Residual: at Debug, ASP.NET Core's own `ControllerActionInvoker` line ("Executing action method ... with arguments") renders the intake request record, which carries the submitter's name (the email is masked by the enricher). The shipped configuration keeps `Microsoft.AspNetCore` at Warning, so it is not emitted unless an operator raises that category.
+- Evidence: the redaction enricher matches emails, tokens, keys and sensitive query values. Display names are not pattern-redacted and `Exception` objects are not rewritten (documented in the enricher remarks).
 
 ### SR-10: Invented API-key prefixes get their own rate-limit partition
 - Path group: 2. API keys
@@ -240,6 +240,12 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 - Severity: Low
 - Status: Fixed
 - Evidence: `StrictTransportSecurityHostTests.The_Api_sends_Strict_Transport_Security_only_outside_Development` failed for Development: the API host sent the header on every response while the Admin and Portal hosts remove it in Development (a browser given HSTS for localhost refuses plain http on that host, whatever the port, for the length of the policy). `src/TechStrap.Api/Program.cs` now registers the same start callback before `UseSecurityHeaders` in Development. Production still sends `max-age=31536000; includeSubDomains`. Fixed in P12-T08.
+
+### SR-18: MVC rendered bound request records in Debug logs
+- Path group: 6. Privacy and operations
+- Severity: Low
+- Status: Fixed
+- Evidence: at Debug, ASP.NET Core MVC rendered the bound request record (name, subject, body) in `Executing action method ... with arguments`. `EraseRequesterEndpointTests.Erasing_a_requester_writes_no_email_name_or_token_to_any_log_event` (Verbose, intake then erase, scanning message, properties and exception for the email, name, subject, body and token) failed on that event. `MvcArgumentsRedactionEnricher` (Hosting; Api, Admin and Portal) now replaces the `Arguments` property of MVC events with `[arguments]` at any level; proved by `MvcArgumentsRedactionEnricherTests` and the Verbose erase test. Fixed in P12-T07.
 
 ## Architecture conformance
 

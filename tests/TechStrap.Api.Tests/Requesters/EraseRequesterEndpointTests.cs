@@ -45,12 +45,17 @@ public sealed class EraseRequesterEndpointTests(TestPostgres postgres)
         const string email = "erase.me.7f3a@example.com";
         const string localPart = "erase.me.7f3a";
         const string name = "Zelda Quillfeather";
+        const string subject = "Quill subject 7f3a";
+        const string body = "Quill body 7f3a";
         var database = await ApiTestDatabase.CreateAsync(postgres);
-        // The host's configured log levels, as deployed. (At Debug, ASP.NET Core's own ControllerActionInvoker line renders the intake request record, which carries the
-        // submitter's name; the shipped configuration keeps Microsoft.AspNetCore at Warning. See SR-09.)
+        // Every level is captured, as in AdminLeakTests: a value that only shows at Verbose is still a leak.
         var settings = new Dictionary<string, string?>(database.Settings)
         {
             ["TECHSTRAP_PORTAL_PUBLIC_URL"] = "https://help.test",
+            ["Serilog:MinimumLevel:Default"] = "Verbose",
+            ["Serilog:MinimumLevel:Override:Microsoft"] = "Verbose",
+            ["Serilog:MinimumLevel:Override:Microsoft.AspNetCore"] = "Verbose",
+            ["Serilog:MinimumLevel:Override:System"] = "Verbose",
         };
         await using var factory = new ApiFactory(settings: settings);
         var seed = await IntakeTestData.SeedAsync(factory.Services, Xunit.TestContext.Current.CancellationToken);
@@ -58,7 +63,7 @@ public sealed class EraseRequesterEndpointTests(TestPostgres postgres)
         (await admin.GetAsync("/api/agents/me", Xunit.TestContext.Current.CancellationToken)).EnsureSuccessStatusCode();
         using var intake = new HttpRequestMessage(HttpMethod.Post, "/api/intake/tickets")
         {
-            Content = JsonContent.Create(new SubmitTicketRequest(email, name, "Cannot sign in", "Please help me", null, null)),
+            Content = JsonContent.Create(new SubmitTicketRequest(email, name, subject, body, null, null)),
         };
         intake.Headers.Add(HeaderNames.ApiKey, seed.OrbitlyTrusted);
         using var submitted = await factory.CreateClient().SendAsync(intake, Xunit.TestContext.Current.CancellationToken);
@@ -73,8 +78,9 @@ public sealed class EraseRequesterEndpointTests(TestPostgres postgres)
         erased.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         var events = factory.LogSink.Events.ToList();
         events.Count.ShouldBeGreaterThan(0, "a silent sink would prove nothing");
+        events.ShouldContain(e => e.Level <= LogEventLevel.Debug, "the Verbose setting must have taken effect");
         events.ShouldContain(e => e.RenderMessage().Contains("/erase", StringComparison.Ordinal) && e.RenderMessage().Contains("POST", StringComparison.Ordinal), "the erase request itself must have been logged");
-        foreach (var needle in new[] { email, localPart, name, token })
+        foreach (var needle in new[] { email, localPart, name, subject, body, token })
         {
             events.Select(Everything).ShouldAllBe(text => !text.Contains(needle, StringComparison.OrdinalIgnoreCase), $"'{needle}' must not appear in any log event");
         }

@@ -51,10 +51,10 @@ public static class DomainLimits
     /// <summary>The length of a hex colour such as <c>#1A2B3C</c>: the hash plus six digits.</summary>
     public const int ColourHexLength = 7;
 
-    // A query limit, not a column length.
     /// <summary>The most per-product entries one notification-preferences update may carry; a larger list is refused before any lookup.</summary>
     public const int NotificationPreferencesMaxCount = 200;
 
+    // A query limit, not a column length.
     /// <summary>The maximum search text; longer text is truncated.</summary>
     public const int SearchTextMaxLength = 200;
 }
