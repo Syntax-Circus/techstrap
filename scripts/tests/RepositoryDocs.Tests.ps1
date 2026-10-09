@@ -463,8 +463,6 @@ Describe 'the deployment runbook' {
         $links = [regex]::Matches($script:Runbook, '\]\((?<path>(?!https?:|#)[^)\s]+)\)') | ForEach-Object { $_.Groups['path'].Value }
         $links.Count | Should -BeGreaterThan 1
         foreach ($link in $links) {
-            # AUTHENTIK.md is written by P12-T17 (the next task); that task removes this exception.
-            if ($link -eq 'AUTHENTIK.md') { continue }
             Test-Path -LiteralPath (Join-Path $script:RepoRoot 'docs' 'self-hosting' $link) | Should -BeTrue -Because "DEPLOYMENT.md links to $link"
         }
     }

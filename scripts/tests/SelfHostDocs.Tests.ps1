@@ -131,8 +131,6 @@ Describe 'SELF-HOSTING.md content (PHASE-12b)' {
         foreach ($m in [regex]::Matches($script:Guide, '\]\((?<path>(?!https?:)[^)\s#]*)(?:#(?<frag>[^)\s]+))?\)')) {
             $path = $m.Groups['path'].Value
             $frag = $m.Groups['frag'].Value
-            # AUTHENTIK.md is written by P12-T17 (the next task); that task removes this exception.
-            if ($path -eq 'AUTHENTIK.md') { continue }
             $target = if ($path) { Join-Path $script:RepoRoot 'docs' 'self-hosting' $path } else { Join-Path $script:RepoRoot 'docs' 'self-hosting' 'SELF-HOSTING.md' }
             Test-Path -LiteralPath $target | Should -BeTrue -Because $path
             if ($frag) {
@@ -175,4 +173,72 @@ Describe 'deploy templates and README after 12b' {
         $text | Should -Match ([regex]::Escape('then v0.3.0 (1.0.0 is a later API-lock decision)'))
         $text | Should -Match ([regex]::Escape('(docs/self-hosting/SELF-HOSTING.md)'))
     }
+}
+
+Describe 'Authentik guide (PHASE-12b)' {
+    BeforeAll {
+        $script:Authentik = Get-RepoText 'docs/self-hosting/AUTHENTIK.md'
+        $script:AgentAuth = Get-RepoText 'docs/self-hosting/AGENT-AUTHENTICATION.md'
+        $script:AdminApp = Get-RepoText 'docs/development/ADMIN-APP.md'
+    }
+
+    It 'has the sections' {
+        foreach ($heading in 'Overview', 'Prerequisites', 'Create the groups', 'Create the provider', 'Create the application', 'The groups claim', 'Where each value goes', 'Verification', 'Troubleshooting', 'Reference') {
+            $script:Authentik | Should -Match ('(?m)^## ' + [regex]::Escape($heading) + '\s*$') -Because $heading
+        }
+    }
+
+    It 'names the groups, the redirect paths, the scope and PKCE' {
+        foreach ($phrase in 'techstrap-agents', 'techstrap-admins', '/signin-oidc', '/signout-callback-oidc', 'offline_access', 'PKCE', 'Confidential', '/application/o/techstrap/', 'TECHSTRAP_AGENT_GROUP', 'TECHSTRAP_ADMIN_GROUP', 'AUTH__CLIENTID', 'AUTHENTICATION__JWTBEARER__AUDIENCES__0', 'syntax-circus-authentik') {
+            $script:Authentik | Should -Match ([regex]::Escape($phrase)) -Because $phrase
+        }
+    }
+
+    It 'says the default profile scope mapping carries groups and gives the explicit-mapping fallback' {
+        $script:Authentik | Should -Match '(?is)default.{0,80}profile.{0,200}groups'
+        $script:Authentik | Should -Match '(?i)fallback'
+    }
+
+    It 'verifies the three outcomes: a member signs in, a non-member is refused, the token carries groups and email' {
+        $section = ($script:Authentik -split '(?m)^## Verification\s*$')[1]
+        $section | Should -Match '(?i)member'
+        $section | Should -Match '(?i)not a member|non-member|refused'
+        $section | Should -Match 'groups'
+        $section | Should -Match 'email'
+    }
+
+    It 'AUTHENTIK.md contains no client secret value' {
+        $script:Authentik | Should -Not -Match '(?i)client_secret\s*[=:]\s*\S'
+        $script:Authentik | Should -Not -Match 'AUTH__CLIENTSECRET=(?!<|\s*$)'
+        $script:Authentik | Should -Not -Match '[A-Za-z0-9+/]{40,}'
+        $script:Authentik | Should -Not -Match '(?i)(secret|password)\s*[=:]\s*[A-Za-z0-9]{10,}'
+    }
+
+    It 'does not link the private provisioning repository' {
+        $script:Authentik | Should -Not -Match 'dev\.azure\.com'
+        $script:Authentik | Should -Not -Match '\]\(https?://[^)]*syntax-circus-authentik'
+    }
+
+    It 'AGENT-AUTHENTICATION.md points at the guide and states the claim requirements' {
+        $script:AgentAuth | Should -Match ([regex]::Escape('](AUTHENTIK.md)'))
+        $script:AgentAuth | Should -Match ([regex]::Escape('](SELF-HOSTING.md)'))
+        foreach ($phrase in 'sub', 'email', 'groups', 'TECHSTRAP_GROUP_CLAIM_TYPE') { $script:AgentAuth | Should -Match ([regex]::Escape($phrase)) }
+        $script:AgentAuth | Should -Not -Match '(?i)add a scope mapping'
+    }
+
+    It 'ADMIN-APP.md points to the guide and does not claim the provider flow is verified yet' {
+        $script:AdminApp | Should -Match ([regex]::Escape('](../self-hosting/AUTHENTIK.md)'))
+        $script:AdminApp | Should -Match '(?i)verified against a live Authentik in 12c'
+    }
+
+    It 'no self-hosting doc uses the techstrap-admin issuer slug' {
+        $files = @(Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot 'docs/self-hosting') -Filter *.md) + (Get-Item (Join-Path $script:RepoRoot 'docs/development/ADMIN-APP.md'))
+        foreach ($file in $files) {
+            $text = [System.IO.File]::ReadAllText($file.FullName)
+            $text | Should -Not -Match 'techstrap-admin/' -Because "$($file.Name) must use the techstrap slug"
+            $text | Should -Not -Match 'application/o/techstrap-admin' -Because $file.Name
+        }
+    }
+
+    It 'is ASCII only' { ([regex]::IsMatch($script:Authentik, '[^\x00-\x7F]')) | Should -BeFalse }
 }
