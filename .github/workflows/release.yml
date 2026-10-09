@@ -42,3 +42,39 @@ jobs:
           # Prereleases must not move :latest, the floating tag for stable releases. The deploy compose names an explicit tag and never relies on it.
           $stable = $version -notmatch '-'
           ./Build-TechStrapDocker.ps1 -Push -PushLatest:$stable -Registry ghcr.io/syntax-circus -ImageTag $version -SemVerTag $version
+
+  # The GitHub Release itself is created by publish-nuget.yml on the same tag, so this job waits for it (up to 20 minutes).
+  sbom:
+    name: CycloneDX SBOM per image, attached to the GitHub Release
+    needs: images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG_NAME: ${{ github.ref_name }}
+      TRIVY_USERNAME: ${{ github.actor }}
+      TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Generate one SBOM per image
+        run: |
+          version="${TAG_NAME#v}"
+          for app in api admin portal worker; do
+            docker run --rm -v "$PWD:/out" -e TRIVY_USERNAME -e TRIVY_PASSWORD \
+              aquasec/trivy:0.75.0 image --format cyclonedx --output "/out/sbom-$app.cdx.json" "ghcr.io/syntax-circus/techstrap-$app:$version"
+          done
+
+      - name: Keep the SBOMs as a workflow artifact
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom-*.cdx.json
+          if-no-files-found: warn
+
+      - name: Attach the SBOMs to the Release (the Release is created by publish-nuget.yml)
+        run: |
+          for attempt in $(seq 1 40); do gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 && break; sleep 30; done
+          gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null
+          gh release upload "$TAG_NAME" sbom-api.cdx.json sbom-admin.cdx.json sbom-portal.cdx.json sbom-worker.cdx.json --clobber --repo "$GITHUB_REPOSITORY"

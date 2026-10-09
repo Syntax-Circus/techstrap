@@ -136,3 +136,38 @@ Describe 'release.yml and RELEASING.md' {
         $section | Should -Match ([regex]::Escape('(RELEASING.md)'))
     }
 }
+
+Describe 'CI scans and SBOM (PHASE-12a)' {
+    BeforeAll {
+        $script:Ci = Get-RepoText '.github/workflows/ci.yml'
+        $script:Rel = Get-RepoText '.github/workflows/release.yml'
+    }
+
+    It 'ci.yml fails the build on a vulnerable direct or transitive package' {
+        $script:Ci | Should -Match ([regex]::Escape('dotnet list TechStrap.slnx package --vulnerable --include-transitive --format json'))
+        $script:Ci | Should -Match 'jq -e'
+    }
+
+    It 'ci.yml scans the four images with Trivy at High and Critical and fails the job' {
+        $script:Ci | Should -Match 'aquasecurity/trivy-action@'
+        $script:Ci | Should -Match 'severity: HIGH,CRITICAL'
+        $script:Ci | Should -Match "exit-code: '1'"
+        $script:Ci | Should -Match 'ignore-unfixed: true'
+        $script:Ci | Should -Match 'trivyignores: \.trivyignore'
+        foreach ($app in 'api', 'admin', 'portal', 'worker') { $script:Ci | Should -Match ("techstrap-$app") }
+    }
+
+    It '.trivyignore exists and documents the waiver format' {
+        $text = Get-RepoText '.trivyignore'
+        $text | Should -Match 'CVE'
+        $text | Should -Match 'reason: <'
+        $text | Should -Match 'review: <YYYY-MM-DD'
+    }
+
+    It 'release.yml attaches a CycloneDX SBOM per image to the GitHub Release' {
+        $script:Rel | Should -Match 'aquasec/trivy:\d+\.\d+\.\d+ image --format cyclonedx'
+        $script:Rel | Should -Match 'gh release upload'
+        $script:Rel | Should -Match 'sbom-'
+        $script:Rel | Should -Match 'NuGet packages and the GitHub Release come from publish-nuget\.yml on the same tag'
+    }
+}

@@ -13,7 +13,7 @@ For each group the method is:
 3. Record anything that is a judgement rather than a provable behaviour as a finding with a severity and a status.
 4. Keep the evidence honest: a row that cites a test means that test fails if the control is removed (the mutation check done in the task that adds or edits the test).
 
-Scans (dependency, image, SBOM) are run in Task 7 and recorded here; the architecture conformance gate (P12-T19) fills in the last section.
+Scans (dependency, image, SBOM) run in CI and on release (P12-T09) and are recorded here (SR-13); the architecture conformance gate (P12-T19) fills in the last section.
 
 ## Severity scale
 
@@ -133,9 +133,9 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 | Hard delete of a ticket | `DeleteTicketIntegrationTests`, `DeleteTicketEndpointTests` |
 | Spam handling | `MarkTicketSpamRequestHandlerTests`, `TicketTagAndSpamEndpointTests` |
 | Containers run as non-root | Pester `Dockerfiles.Tests.ps1` (`USER 10001:10001`) |
-| Secrets only through the environment | `EnvExampleCompletenessTests`, `ProductionBlankTemplateTests`; Pester `ConfigContract`, `TrackedFiles`; image secret scan is Task 7 (the Trivy secret scanner is on by default for `trivy image`; there is no separate history scan, see SR-13) |
+| Secrets only through the environment | `EnvExampleCompletenessTests`, `ProductionBlankTemplateTests`; Pester `ConfigContract`, `TrackedFiles`; image secret scan: the CI step `Scan techstrap-<app> image (Trivy)` (the Trivy secret scanner is on by default for `trivy image`; there is no separate history scan, see SR-13) |
 | Forced tag delete and notification preferences | SR-15; `DeleteTagRequestHandlerTests.A_forced_delete_loads_the_carrying_tickets_in_batches_not_one_by_one`, `DeleteTagIntegrationTests.A_forced_delete_across_two_batches_detaches_every_ticket`, `UpdateNotificationPreferencesRequestHandlerTests.Products_are_checked_with_one_repository_call`, `UpdateNotificationPreferencesRequestHandlerTests.More_than_the_cap_is_refused_before_any_lookup` |
-| Dependency scan, image scan, SBOM | Task 7; SR-13 |
+| Dependency scan, image scan, SBOM | CI step `Vulnerable packages (direct and transitive)` in `build-test` (`dotnet list TechStrap.slnx package --vulnerable --include-transitive --format json`, `jq -e` fails on any flagged package or restore problem); four CI steps `Scan techstrap-<app> image (Trivy)` in `docker-build` (High and Critical, `ignore-unfixed`, waivers only in `.trivyignore`); release job `sbom` (CycloneDX per image, attached to the GitHub Release); `NuGetAudit` (mode all, level low) in `Directory.Build.props` makes the build itself fail on a vulnerable transitive package; Pester `PublishWorkflow.Tests.ps1` `CI scans and SBOM (PHASE-12a)`; SR-13 |
 
 ## Findings
 
@@ -214,8 +214,8 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 ### SR-13: Dependency and image scan results
 - Path group: 6. Privacy and operations
 - Severity: Info
-- Status: Open
-- Evidence: the local `dotnet list package --vulnerable --include-transitive` result is recorded by Task 7; the image scan runs in CI. Closed by Task 7.
+- Status: Accepted
+- Evidence: the local `dotnet list TechStrap.slnx package --vulnerable --include-transitive` (P12-T09, 2026-10-08) reported no vulnerable package, direct or transitive, and no restore problems. CI now fails on any finding (step `Vulnerable packages (direct and transitive)`), `NuGetAudit` (all, low) is on in `Directory.Build.props` and the Release build stayed at 0 warnings, and the four images are scanned by Trivy at High and Critical (fix available) with waivers only in `.trivyignore`. The image scan result itself is first produced by the CI run of this branch; it has not been run locally. A CycloneDX SBOM per image is attached to each GitHub Release. Pins: Pester `CI scans and SBOM (PHASE-12a)`.
 
 ### SR-14: Last-admin guard read the actor before taking the lock
 - Path group: 5. Authorization and headers

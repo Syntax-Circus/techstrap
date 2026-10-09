@@ -77,6 +77,10 @@ Prove that a stranger can use the packages from nuget.org alone:
 3. Run `dotnet restore` and confirm that every package comes from nuget.org.
 4. Use `AddTechStrapClient` and submit a ticket against the local compose stack, the way the console sample does. The dev API key exists only when the stack runs with `TECHSTRAP_SEED_DEV_DATA=true`; see "Running the sample" in [CLIENT-SDK.md](CLIENT-SDK.md) for the exact commands.
 
+## Scans and SBOMs
+
+CI fails the build on a known-vulnerable NuGet package, direct or transitive (`Vulnerable packages (direct and transitive)` in `build-test`, and `NuGetAudit` in `Directory.Build.props`), and on a High or Critical image finding that has a fix (the Trivy steps in `docker-build`). A finding that cannot be fixed yet is waived in `.trivyignore`: one line per CVE with a reason and a review date at most 90 days out, and the same waiver recorded as an accepted finding in `docs/security/SECURITY-REVIEW.md`. On a `v*` tag the `sbom` job in `release.yml` writes a CycloneDX SBOM per image (`sbom-api.cdx.json`, `sbom-admin.cdx.json`, `sbom-portal.cdx.json`, `sbom-worker.cdx.json`), waits for the GitHub Release that `publish-nuget.yml` creates, and attaches the files to it; they are also kept as the `sbom` workflow artifact.
+
 ## Rollback
 
 A published package cannot be replaced or deleted. If a version is bad:
