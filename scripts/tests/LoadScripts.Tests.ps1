@@ -25,8 +25,8 @@ Describe 'k6 load suite (static pins, PHASE-12b)' {
     }
 
     It 'encodes the 500 ms p95 budget and a zero server-error rate in code' {
-        foreach ($name in $script:Modules) { (Read-LoadFile "$name.js") | Should -Match ([regex]::Escape('p(95)<500')) -Because "$name.js" }
-        (Read-LoadFile 'scenarios/sustained.js') | Should -Match ([regex]::Escape('p(95)<500'))
+        foreach ($name in $script:Modules) { (Read-LoadFile "$name.js") | Should -Match ([regex]::Escape('p(95)<500') + '(?![0-9])') -Because "$name.js" }
+        (Read-LoadFile 'scenarios/sustained.js') | Should -Match ([regex]::Escape('p(95)<500') + '(?![0-9])')
         (Read-LoadFile 'scenarios/sustained.js') | Should -Match "server_errors'?\s*:\s*\[\s*'rate==0'"
         (Read-LoadFile 'scenarios/spike.js') | Should -Match "server_errors'?\s*:\s*\[\s*'rate==0'"
     }
