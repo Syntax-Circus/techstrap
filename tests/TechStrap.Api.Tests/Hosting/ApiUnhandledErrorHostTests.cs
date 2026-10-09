@@ -69,7 +69,7 @@ public sealed class ApiUnhandledErrorHostTests(TestPostgres postgres)
             problem.RootElement.TryGetProperty("stackTrace", out _).ShouldBeFalse();
             text.ShouldNotContain("hunter2");
             text.ShouldNotContain("SecretClass");
-            text.ShouldNotContain("InvalidOperationException");
+            text.ShouldNotContain(nameof(SecretFailureException));
             text.ShouldNotContain(" at ");
         }
         finally

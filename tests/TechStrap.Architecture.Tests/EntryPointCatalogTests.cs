@@ -53,4 +53,16 @@ public sealed class EntryPointCatalogTests(ITestOutputHelper output)
         code.GroupBy(entry => entry.Id).Where(group => group.Count() > 1).Select(group => group.Key).ShouldBeEmpty("coded twice or resolving two handlers");
         (diff.InDocNotInCode.Count + diff.InCodeNotInDoc.Count + diff.HandlerMismatches.Count).ShouldBe(0);
     }
+
+    [Fact]
+    public void Every_row_of_sections_7_1_to_7_5_is_understood_and_each_section_has_entries()
+    {
+        var parsed = EntryPointCatalog.Parse(File.ReadAllText(DocumentPath));
+
+        parsed.Unparsed.ShouldBeEmpty("section 7 table rows the gate could not read (fix the row or mark it 'no entry point')");
+        foreach (var section in new[] { "7.1", "7.2", "7.3", "7.4", "7.5" })
+        {
+            parsed.EntriesPerSection.GetValueOrDefault(section).ShouldBeGreaterThan(0, $"section {section} yielded no entry points");
+        }
+    }
 }

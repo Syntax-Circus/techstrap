@@ -22,7 +22,7 @@ public sealed class UpdateAgentRequestHandlerTests
     {
         _actor = Agent.Create("actor", "Sam", "sam@example.com", AgentRole.Admin, _clock).Value;
         _claims.Current.Returns(new AgentClaims("actor", "Sam", "sam@example.com", AgentRole.Admin));
-        _agents.GetBySubjectAsync("actor", Arg.Any<CancellationToken>()).Returns(_actor);
+        _agents.GetBySubjectFreshAsync("actor", Arg.Any<CancellationToken>()).Returns(_actor);
     }
 
     private UpdateAgentRequestHandler Handler() => new(_claims, _agents, _events, UnitOfWorkSubstitute.Create(), _clock);
@@ -107,7 +107,7 @@ public sealed class UpdateAgentRequestHandlerTests
     [Fact]
     public async Task An_actor_without_an_agent_row_is_asked_to_open_techstrap_first()
     {
-        _agents.GetBySubjectAsync("actor", Arg.Any<CancellationToken>()).Returns((Agent?)null);
+        _agents.GetBySubjectFreshAsync("actor", Arg.Any<CancellationToken>()).Returns((Agent?)null);
 
         var result = await Handler().HandleAsync(Guid.CreateVersion7(), new UpdateAgentRequest(false), TestContext.Current.CancellationToken);
 
@@ -131,7 +131,7 @@ public sealed class UpdateAgentRequestHandlerTests
     }
 
     [Fact(Timeout = 60_000)]
-    public async Task The_admin_lock_is_taken_before_the_actor_is_read()
+    public async Task The_admin_lock_is_taken_before_the_actor_is_read_untracked()
     {
         var target = Target(AgentRole.Agent);
         _agents.CountActiveAdminsLockedAsync(Arg.Any<CancellationToken>()).Returns(2);
@@ -141,7 +141,7 @@ public sealed class UpdateAgentRequestHandlerTests
         Received.InOrder(() =>
         {
             _agents.CountActiveAdminsLockedAsync(Arg.Any<CancellationToken>());
-            _agents.GetBySubjectAsync("actor", Arg.Any<CancellationToken>());
+            _agents.GetBySubjectFreshAsync("actor", Arg.Any<CancellationToken>());
         });
     }
 

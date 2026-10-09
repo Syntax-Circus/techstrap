@@ -15,6 +15,9 @@ internal sealed class AgentRepository(TechStrapDbContext context) : IAgentReposi
     public async Task<Agent?> GetBySubjectAsync(string oidcSubject, CancellationToken cancellationToken) =>
         (await context.Set<AgentRecord>().FirstOrDefaultAsync(a => a.OidcSubject == oidcSubject, cancellationToken))?.ToDomain();
 
+    public async Task<Agent?> GetBySubjectFreshAsync(string oidcSubject, CancellationToken cancellationToken) =>
+        (await context.Set<AgentRecord>().AsNoTracking().FirstOrDefaultAsync(a => a.OidcSubject == oidcSubject, cancellationToken))?.ToDomain();
+
     public async Task<PagedResult<Agent>> ListAsync(bool activeOnly, int page, int pageSize, CancellationToken cancellationToken)
     {
         page = Paging.NormalizePage(page);

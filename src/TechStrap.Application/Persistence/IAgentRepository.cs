@@ -10,6 +10,12 @@ public interface IAgentRepository
     Task<Agent?> GetBySubjectAsync(string oidcSubject, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Same lookup as <see cref="GetBySubjectAsync"/> but untracked, so it reflects the committed state now rather than a row the request scope already tracked.
+    /// Used for the actor check after a row lock (SR-14).
+    /// </summary>
+    Task<Agent?> GetBySubjectFreshAsync(string oidcSubject, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Ordered by name then email. Implementations normalize <paramref name="page"/> and <paramref name="pageSize"/> through
     /// <see cref="Paging"/> before querying.
     /// </summary>

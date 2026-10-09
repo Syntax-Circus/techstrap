@@ -31,9 +31,9 @@ public sealed class UpdateAgentRequestHandler(
             return Result<AgentDto>.Failure(new ResultError("is-active-required", "Send isActive as true or false.", ResultErrorKind.Validation, "isActive"));
         }
 
-        // Lock first: the lock query tracks the admin rows, so the actor read after it is the committed state of the transaction we queued behind.
+        // Lock first. The lock query tracks nothing; the actor row may already be tracked in this scope (the host authorization check loads it), so the read after the lock is a fresh untracked one, which sees the committed state of the transaction we queued behind.
         var activeAdmins = isActive ? 0 : await agents.CountActiveAdminsLockedAsync(cancellationToken);
-        var actor = await CurrentAgent.RequireActiveAsync(currentAgent, agents, cancellationToken);
+        var actor = await CurrentAgent.RequireActiveAsync(currentAgent, agents, cancellationToken, fresh: true);
         if (actor.IsFailure)
         {
             return Result<AgentDto>.Failure(actor.Errors[0]);

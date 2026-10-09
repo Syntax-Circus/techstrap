@@ -154,7 +154,7 @@ public sealed class PublicIntakeEndpointTests(TestPostgres postgres) : IAsyncLif
     [Fact(Timeout = 240_000)]
     public async Task Every_hostile_upload_through_the_multipart_form_gets_its_recorded_outcome()
     {
-        // One request per corpus entry: the per-IP web-form limit is raised so the twelve submissions are not throttled.
+        // One request per corpus entry: the per-IP web-form limit is raised so no corpus row is throttled.
         var (factory, database, _) = await StartAsync(extra: new Dictionary<string, string?> { ["RateLimiting:Intake:WebFormPermitLimit"] = "1000" });
         await using var _f = factory;
         using var client = factory.CreateClient();

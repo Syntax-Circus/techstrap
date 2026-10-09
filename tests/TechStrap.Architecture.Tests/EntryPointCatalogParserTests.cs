@@ -97,4 +97,50 @@ public sealed class EntryPointCatalogParserTests
         diff.InCodeNotInDoc.ShouldBeEmpty();
         diff.HandlerMismatches.ShouldHaveSingleItem().ShouldContain("ListAllTagsRequestHandler");
     }
+
+    [Fact]
+    public void A_row_with_a_malformed_handler_cell_is_collected_not_skipped()
+    {
+        var parsed = EntryPointCatalog.Parse(Section("7.1", "| `GET /api/products/{id}` (Agent) | GetProductRequestHandler without backticks | x | y | z | H | none |"));
+
+        parsed.Entries.ShouldBeEmpty();
+        parsed.Unparsed.ShouldHaveSingleItem().ShouldContain("/api/products/{id}");
+    }
+
+    [Fact]
+    public void A_row_whose_entry_cell_is_not_recognised_is_collected()
+    {
+        var parsed = EntryPointCatalog.Parse(Section("7.3", "| Something unexpected | `FooHandler` | x | y | z | H | none |"));
+
+        parsed.Unparsed.ShouldHaveSingleItem().ShouldContain("Something unexpected");
+    }
+
+    [Fact]
+    public void A_fourth_level_sub_heading_inside_a_section_does_not_end_it()
+    {
+        var markdown = $"### 7.2 Intake\n\n{Head}| `GET /api/a` (Agent) | `AHandler` | x | y | z | H | none |\n\n#### 7.2.1 More\n\n{Head}| `GET /api/b` (Agent) | `BHandler` | x | y | z | H | none |\n";
+
+        var parsed = EntryPointCatalog.Parse(markdown);
+
+        parsed.Entries.Select(entry => entry.Key).ShouldBe(["GET api/a", "GET api/b"]);
+        parsed.Unparsed.ShouldBeEmpty();
+        parsed.EntriesPerSection["7.2"].ShouldBe(2);
+    }
+
+    [Fact]
+    public void A_hash_comment_inside_a_fenced_block_does_not_end_the_section()
+    {
+        var markdown = $"### 7.2 Intake\n\n```bash\n# a shell comment\n| not | a table row\n```\n\n{Head}| `GET /api/a` (Agent) | `AHandler` | x | y | z | H | none |\n";
+
+        var parsed = EntryPointCatalog.Parse(markdown);
+
+        parsed.Entries.ShouldBe([new EntryPoint("http", "GET api/a", "AHandler")]);
+        parsed.Unparsed.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_section_with_no_readable_entry_reports_zero()
+    {
+        EntryPointCatalog.Parse(Section("7.4")).EntriesPerSection["7.4"].ShouldBe(0);
+    }
 }

@@ -39,19 +39,51 @@ public static partial class EntryPointCatalog
     [GeneratedRegex(@"\bI([A-Z]\w*Handler)\b")]
     private static partial Regex HandlerInterface();
 
-    public static IReadOnlyList<EntryPoint> FromDocument(string markdown)
+    /// <summary>What the document parse found: the entries, the 7.x table rows it could not read (the gate fails on any), and how many entries each of 7.1 to 7.5 yielded.</summary>
+    public sealed record ParsedCatalog(IReadOnlyList<EntryPoint> Entries, IReadOnlyList<string> Unparsed, IReadOnlyDictionary<string, int> EntriesPerSection);
+
+    [GeneratedRegex(@"^#{2,3} ")]
+    private static partial Regex ScopeBoundary();
+
+    [GeneratedRegex(@"no entry point|\bn/a\b", RegexOptions.IgnoreCase)]
+    private static partial Regex ExplicitNonEntry();
+
+    public static IReadOnlyList<EntryPoint> FromDocument(string markdown) => Parse(markdown).Entries;
+
+    public static ParsedCatalog Parse(string markdown)
     {
         var result = new List<EntryPoint>();
-        var inScope = false;
+        var unparsed = new List<string>();
+        var perSection = new Dictionary<string, int>(StringComparer.Ordinal);
+        string? section = null;
+        var inFence = false;
         foreach (var line in markdown.Split('\n').Select(text => text.TrimEnd('\r')))
         {
-            if (line.StartsWith('#'))
+            if (line.TrimStart().StartsWith("```", StringComparison.Ordinal))
             {
-                inScope = InScopeHeading().IsMatch(line);
+                inFence = !inFence;
                 continue;
             }
 
-            if (!inScope || !line.StartsWith('|'))
+            if (inFence)
+            {
+                continue;
+            }
+
+            // Only ## and ### headings end a section; #### sub-headings stay inside it.
+            if (ScopeBoundary().IsMatch(line))
+            {
+                var heading = InScopeHeading().Match(line);
+                section = heading.Success ? "7." + heading.Groups[1].Value : null;
+                if (section is not null)
+                {
+                    perSection.TryAdd(section, 0);
+                }
+
+                continue;
+            }
+
+            if (section is null || !line.StartsWith('|'))
             {
                 continue;
             }
@@ -62,16 +94,24 @@ public static partial class EntryPointCatalog
                 continue;
             }
 
-            var handler = Backticked().Matches(cells[1]).Select(match => match.Groups[1].Value).FirstOrDefault(token => token.EndsWith("Handler", StringComparison.Ordinal));
-            if (handler is null)
+            if (ExplicitNonEntry().IsMatch(cells[0]) || ExplicitNonEntry().IsMatch(cells[1]))
             {
                 continue;
             }
 
-            result.AddRange(ParseEntryCell(cells[0], handler));
+            var handler = Backticked().Matches(cells[1]).Select(match => match.Groups[1].Value).FirstOrDefault(token => token.EndsWith("Handler", StringComparison.Ordinal));
+            var entries = handler is null ? [] : ParseEntryCell(cells[0], handler).ToList();
+            if (entries.Count == 0)
+            {
+                unparsed.Add($"{section}: {line}");
+                continue;
+            }
+
+            result.AddRange(entries);
+            perSection[section] += entries.Count;
         }
 
-        return result;
+        return new ParsedCatalog(result, unparsed, perSection);
     }
 
     private static IEnumerable<EntryPoint> ParseEntryCell(string cell, string handler)
@@ -93,6 +133,11 @@ public static partial class EntryPointCatalog
         {
             var head = cell.Split(" (", 2)[0];
             var tokens = Backticked().Matches(head).Select(match => match.Groups[1].Value).ToList();
+            if (tokens.Count == 0)
+            {
+                yield break;
+            }
+
             var hub = tokens[0].Split('.')[0];
             foreach (var token in tokens)
             {

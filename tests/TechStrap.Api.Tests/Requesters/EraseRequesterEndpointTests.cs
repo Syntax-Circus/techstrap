@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using TechStrap.Api.Tests.Auth;
 using Serilog.Events;
+using TechStrap.Hosting.Logging;
 using TechStrap.Api.Tests.Customer;
 using TechStrap.Api.Tests.Intake;
 using TechStrap.Api.Tests.Tickets;
@@ -79,6 +80,11 @@ public sealed class EraseRequesterEndpointTests(TestPostgres postgres)
         var events = factory.LogSink.Events.ToList();
         events.Count.ShouldBeGreaterThan(0, "a silent sink would prove nothing");
         events.ShouldContain(e => e.Level <= LogEventLevel.Debug, "the Verbose setting must have taken effect");
+        // The enricher must have been active: MVC's "Executing action method ... with arguments" event was emitted and its Arguments property was replaced by the marker.
+        var argumentEvents = events.Where(e => e.MessageTemplate.Text.Contains("with arguments", StringComparison.Ordinal)).ToList();
+        argumentEvents.ShouldNotBeEmpty("MVC must have logged the action's arguments event, otherwise the redaction was never exercised");
+        argumentEvents.Select(e => (e.Properties["Arguments"] as ScalarValue)?.Value as string).ShouldAllBe(value => value == MvcArgumentsRedactionEnricher.ArgumentsMarker);
+        argumentEvents.ShouldAllBe(e => e.Level == LogEventLevel.Verbose); // MVC logs the arguments at Trace, which Serilog calls Verbose.
         events.ShouldContain(e => e.RenderMessage().Contains("/erase", StringComparison.Ordinal) && e.RenderMessage().Contains("POST", StringComparison.Ordinal), "the erase request itself must have been logged");
         foreach (var needle in new[] { email, localPart, name, subject, body, token })
         {

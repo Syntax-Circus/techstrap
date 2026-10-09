@@ -56,7 +56,8 @@ public sealed class DeleteTagRequestHandler(
             var loaded = await tickets.GetByIdsAsync(batch, cancellationToken);
             if (loaded.Count != batch.Length)
             {
-                throw new InvalidOperationException($"Tickets carrying tag {tagId} could not be loaded ({loaded.Count} of {batch.Length}).");
+                var missing = batch.Except(loaded.Select(t => t.Id));
+                throw new InvalidOperationException($"Tickets carrying tag {tagId} could not be loaded ({loaded.Count} of {batch.Length}); missing: {string.Join(", ", missing)}.");
             }
 
             foreach (var ticket in loaded)
