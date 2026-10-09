@@ -22,6 +22,7 @@ public sealed class UpdateProductRequestHandlerTests
     private readonly IAgentRepository _agents = Substitute.For<IAgentRepository>();
     private readonly IProductRepository _products = Substitute.For<IProductRepository>();
     private readonly IAdminEventRepository _events = Substitute.For<IAdminEventRepository>();
+    private readonly IProductLogoUrls _logoUrls = Substitute.For<IProductLogoUrls>();
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 10, 3, 9, 0, 0, TimeSpan.Zero));
     private readonly PortalLinkOptions _portal = new() { PublicUrl = "https://help.test/" };
     private readonly Agent _admin;
@@ -38,7 +39,7 @@ public sealed class UpdateProductRequestHandlerTests
     }
 
     private UpdateProductRequestHandler Handler(params Result[] commits) =>
-        new(_claims, _agents, _products, _events, UnitOfWorkSubstitute.Create(commits), Options.Create(_portal), _clock);
+        new(_claims, _agents, _products, _events, UnitOfWorkSubstitute.Create(commits), Options.Create(_portal), _logoUrls, _clock);
 
     [Fact]
     public async Task An_update_changes_name_branding_and_status_and_audits_what_changed()
@@ -322,5 +323,49 @@ public sealed class UpdateProductRequestHandlerTests
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.PortalHost.ShouldBe("support.help.test");
+    }
+
+    [Fact]
+    public async Task A_null_listed_flag_leaves_the_stored_value_and_is_not_audited()
+    {
+        _product.SetListedOnLanding(false);
+
+        var result = await Handler().HandleAsync(_product.Id, new UpdateProductRequest("Orbitly Cloud", SameBranding, true, 7), TestContext.Current.CancellationToken);
+
+        result.Value.ListedOnLanding.ShouldBeFalse();
+        _events.Received(1).Add(Arg.Is<AdminEvent>(e => e.PayloadJson == "{\"changed\":[\"name\"]}"));
+    }
+
+    [Fact]
+    public async Task Unlisting_a_product_is_audited_as_listedOnLanding()
+    {
+        var result = await Handler().HandleAsync(_product.Id, new UpdateProductRequest("Orbitly", SameBranding, true, 7, null, false), TestContext.Current.CancellationToken);
+
+        result.Value.ListedOnLanding.ShouldBeFalse();
+        _product.ListedOnLanding.ShouldBeFalse();
+        _events.Received(1).Add(Arg.Is<AdminEvent>(e => e.PayloadJson == "{\"changed\":[\"listedOnLanding\"]}"));
+    }
+
+    [Fact]
+    public async Task A_tagline_only_edit_is_audited_as_branding()
+    {
+        var request = new UpdateProductRequest("Orbitly", new ProductBrandingRequest("Orbitly", null, "#1F6FEB", null, null, "Tickets for the desktop app."), true, 7);
+
+        var result = await Handler().HandleAsync(_product.Id, request, TestContext.Current.CancellationToken);
+
+        result.Value.Branding.Tagline.ShouldBe("Tickets for the desktop app.");
+        _events.Received(1).Add(Arg.Is<AdminEvent>(e => e.PayloadJson == "{\"changed\":[\"branding\"]}"));
+    }
+
+    [Fact]
+    public async Task An_update_keeps_the_uploaded_logo_and_reports_its_url()
+    {
+        _product.SetUploadedLogo("0123456789abcdef0123456789abcdef.png");
+        _logoUrls.UrlFor("0123456789abcdef0123456789abcdef.png").Returns("https://api.test/product-logos/0123456789abcdef0123456789abcdef.png");
+
+        var result = await Handler().HandleAsync(_product.Id, new UpdateProductRequest("Orbitly Cloud", SameBranding, true, 7), TestContext.Current.CancellationToken);
+
+        _product.Branding.UploadedLogo.ShouldBe("0123456789abcdef0123456789abcdef.png");
+        result.Value.Branding.UploadedLogoUrl.ShouldBe("https://api.test/product-logos/0123456789abcdef0123456789abcdef.png");
     }
 }

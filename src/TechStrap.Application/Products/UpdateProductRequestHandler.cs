@@ -28,6 +28,7 @@ public sealed class UpdateProductRequestHandler(
     IAdminEventRepository adminEvents,
     IUnitOfWork unitOfWork,
     IOptions<PortalLinkOptions> portal,
+    IProductLogoUrls logoUrls,
     TimeProvider clock) : IUpdateProductRequestHandler
 {
     public async Task<Result<ProductDto>> HandleAsync(Guid productId, UpdateProductRequest request, CancellationToken cancellationToken)
@@ -47,7 +48,7 @@ public sealed class UpdateProductRequestHandler(
 
         // The stored branding is passed in so a logo address saved before the logo rule, and left as it is, does not block the edit (ProductBranding.CreateForUpdate).
         var input = request.Branding;
-        var branding = ProductBranding.CreateForUpdate(product.Branding, input?.DisplayName, input?.LogoPath, input?.AccentColour, input?.FromAddress, input?.ReplyTo);
+        var branding = ProductBranding.CreateForUpdate(product.Branding, input?.DisplayName, input?.LogoPath, input?.AccentColour, input?.FromAddress, input?.ReplyTo, input?.Tagline);
         if (branding.IsFailure)
         {
             return Result<ProductDto>.Failure(branding.Error!.ToError());
@@ -107,6 +108,13 @@ public sealed class UpdateProductRequestHandler(
             changed.Add("portalHost");
         }
 
+        // null = the caller did not send the field (a 0.2.0 client): the flag stays as stored.
+        var listed = request.ListedOnLanding ?? product.ListedOnLanding;
+        if (product.ListedOnLanding != listed)
+        {
+            changed.Add("listedOnLanding");
+        }
+
         var updated = product.UpdateDetails(request.Name, branding.Value);
         if (updated.IsFailure)
         {
@@ -120,10 +128,11 @@ public sealed class UpdateProductRequestHandler(
 
         if (changed.Count == 0)
         {
-            return Result<ProductDto>.Success(ProductMapping.ToDto(product));
+            return Result<ProductDto>.Success(ProductMapping.ToDto(product, logoUrls));
         }
 
         product.SetActive(request.IsActive);
+        product.SetListedOnLanding(listed);
         products.Update(product);
         AdminAudit.Record(adminEvents, AdminEventType.ProductUpdated, actor.Value, AdminSubjectType.Product, product.Id, new { changed }, clock);
 
@@ -135,6 +144,6 @@ public sealed class UpdateProductRequestHandler(
         }
 
         var saved = await products.GetByIdAsync(product.Id, cancellationToken) ?? product;
-        return Result<ProductDto>.Success(ProductMapping.ToDto(saved));
+        return Result<ProductDto>.Success(ProductMapping.ToDto(saved, logoUrls));
     }
 }

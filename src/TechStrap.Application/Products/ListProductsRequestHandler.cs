@@ -12,7 +12,7 @@ public interface IListProductsRequestHandler
 }
 
 /// <summary>GET /api/products (Agent): agents get active products; admins get all (D-022).</summary>
-public sealed class ListProductsRequestHandler(ICurrentAgentClaims currentAgent, IProductRepository products) : IListProductsRequestHandler
+public sealed class ListProductsRequestHandler(ICurrentAgentClaims currentAgent, IProductRepository products, IProductLogoUrls logoUrls) : IListProductsRequestHandler
 {
     public async Task<Result<IReadOnlyList<ProductDto>>> HandleAsync(CancellationToken cancellationToken)
     {
@@ -22,6 +22,6 @@ public sealed class ListProductsRequestHandler(ICurrentAgentClaims currentAgent,
         }
 
         var found = await products.ListAsync(activeOnly: claims.Role != AgentRole.Admin, cancellationToken);
-        return Result<IReadOnlyList<ProductDto>>.Success([.. found.Select(ProductMapping.ToDto)]);
+        return Result<IReadOnlyList<ProductDto>>.Success([.. found.Select(product => ProductMapping.ToDto(product, logoUrls))]);
     }
 }

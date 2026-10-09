@@ -20,7 +20,7 @@ public sealed class ListProductsRequestHandlerTests
         _claims.Current.Returns(new AgentClaims("a", "Sam", "sam@example.com", AgentRole.Agent));
         _products.ListAsync(true, Arg.Any<CancellationToken>()).Returns([_product]);
 
-        var result = await new ListProductsRequestHandler(_claims, _products).HandleAsync(TestContext.Current.CancellationToken);
+        var result = await new ListProductsRequestHandler(_claims, _products, Substitute.For<IProductLogoUrls>()).HandleAsync(TestContext.Current.CancellationToken);
 
         result.Value.ShouldHaveSingleItem().Version.ShouldBe(3u);
         await _products.Received(1).ListAsync(true, Arg.Any<CancellationToken>());
@@ -32,7 +32,7 @@ public sealed class ListProductsRequestHandlerTests
         _claims.Current.Returns(new AgentClaims("a", "Sam", "sam@example.com", AgentRole.Admin));
         _products.ListAsync(false, Arg.Any<CancellationToken>()).Returns([_product]);
 
-        var result = await new ListProductsRequestHandler(_claims, _products).HandleAsync(TestContext.Current.CancellationToken);
+        var result = await new ListProductsRequestHandler(_claims, _products, Substitute.For<IProductLogoUrls>()).HandleAsync(TestContext.Current.CancellationToken);
 
         result.Value.ShouldHaveSingleItem();
         await _products.Received(1).ListAsync(false, Arg.Any<CancellationToken>());

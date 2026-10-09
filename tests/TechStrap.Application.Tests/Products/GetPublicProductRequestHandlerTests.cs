@@ -11,6 +11,7 @@ namespace TechStrap.Application.Tests.Products;
 public sealed class GetPublicProductRequestHandlerTests
 {
     private readonly IProductRepository _products = Substitute.For<IProductRepository>();
+    private readonly IProductLogoUrls _logoUrls = Substitute.For<IProductLogoUrls>();
 
     private Product Stored(string key, string displayName, string accentColour, bool isActive)
     {
@@ -25,7 +26,7 @@ public sealed class GetPublicProductRequestHandlerTests
     {
         // Arrange
         var product = Stored("orbitly", "Orbitly", "#7C3AED", isActive: true);
-        var handler = new GetPublicProductRequestHandler(_products);
+        var handler = new GetPublicProductRequestHandler(_products, _logoUrls);
 
         // Act
         var result = await handler.HandleAsync("orbitly", TestContext.Current.CancellationToken);
@@ -50,7 +51,7 @@ public sealed class GetPublicProductRequestHandlerTests
         var branding = ProductBranding.Restore("Orbitly", null, "#7C3AED", null, null);
         _products.GetByKeyAsync("orbitly", Arg.Any<CancellationToken>()).Returns(Product.Restore(Guid.CreateVersion7(), "orbitly", "Orbitly", "ORB", branding, true, 1, host));
 
-        var result = await new GetPublicProductRequestHandler(_products).HandleAsync("orbitly", TestContext.Current.CancellationToken);
+        var result = await new GetPublicProductRequestHandler(_products, _logoUrls).HandleAsync("orbitly", TestContext.Current.CancellationToken);
 
         result.Value.PortalHost.ShouldBe(host);
     }
@@ -63,7 +64,7 @@ public sealed class GetPublicProductRequestHandlerTests
     {
         // Arrange
         _products.GetByKeyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((Product?)null);
-        var handler = new GetPublicProductRequestHandler(_products);
+        var handler = new GetPublicProductRequestHandler(_products, _logoUrls);
 
         // Act
         var result = await handler.HandleAsync(key, TestContext.Current.CancellationToken);
@@ -78,7 +79,7 @@ public sealed class GetPublicProductRequestHandlerTests
     {
         // Arrange
         Stored("dormant", "Dormant", "#7C3AED", isActive: false);
-        var handler = new GetPublicProductRequestHandler(_products);
+        var handler = new GetPublicProductRequestHandler(_products, _logoUrls);
 
         // Act
         var result = await handler.HandleAsync("dormant", TestContext.Current.CancellationToken);
@@ -98,5 +99,19 @@ public sealed class GetPublicProductRequestHandlerTests
         // Assert
         propertyNames.ShouldNotContain(pn => pn.Contains("from"));
         propertyNames.ShouldNotContain(pn => pn.Contains("reply"));
+    }
+
+    [Fact]
+    public async Task The_public_product_carries_the_tagline_and_the_uploaded_logo_wins_over_the_linked_one()
+    {
+        var branding = ProductBranding.Restore("Orbitly", "https://cdn.orbitly.test/l.png", "#1F6FEB", null, null, "One line.", "0123456789abcdef0123456789abcdef.png");
+        var product = Product.Restore(Guid.CreateVersion7(), "orbitly", "Orbitly", "ORB", branding, true, 1);
+        _products.GetByKeyAsync("orbitly", Arg.Any<CancellationToken>()).Returns(product);
+        _logoUrls.UrlFor("0123456789abcdef0123456789abcdef.png").Returns("https://api.test/product-logos/0123456789abcdef0123456789abcdef.png");
+
+        var result = await new GetPublicProductRequestHandler(_products, _logoUrls).HandleAsync("orbitly", TestContext.Current.CancellationToken);
+
+        result.Value.Tagline.ShouldBe("One line.");
+        result.Value.LogoPath.ShouldBe("https://api.test/product-logos/0123456789abcdef0123456789abcdef.png");
     }
 }
