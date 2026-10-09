@@ -16,7 +16,13 @@ namespace TechStrap.Infrastructure.IntegrationTests;
 /// </summary>
 public sealed class PostgresFixture : IAsyncLifetime
 {
-    public const string PostgresImage = "postgres:17";
+    /// <summary>
+    /// postgres:17 from Docker Hub unless TECHSTRAP_TEST_POSTGRES_IMAGE names another reference. CI names the official image's mirror on a
+    /// registry GitHub's runners can always reach (docs/development/RELEASING.md, "Docker Hub and the tests"); local runs keep the default.
+    /// </summary>
+    public static string PostgresImage { get; } =
+        Environment.GetEnvironmentVariable("TECHSTRAP_TEST_POSTGRES_IMAGE") is { Length: > 0 } image ? image : "postgres:17";
+
     private const string TemplateDatabase = "techstrap_template";
     private const string MaintenanceDatabase = "postgres";
 

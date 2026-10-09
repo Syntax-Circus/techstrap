@@ -81,16 +81,20 @@ git checkout v<version>
 
 `-PushLatest` defaults to true; pass `-PushLatest:$false` for a prerelease.
 
-## Docker Hub credentials for the tests
+## Docker Hub and the tests
 
-The test jobs (`build-test` in `ci.yml`, `pack` in `publish-nuget.yml`) still pull `postgres:17` from Docker Hub through Testcontainers, and the shared runners exhaust Docker Hub's anonymous pull limit. Both jobs therefore log in to Docker Hub first, with two repository secrets:
+The Docker-backed tests start `postgres:17` through Testcontainers. On 2026-10-09 GitHub's shared runners first exhausted Docker Hub's anonymous pull limit (`toomanyrequests`) and then could not reach its token endpoint at all, which failed every Docker-backed test, with and without credentials. The test jobs (`build-test` in `ci.yml`, `pack` in `publish-nuget.yml`) therefore no longer depend on Docker Hub:
+
+- `TECHSTRAP_TEST_POSTGRES_IMAGE=public.ecr.aws/docker/library/postgres:17`: the two Postgres fixtures (`TestPostgres`, `PostgresFixture`) read this variable and default to `postgres:17`. ECR Public carries the official Docker library images under `docker/library/`, same manifest digest as Docker Hub (`docker buildx imagetools inspect` both to compare). A local run leaves the variable unset and pulls from Docker Hub as before.
+- `TESTCONTAINERS_RYUK_DISABLED=true`: a runner is discarded after the job, so nothing needs reaping.
+- A best-effort Docker Hub login (`continue-on-error`, two-minute timeout) with the repository secrets below, for anything that still reaches Docker Hub. It is skipped when the secrets are absent (pull requests from forks, Dependabot) and its failure never fails the job.
 
 | Secret | Value |
 | --- | --- |
 | `DOCKERHUB_USERNAME` | The Docker Hub username (not the e-mail address). |
 | `DOCKERHUB_TOKEN` | A Docker Hub personal access token with **Public Repo Read-only** permission, created under Account settings, Personal access tokens. |
 
-The login step is skipped when the secrets are absent (pull requests from forks, Dependabot), and the pulls are then anonymous as before. Ryuk is disabled on the runners (`TESTCONTAINERS_RYUK_DISABLED=true`): a runner is discarded after the job, so nothing needs reaping, and it saves one Docker Hub pull per test assembly. Rotate the token by generating a new one and updating `DOCKERHUB_TOKEN`; no workflow change is needed.
+Rotate the token by generating a new one and updating `DOCKERHUB_TOKEN`; no workflow change is needed. If ECR Public ever throttles the runners too, mirror the image into the organisation's GHCR (`docker tag postgres:17 ghcr.io/syntax-circus/postgres:17 && docker push ...` with a `write:packages` token) and point the variable there.
 
 ## Post-publish check
 

@@ -18,19 +18,23 @@ jobs:
     name: Build and test
     runs-on: ubuntu-latest
     env:
-      # Testcontainers pulls postgres:17 and testcontainers/ryuk from Docker Hub, and GitHub's shared runners exhaust Docker Hub's
-      # anonymous pull limit (2026-10-09: two runs failed every Docker-backed test on "toomanyrequests" before a single test ran).
-      # The login below makes the pulls authenticated. Ryuk is not needed on an ephemeral runner, which saves one pull per assembly.
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      # Nothing in this job needs Docker Hub (2026-10-09: GitHub's shared runners exhausted its anonymous pull limit and then its token endpoint
+      # timed out, which failed every Docker-backed test, with and without credentials). Testcontainers pulls the official postgres:17 from its
+      # digest-identical mirror on ECR Public, and ryuk is not needed on an ephemeral runner. The login is best effort: it lifts the anonymous
+      # limit for anything that still reaches Docker Hub, but its failure never fails the job.
+      TECHSTRAP_TEST_POSTGRES_IMAGE: public.ecr.aws/docker/library/postgres:17
       TESTCONTAINERS_RYUK_DISABLED: 'true'
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # GitVersion needs full history
 
-      # Skipped when the secrets are absent (pull requests from forks, Dependabot): the pulls are then anonymous, as before.
-      - name: Log in to Docker Hub
+      # Skipped when the secrets are absent (pull requests from forks, Dependabot).
+      - name: Log in to Docker Hub (best effort)
         if: env.DOCKERHUB_USERNAME != ''
+        continue-on-error: true
+        timeout-minutes: 2
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
