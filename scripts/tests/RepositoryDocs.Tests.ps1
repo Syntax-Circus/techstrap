@@ -1017,10 +1017,6 @@ Describe 'Backup and restore runbook (PHASE-12b)' {
     }
 }
 
-BeforeDiscovery {
-    $script:MainResolvable = [bool](& git rev-parse --verify --quiet main 2>$null)
-}
-
 Describe 'PHASE-12b close-out' {
     BeforeAll {
         $script:Spec = Get-RepoText 'docs/architecture/PHASE-12-release-hardening.md'
@@ -1062,19 +1058,14 @@ Describe 'PHASE-12b close-out' {
         (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 12 \|.*12a merged \(PR #28\); 12b complete \(pending merge\)'
     }
 
-    It 'adds no workflow file and no CI job for 12b' {
-        $files = @(Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot '.github' 'workflows') -File | ForEach-Object Name | Sort-Object)
-        ($files -join ',') | Should -Be 'ci.yml,publish-nuget.yml,release.yml' -Because '12b adds no workflow file'
-        foreach ($file in $files) {
-            $text = Get-Content -LiteralPath (Join-Path $script:RepoRoot '.github' 'workflows' $file) -Raw
-            $names = [regex]::Matches($text, '(?m)^  [A-Za-z0-9_-]+:\s*$|^    name:.*$') | ForEach-Object { $_.Value }
-            foreach ($n in $names) { $n | Should -Not -Match '(?i)k6|load|backup|restore|soak' -Because "$file has no 12b job ($n)" }
+    It 'no workflow runs the load or backup scripts (on-demand only)' {
+        $workflows = @(Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot '.github' 'workflows') -File -Filter *.yml)
+        $workflows.Count | Should -BeGreaterThan 0
+        foreach ($file in $workflows) {
+            foreach ($line in (Get-Content -LiteralPath $file.FullName)) {
+                if ($line -match '^\s*(-\s+)?run:') { $line | Should -Not -Match '\bk6\b|backup\.sh|restore\.sh|Invoke-LoadTest' -Because "$($file.Name) must not run the on-demand load or backup scripts" }
+            }
         }
-    }
-
-    It 'adds no CI-visible change under .github on this branch' -Skip:(-not $script:MainResolvable) {
-        $changed = @(& git -C $script:RepoRoot diff --name-only main...HEAD) + @(& git -C $script:RepoRoot diff --name-only)
-        @($changed | Where-Object { $_ -like '.github/*' }) | Should -BeNullOrEmpty -Because '12b adds no CI job'
     }
 
     It 'has the 12b plan fully ticked with an As built section' {

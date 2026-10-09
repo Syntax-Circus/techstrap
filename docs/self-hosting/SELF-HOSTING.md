@@ -355,4 +355,4 @@ The procedure, the encrypted backup and restore scripts and the drill are in [ba
 
 ## Other identity providers
 
-Authentik is the tested example ([AUTHENTIK.md](AUTHENTIK.md)). Keycloak and other providers are untested; the contract in [OIDC requirements](#oidc-requirements) is what they must satisfy.
+Authentik is the worked example (verified against a live Authentik in 12c) ([AUTHENTIK.md](AUTHENTIK.md)). Keycloak and other providers are untested; the contract in [OIDC requirements](#oidc-requirements) is what they must satisfy.

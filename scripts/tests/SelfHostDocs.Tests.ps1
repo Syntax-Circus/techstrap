@@ -2,6 +2,18 @@ BeforeAll {
     $script:RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..' '..')).Path
     function Get-RepoText { param([string]$RelativePath) Get-Content -LiteralPath (Join-Path $script:RepoRoot $RelativePath) -Raw }
 
+    # GitHub-style slugs of a file's headings: lower case, drop everything but letters, digits, space and hyphen, spaces to hyphens.
+    # Lines inside ``` fences (shell comments such as "# comment") are not headings and are skipped.
+    function Get-HeadingSlugs {
+        param([string]$Path)
+        $inFence = $false
+        foreach ($line in (Get-Content -LiteralPath $Path)) {
+            if ($line -match '^\s*```') { $inFence = -not $inFence; continue }
+            if ($inFence) { continue }
+            if ($line -match '^#{1,6}\s+(?<t>.+?)\s*$') { (($Matches['t'].ToLowerInvariant() -replace '[^a-z0-9 \-]', '') -replace ' ', '-') }
+        }
+    }
+
     # Copies of the ConfigContract.Tests.ps1 helpers (same regexes; those live inside its BeforeAll and cannot be dot-sourced).
     function ConvertTo-IndexlessKey { param([string]$Key) return ($Key -replace '__\d+(?=__|$)', '__0') }
     function Get-EnvEntries {
@@ -134,8 +146,7 @@ Describe 'SELF-HOSTING.md content (PHASE-12b)' {
             $target = if ($path) { Join-Path $script:RepoRoot 'docs' 'self-hosting' $path } else { Join-Path $script:RepoRoot 'docs' 'self-hosting' 'SELF-HOSTING.md' }
             Test-Path -LiteralPath $target | Should -BeTrue -Because $path
             if ($frag) {
-                # GitHub-style slugs of the target's headings: lower case, drop everything but letters, digits, space and hyphen, spaces to hyphens.
-                $slugs = foreach ($h in (Get-Content -LiteralPath $target | Where-Object { $_ -match '^#{1,6}\s+(?<t>.+?)\s*$' } | ForEach-Object { $Matches['t'] })) { (($h.ToLowerInvariant() -replace '[^a-z0-9 \-]', '') -replace ' ', '-') }
+                $slugs = @(Get-HeadingSlugs -Path $target)
                 $slugs | Should -Contain $frag -Because "anchor #$frag in $path"
             }
         }
@@ -217,7 +228,7 @@ Describe 'Authentik guide (PHASE-12b)' {
                 $target = if ($path) { Join-Path $script:RepoRoot 'docs' 'self-hosting' $path } else { Join-Path $script:RepoRoot 'docs' 'self-hosting' $name }
                 Test-Path -LiteralPath $target | Should -BeTrue -Because "$name links to $path"
                 if ($frag) {
-                    $slugs = foreach ($h in (Get-Content -LiteralPath $target | Where-Object { $_ -match '^#{1,6}\s+(?<t>.+?)\s*$' } | ForEach-Object { $Matches['t'] })) { (($h.ToLowerInvariant() -replace '[^a-z0-9 \-]', '') -replace ' ', '-') }
+                    $slugs = @(Get-HeadingSlugs -Path $target)
                     $slugs | Should -Contain $frag -Because "anchor #$frag in $path (from $name)"
                 }
             }
@@ -266,4 +277,33 @@ Describe 'Authentik guide (PHASE-12b)' {
     }
 
     It 'is ASCII only' { ([regex]::IsMatch($script:Authentik, '[^\x00-\x7F]')) | Should -BeFalse }
+}
+
+Describe 'self-hosting wording that depends on the 12c live Authentik check' {
+    It 'calls Authentik a worked example verified in 12c, not a tested one' {
+        $guide = Get-RepoText 'docs/self-hosting/SELF-HOSTING.md'
+        $guide | Should -Match ([regex]::Escape('worked example (verified against a live Authentik in 12c)'))
+        $guide | Should -Not -Match 'Authentik is the tested example'
+    }
+
+    It 'tells the reader to add the post-logout URI as a strict Redirect URIs entry' {
+        $authentik = Get-RepoText 'docs/self-hosting/AUTHENTIK.md'
+        $authentik | Should -Match ([regex]::Escape('add both as strict entries in Redirect URIs (older versions show a separate post-logout field)'))
+    }
+}
+
+Describe 'heading slug scan' {
+    It 'skips lines inside code fences' {
+        $path = Join-Path ([System.IO.Path]::GetTempPath()) ("slugs-{0}.md" -f [guid]::NewGuid().ToString('N'))
+        try {
+            $fence = ([string][char]96) * 3
+            [System.IO.File]::WriteAllText($path, ("# Real heading", "${fence}bash", "# fenced comment", $fence, "## Second heading", "") -join "`n")
+            $slugs = @(Get-HeadingSlugs -Path $path)
+            $slugs | Should -Contain 'real-heading'
+            $slugs | Should -Contain 'second-heading'
+            $slugs | Should -Not -Contain 'fenced-comment'
+        } finally {
+            Remove-Item -LiteralPath $path -ErrorAction SilentlyContinue
+        }
+    }
 }
