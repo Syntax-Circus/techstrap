@@ -21,6 +21,10 @@ internal sealed class ProductRecordConfiguration : IEntityTypeConfiguration<Prod
         builder.Property(p => p.FromAddress).HasMaxLength(DomainLimits.EmailMaxLength);
         builder.Property(p => p.ReplyTo).HasMaxLength(DomainLimits.EmailMaxLength);
         builder.Property(p => p.PortalHost).HasMaxLength(DomainLimits.HostNameMaxLength);
+        builder.Property(p => p.Tagline).HasMaxLength(DomainLimits.TaglineMaxLength);
+        builder.Property(p => p.UploadedLogo).HasMaxLength(DomainLimits.UploadedLogoNameMaxLength);
+        // Existing rows become listed when the column is added (D-052).
+        builder.Property(p => p.ListedOnLanding).HasDefaultValue(true);
         builder.HasXminConcurrencyToken(p => p.Version);
         builder.HasIndex(p => p.Key).IsUnique();
         builder.HasIndex(p => p.NumberPrefix).IsUnique();

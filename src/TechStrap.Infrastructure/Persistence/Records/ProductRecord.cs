@@ -25,6 +25,13 @@ internal sealed class ProductRecord
 
     public string? PortalHost { get; set; }
 
+    public string? Tagline { get; set; }
+
+    /// <summary>The stored file name of the uploaded logo (<c>{32 hex}.{ext}</c>), or null (D-052).</summary>
+    public string? UploadedLogo { get; set; }
+
+    public bool ListedOnLanding { get; set; } = true;
+
     /// <summary>Postgres <c>xmin</c>, the optimistic concurrency token.</summary>
     public uint Version { get; set; }
 }
