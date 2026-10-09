@@ -181,4 +181,17 @@ Describe 'CI scans (PHASE-12a)' {
         }
         (Get-RepoText 'docs/development/RELEASING.md') | Should -Match '## Image platforms'
     }
+
+    It 'the test jobs log in to Docker Hub from secrets (guarded) and run without ryuk, and RELEASING.md names the secrets' {
+        foreach ($workflow in $script:Ci, (Get-RepoText '.github/workflows/publish-nuget.yml')) {
+            $flat = $workflow -replace '\s+', ' '
+            $flat | Should -Match "TESTCONTAINERS_RYUK_DISABLED: 'true'"
+            $flat | Should -Match "if: env\.DOCKERHUB_USERNAME != '' uses: docker/login-action@v\d+ with: username: \$\{\{ secrets\.DOCKERHUB_USERNAME \}\} password: \$\{\{ secrets\.DOCKERHUB_TOKEN \}\}"
+        }
+        $releasing = Get-RepoText 'docs/development/RELEASING.md'
+        $releasing | Should -Match '## Docker Hub credentials for the tests'
+        $releasing | Should -Match 'DOCKERHUB_USERNAME'
+        $releasing | Should -Match 'DOCKERHUB_TOKEN'
+        $releasing | Should -Match 'Public Repo Read-only'
+    }
 }

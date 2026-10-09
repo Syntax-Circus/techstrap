@@ -81,6 +81,17 @@ git checkout v<version>
 
 `-PushLatest` defaults to true; pass `-PushLatest:$false` for a prerelease.
 
+## Docker Hub credentials for the tests
+
+The test jobs (`build-test` in `ci.yml`, `pack` in `publish-nuget.yml`) still pull `postgres:17` from Docker Hub through Testcontainers, and the shared runners exhaust Docker Hub's anonymous pull limit. Both jobs therefore log in to Docker Hub first, with two repository secrets:
+
+| Secret | Value |
+| --- | --- |
+| `DOCKERHUB_USERNAME` | The Docker Hub username (not the e-mail address). |
+| `DOCKERHUB_TOKEN` | A Docker Hub personal access token with **Public Repo Read-only** permission, created under Account settings, Personal access tokens. |
+
+The login step is skipped when the secrets are absent (pull requests from forks, Dependabot), and the pulls are then anonymous as before. Ryuk is disabled on the runners (`TESTCONTAINERS_RYUK_DISABLED=true`): a runner is discarded after the job, so nothing needs reaping, and it saves one Docker Hub pull per test assembly. Rotate the token by generating a new one and updating `DOCKERHUB_TOKEN`; no workflow change is needed.
+
 ## Post-publish check
 
 Prove that a stranger can use the packages from nuget.org alone:
