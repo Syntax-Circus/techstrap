@@ -321,7 +321,7 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P12-T06 | Audit authorization |
 | P12-T07 | Verify privacy handling |
 | P12-T08 | Verify headers, CSP, CORS, forwarded headers and error detail |
-| P12-T09 | Dependency scan, image scan and SBOM |
+| P12-T09 | Dependency scan and image scan (no SBOM, D-051 amendment) |
 | P12-T10 | Fix findings with regression tests |
 | P12-T11 | k6 load scripts |
 | P12-T12 | Execute load tests on UAT and record results |

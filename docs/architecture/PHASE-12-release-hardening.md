@@ -43,7 +43,7 @@ Where this page and D-051 differ, D-051 wins.
 - The work ships as three pull requests: 12a hardening (T01 to T10, T19 and the carried-forward PHASE-03/04 items), 12b docs and scripts (T11, T13, T16, T17), 12c UAT and release (T12, T14, T15, T18, T20, T21).
 - The load and recovery budgets are accepted as stated. The UAT box and its Postgres exist; the Authentik clients and groups (owner action #7) must be set up before 12c's T14.
 - OpenAPI stays served anonymously in Production; 12a tests that the document and `/health/ready` reveal no secrets.
-- Scans fail CI on High/Critical from day one: `dotnet list package --vulnerable --include-transitive`, Trivy with a `.trivyignore` for documented waivers, and a CycloneDX SBOM per image attached to the GitHub Release by `release.yml`. Nistify is optional and not wired.
+- Scans fail CI on High/Critical from day one: `dotnet list package --vulnerable --include-transitive`, Trivy with a `.trivyignore` for documented waivers. Nistify is optional and not wired. (Amended 2026-10-09: no SBOM is published.)
 - The review document is `docs/security/SECURITY-REVIEW.md` (a living document with a "Release 0.3.0" section), not `SECURITY-REVIEW-1.0.md`.
 - `MessageThread` is `MessageBubble` (`Features/Tickets/MessageBubble.razor`); the Admin rule lives in `tests/TechStrap.Admin.Tests/MarkupStringSiteTests`, the Portal rule in Architecture.Tests `PortalRules`.
 - API keys are looked up by the full SHA-256 hash (`src/TechStrap.Api/Security/ProductApiKeyValidator.cs`), not by prefix; the stored prefix is for display, audit and the rate-limit partition.
@@ -108,7 +108,7 @@ phase verifies configuration and upgrades only for security fixes.
 - [ ] `tests/load/` scripts and `docs/load-test-results.md` meeting the agreed budgets.
 - [ ] `docs/runbooks/backup-restore.md`, backup script(s), and a recorded restore drill.
 - [ ] `docs/self-hosting.md` and `docs/self-hosting-authentik.md` (linking the `syntax-circus-authentik` repo).
-- [ ] Dependency vulnerability report/SBOM attached to the release.
+- [ ] Dependency vulnerability report/SBOM attached to the release. **As built (12a):** scans run in CI; no SBOM (D-051 amendment 2026-10-09).
 - [ ] UAT deployment of the release candidate with soak results and dashboards/alerts.
 - [ ] Final documentation pass (README, CONTRIBUTING, SECURITY.md, architecture docs status updated).
 - [ ] `v1.0.0` tag, GHCR images, NuGet packages and GitHub Release published.
@@ -147,10 +147,10 @@ phase verifies configuration and upgrades only for security fixes.
   - **Depends on:** P12-T01
   - **Validation:** Test matrix per host: CSP, `X-Content-Type-Options`, `Referrer-Policy`, HSTS note (TLS terminated outside), no CORS wildcard for credentialed endpoints, ProblemDetails without stack traces; results recorded.
   - **As built (12a):** headers per host in Production: `SecurityHeadersHostTests`, `ContentSecurityPolicyHostTests`, `StrictTransportSecurityHostTests`, `CorsAbsenceHostTests`, `ApiUnhandledErrorHostTests`, `PublicDocumentsSecretsTests`; review group 5 and its per-host header table.
-- [x] **P12-T09** Run dependency vulnerability scan, container image scan and generate an SBOM; triage findings
+- [x] **P12-T09** Run dependency vulnerability scan, container image scan; triage findings
   - **Depends on:** P11 (final dependency set)
-  - **Validation:** `dotnet list package --vulnerable --include-transitive` clean or accepted; image scan has no High/Critical without a documented waiver; SBOM stored with the release artifacts.
-  - **As built (12a):** CI fails on vulnerable packages (direct and transitive) and on High/Critical image findings (Trivy), and publishes CycloneDX SBOMs on the release; local scan clean (SR-13).
+  - **Validation:** `dotnet list package --vulnerable --include-transitive` clean or accepted; image scan has no High/Critical without a documented waiver.
+  - **As built (12a):** CI fails on vulnerable packages (direct and transitive) and on High/Critical image findings (Trivy), local scan clean (SR-13); no SBOM is published (D-051 amendment 2026-10-09).
 - [x] **P12-T10** Fix findings from T02–T09, each as a small PR with a regression test; update the review document statuses
   - **Depends on:** P12-T02 … P12-T09
   - **Validation:** All High/Critical closed with test references; Medium accepted or fixed with rationale; `dotnet test` green.
@@ -188,7 +188,7 @@ phase verifies configuration and upgrades only for security fixes.
   - **Validation:** Link check passes; docs reference the actual shipped env keys and image names; owner approves the release notes.
 - [ ] **P12-T21** Tag and publish `v1.0.0` from `main`; verify images, packages, release and the upgrade path from `rc`
   - **Depends on:** P12-T18, P12-T20
-  - **Validation:** CI publishes `ghcr.io/syntax-circus/techstrap-{api,admin,portal,worker}:1.0.0` and `latest`, the three NuGet packages at `1.0.0`, and a GitHub Release with SBOM/notes; `docker compose pull && up` on UAT upgrades from rc without data loss; fresh install from the self-host guide works against the released images.
+  - **Validation:** CI publishes `ghcr.io/syntax-circus/techstrap-{api,admin,portal,worker}:1.0.0` and `latest`, the three NuGet packages at `1.0.0`, and a GitHub Release with notes; `docker compose pull && up` on UAT upgrades from rc without data loss; fresh install from the self-host guide works against the released images.
 
 ## Success Criteria
 

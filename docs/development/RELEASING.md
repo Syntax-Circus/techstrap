@@ -9,7 +9,6 @@ Pushing a tag such as `v0.1.0` or `v0.1.0-rc.1` starts two independent workflows
 | Workflow | Publishes |
 | --- | --- |
 | `release.yml` | The four multi-arch images (Api, Admin, Portal, Worker) to GHCR. |
-| `sbom.yml` | After `publish-nuget.yml` completes for a tag: a CycloneDX SBOM per image, attached to the GitHub Release. |
 | `publish-nuget.yml` | `TechStrap.Contracts`, `TechStrap.Client` and `TechStrap.Client.Maui` to nuget.org, then the GitHub Release `v<version>` with the packages attached and generated notes. |
 
 `publish-nuget.yml` has two jobs. `pack` builds, runs the .NET tests (including the Docker-backed ones), packs the three packages with the tag's version and runs `scripts/Test-PackageContents.ps1`.
@@ -61,7 +60,7 @@ The same pack and check run locally with the commands under "Local pack" in [CLI
    git push origin v0.1.0-rc.1
    ```
 
-3. Watch both workflows. `release.yml` pushes the images. `publish-nuget.yml` runs `pack`, then waits on the `release` environment: a reviewer approves it. When it completes, `sbom.yml` attaches the SBOMs to the Release.
+3. Watch both workflows. `release.yml` pushes the images. `publish-nuget.yml` runs `pack`, then waits on the `release` environment: a reviewer approves it.
    After `gh release create --generate-notes`, paste the Contracts README `## Version notes` entry for the version into the GitHub Release body.
 4. Verify the result: the three packages at that version on nuget.org (indexing can take a few minutes), and the Release page for the tag with the packages attached.
 
@@ -78,11 +77,11 @@ Prove that a stranger can use the packages from nuget.org alone:
 3. Run `dotnet restore` and confirm that every package comes from nuget.org.
 4. Use `AddTechStrapClient` and submit a ticket against the local compose stack, the way the console sample does. The dev API key exists only when the stack runs with `TECHSTRAP_SEED_DEV_DATA=true`; see "Running the sample" in [CLIENT-SDK.md](CLIENT-SDK.md) for the exact commands.
 
-## Scans and SBOMs
+## Scans
 
 CI fails the build on a known-vulnerable NuGet package, direct or transitive (`Vulnerable packages (direct and transitive)` in `build-test`, and `NuGetAudit` in `Directory.Build.props`), and on a High or Critical image finding that has a fix (the Trivy steps in `docker-build`). A finding that cannot be fixed yet is waived, and the waiver is recorded as an accepted finding in `docs/security/SECURITY-REVIEW.md`. An image finding goes in `.trivyignore`: one line per CVE with a reason and a review date at most 90 days out. A NuGet advisory goes in `Directory.Build.props` as `<NuGetAuditSuppress Include="https://github.com/advisories/GHSA-..." />`, with a comment giving the reason and the review date.
 
-SBOMs: `sbom.yml` runs when `publish-nuget.yml` completes successfully for a `v*` tag push. It writes a CycloneDX SBOM per image (`sbom-api.cdx.json`, `sbom-admin.cdx.json`, `sbom-portal.cdx.json`, `sbom-worker.cdx.json`) from `ghcr.io/syntax-circus/techstrap-<app>:<version>` and attaches them to the GitHub Release. The Release is created only after the `release` environment is approved, so the SBOMs arrive a few minutes after that approval, not with the tag. If the attach step fails, the files are still in the `sbom` workflow artifact of the `SBOM` run; download them from there and run `gh release upload <tag> sbom-*.cdx.json --clobber`.
+No SBOM is published; generate one on demand with `trivy image --format cyclonedx --output sbom-api.cdx.json ghcr.io/syntax-circus/techstrap-api:<version>` (owner decision 2026-10-09, D-051 amendment).
 
 ## Rollback
 

@@ -137,11 +137,10 @@ Describe 'release.yml and RELEASING.md' {
     }
 }
 
-Describe 'CI scans and SBOM (PHASE-12a)' {
+Describe 'CI scans (PHASE-12a)' {
     BeforeAll {
         $script:Ci = Get-RepoText '.github/workflows/ci.yml'
         $script:Rel = Get-RepoText '.github/workflows/release.yml'
-        $script:Sbom = Get-RepoText '.github/workflows/sbom.yml'
     }
 
     It 'ci.yml fails the build on a vulnerable direct or transitive package' {
@@ -165,26 +164,7 @@ Describe 'CI scans and SBOM (PHASE-12a)' {
         $text | Should -Match 'review: <YYYY-MM-DD'
     }
 
-    It 'sbom.yml attaches a CycloneDX SBOM per image to the GitHub Release once publish-nuget.yml completes' {
-        $script:Sbom | Should -Match 'on:\s+workflow_run:'
-        $script:Sbom | Should -Match ([regex]::Escape('workflows: ["Publish NuGet packages"]'))
-        $script:Sbom | Should -Match 'types: \[completed\]'
-        $script:Sbom | Should -Match ([regex]::Escape("github.event.workflow_run.conclusion == 'success'"))
-        $script:Sbom | Should -Match ([regex]::Escape("github.event.workflow_run.event == 'push'"))
-        $script:Sbom | Should -Match ([regex]::Escape('github.event.workflow_run.head_branch'))
-        $script:Sbom | Should -Match 'aquasec/trivy:\d+\.\d+\.\d+'
-        $script:Sbom | Should -Match '--format cyclonedx'
-        $script:Sbom | Should -Match 'gh release upload'
-        $script:Sbom | Should -Match '--clobber'
-        $script:Sbom | Should -Match 'sbom-'
-    }
-
-    It 'the SBOM workflow names the exact workflow it follows' {
-        $name = ((Get-RepoText '.github/workflows/publish-nuget.yml') -split "`n" | Where-Object { $_ -match '^name:' } | Select-Object -First 1) -replace '^name:\s*', ''
-        $script:Sbom | Should -Match ([regex]::Escape("workflows: [`"$($name.Trim())`"]"))
-    }
-
-    It 'release.yml no longer waits for the Release (no sbom job) and still points to publish-nuget.yml' {
+    It 'release.yml does not wait for the Release or publish an SBOM (no sbom job) and still points to publish-nuget.yml' {
         $script:Rel | Should -Not -Match 'gh release'
         $script:Rel | Should -Not -Match '(?m)^  sbom:'
         $script:Rel | Should -Match 'NuGet packages and the GitHub Release come from publish-nuget\.yml on the same tag'

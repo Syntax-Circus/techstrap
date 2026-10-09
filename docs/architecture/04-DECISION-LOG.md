@@ -2204,7 +2204,7 @@ PHASE-12 was specced as the path to `v1.0.0`. The Contracts package is published
 4. **UAT state.** The UAT box and its Postgres exist (owner actions #8 and #11 are largely done). The Authentik clients and groups (owner action #7) are not set up yet and must be before 12c's deploy (T14).
 5. **OpenAPI stays served anonymously in Production** (SDK consumers and the contract test use it). 12a adds a test that the document and `/health/ready` reveal no secrets.
 6. **The carried-forward PHASE-03/04 items fold into 12a:** the last-admin guard reads the actor after the lock (or re-checks) with a deterministic lock-path test; a double-revoke end-to-end test (or an xmin token) on `ProductApiKey`; batched forced-tag-delete ticket loads and batched notification-preference product lookups, with a cap on the list. The GIN search-plan check moves to 12c with the load run.
-7. **Scan policy: fail CI on High/Critical from day one.** `dotnet list package --vulnerable --include-transitive` fails on any vulnerability; the Trivy image scan fails on High/Critical, with a `.trivyignore` for documented waivers; a CycloneDX SBOM per image is attached to the GitHub Release by `release.yml`. Nistify is optional and not wired.
+7. **Scan policy: fail CI on High/Critical from day one.** `dotnet list package --vulnerable --include-transitive` fails on any vulnerability; the Trivy image scan fails on High/Critical, with a `.trivyignore` for documented waivers. Nistify is optional and not wired. **Amended 2026-10-09:** no SBOM is published (the sbom.yml workflow was removed before merge as excessive for 0.x; generate one on demand with `trivy image --format cyclonedx` (CycloneDX) if ever needed). The fail-closed scans stand.
 
 **Technical rulings (12a design; approved when the owner approved the plan)**
 - **The review document** is `docs/security/SECURITY-REVIEW.md`, a living document with a "Release 0.3.0" section (not `SECURITY-REVIEW-1.0.md`).
@@ -2218,7 +2218,7 @@ PHASE-12 was specced as the path to `v1.0.0`. The Contracts package is published
 - API keys are looked up by the full SHA-256 hash (`src/TechStrap.Api/Security/ProductApiKeyValidator.cs`), not by prefix; the stored prefix is for display, audit and the rate-limit partition.
 - Customer access tokens are compared by a hashed database lookup (no `FixedTimeEquals` on that path); the review records why that is acceptable.
 - `docs/self-hosting.md` and `docs/self-hosting-authentik.md` become the existing `docs/self-hosting/` folder (`DEPLOYMENT.md` and `AGENT-AUTHENTICATION.md` exist); 12b decides the file names.
-- The tooling assumption is confirmed: `dotnet list package --vulnerable`, Trivy, CycloneDX SBOM; Nistify optional.
+- The tooling assumption is confirmed: `dotnet list package --vulnerable`, Trivy; Nistify optional (no SBOM published, see the amendment to decision 7).
 
 ### Alternatives Considered
 - **`v1.0.0` now.** Rejected: the API lock is a separate decision, and packages stay 0.x until then.
