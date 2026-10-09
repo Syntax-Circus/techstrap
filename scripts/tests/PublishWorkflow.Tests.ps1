@@ -169,4 +169,16 @@ Describe 'CI scans (PHASE-12a)' {
         $script:Rel | Should -Not -Match '(?m)^  sbom:'
         $script:Rel | Should -Match 'NuGet packages and the GitHub Release come from publish-nuget\.yml on the same tag'
     }
+
+    # D-051 12b rulings (2026-10-09): amd64 only, and no anonymous Docker Hub pull in the image jobs (v0.2.1 failed three times on toomanyrequests).
+    It 'release.yml and the CI docker job build amd64 only with the docker driver and pull nothing from Docker Hub' {
+        $script:Rel | Should -Not -Match 'setup-qemu'
+        $script:Rel | Should -Match '-Platforms linux/amd64'
+        $script:Rel | Should -Not -Match 'linux/arm64'
+        foreach ($workflow in $script:Rel, $script:Ci) {
+            $workflow | Should -Not -Match 'docker\.io'
+            ($workflow -replace '\s+', ' ') | Should -Match 'docker/setup-buildx-action@v\d+ with: driver: docker'
+        }
+        (Get-RepoText 'docs/development/RELEASING.md') | Should -Match '## Image platforms'
+    }
 }

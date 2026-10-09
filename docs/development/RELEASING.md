@@ -8,7 +8,7 @@ Pushing a tag such as `v0.1.0` or `v0.1.0-rc.1` starts two independent workflows
 
 | Workflow | Publishes |
 | --- | --- |
-| `release.yml` | The four multi-arch images (Api, Admin, Portal, Worker) to GHCR. |
+| `release.yml` | The four `linux/amd64` images (Api, Admin, Portal, Worker) to GHCR. |
 | `publish-nuget.yml` | `TechStrap.Contracts`, `TechStrap.Client` and `TechStrap.Client.Maui` to nuget.org, then the GitHub Release `v<version>` with the packages attached and generated notes. |
 
 `publish-nuget.yml` has two jobs. `pack` builds, runs the .NET tests (including the Docker-backed ones), packs the three packages with the tag's version and runs `scripts/Test-PackageContents.ps1`.
@@ -67,6 +67,19 @@ The same pack and check run locally with the commands under "Local pack" in [CLI
 If you re-run a failed `publish` job, the push skips packages that are already on nuget.org as duplicates. If the GitHub Release already exists, `gh release create` fails; attach the files to the existing Release instead with `gh release upload <tag> <files> --clobber`. The Release step uses `--verify-tag`, so it fails rather than create a tag when the tag is missing.
 
 `ci.yml` sets up the SDK with `dotnet-version: 10.0.x`, while `publish-nuget.yml` uses `global.json`. That is intended: the publish workflow pins the SDK that builds the released packages.
+
+## Image platforms
+
+The published images are `linux/amd64` only (owner decision 2026-10-09, recorded under D-051). Until `v0.2.1` the release built arm64 as well, under QEMU; that needed the QEMU and BuildKit images from Docker Hub, pulled anonymously, and GitHub's shared runners exhaust Docker Hub's anonymous pull limit (`v0.2.1` failed three times with `toomanyrequests` before building anything). Both workflows now use the Docker daemon's own BuildKit (`driver: docker`) and pull nothing from Docker Hub; the base images come from `mcr.microsoft.com`. `Build-TechStrapDocker.ps1` can still build arm64 locally (`-Platforms linux/amd64,linux/arm64`). If arm64 images are wanted again, build them on GitHub's native arm64 runners (free for public repositories) and merge the manifests; do not reintroduce QEMU.
+
+If a tag's `release.yml` run fails for a reason outside the repository, the images can be built and pushed from a developer machine with Docker logged in to GHCR (`docker login ghcr.io`, a token with `write:packages`):
+
+```powershell
+git checkout v<version>
+./Build-TechStrapDocker.ps1 -Push -Registry ghcr.io/syntax-circus -ImageTag <version> -SemVerTag <version> -Platforms linux/amd64
+```
+
+`-PushLatest` defaults to true; pass `-PushLatest:$false` for a prerelease.
 
 ## Post-publish check
 
