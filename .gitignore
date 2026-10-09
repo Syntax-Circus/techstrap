@@ -414,3 +414,4 @@ FodyWeavers.xsd
 
 # Superpowers subagent-driven-development scratch workspace (per-plan, local only)
 .superpowers/
+tests/load/results/
