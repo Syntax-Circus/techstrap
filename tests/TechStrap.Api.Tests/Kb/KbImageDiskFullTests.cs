@@ -6,9 +6,12 @@ using TechStrap.Api.Tests.Support;
 
 namespace TechStrap.Api.Tests.Kb;
 
-/// <summary>Review SR-11 for the KB image upload: a full disk is a clean ProblemDetails and leaves no file behind.</summary>
+/// <summary>
+/// Review SR-11 for the KB image upload: a full disk is a clean ProblemDetails and leaves no file behind. The upload handler checks the signed-in agent in the database
+/// before it stores anything, so the test runs against a real database with the agent provisioned; without one the request fails earlier and never reaches storage.
+/// </summary>
 [Collection(ProcessEnvironmentCollection.Name)]
-public sealed class KbImageDiskFullTests : IDisposable
+public sealed class KbImageDiskFullTests(TestPostgres postgres) : IDisposable
 {
     private const string TrustedNetworkVariable = "TrustedProxy__TrustedNetworks__0";
 
@@ -30,13 +33,11 @@ public sealed class KbImageDiskFullTests : IDisposable
         Environment.SetEnvironmentVariable(TrustedNetworkVariable, "10.20.30.0/24");
         try
         {
-            var settings = new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:TechStrap"] = "Host=localhost;Database=unused;Username=u;Password=p",
-                ["Storage:Local:RootPath"] = _storage,
-            };
+            var database = await ApiTestDatabase.CreateAsync(postgres);
+            var settings = new Dictionary<string, string?>(database.Settings) { ["Storage:Local:RootPath"] = _storage };
             await using var factory = new ApiFactory(environment: "Production", settings: settings, configureServices: services => FailingStorageProvider.Register(services, failOnStoreCall: 1));
             using var agent = factory.CreateClient().Bearer(TestJwt.Token("agent", [TestJwt.AgentGroup], email: "agent@example.com"));
+            (await agent.GetAsync("/api/agents/me", TestContext.Current.CancellationToken)).EnsureSuccessStatusCode(); // provisions the agent the upload handler requires
             var file = new ByteArrayContent(_png);
             file.Headers.ContentType = MediaTypeHeaderValue.Parse("image/png");
             using var form = new MultipartFormDataContent { { file, "file", "photo.png" } };
@@ -53,7 +54,7 @@ public sealed class KbImageDiskFullTests : IDisposable
             text.ShouldNotContain("No space left");
             text.ShouldNotContain("IOException");
             text.ShouldNotContain(" at ");
-            Directory.Exists(Path.Combine(_storage, "kb-images")).ShouldBeFalse();
+            Directory.Exists(Path.Combine(_storage, "kb-images")).ShouldBeTrue(); // the failed store really reached the provider and wrote its partial object
             (Directory.Exists(_storage) ? Directory.GetFiles(_storage, "*", SearchOption.AllDirectories) : []).ShouldBeEmpty();
         }
         finally
