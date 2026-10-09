@@ -39,15 +39,19 @@ Runner: `pwsh scripts/Invoke-LoadTest.ps1 -Target local|uat -Scenario sustained|
   10% customer ticket view, plus the Portal contact form at one request a minute. Each request carries a rotated `X-Forwarded-For` taken from 60 addresses, because the
   Api and Portal rate-limit per client IP (public submit 5 per 10 minutes per IP, Portal form likewise); one runner address would be throttled long before the budgets mean anything.
   Thresholds: p95 under 500 ms overall and per call type, `server_errors` rate 0, checks above 99%. `http_req_failed` is not asserted because a 429 is the correct answer under the rate limits.
+  Unexpected throttling is bounded to zero: `http_reqs{name:intake-trusted,status:429}`, `http_reqs{name:kb-search,status:429}` and `http_reqs{name:customer-view,status:429}` must each have `count==0`. With the
+  forwarded-address rotation trusted none of these calls reaches a limit, so a 429 there means the rotation is not honoured (every request shares one address) and the run proves nothing; without these
+  thresholds such a run would report green. Public intake and the Portal form are excluded because they answer 429 by design (see below).
 - `scenarios/spike.js`: ramps to `TS_SPIKE_PEAK` requests per second for 60 seconds against the trusted intake from ONE address (`<prefix>250`), crossing the 120 per 60 s limit.
   A 429 is the correct answer there; a 5xx never is. The thresholds assert at least one 429 during the spike and zero server errors. A recovery phase starts at 75 s with
-  5 requests per second from rotated addresses (the spike address stays throttled until its window ends) and must keep p95 under 500 ms.
+  5 requests per second from rotated addresses (the spike address stays throttled until its window ends) and must keep p95 under 500 ms with no 429 at all
+  (`http_reqs{phase:recovery,status:429}` `count==0`, for the same reason as above: a 429 there means the rotation is not trusted). The spike has a fixed 105 s profile; `-Rate` and `-Duration` do not apply and the dry-run prints `TS_SPIKE_PEAK`.
 - Every module (`intake-trusted.js`, `intake-public.js`, `portal-form.js`, `customer-view.js`, `kb-search.js`) also runs alone as a one-iteration smoke, for example `k6 run tests/load/kb-search.js`.
 - Caveat: KB search responses are cached for 60 seconds, so that call type mostly measures the cache.
 
 ### Expected 429s at the default profile
 
-A 429 is expected rate-limit policy, not a failure, so the sustained thresholds do not assert `http_req_failed`. Public intake runs at 2 requests per second over `TS_IP_COUNT`=60 addresses, which is 20 submissions per address per 10 minutes against the public-submit limit of 5 per 600 s per address. About 75% of public-intake calls (roughly 7.5% of all requests) therefore answer 429 by design once each address has used its allowance. `TS_IP_COUNT=240` (the maximum) brings public intake within its limit (240 x 5 / 600 s = 2 requests per second). The mix and the limits are not changed to avoid this.
+A 429 is expected rate-limit policy, not a failure, so the sustained thresholds do not assert `http_req_failed`. Public intake runs at 2 requests per second over `TS_IP_COUNT`=60 addresses, which is 20 submissions per address per 10 minutes against the public-submit limit of 5 per 600 s per address. About 75% of public-intake calls (roughly 7.5% of all requests) therefore answer 429 by design once each address has used its allowance. `TS_IP_COUNT=240` (the maximum) brings public intake about to its limit (240 x 5 / 600 s = 2 requests per second); the address choice is not round-robin in time, so a few 429s remain possible. The mix and the limits are not changed to avoid this.
 
 ## Making the stack trust the runner
 
@@ -62,8 +66,11 @@ Warning: a trusted proxy can set any client IP, which defeats per-IP limits and 
   arrives from the network gateway, which is inside that subnet, so the Api works without changes. The Portal (and the Admin) trust only `REVERSE_PROXY_CIDR`, a placeholder by default. For a Portal form run longer than a few minutes,
   set it to the gateway as a /32 and recreate the portal: get the gateway with
   `docker network inspect techstrap_default --format "{{(index .IPAM.Config 0).Gateway}}"` and set `REVERSE_PROXY_CIDR=<gateway>/32` in the shell or the root `.env` before `docker compose up -d portal`.
-- UAT: set `REVERSE_PROXY_CIDR` and the trusted-proxy network (`TRUSTEDPROXY__TRUSTEDNETWORKS__0`) on the Api and Portal to the k6 runner's address as `/32` in the `TECHSTRAP_ENV_DIR` files,
-  redeploy, run, then remove it and redeploy again.
+- UAT: do not try to trust a remote runner. The deploy compose sets `TRUSTEDPROXY__TRUSTEDNETWORKS__0` and `__1` itself from `TECHSTRAP_SUBNET` and `REVERSE_PROXY_CIDR` (values in the
+  `TECHSTRAP_ENV_DIR` files are overridden), and the Api honours only the rightmost forwarded address. The recipe is to run k6 ON the UAT host against the loopback-published ports
+  (`-BaseUrl http://127.0.0.1:<TECHSTRAP_API_PORT> -PortalUrl http://127.0.0.1:<TECHSTRAP_PORTAL_PORT>`): those requests reach the containers from the compose gateway, which is already
+  `REVERSE_PROXY_CIDR`, so the rotated `X-Forwarded-For` is trusted with no configuration change. With `-UseDocker` on Linux add `--network host` to the Docker arguments so the
+  requests still leave from the host (the default bridge would present the bridge gateway instead). This path does not measure TLS through Caddy or any real network latency.
 
 ## Running
 
@@ -121,3 +128,4 @@ Verified 2026-10-09 against the local dev stack (compose project `techstrap`, se
   was only exercised at one request per run window; use the `REVERSE_PROXY_CIDR=<gateway>/32` step above for longer Portal runs (not exercised here).
 - Sustained at the default profile (`pwsh -File scripts/Invoke-LoadTest.ps1 -Target local -Scenario sustained -Duration 2m`, rate 20, 60 IPs): exit 0, 2406 iterations, 2413 requests, p95 12.92 ms, `server_errors` 0 of 2409, checks 100%, `throttled_429` 10 (the dev IPs had little public-submit history left from earlier runs, so the steady-state 429 share described above was not reached in two minutes); outbox afterwards 108 Pending, 3777 Sent, 0 dead-lettered.
 - Environment note: the Api container's `/app/storage/attachments` was created root-owned because the Task 1 backup rehearsal planted a test file into the dev storage volume as root, while the Api runs as uid 10001 (`techstrap`). Attachment uploads then failed with 403 (an UnauthorizedAccessException mapped to a problem response). It was corrected with `chown` inside the container, and the backup/restore runbook warns against writing into the volume as root. A failure like this shows up as a `status is 201` check failure in `intake-public.js`.
+- Throttled-run guard (final fix wave, 2026-10-09): `TS_IP_COUNT=1 pwsh -File scripts/Invoke-LoadTest.ps1 -Target local -Scenario sustained -Duration 1m` exited 99 (482 x 429 on `intake-trusted`, 241 on `kb-search`, 61 on `customer-view`; every other threshold was green, so the run would have passed before the new thresholds). The default one-minute run exited 0 with all three 429 submetrics at 0 (a submetric with no samples still reports and passes). The spike with `TS_IP_COUNT=1` exited 99 on `http_reqs{phase:recovery,status:429}` (31 x 429); the default spike exited 0.

@@ -46,5 +46,7 @@ export const options = {
     server_errors: ['rate==0'],
     'throttled_429{phase:spike}': ['count>0'],
     'http_req_duration{phase:recovery}': ['p(95)<500'],
+    // Recovery uses rotated IPs, so a 429 there means the rotation is not trusted and the p95 above proves nothing.
+    'http_reqs{phase:recovery,status:429}': ['count==0'],
   },
 };

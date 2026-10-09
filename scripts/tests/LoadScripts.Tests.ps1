@@ -107,6 +107,8 @@ Describe 'scripts/Invoke-LoadTest.ps1 (static and dry-run)' {
     }
 
     It 'under -DryRun prints the plan, calls nothing and never prints a key' {
+        $savedTrusted = $env:TS_TRUSTED_KEY
+        $savedPublic = $env:TS_PUBLIC_KEY
         $env:TS_TRUSTED_KEY = 'tsk_canaryLoadKeyValue00000000'
         $env:TS_PUBLIC_KEY = 'tsp_canaryLoadKeyValue00000000'
         try {
@@ -116,12 +118,44 @@ Describe 'scripts/Invoke-LoadTest.ps1 (static and dry-run)' {
             $output | Should -Match ([regex]::Escape('tests/load/results/'))
             $output | Should -Not -Match 'canaryLoadKeyValue'
         } finally {
-            Remove-Item Env:TS_TRUSTED_KEY, Env:TS_PUBLIC_KEY -ErrorAction SilentlyContinue
+            if ($null -eq $savedTrusted) { Remove-Item Env:TS_TRUSTED_KEY -ErrorAction SilentlyContinue } else { $env:TS_TRUSTED_KEY = $savedTrusted }
+            if ($null -eq $savedPublic) { Remove-Item Env:TS_PUBLIC_KEY -ErrorAction SilentlyContinue } else { $env:TS_PUBLIC_KEY = $savedPublic }
         }
     }
 
     It 'requires explicit keys for the uat target' {
+        $savedTrusted = $env:TS_TRUSTED_KEY
+        $savedPublic = $env:TS_PUBLIC_KEY
         Remove-Item Env:TS_TRUSTED_KEY, Env:TS_PUBLIC_KEY -ErrorAction SilentlyContinue
-        { & $script:Runner -Target uat -Scenario spike -BaseUrl 'https://api.uat.example' -PortalUrl 'https://uat.example' -DryRun } | Should -Throw '*TS_TRUSTED_KEY*'
+        try {
+            { & $script:Runner -Target uat -Scenario spike -BaseUrl 'https://api.uat.example' -PortalUrl 'https://uat.example' -DryRun } | Should -Throw '*TS_TRUSTED_KEY*'
+        } finally {
+            if ($null -ne $savedTrusted) { $env:TS_TRUSTED_KEY = $savedTrusted }
+            if ($null -ne $savedPublic) { $env:TS_PUBLIC_KEY = $savedPublic }
+        }
+    }
+
+    It 'a throttled run cannot report green: unexpected 429s are bounded to zero' {
+        $sustained = Read-LoadFile 'scenarios/sustained.js'
+        foreach ($name in 'intake-trusted', 'kb-search', 'customer-view') {
+            $sustained | Should -Match ([regex]::Escape("'http_reqs{name:${name},status:429}': ['count==0']")) -Because $name
+        }
+        (Read-LoadFile 'scenarios/spike.js') | Should -Match ([regex]::Escape("'http_reqs{phase:recovery,status:429}': ['count==0']"))
+    }
+
+    It 'the README documents the 429 thresholds and the UAT recipe that runs k6 on the UAT host' {
+        $readme = Read-LoadFile 'README.md'
+        $readme | Should -Match ([regex]::Escape('http_reqs{name:intake-trusted,status:429}'))
+        $readme | Should -Match ([regex]::Escape('http_reqs{phase:recovery,status:429}'))
+        $readme | Should -Match '--network host'
+        $readme | Should -Match 'TRUSTEDPROXY__TRUSTEDNETWORKS'
+        $readme | Should -Not -Match "runner's address"
+    }
+
+    It 'the runner bounds -Rate and the spike dry-run prints the spike peak, not a rate' {
+        ([System.IO.File]::ReadAllText($script:Runner)) | Should -Match ([regex]::Escape('[ValidateRange(1, 10000)]'))
+        $output = & $script:Runner -Target local -Scenario spike -DryRun | Out-String
+        $output | Should -Match 'TS_SPIKE_PEAK'
+        $output | Should -Not -Match 'rate \d+/s'
     }
 }

@@ -35,7 +35,7 @@ pwsh scripts/Invoke-LoadTest.ps1 -Target uat -Scenario spike -BaseUrl https://ap
 param(
     [Parameter(Mandatory)][ValidateSet('local', 'uat')][string] $Target,
     [Parameter(Mandatory)][ValidateSet('sustained', 'spike')][string] $Scenario,
-    [int] $Rate = 20,
+    [ValidateRange(1, 10000)][int] $Rate = 20,
     [string] $Duration = '10m',
     [string] $BaseUrl,
     [string] $PortalUrl,
@@ -101,7 +101,12 @@ if ($viaDocker) {
 $commandLine = "$exe " + ($k6Args -join ' ')
 
 Write-Output "Target:    $Target ($k6BaseUrl, $k6PortalUrl)"
-Write-Output "Scenario:  $Scenario (rate $Rate/s, duration $Duration)"
+if ($Scenario -eq 'spike') {
+    $spikePeak = if (Test-Path Env:TS_SPIKE_PEAK) { $env:TS_SPIKE_PEAK } else { '100' }
+    Write-Output "Scenario:  $Scenario (TS_SPIKE_PEAK $spikePeak/s from one address, fixed 105 s profile; -Rate and -Duration do not apply)"
+} else {
+    Write-Output "Scenario:  $Scenario (rate $Rate/s, duration $Duration)"
+}
 Write-Output "Runner:    $(if ($viaDocker) { $K6Image } else { 'local k6 binary' })"
 Write-Output "Results:   $resultDisplay"
 

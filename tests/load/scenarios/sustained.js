@@ -44,5 +44,11 @@ export const options = {
     'http_req_duration{name:kb-search}': ['p(95)<500'],
     'http_req_duration{name:customer-view}': ['p(95)<500'],
     'http_req_duration{name:portal-form}': ['p(95)<500'],
+    // A throttled run must not report green: with the forwarded-IP rotation working, the trusted intake, KB search and
+    // customer view never reach a limit, so any 429 there means the rotation is not trusted (or a limit changed).
+    // Public intake and the Portal form are excluded because they answer 429 by design (see README).
+    'http_reqs{name:intake-trusted,status:429}': ['count==0'],
+    'http_reqs{name:kb-search,status:429}': ['count==0'],
+    'http_reqs{name:customer-view,status:429}': ['count==0'],
   }),
 };
