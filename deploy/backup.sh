@@ -86,7 +86,8 @@ MODES=0
 [[ -n "$DB_HOST" ]] && MODES=$((MODES + 1))
 (( MODES == 1 )) || die "choose one database mode (--db-url or env TECHSTRAP_DB_URL, --db-container, or --db-host)"
 if [[ -n "$DB_URL" ]]; then
-  if [[ "$DB_URL" =~ ://[^/@]*:[^/@]+@ ]]; then
+  PW_QUERY_RE='[?&]password='
+  if [[ "$DB_URL" =~ ://[^/@]*:[^/@]+@ || "$DB_URL" =~ $PW_QUERY_RE ]]; then
     echo "refusing: --db-url must not contain a password; put it in PGPASSWORD" >&2
     exit 2
   fi
@@ -146,6 +147,9 @@ elif [[ -n "$DB_CONTAINER" ]]; then
 else
   DUMP_NETWORK="$DB_NETWORK"
   export TS_DB_URL="postgresql://${DB_USER}@${DB_HOST}:5432/${DB_NAME}"
+  if (( DRY_RUN == 0 )); then
+    [[ -n "${PGPASSWORD:-}" ]] || die "PGPASSWORD must be set in the environment when --db-host is used"
+  fi
   export PGPASSWORD="${PGPASSWORD:-}"
 fi
 
@@ -235,7 +239,11 @@ if [[ -n "$KEEP_DAYS" ]]; then
   if CUTOFF=$(date -u -d "-${KEEP_DAYS} days" +%Y%m%dT%H%M%SZ 2>/dev/null); then
     :
   else
-    CUTOFF=$(date -u -v-"${KEEP_DAYS}"d +%Y%m%dT%H%M%SZ)
+    CUTOFF=$(date -u -v-"${KEEP_DAYS}"d +%Y%m%dT%H%M%SZ 2>/dev/null) || CUTOFF=
+  fi
+  if [[ -z "$CUTOFF" ]]; then
+    echo "WARNING: retention skipped (cannot compute cutoff date)" >&2
+    return 1
   fi
   local failed=0
   local remaining=()

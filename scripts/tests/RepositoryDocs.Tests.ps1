@@ -1062,9 +1062,8 @@ Describe 'PHASE-12b close-out' {
         $workflows = @(Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot '.github' 'workflows') -File -Filter *.yml)
         $workflows.Count | Should -BeGreaterThan 0
         foreach ($file in $workflows) {
-            foreach ($line in (Get-Content -LiteralPath $file.FullName)) {
-                if ($line -match '^\s*(-\s+)?run:') { $line | Should -Not -Match '\bk6\b|backup\.sh|restore\.sh|Invoke-LoadTest' -Because "$($file.Name) must not run the on-demand load or backup scripts" }
-            }
+            # The whole file text, so the bodies of `run: |` blocks are covered too.
+            (Get-Content -LiteralPath $file.FullName -Raw) | Should -Not -Match '\bk6\b|backup\.sh|restore\.sh|Invoke-LoadTest' -Because "$($file.Name) must not run the on-demand load or backup scripts"
         }
     }
 

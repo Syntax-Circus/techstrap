@@ -147,7 +147,8 @@ Describe 'scripts/Invoke-LoadTest.ps1 (static and dry-run)' {
         $readme = Read-LoadFile 'README.md'
         $readme | Should -Match ([regex]::Escape('http_reqs{name:intake-trusted,status:429}'))
         $readme | Should -Match ([regex]::Escape('http_reqs{phase:recovery,status:429}'))
-        $readme | Should -Match '--network host'
+        $readme | Should -Match 'local k6 binary on the UAT host'
+        $readme | Should -Match '-UseDocker. is not supported'
         $readme | Should -Match 'TRUSTEDPROXY__TRUSTEDNETWORKS'
         $readme | Should -Not -Match "runner's address"
     }

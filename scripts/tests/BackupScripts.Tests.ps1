@@ -110,6 +110,8 @@ Describe 'deploy/backup.sh and deploy/restore.sh (static pins, PHASE-12b)' {
             $text = [System.IO.File]::ReadAllText($path)
             $text | Should -Match ([regex]::Escape('://[^/@]*:[^/@]+@')) -Because "$path must detect user:password@ in the URL"
             $text | Should -Match ([regex]::Escape('refusing: --db-url must not contain a password; put it in PGPASSWORD'))
+            $text | Should -Match ([regex]::Escape('[?&]password=')) -Because "$path must also refuse the ?password= query form"
+            $text | Should -Match ([regex]::Escape('=~ $PW_QUERY_RE')) -Because "$path must apply the query-form check"
         }
     }
 

@@ -198,7 +198,8 @@ if [[ -z "$DB_URL" && -n "$CONFIRM_PROJECT" && -n "${TECHSTRAP_DB_URL:-}" ]]; th
   DB_URL="$TECHSTRAP_DB_URL"
 fi
 if [[ -n "$DB_URL" ]]; then
-  if [[ "$DB_URL" =~ ://[^/@]*:[^/@]+@ ]]; then
+  PW_QUERY_RE='[?&]password='
+  if [[ "$DB_URL" =~ ://[^/@]*:[^/@]+@ || "$DB_URL" =~ $PW_QUERY_RE ]]; then
     echo "refusing: --db-url must not contain a password; put it in PGPASSWORD" >&2
     exit 2
   fi

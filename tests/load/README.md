@@ -69,8 +69,8 @@ Warning: a trusted proxy can set any client IP, which defeats per-IP limits and 
 - UAT: do not try to trust a remote runner. The deploy compose sets `TRUSTEDPROXY__TRUSTEDNETWORKS__0` and `__1` itself from `TECHSTRAP_SUBNET` and `REVERSE_PROXY_CIDR` (values in the
   `TECHSTRAP_ENV_DIR` files are overridden), and the Api honours only the rightmost forwarded address. The recipe is to run k6 ON the UAT host against the loopback-published ports
   (`-BaseUrl http://127.0.0.1:<TECHSTRAP_API_PORT> -PortalUrl http://127.0.0.1:<TECHSTRAP_PORTAL_PORT>`): those requests reach the containers from the compose gateway, which is already
-  `REVERSE_PROXY_CIDR`, so the rotated `X-Forwarded-For` is trusted with no configuration change. With `-UseDocker` on Linux add `--network host` to the Docker arguments so the
-  requests still leave from the host (the default bridge would present the bridge gateway instead). This path does not measure TLS through Caddy or any real network latency.
+  `REVERSE_PROXY_CIDR`, so the rotated `X-Forwarded-For` is trusted with no configuration change. Use the local k6 binary on the UAT host; `-UseDocker` is not supported
+  for this recipe (the runner rewrites 127.0.0.1 to host.docker.internal, which cannot reach loopback-published ports). This path does not measure TLS through Caddy or any real network latency.
 
 ## Running
 

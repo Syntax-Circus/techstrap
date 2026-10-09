@@ -143,7 +143,7 @@ A backup on the same box does not survive the box. After the script succeeds, co
    docker compose -f deploy/docker-compose.yml up -d --wait
    ```
 
-   Stop it with `docker compose -f deploy/docker-compose.yml stop` (never `down` with volume removal) before the teardown.
+   Take it down with `docker compose -f deploy/docker-compose.yml down` (never with `-v`) before the teardown, with `TECHSTRAP_PROJECT=techstrap-restore` still exported so compose cannot default to the live project. Merely stopped containers would keep the scratch volumes and network "in use", and compose's own `techstrap-restore_default` network must go too; `down` without `-v` removes the containers and that network and leaves every volume for the teardown.
 5. Remove the scratch stack:
 
    ```bash
