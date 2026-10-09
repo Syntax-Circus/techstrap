@@ -10,6 +10,12 @@ public static class DomainLimits
     public const int KbSlugMaxLength = 80;
     public const int UrlMaxLength = 500;
 
+    /// <summary>The longest product tagline (one line on the landing card, D-052).</summary>
+    public const int TaglineMaxLength = 160;
+
+    /// <summary>The longest stored name of an uploaded product logo (<c>{32 hex}.{ext}</c> is 37; the column leaves room).</summary>
+    public const int UploadedLogoNameMaxLength = 64;
+
     /// <summary>The longest hostname a product can be served on (the DNS limit of 253 characters).</summary>
     public const int HostNameMaxLength = 253;
     public const int TagNameMaxLength = 50;

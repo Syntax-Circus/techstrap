@@ -41,6 +41,25 @@ internal static partial class Guard
             : DomainResult<string?>.Ok(text);
     }
 
+    /// <summary>One line of plain text, trimmed; blank is null. A line break, tab or other control character is <c>{target}-invalid</c>; over <paramref name="maxLength"/> is <c>{target}-too-long</c>.</summary>
+    public static DomainResult<string?> OptionalTagline(string? value, int maxLength, string target)
+    {
+        var text = value?.Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            return DomainResult<string?>.Ok(null);
+        }
+
+        if (text.Any(char.IsControl))
+        {
+            return DomainErrors.Validation($"{target}-invalid", $"{target} must be one line of plain text.", target);
+        }
+
+        return text.Length > maxLength
+            ? DomainErrors.Validation($"{target}-too-long", $"{target} must be at most {maxLength} characters.", target)
+            : DomainResult<string?>.Ok(text);
+    }
+
     public static DomainResult<string> Slug(string? value, int maxLength, string target)
     {
         var text = value?.Trim();
