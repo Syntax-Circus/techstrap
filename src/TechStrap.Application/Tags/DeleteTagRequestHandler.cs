@@ -26,6 +26,9 @@ public sealed class DeleteTagRequestHandler(
     IUnitOfWork unitOfWork,
     TimeProvider clock) : IDeleteTagRequestHandler
 {
+    /// <summary>Carrying tickets are loaded this many at a time, so a heavily used tag costs a few queries, not one per ticket.</summary>
+    private const int TicketBatchSize = 200;
+
     public async Task<Result> HandleAsync(Guid tagId, bool force, CancellationToken cancellationToken)
     {
         await using var scope = await unitOfWork.BeginAsync(cancellationToken);
@@ -47,17 +50,26 @@ public sealed class DeleteTagRequestHandler(
             return Result.Failure(TagErrors.InUse(carriers.Count));
         }
 
-        foreach (var ticketId in carriers)
+        // ListTicketIdsWithTagAsync ids are unique (ticket_tags is keyed by ticket and tag), so the strict count check on each batch is safe.
+        foreach (var batch in carriers.Chunk(TicketBatchSize))
         {
-            var ticket = await tickets.GetByIdAsync(ticketId, cancellationToken)
-                ?? throw new InvalidOperationException($"Ticket {ticketId} carries tag {tagId} but could not be loaded.");
-            var detached = ticket.DetachDeletedTag(tagId, Actor.ForAgent(actor.Value.Id), clock);
-            if (detached.IsFailure)
+            var loaded = await tickets.GetByIdsAsync(batch, cancellationToken);
+            if (loaded.Count != batch.Length)
             {
-                return detached.ToResult();
+                var missing = batch.Except(loaded.Select(t => t.Id));
+                throw new InvalidOperationException($"Tickets carrying tag {tagId} could not be loaded ({loaded.Count} of {batch.Length}); missing: {string.Join(", ", missing)}.");
             }
 
-            tickets.Update(ticket);
+            foreach (var ticket in loaded)
+            {
+                var detached = ticket.DetachDeletedTag(tagId, Actor.ForAgent(actor.Value.Id), clock);
+                if (detached.IsFailure)
+                {
+                    return detached.ToResult();
+                }
+
+                tickets.Update(ticket);
+            }
         }
 
         tags.Remove(tag);

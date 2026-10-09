@@ -1,0 +1,6 @@
+# Trivy waivers for the four image scans in .github/workflows/ci.yml (High and Critical fail the build).
+# One waiver per line:
+#   CVE-YYYY-NNNN  reason: <why it is not exploitable here>  review: <YYYY-MM-DD, at most 90 days out>
+# Keep the reason and review date on the same line as the ID.
+# A waiver must also be recorded as an accepted finding in docs/security/SECURITY-REVIEW.md. Remove it when the review date passes or the fix lands.
+# There are no waivers at the start.

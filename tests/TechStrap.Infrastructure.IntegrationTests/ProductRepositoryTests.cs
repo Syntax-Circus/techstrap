@@ -41,6 +41,32 @@ public sealed class ProductRepositoryTests(PostgresFixture postgres) : PostgresI
         (await repository.GetByIdAsync(Guid.NewGuid(), Ct)).ShouldBeNull();
     }
 
+    [Fact(Timeout = 60_000)]
+    public async Task GetExistingIdsAsync_returns_only_the_ids_that_exist_and_nothing_for_an_empty_list()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var alpha = Product.Create("alpha", "Alpha", "ALP", null, host.Clock).Value;
+        var beta = Product.Create("beta", "Beta", "BET", null, host.Clock).Value;
+        await using (var scope = host.CreateScope())
+        {
+            await CommitAsync(scope, products =>
+            {
+                products.Add(alpha);
+                products.Add(beta);
+            });
+        }
+
+        await using var verify = host.CreateScope();
+        var repository = verify.ServiceProvider.GetRequiredService<IProductRepository>();
+        var missing = Guid.CreateVersion7();
+
+        var existing = await repository.GetExistingIdsAsync([alpha.Id, missing, beta.Id], TestContext.Current.CancellationToken);
+
+        existing.ShouldBe([alpha.Id, beta.Id], ignoreOrder: true);
+        (await repository.GetExistingIdsAsync([], TestContext.Current.CancellationToken)).ShouldBeEmpty();
+        (await repository.GetExistingIdsAsync([missing], TestContext.Current.CancellationToken)).ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task Listing_is_ordered_by_name_and_can_hide_inactive_products()
     {

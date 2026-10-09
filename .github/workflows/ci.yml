@@ -31,6 +31,15 @@ jobs:
           dotnet tool restore
           dotnet restore TechStrap.CI.slnf
 
+      # Fails on any known-vulnerable direct or transitive package (any severity) and prints the offenders.
+      - name: Vulnerable packages (direct and transitive)
+        run: |
+          dotnet list TechStrap.slnx package --vulnerable --include-transitive --format json > vulnerable.json
+          if ! jq -e '(.problems // []) == [] and ([.projects[].frameworks[]? | (.topLevelPackages[]?, .transitivePackages[]?)] | length == 0)' vulnerable.json; then
+            jq '[.projects[] | {path, frameworks: [.frameworks[]? | {framework, top: [.topLevelPackages[]?.id], transitive: [.transitivePackages[]?.id]}]}], .problems' vulnerable.json
+            exit 1
+          fi
+
       - name: Build
         run: dotnet build TechStrap.CI.slnf -c Release --no-restore
 
@@ -76,6 +85,45 @@ jobs:
       - name: Build the four images
         shell: pwsh
         run: ./Build-TechStrapDocker.ps1 -Platforms linux/amd64 -ImageTag "0.0.0-ci.${{ github.run_number }}" -PushLatest:$false
+
+      # Without -Push the script loads each image into the runner's daemon as techstrap-<app>:<tag>-amd64.
+      # High and Critical findings with a fix fail the job; waivers live in .trivyignore (see docs/development/RELEASING.md).
+
+      - name: Scan techstrap-api image (Trivy)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: techstrap-api:0.0.0-ci.${{ github.run_number }}-amd64
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+
+      - name: Scan techstrap-admin image (Trivy)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: techstrap-admin:0.0.0-ci.${{ github.run_number }}-amd64
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+
+      - name: Scan techstrap-portal image (Trivy)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: techstrap-portal:0.0.0-ci.${{ github.run_number }}-amd64
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+
+      - name: Scan techstrap-worker image (Trivy)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: techstrap-worker:0.0.0-ci.${{ github.run_number }}-amd64
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          trivyignores: .trivyignore
 
   # Started by hand (Actions > CI > Run workflow): it builds four images and starts the whole local stack, so a pull request does not pay for it.
   compose-smoke:

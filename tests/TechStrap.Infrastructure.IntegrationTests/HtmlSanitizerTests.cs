@@ -1,3 +1,4 @@
+using TechStrap.Tests.Shared;
 using TechStrap.Infrastructure.Content;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
@@ -78,4 +79,11 @@ public sealed class HtmlSanitizerTests
 
         _sanitizer.Sanitize(html).ShouldBe(html);
     }
+
+    [Theory]
+    [MemberData(nameof(CorpusRows))]
+    public void Every_corpus_vector_sanitises_to_no_active_content(string vector) =>
+        XssAssertions.ShouldHaveNoActiveContent(_sanitizer.Sanitize(vector), vector);
+
+    public static IEnumerable<TheoryDataRow<string>> CorpusRows() => XssCorpus.Rows();
 }

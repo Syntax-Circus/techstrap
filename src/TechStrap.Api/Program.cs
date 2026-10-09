@@ -34,6 +34,7 @@ builder.AddStandardSerilog(configureEnrichment: logger =>
 {
     telemetry.ConfigureSerilog(logger);
     logger.Enrich.With<PiiRedactionEnricher>();
+    logger.Enrich.With<MvcArgumentsRedactionEnricher>();
 });
 if (telemetry.Options.Sentry.IsEnabled)
 {
@@ -149,6 +150,21 @@ app.Use(async (context, next) =>
 });
 // Must stay before UseSecurityHeaders: it appends to the CSP at response start and start callbacks run last-registered-first.
 app.UseAttachmentSandbox();
+if (app.Environment.IsDevelopment())
+{
+    // The package sends Strict-Transport-Security on every response; a browser that was sent it for localhost would refuse plain http on that host for the length of the policy.
+    // This start callback is registered before the package's, so it runs after it and removes the header (the Admin and Portal hosts do the same in UseBrowserHostPipeline).
+    app.Use(async (context, next) =>
+    {
+        context.Response.OnStarting(() =>
+        {
+            context.Response.Headers.Remove("Strict-Transport-Security");
+            return Task.CompletedTask;
+        });
+        await next();
+    });
+}
+
 app.UseSecurityHeaders();
 app.UseProblemDetailsExceptionHandling();
 app.UseRequestTooLargeProblemDetails();

@@ -26,6 +26,7 @@ public static class ObservabilityExtensions
         {
             telemetry.ConfigureSerilog(logger);
             logger.Enrich.With<PiiRedactionEnricher>();
+            logger.Enrich.With<MvcArgumentsRedactionEnricher>();
         });
         if (telemetry.Options.Sentry.IsEnabled)
         {

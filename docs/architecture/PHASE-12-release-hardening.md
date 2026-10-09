@@ -34,6 +34,23 @@ images and packages published.
 - **Release:** `v1.0.0` annotated tag on `main` after docs merge; the tag workflow publishes four GHCR images (`ghcr.io/syntax-circus/techstrap-{api,admin,portal,worker}`), the three NuGet packages, and a GitHub Release with notes (Conventional Commits changelog). Version comes from GitVersion; images also tagged `latest`.
 - **Architecture conformance gate:** every API/worker/hub entry point named in [02-ARCHITECTURE.md](02-ARCHITECTURE.md) appears in exactly one phase table (P04–P06, P08, P10) and every controller action/hub method/hosted loop calls exactly one named handler; verified by Architecture.Tests plus a doc-vs-code reflection report.
 
+### Corrections (D-051, 2026-10-08)
+
+Where this page and D-051 differ, D-051 wins.
+
+- The phase ends at `v0.3.0`, not `v1.0.0` (Objective, Deliverables, T14, T21, Success Criteria, Handoff). `v1.0.0` is a later decision, once the Contracts public surface (`TechStrap.Contracts.Intake` and `Http.HeaderNames`) is deliberately locked; packages stay 0.x until then.
+- There is no `v1.0.0-rc.N`. UAT deploys the latest published tag at the time (currently `v0.2.0`), the soak runs it, and `v0.3.0` is tagged after the soak. T14 says "the latest published tag", not `v0.1.0`.
+- The work ships as three pull requests: 12a hardening (T01 to T10, T19 and the carried-forward PHASE-03/04 items), 12b docs and scripts (T11, T13, T16, T17), 12c UAT and release (T12, T14, T15, T18, T20, T21).
+- The load and recovery budgets are accepted as stated. The UAT box and its Postgres exist; the Authentik clients and groups (owner action #7) must be set up before 12c's T14.
+- OpenAPI stays served anonymously in Production; 12a tests that the document and `/health/ready` reveal no secrets.
+- Scans fail CI on High/Critical from day one: `dotnet list package --vulnerable --include-transitive`, Trivy with a `.trivyignore` for documented waivers. Nistify is optional and not wired. (Amended 2026-10-09: no SBOM is published.)
+- The review document is `docs/security/SECURITY-REVIEW.md` (a living document with a "Release 0.3.0" section), not `SECURITY-REVIEW-1.0.md`.
+- `MessageThread` is `MessageBubble` (`Features/Tickets/MessageBubble.razor`); the Admin rule lives in `tests/TechStrap.Admin.Tests/MarkupStringSiteTests`, the Portal rule in Architecture.Tests `PortalRules`.
+- API keys are looked up by the full SHA-256 hash (`src/TechStrap.Api/Security/ProductApiKeyValidator.cs`), not by prefix; the stored prefix is for display, audit and the rate-limit partition.
+- Customer access tokens are compared by a hashed database lookup (no `FixedTimeEquals` on that path); the review records why that is acceptable.
+- `docs/self-hosting.md` and `docs/self-hosting-authentik.md` become the existing `docs/self-hosting/` folder (`DEPLOYMENT.md` and `AGENT-AUTHENTICATION.md` exist); 12b decides the file names.
+- The conformance gate (T19) is an Architecture test that compares reflected controller actions, hub methods and hosted loops to the catalog tables in `02-ARCHITECTURE.md` and fails with a diff.
+
 ## Application Boundaries
 
 Follow _template APPLICATION_ARCHITECTURE.md. Phase 12 adds **no new server
@@ -86,48 +103,58 @@ phase verifies configuration and upgrades only for security fixes.
 
 ## Deliverables
 
-- [ ] `docs/security/SECURITY-REVIEW-1.0.md` with findings, fixes and test references; no open High/Critical items.
+- [x] `docs/security/SECURITY-REVIEW.md` (D-051 filename) with findings, fixes and test references; no open High/Critical items.
 - [ ] Regression tests for every fixed finding; XSS and upload corpora committed as test fixtures.
 - [ ] `tests/load/` scripts and `docs/load-test-results.md` meeting the agreed budgets.
 - [ ] `docs/runbooks/backup-restore.md`, backup script(s), and a recorded restore drill.
 - [ ] `docs/self-hosting.md` and `docs/self-hosting-authentik.md` (linking the `syntax-circus-authentik` repo).
-- [ ] Dependency vulnerability report/SBOM attached to the release.
+- [ ] Dependency vulnerability report/SBOM attached to the release. **As built (12a):** scans run in CI; no SBOM (D-051 amendment 2026-10-09).
 - [ ] UAT deployment of the release candidate with soak results and dashboards/alerts.
 - [ ] Final documentation pass (README, CONTRIBUTING, SECURITY.md, architecture docs status updated).
 - [ ] `v1.0.0` tag, GHCR images, NuGet packages and GitHub Release published.
 
 ## Actionable Tasks
 
-- [ ] **P12-T01** Create the security-review checklist document with the six path groups above, severity scale and finding template
+- [x] **P12-T01** Create the security-review checklist document with the six path groups above, severity scale and finding template
   - **Depends on:** P01–P11 complete
   - **Validation:** Checklist reviewed by the owner; every item has an owner and a verification method (test, manual step, or tool).
-- [ ] **P12-T02** Review and test the customer access-token path (generation, hashing, comparison, expiry/revocation, uniform 404, lost-link equality, logging/Referer/caching)
+  - **As built (12a):** `docs/security/SECURITY-REVIEW.md` (D-051 filename) with the six path-group checklists, severity scale, finding template and SR-01 to SR-18; pinned by the `Security review (PHASE-12a)` Pester block.
+- [x] **P12-T02** Review and test the customer access-token path (generation, hashing, comparison, expiry/revocation, uniform 404, lost-link equality, logging/Referer/caching)
   - **Depends on:** P12-T01
   - **Validation:** Tests: token length/entropy source asserted; DB contains only hashes; expired/revoked/unknown responses byte-identical; lost-link responses identical for known/unknown email; log capture and response headers contain no token leakage; findings logged.
-- [ ] **P12-T03** Review and test the API-key path (hash storage, show-once, revoke, Trusted vs Public privileges, per-key+IP limits behind the proxy, untrusted metadata handling)
+  - **As built (12a):** customer token path: `AccessTokenServiceTests`, `CustomerAccessTests`, `CustomerUniformNotFoundTests`, `LostLinkUniformityTests`, `CustomerRateLimitTests`; review group 1, SR-01, SR-02.
+- [x] **P12-T03** Review and test the API-key path (hash storage, show-once, revoke, Trusted vs Public privileges, per-key+IP limits behind the proxy, untrusted metadata handling)
   - **Depends on:** P12-T01
   - **Validation:** Api.Tests: Public key cannot set external user ref/trusted metadata; revoked key rejected immediately; rate limit keyed on real client IP via forwarded headers and per key; metadata from Public keys is flagged `untrusted` in storage and UI; key never in logs.
-- [ ] **P12-T04** Review and test upload paths (ticket attachments and KB images) against hostile files
+  - **As built (12a):** API-key path: `ApiKeyHasherTests`, `ApiKeyAuthTests`, `ApiKeyEndpointTests`, `IntakeRateLimitTests`, `SensitiveDataLeakTests`; review group 2, SR-03, SR-10, SR-12, SR-16.
+- [x] **P12-T04** Review and test upload paths (ticket attachments and KB images) against hostile files
   - **Depends on:** P12-T01
   - **Validation:** Fixture corpus: oversize, double extensions, mismatched magic bytes, path-traversal names, SVG/HTML disguised as images, zero-byte, Unicode/RTL-override names; all rejected or neutralized; downloads send `Content-Disposition: attachment` and `nosniff`; storage keys are server-generated; disk-full produces a clean error (not a partial ticket).
-- [ ] **P12-T05** Review and test the sanitizer/rendering paths (message bodies, KB render, admin preview, email HTML) with an XSS corpus and enumerate all `MarkupString` sites
+  - **As built (12a):** upload paths: the shared hostile-file corpus (`AttachmentStoreTests`, `KbImageStoreTests`, `DiskFullIntakeTests`, `AttachmentDownloadEndpointTests`); review group 3, SR-04, SR-05, SR-08, SR-11.
+- [x] **P12-T05** Review and test the sanitizer/rendering paths (message bodies, KB render, admin preview, email HTML) with an XSS corpus and enumerate all `MarkupString` sites
   - **Depends on:** P12-T01
   - **Validation:** Corpus run yields no executable output in any path; architecture test fails if `MarkupString` appears outside the four allowed components; email templates HTML-encode all user content (test with `<script>` subject).
-- [ ] **P12-T06** Audit authorization: every agent endpoint group requires the policy; Admin-only operations (D-022) enforced; IDOR checks on tickets, attachments, KB, products; hub auth; group-derived role behavior (D-029)
+  - **As built (12a):** sanitiser paths: `tests/Shared/Fixtures/xss-corpus.txt` with `XssCorpus`/`XssAssertions` run through `HtmlSanitizerTests`, `KbHtmlSanitizerTests`, `KbContentRendererTests`, `KbPreviewXssTests`, `EmailTemplateRendererTests`, `MarkupStringSiteTests`; review group 4.
+- [x] **P12-T06** Audit authorization: every agent endpoint group requires the policy; Admin-only operations (D-022) enforced; IDOR checks on tickets, attachments, KB, products; hub auth; group-derived role behavior (D-029)
   - **Depends on:** P12-T01
   - **Validation:** Parameterized Api.Tests enumerate all controller routes via endpoint metadata and assert 401 anonymous / 403 non-agent / 403 Agent-on-Admin-route; the test fails for a newly added route lacking a policy.
-- [ ] **P12-T07** Verify privacy handling: Serilog redaction (emails, tokens, keys), erase-requester completeness (messages, attachments, search vectors, event payloads), hard delete, spam
+  - **As built (12a):** authorization: `RoutePolicyCoverageTests`, `AgentAccessCoverageTests`, `HubPolicyCoverageTests`, the pinned Admin-only route list; found and fixed SR-14 (last-admin lock order) and SR-17 (HSTS in Development); review group 5, SR-06, SR-07.
+- [x] **P12-T07** Verify privacy handling: Serilog redaction (emails, tokens, keys), erase-requester completeness (messages, attachments, search vectors, event payloads), hard delete, spam
   - **Depends on:** P12-T01
   - **Validation:** Integration test erases a requester and asserts no PII remains in tables, files or logs; log capture shows redacted placeholders.
-- [ ] **P12-T08** Verify headers/CSP/CORS/forwarded-headers and error-detail behavior on API, admin and portal in Production mode
+  - **As built (12a):** privacy: `LogRedactionTests`, `EraseRequesterIntegrationTests`, `EraseRequesterEndpointTests` (erase leaves no PII in logs, run at Verbose), `DeleteTagIntegrationTests`; fixed SR-15 and SR-18 (`MvcArgumentsRedactionEnricher`); review group 6, SR-09.
+- [x] **P12-T08** Verify headers/CSP/CORS/forwarded-headers and error-detail behavior on API, admin and portal in Production mode
   - **Depends on:** P12-T01
   - **Validation:** Test matrix per host: CSP, `X-Content-Type-Options`, `Referrer-Policy`, HSTS note (TLS terminated outside), no CORS wildcard for credentialed endpoints, ProblemDetails without stack traces; results recorded.
-- [ ] **P12-T09** Run dependency vulnerability scan, container image scan and generate an SBOM; triage findings
+  - **As built (12a):** headers per host in Production: `SecurityHeadersHostTests`, `ContentSecurityPolicyHostTests`, `StrictTransportSecurityHostTests`, `CorsAbsenceHostTests`, `ApiUnhandledErrorHostTests`, `PublicDocumentsSecretsTests`; review group 5 and its per-host header table.
+- [x] **P12-T09** Run dependency vulnerability scan, container image scan; triage findings
   - **Depends on:** P11 (final dependency set)
-  - **Validation:** `dotnet list package --vulnerable --include-transitive` clean or accepted; image scan has no High/Critical without a documented waiver; SBOM stored with the release artifacts.
-- [ ] **P12-T10** Fix findings from T02–T09, each as a small PR with a regression test; update the review document statuses
+  - **Validation:** `dotnet list package --vulnerable --include-transitive` clean or accepted; image scan has no High/Critical without a documented waiver.
+  - **As built (12a):** CI fails on vulnerable packages (direct and transitive) and on High/Critical image findings (Trivy), local scan clean (SR-13); no SBOM is published (D-051 amendment 2026-10-09).
+- [x] **P12-T10** Fix findings from T02–T09, each as a small PR with a regression test; update the review document statuses
   - **Depends on:** P12-T02 … P12-T09
   - **Validation:** All High/Critical closed with test references; Medium accepted or fixed with rationale; `dotnet test` green.
+  - **As built (12a):** every finding has a status (4 Fixed with regression tests, 14 Accepted, 0 Open; 0 open High/Critical); the review statuses and sign-off are pinned by the `PHASE-12a close-out` Pester block.
 - [ ] **P12-T11** Write k6 load scripts (intake Trusted + Public key, portal form post, customer view, KB search) with realistic payloads and a scenario runner
   - **Depends on:** P05, P09
   - **Validation:** Scripts run against local compose; thresholds encoded in the scripts (p95, error rate); README explains parameters.
@@ -137,7 +164,7 @@ phase verifies configuration and upgrades only for security fixes.
 - [ ] **P12-T13** Write `docs/runbooks/backup-restore.md` and the backup script(s); schedule on UAT
   - **Depends on:** P01 compose, P05 storage layout, P08 image prefix
   - **Validation:** Reviewed against the actual volume/DB names in compose; script produces encrypted dump + volume archive; retention pruning verified on a test directory.
-- [ ] **P12-T14** Deploy the first published version (`v0.1.0`) to UAT with `deploy/docker-compose.yml`, the env files made from the `deploy/.env.<app>.example` templates and `deploy/.env.uat.example` (D-043); wire dashboards and alerts. The first published version is `v0.1.0` (D-049 addendum); `v1.0.0` is cut when the SDK-facing Contracts surface is locked.
+- [ ] **P12-T14** Deploy the latest published tag (D-051) to UAT with `deploy/docker-compose.yml`, the env files made from the `deploy/.env.<app>.example` templates and `deploy/.env.uat.example` (D-043); wire dashboards and alerts. The first published version was `v0.1.0` (D-049 addendum); the latest published tag is what UAT runs (D-051); `v1.0.0` is cut when the SDK-facing Contracts surface is locked.
   - **Depends on:** P12-T10 (or accepted open items), P11-T16
   - **Validation:** All four containers healthy; migrations applied once by the API; agent signs in via the owner's Authentik; a ticket submitted through the portal, SDK sample and email link works end to end; alerts fire in a forced-failure test (stop worker -> outbox lag alert).
 - [ ] **P12-T15** Perform the restore drill from a UAT backup into a scratch stack and record timings and verification results in the runbook
@@ -152,15 +179,16 @@ phase verifies configuration and upgrades only for security fixes.
 - [ ] **P12-T18** Soak the RC on UAT for at least 48 hours with real use; triage and fix regressions; collect SDK feedback
   - **Depends on:** P12-T14, P12-T15
   - **Validation:** Soak log shows no unexplained 5xx, no dead letters, stable memory/connections, listener reconnect count explained; issues filed and fixed or deferred with reasons.
-- [ ] **P12-T19** Run the architecture conformance gate: reflection report of entry points vs. handler catalog vs. phase tables; confirm Architecture.Tests pass (project-reference direction, one-handler-per-action, `MarkupString` rule)
+- [x] **P12-T19** Run the architecture conformance gate: reflection report of entry points vs. handler catalog vs. phase tables; confirm Architecture.Tests pass (project-reference direction, one-handler-per-action, `MarkupString` rule)
   - **Depends on:** P12-T10
   - **Validation:** Report lists every entry point once with its handler; discrepancies fixed in docs or code; CI green.
+  - **As built (12a):** `EntryPointCatalogTests` (with `EntryPointCatalog` and `EntryPointCatalogParserTests`) compares section 7.1 to 7.5 with the controllers, `TicketHub` and the hosted loops: 69 entry points, 0 discrepancies after three document fixes (two `{productKey}` route parameters, the listener class name); see the review's Architecture conformance section.
 - [ ] **P12-T20** Final documentation pass: README (quickstart, screenshots), CONTRIBUTING, SECURITY.md contact/process, update statuses in `00-DISCOVERY-INDEX.md`/`99-IMPLEMENTATION-ROADMAP.md`, mark the original spec superseded, add CHANGELOG/release notes draft
   - **Depends on:** P12-T16, P12-T17, P12-T19
   - **Validation:** Link check passes; docs reference the actual shipped env keys and image names; owner approves the release notes.
 - [ ] **P12-T21** Tag and publish `v1.0.0` from `main`; verify images, packages, release and the upgrade path from `rc`
   - **Depends on:** P12-T18, P12-T20
-  - **Validation:** CI publishes `ghcr.io/syntax-circus/techstrap-{api,admin,portal,worker}:1.0.0` and `latest`, the three NuGet packages at `1.0.0`, and a GitHub Release with SBOM/notes; `docker compose pull && up` on UAT upgrades from rc without data loss; fresh install from the self-host guide works against the released images.
+  - **Validation:** CI publishes `ghcr.io/syntax-circus/techstrap-{api,admin,portal,worker}:1.0.0` and `latest`, the three NuGet packages at `1.0.0`, and a GitHub Release with notes; `docker compose pull && up` on UAT upgrades from rc without data loss; fresh install from the self-host guide works against the released images.
 
 ## Success Criteria
 

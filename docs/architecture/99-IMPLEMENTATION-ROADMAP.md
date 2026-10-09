@@ -29,7 +29,7 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 | 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | 08, 09, 11 alongside | D-007, D-018, D-046 | 10a merged (PR #18); 10b merged (PR #19); PHASE-10 complete: the owner's manual checks with a real identity provider (two browsers, a worker auto-close, the kill switch) are open |
 | 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | Alongside 06 to 10 | D-005, D-020, D-047, D-048, D-049 | 11a merged (PR #20); 11b merged (PR #21); 11c merged (PR #22); v0.1.0 published 2026-10-08 (PHASE-11 complete); T05 (attachments) deferred to 11d, which first needs multipart intake |
 | 11e | [Product hosts](PHASE-11e-product-hosts.md) | 09, 05, 04, 07 | 12 | After 11 | D-050 | 11e merged (PR #25): T01 to T07 |
-| 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 | Last; security, load, restore and UAT tasks can overlap once their inputs exist | D-003, D-022 | Not started |
+| 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 (v0.3.0 per D-051; 1.0.0 is a later API-lock decision) | Last; security, load, restore and UAT tasks can overlap once their inputs exist | D-003, D-022, D-051 | D-051 recorded; 12a complete (pending merge) |
 
 Edges: 01 to 02 and 03; 03 to 04 to 05 to 06; 05 to 11; 02 and 06 to 07; 06 and 07 to 08; 02, 06 and 08 to 09; 07 to 10; all to 12.
 
@@ -321,7 +321,7 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P12-T06 | Audit authorization |
 | P12-T07 | Verify privacy handling |
 | P12-T08 | Verify headers, CSP, CORS, forwarded headers and error detail |
-| P12-T09 | Dependency scan, image scan and SBOM |
+| P12-T09 | Dependency scan and image scan (no SBOM, D-051 amendment) |
 | P12-T10 | Fix findings with regression tests |
 | P12-T11 | k6 load scripts |
 | P12-T12 | Execute load tests on UAT and record results |
@@ -333,7 +333,7 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P12-T18 | 48-hour soak of the RC |
 | P12-T19 | Architecture conformance gate |
 | P12-T20 | Final documentation pass |
-| P12-T21 | Tag and publish `v1.0.0` |
+| P12-T21 | Tag and publish `v1.0.0` (v0.3.0 per D-051; 1.0.0 is a later API-lock decision) |
 
 ## 4. Standard validation commands
 
@@ -387,7 +387,7 @@ Phase-specific gates (in addition to the phase's own criteria):
 | 09 | Token pages send `no-store`, `no-referrer`, `noindex`; rate limits see the real client IP; no-JS contact and reply flows work |
 | 10 | A worker-originated change reaches an open admin queue; rollbacks never broadcast; hub rejects unauthenticated callers |
 | 11 | Contract test proves the SDK matches `/openapi/v1.json`; packages pack with README and symbols; publish workflow verified by a dry run |
-| 12 | No open High or Critical findings; load budgets met on UAT; restore drill passed; 48-hour soak clean; `v1.0.0` images and packages published |
+| 12 | No open High or Critical findings; load budgets met on UAT; restore drill passed; 48-hour soak clean; `v1.0.0` images and packages published (v0.3.0 per D-051; 1.0.0 is a later API-lock decision) |
 
 ## 6. Phase-selection handoff
 
@@ -415,7 +415,7 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 | 4 | Open the cross-repo PR registering subnet `172.16.31.0/24` in the `_template` `CLIENT_IP_RATE_LIMITING.md` registry, and confirm it is free on the UAT host (the `TECHSTRAP_SUBNET` input of `deploy/docker-compose.yml`, D-019, D-043) | P01-T16 |
 | 5 | Choose the `SECURITY.md` private reporting address | P01-T19 |
 | 6 | Choose the visual direction and approve `docs/BRAND.md` | P02-T01 to P02-T03 |
-| 7 | Set up the Authentik application and groups per the `syntax-circus-authentik` repo: a confidential OIDC client for Admin (code plus PKCE, `offline_access`, group claim in the id and access tokens), a provider for the API audience, and groups mapped to `TECHSTRAP_AGENT_GROUP` and `TECHSTRAP_ADMIN_GROUP`; the first admin is whoever is in the admin group (D-029) | P04-T14, P07-T02, P12-T17 |
+| 7 | Set up the Authentik application and groups per the `syntax-circus-authentik` repo: a confidential OIDC client for Admin (code plus PKCE, `offline_access`, group claim in the id and access tokens), a provider for the API audience, and groups mapped to `TECHSTRAP_AGENT_GROUP` and `TECHSTRAP_ADMIN_GROUP`; the first admin is whoever is in the admin group (D-029) Needed before 12c's T14 (D-051) | P04-T14, P07-T02, P12-T17 |
 | 8 | Supply the reverse-proxy address and trusted network values for UAT and production (Q-08: the `REVERSE_PROXY_CIDR` input of `deploy/.env.<env>.local`), create the shared Postgres Docker network and the scoped env files under `/etc/techstrap/<env>/` (D-043), and an SMTP relay for UAT | P01-T16, P12-T14 |
 | 9 | ~~Create the nuget.org publishing setup~~ Done 2026-10-08 (D-049): the `TechStrap.*` package IDs are reserved, each package has a Trusted Publishing policy, `NUGET_USER` is set as an organization secret available to the repository (no API-key fallback) and the GitHub environment `release` has a required reviewer and a "Selected branches and tags" deployment rule for `v*` (verified with `gh api repos/Syntax-Circus/techstrap/environments/release`) | P11-T15 |
 | 10 | Provide a macOS runner (or approve the macOS CI cost) for the MAUI workload build. Withdrawn (D-048): single net10.0, no macOS runner | P11-T07 |

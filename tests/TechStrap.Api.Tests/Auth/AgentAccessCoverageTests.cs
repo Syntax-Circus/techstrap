@@ -43,6 +43,44 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>D-022: the routes only an Admin may call, as <c>"METHOD api/template"</c> (the live <c>RoutePattern.RawText</c>, constraints included). A route added to or removed from this set is a deliberate change to the privilege boundary, so it must be made here too.</summary>
+    private static readonly IReadOnlySet<string> AdminOnlyRoutes = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "DELETE api/dead-letters/{id:guid}",
+        "DELETE api/kb/categories/{id:guid}",
+        "DELETE api/products/{id:guid}/api-keys/{keyId:guid}",
+        "DELETE api/tags/{id:guid}",
+        "DELETE api/tickets/{id:guid}",
+        "GET api/admin-events",
+        "GET api/dead-letters",
+        "GET api/products/{id:guid}/api-keys",
+        "GET api/tags/summary",
+        "POST api/dead-letters/{id:guid}/retry",
+        "POST api/products",
+        "POST api/products/{id:guid}/api-keys",
+        "POST api/requesters/{id:guid}/erase",
+        "POST api/tags",
+        "PUT api/agents/{id:guid}",
+        "PUT api/products/{id:guid}",
+        "PUT api/tags/{id:guid}",
+    };
+
+    [Fact]
+    public void The_admin_only_route_set_matches_the_pinned_list()
+    {
+        using var factory = new ApiFactory();
+        var live = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Any(data => data.Policy == TechStrap.Api.Security.AuthorizationPolicies.Admin))
+            .SelectMany(endpoint => (endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? ["GET"]).Select(method => $"{method} {endpoint.RoutePattern.RawText}"))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var unpinned = live.Except(AdminOnlyRoutes).Order(StringComparer.Ordinal).ToList();
+        var noLongerAdmin = AdminOnlyRoutes.Except(live).Order(StringComparer.Ordinal).ToList();
+        (unpinned.Count + noLongerAdmin.Count).ShouldBe(
+            0,
+            "unpinned (Admin in code, not in AdminOnlyRoutes): [" + string.Join("; ", unpinned) + "]; no longer admin (pinned, not Admin in code): [" + string.Join("; ", noLongerAdmin) + "]");
+    }
+
     [Fact]
     public async Task Multipart_routes_are_probed_with_a_multipart_body()
     {

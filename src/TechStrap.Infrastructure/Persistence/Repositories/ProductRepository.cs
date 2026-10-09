@@ -11,6 +11,17 @@ internal sealed class ProductRepository(TechStrapDbContext context) : IProductRe
     public async Task<Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         (await context.Set<ProductRecord>().FirstOrDefaultAsync(p => p.Id == id, cancellationToken))?.ToDomain();
 
+    public async Task<IReadOnlySet<Guid>> GetExistingIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        if (ids.Count == 0)
+        {
+            return new HashSet<Guid>();
+        }
+
+        var found = await context.Set<ProductRecord>().Where(p => ids.Contains(p.Id)).Select(p => p.Id).ToListAsync(cancellationToken);
+        return found.ToHashSet();
+    }
+
     public async Task<Product?> GetByKeyAsync(string key, CancellationToken cancellationToken) =>
         (await context.Set<ProductRecord>().FirstOrDefaultAsync(p => p.Key == key, cancellationToken))?.ToDomain();
 

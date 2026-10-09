@@ -6,6 +6,7 @@ using TechStrap.Api.Startup;
 using TechStrap.Api.Tests.Auth;
 using TechStrap.Contracts.Http;
 using TechStrap.Contracts.Intake;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Api.Tests.Intake;
 
@@ -28,7 +29,7 @@ public sealed class PublicIntakeEndpointTests(TestPostgres postgres) : IAsyncLif
         return ValueTask.CompletedTask;
     }
 
-    private async Task<(ApiFactory Factory, ApiTestDatabase Database, IntakeSeed Seed)> StartAsync(bool kestrel = false)
+    private async Task<(ApiFactory Factory, ApiTestDatabase Database, IntakeSeed Seed)> StartAsync(bool kestrel = false, IReadOnlyDictionary<string, string?>? extra = null)
     {
         var database = await ApiTestDatabase.CreateAsync(postgres);
         var settings = new Dictionary<string, string?>(database.Settings)
@@ -36,6 +37,11 @@ public sealed class PublicIntakeEndpointTests(TestPostgres postgres) : IAsyncLif
             ["TECHSTRAP_PORTAL_PUBLIC_URL"] = "https://help.test",
             ["Storage:Local:RootPath"] = _storage,
         };
+        foreach (var pair in extra ?? new Dictionary<string, string?>())
+        {
+            settings[pair.Key] = pair.Value;
+        }
+
         var factory = new ApiFactory(settings: settings);
         if (kestrel)
         {
@@ -68,6 +74,38 @@ public sealed class PublicIntakeEndpointTests(TestPostgres postgres) : IAsyncLif
         var file = new ByteArrayContent(bytes);
         file.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
         form.Add(file, "attachments", fileName);
+    }
+
+    /// <summary>
+    /// The upload as a form field. HttpClient cannot put every hostile name on the wire (a NUL in a file name is a FormatException on the client), so for those the
+    /// body is written by hand, byte for byte, the way a hostile client would send it.
+    /// </summary>
+    private static HttpContent FormWithHostileFile(HostileUpload upload)
+    {
+        var type = upload.DeclaredContentType ?? "application/octet-stream";
+        try
+        {
+            var form = Form();
+            AddFile(form, upload.Content, upload.FileName, type);
+            return form;
+        }
+        catch (FormatException)
+        {
+            const string Boundary = "hostile-boundary-1b2c3d";
+            using var body = new MemoryStream();
+            void Write(string text) => body.Write(System.Text.Encoding.UTF8.GetBytes(text));
+            foreach (var (name, value) in new[] { ("email", "ada@example.com"), ("name", "Ada"), ("subject", "Help"), ("body", "Please help") })
+            {
+                Write($"--{Boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n");
+            }
+
+            Write($"--{Boundary}\r\nContent-Disposition: form-data; name=\"attachments\"; filename=\"{upload.FileName}\"\r\nContent-Type: {type}\r\n\r\n");
+            body.Write(upload.Content);
+            Write($"\r\n--{Boundary}--\r\n");
+            var content = new ByteArrayContent(body.ToArray());
+            content.Headers.ContentType = MediaTypeHeaderValue.Parse($"multipart/form-data; boundary={Boundary}");
+            return content;
+        }
     }
 
     private static Task<HttpResponseMessage> PostAsync(HttpClient client, string key, HttpContent content, Action<HttpRequestMessage>? configure = null)
@@ -111,6 +149,74 @@ public sealed class PublicIntakeEndpointTests(TestPostgres postgres) : IAsyncLif
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         (await database.ScalarAsync<long>("SELECT count(*) FROM attachments WHERE content_type = 'image/png'")).ShouldBe(1);
         Directory.GetFiles(_storage, "*", SearchOption.AllDirectories).Length.ShouldBe(1);
+    }
+
+    [Fact(Timeout = 240_000)]
+    public async Task Every_hostile_upload_through_the_multipart_form_gets_its_recorded_outcome()
+    {
+        // One request per corpus entry: the per-IP web-form limit is raised so no corpus row is throttled.
+        var (factory, database, _) = await StartAsync(extra: new Dictionary<string, string?> { ["RateLimiting:Intake:WebFormPermitLimit"] = "1000" });
+        await using var _f = factory;
+        using var client = factory.CreateClient();
+        var failures = new List<string>();
+        long tickets = 0;
+        var files = 0;
+
+        foreach (var upload in HostileUploadCorpus.All)
+        {
+            try
+            {
+                using var form = FormWithHostileFile(upload);
+
+                using var response = await PostAsync(client, "orbitly", form);
+                var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+                var ticketsNow = await database.ScalarAsync<long>("SELECT count(*) FROM tickets");
+                var filesNow = Directory.Exists(_storage) ? Directory.GetFiles(_storage, "*", SearchOption.AllDirectories).Length : 0;
+                if (upload.Attachment.Stored)
+                {
+                    if (response.StatusCode != HttpStatusCode.Created)
+                    {
+                        failures.Add($"{upload.Id}: expected 201, got {(int)response.StatusCode} {body}");
+                    }
+                    else if (ticketsNow != tickets + 1 || filesNow != files + 1)
+                    {
+                        failures.Add($"{upload.Id}: expected one new ticket and one new file, tickets {tickets}->{ticketsNow}, files {files}->{filesNow}");
+                    }
+                    else
+                    {
+                        // Attachment ids are time-ordered, so the newest row is the file this request stored.
+                        var storedName = await database.ScalarAsync<string>("SELECT file_name FROM attachments ORDER BY id DESC LIMIT 1");
+                        var storedType = await database.ScalarAsync<string>("SELECT content_type FROM attachments ORDER BY id DESC LIMIT 1");
+                        if (!upload.Attachment.NameMatches(storedName))
+                        {
+                            failures.Add($"{upload.Id}: stored as '{storedName}', which does not match the manifest");
+                        }
+
+                        if (upload.Attachment.ContentType is not null && storedType != upload.Attachment.ContentType)
+                        {
+                            failures.Add($"{upload.Id}: stored with content type '{storedType}', expected '{upload.Attachment.ContentType}'");
+                        }
+                    }
+                }
+                else if (response.StatusCode != HttpStatusCode.BadRequest || !body.Contains(upload.Attachment.ErrorCode!, StringComparison.Ordinal))
+                {
+                    failures.Add($"{upload.Id}: expected 400 with {upload.Attachment.ErrorCode}, got {(int)response.StatusCode} {body}");
+                }
+                else if (ticketsNow != tickets || filesNow != files)
+                {
+                    failures.Add($"{upload.Id}: a refused upload left a ticket or file, tickets {tickets}->{ticketsNow}, files {files}->{filesNow}");
+                }
+
+                tickets = ticketsNow;
+                files = filesNow;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                failures.Add($"{upload.Id}: {exception.GetType().Name} {exception.Message}");
+            }
+        }
+
+        failures.ShouldBeEmpty(string.Join(Environment.NewLine, failures));
     }
 
     [Fact]

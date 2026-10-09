@@ -1,3 +1,4 @@
+using TechStrap.Tests.Shared;
 using TechStrap.Infrastructure.Content;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
@@ -185,5 +186,17 @@ public sealed class KbContentRendererTests
     public void An_empty_source_renders_nothing()
     {
         _renderer.Render(string.Empty).ShouldBeEmpty();
+    }
+
+    public static IEnumerable<TheoryDataRow<string>> CorpusRows() => XssCorpus.Rows();
+
+    // Markdig runs with DisableHtml, so raw HTML in the source is escaped before KbHtmlSanitizer sees it: this test covers the Markdown path
+    // (the vector alone, and under a heading). The HTML-sanitiser path is covered by KbHtmlSanitizerTests and KbPreviewXssTests.
+    [Theory]
+    [MemberData(nameof(CorpusRows))]
+    public void Every_corpus_vector_renders_inert_from_markdown_source_alone_and_under_a_heading(string vector)
+    {
+        XssAssertions.ShouldHaveNoActiveContent(_renderer.Render(vector), vector);
+        XssAssertions.ShouldHaveNoActiveContent(_renderer.Render("# Title\n\n" + vector), "# Title + " + vector);
     }
 }

@@ -10,14 +10,16 @@ namespace TechStrap.Application.Agents;
 /// </summary>
 internal static class CurrentAgent
 {
-    public static async Task<Result<Agent>> RequireActiveAsync(ICurrentAgentClaims currentAgent, IAgentRepository agents, CancellationToken cancellationToken)
+    public static async Task<Result<Agent>> RequireActiveAsync(ICurrentAgentClaims currentAgent, IAgentRepository agents, CancellationToken cancellationToken, bool fresh = false)
     {
         if (currentAgent.Current is not { } claims)
         {
             return Result<Agent>.Failure(AgentErrors.AccessRequired());
         }
 
-        var agent = await agents.GetBySubjectAsync(claims.Subject, cancellationToken);
+        var agent = fresh
+            ? await agents.GetBySubjectFreshAsync(claims.Subject, cancellationToken)
+            : await agents.GetBySubjectAsync(claims.Subject, cancellationToken);
         if (agent is null)
         {
             return Result<Agent>.Failure(AgentErrors.NotProvisioned());

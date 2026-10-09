@@ -1,9 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
 using TechStrap.Api.Tests.Auth;
+using Serilog.Events;
+using TechStrap.Hosting.Logging;
 using TechStrap.Api.Tests.Customer;
+using TechStrap.Api.Tests.Intake;
 using TechStrap.Api.Tests.Tickets;
 using TechStrap.Contracts.Http;
+using TechStrap.Contracts.Intake;
 using TechStrap.Contracts.Paging;
 using TechStrap.Contracts.Tickets;
 
@@ -32,6 +36,60 @@ public sealed class EraseRequesterEndpointTests(TestPostgres postgres)
         var request = new HttpRequestMessage(HttpMethod.Get, "/api/customer/ticket");
         request.Headers.Add(HeaderNames.TicketToken, token);
         return request;
+    }
+
+    private static string Everything(LogEvent e) => string.Join('\n', [e.RenderMessage(), e.Exception?.ToString() ?? string.Empty, .. e.Properties.Values.Select(v => v.ToString())]);
+
+    [Fact(Timeout = 120_000)]
+    public async Task Erasing_a_requester_writes_no_email_name_or_token_to_any_log_event()
+    {
+        const string email = "erase.me.7f3a@example.com";
+        const string localPart = "erase.me.7f3a";
+        const string name = "Zelda Quillfeather";
+        const string subject = "Quill subject 7f3a";
+        const string body = "Quill body 7f3a";
+        var database = await ApiTestDatabase.CreateAsync(postgres);
+        // Every level is captured, as in AdminLeakTests: a value that only shows at Verbose is still a leak.
+        var settings = new Dictionary<string, string?>(database.Settings)
+        {
+            ["TECHSTRAP_PORTAL_PUBLIC_URL"] = "https://help.test",
+            ["Serilog:MinimumLevel:Default"] = "Verbose",
+            ["Serilog:MinimumLevel:Override:Microsoft"] = "Verbose",
+            ["Serilog:MinimumLevel:Override:Microsoft.AspNetCore"] = "Verbose",
+            ["Serilog:MinimumLevel:Override:System"] = "Verbose",
+        };
+        await using var factory = new ApiFactory(settings: settings);
+        var seed = await IntakeTestData.SeedAsync(factory.Services, Xunit.TestContext.Current.CancellationToken);
+        using var admin = factory.CreateClient().Bearer(TestJwt.Token("admin", [TestJwt.AdminGroup], email: "admin@example.com"));
+        (await admin.GetAsync("/api/agents/me", Xunit.TestContext.Current.CancellationToken)).EnsureSuccessStatusCode();
+        using var intake = new HttpRequestMessage(HttpMethod.Post, "/api/intake/tickets")
+        {
+            Content = JsonContent.Create(new SubmitTicketRequest(email, name, subject, body, null, null)),
+        };
+        intake.Headers.Add(HeaderNames.ApiKey, seed.OrbitlyTrusted);
+        using var submitted = await factory.CreateClient().SendAsync(intake, Xunit.TestContext.Current.CancellationToken);
+        submitted.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var viewUrl = (await submitted.Content.ReadFromJsonAsync<SubmitTicketResponse>(Xunit.TestContext.Current.CancellationToken))!.ViewUrl!;
+        var token = viewUrl[(viewUrl.IndexOf("/t/", StringComparison.Ordinal) + 3)..].Split('?', '#', '/')[0];
+        token.ShouldNotBeEmpty();
+        var requesterId = await database.ScalarAsync<Guid>($"SELECT id FROM requesters WHERE email = '{email}'");
+
+        using var erased = await admin.PostAsync($"/api/requesters/{requesterId}/erase", null, Xunit.TestContext.Current.CancellationToken);
+
+        erased.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        var events = factory.LogSink.Events.ToList();
+        events.Count.ShouldBeGreaterThan(0, "a silent sink would prove nothing");
+        events.ShouldContain(e => e.Level <= LogEventLevel.Debug, "the Verbose setting must have taken effect");
+        // The enricher must have been active: MVC's "Executing action method ... with arguments" event was emitted and its Arguments property was replaced by the marker.
+        var argumentEvents = events.Where(e => e.MessageTemplate.Text.Contains("with arguments", StringComparison.Ordinal)).ToList();
+        argumentEvents.ShouldNotBeEmpty("MVC must have logged the action's arguments event, otherwise the redaction was never exercised");
+        argumentEvents.Select(e => (e.Properties["Arguments"] as ScalarValue)?.Value as string).ShouldAllBe(value => value == MvcArgumentsRedactionEnricher.ArgumentsMarker);
+        argumentEvents.ShouldAllBe(e => e.Level == LogEventLevel.Verbose); // MVC logs the arguments at Trace, which Serilog calls Verbose.
+        events.ShouldContain(e => e.RenderMessage().Contains("/erase", StringComparison.Ordinal) && e.RenderMessage().Contains("POST", StringComparison.Ordinal), "the erase request itself must have been logged");
+        foreach (var needle in new[] { email, localPart, name, subject, body, token })
+        {
+            events.Select(Everything).ShouldAllBe(text => !text.Contains(needle, StringComparison.OrdinalIgnoreCase), $"'{needle}' must not appear in any log event");
+        }
     }
 
     [Fact]

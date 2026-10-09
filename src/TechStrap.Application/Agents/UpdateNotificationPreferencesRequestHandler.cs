@@ -2,6 +2,7 @@ using SyntaxCircus.Common;
 using TechStrap.Application.Persistence;
 using TechStrap.Contracts.Agents;
 using TechStrap.Domain.Agents;
+using TechStrap.Domain.Rules;
 
 namespace TechStrap.Application.Agents;
 
@@ -31,6 +32,11 @@ public sealed class UpdateNotificationPreferencesRequestHandler(
             return Result.Failure(new ResultError("notification-preferences-required", "Send the list of product preferences.", ResultErrorKind.Validation, "preferences"));
         }
 
+        if (request.Preferences.Count > DomainLimits.NotificationPreferencesMaxCount)
+        {
+            return Result.Failure(new ResultError("notification-preferences-too-many", $"Send at most {DomainLimits.NotificationPreferencesMaxCount} product preferences at once.", ResultErrorKind.Validation, "preferences"));
+        }
+
         var seen = new HashSet<Guid>();
         for (var index = 0; index < request.Preferences.Count; index++)
         {
@@ -44,8 +50,12 @@ public sealed class UpdateNotificationPreferencesRequestHandler(
             {
                 return Result.Failure(new ResultError("notification-product-repeated", "Each product can appear only once.", ResultErrorKind.Validation, $"preferences[{index}].productId"));
             }
+        }
 
-            if (await products.GetByIdAsync(preference.ProductId, cancellationToken) is null)
+        var existing = await products.GetExistingIdsAsync(request.Preferences.Select(p => p.ProductId).ToList(), cancellationToken);
+        for (var index = 0; index < request.Preferences.Count; index++)
+        {
+            if (!existing.Contains(request.Preferences[index].ProductId))
             {
                 return Result.Failure(new ResultError("notification-product-unknown", "That product does not exist. Reload the list and try again.", ResultErrorKind.Validation, $"preferences[{index}].productId"));
             }

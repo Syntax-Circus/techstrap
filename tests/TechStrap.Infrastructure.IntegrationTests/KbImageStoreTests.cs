@@ -4,6 +4,7 @@ using SyntaxCircus.Storage;
 using TechStrap.Application.Knowledge;
 using TechStrap.Contracts.Kb;
 using TechStrap.Infrastructure.Attachments;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
 
@@ -101,6 +102,33 @@ public sealed class KbImageStoreTests : IDisposable
             error => error.Code.ShouldBe("kb-image-type-not-allowed", label),
             error => error.Target.ShouldBe("file"));
         Directory.Exists(Path.Combine(_root, "kb-images")).ShouldBeFalse();
+    }
+
+    public static IEnumerable<TheoryDataRow<string>> HostileUploads() => HostileUploadCorpus.Rows();
+
+    [Theory(Timeout = 30_000)]
+    [MemberData(nameof(HostileUploads))]
+    public async Task Every_hostile_upload_gets_its_recorded_kb_outcome(string id)
+    {
+        var upload = HostileUploadCorpus.Get(id);
+        var expected = upload.KbImage;
+
+        var result = await _store.SaveAsync(Upload(upload.Content), TestContext.Current.CancellationToken);
+
+        var files = Directory.Exists(_root) ? Directory.GetFiles(_root, "*", SearchOption.AllDirectories) : [];
+        if (!expected.Stored)
+        {
+            result.Errors.ShouldHaveSingleItem().Code.ShouldBe(expected.ErrorCode);
+            files.ShouldBeEmpty();
+            return;
+        }
+
+        var stored = result.Value;
+        stored.Key.ShouldMatch("^kb-images/[0-9a-f]{32}\\.png$");
+        stored.Key.ShouldNotContain(upload.FileName);
+        stored.FileName.ShouldNotContain("invoice");
+        files.ShouldHaveSingleItem();
+        Path.GetFullPath(files[0]).ShouldBe(Path.GetFullPath(Path.Combine(_root, stored.Key)));
     }
 
     [Fact]

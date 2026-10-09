@@ -24,6 +24,7 @@ Approval basis:
 - **Owner decision (2026-10-07, PHASE-11b planning):** D-048, the owner decisions on the single net10.0 target framework, the one-pull-request delivery and the approved MAUI helper design. Its technical rulings were proposed in the PHASE-11b plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-08, PHASE-11c planning):** D-049, the owner decisions that nuget.org is ready (IDs, Trusted Publishing policy, NUGET_USER, the release environment), that the XML documentation file is enabled for every package member, that the post-publish check runs against the local compose stack until UAT exists, and the approved publish design. Its technical rulings were proposed in the PHASE-11c plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-08, PHASE-11e planning):** D-050, the owner decisions that product hosts are their own small phase before PHASE-12, that the host-to-product mapping lives on the Product and not in configuration, that URLs on a product host are clean while the default host keeps `/p/{key}` and 301s a hosted product to its host, and that D-002 is amended. Its technical rulings were proposed in the PHASE-11e plan and approved when the owner approved the plan.
+- **Owner decision (2026-10-08, PHASE-12 planning):** D-051, the owner decisions that PHASE-12 ends at `v0.3.0` (1.0.0 waits for a deliberate lock of the Contracts public surface), that it ships as three pull requests (12a, 12b, 12c), that the load and recovery budgets are accepted, that OpenAPI stays served in Production, that the carried-forward PHASE-03/04 items fold into 12a, and that CI fails on High/Critical scan findings from day one. Its technical rulings were proposed in the PHASE-12a plan and approved when the owner approved the plan.
 - **Owner decision (2026-10-02, PHASE-02):** D-023 (visual direction) was chosen by the owner after reviewing the mockups.
 - **Owner decision (2026-10-02, after UX briefs):** D-024 (customer-facing identity, spam recovery, portal prefill) settled the open owner questions in UX-BRIEF-admin (Q11) and UX-BRIEF-portal.
 
@@ -83,6 +84,7 @@ Approval basis:
 | D-048 | PHASE-11b: TechStrap.Client.Maui on a single net10.0 target with Microsoft.Maui.Essentials, TicketMetadataKeys in Contracts, MauiTicketDraft submit helper, lazy Essentials defaults | Approved (owner 2026-10-07; technical rulings at PHASE-11b plan review) | 2026-10-07 | PHASE-11, 03-PACKAGE-MAP |
 | D-049 | PHASE-11c: tag-triggered publish-nuget.yml with NuGet Trusted Publishing and a GitHub Release, version from the tag, XML documentation and AOT-safe JSON in the packages, compiled README snippets and a console sample | Approved (owner 2026-10-08; technical rulings at PHASE-11c plan review) | 2026-10-08 | PHASE-11, PHASE-12, 03-PACKAGE-MAP |
 | D-050 | PHASE-11e: product hosts - PortalHost on the Product, HostNameShape, host-aware links, ProductHostMiddleware with clean paths and canonical 301s, PortalLinks, per-host SEO and output cache (amends D-002) | Approved (owner 2026-10-08; technical rulings at PHASE-11e plan review) | 2026-10-08 | PHASE-11e, PHASE-12, 02-ARCHITECTURE, 05-SCHEMA |
+| D-051 | PHASE-12: release hardening ends at v0.3.0 (1.0.0 deferred to an API-lock decision); three PRs 12a/12b/12c; budgets accepted; OpenAPI served in Production; carried-forward 03/04 items in 12a; CI fails on High/Critical scans | Approved (owner 2026-10-08; technical rulings at PHASE-12a plan review) | 2026-10-08 | PHASE-12, PHASE-11, 03-PACKAGE-MAP |
 
 ---
 
@@ -2182,4 +2184,53 @@ D-002 chose one portal domain for every product, with each product under `/p/{ke
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-11e planning)
+- **Approved on:** 2026-10-08
+
+## D-051: PHASE-12: release hardening at 0.3.0 (three pull requests, accepted budgets, UAT state, OpenAPI served, carried-forward items, fail-closed scans)
+
+- **Status:** Approved (owner 2026-10-08; technical rulings at PHASE-12a plan review)
+- **Date:** 2026-10-08
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-003, D-022, D-029, D-043, D-049, D-050, PHASE-12, `docs/superpowers/plans/2026-10-08-phase-12a-hardening.md` (to be written)
+
+### Context
+PHASE-12 was specced as the path to `v1.0.0`. The Contracts package is published at `v0.2.0` and, like every Syntax Circus repo, stays 0.x until its API is locked. On 2026-10-08, during PHASE-12 planning, the owner made the decisions below. Planning also found facts where the spec is wrong; they are listed in the PHASE-12 spec's Corrections block.
+
+### Decision
+**Owner decisions (2026-10-08)**
+1. **The end state is `v0.3.0`, not `v1.0.0`.** PHASE-12 ships the security review, the drills, the docs and the UAT soak, and tags `v0.3.0`. `v1.0.0` becomes its own later decision once the Contracts public surface (`TechStrap.Contracts.Intake` and `Http.HeaderNames`) is deliberately locked. There is no release candidate: UAT deploys the latest published tag at the time (currently `v0.2.0`), the soak runs it, and `v0.3.0` is tagged after the soak.
+2. **Three pull requests.** 12a hardening (P12-T01 to T10, T19 and the carried-forward items below); 12b docs and scripts (T11 k6 scripts, T13 backup runbook and script, T16 self-host and OIDC guide, T17 Authentik guide); 12c UAT and release (T12 load run, T14 deploy, T15 restore drill, T18 48 h soak, T20 docs pass, T21 tag `v0.3.0`).
+3. **The load and recovery budgets are accepted as specced:** 20 req/s for 10 min with p95 under 500 ms and no 5xx; a spike of 100 req/s for 60 s answered with 429s and recovery within 30 s; the outbox drains within 2 min; RPO 24 h and RTO 4 h.
+4. **UAT state.** The UAT box and its Postgres exist (owner actions #8 and #11 are largely done). The Authentik clients and groups (owner action #7) are not set up yet and must be before 12c's deploy (T14).
+5. **OpenAPI stays served anonymously in Production** (SDK consumers and the contract test use it). 12a adds a test that the document and `/health/ready` reveal no secrets.
+6. **The carried-forward PHASE-03/04 items fold into 12a:** the last-admin guard reads the actor after the lock (or re-checks) with a deterministic lock-path test; a double-revoke end-to-end test (or an xmin token) on `ProductApiKey`; batched forced-tag-delete ticket loads and batched notification-preference product lookups, with a cap on the list. The GIN search-plan check moves to 12c with the load run.
+7. **Scan policy: fail CI on High/Critical from day one.** `dotnet list package --vulnerable --include-transitive` fails on any vulnerability; the Trivy image scan fails on High/Critical, with a `.trivyignore` for documented waivers. Nistify is optional and not wired. **Amended 2026-10-09:** no SBOM is published (the sbom.yml workflow was removed before merge as excessive for 0.x; generate one on demand with `trivy image --format cyclonedx` (CycloneDX) if ever needed). The fail-closed scans stand.
+
+**Technical rulings (12a design; approved when the owner approved the plan)**
+- **The review document** is `docs/security/SECURITY-REVIEW.md`, a living document with a "Release 0.3.0" section (not `SECURITY-REVIEW-1.0.md`).
+- **Findings are evidence-based.** Each checklist item cites the test or tests that prove it, or records a finding with severity and status.
+- **The conformance gate (T19)** is an Architecture test that reflects controller actions, hub methods and hosted loops and compares them to the catalog tables in `02-ARCHITECTURE.md`, failing with a diff; its output is the report.
+- **Shared fixtures.** The XSS and hostile-upload corpora become shared test fixtures.
+
+**Spec corrections (where the spec and D-051 differ, D-051 wins)**
+- `v1.0.0` becomes `v0.3.0` as the phase's end state (Objective, Deliverables, T14, T21, Success Criteria, Handoff); `v1.0.0-rc.N` is dropped; T14 deploys "the latest published tag", not `v0.1.0`.
+- `MessageThread` is `MessageBubble` (`Features/Tickets/MessageBubble.razor`). The Admin rule lives in `tests/TechStrap.Admin.Tests/MarkupStringSiteTests`; the Portal rule in Architecture.Tests `PortalRules`.
+- API keys are looked up by the full SHA-256 hash (`src/TechStrap.Api/Security/ProductApiKeyValidator.cs`), not by prefix; the stored prefix is for display, audit and the rate-limit partition.
+- Customer access tokens are compared by a hashed database lookup (no `FixedTimeEquals` on that path); the review records why that is acceptable.
+- `docs/self-hosting.md` and `docs/self-hosting-authentik.md` become the existing `docs/self-hosting/` folder (`DEPLOYMENT.md` and `AGENT-AUTHENTICATION.md` exist); 12b decides the file names.
+- The tooling assumption is confirmed: `dotnet list package --vulnerable`, Trivy; Nistify optional (no SBOM published, see the amendment to decision 7).
+
+### Alternatives Considered
+- **`v1.0.0` now.** Rejected: the API lock is a separate decision, and packages stay 0.x until then.
+- **One pull request for the whole phase.** Rejected: the UAT gates (Authentik setup, the 48 h soak) would block the hardening work.
+- **Report-only scans.** Rejected: a scan that cannot fail the build is not a gate.
+- **Hiding OpenAPI in Production.** Rejected: SDK consumers and the contract test use the served document.
+
+### Consequences
+- **Spec and docs.** `PHASE-12-release-hardening.md` carries a Corrections block; the roadmap and the discovery index show row 12 as in progress and carry the v0.3.0 wording.
+- **Owner action.** Action #7 (Authentik clients and groups) is needed before 12c's T14.
+- **Later decision.** `v1.0.0` waits for a decision that locks the Contracts public surface.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-12 planning)
 - **Approved on:** 2026-10-08

@@ -207,6 +207,29 @@ public sealed class CustomerReplyIntegrationTests(PostgresFixture postgres) : Po
         (await ScalarAsync("SELECT count(*) FROM ticket_access_tokens")).ShouldBe(4);
     }
 
+    [Fact(Timeout = 60_000)]
+    public async Task A_follow_up_ticket_token_differs_from_the_parents_and_opens_only_its_own_ticket()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = NewHost();
+        var seed = await SeedAsync(host, TicketStatus.Closed);
+
+        var result = await ReplyAsync(host, seed.Token, "It broke again");
+
+        result.IsSuccess.ShouldBeTrue(result.IsFailure ? result.Errors[0].Code + ": " + result.Errors[0].Message : "");
+        var followUpToken = result.Value.FollowUpViewUrl.ShouldNotBeNull()["https://help.test/t/".Length..];
+        followUpToken.ShouldNotBe(seed.Token);
+        await using var scope = host.CreateScope();
+        var tokens = scope.ServiceProvider.GetRequiredService<IAccessTokenService>();
+        var tickets = scope.ServiceProvider.GetRequiredService<ITicketRepository>();
+        tokens.Hash(followUpToken).ShouldNotBe(tokens.Hash(seed.Token));
+        var followUp = (await tickets.GetAccessTokenByHashAsync(tokens.Hash(followUpToken), ct)).ShouldNotBeNull();
+        var parent = (await tickets.GetAccessTokenByHashAsync(tokens.Hash(seed.Token), ct)).ShouldNotBeNull();
+        parent.TicketId.ShouldBe(seed.TicketId);
+        followUp.TicketId.ShouldNotBe(seed.TicketId);
+        (await ScalarAsync($"SELECT count(*) FROM tickets WHERE id = '{followUp.TicketId}' AND parent_ticket_id = '{seed.TicketId}'")).ShouldBe(1);
+    }
+
     private static void Decorate(IServiceCollection services, Rendezvous rendezvous)
     {
         var original = services.Last(d => d.ServiceType == typeof(ITicketRepository));
