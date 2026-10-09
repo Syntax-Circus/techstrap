@@ -70,13 +70,15 @@ The resulting issuer is `https://auth.example.com/application/o/techstrap/`, inc
 
 The Api reads group names from the `groups` claim of the access token. With the default Authentik `profile` scope mapping intact, the provider already emits `groups` (the list of the user's group names) in the token, so you add nothing.
 
-Fallback, only when the default mapping was customised or removed: open Customisation, Property Mappings, Create, Scope Mapping. Use scope name `groups` and this expression:
+Fallback, only when the default mapping was customised or removed: open Customisation, Property Mappings, Create, Scope Mapping. Authentik puts a mapping's claims in the token only when the client requests that mapping's scope name, and the Admin requests `openid`, `profile`, `email` and `offline_access`. So give the new mapping the scope name `profile` (Authentik merges the claims of every selected mapping whose scope is requested, so it works alongside the default one or replaces it) and this expression:
 
 ```python
-return [g.name for g in request.user.ak_groups.all()]
+return {"groups": [g.name for g in request.user.ak_groups.all()]}
 ```
 
-Then attach the new mapping to the `TechStrap` provider (in the provider's Scopes selection) and make sure the provider still requests `profile`.
+Then select the new mapping in the `TechStrap` provider's Scopes.
+
+A mapping whose scope is `groups` never reaches the token unless the Admin also requests that scope. If you prefer that name, add `groups` to the Admin's scope list with `AUTH__SCOPES__0=groups` in `.env.admin` (the keys add to the defaults, they do not replace them). Otherwise keep the scope name `profile`.
 
 Set `TECHSTRAP_GROUP_CLAIM_TYPE` in both env files only if you emit the list under a different claim name. The default is `groups`.
 
@@ -131,6 +133,7 @@ Also try a user in `techstrap-admins` only: they sign in as an Admin without bei
 | Authentik shows a redirect URI error | The redirect URI in the provider does not match `https://admin.example.com/signin-oidc` exactly | Correct the strict redirect URI (scheme, host, path, no trailing slash) |
 | `invalid_client` after sign-in | Wrong client secret, or the provider is not Confidential | Re-copy the secret into `AUTH__CLIENTSECRET`; set client type to Confidential |
 | Signed in, but TechStrap shows no access or the API answers 403 | `groups` is missing from the access token, or the names differ | Check the scope mapping and that `profile` is requested; names must match the env values exactly (apart from letter case), in both env files |
+| Signed in but 403, and a custom groups mapping is present | The mapping's scope name is not one the Admin requests, so its claims never reach the token | Use the scope name `profile` for the mapping (or add the scope to `AUTH__SCOPES__0`) |
 | Every restart signs agents out | The Admin keys volume was lost, so cookies can no longer be decrypted | Keep the `admin-keys` volume (see [SELF-HOSTING.md](SELF-HOSTING.md#volumes)) |
 | The Api answers 401 | Audience or authority mismatch | `AUTHENTICATION__JWTBEARER__AUDIENCES__0` must equal the Admin client ID; the authority must equal the issuer exactly, trailing slash included |
 | Agents are signed out after minutes | No refresh token: `offline_access` is not selected on the provider | Select `offline_access` in the provider's scopes |

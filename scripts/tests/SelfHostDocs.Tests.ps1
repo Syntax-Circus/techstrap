@@ -199,6 +199,31 @@ Describe 'Authentik guide (PHASE-12b)' {
         $script:Authentik | Should -Match '(?i)fallback'
     }
 
+    It 'the groups fallback uses the requested profile scope name, not a groups scope the Admin never asks for' {
+        $section = ($script:Authentik -split '(?m)^## The groups claim\s*$')[1]
+        $section = ($section -split '(?m)^## ')[0]
+        $fallback = ($section -split '(?m)^Fallback')[1]
+        $fallback | Should -Match 'scope name `profile`'
+        $fallback | Should -Match 'AUTH__SCOPES__0=groups'
+        $section | Should -Not -Match '(?i)scope name `groups`'
+    }
+
+    It 'AUTHENTIK.md and AGENT-AUTHENTICATION.md links resolve and anchors match a heading' {
+        foreach ($name in 'AUTHENTIK.md', 'AGENT-AUTHENTICATION.md') {
+            $source = Get-RepoText "docs/self-hosting/$name"
+            foreach ($m in [regex]::Matches($source, '\]\((?<path>(?!https?:)[^)\s#]*)(?:#(?<frag>[^)\s]+))?\)')) {
+                $path = $m.Groups['path'].Value
+                $frag = $m.Groups['frag'].Value
+                $target = if ($path) { Join-Path $script:RepoRoot 'docs' 'self-hosting' $path } else { Join-Path $script:RepoRoot 'docs' 'self-hosting' $name }
+                Test-Path -LiteralPath $target | Should -BeTrue -Because "$name links to $path"
+                if ($frag) {
+                    $slugs = foreach ($h in (Get-Content -LiteralPath $target | Where-Object { $_ -match '^#{1,6}\s+(?<t>.+?)\s*$' } | ForEach-Object { $Matches['t'] })) { (($h.ToLowerInvariant() -replace '[^a-z0-9 \-]', '') -replace ' ', '-') }
+                    $slugs | Should -Contain $frag -Because "anchor #$frag in $path (from $name)"
+                }
+            }
+        }
+    }
+
     It 'verifies the three outcomes: a member signs in, a non-member is refused, the token carries groups and email' {
         $section = ($script:Authentik -split '(?m)^## Verification\s*$')[1]
         $section | Should -Match '(?i)member'
@@ -210,7 +235,7 @@ Describe 'Authentik guide (PHASE-12b)' {
     It 'AUTHENTIK.md contains no client secret value' {
         $script:Authentik | Should -Not -Match '(?i)client_secret\s*[=:]\s*\S'
         $script:Authentik | Should -Not -Match 'AUTH__CLIENTSECRET=(?!<|\s*$)'
-        $script:Authentik | Should -Not -Match '[A-Za-z0-9+/]{40,}'
+        $script:Authentik | Should -Not -Match '[A-Za-z0-9+/_-]{40,}'
         $script:Authentik | Should -Not -Match '(?i)(secret|password)\s*[=:]\s*[A-Za-z0-9]{10,}'
     }
 
