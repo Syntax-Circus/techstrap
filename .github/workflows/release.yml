@@ -1,7 +1,12 @@
 name: Release
 
-# Pushing a tag such as v0.1.0 or v0.1.0-rc.1 publishes multi-arch images to GHCR.
+# Pushing a tag such as v0.1.0 or v0.1.0-rc.1 publishes the four linux/amd64 images to GHCR.
 # NuGet packages and the GitHub Release come from publish-nuget.yml on the same tag.
+#
+# amd64 only (owner decision 2026-10-09, D-051): the arm64 build needed QEMU and a BuildKit container, both pulled anonymously from
+# Docker Hub, and GitHub's shared runners exhaust Docker Hub's anonymous pull limit (v0.2.1 failed three times on "toomanyrequests"
+# before building anything). The docker driver below uses the daemon's own BuildKit, so this workflow pulls nothing from Docker Hub.
+# arm64 can return on native arm64 runners (free for public repositories), never through QEMU.
 on:
   push:
     tags: ['v*']
@@ -12,16 +17,16 @@ permissions:
 
 jobs:
   images:
-    name: Build and push images (amd64 + arm64)
+    name: Build and push images (amd64)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: docker/setup-qemu-action@v4
-
       - uses: docker/setup-buildx-action@v4
+        with:
+          driver: docker
 
       - name: Log in to GHCR
         uses: docker/login-action@v4
@@ -41,4 +46,4 @@ jobs:
           $version = $env:TAG_NAME.TrimStart('v')
           # Prereleases must not move :latest, the floating tag for stable releases. The deploy compose names an explicit tag and never relies on it.
           $stable = $version -notmatch '-'
-          ./Build-TechStrapDocker.ps1 -Push -PushLatest:$stable -Registry ghcr.io/syntax-circus -ImageTag $version -SemVerTag $version
+          ./Build-TechStrapDocker.ps1 -Push -PushLatest:$stable -Registry ghcr.io/syntax-circus -ImageTag $version -SemVerTag $version -Platforms linux/amd64

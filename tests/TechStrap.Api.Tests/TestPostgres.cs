@@ -13,7 +13,14 @@ public sealed class TestPostgres : IAsyncLifetime
 {
     private const string MaintenanceDatabase = "postgres";
 
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17").WithCommand("-c", "max_connections=300").Build();
+    /// <summary>
+    /// postgres:17 from Docker Hub unless TECHSTRAP_TEST_POSTGRES_IMAGE names another reference. CI names the official image's mirror on a
+    /// registry GitHub's runners can always reach (docs/development/RELEASING.md, "Docker Hub and the tests"); local runs keep the default.
+    /// </summary>
+    public static string PostgresImage { get; } =
+        Environment.GetEnvironmentVariable("TECHSTRAP_TEST_POSTGRES_IMAGE") is { Length: > 0 } image ? image : "postgres:17";
+
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(PostgresImage).WithCommand("-c", "max_connections=300").Build();
 
     public ValueTask InitializeAsync() => new(_container.StartAsync());
 

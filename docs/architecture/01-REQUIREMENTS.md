@@ -255,7 +255,7 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 | FR-OPS-01 | Every container exposes `/health/live` and `/health/ready` | M |
 | FR-OPS-02 | API runs EF migrations on startup under an advisory lock; no other host migrates | M |
 | FR-OPS-03 | Seed and demo data for local development | M |
-| FR-OPS-04 | `Build-TechStrapDocker.ps1` builds multi-arch images for api, admin, portal, worker; GitVersion drives tags | M |
+| FR-OPS-04 | `Build-TechStrapDocker.ps1` builds the images for api, admin, portal, worker (`linux/amd64` published; arm64 only as a local option, D-051 12b rulings); GitVersion drives tags | M |
 | FR-OPS-05 | Compose files for local, UAT, production with a pinned subnet | M |
 | FR-OPS-06 | Backup and restore runbook (`pg_dump` plus storage volume) | M |
 | FR-OPS-07 | OpenAPI document served at `/openapi/v1.json` | M |
@@ -280,7 +280,7 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 | Recovery | RPO 24 h (nightly `pg_dump` plus storage volume copy); RTO 4 h from backup. Restore is rehearsed in PHASE-12 |
 | Observability | Structured Serilog logs with correlation id, OpenTelemetry traces and metrics through `SyntaxCircus.Observability`, health endpoints, outbox depth and dead-letter count metrics, hub connection count |
 | Security | OWASP ASVS L1 as a working checklist; security headers via `AspNetCore.Common`; default-deny authorization fallback; secrets only in env files |
-| Portability | Linux amd64 and arm64 images; any OIDC IdP; SMTP server of choice |
+| Portability | Linux amd64 images (arm64 dropped from the release path 2026-10-09, D-051 12b rulings); any OIDC IdP; SMTP server of choice |
 | Maintainability | Architecture tests enforce project-reference direction; handler and boundary tests per phase; no EF types outside Infrastructure |
 | Accessibility | Portal and Admin target WCAG 2.1 AA for core flows (**Assumption**; detail in UX briefs) |
 

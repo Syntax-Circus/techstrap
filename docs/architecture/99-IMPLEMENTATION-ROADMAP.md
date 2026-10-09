@@ -361,7 +361,7 @@ Run from the repository root. PHASE-01 creates the files these commands need; be
 | No tracked CSS | `git ls-files '*/wwwroot/css/*'` | Empty |
 | Env file ignored | `git check-ignore src/TechStrap.Api/.env.local` | Prints the path |
 | Package pack (PHASE-11) | `dotnet pack -c Release` | `.nupkg` and `.snupkg` for Contracts, Client, Client.Maui |
-| Multi-arch images (tag builds) | `docker buildx imagetools inspect ghcr.io/syntax-circus/techstrap-api:<semver>` | Lists `linux/amd64` and `linux/arm64` |
+| Release images (tag builds) | `docker buildx imagetools inspect ghcr.io/syntax-circus/techstrap-api:<semver>` | Lists `linux/amd64` (arm64 dropped 2026-10-09, D-051 12b rulings) |
 | Doc links | check every relative link in `docs/architecture/*.md` resolves | No broken links |
 
 ## 5. Definition of done per phase
