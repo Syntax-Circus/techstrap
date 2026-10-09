@@ -958,23 +958,19 @@ Describe 'PHASE-12a close-out' {
         $script:Review | Should -Match '(?s)Release 0\.3\.0 sign-off.*?0 open High or Critical.*?2026-10-\d\d'
     }
 
-    It 'ticks P12-T01 to P12-T10 and P12-T19 with an as-built note and leaves the later tasks open' {
+    It 'ticks P12-T01 to P12-T10 and P12-T19 with an as-built note (12a)' {
         foreach ($n in (1..10) + 19) {
             $id = 'P12-T{0:D2}' -f $n
             $script:Spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is done in 12a"
             $block = [regex]::Match($script:Spec, '(?ms)^- \[x\] \*\*' + $id + '\*\*.*?(?=^- \[|^## |\z)').Value
             $block | Should -Match '\*\*As built \(12a\):\*\*' -Because "$id needs an as-built note"
         }
-        foreach ($n in (11..18) + 20, 21) {
-            $id = 'P12-T{0:D2}' -f $n
-            $script:Spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not 12a"
-        }
         $script:Spec | Should -Match '(?m)^- \[x\] `docs/security/SECURITY-REVIEW\.md`'
     }
 
-    It 'marks phase 12 as 12a complete in the roadmap and the discovery index' {
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 12 \|.*D-051.*12a complete \(pending merge\)'
-        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 12 \|.*12a complete \(pending merge\)'
+    It 'marks phase 12 as 12a merged in the roadmap and the discovery index' {
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 12 \|.*D-051.*12a merged \(PR #28\)'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 12 \|.*12a merged \(PR #28\)'
     }
 
     It 'has the 12a plan fully ticked with an As built section' {
@@ -1018,5 +1014,71 @@ Describe 'Backup and restore runbook (PHASE-12b)' {
         foreach ($link in $links) {
             Test-Path -LiteralPath (Join-Path $script:RepoRoot 'docs' 'runbooks' $link) | Should -BeTrue -Because "backup-restore.md links to $link"
         }
+    }
+}
+
+BeforeDiscovery {
+    $script:MainResolvable = [bool](& git rev-parse --verify --quiet main 2>$null)
+}
+
+Describe 'PHASE-12b close-out' {
+    BeforeAll {
+        $script:Spec = Get-RepoText 'docs/architecture/PHASE-12-release-hardening.md'
+        $script:Plan = Get-RepoText 'docs/superpowers/plans/2026-10-09-phase-12b-docs-scripts.md'
+        $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md'
+    }
+
+    It 'ticks P12-T11, T13, T16 and T17 with an as-built (12b) note' {
+        foreach ($id in 'P12-T11', 'P12-T13', 'P12-T16', 'P12-T17') {
+            $script:Spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is done in 12b"
+            $block = [regex]::Match($script:Spec, '(?ms)^- \[x\] \*\*' + $id + '\*\*.*?(?=^- \[|^## |\z)').Value
+            $block | Should -Match '\*\*As built \(12b\):\*\*' -Because "$id needs an as-built note"
+        }
+    }
+
+    It 'leaves the 12c tasks open' {
+        foreach ($id in 'P12-T12', 'P12-T14', 'P12-T15', 'P12-T18', 'P12-T20', 'P12-T21') {
+            $script:Spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is 12c"
+        }
+    }
+
+    It 'records the 12b corrections in the spec' {
+        $corrections = ($script:Spec -split '(?m)^### Corrections \(D-051, 2026-10-08\)\s*$')[1]
+        foreach ($phrase in 'SELF-HOSTING.md', 'AUTHENTIK.md', 'docs/runbooks/backup-restore.md', 'append-only', 'not in CI', 'bash', 'openssl', 'private') {
+            $corrections | Should -Match ([regex]::Escape($phrase)) -Because $phrase
+        }
+    }
+
+    It 'adds the D-051 addendum 12b rulings' {
+        $script:Log | Should -Match '12b rulings \(2026-10-09\)'
+        $addendum = ($script:Log -split '12b rulings \(2026-10-09\)')[1]
+        foreach ($phrase in 'tests/load', 'X-Forwarded-For', 'postgres:17', 'openssl', 'rehearsal', 'drill', 'SELF-HOSTING.md', 'syntax-circus-authentik', '26MiB') {
+            $addendum | Should -Match ([regex]::Escape($phrase)) -Because $phrase
+        }
+    }
+
+    It 'marks phase 12 as 12b complete in the roadmap and the discovery index' {
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 12 \|.*D-051.*12a merged \(PR #28\); 12b complete \(pending merge\)'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 12 \|.*12a merged \(PR #28\); 12b complete \(pending merge\)'
+    }
+
+    It 'adds no workflow file and no CI job for 12b' {
+        $files = @(Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot '.github' 'workflows') -File | ForEach-Object Name | Sort-Object)
+        ($files -join ',') | Should -Be 'ci.yml,publish-nuget.yml,release.yml' -Because '12b adds no workflow file'
+        foreach ($file in $files) {
+            $text = Get-Content -LiteralPath (Join-Path $script:RepoRoot '.github' 'workflows' $file) -Raw
+            $names = [regex]::Matches($text, '(?m)^  [A-Za-z0-9_-]+:\s*$|^    name:.*$') | ForEach-Object { $_.Value }
+            foreach ($n in $names) { $n | Should -Not -Match '(?i)k6|load|backup|restore|soak' -Because "$file has no 12b job ($n)" }
+        }
+    }
+
+    It 'adds no CI-visible change under .github on this branch' -Skip:(-not $script:MainResolvable) {
+        $changed = @(& git -C $script:RepoRoot diff --name-only main...HEAD) + @(& git -C $script:RepoRoot diff --name-only)
+        @($changed | Where-Object { $_ -like '.github/*' }) | Should -BeNullOrEmpty -Because '12b adds no CI job'
+    }
+
+    It 'has the 12b plan fully ticked with an As built section' {
+        $script:Plan | Should -Not -Match '(?m)^\s*- \[ \]'
+        $script:Plan | Should -Match '(?m)^## As built\s*$'
     }
 }

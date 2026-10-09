@@ -6,7 +6,7 @@
 
 **Support for Technical Support.** A lightweight, open-source, self-hosted helpdesk for one company that supports many products.
 
-> **Status:** pre-1.0, feature-complete for v1 (PHASE-01 to PHASE-11 done: foundation, brand and UX, domain and persistence, agent auth and admin config, intake with email and the worker, ticket operations, the Admin app, knowledge base, public portal, live updates, and the client SDK). PHASE-12 (release hardening: security review, load and restore drills, UAT) is next, then v0.3.0 (1.0.0 is a later API-lock decision). The SDK packages are published on nuget.org as `0.2.0`; the hosts are published as GHCR images per tag. See the [roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md).
+> **Status:** pre-1.0, feature-complete for v1 (PHASE-01 to PHASE-11 done: foundation, brand and UX, domain and persistence, agent auth and admin config, intake with email and the worker, ticket operations, the Admin app, knowledge base, public portal, live updates, and the client SDK). PHASE-12 (release hardening) is in progress: the security review is merged, the docs and scripts (self-hosting guides, backup and restore, the k6 load suite) are in review, and the UAT deployment, load run, restore drill and soak come next, then v0.3.0 (1.0.0 is a later API-lock decision). The SDK packages are published on nuget.org as `0.2.0`; the hosts are published as GHCR images per tag. See the [roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md).
 
 ## What it is
 
