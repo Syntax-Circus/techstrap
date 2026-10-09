@@ -34,7 +34,8 @@
 | 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | 10a merged (PR #18); 10b merged (PR #19); PHASE-10 complete: the owner's manual checks with a real identity provider (two browsers, a worker auto-close, the kill switch) are open |
 | 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | 11a merged (PR #20); 11b merged (PR #21); 11c merged (PR #22); v0.1.0 published 2026-10-08 (PHASE-11 complete); T05 (attachments) deferred to 11d, which first needs multipart intake |
 | 11e | [Product hosts](PHASE-11e-product-hosts.md) | 09, 05, 04, 07 | 12 | 11e merged (PR #25): T01 to T07 |
-| 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 (v0.3.0 per D-051; 1.0.0 is a later API-lock decision) | 12a merged (PR #28); 12b complete (pending merge) |
+| 11f | [Landing page and product logos](PHASE-11f-landing-and-logos.md) | 09, 11e, 08, 04, 07 | 12c | D-052 recorded; 11f in progress (one PR, Contracts 0.3.0) |
+| 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 (v0.3.0 per D-051; 1.0.0 is a later API-lock decision) | 12a merged (PR #28); 12b merged (PR #29); v0.2.1 (PR #30, PR #31); 12c waits for 11f |
 
 Phases that can run in parallel: 02 alongside 03–06; 11 alongside 07–10.
 

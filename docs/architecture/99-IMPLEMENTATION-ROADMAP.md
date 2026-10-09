@@ -29,7 +29,8 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 | 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | 08, 09, 11 alongside | D-007, D-018, D-046 | 10a merged (PR #18); 10b merged (PR #19); PHASE-10 complete: the owner's manual checks with a real identity provider (two browsers, a worker auto-close, the kill switch) are open |
 | 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | Alongside 06 to 10 | D-005, D-020, D-047, D-048, D-049 | 11a merged (PR #20); 11b merged (PR #21); 11c merged (PR #22); v0.1.0 published 2026-10-08 (PHASE-11 complete); T05 (attachments) deferred to 11d, which first needs multipart intake |
 | 11e | [Product hosts](PHASE-11e-product-hosts.md) | 09, 05, 04, 07 | 12 | After 11 | D-050 | 11e merged (PR #25): T01 to T07 |
-| 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 (v0.3.0 per D-051; 1.0.0 is a later API-lock decision) | Last; security, load, restore and UAT tasks can overlap once their inputs exist | D-003, D-022, D-051 | D-051 recorded; 12a merged (PR #28); 12b complete (pending merge) |
+| 11f | [Landing page and product logos](PHASE-11f-landing-and-logos.md) | 09, 11e, 08, 04, 07 | 12c | After 12b, before 12c | D-052 | D-052 recorded; 11f in progress (one PR, Contracts 0.3.0) |
+| 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 (v0.3.0 per D-051; 1.0.0 is a later API-lock decision) | Last; security, load, restore and UAT tasks can overlap once their inputs exist | D-003, D-022, D-051 | D-051 recorded; 12a merged (PR #28); 12b merged (PR #29); v0.2.1 (PR #30 Admin token refresh, PR #31 amd64-only images and CI without Docker Hub); 12c waits for 11f |
 
 Edges: 01 to 02 and 03; 03 to 04 to 05 to 06; 05 to 11; 02 and 06 to 07; 06 and 07 to 08; 02, 06 and 08 to 09; 07 to 10; all to 12.
 
@@ -309,6 +310,21 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P11e-T06 | Portal links, SEO and cache: `PortalLinks`, per-host sitemap and canonical, vary by host |
 | P11e-T07 | Docs and close-out: D-050 (amends D-002), deployment and Portal docs, pins |
 
+### PHASE-11f Landing page and product logos
+
+| ID | Title |
+| --- | --- |
+| P11f-T01 | Spec, D-052 (amends D-045), roadmap and discovery rows, pins |
+| P11f-T02 | Contracts 0.3.0: trailing optional parameters, `BrandingRules.IsAcceptableTagline`, `ProductLogoLimits`, `ProductLogoName`, Version notes |
+| P11f-T03 | Domain: `ListedOnLanding`, `Tagline`, `UploadedLogo` with carry-over, `Guard.OptionalTagline` |
+| P11f-T04 | Persistence: three columns, mappings, migration `AddProductLandingAndLogo`, schema docs |
+| P11f-T05 | Application and Api read side: `IProductLogoUrls`, effective logo, public projections, create/update semantics |
+| P11f-T06 | Write side: `CappedImageIntake`, `IProductLogoStore`, upload and remove handlers and routes, `/product-logos/{name}`, D-022 list |
+| P11f-T07 | Worker: optional `TECHSTRAP_API_PUBLIC_URL`, effective logo in emails |
+| P11f-T08 | Portal landing: `TECHSTRAP_PORTAL_LANDING`, cards, SEO, sitemap, cache rules |
+| P11f-T09 | Admin: tagline, listed checkbox, `ProductLogoUploadButton`, list column |
+| P11f-T10 | Docs and close-out: SELF-HOSTING, DEPLOYMENT, runbook, security review, app docs, 02-ARCHITECTURE, pins |
+
 ### PHASE-12 Release hardening
 
 | ID | Title |
@@ -425,6 +441,7 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 | 14 | For each product host (D-050): add a DNS record and one Caddy site that proxies to the Portal, then set the host on the product in the Admin. UAT needs DNS and one Caddy site per product host (`docs/self-hosting/DEPLOYMENT.md`, "Product hosts") | P12-T14 |
 | 15 | Done 2026-10-08: tag v0.2.0 after this PR merges (`publish-nuget.yml`) and paste the Contracts README `## Version notes` entry into the GitHub Release - `v0.2.0` was published by run 37845739172 and Release 0.2.0 carries the Version notes; the owner decision was to publish 0.2.0 with the binary and behavioural break named (D-050 amendment) | D-050 |
 | 16 | Done 2026-10-08: SyntaxCircus.Blazor.Seo 0.1.5 published and pinned (its `TryAddScoped` registration keeps the Portal's host-aware builder in charge; the Portal also worked on 0.1.4 by last registration) | D-050 |
+| 17 | After 11f merges: set `TECHSTRAP_PORTAL_LANDING=Products` on the UAT Portal, `TECHSTRAP_API_PUBLIC_URL` on the UAT Worker, proxy `/product-logos/` on the Caddy Api site, upload the product logos and taglines in the Admin, then start 12c (`docs/self-hosting/SELF-HOSTING.md`) | D-052, P12-T14 |
 
 ## 8. Decisions still open
 

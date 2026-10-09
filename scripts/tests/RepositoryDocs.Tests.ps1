@@ -1053,9 +1053,11 @@ Describe 'PHASE-12b close-out' {
         }
     }
 
-    It 'marks phase 12 as 12b complete in the roadmap and the discovery index' {
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 12 \|.*D-051.*12a merged \(PR #28\); 12b complete \(pending merge\)'
-        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 12 \|.*12a merged \(PR #28\); 12b complete \(pending merge\)'
+    It 'marks phase 12 as 12b merged, with the v0.2.1 fixes, in the roadmap and the discovery index' {
+        foreach ($text in (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md'), (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md')) {
+            $text | Should -Match '(?m)^\| 12 \|.*12a merged \(PR #28\); 12b merged \(PR #29\); v0\.2\.1 \(PR #30'
+            $text | Should -Not -Match '12b complete \(pending merge\)'
+        }
     }
 
     It 'no workflow runs the load or backup scripts (on-demand only)' {
@@ -1070,5 +1072,36 @@ Describe 'PHASE-12b close-out' {
     It 'has the 12b plan fully ticked with an As built section' {
         $script:Plan | Should -Not -Match '(?m)^\s*- \[ \]'
         $script:Plan | Should -Match '(?m)^## As built\s*$'
+    }
+}
+
+Describe 'PHASE-11f landing page and product logos (D-052)' {
+    BeforeAll {
+        $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md'
+        $script:Spec = Get-RepoText 'docs/architecture/PHASE-11f-landing-and-logos.md'
+    }
+
+    It 'records D-052 with the owner decisions, the rulings and the D-045 amendment' {
+        $script:Log | Should -Match '(?m)^## D-052: PHASE-11f: Portal landing page and product logos'
+        $script:Log | Should -Match '(?m)^- \*\*Amended by D-052 \(2026-10-09\):\*\* `TECHSTRAP_PORTAL_LANDING=Products`'
+        $entry = ($script:Log -split '(?m)^## D-052: ')[1]
+        foreach ($phrase in 'TECHSTRAP_PORTAL_LANDING', 'ListedOnLanding', 'Tagline', 'UploadedLogo', 'product-logos/', 'IProductLogoUrls', 'CappedImageIntake', 'PNG, JPEG or WebP', '1 MiB', 'Contracts 0.3.0', 'Alternatives Considered', 'Approved on:** 2026-10-09') {
+            $entry | Should -Match ([regex]::Escape($phrase)) -Because $phrase
+        }
+    }
+
+    It 'has the 11f spec with ten tasks and the owner answers' {
+        foreach ($n in 1..10) {
+            $script:Spec | Should -Match ('- \[[ x]\] \*\*P11f-T' + $n.ToString('00') + '\*\*') -Because "P11f-T$($n.ToString('00')) exists"
+        }
+        foreach ($phrase in 'TECHSTRAP_PORTAL_LANDING', 'ListedOnLanding', 'landing card only', 'PNG, JPEG or WebP', 'Contracts 0.3.0', '/product-logos/', 'Amends D-045|amends D-045') {
+            $script:Spec | Should -Match $phrase -Because $phrase
+        }
+    }
+
+    It 'has the 11f row in the roadmap and the discovery index and the task table' {
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11f \|.*D-052.*\| D-052 recorded; 11f'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11f \|.*\| D-052 recorded; 11f'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11f-T10 \|'
     }
 }
