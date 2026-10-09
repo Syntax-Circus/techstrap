@@ -11,8 +11,9 @@ Dockerfile.* text eol=lf
 *.ps1 text eol=lf
 *.slnx text eol=lf
 
-# The k6 load suite is pinned as LF by scripts/tests/LoadScripts.Tests.ps1, so Windows checkouts must not convert it.
+# The k6 load suite and its results page are pinned as LF by scripts/tests/LoadScripts.Tests.ps1, so Windows checkouts must not convert them.
 tests/load/** text eol=lf
+docs/load-test-results.md text eol=lf
 
 # Generated EF migration snapshots stay as the tool wrote them.
 src/TechStrap.Infrastructure/Migrations/*.cs linguist-generated=true
