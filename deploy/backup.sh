@@ -11,7 +11,8 @@
 #   --dry-run                 Print what would run; touch no docker, create no directory, write no file
 #   --passphrase-file <file>  File holding the encryption passphrase (at least 16 bytes); never a flag value
 #   --no-encrypt              Store plain files (dev only); the .enc suffix is dropped
-#   --db-url <url>            Database URL (or env TECHSTRAP_DB_URL); the dump container joins --db-network
+#   --db-url <url>            Database URL without a password (or env TECHSTRAP_DB_URL), for example
+#                             postgresql://techstrap@host:5432/techstrap; the password goes in env PGPASSWORD (required)
 #   --db-container <name>     Dev: join that running Postgres container and read its POSTGRES_* variables
 #   --db-host <host>          Host name; uses --db-network, --db-user, --db-name and env PGPASSWORD
 #   --db-network <name>       Docker network for --db-url / --db-host (default: techstrap-db)
@@ -21,7 +22,9 @@
 #
 # The database is dumped first, then the volumes (see docs/runbooks/backup-restore.md, consistency caveat).
 # The database URL and password are passed to containers by name (-e NAME), never on a command line.
+# The URL carries no password: it would be expanded into the pg_dump argument list and show in ps on the host.
 set -euo pipefail
+umask 077
 export MSYS_NO_PATHCONV=1
 
 POSTGRES_IMAGE=postgres:17
@@ -82,6 +85,15 @@ MODES=0
 [[ -n "$DB_CONTAINER" ]] && MODES=$((MODES + 1))
 [[ -n "$DB_HOST" ]] && MODES=$((MODES + 1))
 (( MODES == 1 )) || die "choose one database mode (--db-url or env TECHSTRAP_DB_URL, --db-container, or --db-host)"
+if [[ -n "$DB_URL" ]]; then
+  if [[ "$DB_URL" =~ ://[^/@]*:[^/@]+@ ]]; then
+    echo "refusing: --db-url must not contain a password; put it in PGPASSWORD" >&2
+    exit 2
+  fi
+  if (( DRY_RUN == 0 )); then
+    [[ -n "${PGPASSWORD:-}" ]] || die "PGPASSWORD must be set in the environment when a database URL is used"
+  fi
+fi
 
 if (( NO_ENCRYPT == 0 )); then
   [[ -n "$PASSPHRASE_FILE" ]] || die "--passphrase-file is required unless --no-encrypt is given"
@@ -116,16 +128,20 @@ trap cleanup EXIT
 if [[ -n "$DB_URL" ]]; then
   DUMP_NETWORK="$DB_NETWORK"
   export TS_DB_URL="$DB_URL"
+  export PGPASSWORD="${PGPASSWORD:-}"
 elif [[ -n "$DB_CONTAINER" ]]; then
   DUMP_NETWORK="container:${DB_CONTAINER}"
   if (( DRY_RUN )); then
     export TS_DB_URL=
+    export PGPASSWORD=
   else
     PG_USER=$(docker exec "$DB_CONTAINER" printenv POSTGRES_USER)
-    PG_PASS=$(docker exec "$DB_CONTAINER" printenv POSTGRES_PASSWORD)
     PG_DB=$(docker exec "$DB_CONTAINER" printenv POSTGRES_DB)
-    export TS_DB_URL="postgresql://${PG_USER}:${PG_PASS}@localhost:5432/${PG_DB}"
-    unset PG_USER PG_PASS PG_DB
+    PG_PASS=$(docker exec "$DB_CONTAINER" printenv POSTGRES_PASSWORD)
+    export PGPASSWORD="$PG_PASS"
+    unset PG_PASS
+    export TS_DB_URL="postgresql://${PG_USER}@localhost:5432/${PG_DB}"
+    unset PG_USER PG_DB
   fi
 else
   DUMP_NETWORK="$DB_NETWORK"
@@ -146,7 +162,11 @@ TARGET_DIR="${OUT_DIR}/${PROJECT}"
 if (( DRY_RUN )); then
   DEST="${TARGET_DIR}/${STAMP}"
   echo "DRY-RUN: mkdir -p $DEST"
+  echo "DRY-RUN: the check that all three volumes exist is skipped (it needs docker)"
 else
+  for v in "${VOLUMES[@]}"; do
+    docker volume inspect "${PROJECT}_${v}" >/dev/null 2>&1 || die "volume ${PROJECT}_${v} not found (nothing was written)"
+  done
   mkdir -p "$TARGET_DIR"
   CANDIDATE="${TARGET_DIR}/${STAMP}"
   mkdir "$CANDIDATE"
@@ -217,6 +237,8 @@ if [[ -n "$KEEP_DAYS" ]]; then
   else
     CUTOFF=$(date -u -v-"${KEEP_DAYS}"d +%Y%m%dT%H%M%SZ)
   fi
+  local failed=0
+  local remaining=()
   if [[ -d "$TARGET_DIR" ]]; then
     for d in "$TARGET_DIR"/*/; do
       [[ -d "$d" ]] || continue
@@ -228,10 +250,12 @@ if [[ -n "$KEEP_DAYS" ]]; then
         echo "DRY-RUN: would prune $d"
       else
         echo "prune: $d"
-        rm -rf -- "$d"
+        if ! rm -rf -- "$d"; then failed=1; remaining+=("$d"); fi
       fi
     done
   fi
+  if (( failed )); then echo "retention: could not remove: ${remaining[*]}" >&2; fi
+  return "$failed"
   }
   prune_old || echo "WARNING: retention pruning failed; the new backup is kept" >&2
 fi

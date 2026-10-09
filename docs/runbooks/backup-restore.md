@@ -42,7 +42,7 @@ These are the accepted 12b targets (D-051). They are proven on UAT in 12c (T15);
   ```
 
   The passphrase is read from the file; it is never a flag value and never appears in `ps`.
-- The database URL in the environment variable `TECHSTRAP_DB_URL`, kept in the same secret store as `.env.api`. The scripts hand it to the container by name (`-e TS_DB_URL`), so it never appears on a command line.
+- The database URL in the environment variable `TECHSTRAP_DB_URL`, without a password: `postgresql://techstrap@host:5432/techstrap`. The password goes in the environment variable `PGPASSWORD`, which both live in the same secret store as `.env.api`. The scripts hand both to the container by name (`-e TS_DB_URL`, `-e PGPASSWORD`), so neither appears on a command line or in `ps` on the host, and they refuse a URL that carries a password (`refusing: --db-url must not contain a password; put it in PGPASSWORD`, exit 2). The `Host=...;Database=...` string in `.env.api` (`ConnectionStrings__TechStrap`) is an Npgsql connection string, not a URL, and does not work here.
 - Keep a copy of the passphrase off the box. A lost passphrase makes every backup unreadable.
 
 ## Taking a backup
@@ -52,8 +52,9 @@ Always rehearse with `--dry-run` first: it prints every step and touches no dock
 Deployed stack (UAT or production, external Postgres):
 
 ```bash
+# TECHSTRAP_DB_URL=postgresql://techstrap@host:5432/techstrap and PGPASSWORD are already in the environment (never on the command line)
 deploy/backup.sh --project techstrap-uat --out /var/backups/techstrap --keep-days 14 \
-  --passphrase-file /etc/techstrap/backup.pass --db-url "$TECHSTRAP_DB_URL"
+  --passphrase-file /etc/techstrap/backup.pass
 ```
 
 Development stack (the compose file at the repository root, project `techstrap`):
@@ -62,9 +63,9 @@ Development stack (the compose file at the repository root, project `techstrap`)
 deploy/backup.sh --project techstrap --db-container <postgres container from docker ps> --no-encrypt --out ./backups
 ```
 
-`--db-host <host>` is the third database mode (with `--db-network`, `--db-user`, `--db-name` and the password in `PGPASSWORD`). Exactly one mode must be given.
+`--db-host <host>` is the third database mode (with `--db-network`, `--db-user`, `--db-name` and the password in `PGPASSWORD`). Exactly one mode must be given. In the `--db-container` mode the script reads the container's `POSTGRES_*` variables with `docker exec` and forwards the password as `PGPASSWORD` by name.
 
-The script dumps the database first, then archives the three volumes read-only, then writes the manifest. A failed run removes its half-written directory and exits non-zero. A missing volume is fatal: a backup that quietly lacks the keys volumes is a failed backup.
+The script checks that all three volumes exist before it dumps anything, dumps the database first, then archives the three volumes read-only, then writes the manifest. Files are created with `umask 077`. A failed run removes its half-written directory and exits non-zero. A missing volume is fatal: a backup that quietly lacks the keys volumes is a failed backup.
 
 Schedule it with a systemd timer. `/etc/systemd/system/techstrap-backup.service`:
 
@@ -78,7 +79,7 @@ EnvironmentFile=/etc/techstrap/backup.env
 ExecStart=/opt/techstrap/deploy/backup.sh --project techstrap-uat --out /var/backups/techstrap --keep-days 14 --passphrase-file /etc/techstrap/backup.pass
 ```
 
-`/etc/techstrap/backup.env` holds `TECHSTRAP_DB_URL=...` (mode 0600). `/etc/systemd/system/techstrap-backup.timer`:
+`/etc/techstrap/backup.env` holds `TECHSTRAP_DB_URL=postgresql://techstrap@host:5432/techstrap` and `PGPASSWORD=...` (mode 0600). `/etc/systemd/system/techstrap-backup.timer`:
 
 ```ini
 [Unit]
@@ -93,7 +94,7 @@ RandomizedDelaySec=10m
 WantedBy=timers.target
 ```
 
-Enable it with `systemctl enable --now techstrap-backup.timer`. The cron alternative is a `crontab -e` line (export `TECHSTRAP_DB_URL` in the crontab or a wrapper first):
+Enable it with `systemctl enable --now techstrap-backup.timer`. The cron alternative is a `crontab -e` line (export `TECHSTRAP_DB_URL` and `PGPASSWORD` in the crontab or a wrapper first):
 
 ```cron
 30 2 * * * /opt/techstrap/deploy/backup.sh --project techstrap-uat --out /var/backups/techstrap --keep-days 14 --passphrase-file /etc/techstrap/backup.pass
@@ -127,25 +128,40 @@ A backup on the same box does not survive the box. After the script succeeds, co
      --target-project techstrap-restore --passphrase-file /etc/techstrap/backup.pass
    ```
 
-   This starts a throwaway `postgres:17` container `techstrap-restore-postgres` on the network `techstrap-restore_default` and creates the volumes `techstrap-restore_pgdata`, `techstrap-restore_techstrap-storage`, `techstrap-restore_admin-keys` and `techstrap-restore_portal-keys`. It refuses a target project that already owns any of them unless you pass `--overwrite`.
+   This starts a throwaway `postgres:17` container `techstrap-restore-postgres` on the network `techstrap-restore-db` and creates the volumes `techstrap-restore_pgdata`, `techstrap-restore_techstrap-storage`, `techstrap-restore_admin-keys` and `techstrap-restore_portal-keys`. Every scratch object is labelled `techstrap.restore-scratch=1`. The restore refuses a target that is `techstrap`, `techstrap-uat`, `techstrap-prod` or the manifest's project, with or without `--overwrite` (`refusing: <target> is a protected or live project; promotion uses --db-url --yes --confirm-project <target>`); it refuses a target that already owns any of the volumes unless you pass `--overwrite`, and `--overwrite` only replaces objects that carry the label (an unlabelled volume of that name is refused outright).
 3. Read the verification output (see the checklist below).
-4. Optionally start the apps against the scratch stack: use a separate `TECHSTRAP_PROJECT`, mount the `techstrap-restore_*` volumes, and point `ConnectionStrings__TechStrap` at `Host=techstrap-restore-postgres` on the network `techstrap-restore_default`.
+4. Optionally start the apps against the scratch stack. The deploy compose takes the project from `TECHSTRAP_PROJECT`, so the volumes are the `techstrap-restore_*` ones, and the external database network from `TECHSTRAP_DB_NETWORK`, which is the scratch network `techstrap-restore-db`. Use a subnet, reverse-proxy CIDR and host ports that no other stack on the host uses, and an env directory whose `.env.api` and `.env.worker` set `ConnectionStrings__TechStrap` with `Host=techstrap-restore-postgres` (the scratch password is in the scratch container's `POSTGRES_PASSWORD`: `docker exec techstrap-restore-postgres printenv POSTGRES_PASSWORD`):
+
+   ```bash
+   export TECHSTRAP_PROJECT=techstrap-restore
+   export TECHSTRAP_DB_NETWORK=techstrap-restore-db
+   export TECHSTRAP_SUBNET=172.16.99.0/24
+   export REVERSE_PROXY_CIDR=172.16.99.1/32
+   export TECHSTRAP_API_PORT=18080 TECHSTRAP_ADMIN_PORT=18081 TECHSTRAP_PORTAL_PORT=18082
+   export TECHSTRAP_ENV_DIR=/etc/techstrap/restore     # copy of the env files, Host=techstrap-restore-postgres
+   # plus the four TECHSTRAP_*_IMAGE variables, as in the deploy env file
+   docker compose -f deploy/docker-compose.yml up -d --wait
+   ```
+
+   Stop it with `docker compose -f deploy/docker-compose.yml stop` (never `down` with volume removal) before the teardown.
 5. Remove the scratch stack:
 
    ```bash
    deploy/restore.sh --teardown --target-project techstrap-restore
    ```
 
-   Teardown removes only that project's container, network and the four named volumes. It refuses `techstrap`, `techstrap-uat`, `techstrap-prod` and the project named in the manifest; when working near a real project, also pass `--from <backup dir>` with `--teardown` so the manifest's project is protected too. The scripts never remove volumes wholesale.
+   Teardown removes only the labelled container, the network `techstrap-restore-db` and the four named volumes of that project, and says `not removed (missing or in use)` for one it could not remove. It refuses `techstrap`, `techstrap-uat`, `techstrap-prod` and the project named in the manifest; when working near a real project, also pass `--from <backup dir>` with `--teardown` so the manifest's project is protected too. The scripts never remove volumes wholesale.
 
-Promotion into the real stack is a deliberate second step:
+Promotion into the real stack is a deliberate second step. It needs `--db-url` (or `TECHSTRAP_DB_URL` together with `--confirm-project`), `PGPASSWORD`, `--yes` and `--confirm-project` equal to `--target-project` (and to the manifest project when they are the same). The database is restored with `pg_restore --single-transaction --exit-on-error`, so a failure leaves the database as it was.
 
+0. Take a fresh backup of the current state first (the restored `admin_events` stops at the backup time, and the erasure list below needs the live one).
 1. Stop the apps: `docker compose ... stop api worker admin portal`. Never use a command that removes the volumes.
-2. Restore into the real project with the external database:
+2. Prefer restoring into a freshly created, empty database over `--clean` on the live one: `CREATE DATABASE techstrap_restored OWNER techstrap;`, put it in `TECHSTRAP_DB_URL`, restore, then repoint `ConnectionStrings__TechStrap` at it. `--clean` cannot remove objects that are absent from the dump, so a live database restored with `--clean` can keep objects the backup never had. Then restore:
 
    ```bash
+   # TECHSTRAP_DB_URL=postgresql://techstrap@host:5432/techstrap_restored and PGPASSWORD are in the environment
    deploy/restore.sh --from <dir> --target-project techstrap-uat --passphrase-file /etc/techstrap/backup.pass \
-     --db-url "$TECHSTRAP_DB_URL" --db-network techstrap-db --yes --confirm-project techstrap-uat --overwrite
+     --db-network techstrap-db --yes --confirm-project techstrap-uat --overwrite
    ```
 
    `--overwrite` clears each target volume before extracting, so files that are not in the backup do not linger.
@@ -154,7 +170,8 @@ Promotion into the real stack is a deliberate second step:
 ## Verification checklist
 
 - [ ] The `__EFMigrationsHistory` count equals the manifest (the script stops with an error if not).
-- [ ] The ticket and attachment counts match the manifest (`ok`, not `MISMATCH`); the attachment file count printed next to the database count is plausible.
+- [ ] The ticket and attachment counts match the manifest (`ok`, not `MISMATCH`); the attachment file count printed next to the database count is plausible. The manifest counts are read after the dump, so fewer restored rows than the manifest prints `WARNING: fewer rows than the manifest; writes during the backup window are expected` and the restore continues; more rows than the manifest, or a different migrations count, fails.
+- [ ] After a restore run (in Git Bash prefix `MSYS_NO_PATHCONV=1`) `docker run --rm -v <project>_techstrap-storage:/v:ro alpine:3.23 stat -c %u /v /v/attachments`: `attachments/` must show `10001` (the Api runs as uid 10001; tar runs as root and restores the archived ownership). The volume root itself (`/v`) is an open check for the 12c drill.
 - [ ] One attachment downloads in the Admin.
 - [ ] An admin signs in.
 - [ ] `/health/ready` is 200 on api and worker; `/health/live` is 200 on admin and portal.
@@ -184,6 +201,16 @@ Run this against the live database before you overwrite it (or against a copy ta
 - Volume loss: restore into a scratch project, passing `--skip-volume` for each volume you do not need (the script prints a `WARNING: skipping volume` line for every one), then copy the lost volume's content from `<scratch>_<volume>` into the real volume with a throwaway container while the apps are stopped. The scratch restore also loads the database; ignore it.
 - Host loss: on a new host install Docker, recreate the env files from the secret store, restore everything (database and all three volumes), and redeploy the images by tag.
 
+## Volume ownership
+
+Never write into the storage or keys volumes as root. The Api, Admin and Portal containers run as uid 10001, so a directory created by a root `docker run` (for example `attachments/`) makes uploads answer 403 until it is chowned. Use `--user 10001:10001` on any `docker run` that writes into those volumes, or go through the app. A restore extracts with `tar` as root and restores the ownership recorded in the archive, so verify it afterwards (see the checklist).
+
+## Open checks for 12c (T15)
+
+- `pg_restore --clean` against the real role on UAT: the `citext` extension and object ownership.
+- Ownership of the volume root (`/v`) after a restore.
+- Admin access-token claims after a restore are T14, not part of this drill.
+
 ## Keys volumes
 
 Losing `admin-keys` signs every agent out, because the sign-in cookies cannot be decrypted. Losing `portal-keys` invalidates only in-flight portal antiforgery tokens and form posts. Both are restored by default, and a restore never skips them silently: a manifest without one is refused, and the only way to leave one out is the explicit `--skip-volume`, which prints a warning.
@@ -194,7 +221,7 @@ Losing `admin-keys` signs every agent out, because the sign-in cookies cannot be
 
 ## 12b rehearsal record
 
-Run on 2026-10-09 against the development stack (`docker compose up -d --wait`, project `techstrap`, Postgres 17, Docker 29.8.2, Git Bash on Windows 11; `TECHSTRAP_MAILPIT_PORT=18025` because port 8025 was taken by another project). Seed data plus two tickets from `scripts/Send-TestTicket.ps1`, and one file placed by hand under `attachments/` in the storage volume so the volume had content to compare. The passphrase file was a throwaway 0600 file outside the repository.
+Run on 2026-10-09 against the development stack (`docker compose up -d --wait`, project `techstrap`, Postgres 17, Docker 29.8.2, Git Bash on Windows 11; `TECHSTRAP_MAILPIT_PORT=18025` because port 8025 was taken by another project). Seed data plus two tickets from `scripts/Send-TestTicket.ps1`, and one file placed by hand under `attachments/` in the storage volume so the volume had content to compare. The file was planted with a `docker run` as root, which left `attachments/` root-owned; the Api runs as uid 10001, so uploads answered 403 until a `chown` inside the container (see "Volume ownership"). The passphrase file was a throwaway 0600 file outside the repository.
 
 ```bash
 deploy/backup.sh --project techstrap --db-container techstrap-postgres-1   --passphrase-file <throwaway 0600 file> --out ./backups

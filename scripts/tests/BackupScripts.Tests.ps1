@@ -104,4 +104,67 @@ Describe 'deploy/backup.sh and deploy/restore.sh (static pins, PHASE-12b)' {
             $text | Should -Not -Match '--passphrase\s+\S'
         }
     }
+
+    It 'both scripts refuse a --db-url that carries a password' {
+        foreach ($path in $script:Backup, $script:Restore) {
+            $text = [System.IO.File]::ReadAllText($path)
+            $text | Should -Match ([regex]::Escape('://[^/@]*:[^/@]+@')) -Because "$path must detect user:password@ in the URL"
+            $text | Should -Match ([regex]::Escape('refusing: --db-url must not contain a password; put it in PGPASSWORD'))
+        }
+    }
+
+    It 'restore.sh accepts TECHSTRAP_DB_URL from the environment' {
+        ([System.IO.File]::ReadAllText($script:Restore)) | Should -Match 'TECHSTRAP_DB_URL'
+    }
+
+    It 'the database password travels only as PGPASSWORD by name' {
+        foreach ($path in $script:Backup, $script:Restore) {
+            $text = [System.IO.File]::ReadAllText($path)
+            $text | Should -Match '-e PGPASSWORD'
+            $text | Should -Not -Match '-e PGPASSWORD='
+            $text | Should -Not -Match ([regex]::Escape('PGPASSWORD=$'))
+        }
+    }
+
+    It 'restore.sh refuses protected and manifest projects in scratch mode even with --overwrite' {
+        $text = [System.IO.File]::ReadAllText($script:Restore)
+        $text | Should -Match ([regex]::Escape('is a protected or live project; promotion uses --db-url --yes --confirm-project'))
+        $text | Should -Match 'PROTECTED_PROJECTS'
+        $line = ($text -split "`n" | Where-Object { $_ -match 'refuse .*protected or live project' }) -join ' '
+        $line | Should -Not -BeNullOrEmpty
+        $line | Should -Not -Match 'overwrite' -Because 'the refusal must not suggest --overwrite'
+    }
+
+    It 'scratch objects are labelled and only labelled objects are overwritten or torn down' {
+        $text = [System.IO.File]::ReadAllText($script:Restore)
+        $text | Should -Match ([regex]::Escape('docker volume create --label techstrap.restore-scratch=1 "${TARGET}_pgdata"'))
+        $text | Should -Match ([regex]::Escape('docker volume create --label techstrap.restore-scratch=1 "${TARGET}_${v}"'))
+        $text | Should -Match ([regex]::Escape('docker network create --label techstrap.restore-scratch=1'))
+        $text | Should -Match ([regex]::Escape('docker run -d --label techstrap.restore-scratch=1'))
+        $text | Should -Match ([regex]::Escape('index .Labels "techstrap.restore-scratch"'))
+    }
+
+    It 'promotion requires --confirm-project equal to the target' {
+        $text = [System.IO.File]::ReadAllText($script:Restore)
+        $text | Should -Match ([regex]::Escape('"$CONFIRM_PROJECT" == "$TARGET"'))
+    }
+
+    It 'restore.sh creates the -db network and the runbook contains the start commands' {
+        $text = [System.IO.File]::ReadAllText($script:Restore)
+        $text | Should -Match ([regex]::Escape('${TARGET}-db'))
+        $text | Should -Not -Match ([regex]::Escape('${TARGET}_default'))
+        $runbook = [System.IO.File]::ReadAllText((Join-Path $script:RepoRoot 'docs/runbooks/backup-restore.md'))
+        $runbook | Should -Match 'TECHSTRAP_PROJECT='
+        $runbook | Should -Match 'TECHSTRAP_DB_NETWORK='
+    }
+
+    It 'restore.sh warns, and does not fail, when fewer rows than the manifest are restored' {
+        ([System.IO.File]::ReadAllText($script:Restore)) | Should -Match ([regex]::Escape('WARNING: fewer rows than the manifest; writes during the backup window are expected'))
+    }
+
+    It 'the promotion pg_restore is one transaction that stops on the first error' {
+        $text = [System.IO.File]::ReadAllText($script:Restore)
+        $text | Should -Match '--single-transaction'
+        $text | Should -Match '--exit-on-error'
+    }
 }
