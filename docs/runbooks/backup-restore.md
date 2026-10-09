@@ -136,7 +136,7 @@ A backup on the same box does not survive the box. After the script succeeds, co
    deploy/restore.sh --teardown --target-project techstrap-restore
    ```
 
-   Teardown removes only that project's container, network and the four named volumes. It refuses `techstrap`, `techstrap-uat`, `techstrap-prod` and the project named in the manifest. The scripts never remove volumes wholesale.
+   Teardown removes only that project's container, network and the four named volumes. It refuses `techstrap`, `techstrap-uat`, `techstrap-prod` and the project named in the manifest; when working near a real project, also pass `--from <backup dir>` with `--teardown` so the manifest's project is protected too. The scripts never remove volumes wholesale.
 
 Promotion into the real stack is a deliberate second step:
 

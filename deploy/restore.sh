@@ -174,7 +174,7 @@ if [[ "$TARGET" == "$MANIFEST_PROJECT" ]]; then
 fi
 if (( DRY_RUN == 0 )); then
   OWNED=()
-  CHECK=("${RESTORE_VOLUMES[@]}")
+  CHECK=(${RESTORE_VOLUMES[@]+"${RESTORE_VOLUMES[@]}"})
   [[ -n "$DB_URL" ]] || CHECK+=(pgdata)
   for v in "${CHECK[@]}"; do
     if docker volume inspect "${TARGET}_${v}" >/dev/null 2>&1; then OWNED+=("${TARGET}_${v}"); fi
@@ -224,7 +224,7 @@ else
 fi
 
 # Volumes.
-for v in "${RESTORE_VOLUMES[@]}"; do
+for v in ${RESTORE_VOLUMES[@]+"${RESTORE_VOLUMES[@]}"}; do
   if (( DRY_RUN )); then
     echo "DRY-RUN: docker volume create ${TARGET}_${v}; decrypt < $FROM/${v}.tar.gz${EXT} | docker run --rm -i -v ${TARGET}_${v}:/v $ALPINE_IMAGE tar xzf - -C /v"
     continue

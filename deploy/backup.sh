@@ -148,8 +148,9 @@ if (( DRY_RUN )); then
   echo "DRY-RUN: mkdir -p $DEST"
 else
   mkdir -p "$TARGET_DIR"
-  DEST="${TARGET_DIR}/${STAMP}"
-  mkdir "$DEST"
+  CANDIDATE="${TARGET_DIR}/${STAMP}"
+  mkdir "$CANDIDATE"
+  DEST="$CANDIDATE"  # set only after mkdir succeeds, so the failure trap never touches another run's directory
 fi
 
 EXT=".enc"
@@ -205,8 +206,12 @@ else
   } > "$DEST/manifest.txt"
 fi
 
+# The backup is complete and verified-by-manifest here; nothing after this point may remove it.
+DONE=1
+
 # 4. Retention, after a successful backup only.
 if [[ -n "$KEEP_DAYS" ]]; then
+  prune_old() {
   if CUTOFF=$(date -u -d "-${KEEP_DAYS} days" +%Y%m%dT%H%M%SZ 2>/dev/null); then
     :
   else
@@ -227,8 +232,9 @@ if [[ -n "$KEEP_DAYS" ]]; then
       fi
     done
   fi
+  }
+  prune_old || echo "WARNING: retention pruning failed; the new backup is kept" >&2
 fi
 
-DONE=1
 if (( DRY_RUN )); then echo "dry run complete: nothing was written"; else echo "backup complete: $DEST"; fi
 echo "migrations_count=$MIGRATIONS_COUNT ticket_count=$TICKET_COUNT attachment_count=$ATTACHMENT_COUNT"
