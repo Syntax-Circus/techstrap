@@ -332,7 +332,7 @@ Not entry points: `TicketChangePublishingInterceptor` (Infrastructure post-commi
 | Endpoint | Why exempt | Constraint |
 | --- | --- | --- |
 | `/health/live`, `/health/ready` | Framework health checks (`AspNetCore.Common`); readiness may check DB connectivity through the health-check registration, not through handlers | No application workflow, no business data returned; anonymous |
-| `/openapi/v1.json` | Framework-generated OpenAPI document | No application workflow; anonymous or Development-only, configurable (**Assumption**: anonymous, no secrets) |
+| `/openapi/v1.json` | Framework-generated OpenAPI document | No application workflow; anonymous or Development-only, configurable (tested: anonymous, no secrets; D-051, `PublicDocumentsSecretsTests`) |
 | Static assets (Admin, Portal `wwwroot`, compiled SCSS output) | Static file middleware | No application workflow |
 | KB images under the public-read `kb-images/` prefix (API) | Public static assets served from storage by the API (D-021); written only by `UploadKbImageRequestHandler` | No application workflow; the prefix never holds ticket attachments |
 | Admin `GET /attachments/{id}` and Portal `GET /t/{token}/attachments/{id}` | Pass-through streaming proxies: Admin to `GET /api/attachments/{id}`, Portal to `GET /api/customer/attachments/{id}` (D-038), because bearer and customer tokens are server-side (D-017) | No application workflow, no persistence; authorization is enforced by `GetAttachmentRequestHandler` (agent) and `GetCustomerAttachmentRequestHandler` (customer); `Content-Disposition: attachment` and `nosniff` |
