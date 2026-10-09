@@ -24,7 +24,7 @@ dotnet run --project src/TechStrap.Admin --urls http://localhost:8081
 `src/TechStrap.Admin/.env.local`: compose no longer sets the sign-in values itself, so there is one place to put them. Uncomment and fill the three keys in that file:
 
 ```bash
-AUTH__AUTHORITY=https://auth.example.com/application/o/techstrap-admin/
+AUTH__AUTHORITY=https://auth.example.com/application/o/techstrap/
 AUTH__CLIENTID=techstrap-admin
 AUTH__CLIENTSECRET=...
 ```
@@ -101,25 +101,12 @@ agent. To make someone an admin, or an agent, change their group in the identity
 
 ## Authentik setup note
 
-Authentik is not set up yet, so none of this has been exercised against a live provider. The tests use a fake `Test` authentication scheme and a stub API. When you set
-Authentik up, configure the following; any OIDC provider that supports the same features works.
+The step-by-step provider setup (groups, provider, application, the groups claim, which value goes in which env file, and how to verify) is in the [Authentik worked example](../self-hosting/AUTHENTIK.md); the claims the Api needs are in [AGENT-AUTHENTICATION.md](../self-hosting/AGENT-AUTHENTICATION.md). Any OIDC provider that supports the same features works. The provider flow is documented in the worked example and is verified against a live Authentik in 12c (T14). The tests here use a fake `Test` authentication scheme and a stub API.
 
-1. **Create an OAuth2/OpenID provider and an application** (for example slug `techstrap-admin`).
-   - Client type: **confidential**, authorization **code** flow with **PKCE** (the Admin starts it with PKCE). Note the client id and the secret: they are `AUTH__CLIENTID` and `AUTH__CLIENTSECRET`.
-   - Redirect URIs (strict): `https://<admin host>/signin-oidc`. For local development also `http://localhost:8081/signin-oidc`.
-   - Post-logout redirect URIs: `https://<admin host>/signout-callback-oidc` (and `http://localhost:8081/signout-callback-oidc`).
-   - **Front-channel and back-channel (remote) sign-out are not used**: the Admin disables `RemoteSignOutPath`, so do not configure a logout URI that points at the Admin. Sign-out is started by the Admin itself (a POST to `/signout`), and the provider sends the browser back to `/signout-callback-oidc`.
-   - The authority is the provider's issuer URL, which ends in a slash: `https://auth.example.com/application/o/techstrap-admin/`.
-2. **Scopes.** Select `openid`, `profile`, `email` and **`offline_access`** (Authentik's "offline_access" scope mapping). Without `offline_access` there is no refresh token and an agent's API
-   calls start failing when the access token expires (Authentik's default is minutes). Set the refresh token validity to at least a working day.
-3. **Groups claim.** Create the groups named by `TECHSTRAP_AGENT_GROUP` and `TECHSTRAP_ADMIN_GROUP` (defaults `techstrap-agents`, `techstrap-admins`) and add people to them. The default
-   `profile` scope mapping in Authentik emits a `groups` claim with the group names, which matches `TECHSTRAP_GROUP_CLAIM_TYPE=groups`. An Admin does not also need the agent group.
-4. **The token the API sees.** The Admin sends the **access token** to the API, and the API validates it (`Authentication__JwtBearer__Authority`, `__Audiences__0`; see
-   [AGENT-AUTHENTICATION.md](../self-hosting/AGENT-AUTHENTICATION.md)). So the access token must carry `sub`, `email`, the groups claim, and an audience equal to the API's configured
-   audience. In Authentik the audience of an access token is the client id of the provider that issued it, so the simplest setup is to set the API audience to the Admin's client id.
-   `sub` and `email` are **required**: the API matches the agent by them, and without `email` the no-access page says so. Decode a real access token at the first sign-in and check those four claims (this is not verified yet).
-5. **Local runs use placeholder values.** Without `AUTH__AUTHORITY`, `AUTH__CLIENTID` and `AUTH__CLIENTSECRET` in `src/TechStrap.Admin/.env.local`, the Admin (in compose or under `dotnet run`) starts on the placeholders of `appsettings.Development.json`, the sign-in page renders, and sign-in fails. That is expected until Authentik exists.
-6. **Behind a reverse proxy**, set the trusted proxy keys so the Admin builds `https` redirect URIs, and make sure the provider can be reached from the Admin container at the authority URL.
+Two things concern local development only:
+
+1. **Local runs use placeholder values.** Without `AUTH__AUTHORITY`, `AUTH__CLIENTID` and `AUTH__CLIENTSECRET` in `src/TechStrap.Admin/.env.local`, the Admin (in compose or under `dotnet run`) starts on the placeholders of `appsettings.Development.json`, the sign-in page renders, and sign-in fails. That is expected until you point it at a provider. For a local provider also register `http://localhost:8081/signin-oidc` and `http://localhost:8081/signout-callback-oidc`.
+2. **Behind a reverse proxy**, set the trusted proxy keys so the Admin builds `https` redirect URIs, and make sure the provider can be reached from the Admin container at the authority URL.
 
 If sign-in loops or the no-access page shows "not in the agent group" for someone who is, check in this order: the groups claim name, whether the claim is in the **access** token (the API
 reads that one), and `TECHSTRAP_AGENT_GROUP` on **both** the API and the Admin.

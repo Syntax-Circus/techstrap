@@ -2,6 +2,7 @@
 
 The deployment stack runs the Api, the Worker, the Admin and the Portal from explicit image references (D-043). Postgres, the identity provider and the reverse proxy are provisioned separately.
 The root `docker-compose.yml` is the local development stack and builds from source; deployment commands MUST name `-f deploy/docker-compose.yml`.
+For the provider-neutral guide and the full env reference see [SELF-HOSTING.md](SELF-HOSTING.md); for backups see [backup-restore.md](../runbooks/backup-restore.md); for Authentik see [AUTHENTIK.md](AUTHENTIK.md).
 
 **Tooling.** The deploy compose needs Compose 2.33.1 or later and Docker Engine 28 or later: `gw_priority` on a service network needs both, and the scoped env files use `format: raw` (Compose 2.30).
 It was tested here with Compose v5.5.1 and Engine 29.8.1; treat that pair as known-good. Check the host first:
@@ -83,7 +84,7 @@ Keep a filled env file out of the repository. A new setting is added to `appsett
    | `.env.api` | `ConnectionStrings__TechStrap`, `AUTHENTICATION__JWTBEARER__AUTHORITY`, `AUTHENTICATION__JWTBEARER__AUDIENCES__0` (present and blank in the template: fill it), `TECHSTRAP_PORTAL_PUBLIC_URL`, `TECHSTRAP_API_PUBLIC_URL` | The Api trusts the compose subnet and `REVERSE_PROXY_CIDR`. `TECHSTRAP_ADMIN_PUBLIC_URL` is optional. `TECHSTRAP_API_PUBLIC_URL` is the Api address as portal readers reach it (D-044): knowledge-base images load from `{url}/kb-images/{name}`, so the reverse proxy must route `/kb-images/` to the Api and the Api refuses to start without the setting. |
    | `.env.worker` | `ConnectionStrings__TechStrap`, `EMAIL__SMTP__HOST`, `EMAIL__SMTP__DEFAULTFROM` | To run without email set `EMAILOUTBOX__ENABLED=false`. Keep `TECHSTRAP_AUTOCLOSE_DAYS` equal to the Api value. |
    | `.env.admin` | `AUTH__AUTHORITY` (https), `AUTH__CLIENTID`, `AUTH__CLIENTSECRET` | See [ADMIN-APP.md](../development/ADMIN-APP.md) and [AGENT-AUTHENTICATION.md](AGENT-AUTHENTICATION.md). The group keys must match the Api. Optional: `TECHSTRAP_PORTAL_PUBLIC_URL` (the same value as in `.env.api`), which turns on the "View on portal" link of a published article; blank hides the link. A public URL with a path prefix needs the reverse proxy to strip that prefix before it reaches the portal. |
-   | `.env.portal` | none yet | PHASE-09 adds the Api address and the public URL. |
+   | `.env.portal` | `TECHSTRAP_PORTAL_PUBLIC_URL` | The public address of the Portal (every optional key is in [SELF-HOSTING.md](SELF-HOSTING.md)). |
 
    Set `ALLOWEDHOSTS` in each file to the real public host names if you want host filtering (keep the health-probe hosts `localhost`). Sentry and OpenTelemetry are optional and disabled by default; their DSN and OTLP headers are secrets.
 
@@ -218,6 +219,7 @@ The Worker has no published port: its health is the container health (`/health/r
 
 Record the image references before a rollout, and take a Postgres backup together with a copy of the storage volume and both key-ring volumes (`<project>_techstrap-storage`, `<project>_admin-keys`, `<project>_portal-keys`; list them with `sudo docker volume ls --filter name=<project>_`). To roll back the application, set the previous tags in `deploy/.env.<env>.local` (the same tag in all four images), then run `pull` and `up -d --wait` again.
 The Api's migrations only move forward: rolling back past a migration needs a database restore, so restore from backup as a separate, deliberate recovery decision. To upgrade, set the new tags and run the same two commands.
+The encrypted backup and restore scripts, the schedule and the restore drill are in the [backup and restore runbook](../runbooks/backup-restore.md).
 Backup examples (run from a backup directory; repeat the tar for `techstrap-storage` and `portal-keys`):
 
 ```bash

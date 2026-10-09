@@ -958,26 +958,116 @@ Describe 'PHASE-12a close-out' {
         $script:Review | Should -Match '(?s)Release 0\.3\.0 sign-off.*?0 open High or Critical.*?2026-10-\d\d'
     }
 
-    It 'ticks P12-T01 to P12-T10 and P12-T19 with an as-built note and leaves the later tasks open' {
+    It 'ticks P12-T01 to P12-T10 and P12-T19 with an as-built note (12a)' {
         foreach ($n in (1..10) + 19) {
             $id = 'P12-T{0:D2}' -f $n
             $script:Spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is done in 12a"
             $block = [regex]::Match($script:Spec, '(?ms)^- \[x\] \*\*' + $id + '\*\*.*?(?=^- \[|^## |\z)').Value
             $block | Should -Match '\*\*As built \(12a\):\*\*' -Because "$id needs an as-built note"
         }
-        foreach ($n in (11..18) + 20, 21) {
-            $id = 'P12-T{0:D2}' -f $n
-            $script:Spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is not 12a"
-        }
         $script:Spec | Should -Match '(?m)^- \[x\] `docs/security/SECURITY-REVIEW\.md`'
     }
 
-    It 'marks phase 12 as 12a complete in the roadmap and the discovery index' {
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 12 \|.*D-051.*12a complete \(pending merge\)'
-        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 12 \|.*12a complete \(pending merge\)'
+    It 'marks phase 12 as 12a merged in the roadmap and the discovery index' {
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 12 \|.*D-051.*12a merged \(PR #28\)'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 12 \|.*12a merged \(PR #28\)'
     }
 
     It 'has the 12a plan fully ticked with an As built section' {
+        $script:Plan | Should -Not -Match '(?m)^\s*- \[ \]'
+        $script:Plan | Should -Match '(?m)^## As built\s*$'
+    }
+}
+
+Describe 'Backup and restore runbook (PHASE-12b)' {
+    BeforeAll { $script:Runbook = Get-RepoText 'docs/runbooks/backup-restore.md' }
+
+    It 'has the required sections' {
+        foreach ($heading in 'Scope', 'RPO and RTO', 'Prerequisites and secrets', 'Taking a backup', 'Encryption and off-box copy', 'Retention', 'Restoring', 'Verification checklist', 'Consistency caveat', 'Disaster scenarios', 'Keys volumes', 'Client and server version', '12b rehearsal record') {
+            $script:Runbook | Should -Match ('(?m)^## ' + [regex]::Escape($heading) + '\s*$') -Because "the runbook needs a $heading section"
+        }
+    }
+
+    It 'states the targets, the migration check and the resurrection caveat' {
+        foreach ($phrase in 'RPO', 'RTO', '24 h', '4 h', '__EFMigrationsHistory', 'resurrect', 'admin_events', 'deploy/backup.sh', 'deploy/restore.sh', 'OnCalendar', 'crontab') {
+            $script:Runbook | Should -Match ([regex]::Escape($phrase)) -Because $phrase
+        }
+    }
+
+    It 'never tells the operator to remove volumes and is ASCII' {
+        $script:Runbook | Should -Not -Match 'down\s+-v(\s|$)'
+        $script:Runbook | Should -Not -Match '--volumes'
+        ([regex]::IsMatch($script:Runbook, '[^\x00-\x7F]')) | Should -BeFalse
+    }
+
+    It 'has no TODO and no passphrase value' {
+        $script:Runbook | Should -Not -Match 'TODO'
+        $script:Runbook | Should -Not -Match '(?i)passphrase\s*[=:]\s*[A-Za-z0-9]{8,}'
+    }
+
+    It 'keeps the backups folder out of git' {
+        (Get-RepoText '.gitignore') | Should -Match '(?m)^backups/\s*$'
+    }
+
+    It 'links only to files that exist' {
+        $links = [regex]::Matches($script:Runbook, '\]\((?<path>(?!https?:|#)[^)\s#]+)') | ForEach-Object { $_.Groups['path'].Value }
+        foreach ($link in $links) {
+            Test-Path -LiteralPath (Join-Path $script:RepoRoot 'docs' 'runbooks' $link) | Should -BeTrue -Because "backup-restore.md links to $link"
+        }
+    }
+}
+
+Describe 'PHASE-12b close-out' {
+    BeforeAll {
+        $script:Spec = Get-RepoText 'docs/architecture/PHASE-12-release-hardening.md'
+        $script:Plan = Get-RepoText 'docs/superpowers/plans/2026-10-09-phase-12b-docs-scripts.md'
+        $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md'
+    }
+
+    It 'ticks P12-T11, T13, T16 and T17 with an as-built (12b) note' {
+        foreach ($id in 'P12-T11', 'P12-T13', 'P12-T16', 'P12-T17') {
+            $script:Spec | Should -Match ('(?m)^- \[x\] \*\*' + $id + '\*\*') -Because "$id is done in 12b"
+            $block = [regex]::Match($script:Spec, '(?ms)^- \[x\] \*\*' + $id + '\*\*.*?(?=^- \[|^## |\z)').Value
+            $block | Should -Match '\*\*As built \(12b\):\*\*' -Because "$id needs an as-built note"
+        }
+    }
+
+    It 'leaves the 12c tasks open' {
+        foreach ($id in 'P12-T12', 'P12-T14', 'P12-T15', 'P12-T18', 'P12-T20', 'P12-T21') {
+            $script:Spec | Should -Match ('(?m)^- \[ \] \*\*' + $id + '\*\*') -Because "$id is 12c"
+        }
+    }
+
+    It 'records the 12b corrections in the spec' {
+        $corrections = ($script:Spec -split '(?m)^### Corrections \(D-051, 2026-10-08\)\s*$')[1]
+        foreach ($phrase in 'SELF-HOSTING.md', 'AUTHENTIK.md', 'docs/runbooks/backup-restore.md', 'append-only', 'not in CI', 'bash', 'openssl', 'private') {
+            $corrections | Should -Match ([regex]::Escape($phrase)) -Because $phrase
+        }
+    }
+
+    It 'adds the D-051 addendum 12b rulings' {
+        $script:Log | Should -Match '12b rulings \(2026-10-09\)'
+        $addendum = ($script:Log -split '12b rulings \(2026-10-09\)')[1]
+        foreach ($phrase in 'tests/load', 'X-Forwarded-For', 'postgres:17', 'openssl', 'rehearsal', 'drill', 'SELF-HOSTING.md', 'syntax-circus-authentik', '26MiB') {
+            $addendum | Should -Match ([regex]::Escape($phrase)) -Because $phrase
+        }
+    }
+
+    It 'marks phase 12 as 12b complete in the roadmap and the discovery index' {
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 12 \|.*D-051.*12a merged \(PR #28\); 12b complete \(pending merge\)'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 12 \|.*12a merged \(PR #28\); 12b complete \(pending merge\)'
+    }
+
+    It 'no workflow runs the load or backup scripts (on-demand only)' {
+        $workflows = @(Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot '.github' 'workflows') -File -Filter *.yml)
+        $workflows.Count | Should -BeGreaterThan 0
+        foreach ($file in $workflows) {
+            # The whole file text, so the bodies of `run: |` blocks are covered too.
+            (Get-Content -LiteralPath $file.FullName -Raw) | Should -Not -Match '\bk6\b|backup\.sh|restore\.sh|Invoke-LoadTest' -Because "$($file.Name) must not run the on-demand load or backup scripts"
+        }
+    }
+
+    It 'has the 12b plan fully ticked with an As built section' {
         $script:Plan | Should -Not -Match '(?m)^\s*- \[ \]'
         $script:Plan | Should -Match '(?m)^## As built\s*$'
     }

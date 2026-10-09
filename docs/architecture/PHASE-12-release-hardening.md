@@ -51,6 +51,15 @@ Where this page and D-051 differ, D-051 wins.
 - `docs/self-hosting.md` and `docs/self-hosting-authentik.md` become the existing `docs/self-hosting/` folder (`DEPLOYMENT.md` and `AGENT-AUTHENTICATION.md` exist); 12b decides the file names.
 - The conformance gate (T19) is an Architecture test that compares reflected controller actions, hub methods and hosted loops to the catalog tables in `02-ARCHITECTURE.md` and fails with a diff.
 
+12b additions (2026-10-09):
+
+- The guides are `docs/self-hosting/SELF-HOSTING.md` and `docs/self-hosting/AUTHENTIK.md`; the runbook is `docs/runbooks/backup-restore.md`; load results go to `docs/load-test-results.md`.
+- "Attachments are append-only" is corrected: hard delete and requester erase remove files, and a restore resurrects them; re-run erasures from `admin_events`.
+- k6 is not in CI (static Pester pins only); the load run is on demand and happens in 12c.
+- The backup scripts are bash with openssl encryption (`openssl enc -aes-256-cbc -pbkdf2`).
+- The rehearsal is 12b (dev stack); the restore drill from a UAT backup is 12c (T15).
+- `syntax-circus-authentik` is private, so the Authentik guide does not depend on it.
+
 ## Application Boundaries
 
 Follow _template APPLICATION_ARCHITECTURE.md. Phase 12 adds **no new server
@@ -155,27 +164,31 @@ phase verifies configuration and upgrades only for security fixes.
   - **Depends on:** P12-T02 … P12-T09
   - **Validation:** All High/Critical closed with test references; Medium accepted or fixed with rationale; `dotnet test` green.
   - **As built (12a):** every finding has a status (4 Fixed with regression tests, 14 Accepted, 0 Open; 0 open High/Critical); the review statuses and sign-off are pinned by the `PHASE-12a close-out` Pester block.
-- [ ] **P12-T11** Write k6 load scripts (intake Trusted + Public key, portal form post, customer view, KB search) with realistic payloads and a scenario runner
+- [x] **P12-T11** Write k6 load scripts (intake Trusted + Public key, portal form post, customer view, KB search) with realistic payloads and a scenario runner
   - **Depends on:** P05, P09
   - **Validation:** Scripts run against local compose; thresholds encoded in the scripts (p95, error rate); README explains parameters.
+  - **As built (12b):** `tests/load/` holds the k6 suite (intake Trusted and Public key, portal form post, customer view, KB search) with thresholds in code, a README and the runner `scripts/Invoke-LoadTest.ps1` (`-Target`, `-Scenario`, `-Duration`, `-Rate`, `-DryRun`, `-UseDocker`); the image is pinned `grafana/k6:2.1.0`. Deviations: the sustained composer relies on `server_errors` (5xx or status 0) rather than `http_req_failed`, because public intake answers 429 by design (public submit is 5 per 600 s per IP); `TS_IP_COUNT=240` keeps it within the limit. Smoke on the dev stack: sustained 30 s at 2 rps p95 18 ms; spike 6534 x 429 then recovery p95 12 ms; `-UseDocker` p95 19 ms; a 2-minute default-rate sustained run exited 0 (p95 12.92 ms, 0 server_errors of 2409, 10 x 429, 0 dead-lettered). Forwarded-IP trust is proven locally for the Api only; the Portal trusts only `REVERSE_PROXY_CIDR`, so the real proof is the 12c run (T12). Static pins in `scripts/tests/LoadScripts.Tests.ps1`.
 - [ ] **P12-T12** Execute load tests on the UAT box, tune (rate limits, pool sizes, indexes) and record results
   - **Depends on:** P12-T11, P12-T14 (UAT up)
   - **Validation:** Budgets met (sustained 20 req/s, p95 < 500 ms, 0 5xx; spike yields 429s then recovery; outbox drains <= 2 min; no dead letters); results and box specs in `docs/load-test-results.md`; tuning changes landed with tests.
-- [ ] **P12-T13** Write `docs/runbooks/backup-restore.md` and the backup script(s); schedule on UAT
+- [x] **P12-T13** Write `docs/runbooks/backup-restore.md` and the backup script(s); schedule on UAT
   - **Depends on:** P01 compose, P05 storage layout, P08 image prefix
   - **Validation:** Reviewed against the actual volume/DB names in compose; script produces encrypted dump + volume archive; retention pruning verified on a test directory.
+  - **As built (12b):** `deploy/backup.sh` and `deploy/restore.sh` (bash; `pg_dump -Fc` in `postgres:17`, `alpine tar` volume archives, `openssl enc -aes-256-cbc -pbkdf2`, `--keep-days`, `--dry-run`, scratch-project restore) and `docs/runbooks/backup-restore.md`. Beyond the plan: `--db-url` restores require `--yes`; `--overwrite` clears the target volume; restore reads encrypted or plain from the manifest and rejects a mismatched flag; the failure trap removes a partial backup and a retention failure can only warn. Rehearsal on the dev stack: backup 7.3 s, restore 13.2 s into `techstrap-restore`, migration, ticket and attachment counts matched, refusals exercised, teardown left the real volumes. The `--db-url` promotion path and the systemd timer were not exercised (12c, T15). The runbook corrects "attachments are append-only". Static pins in `scripts/tests/BackupScripts.Tests.ps1`.
 - [ ] **P12-T14** Deploy the latest published tag (D-051) to UAT with `deploy/docker-compose.yml`, the env files made from the `deploy/.env.<app>.example` templates and `deploy/.env.uat.example` (D-043); wire dashboards and alerts. The first published version was `v0.1.0` (D-049 addendum); the latest published tag is what UAT runs (D-051); `v1.0.0` is cut when the SDK-facing Contracts surface is locked.
   - **Depends on:** P12-T10 (or accepted open items), P11-T16
   - **Validation:** All four containers healthy; migrations applied once by the API; agent signs in via the owner's Authentik; a ticket submitted through the portal, SDK sample and email link works end to end; alerts fire in a forced-failure test (stop worker -> outbox lag alert).
 - [ ] **P12-T15** Perform the restore drill from a UAT backup into a scratch stack and record timings and verification results in the runbook
   - **Depends on:** P12-T13, P12-T14
   - **Validation:** Restored stack passes: migration state matches, ticket counts match, an old attachment downloads, admin login works; measured RTO within target (or target adjusted and noted).
-- [ ] **P12-T16** Extend `docs/self-hosting/DEPLOYMENT.md` (D-043) and write `docs/self-hosting.md` (generic OIDC, an env reference built from the `deploy/.env.<app>.example` templates and the contract test, proxy/subnet/forwarded headers, SMTP, volumes, admin group, upgrade/rollback, PgBouncer note)
+- [x] **P12-T16** Extend `docs/self-hosting/DEPLOYMENT.md` (D-043) and write `docs/self-hosting.md` (generic OIDC, an env reference built from the `deploy/.env.<app>.example` templates and the contract test, proxy/subnet/forwarded headers, SMTP, volumes, admin group, upgrade/rollback, PgBouncer note)
   - **Depends on:** P12-T14
   - **Validation:** A clean-room run-through by following only the doc (fresh VM or fresh compose project with a non-Authentik test IdP, e.g. a local OIDC test server) reaches a working agent sign-in and ticket flow; env table matches every `.env.example` (script check).
-- [ ] **P12-T17** Write `docs/self-hosting-authentik.md` referencing `syntax-circus-authentik` for provider/application setup and showing the group-to-claim mapping used by `TECHSTRAP_AGENT_GROUP`/`TECHSTRAP_ADMIN_GROUP`
+  - **As built (12b):** `docs/self-hosting/SELF-HOSTING.md` (named for the old `docs/self-hosting.md`) with an env reference pinned against the `deploy/.env.<app>.example` templates and `deploy/docker-compose.yml` (all 12 `${NAME:?}` inputs marked required) by `scripts/tests/SelfHostDocs.Tests.ps1`. Deviations: the Caddy limit is `max_size 26MiB` (Caddy's MB is 10^6, too small for 25 MiB); the stale image tags in `deploy/.env.uat.example` and `deploy/.env.production.example` are now `0.2.0`; the clean-room run-through with a non-Authentik IdP was not performed in 12b (the pins check the env table against the templates).
+- [x] **P12-T17** Write `docs/self-hosting-authentik.md` referencing `syntax-circus-authentik` for provider/application setup and showing the group-to-claim mapping used by `TECHSTRAP_AGENT_GROUP`/`TECHSTRAP_ADMIN_GROUP`
   - **Depends on:** P12-T16
   - **Validation:** Steps reproduced against a fresh Authentik application/provider in UAT; agent in group signs in, non-member rejected; links to the authentik repo resolve; no secrets or copied provisioning code in this repo.
+  - **As built (12b):** `docs/self-hosting/AUTHENTIK.md` (named for the old `docs/self-hosting-authentik.md`), self-sufficient because `syntax-circus-authentik` is private, with a pointer from SELF-HOSTING.md. The groups fallback mapping uses the scope name `profile` (or the operator appends `AUTH__SCOPES__0=groups`); the stale `techstrap-admin` issuer slug was removed from `docs/development/ADMIN-APP.md`. The provider flow is documented from Authentik's defaults and verified against a live Authentik in 12c (T14). Pinned by `scripts/tests/SelfHostDocs.Tests.ps1`.
 - [ ] **P12-T18** Soak the RC on UAT for at least 48 hours with real use; triage and fix regressions; collect SDK feedback
   - **Depends on:** P12-T14, P12-T15
   - **Validation:** Soak log shows no unexplained 5xx, no dead letters, stable memory/connections, listener reconnect count explained; issues filed and fixed or deferred with reasons.
