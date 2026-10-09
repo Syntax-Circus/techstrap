@@ -12,12 +12,12 @@ namespace TechStrap.Admin.Auth;
 
 /// <summary>
 /// Cookie plus OpenID Connect sign-in (D-040). The cookie scheme is literally "Cookies": SyntaxCircus.Blazor.Auth reads and refreshes the saved
-/// tokens from the scheme with that name. The sign-in, sign-in start and sign-out routes are minimal-API endpoints, not components, so they never need a circuit.
+/// tokens from the scheme with that name. The OIDC scheme is likewise the framework default name "OpenIdConnect", because the library's refresh service resolves the OIDC options under that name. The sign-in, sign-in start and sign-out routes are minimal-API endpoints, not components, so they never need a circuit.
 /// </summary>
 public static class AdminAuthentication
 {
     public const string CookieScheme = "Cookies";
-    public const string OidcScheme = "oidc";
+    public const string OidcScheme = OpenIdConnectDefaults.AuthenticationScheme;
 
     public const string SignInPath = "/signin";
     public const string SignInStartPath = "/signin/start";

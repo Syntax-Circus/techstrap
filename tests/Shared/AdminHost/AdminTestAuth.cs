@@ -59,7 +59,7 @@ public static class AdminTestAuth
         services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, AdminTestAuthHandler>(Scheme, _ => { });
         services.PostConfigure<AuthenticationOptions>(options => options.DefaultAuthenticateScheme = Scheme);
         // The provider metadata is fixed, so a challenge builds its redirect without any network call.
-        services.Configure<OpenIdConnectOptions>("oidc", options => options.Configuration = new OpenIdConnectConfiguration
+        services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options => options.Configuration = new OpenIdConnectConfiguration
         {
             Issuer = "https://idp.test/application/o/techstrap-admin/",
             AuthorizationEndpoint = "https://idp.test/application/o/authorize/",

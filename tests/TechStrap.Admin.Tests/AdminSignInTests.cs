@@ -1,6 +1,7 @@
 using System.Net;
 using AngleSharp.Html.Parser;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,22 @@ public sealed class AdminSignInTests
 {
     private static HttpClient NoRedirectClient(AdminFactory factory) =>
         factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+    /// <summary>
+    /// SyntaxCircus.Blazor.Auth's refresh service reads the OIDC options under the framework default scheme name, so the Admin must register its scheme under that exact name
+    /// or token refresh silently fails.
+    /// </summary>
+    [Fact]
+    public void The_oidc_scheme_is_registered_under_the_name_Blazor_Auth_refreshes()
+    {
+        using var factory = new AdminFactory();
+
+        var options = factory.Services.GetRequiredService<IOptionsMonitor<OpenIdConnectOptions>>()
+            .Get(OpenIdConnectDefaults.AuthenticationScheme);
+
+        options.Authority.ShouldNotBeNullOrWhiteSpace();
+        options.ClientId.ShouldNotBeNullOrWhiteSpace();
+    }
 
     [Fact]
     public async Task An_anonymous_request_for_a_page_is_sent_to_the_landing_page_with_a_local_return_url()
