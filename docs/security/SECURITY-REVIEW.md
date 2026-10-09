@@ -129,12 +129,12 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 | Check | Evidence or finding |
 | --- | --- |
 | Log redaction | `LogRedactionTests`, `PiiRedactionQueryValueTests`, `AdminHostRedactionTests`; Architecture `LoggingSafetyTests`; Portal `RequestLogRedactionHostTests`; residual gaps are SR-09 |
-| Erase a requester | `EraseRequesterIntegrationTests.Nothing_personal_remains_after_erase`, `EraseRequesterIntegrationTests.Tokens_are_revoked`, `EraseRequesterIntegrationTests.Outbox_rows_by_address_and_by_ticket_are_gone_and_others_stay`, `RequesterErasureTests`; Api `EraseRequesterEndpointTests`; Task 6 adds `EraseRequesterEndpointTests.Erasing_a_requester_writes_no_email_name_or_token_to_any_log_event` |
+| Erase a requester | `EraseRequesterIntegrationTests.Nothing_personal_remains_after_erase`, `EraseRequesterIntegrationTests.Tokens_are_revoked`, `EraseRequesterIntegrationTests.Outbox_rows_by_address_and_by_ticket_are_gone_and_others_stay`, `RequesterErasureTests`; Api `EraseRequesterEndpointTests`; `EraseRequesterEndpointTests.Erasing_a_requester_writes_no_email_name_or_token_to_any_log_event` (submits through the intake, erases as Admin, scans every captured event's message, properties and exception for the email, its local part, the name and the token; asserts the sink saw events including the erase request) |
 | Hard delete of a ticket | `DeleteTicketIntegrationTests`, `DeleteTicketEndpointTests` |
 | Spam handling | `MarkTicketSpamRequestHandlerTests`, `TicketTagAndSpamEndpointTests` |
 | Containers run as non-root | Pester `Dockerfiles.Tests.ps1` (`USER 10001:10001`) |
 | Secrets only through the environment | `EnvExampleCompletenessTests`, `ProductionBlankTemplateTests`; Pester `ConfigContract`, `TrackedFiles`; image secret scan is Task 7 (the Trivy secret scanner is on by default for `trivy image`; there is no separate history scan, see SR-13) |
-| Forced tag delete and notification preferences | SR-15; Task 6 |
+| Forced tag delete and notification preferences | SR-15; `DeleteTagRequestHandlerTests.A_forced_delete_loads_the_carrying_tickets_in_batches_not_one_by_one`, `DeleteTagIntegrationTests.A_forced_delete_across_two_batches_detaches_every_ticket`, `UpdateNotificationPreferencesRequestHandlerTests.Products_are_checked_with_one_repository_call`, `UpdateNotificationPreferencesRequestHandlerTests.More_than_the_cap_is_refused_before_any_lookup` |
 | Dependency scan, image scan, SBOM | Task 7; SR-13 |
 
 ## Findings
@@ -191,7 +191,7 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 - Path group: 6. Privacy and operations
 - Severity: Low
 - Status: Accepted
-- Evidence: the redaction enricher matches emails, tokens, keys and sensitive query values. Display names are not pattern-redacted and `Exception` objects are not rewritten (documented in the enricher remarks).
+- Evidence: the redaction enricher matches emails, tokens, keys and sensitive query values. Display names are not pattern-redacted and `Exception` objects are not rewritten (documented in the enricher remarks). `EraseRequesterEndpointTests.Erasing_a_requester_writes_no_email_name_or_token_to_any_log_event` covers the email, its local part, the name and the token across the intake and the erase at the configured levels, and passes because no handler logs a requester name. Residual: at Debug, ASP.NET Core's own `ControllerActionInvoker` line ("Executing action method ... with arguments") renders the intake request record, which carries the submitter's name (the email is masked by the enricher). The shipped configuration keeps `Microsoft.AspNetCore` at Warning, so it is not emitted unless an operator raises that category.
 
 ### SR-10: Invented API-key prefixes get their own rate-limit partition
 - Path group: 2. API keys
@@ -226,8 +226,8 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 ### SR-15: Per-row lookups and uncapped notification preferences
 - Path group: 6. Privacy and operations
 - Severity: Low
-- Status: Open
-- Evidence: forced tag delete and notification-preference validation looked rows up one at a time, and preferences had no cap. Closed by Task 6.
+- Status: Fixed
+- Evidence: forced tag delete now loads the carrying tickets with `ITicketRepository.GetByIdsAsync` in chunks of 200 (`DeleteTagRequestHandlerTests.A_forced_delete_loads_the_carrying_tickets_in_batches_not_one_by_one`, `A_missing_carrying_ticket_fails_loudly`; real Postgres `DeleteTagIntegrationTests.A_forced_delete_across_two_batches_detaches_every_ticket` with 205 tickets; `TicketBatchLoadTests` for graph parity). Notification preferences are capped at `DomainLimits.NotificationPreferencesMaxCount` (200) with `notification-preferences-too-many`, refused before any lookup, and products are checked with one `IProductRepository.GetExistingIdsAsync` call (`UpdateNotificationPreferencesRequestHandlerTests.More_than_the_cap_is_refused_before_any_lookup`, `Products_are_checked_with_one_repository_call`, `ProductRepositoryTests.GetExistingIdsAsync_returns_only_the_ids_that_exist_and_nothing_for_an_empty_list`). Fixed in P12-T07.
 
 ### SR-16: Concurrent double revoke can write and audit twice
 - Path group: 2. API keys

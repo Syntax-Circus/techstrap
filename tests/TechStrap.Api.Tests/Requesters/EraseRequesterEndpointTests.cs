@@ -1,9 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using TechStrap.Api.Tests.Auth;
+using Serilog.Events;
 using TechStrap.Api.Tests.Customer;
+using TechStrap.Api.Tests.Intake;
 using TechStrap.Api.Tests.Tickets;
 using TechStrap.Contracts.Http;
+using TechStrap.Contracts.Intake;
 using TechStrap.Contracts.Paging;
 using TechStrap.Contracts.Tickets;
 
@@ -32,6 +35,49 @@ public sealed class EraseRequesterEndpointTests(TestPostgres postgres)
         var request = new HttpRequestMessage(HttpMethod.Get, "/api/customer/ticket");
         request.Headers.Add(HeaderNames.TicketToken, token);
         return request;
+    }
+
+    private static string Everything(LogEvent e) => string.Join('\n', [e.RenderMessage(), e.Exception?.ToString() ?? string.Empty, .. e.Properties.Values.Select(v => v.ToString())]);
+
+    [Fact(Timeout = 120_000)]
+    public async Task Erasing_a_requester_writes_no_email_name_or_token_to_any_log_event()
+    {
+        const string email = "erase.me.7f3a@example.com";
+        const string localPart = "erase.me.7f3a";
+        const string name = "Zelda Quillfeather";
+        var database = await ApiTestDatabase.CreateAsync(postgres);
+        // The host's configured log levels, as deployed. (At Debug, ASP.NET Core's own ControllerActionInvoker line renders the intake request record, which carries the
+        // submitter's name; the shipped configuration keeps Microsoft.AspNetCore at Warning. See SR-09.)
+        var settings = new Dictionary<string, string?>(database.Settings)
+        {
+            ["TECHSTRAP_PORTAL_PUBLIC_URL"] = "https://help.test",
+        };
+        await using var factory = new ApiFactory(settings: settings);
+        var seed = await IntakeTestData.SeedAsync(factory.Services, Xunit.TestContext.Current.CancellationToken);
+        using var admin = factory.CreateClient().Bearer(TestJwt.Token("admin", [TestJwt.AdminGroup], email: "admin@example.com"));
+        (await admin.GetAsync("/api/agents/me", Xunit.TestContext.Current.CancellationToken)).EnsureSuccessStatusCode();
+        using var intake = new HttpRequestMessage(HttpMethod.Post, "/api/intake/tickets")
+        {
+            Content = JsonContent.Create(new SubmitTicketRequest(email, name, "Cannot sign in", "Please help me", null, null)),
+        };
+        intake.Headers.Add(HeaderNames.ApiKey, seed.OrbitlyTrusted);
+        using var submitted = await factory.CreateClient().SendAsync(intake, Xunit.TestContext.Current.CancellationToken);
+        submitted.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var viewUrl = (await submitted.Content.ReadFromJsonAsync<SubmitTicketResponse>(Xunit.TestContext.Current.CancellationToken))!.ViewUrl!;
+        var token = viewUrl[(viewUrl.IndexOf("/t/", StringComparison.Ordinal) + 3)..].Split('?', '#', '/')[0];
+        token.ShouldNotBeEmpty();
+        var requesterId = await database.ScalarAsync<Guid>($"SELECT id FROM requesters WHERE email = '{email}'");
+
+        using var erased = await admin.PostAsync($"/api/requesters/{requesterId}/erase", null, Xunit.TestContext.Current.CancellationToken);
+
+        erased.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        var events = factory.LogSink.Events.ToList();
+        events.Count.ShouldBeGreaterThan(0, "a silent sink would prove nothing");
+        events.ShouldContain(e => e.RenderMessage().Contains("/erase", StringComparison.Ordinal) && e.RenderMessage().Contains("POST", StringComparison.Ordinal), "the erase request itself must have been logged");
+        foreach (var needle in new[] { email, localPart, name, token })
+        {
+            events.Select(Everything).ShouldAllBe(text => !text.Contains(needle, StringComparison.OrdinalIgnoreCase), $"'{needle}' must not appear in any log event");
+        }
     }
 
     [Fact]

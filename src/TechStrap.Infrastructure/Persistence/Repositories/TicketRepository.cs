@@ -19,6 +19,17 @@ internal sealed class TicketRepository(TechStrapDbContext context) : ITicketRepo
     public async Task<Ticket?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         (await context.Set<TicketRecord>().Include(t => t.Tags).FirstOrDefaultAsync(t => t.Id == id, cancellationToken))?.ToDomain();
 
+    public async Task<IReadOnlyList<Ticket>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        var records = await context.Set<TicketRecord>().Include(t => t.Tags).Where(t => ids.Contains(t.Id)).ToListAsync(cancellationToken);
+        return records.Select(r => r.ToDomain()).ToList();
+    }
+
     public async Task<Ticket?> GetByNumberAsync(string number, CancellationToken cancellationToken)
     {
         if (!TicketNumber.TryParse(number, out var parsed))

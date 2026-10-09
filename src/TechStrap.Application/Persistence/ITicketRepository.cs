@@ -14,6 +14,9 @@ public interface ITicketRepository
 {
     Task<Ticket?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>The tickets with these ids, tracked and loaded like <see cref="GetByIdAsync"/>, in one query. Ids that do not exist are simply absent; callers batch (a few hundred ids at most).</summary>
+    Task<IReadOnlyList<Ticket>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
+
     /// <summary>Looks up by the stored full number, e.g. "ACME-142" (case-insensitive).</summary>
     Task<Ticket?> GetByNumberAsync(string number, CancellationToken cancellationToken);
 

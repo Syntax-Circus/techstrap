@@ -41,6 +41,39 @@ public sealed class DeleteTagRequestHandlerTests
         return ticket;
     }
 
+    private void ReturnTicketsByBatch(params Ticket[] all) =>
+        _tickets.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(call => (IReadOnlyList<Ticket>)all.Where(t => call.Arg<IReadOnlyCollection<Guid>>().Contains(t.Id)).ToList());
+
+    [Fact(Timeout = 60_000)]
+    public async Task A_forced_delete_loads_the_carrying_tickets_in_batches_not_one_by_one()
+    {
+        var carriers = Enumerable.Range(1, 450).Select(i => TicketCarryingTheTag(i)).ToArray();
+        _tickets.ListTicketIdsWithTagAsync(_tag.Id, Arg.Any<CancellationToken>()).Returns(carriers.Select(t => t.Id).ToList());
+        ReturnTicketsByBatch(carriers);
+
+        var result = await Handler().HandleAsync(_tag.Id, force: true, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        await _tickets.Received(3).GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>());
+        await _tickets.Received(1).GetByIdsAsync(Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 50), Arg.Any<CancellationToken>());
+        await _tickets.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        foreach (var ticket in carriers)
+        {
+            _tickets.Received(1).Update(ticket);
+        }
+    }
+
+    [Fact(Timeout = 60_000)]
+    public async Task A_missing_carrying_ticket_fails_loudly()
+    {
+        var present = TicketCarryingTheTag(1);
+        _tickets.ListTicketIdsWithTagAsync(_tag.Id, Arg.Any<CancellationToken>()).Returns([present.Id, Guid.CreateVersion7()]);
+        ReturnTicketsByBatch(present);
+
+        await Should.ThrowAsync<InvalidOperationException>(async () => await Handler().HandleAsync(_tag.Id, force: true, TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public async Task An_unused_tag_is_deleted_and_audited()
     {
@@ -79,8 +112,7 @@ public sealed class DeleteTagRequestHandlerTests
         var ticketA = TicketCarryingTheTag(1);
         var ticketB = TicketCarryingTheTag(2);
         _tickets.ListTicketIdsWithTagAsync(_tag.Id, Arg.Any<CancellationToken>()).Returns([ticketA.Id, ticketB.Id]);
-        _tickets.GetByIdAsync(ticketA.Id, Arg.Any<CancellationToken>()).Returns(ticketA);
-        _tickets.GetByIdAsync(ticketB.Id, Arg.Any<CancellationToken>()).Returns(ticketB);
+        ReturnTicketsByBatch(ticketA, ticketB);
 
         var result = await Handler().HandleAsync(_tag.Id, force: true, TestContext.Current.CancellationToken);
 

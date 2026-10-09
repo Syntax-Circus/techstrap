@@ -11,6 +11,9 @@ public interface IProductRepository
 {
     Task<Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>Of <paramref name="ids"/>, the ones that name an existing product, in one query (none for an empty list).</summary>
+    Task<IReadOnlySet<Guid>> GetExistingIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
+
     Task<Product?> GetByKeyAsync(string key, CancellationToken cancellationToken);
 
     /// <summary>Ordered by name.</summary>

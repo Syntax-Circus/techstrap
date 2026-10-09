@@ -52,6 +52,9 @@ public static class DomainLimits
     public const int ColourHexLength = 7;
 
     // A query limit, not a column length.
+    /// <summary>The most per-product entries one notification-preferences update may carry; a larger list is refused before any lookup.</summary>
+    public const int NotificationPreferencesMaxCount = 200;
+
     /// <summary>The maximum search text; longer text is truncated.</summary>
     public const int SearchTextMaxLength = 200;
 }
