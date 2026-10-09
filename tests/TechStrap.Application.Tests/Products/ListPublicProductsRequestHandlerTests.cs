@@ -78,9 +78,9 @@ public sealed class ListPublicProductsRequestHandlerTests
     }
 
     [Fact]
-    public void The_summary_dto_has_the_key_the_display_name_and_the_portal_host_only()
+    public void The_summary_dto_carries_only_what_a_landing_card_shows()
     {
-        typeof(PublicProductSummaryDto).GetProperties().Select(property => property.Name).Order().ShouldBe(["DisplayName", "Key", "PortalHost"]);
+        typeof(PublicProductSummaryDto).GetProperties().Select(property => property.Name).Order().ShouldBe(["AccentColour", "DisplayName", "Key", "ListedOnLanding", "LogoUrl", "PortalHost", "Tagline"]);
         PublicProductLimits.MaxListed.ShouldBe(1_000);
     }
 }
