@@ -6,7 +6,7 @@ export const throttled = new Counter('throttled_429');
 
 // A 429 is a valid answer under the rate limits; a 5xx never is.
 export function record(res, expected, phase) {
-  serverErrors.add(res.status >= 500);
+  serverErrors.add(res.status >= 500 || res.status === 0);
   if (res.status === 429) {
     throttled.add(1, { phase: phase || 'steady' });
   }

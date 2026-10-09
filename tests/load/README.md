@@ -38,12 +38,16 @@ Runner: `pwsh scripts/Invoke-LoadTest.ps1 -Target local|uat -Scenario sustained|
 - `scenarios/sustained.js`: `TS_RATE` requests per second for `TS_DURATION`: 50% trusted intake, 10% public intake (a file on every fourth call), 30% KB search,
   10% customer ticket view, plus the Portal contact form at one request a minute. Each request carries a rotated `X-Forwarded-For` taken from 60 addresses, because the
   Api and Portal rate-limit per client IP (public submit 5 per 10 minutes per IP, Portal form likewise); one runner address would be throttled long before the budgets mean anything.
-  Thresholds: p95 under 500 ms overall and per call type, `server_errors` rate 0, failed requests under 1%, checks above 99%.
+  Thresholds: p95 under 500 ms overall and per call type, `server_errors` rate 0, checks above 99%. `http_req_failed` is not asserted because a 429 is the correct answer under the rate limits.
 - `scenarios/spike.js`: ramps to `TS_SPIKE_PEAK` requests per second for 60 seconds against the trusted intake from ONE address (`<prefix>250`), crossing the 120 per 60 s limit.
   A 429 is the correct answer there; a 5xx never is. The thresholds assert at least one 429 during the spike and zero server errors. A recovery phase starts at 75 s with
   5 requests per second from rotated addresses (the spike address stays throttled until its window ends) and must keep p95 under 500 ms.
 - Every module (`intake-trusted.js`, `intake-public.js`, `portal-form.js`, `customer-view.js`, `kb-search.js`) also runs alone as a one-iteration smoke, for example `k6 run tests/load/kb-search.js`.
 - Caveat: KB search responses are cached for 60 seconds, so that call type mostly measures the cache.
+
+### Expected 429s at the default profile
+
+A 429 is expected rate-limit policy, not a failure, so the sustained thresholds do not assert `http_req_failed`. Public intake runs at 2 requests per second over `TS_IP_COUNT`=60 addresses, which is 20 submissions per address per 10 minutes against the public-submit limit of 5 per 600 s per address. About 75% of public-intake calls (roughly 7.5% of all requests) therefore answer 429 by design once each address has used its allowance. `TS_IP_COUNT=240` (the maximum) brings public intake within its limit (240 x 5 / 600 s = 2 requests per second). The mix and the limits are not changed to avoid this.
 
 ## Making the stack trust the runner
 
@@ -115,5 +119,5 @@ Verified 2026-10-09 against the local dev stack (compose project `techstrap`, se
 - Proxy trust: no change to the dev stack was needed for the Api. Six public submissions from one forwarded address `10.99.0.231` returned 201 five times and then 429 (the 5 per 600 s per-IP limit),
   while a first request from `10.99.0.232` still returned 201, proving the forwarded address is honoured as the rate-limit key. The Portal's `REVERSE_PROXY_CIDR` was left at its placeholder, so the Portal form
   was only exercised at one request per run window; use the `REVERSE_PROXY_CIDR=<gateway>/32` step above for longer Portal runs (not exercised here).
-- Environment note: the Api container's `/app/storage/attachments` was root-owned at the start of the smoke (cause not investigated), which made attachment uploads fail with 403
-  (an UnauthorizedAccessException mapped to a problem response) until it was chowned back to `techstrap`. A failure like this shows up as a `status is 201` check failure in `intake-public.js`.
+- Sustained at the default profile (`pwsh -File scripts/Invoke-LoadTest.ps1 -Target local -Scenario sustained -Duration 2m`, rate 20, 60 IPs): exit 0, 2406 iterations, 2413 requests, p95 12.92 ms, `server_errors` 0 of 2409, checks 100%, `throttled_429` 10 (the dev IPs had little public-submit history left from earlier runs, so the steady-state 429 share described above was not reached in two minutes); outbox afterwards 108 Pending, 3777 Sent, 0 dead-lettered.
+- Environment note: the Api container's `/app/storage/attachments` was created root-owned because the Task 1 backup rehearsal planted a test file into the dev storage volume as root, while the Api runs as uid 10001 (`techstrap`). Attachment uploads then failed with 403 (an UnauthorizedAccessException mapped to a problem response). It was corrected with `chown` inside the container, and the backup/restore runbook warns against writing into the volume as root. A failure like this shows up as a `status is 201` check failure in `intake-public.js`.

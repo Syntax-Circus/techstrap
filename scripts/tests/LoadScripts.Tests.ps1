@@ -62,7 +62,7 @@ Describe 'k6 load suite (static pins, PHASE-12b)' {
         }
         $names = @($names | Sort-Object -Unique)
         $names.Count | Should -BeGreaterOrEqual 9
-        foreach ($name in $names) { $readme | Should -Match ([regex]::Escape($name)) -Because "README.md must document $name" }
+        foreach ($name in $names) { $readme | Should -Match ([regex]::Escape("$([char]96)$name$([char]96)")) -Because "README.md must document $name" }
     }
 
     It 'the README covers proxy trust, outbox and dead-letter counts, results and the Verified note' {
@@ -80,7 +80,7 @@ Describe 'k6 load suite (static pins, PHASE-12b)' {
     }
 
     It 'all load files are LF and ASCII' {
-        $files = @(Get-AllLoadJs) + (Get-Item (Join-Path $script:Load 'README.md')) + (Get-Item $script:Runner)
+        $files = @(Get-AllLoadJs) + (Get-Item (Join-Path $script:Load 'README.md')) + (Get-Item $script:Runner) + (Get-Item (Join-Path $script:RepoRoot 'docs/load-test-results.md')) + (Get-Item (Join-Path $PSScriptRoot "LoadScripts.Tests.ps1"))
         foreach ($file in $files) {
             $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
             ($bytes -contains 13) | Should -BeFalse -Because "$($file.Name) must be LF"

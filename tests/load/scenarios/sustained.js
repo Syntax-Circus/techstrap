@@ -36,7 +36,8 @@ export const options = {
   },
   thresholds: Object.assign({}, baseThresholds, {
     server_errors: ['rate==0'],
-    http_req_failed: ['rate<0.01'],
+    // http_req_failed is deliberately not asserted: a 429 is the correct answer under the rate limits (see README),
+    // so the budget is p95 under 500 ms and zero server errors (5xx or no response), as in the spike.
     checks: ['rate>0.99'],
     'http_req_duration{name:intake-trusted}': ['p(95)<500'],
     'http_req_duration{name:intake-public}': ['p(95)<500'],
