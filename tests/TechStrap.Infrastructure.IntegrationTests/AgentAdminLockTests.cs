@@ -142,7 +142,7 @@ public sealed class AgentAdminLockTests(PostgresFixture postgres) : PostgresInte
         (await host.ReadAsync(sp => sp.GetRequiredService<IAgentRepository>().GetByIdAsync(targetId, ct))).ShouldNotBeNull().IsActive.ShouldBeTrue();
     }
 
-    private static CancellationToken Ct =>TestContext.Current.CancellationToken;
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private async Task<long> ScalarAsync(string sql)
     {
