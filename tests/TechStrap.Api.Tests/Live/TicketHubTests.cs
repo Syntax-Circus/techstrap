@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,9 +17,14 @@ namespace TechStrap.Api.Tests.Live;
 /// The agent hub through a real <see cref="HubConnection"/> on the in-memory server and a migrated database: who may connect (Review Focus 1), what a connection
 /// receives, presence between two agents, and that a REST write is announced once, after its commit (Review Focus 2).
 /// </summary>
-public sealed class TicketHubTests(TestPostgres postgres)
+public sealed partial class TicketHubTests(TestPostgres postgres)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    // A compact JWT is "eyJ<header>.eyJ<payload>.<signature>". The log scan matches that shape, not the bare prefix: SignalR's random connection ids are
+    // 22 base64url characters and one of them did contain "EYj" (CI, 2026-10-09), which a case-insensitive prefix check reported as a leaked token.
+    [GeneratedRegex(@"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.", RegexOptions.CultureInvariant)]
+    private static partial Regex JwtShape();
 
     private async Task<(ApiFactory Factory, ApiTestDatabase Database, TicketSeed Seed)> StartAsync(Dictionary<string, string?>? extra = null)
     {
@@ -358,7 +364,7 @@ public sealed class TicketHubTests(TestPostgres postgres)
             var text = string.Join('\n', [logEvent.RenderMessage(), logEvent.Exception?.ToString() ?? string.Empty, .. logEvent.Properties.Values.Select(value => value.ToString())]);
             text.ShouldNotContain(headerToken);
             text.ShouldNotContain(queryToken);
-            text.ShouldNotContain("eyJ");
+            JwtShape().IsMatch(text).ShouldBeFalse($"a JWT-shaped value reached a log event: {logEvent.MessageTemplate.Text}");
         }
     }
 }
