@@ -982,3 +982,41 @@ Describe 'PHASE-12a close-out' {
         $script:Plan | Should -Match '(?m)^## As built\s*$'
     }
 }
+
+Describe 'Backup and restore runbook (PHASE-12b)' {
+    BeforeAll { $script:Runbook = Get-RepoText 'docs/runbooks/backup-restore.md' }
+
+    It 'has the required sections' {
+        foreach ($heading in 'Scope', 'RPO and RTO', 'Prerequisites and secrets', 'Taking a backup', 'Encryption and off-box copy', 'Retention', 'Restoring', 'Verification checklist', 'Consistency caveat', 'Disaster scenarios', 'Keys volumes', 'Client and server version', '12b rehearsal record') {
+            $script:Runbook | Should -Match ('(?m)^## ' + [regex]::Escape($heading) + '\s*$') -Because "the runbook needs a $heading section"
+        }
+    }
+
+    It 'states the targets, the migration check and the resurrection caveat' {
+        foreach ($phrase in 'RPO', 'RTO', '24 h', '4 h', '__EFMigrationsHistory', 'resurrect', 'admin_events', 'deploy/backup.sh', 'deploy/restore.sh', 'OnCalendar', 'crontab') {
+            $script:Runbook | Should -Match ([regex]::Escape($phrase)) -Because $phrase
+        }
+    }
+
+    It 'never tells the operator to remove volumes and is ASCII' {
+        $script:Runbook | Should -Not -Match 'down\s+-v(\s|$)'
+        $script:Runbook | Should -Not -Match '--volumes'
+        ([regex]::IsMatch($script:Runbook, '[^\x00-\x7F]')) | Should -BeFalse
+    }
+
+    It 'has no TODO and no passphrase value' {
+        $script:Runbook | Should -Not -Match 'TODO'
+        $script:Runbook | Should -Not -Match '(?i)passphrase\s*[=:]\s*[A-Za-z0-9]{8,}'
+    }
+
+    It 'keeps the backups folder out of git' {
+        (Get-RepoText '.gitignore') | Should -Match '(?m)^backups/\s*$'
+    }
+
+    It 'links only to files that exist' {
+        $links = [regex]::Matches($script:Runbook, '\]\((?<path>(?!https?:|#)[^)\s#]+)') | ForEach-Object { $_.Groups['path'].Value }
+        foreach ($link in $links) {
+            Test-Path -LiteralPath (Join-Path $script:RepoRoot 'docs' 'runbooks' $link) | Should -BeTrue -Because "backup-restore.md links to $link"
+        }
+    }
+}
