@@ -244,18 +244,20 @@ Notes for reading the tables:
 
 | Key | Required | Default or example | Meaning |
 | --- | --- | --- | --- |
-| `TECHSTRAP_PROJECT` | no | `techstrap-uat` | Compose project name; UAT and production never share containers or volumes. |
-| `TECHSTRAP_API_IMAGE` | no | `ghcr.io/syntax-circus/techstrap-api:0.2.0` | Api image, pinned to one release tag, never latest. |
-| `TECHSTRAP_WORKER_IMAGE` | no | `ghcr.io/syntax-circus/techstrap-worker:0.2.0` | Worker image, same tag as the others. |
-| `TECHSTRAP_ADMIN_IMAGE` | no | `ghcr.io/syntax-circus/techstrap-admin:0.2.0` | Admin image, same tag as the others. |
-| `TECHSTRAP_PORTAL_IMAGE` | no | `ghcr.io/syntax-circus/techstrap-portal:0.2.0` | Portal image, same tag as the others. |
-| `TECHSTRAP_ENV_DIR` | no | `/etc/techstrap/uat` | Host directory that holds .env.api, .env.worker, .env.admin and .env.portal (root-owned, mode 0600). |
-| `TECHSTRAP_SUBNET` | no | `172.16.31.0/24` | Pinned compose subnet; the Api trusts it for forwarded headers. Change together with REVERSE_PROXY_CIDR. |
-| `REVERSE_PROXY_CIDR` | no | `172.16.31.1/32` | Address of the reverse proxy as the containers see it (the subnet gateway as /32 for a proxy on this host). Always a single address, never a wide range. |
-| `TECHSTRAP_API_PORT` | no | `18080` | Loopback port the proxy forwards to for the Api. |
-| `TECHSTRAP_ADMIN_PORT` | no | `18081` | Loopback port the proxy forwards to for the Admin. |
-| `TECHSTRAP_PORTAL_PORT` | no | `18082` | Loopback port the proxy forwards to for the Portal. |
-| `TECHSTRAP_DB_NETWORK` | no | `techstrap-db` | Existing Docker network the Postgres container is on; only the Api and the Worker join it. |
+| `TECHSTRAP_PROJECT` | yes | `techstrap-uat` | Compose project name; UAT and production never share containers or volumes. |
+| `TECHSTRAP_API_IMAGE` | yes | `ghcr.io/syntax-circus/techstrap-api:0.2.0` | Api image, pinned to one release tag, never latest. |
+| `TECHSTRAP_WORKER_IMAGE` | yes | `ghcr.io/syntax-circus/techstrap-worker:0.2.0` | Worker image, same tag as the others. |
+| `TECHSTRAP_ADMIN_IMAGE` | yes | `ghcr.io/syntax-circus/techstrap-admin:0.2.0` | Admin image, same tag as the others. |
+| `TECHSTRAP_PORTAL_IMAGE` | yes | `ghcr.io/syntax-circus/techstrap-portal:0.2.0` | Portal image, same tag as the others. |
+| `TECHSTRAP_ENV_DIR` | yes | `/etc/techstrap/uat` | Host directory that holds .env.api, .env.worker, .env.admin and .env.portal (root-owned, mode 0600). |
+| `TECHSTRAP_SUBNET` | yes | `172.16.31.0/24` | Pinned compose subnet; the Api trusts it for forwarded headers. Change together with REVERSE_PROXY_CIDR. |
+| `REVERSE_PROXY_CIDR` | yes | `172.16.31.1/32` | Address of the reverse proxy as the containers see it (the subnet gateway as /32 for a proxy on this host). Always a single address, never a wide range. |
+| `TECHSTRAP_API_PORT` | yes | `18080` | Loopback port the proxy forwards to for the Api. |
+| `TECHSTRAP_ADMIN_PORT` | yes | `18081` | Loopback port the proxy forwards to for the Admin. |
+| `TECHSTRAP_PORTAL_PORT` | yes | `18082` | Loopback port the proxy forwards to for the Portal. |
+| `TECHSTRAP_DB_NETWORK` | yes | `techstrap-db` | Existing Docker network the Postgres container is on; only the Api and the Worker join it. |
+
+Compose refuses to resolve while a required value is missing. The templates ship working values for every required key except the image tags, which you must pin to a release.
 
 ## Reverse proxy
 

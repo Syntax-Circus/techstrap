@@ -87,6 +87,16 @@ Describe 'SELF-HOSTING.md environment reference (PHASE-12b)' {
         foreach ($key in $uat) { $documented | Should -Contain $key }
         foreach ($key in $documented) { $uat | Should -Contain $key }
     }
+
+    It 'marks every key that deploy/docker-compose.yml requires with ${NAME:? as required' {
+        $compose = Get-RepoText 'deploy/docker-compose.yml'
+        $rows = Get-TableRows -Document $script:Guide -Heading $script:ComposeHeading
+        $names = @([regex]::Matches($compose, '\$\{(?<name>[A-Z][A-Z0-9_]*):\?') | ForEach-Object { $_.Groups['name'].Value } | Sort-Object -Unique)
+        $names.Count | Should -BeGreaterThan 5
+        foreach ($name in $names) {
+            @($rows | Where-Object Key -eq $name | ForEach-Object Required) | Should -Be @('yes') -Because "compose requires $name"
+        }
+    }
 }
 
 Describe 'SELF-HOSTING.md content (PHASE-12b)' {
@@ -100,9 +110,14 @@ Describe 'SELF-HOSTING.md content (PHASE-12b)' {
     }
 
     It 'states the OIDC contract' {
-        foreach ($phrase in 'audience', 'sub', 'email', 'groups', 'offline_access', '/signin-oidc', '/signout-callback-oidc', 'PKCE', 'confidential', 'TECHSTRAP_AGENT_GROUP', 'TECHSTRAP_ADMIN_GROUP') {
+        foreach ($phrase in 'offline_access', '/signin-oidc', '/signout-callback-oidc', 'PKCE', 'confidential', 'TECHSTRAP_AGENT_GROUP', 'TECHSTRAP_ADMIN_GROUP') {
             $script:Guide | Should -Match ([regex]::Escape($phrase)) -Because $phrase
         }
+        # The claim names must be stated in the bullets of the OIDC requirements section, not just appear anywhere.
+        $oidc = [regex]::Match($script:Guide, '(?ms)^## OIDC requirements\s*$(.*?)(?=^## |\z)').Groups[1].Value
+        $oidc | Should -Match '(?m)^- \*\*Claims\.\*\*.*`sub`.*`email`.*`groups`'
+        $oidc | Should -Match '(?m)^- \*\*Api token validation\.\*\*.*audience'
+        $oidc | Should -Match '(?m)^- \*\*Email\.\*\*.*`agent-email-required`'
     }
 
     It 'gives a default-site Caddy block with the body limit, the kb-images route and the forwarded headers' {
@@ -113,10 +128,18 @@ Describe 'SELF-HOSTING.md content (PHASE-12b)' {
 
     It 'links the runbook, the Authentik example and the deployment guide, and every link resolves' {
         foreach ($link in '../runbooks/backup-restore.md', 'AUTHENTIK.md', 'DEPLOYMENT.md') { $script:Guide | Should -Match ([regex]::Escape("]($link")) -Because $link }
-        foreach ($m in [regex]::Matches($script:Guide, '\]\((?<path>(?!https?:|#)[^)\s#]+)')) {
+        foreach ($m in [regex]::Matches($script:Guide, '\]\((?<path>(?!https?:)[^)\s#]*)(?:#(?<frag>[^)\s]+))?\)')) {
+            $path = $m.Groups['path'].Value
+            $frag = $m.Groups['frag'].Value
             # AUTHENTIK.md is written by P12-T17 (the next task); that task removes this exception.
-            if ($m.Groups['path'].Value -eq 'AUTHENTIK.md') { continue }
-            Test-Path -LiteralPath (Join-Path $script:RepoRoot 'docs' 'self-hosting' $m.Groups['path'].Value) | Should -BeTrue -Because $m.Groups['path'].Value
+            if ($path -eq 'AUTHENTIK.md') { continue }
+            $target = if ($path) { Join-Path $script:RepoRoot 'docs' 'self-hosting' $path } else { Join-Path $script:RepoRoot 'docs' 'self-hosting' 'SELF-HOSTING.md' }
+            Test-Path -LiteralPath $target | Should -BeTrue -Because $path
+            if ($frag) {
+                # GitHub-style slugs of the target's headings: lower case, drop everything but letters, digits, space and hyphen, spaces to hyphens.
+                $slugs = foreach ($h in (Get-Content -LiteralPath $target | Where-Object { $_ -match '^#{1,6}\s+(?<t>.+?)\s*$' } | ForEach-Object { $Matches['t'] })) { (($h.ToLowerInvariant() -replace '[^a-z0-9 \-]', '') -replace ' ', '-') }
+                $slugs | Should -Contain $frag -Because "anchor #$frag in $path"
+            }
         }
     }
 
