@@ -82,7 +82,7 @@ public static class ProductsCopy
     public const string Hidden = "Hidden";
     public const string LogoUploadLabel = "Upload a logo";
     public const string LogoUploadHelp = "PNG, JPEG or WebP, up to 1 MB. An uploaded logo replaces the logo address wherever the logo is shown.";
-    public const string LogoUploading = "Uploading…";
+    public const string LogoUploading = "Uploading\u2026";
     public const string LogoRemove = "Remove uploaded logo";
     public const string LogoUploadAfterSave = "Save the product first, then upload a logo from its editor.";
     public const string LogoTypeNotAllowed = "Choose a PNG, JPEG or WebP image.";

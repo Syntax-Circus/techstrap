@@ -67,7 +67,7 @@
                 <h2>@ProductsCopy.BrandingHeading</h2>
                 @Field("ts-product-display", ProductsCopy.DisplayNameLabel, ApiFields.DisplayName, _model.DisplayName, v => _model.DisplayName = v, ProductsCopy.DisplayNameHelp)
                 @Field("ts-product-tagline", ProductsCopy.TaglineLabel, ApiFields.Tagline, _model.Tagline, v => _model.Tagline = v, ProductsCopy.TaglineHelp)
-                @Field("ts-product-logo",ProductsCopy.LogoLabel, ApiFields.LogoPath, _model.LogoPath, v => _model.LogoPath = v, ProductsCopy.LogoHelp, "url")
+                @Field("ts-product-logo", ProductsCopy.LogoLabel, ApiFields.LogoPath, _model.LogoPath, v => _model.LogoPath = v, ProductsCopy.LogoHelp, "url")
                 @Field("ts-product-accent", ProductsCopy.AccentLabel, ApiFields.AccentColour, _model.AccentColour, v => _model.AccentColour = v, ProductsCopy.AccentHelp)
                 @Field("ts-product-from", ProductsCopy.FromLabel, ApiFields.FromAddress, _model.FromAddress, v => _model.FromAddress = v, null, "email")
                 @Field("ts-product-reply", ProductsCopy.ReplyToLabel, ApiFields.ReplyTo, _model.ReplyTo, v => _model.ReplyTo = v, null, "email")

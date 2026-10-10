@@ -130,6 +130,24 @@ public sealed class ProductEditorTests : AdminPageTest
         sent.Version.ShouldBe(8u);
     }
 
+    [Fact]
+    public async Task A_form_submit_during_an_upload_sends_nothing()
+    {
+        var pending = new TaskCompletionSource<Result<ProductDto>>();
+        _products.RemoveLogoAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(_ => pending.Task);
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(version: 7, uploadedLogoUrl: "https://api.test/product-logos/0123456789abcdef0123456789abcdef.png")));
+        var cut = RenderEdit();
+        Type(cut, "ts-product-name", "Orbitly Cloud");
+
+        var removing = cut.Find("#ts-product-logo-remove").ClickAsync(new());
+        cut.WaitForAssertion(() => cut.Find("button[type=submit]").HasAttribute("disabled").ShouldBeTrue());
+        Save(cut);
+
+        Updates.ShouldBeEmpty();
+        pending.SetResult(TestData.Ok(TestData.ProductDetail(version: 8)));
+        await removing;
+    }
+
     // ---- loading -------------------------------------------------------------------------------------------------
 
     [Fact]

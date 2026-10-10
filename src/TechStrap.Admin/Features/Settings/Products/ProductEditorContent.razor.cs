@@ -195,7 +195,7 @@ public sealed partial class ProductEditorContent : IDisposable
 
     private async Task SaveAsync()
     {
-        if (_busy || (_creating && _uncertain))
+        if (_busy || _logoBusy || (_creating && _uncertain))
         {
             return;
         }
