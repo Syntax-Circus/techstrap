@@ -126,7 +126,11 @@ public sealed class DefaultPackProvider(IServiceScopeFactory scopes, TimeProvide
                 key = SkinPacks.DefaultKey;
             }
 
-            _snapshot = new Snapshot(key, clock.GetUtcNow());
+            // Under the lock that StoreStaleClassic takes: a value that was really read always wins over the expired placeholder, whichever of the two runs last.
+            lock (_lock)
+            {
+                _snapshot = new Snapshot(key, clock.GetUtcNow());
+            }
         }
         catch (Exception exception)
         {

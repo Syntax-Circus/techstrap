@@ -131,6 +131,12 @@ public sealed class PresetStyleTests
     }
 
     [Fact]
+    public void The_dark_select_arrow_is_drawn_only_on_a_single_line_select()
+    {
+        Css.Text.ShouldContain(".form-select:not([multiple]):not([size]){--bs-form-select-bg-img: none");
+    }
+
+    [Fact]
     public void A_landing_scope_paints_nothing_behind_its_rounded_card_and_the_file_button_hover_keeps_bootstraps_fill()
     {
         Regex.IsMatch(Css.Text, @"\.ts-landing\s*>\s*\.ts-accent-scope\s*\{background-color:\s*(transparent|rgba\(0,\s*0,\s*0,\s*0\))\}").ShouldBeTrue();

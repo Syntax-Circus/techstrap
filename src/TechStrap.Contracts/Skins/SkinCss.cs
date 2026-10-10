@@ -61,7 +61,7 @@ public static class SkinCss
         return list;
     }
 
-    /// <summary>The preset attributes: <c>data-ts-shadow</c>, <c>data-ts-button</c>, <c>data-ts-header</c>, each only when not the Classic value, and <c>data-ts-scheme="dark"</c> for a dark pack.</summary>
+    /// <summary>The preset attributes: <c>data-ts-shadow</c>, <c>data-ts-button</c>, <c>data-ts-header</c>, each only when not the Classic value, and <c>data-ts-scheme="dark"</c> when the resolved background is dark (whatever the pack).</summary>
     public static IReadOnlyList<KeyValuePair<string, string>> Attributes(ResolvedSkin skin)
     {
         ArgumentNullException.ThrowIfNull(skin);
@@ -83,14 +83,18 @@ public static class SkinCss
             list.Add(new("data-ts-header", t.Header));
         }
 
-        // A dark pack redefines the light-only semantic and soft surfaces of the Portal; the scheme is a closed value, never raw text.
-        if (skin.Scheme == SkinValues.Dark)
+        // The scheme follows the page that was actually resolved, not the pack: a product that puts a light background on Midnight is a light page, and a dark one on Classic is a dark page (the contrast rules
+        // then make its ink light). The value is a closed constant, never raw text.
+        if (IsDarkPage(t.Background))
         {
             list.Add(new("data-ts-scheme", SkinValues.Dark));
         }
 
         return list;
     }
+
+    private static bool IsDarkPage(string background) =>
+        TechStrap.Contracts.Branding.ProductAccent.ContrastRatio(background, "#FFFFFF") > TechStrap.Contracts.Branding.ProductAccent.ContrastRatio(background, "#000000");
 
     private static void Add(List<KeyValuePair<string, string>> list, string name, string value, string classic)
     {

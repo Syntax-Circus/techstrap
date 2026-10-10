@@ -77,6 +77,20 @@ public sealed class SkinCssTests
     }
 
     [Fact]
+    public void The_scheme_follows_the_resolved_background_not_the_pack()
+    {
+        static bool Dark(ResolvedSkin s) => SkinCss.Attributes(s).Any(a => a.Key == "data-ts-scheme" && a.Value == "dark");
+
+        Dark(SkinResolver.Resolve("midnight", null, null).Skin).ShouldBeTrue();
+        Dark(SkinResolver.Resolve("midnight", new ProductSkin(Background: "#FFFFFF", Ink: "#111111", Surface: "#FFFFFF", Muted: "#444444", Focus: "#000000"), null).Skin).ShouldBeFalse("a light page on a dark pack");
+        Dark(SkinResolver.Resolve("classic", new ProductSkin(Background: "#101820", Ink: "#F0F0F0", Surface: "#18222C", Muted: "#B0B0B0", Focus: "#FFFFFF"), null).Skin).ShouldBeTrue("a dark page on a light pack");
+        foreach (var pack in SkinPacks.All.Where(p => p.Scheme == SkinValues.Light))
+        {
+            Dark(SkinResolver.Resolve(pack.Key, null, null).Skin).ShouldBeFalse(pack.Key);
+        }
+    }
+
+    [Fact]
     public void Text_on_the_chrome_fill_is_at_least_3_to_1_in_every_pack_so_the_header_focus_ring_can_use_it()
     {
         foreach (var pack in SkinPacks.All)
