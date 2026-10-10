@@ -1,7 +1,33 @@
 @attribute [Route(PortalRoutes.HomeTemplate)]
 
-<PageTitle>@ShellCopy.RootTitle</PageTitle>
-<section class="shell-placeholder">
-    <h1>@ShellCopy.RootHeading</h1>
-    <p>@ShellCopy.RootIntro</p>
-</section>
+@if (ShowsCards)
+{
+    <SeoHead Title="@ShellCopy.LandingHeading" Description="@ShellCopy.LandingIntro" RelativeUrl="@Links.Absolute(PortalRoutes.HomeTemplate)" />
+    <PageTitle>@ShellCopy.LandingHeading</PageTitle>
+    <h1>@ShellCopy.LandingHeading</h1>
+    <p class="ts-landing-intro">@ShellCopy.LandingIntro</p>
+    <section class="ts-landing" aria-label="@ShellCopy.LandingHeading">
+        @foreach (var card in _cards)
+        {
+            <a class="ts-landing-card" href="@card.Href" data-product="@card.Key">
+                @if (card.LogoUrl is { } logo)
+                {
+                    <img class="ts-landing-logo" src="@logo" alt="" height="40" loading="lazy" />
+                }
+                <span class="ts-landing-name">@card.DisplayName</span>
+                @if (card.Tagline is { } tagline)
+                {
+                    <span class="ts-landing-tagline">@tagline</span>
+                }
+            </a>
+        }
+    </section>
+}
+else
+{
+    <PageTitle>@ShellCopy.RootTitle</PageTitle>
+    <section class="shell-placeholder">
+        <h1>@ShellCopy.RootHeading</h1>
+        <p>@ShellCopy.RootIntro</p>
+    </section>
+}

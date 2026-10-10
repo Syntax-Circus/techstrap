@@ -22,7 +22,7 @@ public sealed class ProgramOrderTests
 
         var order = new[]
         {
-            Index(program, "app.UseTechStrapWebHost(PortalHeaderRules.Rules);"),
+            Index(program, "app.UseTechStrapWebHost(PortalHeaderRules.Rules("),
             Index(program, "app.UsePortalSeo();"),
             Index(program, "app.UseTechStrapErrorPages();"),
             Index(program, "app.UsePortalOutputCache();"),

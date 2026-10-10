@@ -448,3 +448,45 @@
   padding-top: 8px;
   border-top: 1px solid var(--p-line);
 }
+
+// The landing page (D-052): one card per listed product.
+.ts-landing {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  margin-top: 24px;
+}
+
+.ts-landing-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border: 1px solid var(--p-line);
+  border-radius: .375rem;
+  color: inherit;
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--ts-accent, currentColor);
+  }
+}
+
+.ts-landing-logo {
+  height: 2.5rem;
+  width: auto;
+  align-self: flex-start;
+}
+
+.ts-landing-name {
+  font-weight: 600;
+}
+
+.ts-landing-tagline {
+  color: var(--p-ink2);
+}
+
+.ts-landing-intro {
+  color: var(--p-ink2);
+}

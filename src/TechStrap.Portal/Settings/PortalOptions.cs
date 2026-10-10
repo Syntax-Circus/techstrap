@@ -12,14 +12,22 @@ public sealed class PortalOptions
     /// <summary>The Portal's own public address as customers see it (the same key and value as in the Api). Required outside Development. It is also the base of every canonical URL and of the sitemap (<c>Seo:BaseUrl</c> is derived from it, D-045).</summary>
     public const string PublicUrlKey = "TECHSTRAP_PORTAL_PUBLIC_URL";
 
-    /// <summary>The product the Portal's root page sends visitors to. Optional: blank shows a neutral page with no product list.</summary>
+    /// <summary>The product the Portal's root page sends visitors to. Optional: blank shows the neutral page, or the product list when <c>TECHSTRAP_PORTAL_LANDING=Products</c>.</summary>
     public const string DefaultProductKey = "TECHSTRAP_PORTAL_DEFAULT_PRODUCT";
+
+    /// <summary>What the Portal's root shows (D-052): <c>Neutral</c> (the default) or <c>Products</c>, a list of the listed products. Mutually exclusive with <see cref="DefaultProductKey"/>.</summary>
+    public const string LandingKey = "TECHSTRAP_PORTAL_LANDING";
 
     public string ApiBaseUrl { get; set; } = string.Empty;
 
     public string PublicUrl { get; set; } = string.Empty;
 
     public string? DefaultProduct { get; set; }
+
+    public string Landing { get; set; } = PortalLandingModes.Neutral;
+
+    /// <summary>True when the root lists the listed products (<see cref="PortalLandingModes.Products"/>).</summary>
+    public bool ListsProducts => string.Equals(Landing?.Trim(), PortalLandingModes.Products, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The API address with a trailing slash, so a relative request path is resolved under it. Call only after validation.</summary>
     public Uri ApiBaseUri => new(ApiBaseUrl.Trim().EndsWith('/') ? ApiBaseUrl.Trim() : ApiBaseUrl.Trim() + "/", UriKind.Absolute);
