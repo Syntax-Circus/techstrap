@@ -337,7 +337,8 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P11g-T05 | Application and Api: skin on product DTOs, site settings routes, D-022 list |
 | P11g-T06 | Portal: client, theme view model, AccentScope extension, packs and presets, fonts |
 | P11g-T07 | Emails: chrome colour |
-| P11g-T08 | Docs and close-out: SELF-HOSTING, PORTAL-APP, BRAND, UX-BRIEF, security review, pins |
+| P11g-T08 | Admin: interim Skin (JSON) field on the product editor and the dragon-poop sample skin |
+| P11g-T09 | Docs and close-out: SELF-HOSTING, PORTAL-APP, BRAND, UX-BRIEF, security review, pins |
 
 ### PHASE-12 Release hardening
 

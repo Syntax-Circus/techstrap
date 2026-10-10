@@ -1169,7 +1169,185 @@ git commit -m "feat(email): the product skin's chrome colour fills the email hea
 
 ---
 
-### Task 8: Docs, pins and close-out
+### Task 8: Admin interim "Skin (JSON)" field and the dragon-poop sample skin
+
+Purpose: let the owner set and test a skin (the dragon-poop one) on a deployment as soon as 11g is merged and deployed, before the PHASE-11h editor exists. It is deliberately small: one advanced textarea, no live preview.
+
+**Files:**
+- Create: `docs/skins/dragon-poop.skin.json`, `docs/skins/README.md`
+- Modify: `src/TechStrap.Admin/Clients/ApiFields.cs` (`Skin = "skin"`), `src/TechStrap.Admin/Features/Settings/Products/ProductEditorViewModel.cs`, `ProductFields.cs`, `ProductsCopy.cs`, `ProductEditorContent.razor`, `ProductEditorContent.razor.cs`
+- Test: `tests/TechStrap.Admin.Tests/Components/ProductEditorSkinTests.cs` (create), `tests/TechStrap.Application.Tests/Skins/DragonPoopSkinTests.cs` (create), `scripts/tests/RepositoryDocs.Tests.ps1` (one pin)
+
+**Interfaces:**
+- Consumes: `ProductSkin`, `SkinSerializer`, `SkinResolver`, `SkinPacks`; `ProductDto.Skin`, `CreateProductRequest.Skin`, `UpdateProductRequest.Skin` (Task 5).
+- Produces: view-model members `string SkinJson`, `string OriginalSkinJson`; element id `ts-product-skin` (textarea, 12 rows, `spellcheck="false"`); `ApiFields.Skin = "skin"`; request rules: unchanged text sends `Skin = null` (unchanged); blanked text on a product that had a skin sends `new ProductSkin()` (clear); a changed valid JSON sends the parsed skin; create sends the parsed skin or null.
+
+The sample (exact content of `docs/skins/dragon-poop.skin.json`, derived from dragon-poop's `_tokens.scss`, `_bootstrap-overrides.scss`, `_buttons.scss`; the product's own accent in TechStrap is set to `#63371F` or left to the skin's `brand`):
+
+```json
+{
+  "background": "#F6E8C2",
+  "surface": "#FFF8E4",
+  "ink": "#1D120B",
+  "muted": "#4A4640",
+  "border": "#1D120B",
+  "brand": "#63371F",
+  "chrome": "#26140C",
+  "focus": "#26140C",
+  "headingFont": "pixelify",
+  "bodyFont": "nunito",
+  "radius": "square",
+  "borderWidth": 4,
+  "shadow": "hard",
+  "button": "bevel",
+  "header": "solid"
+}
+```
+
+`docs/skins/README.md` (ASCII) states: what the file is; how to apply it (Admin: product editor, "Skin (JSON)" field, paste, save; or `PUT api/products/{id}` with `"skin": { ... }` and the current `version`); how to clear it (empty the field, or send `"skin": {}`); how to switch the deployment default pack until the 11h page exists (`PUT api/settings/site`); and the **known gaps measured against dragon-poop's own site** (copy from the findings below).
+
+Known gaps to record in that README and in the spec's Known limits (evidence is dragon-poop's repo): the gold focus ring (`#FFCF4A`) fails the 3:1 rule against the parchment background, so the sample uses the wood-dark `#26140C` (dragon-poop uses gold only on dark chrome); text on the brand colour is derived white or black, not dragon-poop's cream `#FFF5D6`; the accent text colour `#B04A17` used for taglines and step titles has no token (links use the derived brand ink); the stepped two-layer heading shadow, the hero sky image, the pixel-art logo and mascot, the parchment "scrap" rotation and the ground and stone-band marketing strips are out of reach; copy and voice ("Off the map", "A rough landing") are not skin data.
+
+- [ ] **Step 1: Write the failing tests**
+
+`DragonPoopSkinTests.cs` (embeds the JSON above as a string constant):
+
+```csharp
+    [Fact]
+    public void The_sample_parses_strictly_and_resolves_without_problems()
+    {
+        SkinSerializer.TryDeserialize(Json, out var skin).ShouldBeTrue();
+        skin.ShouldNotBeNull();
+        SkinRules.Validate(skin).ShouldBeEmpty();
+
+        var result = SkinResolver.Resolve("classic", skin, null);
+
+        result.Problems.ShouldBeEmpty();
+        result.Skin.Tokens.Background.ShouldBe("#F6E8C2");
+        result.Skin.Tokens.Brand.ShouldBe("#63371F");
+        result.Skin.BrandIsExplicit.ShouldBeTrue();
+        result.Skin.OnBrand.ShouldBe("#FFFFFF");
+        result.Skin.OnChrome.ShouldBe("#FFFFFF");
+        SkinCss.Attributes(result.Skin).Select(a => a.Key + "=" + a.Value).ShouldBe(["data-ts-shadow=hard", "data-ts-button=bevel", "data-ts-header=solid"]);
+    }
+
+    [Fact]
+    public void Gold_focus_on_the_parchment_page_fails_the_contrast_rule_which_is_why_the_sample_does_not_use_it()
+    {
+        var gold = SkinSerializer.TryDeserialize(Json.Replace("\"focus\": \"#26140C\"", "\"focus\": \"#FFCF4A\""), out var skin) ? skin : null;
+
+        var result = SkinResolver.Resolve("classic", gold, null);
+
+        result.Problems.ShouldContain(new SkinProblem("skin-contrast-invalid", "focus/background"));
+    }
+```
+
+Plus a Pester pin in the 11g `Describe`: `docs/skins/dragon-poop.skin.json` exists, parses with `ConvertFrom-Json`, has exactly the 15 expected property names, and `docs/skins/README.md` mentions `dragon-poop`, `PUT api/products` and `api/settings/site`.
+
+`ProductEditorSkinTests.cs` (bUnit; `ProductEditorTests` fixture, helpers `RenderEdit`, `Type`, `Save`, `Updates`, `Creates`, `FieldError`):
+
+```csharp
+    [Fact]
+    public void A_stored_skin_is_shown_as_json_in_the_field()
+    {
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(skin: new ProductSkin(Pack: "slate", Brand: "#112233"))));
+
+        var cut = RenderEdit();
+
+        Value(cut, "ts-product-skin").ShouldContain("\"pack\": \"slate\"");
+        Value(cut, "ts-product-skin").ShouldContain("\"brand\": \"#112233\"");
+    }
+
+    [Fact]
+    public void An_untouched_field_sends_no_skin()
+    {
+        var cut = RenderEdit();
+        Type(cut, "ts-product-name", "Orbitly Cloud");
+        Save(cut);
+
+        Updates.ShouldHaveSingleItem().Skin.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Pasted_json_is_sent_as_the_parsed_skin()
+    {
+        var cut = RenderEdit();
+        Type(cut, "ts-product-skin", "{ \"pack\": \"paper\", \"radius\": \"square\" }");
+        Save(cut);
+
+        Updates.ShouldHaveSingleItem().Skin.ShouldBe(new ProductSkin(Pack: "paper", Radius: "square"));
+    }
+
+    [Fact]
+    public void Blanking_a_stored_skin_sends_an_empty_skin_to_clear_it()
+    {
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(skin: new ProductSkin(Pack: "slate"))));
+        var cut = RenderEdit();
+        Type(cut, "ts-product-skin", "   ");
+        Save(cut);
+
+        Updates.ShouldHaveSingleItem().Skin.ShouldBe(new ProductSkin());
+    }
+
+    [Theory]
+    [InlineData("{ not json")]
+    [InlineData("{ \"shine\": \"yes\" }")]
+    [InlineData("{ \"background\": \"red\" }")]
+    public void Invalid_json_blocks_the_save_at_the_field(string json)
+    {
+        var cut = RenderEdit();
+        Type(cut, "ts-product-skin", json);
+        Save(cut);
+
+        FieldError(cut, "ts-product-skin").ShouldNotBeNullOrEmpty();
+        Updates.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void An_api_contrast_error_is_shown_at_the_skin_field()
+    {
+        _products.UpdateAsync(TestData.OrbitlyId, Arg.Any<UpdateProductRequest>(), Arg.Any<CancellationToken>())
+            .Returns(TestData.Fail(new ResultError("skin-contrast-invalid", "ink on background is too low.", ResultErrorKind.Validation, "ink/background")));
+        var cut = RenderEdit();
+        Type(cut, "ts-product-skin", "{ \"ink\": \"#EEEEEE\" }");
+        Save(cut);
+
+        FieldError(cut, "ts-product-skin").ShouldContain("ink on background");
+    }
+```
+
+(`TestData.ProductDetail` gains a `skin` optional parameter; `TestData.Fail` may be named differently: use the helper the existing failure tests use. Local validation in the editor uses `SkinSerializer.TryDeserialize`, then `SkinRules.Validate`; an unknown member or malformed JSON is `ProductsCopy.SkinInvalid`, a rules problem reads `ProductsCopy.SkinTokenInvalid(problem.Target)`.)
+
+- [ ] **Step 2: Run to verify failure**
+
+Run: `dotnet build tests/TechStrap.Admin.Tests -c Release 2>&1 | grep -E "error|Build succeeded" | head -5`
+Expected: compile errors (`SkinJson`, `ProductDetail(skin:)`).
+
+- [ ] **Step 3: Implement**
+
+`ProductEditorViewModel`: `SkinJson`/`OriginalSkinJson` set in `From` from `SkinSerializer` (pretty JSON using a local `JsonSerializerOptions { WriteIndented = true }` over the strongly typed `ProductSkin` is not source-generated: instead pretty-print by serialising with `SkinSerializer.Serialize`, parsing with `JsonDocument` and writing with `Utf8JsonWriter { Indented = true }`; empty skin -> empty string). `Check(ApiFields.Skin)`: blank is fine; otherwise `SkinSerializer.TryDeserialize` must succeed and `SkinRules.Validate` must be empty. `ToUpdateRequest`/`ToCreateRequest` append `ParsedSkinForUpdate()`/`ParsedSkinForCreate()` per the rules in Interfaces. `ProductFields.All` gains `ApiFields.Skin` last. `MapFieldErrors`: any 400 whose target is one of the skin token names (`background`, `ink`, `ink/background`, `pack`, ...) is shown at the skin field (extend the target list with `SkinTokenNames`), and an Api `skin-too-long` target `skin` maps naturally. Markup: after the Portal host field, a `<details>` titled `ProductsCopy.SkinHeading` ("Appearance (advanced)") containing the textarea with label `ProductsCopy.SkinLabel`, help `ProductsCopy.SkinHelp` (one sentence + "See docs/skins/README.md for a worked example and the list of tokens"), and the usual error slot. The field uses the same `@Field`-style id/`-error` conventions (a textarea variant helper, or inline markup mirroring `Field`).
+
+`docs/skins` files as specified. The spec's Known limits section gains the gaps list (copy of the README text).
+
+- [ ] **Step 4: Build and test**
+
+Run: `dotnet build TechStrap.slnx -c Release 2>&1 | grep -E " warning | error |Build succeeded"`; `dotnet test tests/TechStrap.Admin.Tests -c Release --no-build`; `dotnet test tests/TechStrap.Application.Tests -c Release --no-build --filter "FullyQualifiedName~DragonPoop"`; `pwsh -NoProfile -File scripts/Invoke-ScriptTests.ps1 2>&1 | tail -2`
+Expected: green.
+
+- [ ] **Step 5: Mutation**
+
+Make an untouched field send `new ProductSkin()` instead of null; `An_untouched_field_sends_no_skin` must fail. Restore.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add docs/skins src/TechStrap.Admin tests/TechStrap.Admin.Tests tests/TechStrap.Application.Tests/Skins/DragonPoopSkinTests.cs scripts/tests/RepositoryDocs.Tests.ps1
+git commit -m "feat(admin): interim Skin (JSON) field and the dragon-poop sample skin (D-053)"
+```
+
+---
+
+### Task 9: Docs, pins and close-out
 
 **Files:**
 - Modify: `docs/self-hosting/SELF-HOSTING.md` (a "Portal appearance" section: five packs, default set in the Admin or `PUT api/settings/site`, product skins, no env key), `docs/development/PORTAL-APP.md` (theming section: variables, presets, Classic baseline rule), `docs/BRAND.md` (Portal tokens: the pack table and the variable list), `docs/architecture/UX-BRIEF-portal.md` (theming bullet), `docs/security/SECURITY-REVIEW.md` (checklist 4 row for the skin grammar and render-time re-check, plus a finding note with the next free SR number), `docs/architecture/02-ARCHITECTURE.md` (8.2 theming note), `docs/architecture/PHASE-11g-theme-packs.md` (tick T01 to T08, Deliverables, Success Criteria, Boundary Validation, Risks, As-built notes per task), `99-IMPLEMENTATION-ROADMAP.md` and `00-DISCOVERY-INDEX.md` rows ("11g complete (pending merge): T01 to T08"), `docs/superpowers/plans/2026-10-10-phase-11g-theme-packs.md` (`## As built` section at the end)
@@ -1182,7 +1360,7 @@ Add to the 11g `Describe`:
 
 ```powershell
     It 'ticks every 11g task and marks 11g complete pending merge' {
-        foreach ($n in 1..8) { $script:Spec | Should -Match ('- \[x\] \*\*P11g-T' + $n.ToString('00') + '\*\*') -Because "P11g-T$($n.ToString('00')) is ticked" }
+        foreach ($n in 1..9) { $script:Spec | Should -Match ('- \[x\] \*\*P11g-T' + $n.ToString('00') + '\*\*') -Because "P11g-T$($n.ToString('00')) is ticked" }
         $script:Spec | Should -Not -Match '- \[ \] \*\*P11g-T'
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11g \|.*\| D-053 recorded; 11g complete \(pending merge\): T01 to T08'
         (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11g \|.*\| D-053 recorded; 11g complete \(pending merge\): T01 to T08'
@@ -1220,6 +1398,6 @@ git commit -m "docs(11g): self-hosting, portal app, brand, security review and p
 
 ## Self-review notes
 
-- **Spec coverage:** token grammar, resolver, contrast, packs, fonts -> Task 2 (+ fonts in Task 6); storage -> Tasks 3, 4; Api and DTOs -> Task 5; Portal rendering, neutral default, landing scopes, presets -> Task 6; emails -> Task 7; amended documents, pins, security row -> Tasks 1, 8; Success Criteria map to Task 6 tests (default pack switches root/product/ticket pages via the shared layout; override isolation; golden; hostile values; CSP/style/font suites).
+- **Spec coverage:** token grammar, resolver, contrast, packs, fonts -> Task 2 (+ fonts in Task 6); storage -> Tasks 3, 4; Api and DTOs -> Task 5; Portal rendering, neutral default, landing scopes, presets -> Task 6; emails -> Task 7; amended documents, pins, security row -> Tasks 1, 9; Success Criteria map to Task 6 tests (default pack switches root/product/ticket pages via the shared layout; override isolation; golden; hostile values; CSP/style/font suites).
 - **Type consistency:** `ProductSkin` (Contracts, Tasks 2, 5, 6, 7), `Product.SkinJson` (Domain, Tasks 3, 4, 5, 7), `ResolvedSkin` and `SkinCss` (Tasks 2, 6), `ISiteSettingsRepository.GetAsync/Update` (Tasks 4, 5), `PublicSiteDto(string DefaultPack)` (Tasks 5, 6), `EmailBranding.ChromeColour` (Task 7), `DefaultPackProvider.GetAsync` (Task 6).
 - **Known places an implementer must check against the real code:** repository registration site and tracking idiom (Task 4); how `AdminEventType` wire names are pinned (Task 5); `ProductPageBase`/`ProductScope` change notification and where the layout reads `Theme` (Task 6); exact existing selector names for the preset SCSS (Task 6); jsdelivr font package versions (Task 6); the renderer test file location (Task 7). None changes the design.

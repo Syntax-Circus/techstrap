@@ -89,8 +89,11 @@ No package is added or upgraded. `SyntaxCircus.Common` carries the new error cod
 - [ ] **P11g-T07** Emails: chrome colour in the header bar
   - **Depends on:** P11g-T05
   - **Validation:** renderer tests with and without a chrome colour; fixed font stack unchanged.
-- [ ] **P11g-T08** Docs and close-out: SELF-HOSTING, PORTAL-APP, BRAND, UX-BRIEF, security review, roadmap, Pester pins, As built
-  - **Depends on:** P11g-T01 to P11g-T07
+- [ ] **P11g-T08** Admin: an interim "Skin (JSON)" field on the product editor (validated through the Contracts grammar) and the dragon-poop sample skin in `docs/skins/dragon-poop.skin.json`, so a skin can be set and tested before the PHASE-11h editor
+  - **Depends on:** P11g-T05
+  - **Validation:** bUnit: the field round-trips the stored skin as JSON; blank on an unskinned product sends nothing, blanked on a skinned product clears it; invalid JSON and Api token errors show at the field; the dragon-poop sample resolves without problems and its limits are listed.
+- [ ] **P11g-T09** Docs and close-out: SELF-HOSTING, PORTAL-APP, BRAND, UX-BRIEF, security review, roadmap, Pester pins, As built
+  - **Depends on:** P11g-T01 to P11g-T08
   - **Validation:** build, full test run, Pester, migration check green; compose check of the five packs.
 
 ## Success Criteria

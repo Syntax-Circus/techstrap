@@ -1145,11 +1145,11 @@ Describe 'PHASE-11g theme packs and skins (D-053)' {
     }
 
     It 'has the 11g spec with eight tasks and its roadmap and discovery rows' {
-        foreach ($n in 1..8) {
+        foreach ($n in 1..9) {
             $script:Spec | Should -Match ('- \[[ x]\] \*\*P11g-T' + $n.ToString('00') + '\*\*') -Because "P11g-T$($n.ToString('00')) exists"
         }
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11g \|.*D-053.*\| D-053 recorded; 11g'
         (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11g \|.*\| D-053 recorded; 11g'
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11g-T08 \|'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11g-T09 \|'
     }
 }
