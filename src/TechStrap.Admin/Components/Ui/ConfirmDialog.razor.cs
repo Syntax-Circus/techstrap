@@ -41,11 +41,11 @@ public partial class ConfirmDialog : IAsyncDisposable
     [Parameter]
     public string CancelLabel { get; set; } = ShellCopy.Cancel;
 
-    /// <summary>An information dialog (the shortcut list): no confirm button, and the one remaining button, labelled by <see cref="CancelLabel"/>, closes it.</summary>
+    /// <summary>An information dialog (the shortcut list): no confirm button, and the one remaining button, labeled by <see cref="CancelLabel"/>, closes it.</summary>
     [Parameter]
     public bool Informational { get; set; }
 
-    /// <summary>Styles the confirm button as destructive (a danger style plus the word in the label, never colour alone).</summary>
+    /// <summary>Styles the confirm button as destructive (a danger style plus the word in the label, never color alone).</summary>
     [Parameter]
     public bool Danger { get; set; }
 

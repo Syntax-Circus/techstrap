@@ -2,11 +2,11 @@ using TechStrap.Contracts.Skins;
 
 namespace TechStrap.Contracts.Products;
 
-/// <summary>Branding as stored, plus the colours derived from the accent (D-025, D-031) for previews. <paramref name="UploadedLogoUrl"/> is the absolute address of an uploaded logo (D-052), read-only: it is set through the logo upload route, not through this DTO's request.</summary>
+/// <summary>Branding as stored, plus the colors derived from the accent (D-025, D-031) for previews. <paramref name="UploadedLogoUrl"/> is the absolute address of an uploaded logo (D-052), read-only: it is set through the logo upload route, not through this DTO's request.</summary>
 /// <param name="DisplayName">The name customers see.</param>
 /// <param name="LogoPath">The linked logo address, or null.</param>
-/// <param name="AccentColour">The accent colour as #RRGGBB.</param>
-/// <param name="OnAccentColour">The text colour that reads on the accent.</param>
+/// <param name="AccentColour">The accent color as #RRGGBB.</param>
+/// <param name="OnAccentColour">The text color that reads on the accent.</param>
 /// <param name="AccentInkColour">The accent adjusted for text on the page background.</param>
 /// <param name="FromAddress">The sender address for customer emails, or null.</param>
 /// <param name="ReplyTo">The reply-to address for customer emails, or null.</param>
@@ -26,7 +26,7 @@ public sealed record ProductBrandingDto(
 /// <summary>Branding input. A null accent means the default accent; the accent must be #RRGGBB (D-031).</summary>
 /// <param name="DisplayName">The name customers see, or null to derive it.</param>
 /// <param name="LogoPath">The linked logo address, or null.</param>
-/// <param name="AccentColour">The accent colour as #RRGGBB, or null for the default.</param>
+/// <param name="AccentColour">The accent color as #RRGGBB, or null for the default.</param>
 /// <param name="FromAddress">The sender address for customer emails, or null.</param>
 /// <param name="ReplyTo">The reply-to address for customer emails, or null.</param>
 /// <param name="Tagline">One line of plain text, at most 160 characters, shown on the landing card; null or blank clears it.</param>
@@ -44,7 +44,7 @@ public sealed record ProductBrandingRequest(
 /// <param name="Name">The internal product name.</param>
 /// <param name="NumberPrefix">The permanent ticket number prefix.</param>
 /// <param name="IsActive">Whether the product is active.</param>
-/// <param name="Branding">The stored branding with derived colours.</param>
+/// <param name="Branding">The stored branding with derived colors.</param>
 /// <param name="Version">The concurrency token.</param>
 /// <param name="PortalHost">The product's own public hostname (lower-case, e.g. support.example.com), or null when it is served only on the default portal host.</param>
 /// <param name="ListedOnLanding">Whether the product appears on the Portal's landing page when it lists products (D-052). It changes nothing else.</param>
@@ -77,7 +77,7 @@ public sealed record CreateProductRequest(
 /// <param name="Branding">The branding input.</param>
 /// <param name="IsActive">Whether the product is active.</param>
 /// <param name="Version">The version last read.</param>
-/// <param name="PortalHost">The product's own public hostname (lower-case, e.g. support.example.com), or null when it is served only on the default portal host. Null leaves the stored host unchanged; an empty or whitespace value clears it; any other value is normalised, validated and set.</param>
+/// <param name="PortalHost">The product's own public hostname (lower-case, e.g. support.example.com), or null when it is served only on the default portal host. Null leaves the stored host unchanged; an empty or whitespace value clears it; any other value is normalized, validated and set.</param>
 /// <param name="ListedOnLanding">Whether the product appears on the landing page. Null leaves the stored value unchanged (a 0.2.0 client never unlists a product); true or false sets it.</param>
 /// <param name="Skin">The product's skin (D-053). Null leaves the stored skin unchanged; an empty skin (every field null) clears it; anything else is validated and replaces it as a whole.</param>
 public sealed record UpdateProductRequest(

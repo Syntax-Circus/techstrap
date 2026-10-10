@@ -2,7 +2,7 @@ using Microsoft.JSInterop;
 
 namespace TechStrap.Admin.Features.Shell;
 
-/// <summary>The colour theme choice. <see cref="Auto"/> follows the operating system and is the default (BRAND.md: Light, Dark, Auto).</summary>
+/// <summary>The color theme choice. <see cref="Auto"/> follows the operating system and is the default (BRAND.md: Light, Dark, Auto).</summary>
 public enum ThemeChoice
 {
     Auto,

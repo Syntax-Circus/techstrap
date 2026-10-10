@@ -59,7 +59,7 @@ internal sealed class StubHandler : HttpMessageHandler
         return this;
     }
 
-    /// <summary>Never answers until the token is cancelled.</summary>
+    /// <summary>Never answers until the token is canceled.</summary>
     public StubHandler Hang() => Then(async ct =>
     {
         await Task.Delay(Timeout.Infinite, ct);

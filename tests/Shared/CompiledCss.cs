@@ -97,7 +97,7 @@ internal sealed partial class CompiledCss
                 .ToDictionary(d => d.Groups["name"].Value, d => d.Groups["value"].Value.Trim().Trim('"')))
             .ToList();
 
-    /// <summary>Every declaration of every rule whose selector is exactly <paramref name="selector"/> (Bootstrap and brand rules merged, last wins), colours normalised.</summary>
+    /// <summary>Every declaration of every rule whose selector is exactly <paramref name="selector"/> (Bootstrap and brand rules merged, last wins), colors normalized.</summary>
     public IReadOnlyDictionary<string, string> Declarations(string selector)
     {
         var declarations = new Dictionary<string, string>(StringComparer.Ordinal);

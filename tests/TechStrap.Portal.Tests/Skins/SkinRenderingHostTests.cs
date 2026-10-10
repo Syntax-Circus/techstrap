@@ -147,7 +147,7 @@ public sealed class SkinRenderingHostTests
         await client.GetStringAsync("/", Ct);
 
         factory.Api.SiteSettingRequests.ShouldHaveSingleItem("the second page is served from the one-minute snapshot");
-        factory.Api.Requests.ShouldBeEmpty("no product, ticket or help-centre call");
+        factory.Api.Requests.ShouldBeEmpty("no product, ticket or help-center call");
     }
 
     [Fact]

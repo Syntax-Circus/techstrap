@@ -47,7 +47,7 @@ public sealed record MessageViewModel(
 
 public sealed record MetadataItem(string Key, string Value);
 
-/// <param name="Trusted">True only when the ticket came in on a trusted API key (<c>MetadataTrusted</c>). Everything else is labelled untrusted.</param>
+/// <param name="Trusted">True only when the ticket came in on a trusted API key (<c>MetadataTrusted</c>). Everything else is labeled untrusted.</param>
 /// <param name="Readable">False when the stored JSON could not be read; the panel then says so instead of showing nothing.</param>
 public sealed record MetadataViewModel(bool Trusted, bool Readable, IReadOnlyList<MetadataItem> Items);
 

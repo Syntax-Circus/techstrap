@@ -4,7 +4,7 @@ namespace TechStrap.Api.Startup;
 
 /// <summary>
 /// <c>GET /product-logos/{name}</c>, anonymous (D-021, D-052). Like <c>/kb-images/{name}</c> it runs no application workflow, reads only an object whose name is exactly the shape the store writes, and serves it with headers that stop a
-/// browser treating it as anything but an image. The route is outside <c>api/</c> and is not part of the API contract, so the route-policy coverage test and the OpenAPI document leave it out; <c>ProductLogoServingTests</c> pins its behaviour.
+/// browser treating it as anything but an image. The route is outside <c>api/</c> and is not part of the API contract, so the route-policy coverage test and the OpenAPI document leave it out; <c>ProductLogoServingTests</c> pins its behavior.
 /// </summary>
 public static class ProductLogoEndpoints
 {

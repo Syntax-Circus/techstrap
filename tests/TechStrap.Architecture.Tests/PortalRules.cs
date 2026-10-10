@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace TechStrap.Architecture.Tests;
 
 /// <summary>
-/// Rules for the Portal (PHASE-09 T19, D-045), modelled on <see cref="AdminRules"/>. The Portal is a static-server-rendered, anonymous front of the API: no data access, HTTP only in
+/// Rules for the Portal (PHASE-09 T19, D-045), modeled on <see cref="AdminRules"/>. The Portal is a static-server-rendered, anonymous front of the API: no data access, HTTP only in
 /// <c>Clients/</c>, no inline script or style (the CSP allows none), no interactive render mode, and a short, argued list of places that turn text into markup. Every rule is a pure function over
 /// text or a parsed project so the tests can feed it a deliberately bad sample and prove it fails. Paths are relative to the repository root, with forward slashes.
 /// </summary>
@@ -28,9 +28,9 @@ public static partial class PortalRules
     };
 
     /// <summary>
-    /// The files (relative to src/TechStrap.Portal) that may turn API text into markup, which is where a stored-XSS bug would live. The API sanitises the HTML before it sends it, and the Portal does not
-    /// sanitise again, so each site is argued for in the commit that adds it: 09b added <c>CustomerMessageBody</c> (a ticket message body: the API's sanitised HTML, D-045 addendum) and 09c added
-    /// <c>KbArticleBody</c> (a published article: the same sanitiser, D-044, rendered once in this one component). There are exactly these two. Every other string the Portal shows is plain text, and Razor encodes it.
+    /// The files (relative to src/TechStrap.Portal) that may turn API text into markup, which is where a stored-XSS bug would live. The API sanitizes the HTML before it sends it, and the Portal does not
+    /// sanitize again, so each site is argued for in the commit that adds it: 09b added <c>CustomerMessageBody</c> (a ticket message body: the API's sanitized HTML, D-045 addendum) and 09c added
+    /// <c>KbArticleBody</c> (a published article: the same sanitizer, D-044, rendered once in this one component). There are exactly these two. Every other string the Portal shows is plain text, and Razor encodes it.
     /// </summary>
     public static IReadOnlyList<string> MarkupStringSites { get; } = ["Components/Kb/KbArticleBody.razor", "Components/Tickets/CustomerMessageBody.razor"];
 

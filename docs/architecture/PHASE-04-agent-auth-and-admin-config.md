@@ -17,8 +17,8 @@ Agents can sign in with an OIDC JWT, are gated by a configured group claim, are 
 - Provisioning on first call: `GET /api/agents/me` upserts the `Agent` from token claims (subject, name, email) and returns the profile (`AgentDto`). No separate registration endpoint.
 - Handlers follow _template `APPLICATION_ARCHITECTURE.md`: one named handler and `I...Handler` interface per operation; handlers accept `TechStrap.Contracts` request records directly (D-016: Contracts is dependency-free, so any transport-only detail is mapped by the controller into the request or a small Application-owned model), identity through `ICurrentAgentClaims`, outcomes as `Result`/`Result<T>`. Controllers inject handlers with `[FromServices]` on the action and map Results with `SyntaxCircus.AspNetCore.Common` ProblemDetails helpers, choosing the success response explicitly (`Ok`, `Created`, `NoContent`).
 - Contracts (`TechStrap.Contracts`): DTOs end in `Dto`/`Request`/`Response` (`AgentDto`, `ProductDto`, `ProductBrandingDto`, `ProductApiKeyDto`, `CreateProductApiKeyResponse` carrying the plaintext key exactly once, `TagDto`, `AdminEventDto`, `UpdateAgentRequest`, ...). Constants shared with clients (key prefix format, max lengths) live in Contracts only if clients validate them.
-- API keys: generated server-side with a recognisable prefix and 256-bit random secret; only prefix and hash stored via `IApiKeyHasher`; plaintext shown once at creation. Kinds: `Trusted` (server-side; later may set external user ref and trusted metadata) and `Public` (client-embedded; create-only; per key+IP rate-limited; metadata flagged untrusted). Kind is immutable after creation; revoke rather than edit. A product may have several keys of each kind.
-- Product branding (name, logo reference, accent colour, from-name/reply-to) is updated through `UpdateProductRequestHandler`; accent validated for format only (D-031); the derived on-accent and ink colours are returned in `ProductBrandingDto`. Logo upload uses `SyntaxCircus.Storage` in PHASE-05; this phase accepts a logo URL or storage key string only. **Assumption.**
+- API keys: generated server-side with a recognizable prefix and 256-bit random secret; only prefix and hash stored via `IApiKeyHasher`; plaintext shown once at creation. Kinds: `Trusted` (server-side; later may set external user ref and trusted metadata) and `Public` (client-embedded; create-only; per key+IP rate-limited; metadata flagged untrusted). Kind is immutable after creation; revoke rather than edit. A product may have several keys of each kind.
+- Product branding (name, logo reference, accent color, from-name/reply-to) is updated through `UpdateProductRequestHandler`; accent validated for format only (D-031); the derived on-accent and ink colors are returned in `ProductBrandingDto`. Logo upload uses `SyntaxCircus.Storage` in PHASE-05; this phase accepts a logo URL or storage key string only. **Assumption.**
 - `AdminEvent` is written in the same transaction as the change (via `IUnitOfWork`). The audit event payload never contains plaintext keys. Reads through `GET /api/admin-events` (paged, filter by entity type and actor), Admin-only. PHASE-06 writes the same event type for erase-requester, delete-ticket and dead-letter retry/discard (D-006, D-022), so the type constants and payload shape defined here must allow those subjects.
 - Tags are global with unique slug; deleting a tag in use is rejected with `409 tag-in-use` unless `force=true`, which detaches the tag from every ticket with `TagRemoved` events (D-030).
 - Errors: validation to 400 problem details with field errors, not-found to 404, conflict to 409, forbidden to 403. Exact mapping is the standard `SyntaxCircus.AspNetCore.Common` mapping; tests assert it per handler.
@@ -39,7 +39,7 @@ Follow _template `APPLICATION_ARCHITECTURE.md` (not copied into this repo). All 
 | `GET /api/products` | `ListProductsRequestHandler` | `IProductRepository` | EF `ProductRepository` | 200 `ProductDto[]` | Mandatory flow |
 | `GET /api/products/{id}` | `GetProductRequestHandler` | `IProductRepository` | EF `ProductRepository` | 200; 404 | Mandatory flow |
 | `POST /api/products` | `CreateProductRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `IUnitOfWork`, `ICurrentAgentClaims`, `TimeProvider` | EF repositories, `UnitOfWork` | 201 `ProductDto`; 409 duplicate key; 400 | Mandatory flow |
-| `PUT /api/products/{id}` | `UpdateProductRequestHandler` (incl. branding) | `IProductRepository`, `IAdminEventRepository`, `IUnitOfWork`, `ICurrentAgentClaims`, `TimeProvider` | EF repositories, `UnitOfWork` | 200; 404; 409 concurrency; 400 (colour format, D-031) | Mandatory flow |
+| `PUT /api/products/{id}` | `UpdateProductRequestHandler` (incl. branding) | `IProductRepository`, `IAdminEventRepository`, `IUnitOfWork`, `ICurrentAgentClaims`, `TimeProvider` | EF repositories, `UnitOfWork` | 200; 404; 409 concurrency; 400 (color format, D-031) | Mandatory flow |
 | `GET /api/products/{id}/api-keys` | `ListProductApiKeysRequestHandler` | `IProductRepository` | EF `ProductRepository` | 200 `ProductApiKeyDto[]` (no secrets) | Mandatory flow |
 | `POST /api/products/{id}/api-keys` | `CreateProductApiKeyRequestHandler` | `IProductRepository`, `IApiKeyHasher`, `IAdminEventRepository`, `IUnitOfWork`, `ICurrentAgentClaims`, `TimeProvider` | EF repositories, `ApiKeyHasher`, `UnitOfWork` | 201 `CreateProductApiKeyResponse` (plaintext once); 404; 400 | Mandatory flow |
 | `DELETE /api/products/{id}/api-keys/{keyId}` | `RevokeProductApiKeyRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `IUnitOfWork`, `ICurrentAgentClaims`, `TimeProvider` | EF repositories, `UnitOfWork` | 204; 404 | Mandatory flow |
@@ -89,7 +89,7 @@ Record the exact package version in the linked package map. In the foundation ph
 
 Each handler task writes `{Handler}Tests` (substitutes for repositories, fake `TimeProvider`) first.
 
-- [x] **P04-T01** Add Contracts DTOs and request types for agents, products (with `ProductBrandingDto`), API keys, tags and admin events with naming and serialisation tests (`ContractNamingTests` asserts every public type under `Contracts` ends in `Dto`, `Request` or `Response`)
+- [x] **P04-T01** Add Contracts DTOs and request types for agents, products (with `ProductBrandingDto`), API keys, tags and admin events with naming and serialization tests (`ContractNamingTests` asserts every public type under `Contracts` ends in `Dto`, `Request` or `Response`)
   - **Depends on:** none (inside this phase)
   - **Validation:** `ContractNamingTests` pass in `TechStrap.Architecture.Tests`
 - [x] **P04-T02** Add `AgentAccessOptions` (agent group, admin group, claim type) with validation, JWT bearer wiring and the two policies in the Api; write `AgentAuthTests` using a locally signed test JWT
@@ -109,7 +109,7 @@ Each handler task writes `{Handler}Tests` (substitutes for repositories, fake `T
   - **Validation:** `UpdateNotificationPreferencesRequestHandlerTests` cover enabling, disabling, unknown product (400), idempotent repeat; integration test persists preferences
 - [x] **P04-T07** Implement `ListProductsRequestHandler`, `GetProductRequestHandler`, `CreateProductRequestHandler`, `UpdateProductRequestHandler` (branding, accent format validation, concurrency) and `ProductsController`
   - **Depends on:** P04-T01, P04-T02
-  - **Validation:** one `*RequestHandlerTests` class per handler; `ProductsControllerTests` assert 201 with location, 409 duplicate key, 409 stale concurrency token, 400 malformed accent colour; every write produces an `AdminEvent`
+  - **Validation:** one `*RequestHandlerTests` class per handler; `ProductsControllerTests` assert 201 with location, 409 duplicate key, 409 stale concurrency token, 400 malformed accent color; every write produces an `AdminEvent`
 - [x] **P04-T08** Implement `IApiKeyHasher` (generate prefix plus 256-bit secret, hash, constant-time verify) with `ApiKeyHasherTests`
   - **Depends on:** none
   - **Validation:** tests assert uniqueness of 1000 generated keys, constant-time compare helper used, hash never equals plaintext, verify accepts only the correct key
@@ -118,7 +118,7 @@ Each handler task writes `{Handler}Tests` (substitutes for repositories, fake `T
   - **Validation:** handler tests assert plaintext only in the create response, listing never exposes hash or secret, revoked key flagged, audit event excludes secret; integration test confirms only hash and prefix are stored
 - [x] **P04-T10** Implement `ListTagsRequestHandler`, `CreateTagRequestHandler`, `UpdateTagRequestHandler`, `DeleteTagRequestHandler` and `TagsController`
   - **Depends on:** P04-T01, P04-T02
-  - **Validation:** handler tests cover duplicate slug (409), delete in use (409), colour format; audit events written
+  - **Validation:** handler tests cover duplicate slug (409), delete in use (409), color format; audit events written
 - [x] **P04-T11** Implement `IAdminEventRepository` (infrastructure) and `ListAdminEventsRequestHandler` with paging and filters, `AdminEventsController`
   - **Depends on:** P04-T05
   - **Validation:** `AdminEventRepositoryTests` and `ListAdminEventsRequestHandlerTests` pass; endpoint is Admin-only; newest first and stable paging under inserts

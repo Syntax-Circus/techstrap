@@ -2,8 +2,8 @@
 
 @code {
     /// <summary>
-    /// The body of one public message, rendered as the markup it is. This is the Portal's single place that turns text into markup (PortalRules.MarkupStringSites; D-045 addendum): the API sanitises every message body
-    /// before it sends it (the single source of truth, so the Portal never sanitises again; it only shows an <c>h1</c> in a body as an <c>h2</c>, <see cref="BodyHeadings"/>), and every other string on the ticket page (subject, author, file names) is encoded by Razor.
+    /// The body of one public message, rendered as the markup it is. This is the Portal's single place that turns text into markup (PortalRules.MarkupStringSites; D-045 addendum): the API sanitizes every message body
+    /// before it sends it (the single source of truth, so the Portal never sanitizes again; it only shows an <c>h1</c> in a body as an <c>h2</c>, <see cref="BodyHeadings"/>), and every other string on the ticket page (subject, author, file names) is encoded by Razor.
     /// </summary>
     [Parameter, EditorRequired]
     public string Html { get; set; } = string.Empty;

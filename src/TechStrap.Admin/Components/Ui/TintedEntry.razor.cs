@@ -4,7 +4,7 @@ namespace TechStrap.Admin.Components.Ui;
 
 /// <summary>
 /// One message in a ticket timeline, drawn with the carbon tint code: white customer message, canary public reply, pink dashed
-/// notched internal note. Every kind also carries a word (customer, agent reply, INTERNAL NOTE), so colour is never the only cue.
+/// notched internal note. Every kind also carries a word (customer, agent reply, INTERNAL NOTE), so color is never the only cue.
 /// </summary>
 public partial class TintedEntry
 {

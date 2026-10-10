@@ -10,7 +10,7 @@ using TechStrap.Portal.Routing;
 namespace TechStrap.Portal.Components.Pages;
 
 /// <summary>
-/// One category of a product's help centre (P09-T12): a page of its published articles, newest update first, <see cref="PageSize"/> to a page, with plain <c>?page=n</c> links that work without script. Review Focus 2:
+/// One category of a product's help center (P09-T12): a page of its published articles, newest update first, <see cref="PageSize"/> to a page, with plain <c>?page=n</c> links that work without script. Review Focus 2:
 /// an unknown category, another product's category, an empty one, a slug that is not a slug and a page past the end are all the neutral 404, byte for byte the page an unknown route gets (the product is forgotten first), and
 /// a slug that is not a slug is answered without a call (the client refuses it: <see cref="IPublicKbClient"/>; a check of the page's own was dead code, as a surviving mutation showed). The page number is bound as text and parsed by <see cref="KbPaging"/>, because the framework's own number binding answers 500 for <c>?page=abc</c>.
 /// </summary>

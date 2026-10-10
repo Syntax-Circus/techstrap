@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace TechStrap.Api.Tests;
 
 /// <summary>
-/// Forwarded-header and per-client-IP rate-limit behaviour, per _template CLIENT_IP_RATE_LIMITING.md.
+/// Forwarded-header and per-client-IP rate-limit behavior, per _template CLIENT_IP_RATE_LIMITING.md.
 /// These use the checked-in Development default TrustedProxy network (192.0.2.0/24) and an
 /// IStartupFilter for the peer address, because TrustedProxy is bound eagerly and cannot be
 /// overridden through the factory's configuration.

@@ -5,7 +5,7 @@ using TechStrap.Portal.Routing;
 namespace TechStrap.Portal.Tests.Caching;
 
 /// <summary>
-/// PHASE-09c Review Focus 3 (cache safety): the one predicate that decides what the Portal keeps. Only the three kinds of help-centre page; never the search page, the form pages, the suggest adapter, <c>/t/*</c> or a
+/// PHASE-09c Review Focus 3 (cache safety): the one predicate that decides what the Portal keeps. Only the three kinds of help-center page; never the search page, the form pages, the suggest adapter, <c>/t/*</c> or a
 /// request whose <c>page</c> value could fill the store.
 /// </summary>
 public sealed class PortalCachePathsTests

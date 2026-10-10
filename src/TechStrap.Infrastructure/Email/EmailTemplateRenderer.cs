@@ -320,7 +320,7 @@ internal sealed class EmailTemplateRenderer(IOptions<EmailBrandingOptions> optio
             ? $"<img src=\"{Encode(path)}\" alt=\"{name}\" height=\"32\" style=\"display:block;border:0;height:32px;margin:0 0 8px 0;\">"
             : string.Empty;
 
-        // Only the header bar takes the chrome; the value written is TryDerive's normalised output, never the raw string.
+        // Only the header bar takes the chrome; the value written is TryDerive's normalized output, never the raw string.
         var (barFill, barText) = branding.ChromeColour is { } chromeColour && ProductAccent.TryDerive(chromeColour, out var chrome)
             ? (chrome.Accent, chrome.OnAccent)
             : (colors.Accent, colors.OnAccent);

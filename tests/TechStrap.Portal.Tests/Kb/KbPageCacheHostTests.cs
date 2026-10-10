@@ -8,7 +8,7 @@ namespace TechStrap.Portal.Tests.Kb;
 
 /// <summary>
 /// P09-T15 (output caching) at the host, on the real pages and the stub API: a repeated request makes one API call, a hit still carries the request's own headers, a 404 or a 429 is never stored, nothing that is not a
-/// help-centre page is ever kept, and a cache key is never shared between products. <c>OutputCachePipelineTests</c> proves the mechanism on a small host; this proves it on the pages. Review Focus 3.
+/// help-center page is ever kept, and a cache key is never shared between products. <c>OutputCachePipelineTests</c> proves the mechanism on a small host; this proves it on the pages. Review Focus 3.
 /// </summary>
 public sealed class KbPageCacheHostTests
 {
@@ -93,7 +93,7 @@ public sealed class KbPageCacheHostTests
         (await page2.Content.ReadAsStringAsync(Ct)).ShouldContain("Change your email");
         (await page2Again.Content.ReadAsStringAsync(Ct)).ShouldContain("Change your email");
 
-        // A case variant of the page key is answered, never stored: its links would otherwise carry one visitor's spelling to the next. (The percent-encoded spellings, which the HTTP client would normalise
+        // A case variant of the page key is answered, never stored: its links would otherwise carry one visitor's spelling to the next. (The percent-encoded spellings, which the HTTP client would normalize
         // before sending, are pinned on the raw query in PortalCachePathsTests.)
         foreach (var spelling in new[] { "?PAGE=2", "?Page=2&x=1" })
         {
@@ -136,7 +136,7 @@ public sealed class KbPageCacheHostTests
     [Fact]
     public async Task A_capitalised_path_is_never_answered_from_the_lower_case_entry_and_never_stored()
     {
-        // Only all-lowercase paths are kept (PortalCachePaths.IsCacheable), so the case-insensitive key can never answer a capitalised path from the lower-case entry.
+        // Only all-lowercase paths are kept (PortalCachePaths.IsCacheable), so the case-insensitive key can never answer a capitalized path from the lower-case entry.
         var neutral = await Seen.NeutralNotFoundAsync(Ct, "/p/nope");
         await using var factory = Factory();
         using var client = FormTestKit.Client(factory);
@@ -154,7 +154,7 @@ public sealed class KbPageCacheHostTests
         KbTestKit.Header(unknownKey, "Age").ShouldBeEmpty();
         capitalisedSegment.StatusCode.ShouldBe(HttpStatusCode.OK);
         KbTestKit.Header(capitalisedSegment, "Age").ShouldBeEmpty("a 200 that is never stored");
-        factory.Api.Count(HttpMethod.Get, KbTestKit.CategoriesPath).ShouldBe(2, "the capitalised segment asked the API again");
+        factory.Api.Count(HttpMethod.Get, KbTestKit.CategoriesPath).ShouldBe(2, "the capitalized segment asked the API again");
     }
 
     [Fact]

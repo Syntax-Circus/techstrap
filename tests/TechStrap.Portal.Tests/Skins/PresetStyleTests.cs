@@ -93,7 +93,7 @@ public sealed class PresetStyleTests
         var forced = Css.Text.IndexOf("@media(forced-colors: active)", StringComparison.Ordinal);
         forced.ShouldBeGreaterThanOrEqualTo(0);
         Regex.IsMatch(Css.Text[forced..], @"\.ts-accent-scope\[data-ts-header\] \.ts-product-header\s*\{[^}]*border-image:\s*none")
-            .ShouldBeTrue("the header border image must not paint in forced colours");
+            .ShouldBeTrue("the header border image must not paint in forced colors");
 
         var print = Regex.Match(Css.Text, @"@media print\s*\{\s*\.ts-accent-scope\[data-ts-header\] \.ts-product-header\s*\{(?<body>[^}]*)\}");
         print.Success.ShouldBeTrue();

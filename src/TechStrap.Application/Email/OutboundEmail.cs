@@ -4,7 +4,7 @@ namespace TechStrap.Application.Email;
 
 public sealed record OutboundEmail(string To, string Subject, string Text, string Html, string? From, string? ReplyTo, string MessageId);
 
-/// <summary>Sends one rendered email (D-033). Failures are sanitised categories from <see cref="EmailSendFailures"/>, never server text.</summary>
+/// <summary>Sends one rendered email (D-033). Failures are sanitized categories from <see cref="EmailSendFailures"/>, never server text.</summary>
 public interface IOutboundEmailSender
 {
     Task<Result> SendAsync(OutboundEmail email, CancellationToken cancellationToken);
@@ -19,7 +19,7 @@ public static class EmailSendFailures
     public const string Unknown = "smtp-unknown";
 }
 
-/// <summary>The outbox id goes in Message-ID so duplicate sends are recognisable (D-010).</summary>
+/// <summary>The outbox id goes in Message-ID so duplicate sends are recognizable (D-010).</summary>
 public static class OutboundMessageIds
 {
     public const string Domain = "techstrap.local";

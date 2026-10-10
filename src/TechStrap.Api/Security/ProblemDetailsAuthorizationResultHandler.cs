@@ -5,7 +5,7 @@ namespace TechStrap.Api.Security;
 
 /// <summary>
 /// Turns a refusal from AgentAccessAuthorizationHandler into a 403 problem with a stable type code, so the Admin app can tell
-/// "not in the group" from "deactivated". Other outcomes keep the framework behaviour.
+/// "not in the group" from "deactivated". Other outcomes keep the framework behavior.
 /// </summary>
 public sealed class ProblemDetailsAuthorizationResultHandler : IAuthorizationMiddlewareResultHandler
 {

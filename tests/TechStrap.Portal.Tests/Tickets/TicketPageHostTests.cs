@@ -10,7 +10,7 @@ namespace TechStrap.Portal.Tests.Tickets;
 /// <summary>
 /// P09-T08 and T23 at the host: the ticket page. A valid token shows the public conversation, themed with the ticket's own product (loaded from the ticket's <c>ProductKey</c>) or, when that product is inactive
 /// or unknown, in the neutral theme: never a 404. The status is in the customer's words, a Closed ticket carries the follow-up notice, an agent shows as the API named them and the customer as "You", the message
-/// bodies are the API's sanitised HTML rendered as it came and every other string is encoded. Review Focus 1: the token is a header on the API call and in the page's own links and nowhere else.
+/// bodies are the API's sanitized HTML rendered as it came and every other string is encoded. Review Focus 1: the token is a header on the API call and in the page's own links and nowhere else.
 /// </summary>
 public sealed class TicketPageHostTests
 {

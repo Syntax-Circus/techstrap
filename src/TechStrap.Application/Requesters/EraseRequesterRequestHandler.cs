@@ -14,7 +14,7 @@ public interface IEraseRequesterRequestHandler
 }
 
 /// <summary>
-/// POST /api/requesters/{id}/erase (Admin, D-006, D-022, D-039). Anonymises the requester and their personal data (customer message
+/// POST /api/requesters/{id}/erase (Admin, D-006, D-022, D-039). Anonymizes the requester and their personal data (customer message
 /// bodies, ticket subjects and fields, customer attachments, access links, outbox rows) and keeps ticket numbers and events. Safe to repeat.
 /// The audit event holds counts only. Customer files are deleted after the commit.
 /// </summary>

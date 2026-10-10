@@ -140,7 +140,7 @@ public sealed class TicketAttachmentHostTests
     [Fact]
     public async Task The_endpoint_itself_forces_a_clean_attachment_and_nosniff_without_the_shared_header_middleware()
     {
-        // Only the pass-through is mapped: no security-header middleware can add or overwrite anything, so what arrives is the endpoint's own doing (defence in depth, not left to the host's rules).
+        // Only the pass-through is mapped: no security-header middleware can add or overwrite anything, so what arrives is the endpoint's own doing (defense in depth, not left to the host's rules).
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton<ICustomerTicketClient>(new HostileFileClient());

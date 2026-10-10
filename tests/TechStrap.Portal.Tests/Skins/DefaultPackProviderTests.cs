@@ -22,7 +22,7 @@ public sealed class DefaultPackProviderTests
 
         public Func<Result<PublicSiteDto>> Answer { get; set; } = () => Result<PublicSiteDto>.Success(new PublicSiteDto("slate"));
 
-        /// <summary>When set, a read never answers by itself: it ends only when the caller's token is cancelled (a hung API).</summary>
+        /// <summary>When set, a read never answers by itself: it ends only when the caller's token is canceled (a hung API).</summary>
         public bool Hang { get; set; }
 
         public async Task<Result<PublicSiteDto>> GetAsync(CancellationToken cancellationToken)

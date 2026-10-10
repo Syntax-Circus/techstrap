@@ -5,7 +5,7 @@ namespace TechStrap.Portal.Tests;
 
 /// <summary>
 /// BRAND.md section 24: the Portal meets WCAG 2.2 AA. Every text and background pair of the Portal's own tokens (the neutral ones and the error, success and warning ones of 09d) is checked against the compiled CSS, so a
-/// token edit that breaks a pair fails the build; the edge of a form control is held to the 3:1 of a non-text component (1.4.11); and the colours that carry a state sit on the grounds they are used on. (The product's
+/// token edit that breaks a pair fails the build; the edge of a form control is held to the 3:1 of a non-text component (1.4.11); and the colors that carry a state sit on the grounds they are used on. (The product's
 /// accent is checked per product, including hostile ones, in <c>ProductAccentContrastTests</c>.)
 /// </summary>
 public sealed class TokenContrastTests

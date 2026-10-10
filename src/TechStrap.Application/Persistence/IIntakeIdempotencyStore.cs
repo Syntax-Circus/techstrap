@@ -1,6 +1,6 @@
 namespace TechStrap.Application.Persistence;
 
-/// <summary>A stored intake response for one API key and Idempotency-Key (D-020). <see cref="ResponseJson"/> is the serialised SubmitTicketResponse.</summary>
+/// <summary>A stored intake response for one API key and Idempotency-Key (D-020). <see cref="ResponseJson"/> is the serialized SubmitTicketResponse.</summary>
 public sealed record IntakeIdempotencyEntry(Guid Id, Guid ApiKeyId, Guid TicketId, string ResponseJson, DateTimeOffset CreatedAt);
 
 /// <summary>

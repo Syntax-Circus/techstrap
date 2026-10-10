@@ -107,7 +107,7 @@ internal sealed class TechStrapClient(IHttpClientFactory httpClients, IOptions<T
         }
         catch (Exception ex) when (IsUnavailable(ex, ct))
         {
-            // A caller who cancelled wins over whatever the pipeline surfaced.
+            // A caller who canceled wins over whatever the pipeline surfaced.
             ct.ThrowIfCancellationRequested();
             return Result<SubmitTicketResponse>.Failure(ProblemResponseMapper.Unavailable());
         }

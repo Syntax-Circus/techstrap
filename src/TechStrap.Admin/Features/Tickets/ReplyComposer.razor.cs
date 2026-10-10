@@ -254,7 +254,7 @@ public sealed partial class ReplyComposer : IDisposable
             return;
         }
 
-        // The write is never cancelled by the screen closing: the server may commit it, and a cancelled call would leave the draft looking unsent.
+        // The write is never canceled by the screen closing: the server may commit it, and a canceled call would leave the draft looking unsent.
         // Everything after the await works on the captured draft and the text that was sent, so it settles the store even when this component is gone.
         var draft = _draft;
         var ticketId = TicketId;

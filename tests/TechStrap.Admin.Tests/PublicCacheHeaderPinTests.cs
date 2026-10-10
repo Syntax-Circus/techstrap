@@ -3,7 +3,7 @@ using TechStrap.Tests.Shared.AdminHost;
 namespace TechStrap.Admin.Tests;
 
 /// <summary>
-/// PHASE-09c adds a success-only <c>Cache-Control</c> rule to the shared header wiring for the Portal's help centre. The Admin shares that wiring, so this pins that nothing it serves, an ordinary page, an error page or
+/// PHASE-09c adds a success-only <c>Cache-Control</c> rule to the shared header wiring for the Portal's help center. The Admin shares that wiring, so this pins that nothing it serves, an ordinary page, an error page or
 /// a download, ever gets a public cache header from it: an agent's page must never be kept by a shared cache.
 /// </summary>
 public sealed class PublicCacheHeaderPinTests

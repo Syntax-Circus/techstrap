@@ -2,19 +2,19 @@ using TechStrap.Portal.Components;
 
 namespace TechStrap.Portal.Tests.Components;
 
-/// <summary>The few help-centre sentences that are built from a value (a name, a count, a page, a day). Plain text: the page encodes whatever is put in.</summary>
+/// <summary>The few help-center sentences that are built from a value (a name, a count, a page, a day). Plain text: the page encodes whatever is put in.</summary>
 public sealed class KbCopyTests
 {
     [Fact]
     public void The_titles_and_descriptions_name_the_product_and_the_page()
     {
-        KbCopy.HomeTitle("Paperplane").ShouldBe("Paperplane Help Centre");
+        KbCopy.HomeTitle("Paperplane").ShouldBe("Paperplane Help Center");
         KbCopy.HomeDescription("Paperplane").ShouldBe("Help articles and answers for Paperplane.");
-        KbCopy.CategoryTitle("Accounts", "Paperplane", 1).ShouldBe("Accounts - Paperplane Help Centre");
-        KbCopy.CategoryTitle("Accounts", "Paperplane", 0).ShouldBe("Accounts - Paperplane Help Centre");
-        KbCopy.CategoryTitle("Accounts", "Paperplane", 3).ShouldBe("Accounts (page 3) - Paperplane Help Centre");
+        KbCopy.CategoryTitle("Accounts", "Paperplane", 1).ShouldBe("Accounts - Paperplane Help Center");
+        KbCopy.CategoryTitle("Accounts", "Paperplane", 0).ShouldBe("Accounts - Paperplane Help Center");
+        KbCopy.CategoryTitle("Accounts", "Paperplane", 3).ShouldBe("Accounts (page 3) - Paperplane Help Center");
         KbCopy.CategoryDescription("Accounts", "Paperplane").ShouldBe("Help articles about Accounts for Paperplane.");
-        KbCopy.SearchTitle("Paperplane").ShouldBe("Search - Paperplane Help Centre");
+        KbCopy.SearchTitle("Paperplane").ShouldBe("Search - Paperplane Help Center");
         KbCopy.SearchDescription("Paperplane").ShouldBe("Search the help articles for Paperplane.");
     }
 

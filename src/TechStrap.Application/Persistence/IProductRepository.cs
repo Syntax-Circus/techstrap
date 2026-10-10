@@ -19,7 +19,7 @@ public interface IProductRepository
     /// <summary>Ordered by name.</summary>
     Task<IReadOnlyList<Product>> ListAsync(bool activeOnly, CancellationToken cancellationToken);
 
-    /// <summary>True when a product other than <paramref name="exceptProductId"/> (when given) already has <paramref name="host"/> as its portal hostname; <paramref name="host"/> is the normalised form.</summary>
+    /// <summary>True when a product other than <paramref name="exceptProductId"/> (when given) already has <paramref name="host"/> as its portal hostname; <paramref name="host"/> is the normalized form.</summary>
     Task<bool> IsPortalHostTakenAsync(string host, Guid? exceptProductId, CancellationToken cancellationToken);
 
     void Add(Product product);

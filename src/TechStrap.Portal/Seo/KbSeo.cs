@@ -2,7 +2,7 @@ using TechStrap.Portal.Products;
 
 namespace TechStrap.Portal.Seo;
 
-/// <summary>What the help-centre pages tell <c>SeoHead</c> that is the same on every page.</summary>
+/// <summary>What the help-center pages tell <c>SeoHead</c> that is the same on every page.</summary>
 public static class KbSeo
 {
     /// <summary>A Portal asset: the Open Graph image of a product with no logo (the package would otherwise fall back to the bare site address, which is a page and not an image).</summary>

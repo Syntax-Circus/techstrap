@@ -30,7 +30,7 @@ public static class SkinValues
     /// <summary>Flat buttons.</summary>
     public const string ButtonFlat = "flat";
 
-    /// <summary>Bevelled buttons.</summary>
+    /// <summary>Beveled buttons.</summary>
     public const string ButtonBevel = "bevel";
 
     /// <summary>Outlined buttons.</summary>
@@ -39,7 +39,7 @@ public static class SkinValues
     /// <summary>Header on the page background.</summary>
     public const string HeaderPlain = "plain";
 
-    /// <summary>Header filled with the chrome colour.</summary>
+    /// <summary>Header filled with the chrome color.</summary>
     public const string HeaderSolid = "solid";
 
     /// <summary>Header with a chrome band.</summary>

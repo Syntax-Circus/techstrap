@@ -82,7 +82,7 @@
   border-top: 6px solid var(--ts-accent);
 }
 
-// A product's header and footer (PHASE-09a): the logo and name are one link to the product home; the colours are the product's through --ts-accent*.
+// A product's header and footer (PHASE-09a): the logo and name are one link to the product home; the colors are the product's through --ts-accent*.
 .ts-product-header {
   width: 100%;
   max-width: var(--ts-wide-width);
@@ -269,7 +269,7 @@
   padding-left: 20px;
 }
 
-// The help centre: lists of articles and categories (a card each), the breadcrumb trail and the pager. The card grid of the categories is in _layout.scss.
+// The help center: lists of articles and categories (a card each), the breadcrumb trail and the pager. The card grid of the categories is in _layout.scss.
 .ts-kb-list {
   margin: 24px 0;
   padding: 0;
@@ -369,7 +369,7 @@
   margin-bottom: 8px;
 }
 
-// An article's body is the API's sanitised HTML: a wide table, a code block or an image scrolls or shrinks inside its own box instead of widening the page. Its prose keeps a readable measure and rhythm.
+// An article's body is the API's sanitized HTML: a wide table, a code block or an image scrolls or shrinks inside its own box instead of widening the page. Its prose keeps a readable measure and rhythm.
 .ts-kb-article-body {
   overflow-wrap: anywhere;
   line-height: 1.6;

@@ -142,12 +142,12 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 | FR-EMAIL-01 | Emails are written to the outbox in the same transaction as the change that triggers them | M |
 | FR-EMAIL-02 | The worker claims rows with `FOR UPDATE SKIP LOCKED`, sends through the email sender, retries with backoff, dead-letters after N failures (default 8, **Assumption**) | M |
 | FR-EMAIL-03 | Delivery is at-least-once; the outbox id is placed in the `Message-ID` header so repeats are recognizable | M |
-| FR-EMAIL-04 | Email templates exist in text and HTML, carry per-product branding (name, logo, accent colour, from-address, reply-to) | M |
+| FR-EMAIL-04 | Email templates exist in text and HTML, carry per-product branding (name, logo, accent color, from-address, reply-to) | M |
 | FR-EMAIL-05 | Outbound emails tell the customer to reply through the ticket link (until inbound email exists) | M |
 | FR-EMAIL-06 | Email kinds: intake confirmation, agent public reply, new access link, new-ticket alert to opted-in agents, assignment alert, customer-reply alert to assignee, solved notice to the requester (no closed notice, D-037). PHASE-05 sends only the intake confirmation; PHASE-06 adds the rest through `ITicketNotificationPlanner` | M |
 | FR-EMAIL-07 | Agents can opt in per product to new-ticket alerts via notification preferences | M |
 | FR-EMAIL-08 | Alerts are queued by ticket handlers through `ITicketNotificationPlanner`; there is no separate alert entry point | M |
-| FR-EMAIL-09 | Customer emails render the resolved agent name (FR-CUST-07) and honour the Powered-by setting (FR-CUST-08): link in HTML, bare URL in text, omitted when hidden (D-024) | M |
+| FR-EMAIL-09 | Customer emails render the resolved agent name (FR-CUST-07) and honor the Powered-by setting (FR-CUST-08): link in HTML, bare URL in text, omitted when hidden (D-024) | M |
 
 ### 5.3 Ticket operations (FR-TKT)
 
@@ -211,9 +211,9 @@ Priority is **M**ust for core unless marked **S**hould. IDs are stable; phases r
 | FR-AUTH-03 | The agent record is provisioned on first `GET /api/agents/me`; role follows the claim | M |
 | FR-AUTH-04 | Roles come from IdP groups only; the first admin is whoever is in `TECHSTRAP_ADMIN_GROUP` (D-029) | M |
 | FR-AUTH-05 | Admin can deactivate an agent; a deactivated agent is rejected on the next request | M |
-| FR-ADMIN-01 | Admin manages products: key, name, branding (display name, logo, accent colour, from-address, reply-to), active flag | M |
+| FR-ADMIN-01 | Admin manages products: key, name, branding (display name, logo, accent color, from-address, reply-to), active flag | M |
 | FR-ADMIN-02 | Admin creates and revokes Trusted and Public API keys per product; the plain key is shown once; only a hash is stored | M |
-| FR-ADMIN-03 | Admin manages tags (slug, colour); agents apply them; customers never see tags | M |
+| FR-ADMIN-03 | Admin manages tags (slug, color); agents apply them; customers never see tags | M |
 | FR-ADMIN-04 | Admin changes agent role and active flag | M |
 | FR-ADMIN-05 | Every product, key, agent and tag change, and every erase-requester, delete-ticket and dead-letter retry/discard action, writes an `AdminEvent` (audit trail, D-006), viewable by admins | M |
 | FR-ADMIN-06 | Each agent edits their own notification preferences | M |

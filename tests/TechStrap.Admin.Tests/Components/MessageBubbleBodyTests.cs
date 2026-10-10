@@ -7,7 +7,7 @@ using TechStrap.Tests.Shared;
 
 namespace TechStrap.Admin.Tests.Components;
 
-/// <summary>P12-T05: the Admin's one MarkupString site shows the sanitised body as given and adds nothing; every other string on the bubble is encoded by Razor.</summary>
+/// <summary>P12-T05: the Admin's one MarkupString site shows the sanitized body as given and adds nothing; every other string on the bubble is encoded by Razor.</summary>
 public sealed class MessageBubbleBodyTests : AdminComponentTest
 {
     public static TheoryData<string> SanitisedBodies() =>

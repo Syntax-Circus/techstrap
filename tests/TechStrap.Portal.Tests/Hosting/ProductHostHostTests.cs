@@ -90,7 +90,7 @@ public sealed class ProductHostHostTests
         var (response, body) = await SendAsync(ct, client, "/kb", DragonHost);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        body.ShouldContain("Help centre");
+        body.ShouldContain("Help center");
         body.ShouldContain("Accounts");
     }
 

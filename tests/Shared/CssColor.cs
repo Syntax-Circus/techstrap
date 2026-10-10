@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace TechStrap.Tests.Shared;
 
-/// <summary>Compares CSS colours semantically: Sass compressed output rewrites <c>#FFFFFF</c> as <c>#fff</c> and <c>0.14</c> as <c>.14</c>.</summary>
+/// <summary>Compares CSS colors semantically: Sass compressed output rewrites <c>#FFFFFF</c> as <c>#fff</c> and <c>0.14</c> as <c>.14</c>.</summary>
 internal static partial class CssColor
 {
     [GeneratedRegex(@"^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$")]

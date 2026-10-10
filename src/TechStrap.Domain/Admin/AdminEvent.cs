@@ -45,7 +45,7 @@ public sealed class AdminEvent
         "token", "secret", "password", "passwd", "pwd", "hash", "plaintext", "authorization", "credential", "bearer", "apikey", "privatekey", "email", "ipaddress",
     ];
 
-    /// <summary>Normalised names that end with one of these are always allowed: identifiers and algorithm names, and the documented key shapes.</summary>
+    /// <summary>Normalized names that end with one of these are always allowed: identifiers and algorithm names, and the documented key shapes.</summary>
     private static readonly string[] AllowedNameSuffixes = ["id", "algorithm", "productkey", "keyprefix"];
 
     /// <summary>Exact (case-insensitive) property names that are never allowed, whole words the substring list would be too broad for.</summary>
@@ -121,7 +121,7 @@ public sealed class AdminEvent
         }
     }
 
-    /// <summary>Names are normalised (lower-case, no underscores or hyphens) so <c>api_key</c> and <c>access-key</c> match <c>apikey</c>.</summary>
+    /// <summary>Names are normalized (lower-case, no underscores or hyphens) so <c>api_key</c> and <c>access-key</c> match <c>apikey</c>.</summary>
     private static bool IsForbiddenName(string rawName)
     {
         var name = Normalise(rawName);

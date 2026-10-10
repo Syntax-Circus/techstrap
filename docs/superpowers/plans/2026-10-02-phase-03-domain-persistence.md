@@ -35,7 +35,7 @@ The five failure modes that most threaten a person using this software, most lik
 1. **Concurrent ticket creation must never produce a duplicate number or a gap, including after a rollback.** Two customers submitting at once, or a failed submission, must leave numbers 1..N exactly once each. Pinned in Task 11 by `TicketNumberAllocatorTests.Fifty_concurrent_creators_for_one_product_get_one_to_fifty_with_no_gaps_or_duplicates`, `A_rolled_back_transaction_gives_its_number_back_so_the_next_creator_gets_the_same_one` and `A_rollback_in_the_middle_leaves_no_gap`.
 2. **Two agents editing the same ticket must get a clear conflict, never a lost update and never a raw exception at the application edge.** The stale writer receives a Conflict `Result` with code `concurrency-conflict`, and its events are not written. Pinned in Task 9 by `UnitOfWorkTests.Two_stale_updates_give_one_success_and_one_conflict_result_never_an_exception` and in Task 13 by `TicketRepositoryTests.Two_stale_ticket_updates_give_one_success_and_one_conflict_and_the_loser_writes_no_events`.
 3. **A `TicketEvent` can never be changed or removed.** The audit trail is the source of truth for who did what. There is no repository method, and EF refuses to save a modified or singly deleted event; only a whole-ticket hard delete removes events. Pinned in Task 8 by `TicketSchemaTests.Modifying_a_ticket_event_through_ef_is_refused`, `Deleting_a_single_ticket_event_through_ef_is_refused` and `Deleting_the_whole_ticket_through_ef_may_remove_its_events`, and in Task 4 by `TicketCreationTests.A_ticket_event_exposes_no_way_to_change_it`.
-4. **Erasing a requester must be possible without rewriting history.** Event payloads hold ids, enum names and the ticket number only, never the subject, a message body or an email address, so anonymising the requester and their messages leaves every event untouched. Pinned in Task 4 by `TicketCreationTests.Event_payloads_hold_ids_and_enum_names_only_never_subject_or_message_text`, in Task 8 by `TicketSchemaTests.Erasing_a_requester_anonymises_rows_without_touching_a_single_event` and in Task 13 by `TicketRepositoryTests.Persisted_event_payloads_never_contain_the_subject_or_the_message_text`.
+4. **Erasing a requester must be possible without rewriting history.** Event payloads hold ids, enum names and the ticket number only, never the subject, a message body or an email address, so anonymizing the requester and their messages leaves every event untouched. Pinned in Task 4 by `TicketCreationTests.Event_payloads_hold_ids_and_enum_names_only_never_subject_or_message_text`, in Task 8 by `TicketSchemaTests.Erasing_a_requester_anonymises_rows_without_touching_a_single_event` and in Task 13 by `TicketRepositoryTests.Persisted_event_payloads_never_contain_the_subject_or_the_message_text`.
 5. **Search must put the best match first: a subject match above a message-body match, and a KB title above its summary above its body.** An agent typing "billing" expects the ticket about billing, not a ticket that mentioned it in passing. Pinned in Task 13 by `TicketSearchTests.A_subject_match_outranks_a_body_match_even_when_the_body_match_is_newer` and in Task 14 by `KbSearchTests.A_title_match_ranks_above_a_summary_match_above_a_body_match`.
 
 Two further guards are listed here because they are enforced by tests rather than by a Review Focus line: every table and column is snake_case (`SchemaConventionTests`, Task 7, which checks the model and the migrated database including join tables) and every migration is tool-generated (`scripts/tests/SchemaDocs.Tests.ps1`, Task 16, which requires each migration to have the generated designer file and the migration attribute, and the search migration to use generated columns rather than triggers).
@@ -1058,13 +1058,13 @@ internal static partial class Guard
         return DomainResult<string>.Ok(text);
     }
 
-    /// <summary>Normalises "#aabbcc" to "#AABBCC".</summary>
+    /// <summary>Normalizes "#aabbcc" to "#AABBCC".</summary>
     public static DomainResult<string> Colour(string? value, string target)
     {
         var text = value?.Trim();
         return text is not null && ColourRegex().IsMatch(text)
             ? DomainResult<string>.Ok(text.ToUpperInvariant())
-            : DomainErrors.Validation($"{target}-invalid", $"{target} must be a #RRGGBB colour.", target);
+            : DomainErrors.Validation($"{target}-invalid", $"{target} must be a #RRGGBB color.", target);
     }
 
     /// <summary>Trims and lower-cases an address (case-insensitive identity, FR requester email).</summary>
@@ -1913,7 +1913,7 @@ public sealed class Requester
         return DomainResult.Ok();
     }
 
-    /// <summary>Anonymises the requester (D-006). Idempotent: a second call keeps the first erasure time.</summary>
+    /// <summary>Anonymizes the requester (D-006). Idempotent: a second call keeps the first erasure time.</summary>
     public void Erase(TimeProvider clock)
     {
         Email = $"erased-{Id}@{ErasedEmailDomain}";
@@ -2256,7 +2256,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 - Consumes: `TicketStatusRules`, `TicketNumber`, `Message`, `Guard`, `EntityId` (Tasks 1 to 3).
 - Produces: `ActorType { Agent, Requester, System }`; `Actor` (`ForAgent(id)`, `ForRequester(id)`, `System`); `TicketEventType { Created, MessageAdded, StatusChanged, Assigned, ProductChanged, PriorityChanged, TagAdded, TagRemoved, MarkedSpam, FollowUpCreated }`; `TicketEvent` (immutable: `Id`, `TicketId`, `Type`, `ActorType`, `ActorId`, `PayloadJson`, `OccurredAt`, `Restore(...)`); `TicketPriority { Low, Normal, High, Urgent }`; `TicketChannel { Web, Api }`; `Ticket` with `Create(number, productId, requesterId, subject, channel, metadataJson, metadataTrusted, clock)`, `Restore(...)`, `ChangeStatus(to, actor, clock)`, `AddAgentReply(agentId, body, clock)`, `AddInternalNote(agentId, body, clock)`, `AddCustomerReply(requesterId, body, clock)`, `Assign(agentId?, actor, clock)`, `ChangePriority`, `MoveToProduct`, `AddTag`, `RemoveTag`, `MarkSpam(bool, actor, clock)`, `CreateFollowUp(number, clock)`, `AcceptChanges()`, `PendingEvents`, `PendingMessages`, `TagIds`, `Version` (opaque `xmin`), and the read-only state (`Status`, `Priority`, `AssigneeId`, `IsSpam`, `ParentTicketId`, `Number`, timestamps).
 
-Behaviour pinned by the tests: every mutation raises exactly one event (a reply also raises a status event when it moves the status); a no-op (same assignee, same tag again) raises none; every mutation on a Closed ticket is a Conflict `ticket-closed` and changes nothing; the number never changes; a follow-up links to its Closed parent, which gains only a `FollowUpCreated` event; event payloads hold ids and enum names only; the events and messages of one ticket get strictly increasing timestamps even if the clock stands still, so a timeline sorted by time keeps its order.
+Behavior pinned by the tests: every mutation raises exactly one event (a reply also raises a status event when it moves the status); a no-op (same assignee, same tag again) raises none; every mutation on a Closed ticket is a Conflict `ticket-closed` and changes nothing; the number never changes; a follow-up links to its Closed parent, which gains only a `FollowUpCreated` event; event payloads hold ids and enum names only; the events and messages of one ticket get strictly increasing timestamps even if the clock stands still, so a timeline sorted by time keeps its order.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -6102,7 +6102,7 @@ Expected: `Passed!`, `total: 3`.
 
 - [ ] **Step 4: Implement the records and their configuration**
 
-Records are plain, internal classes; they know nothing about the Domain behaviour (D-026).
+Records are plain, internal classes; they know nothing about the Domain behavior (D-026).
 
 **`src/TechStrap.Infrastructure/Persistence/Records/ProductRecord.cs`**
 
@@ -6655,7 +6655,7 @@ using TechStrap.Infrastructure.Persistence.Records;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
 
-/// <summary>Database-level behaviour of the ticket tables: uniqueness, cascade, append-only events and erase feasibility.</summary>
+/// <summary>Database-level behavior of the ticket tables: uniqueness, cascade, append-only events and erase feasibility.</summary>
 public sealed class TicketSchemaTests(PostgresFixture postgres) : PostgresIntegrationTestBase(postgres)
 {
     [Theory]
@@ -7166,7 +7166,7 @@ namespace TechStrap.Infrastructure.Persistence;
 /// <summary>
 /// Makes <c>ticket_events</c> append-only inside EF: saving a modified event, or a deleted event whose ticket is not also being
 /// deleted, throws. The only removal that is allowed is the hard delete of the whole ticket (D-006). There is also no
-/// repository method that updates or deletes an event, so this is the second line of defence.
+/// repository method that updates or deletes an event, so this is the second line of defense.
 /// </summary>
 internal sealed class AppendOnlyTicketEventInterceptor : SaveChangesInterceptor
 {
@@ -7255,7 +7255,7 @@ using TechStrap.Infrastructure.Persistence.Records;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
 
-/// <summary>Database-level behaviour of the knowledge-base, audit, outbox and idempotency tables.</summary>
+/// <summary>Database-level behavior of the knowledge-base, audit, outbox and idempotency tables.</summary>
 public sealed class KnowledgeAndOutboxSchemaTests(PostgresFixture postgres) : PostgresIntegrationTestBase(postgres)
 {
     [Theory]
@@ -8149,7 +8149,7 @@ public sealed class AdminEventRepositoryTests(PostgresFixture postgres) : Postgr
         firstPage.TotalCount.ShouldBe(3);
         firstPage.Items.Select(e => e.Type).ShouldBe([AdminEventType.RequesterErased, AdminEventType.TagCreated]);
         secondPage.Items.Select(e => e.Type).ShouldBe([AdminEventType.ProductCreated]);
-        firstPage.Items[0].PayloadJson.ShouldContain("requesterId");  // jsonb normalises whitespace, so compare content not text
+        firstPage.Items[0].PayloadJson.ShouldContain("requesterId");  // jsonb normalizes whitespace, so compare content not text
     }
 
     [Fact]
@@ -8534,7 +8534,7 @@ public static class PersistenceServiceCollectionExtensions
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `dotnet test --project tests/TechStrap.Infrastructure.IntegrationTests --filter-class "*UnitOfWorkTests" ; dotnet test --project tests/TechStrap.Infrastructure.IntegrationTests --filter-class "*ProductRepositoryTests" ; dotnet test --project tests/TechStrap.Infrastructure.IntegrationTests --filter-class "*AdminEventRepositoryTests"`
-Expected: `Passed!` three times: 8, 5 and 4 tests. `Two_stale_updates_give_one_success_and_one_conflict_result_never_an_exception` proves the PHASE-03 risk "`xmin` behaviour with Npgsql 10" (the stale writer gets `concurrency-conflict`).
+Expected: `Passed!` three times: 8, 5 and 4 tests. `Two_stale_updates_give_one_success_and_one_conflict_result_never_an_exception` proves the PHASE-03 risk "`xmin` behavior with Npgsql 10" (the stale writer gets `concurrency-conflict`).
 
 - [ ] **Step 5: Commit**
 
@@ -8557,7 +8557,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 - Consumes: `IAgentRepository`, `IRequesterRepository`, `ITagRepository` (Task 6); `TrackedRecords.FindLoaded`, `PersistenceTestHost` (Task 9); `AgentRecord`, `AgentNotificationPreferenceRecord`, `RequesterRecord`, `TagRecord`.
 - Produces: `AgentRepository` (by id, by OIDC subject, paged list, `CountActiveAdminsAsync`, notification preferences, `ListAgentsToAlertForProductAsync`), `RequesterRepository` (by id, by email: case-insensitive through the `citext` column), `TagRepository` (by id, by slug, list, add, update, remove); `PeopleMappings`.
 
-Behaviour pinned: `public_display_name` round-trips (D-024); a duplicate OIDC subject, requester email (in any case) or tag slug commits as a Conflict `duplicate`; removing a tag that tickets still carry commits as a Conflict `reference-violation`; erasing a requester persists the anonymised values.
+Behavior pinned: `public_display_name` round-trips (D-024); a duplicate OIDC subject, requester email (in any case) or tag slug commits as a Conflict `duplicate`; removing a tag that tickets still carry commits as a Conflict `reference-violation`; erasing a requester persists the anonymized values.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -9074,7 +9074,7 @@ internal sealed class RequesterRepository(TechStrapDbContext context) : IRequest
     public async Task<Requester?> GetByEmailAsync(string email, CancellationToken cancellationToken)
     {
         // The column is citext, so the comparison is case-insensitive in the database; lower-casing here keeps the
-        // parameter in the same normalised form the domain stores.
+        // parameter in the same normalized form the domain stores.
         var normalised = email.Trim().ToLowerInvariant();
         return (await context.Set<RequesterRecord>().FirstOrDefaultAsync(r => r.Email == normalised, cancellationToken))?.ToDomain();
     }
@@ -9140,7 +9140,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 - Consumes: `ITicketNumberAllocator` (Task 6); `IUnitOfWork` scope (Task 9); `TicketNumber`; `DomainResultExtensions.ToResult`.
 - Produces: `TicketNumberAllocator : ITicketNumberAllocator` (internal, scoped). It runs one statement, `INSERT INTO product_ticket_sequences ... SELECT id, 2 FROM products WHERE id = @id ON CONFLICT (product_id) DO UPDATE SET next_number = next_number + 1 RETURNING next_number - 1`, joined to the product for its prefix, on the unit of work's own connection and transaction. The counter row is created by the product's first ticket (upsert on first use) and advanced under its row lock afterwards, so concurrent creators queue; a rollback undoes the increment (no gaps); allocating outside a scope throws `InvalidOperationException`; an unknown product is a NotFound `Result` (`product-not-found`).
 
-Why a separate table, and why upsert on first use (controller ruling): a counter on the `products` row would bump the product's `xmin` on every ticket, so any admin product edit in flight would fail with a spurious concurrency conflict. Upsert on first use was chosen over creating the counter with the product because it needs no change to `ProductRepository` or to products that already exist, cannot be forgotten by a code path that creates products, and is still one atomic statement; two creators racing on a product's very first ticket are serialised by the primary key (`Two_creators_racing_on_a_products_very_first_ticket_get_one_and_two`). Taking a number locks the product row only with a `FOR KEY SHARE` lock through the foreign key, which does not conflict with an ordinary product update and does not change `xmin` (`Creating_tickets_never_changes_the_product_rows_xmin`, `A_product_edit_in_flight_while_tickets_are_created_still_succeeds`).
+Why a separate table, and why upsert on first use (controller ruling): a counter on the `products` row would bump the product's `xmin` on every ticket, so any admin product edit in flight would fail with a spurious concurrency conflict. Upsert on first use was chosen over creating the counter with the product because it needs no change to `ProductRepository` or to products that already exist, cannot be forgotten by a code path that creates products, and is still one atomic statement; two creators racing on a product's very first ticket are serialized by the primary key (`Two_creators_racing_on_a_products_very_first_ticket_get_one_and_two`). Taking a number locks the product row only with a `FOR KEY SHARE` lock through the foreign key, which does not conflict with an ordinary product update and does not change `xmin` (`Creating_tickets_never_changes_the_product_rows_xmin`, `A_product_edit_in_flight_while_tickets_are_created_still_succeeds`).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -9391,7 +9391,7 @@ namespace TechStrap.Infrastructure.Persistence;
 /// <summary>
 /// Per-product ticket numbers from a counter row in <c>product_ticket_sequences</c> (D-009). One statement takes the number:
 /// <c>INSERT ... ON CONFLICT DO UPDATE ... RETURNING</c> creates the counter on the product's first ticket (two creators racing
-/// on that first ticket are serialised by the unique key) and otherwise advances it under the row lock, so concurrent creators
+/// on that first ticket are serialized by the unique key) and otherwise advances it under the row lock, so concurrent creators
 /// for the same product queue behind each other until the first transaction ends. A rollback undoes the increment, so there are
 /// no gaps and no duplicates. The counter is a separate row, so the product row is never rewritten: its <c>xmin</c> concurrency
 /// token does not change when a ticket is created and a product edit in flight is not disturbed. It must run in the
@@ -10037,7 +10037,7 @@ Run: `dotnet test --project tests/TechStrap.Infrastructure.IntegrationTests`
 Expected: FAIL for every test with `PendingModelChangesWarning`.
 
 Run: `dotnet ef migrations add AddSearchVectors --project src/TechStrap.Infrastructure --startup-project src/TechStrap.Api`
-Expected: `Done.` The generated migration is the review artefact for D-027. Verify that it contains the generated columns and the GIN indexes and no trigger:
+Expected: `Done.` The generated migration is the review artifact for D-027. Verify that it contains the generated columns and the GIN indexes and no trigger:
 
 Run: `f=$(ls src/TechStrap.Infrastructure/Migrations/*_AddSearchVectors.cs) && grep -c "computedColumnSql:" $f && grep -c "stored: true" $f && grep -c 'Npgsql:IndexMethod", "GIN"' $f && (grep -ci "trigger" $f || true)`
 Expected: `3`, `3`, `3`, `0`. The three `AddColumn<NpgsqlTsVector>` calls read, for example, `computedColumnSql: "setweight(to_tsvector('english', coalesce(subject, '')), 'A')", stored: true` for `tickets`, the same with `body` and `'B'` for `messages`, and for `kb_articles` the three `setweight` parts joined with `||` (`title` A, `summary` B, `body_markdown` C).
@@ -10926,7 +10926,7 @@ internal static class TicketMappings
         return record;
     }
 
-    /// <summary>Copies the mutable fields and synchronises the tag links. The number, subject and requester never change.</summary>
+    /// <summary>Copies the mutable fields and synchronizes the tag links. The number, subject and requester never change.</summary>
     public static void CopyTo(this Ticket ticket, TicketRecord record)
     {
         record.ProductId = ticket.ProductId;
@@ -12690,7 +12690,7 @@ internal sealed class AdvisoryLock : IAsyncDisposable
 In `src/TechStrap.Infrastructure/Persistence/TechStrapDatabase.cs` add, next to `MigrationLockKey`:
 
 ```csharp
-    /// <summary>Postgres advisory lock key that serialises development seeding across API instances.</summary>
+    /// <summary>Postgres advisory lock key that serializes development seeding across API instances.</summary>
     public const long SeedLockKey = 6_387_541_209;
 ```
 
@@ -13149,7 +13149,7 @@ How this plan was checked, and what it does not prove. The plan was written from
 - The concurrency tests ran repeatedly (as part of every full integration run, and the allocator class on its own several times) and were stable after one change: a single run of the repository tests hit a Windows socket exhaustion (`WSAENOBUFS`) because the shared fixture disables pooling; `PersistenceTestHost` therefore pools its own connections and clears them on dispose.
 - The real API host (Development, migrate on startup, `TECHSTRAP_SEED_DEV_DATA=true`) seeds the demo data and a second start does not duplicate it (`ApiSeedOnStartupTests`).
 - Every `sed` command that edits documentation (decision log, phase document, architecture document, roadmap) was run on a clean checkout of `main` and produced a file byte-identical (ignoring line endings) to the scratch clone's edited file.
-- Problems that were found while building and are already fixed in the code shown: the `SyntaxCircus.Common` result type only allows a `Target` on validation errors; a repository extension named `Find` is shadowed by `DbContext.Find`; `DISTINCT` cannot compare rows that contain a `tsvector`; `jsonb` normalises whitespace in payloads; events written in one transaction with an unmoving clock needed strictly increasing timestamps to keep their order; the seeder cannot allocate numbers for a product that is only staged.
+- Problems that were found while building and are already fixed in the code shown: the `SyntaxCircus.Common` result type only allows a `Target` on validation errors; a repository extension named `Find` is shadowed by `DbContext.Find`; `DISTINCT` cannot compare rows that contain a `tsvector`; `jsonb` normalizes whitespace in payloads; events written in one transaction with an unmoving clock needed strictly increasing timestamps to keep their order; the seeder cannot allocate numbers for a product that is only staged.
 
 **What was not verified**
 

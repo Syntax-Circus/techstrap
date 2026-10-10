@@ -9,7 +9,7 @@ using TechStrap.Contracts.Skins;
 namespace TechStrap.Admin.Features.Settings.Products;
 
 /// <summary>
-/// The form model of the product editor. It holds exactly what is on screen, validates it with the server's rules (the colour with the same Contracts constant as the API's pattern),
+/// The form model of the product editor. It holds exactly what is on screen, validates it with the server's rules (the color with the same Contracts constant as the API's pattern),
 /// and builds the requests. <see cref="ListedOnLanding"/> is always carried as shown. <see cref="IsActive"/> is always carried (the update request has a non-nullable flag, and an omitted one would deactivate the product) and <see cref="Version"/>
 /// is the one the product was loaded with.
 /// </summary>

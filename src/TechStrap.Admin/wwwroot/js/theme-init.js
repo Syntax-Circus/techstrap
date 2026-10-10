@@ -1,4 +1,4 @@
-// Applies the stored colour theme before the first paint (D-041, D-042). It is a classic, blocking script in <head>, loaded before the stylesheets, so a light or
+// Applies the stored color theme before the first paint (D-041, D-042). It is a classic, blocking script in <head>, loaded before the stylesheets, so a light or
 // dark choice does not flash the other theme while the circuit connects. A module would be deferred and would run after the page had painted.
 //
 // It reads the same localStorage key as preferences.js ('techstrap.admin.theme') and sets or removes data-bs-theme on <html> exactly as applyTheme() there does:

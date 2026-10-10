@@ -1,14 +1,14 @@
 namespace TechStrap.Contracts.Skins;
 
-/// <summary>A complete set of skin tokens: what a pack holds and what a resolved skin carries. Colours are uppercase <c>#RRGGBB</c>.</summary>
+/// <summary>A complete set of skin tokens: what a pack holds and what a resolved skin carries. Colors are uppercase <c>#RRGGBB</c>.</summary>
 /// <param name="Background">Page background.</param>
 /// <param name="Surface">Cards and panels.</param>
 /// <param name="Ink">Body text.</param>
 /// <param name="Muted">Secondary text.</param>
 /// <param name="Border">Rules and borders.</param>
-/// <param name="Brand">Brand colour.</param>
+/// <param name="Brand">Brand color.</param>
 /// <param name="Chrome">Header and footer fill.</param>
-/// <param name="Focus">Focus ring colour.</param>
+/// <param name="Focus">Focus ring color.</param>
 /// <param name="HeadingFont">A <see cref="SkinFonts"/> key.</param>
 /// <param name="BodyFont">A <see cref="SkinFonts"/> key.</param>
 /// <param name="Radius">A radius preset from <see cref="SkinValues"/>.</param>

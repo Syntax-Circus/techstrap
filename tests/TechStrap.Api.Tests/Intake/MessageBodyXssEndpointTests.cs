@@ -88,7 +88,7 @@ public sealed class MessageBodyXssEndpointTests(TestPostgres postgres)
         }
     }
 
-    // What the sanitiser actually leaves of each vector (the message pipeline shows raw HTML as encoded text; the body is never empty).
+    // What the sanitizer actually leaves of each vector (the message pipeline shows raw HTML as encoded text; the body is never empty).
     private static readonly Dictionary<string, string> _expected = new()
     {
         ["<script>alert(1)</script>"] = "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>",

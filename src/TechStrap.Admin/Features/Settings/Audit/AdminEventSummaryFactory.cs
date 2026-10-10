@@ -130,7 +130,7 @@ public static class AdminEventSummaryFactory
     private static string TagChange(string field) => field switch
     {
         "name" => "name",
-        "colour" => "colour",
+        "colour" => "color",
         _ => field,
     };
 

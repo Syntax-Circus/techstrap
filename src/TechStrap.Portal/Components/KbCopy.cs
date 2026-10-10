@@ -3,13 +3,13 @@ using System.Globalization;
 namespace TechStrap.Portal.Components;
 
 /// <summary>
-/// The words of the help-centre pages (PHASE-09c). Plain copy, no humour (BRAND.md), the product's name only where a page needs it. A page references these and never writes a sentence of its own. Everything a
+/// The words of the help-center pages (PHASE-09c). Plain copy, no humor (BRAND.md), the product's name only where a page needs it. A page references these and never writes a sentence of its own. Everything a
 /// visitor typed or an agent wrote (a search text, a category name, an article title) is passed in as an argument and shown by Razor, which encodes it; none of it is ever markup.
 /// </summary>
 public static class KbCopy
 {
-    // The help-centre home.
-    public const string HomeHeading = "Help centre";
+    // The help-center home.
+    public const string HomeHeading = "Help center";
     public const string EmptyHomeHeading = "No articles yet";
     public const string EmptyHomeText = "There are no help articles for this product yet. If you need help, contact support.";
 
@@ -24,8 +24,8 @@ public static class KbCopy
     public const string StillNeedHelpText = "If this did not answer your question, contact support and we will help you.";
 
     // Search.
-    /// <summary>The h1 of the search page: different from the help centre's, so two tabs of the two pages are told apart.</summary>
-    public const string SearchPageHeading = "Search the help centre";
+    /// <summary>The h1 of the search page: different from the help center's, so two tabs of the two pages are told apart.</summary>
+    public const string SearchPageHeading = "Search the help center";
 
     public const string SearchHeading = "Search results";
     public const string SearchPromptHeading = "What are you looking for?";
@@ -34,20 +34,20 @@ public static class KbCopy
     public const string NoResultsText = "Try different words, or contact support and we will help you.";
     public const string ContactUs = "Contact support";
 
-    public static string HomeTitle(string productName) => $"{productName} Help Centre";
+    public static string HomeTitle(string productName) => $"{productName} Help Center";
 
     public static string HomeDescription(string productName) => $"Help articles and answers for {productName}.";
 
     public static string CategoryTitle(string categoryName, string productName, int page) =>
-        page <= 1 ? $"{categoryName} - {productName} Help Centre" : $"{categoryName} (page {page.ToString(CultureInfo.InvariantCulture)}) - {productName} Help Centre";
+        page <= 1 ? $"{categoryName} - {productName} Help Center" : $"{categoryName} (page {page.ToString(CultureInfo.InvariantCulture)}) - {productName} Help Center";
 
     public static string CategoryDescription(string categoryName, string productName) => $"Help articles about {categoryName} for {productName}.";
 
-    public static string ArticleTitle(string articleTitle, string productName) => $"{articleTitle} - {productName} Help Centre";
+    public static string ArticleTitle(string articleTitle, string productName) => $"{articleTitle} - {productName} Help Center";
 
     public static string ArticleDescriptionFallback(string articleTitle, string productName) => $"{articleTitle}. Help article for {productName}.";
 
-    public static string SearchTitle(string productName) => $"Search - {productName} Help Centre";
+    public static string SearchTitle(string productName) => $"Search - {productName} Help Center";
 
     public static string SearchDescription(string productName) => $"Search the help articles for {productName}.";
 

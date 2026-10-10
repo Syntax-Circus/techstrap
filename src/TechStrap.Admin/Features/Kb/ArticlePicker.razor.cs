@@ -115,7 +115,7 @@ public sealed partial class ArticlePicker : IDisposable
                 return;
             }
 
-            // Defence in depth: the request asks for published articles, and a row that is not one is never offered, whatever the answer holds.
+            // Defense in depth: the request asks for published articles, and a row that is not one is never offered, whatever the answer holds.
             _results = [.. result.Value.Items.Where(a => a.Status == KbArticleStatuses.Published).Select(a => new ArticleChoice(a.Id, a.Title, a.ProductId is null))];
             _searched = true;
             _announcement = ArticlePickerCopy.Count(_results.Count);

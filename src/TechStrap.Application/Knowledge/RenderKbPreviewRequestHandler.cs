@@ -24,7 +24,7 @@ public sealed class RenderKbPreviewRequestHandler(IKbContentRenderer renderer) :
             return Task.FromResult(Result<KbPreviewResponse>.Failure(KbErrors.PreviewTooLong()));
         }
 
-        // The complexity check parses but never sanitises; the sanitiser is the expensive step. Check the token between the steps.
+        // The complexity check parses but never sanitizes; the sanitizer is the expensive step. Check the token between the steps.
         cancellationToken.ThrowIfCancellationRequested();
         if (markdown.Length > 0 && renderer.IsTooComplex(markdown))
         {

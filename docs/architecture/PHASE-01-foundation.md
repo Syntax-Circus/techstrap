@@ -2,7 +2,7 @@
 
 ## Objective
 
-A buildable, testable, containerised, CI-verified empty skeleton: every project exists with the correct reference direction, central package versions are locked, the API migrates an empty Postgres 17 database on startup, every host exposes health endpoints, and `docker compose up` brings up the stack with all four images healthy. No product behaviour is implemented here.
+A buildable, testable, containerized, CI-verified empty skeleton: every project exists with the correct reference direction, central package versions are locked, the API migrates an empty Postgres 17 database on startup, every host exposes health endpoints, and `docker compose up` brings up the stack with all four images healthy. No product behavior is implemented here.
 
 ## Dependencies
 
@@ -39,7 +39,7 @@ Follow _template `APPLICATION_ARCHITECTURE.md` (not copied into this repo). No a
 | `GET /openapi/v1.json` (Api) | Exempt: framework-generated document | n/a | `Microsoft.AspNetCore.OpenApi` | 200 | Exempt |
 | Static assets (Admin, Portal `wwwroot`) | Exempt: static files | n/a | ASP.NET static files | 200 / 304 / 404 | Exempt |
 | API startup: migrate database | Exempt: host startup step, no request input | n/a | `SyntaxCircus.EntityFrameworkCore.Postgres` advisory-lock migrator | Startup fails fast on error | Exempt, API only |
-| API startup: seed dev data | Exempt (**Assumption**, see Decisions) | `IDevelopmentDataSeeder` | No-op `DevelopmentDataSeeder` in Infrastructure | Logged only | Dev-only; revisit if it gains behaviour |
+| API startup: seed dev data | Exempt (**Assumption**, see Decisions) | `IDevelopmentDataSeeder` | No-op `DevelopmentDataSeeder` in Infrastructure | Logged only | Dev-only; revisit if it gains behavior |
 
 Handlers must not depend on HTTP objects, EF types, concrete infrastructure, or transport response types. Link an approved decision for every exception.
 
@@ -114,7 +114,7 @@ Test-first where a test applies: write the named test class, watch it fail, then
 - [x] **P01-T08** Add `.env.example` per host documenting every variable (connection string, `TECHSTRAP_AGENT_GROUP`, `TECHSTRAP_ADMIN_GROUP`, `TECHSTRAP_BOOTSTRAP_ADMIN`, OIDC authority/audience, `TRUSTEDPROXY__TRUSTEDNETWORKS__n`, rate-limit keys, SMTP, storage path `/app/storage`, `TECHSTRAP_PORTAL_PUBLIC_URL`, `TECHSTRAP_SEED_DEV_DATA`) and confirm `.env.local` is ignored
   - **Depends on:** P01-T07
   - **Validation:** `git check-ignore src/TechStrap.Api/.env.local` returns the path; `EnvExampleCompletenessTests` asserts every key bound by an options class appears in the matching `.env.example`
-- [x] **P01-T09** Add `TechStrapDbContext` (empty model, snake_case convention), register it in Api and Worker, and write `MigrationStartupTests` against Testcontainers (empty Postgres 17 migrates, second run is a no-op, two concurrent startups serialise on the advisory lock)
+- [x] **P01-T09** Add `TechStrapDbContext` (empty model, snake_case convention), register it in Api and Worker, and write `MigrationStartupTests` against Testcontainers (empty Postgres 17 migrates, second run is a no-op, two concurrent startups serialize on the advisory lock)
   - **Depends on:** P01-T03
   - **Validation:** `dotnet test tests/TechStrap.Infrastructure.IntegrationTests --filter MigrationStartupTests` passes with Docker running
 - [x] **P01-T10** Generate the initial empty migration with `dotnet ef migrations add Initial` and add the migrator call to Api startup only
@@ -147,7 +147,7 @@ Test-first where a test applies: write the named test class, watch it fail, then
   - **Validation:** tag `v0.1.0-rc.1` publishes four images with the SemVer tag (`latest` moves only on stable tags); `docker buildx imagetools inspect` lists amd64 and arm64
 - [x] **P01-T19** Add `LICENSE` (MIT), `README.md` (what it is, compose quick start, link to `docs/architecture`), `CONTRIBUTING.md`, `SECURITY.md`
   - **Depends on:** P01-T01
-  - **Validation:** GitHub detects the MIT licence; README quick-start commands run verbatim on a clean clone; `SECURITY.md` shows in the repo Security tab
+  - **Validation:** GitHub detects the MIT license; README quick-start commands run verbatim on a clean clone; `SECURITY.md` shows in the repo Security tab
 - [ ] **P01-T20** Run a clean-clone verification (`dotnet build`, `dotnet test`, `docker compose up`, health checks) and mark PHASE-01 complete in `00-DISCOVERY-INDEX.md` (pending first PR/tag run (owner))
   - **Depends on:** P01-T16, P01-T17, P01-T19
   - **Validation:** every Success Criteria item below is ticked, with command output pasted in the PR description

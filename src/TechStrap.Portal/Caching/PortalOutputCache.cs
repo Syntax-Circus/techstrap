@@ -6,7 +6,7 @@ using TechStrap.Portal.Routing;
 namespace TechStrap.Portal.Caching;
 
 /// <summary>
-/// The framework's output cache for the help centre (D-045 addendum, PHASE-09c): one base policy, not an attribute on a page, so the rule for what is kept is in one place (<see cref="PortalCachePaths"/>) and a form or
+/// The framework's output cache for the help center (D-045 addendum, PHASE-09c): one base policy, not an attribute on a page, so the rule for what is kept is in one place (<see cref="PortalCachePaths"/>) and a form or
 /// ticket page can never be kept by forgetting to leave something off. Kept for <see cref="PortalCachePaths.Lifetime"/>, varying by the <c>page</c> query value and by host (each product host is its own site, PHASE-11e). The framework's default key holds the whole
 /// query string, so a visitor could fill the store with <c>?utm=1</c>, <c>?utm=2</c> and so on, and the page does not depend on it; it does depend on the host, because its links and canonical address are those of the product host. The Host header is only a key here, never a source of an address.
 /// </summary>

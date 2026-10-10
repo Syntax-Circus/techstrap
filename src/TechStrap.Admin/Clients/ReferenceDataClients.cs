@@ -66,10 +66,10 @@ public interface ITagsClient
     /// <summary><c>GET /api/tags/summary</c> (Admin): every tag with the number of tickets that carry it, ordered by name (D-041).</summary>
     Task<Result<IReadOnlyList<TagSummaryDto>>> ListSummaryAsync(CancellationToken cancellationToken);
 
-    /// <summary><c>POST /api/tags</c> (Admin, 201). 409 tag-slug-taken; 400 fields: slug, name, colour.</summary>
+    /// <summary><c>POST /api/tags</c> (Admin, 201). 409 tag-slug-taken; 400 fields: slug, name, color.</summary>
     Task<Result<TagDto>> CreateAsync(CreateTagRequest request, CancellationToken cancellationToken);
 
-    /// <summary><c>PUT /api/tags/{id}</c> (Admin). The slug is permanent. 404 tag-not-found; 400 fields: name, colour.</summary>
+    /// <summary><c>PUT /api/tags/{id}</c> (Admin). The slug is permanent. 404 tag-not-found; 400 fields: name, color.</summary>
     Task<Result<TagDto>> UpdateAsync(Guid id, UpdateTagRequest request, CancellationToken cancellationToken);
 
     /// <summary>

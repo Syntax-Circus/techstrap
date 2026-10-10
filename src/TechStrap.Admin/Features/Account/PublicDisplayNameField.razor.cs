@@ -7,7 +7,7 @@ namespace TechStrap.Admin.Features.Account;
 
 /// <summary>
 /// The optional name customers see in place of the agent's own (D-024). It shows a live preview, checks the two rules before it sends anything, and saves on blur or Enter, only when the text
-/// changed since the last save (so Enter followed by blur saves once). A save is never cancelled and never retried; after it the session is asked again, and because the session keeps its
+/// changed since the last save (so Enter followed by blur saves once). A save is never canceled and never retried; after it the session is asked again, and because the session keeps its
 /// agent while it reloads (it never drops to "not loaded"), the page does not flicker or lose what is on it.
 /// </summary>
 public sealed partial class PublicDisplayNameField : IDisposable

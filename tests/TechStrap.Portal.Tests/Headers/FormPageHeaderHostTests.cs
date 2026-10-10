@@ -50,7 +50,7 @@ public sealed class FormPageHeaderHostTests
         response.StatusCode.ShouldNotBe(HttpStatusCode.InternalServerError, path);
     }
 
-    // PHASE-09c: the help centre's search page is never stored by a browser or a cache (any text can be asked and shown), but it is not a form page: it is not marked noindex by a header (the page does that itself when it has a query).
+    // PHASE-09c: the help center's search page is never stored by a browser or a cache (any text can be asked and shown), but it is not a form page: it is not marked noindex by a header (the page does that itself when it has a query).
     [Theory]
     [InlineData("/p/probe/kb/search")]
     [InlineData("/p/probe/kb/search?q=x")]

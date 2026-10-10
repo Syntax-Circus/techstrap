@@ -155,7 +155,7 @@ public sealed class ApiConnectionTests
         api.Stub.Count(method, "/api/thing").ShouldBe(1);
     }
 
-    // Defence in depth: even a write sent through the read client by mistake is sent once, on a status and on a transport failure.
+    // Defense in depth: even a write sent through the read client by mistake is sent once, on a status and on a transport failure.
     [Theory]
     [InlineData("POST")]
     [InlineData("PUT")]

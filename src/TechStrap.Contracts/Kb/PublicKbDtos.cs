@@ -12,14 +12,14 @@ namespace TechStrap.Contracts.Kb;
 /// <param name="ProductKey">The product key, or null for a shared article.</param>
 public sealed record PublicKbSearchResultDto(string Slug, string Title, string Snippet, string CategorySlug, string CategoryName, string? ProductKey);
 
-/// <summary>A published article for the portal. <paramref name="Html"/> is sanitised; there is no author and no id.</summary>
+/// <summary>A published article for the portal. <paramref name="Html"/> is sanitized; there is no author and no id.</summary>
 /// <param name="ProductKey">The product key, or null for a shared article.</param>
 /// <param name="CategorySlug">The slug of the category.</param>
 /// <param name="CategoryName">The category's display name.</param>
 /// <param name="Slug">The article's slug.</param>
 /// <param name="Title">The article title.</param>
 /// <param name="Summary">The author's summary; may be null.</param>
-/// <param name="Html">The sanitised HTML body.</param>
+/// <param name="Html">The sanitized HTML body.</param>
 /// <param name="PublishedAt">When the article was published.</param>
 /// <param name="UpdatedAt">When the article was last changed.</param>
 public sealed record PublishedKbArticleDto(

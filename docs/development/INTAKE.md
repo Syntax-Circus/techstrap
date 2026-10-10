@@ -91,7 +91,7 @@ with the product's current branding and sends it over SMTP.
 - **Lease.** A claim lasts `EmailOutbox__LeaseSeconds` (default 900) and must cover sending one whole batch. If a Worker
   crashes, its rows are reclaimed after the lease expires. A claim that keeps expiring counts toward the 5 attempts.
 - **At-least-once.** A crash between sending and recording can send an email twice. Every message carries
-  `Message-ID: <outbox-id>@techstrap.local`, so a duplicate is recognisable.
+  `Message-ID: <outbox-id>@techstrap.local`, so a duplicate is recognizable.
 - **SMTP retries are off inside the sender.** The outbox owns retrying, so the SMTP client is set to
   `Email__Smtp__MaxRetryAttempts=1` and `Email__Smtp__RetryMode=TransientOnly`; a client that retried on its own could
   deliver twice while the outbox also retried. `Email__Smtp__TotalSendTimeout` (30 seconds) bounds one send.

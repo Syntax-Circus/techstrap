@@ -1,6 +1,6 @@
 namespace TechStrap.Admin.Components.Pages;
 
-/// <summary>Copy of the signed-out landing page (a brand moment: humour is allowed, docs/BRAND.md section 3, but the failure line stays plain).</summary>
+/// <summary>Copy of the signed-out landing page (a brand moment: humor is allowed, docs/BRAND.md section 3, but the failure line stays plain).</summary>
 public static class SignInCopy
 {
     public const string WindowTitle = "signin.exe";

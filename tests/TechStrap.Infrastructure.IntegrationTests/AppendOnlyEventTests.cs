@@ -6,7 +6,7 @@ using TechStrap.Infrastructure.Persistence.Records;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
 
-/// <summary>The second line of defence: EF refuses to modify or delete events of either append-only table.</summary>
+/// <summary>The second line of defense: EF refuses to modify or delete events of either append-only table.</summary>
 public sealed class AppendOnlyEventTests(PostgresFixture postgres) : PostgresIntegrationTestBase(postgres)
 {
     private static readonly CancellationToken Ct = TestContext.Current.CancellationToken;

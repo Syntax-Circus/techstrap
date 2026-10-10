@@ -79,14 +79,14 @@ public interface IKbRepository
 
     /// <summary>
     /// The cross-scope slug rule (D-044). With a product: true when that product or the shared space already has an article with the slug.
-    /// With no product (a shared article): true when any article of any scope has it. Any status counts. Callers pass the normalised slug
-    /// (the <c>Guard.Slug</c> output); the method does not normalise it. A create handler asks this first. Two concurrent creates of the same slug in
+    /// With no product (a shared article): true when any article of any scope has it. Any status counts. Callers pass the normalized slug
+    /// (the <c>Guard.Slug</c> output); the method does not normalize it. A create handler asks this first. Two concurrent creates of the same slug in
     /// the same scope end in a <c>duplicate</c> commit conflict through the unique index, but two concurrent creates in DIFFERENT scopes can both
     /// succeed; that risk is accepted (D-044).
     /// </summary>
     Task<bool> ArticleSlugTakenAsync(Guid? productId, string slug, CancellationToken cancellationToken);
 
-    /// <summary>The same cross-scope rule for category slugs (D-044), so a portal category address is never ambiguous. Callers pass the normalised slug (the <c>Guard.Slug</c> output).</summary>
+    /// <summary>The same cross-scope rule for category slugs (D-044), so a portal category address is never ambiguous. Callers pass the normalized slug (the <c>Guard.Slug</c> output).</summary>
     Task<bool> CategorySlugTakenAsync(Guid? productId, string slug, CancellationToken cancellationToken);
 
     /// <summary>True when any article, in any status, uses the category. The category delete handler asks this before removing it (the foreign key is the backstop).</summary>

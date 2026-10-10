@@ -1,4 +1,4 @@
-// The agent's browser preferences (UX-BRIEF-admin, My settings): the single-key keyboard shortcuts and the colour theme. They live in the browser, per
+// The agent's browser preferences (UX-BRIEF-admin, My settings): the single-key keyboard shortcuts and the color theme. They live in the browser, per
 // browser, not in the API. The storage and the page are always handed in, so the functions below are pure and tests/TechStrap.Admin.Tests/js/preferences.test.mjs
 // can run them under node:test without a DOM. Nothing here may throw: storage can be missing, full or blocked (private windows, site data off), and a bad
 // stored value must fall back to the default instead of breaking the page.
@@ -32,7 +32,7 @@ export function normaliseTheme(value) {
     return THEMES.includes(value) ? value : DEFAULTS.theme;
 }
 
-/** Reads both preferences. Never throws; a missing, unreadable or unrecognised value is the default. */
+/** Reads both preferences. Never throws; a missing, unreadable or unrecognized value is the default. */
 export function readPreferences(storage) {
     const singleKey = readItem(storage, SINGLE_KEY);
     const theme = readItem(storage, THEME);
@@ -44,7 +44,7 @@ export function readPreferences(storage) {
 
 /**
  * Stores one preference. key is 'singleKeyShortcuts' (value true or false) or 'theme' (value 'auto', 'light' or 'dark'). Returns true when the value was
- * written, false when the key or value is not recognised or the storage refused it (full, blocked, missing). Never throws.
+ * written, false when the key or value is not recognized or the storage refused it (full, blocked, missing). Never throws.
  */
 export function writePreference(storage, key, value) {
     if (!storage || !Object.hasOwn(STORAGE_KEYS, key)) {

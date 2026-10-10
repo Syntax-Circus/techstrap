@@ -114,13 +114,13 @@ internal static partial class Guard
             : null;
     }
 
-    /// <summary>Normalises "#aabbcc" to "#AABBCC".</summary>
+    /// <summary>Normalizes "#aabbcc" to "#AABBCC".</summary>
     public static DomainResult<string> Colour(string? value, string target)
     {
         var text = value?.Trim();
         return text is not null && ColourRegex().IsMatch(text)
             ? DomainResult<string>.Ok(text.ToUpperInvariant())
-            : DomainErrors.Validation($"{target}-invalid", $"{target} must be a #RRGGBB colour.", target);
+            : DomainErrors.Validation($"{target}-invalid", $"{target} must be a #RRGGBB color.", target);
     }
 
     /// <summary>Trims and lower-cases an address (case-insensitive identity, FR requester email).</summary>

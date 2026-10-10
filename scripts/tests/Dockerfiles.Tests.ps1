@@ -77,14 +77,14 @@ Describe 'compiled CSS assertion' {
 
 Describe 'self-hosted font assertion' {
     # Fonts are restored by libman (jsdelivr) during publish and never committed, so an image built without network
-    # access must fail the build instead of shipping without fonts. Admin: Sans 3 + Mono 3 + Serif 1 files, 3 licences.
-    It 'Dockerfile.<Name> fails the build unless <Fonts> WOFF2 files and <Licences> OFL licences are published' -ForEach @(
-        @{ Name = 'admin'; Fonts = 7; Licences = 3 }
-        @{ Name = 'portal'; Fonts = 15; Licences = 6 }
+    # access must fail the build instead of shipping without fonts. Admin: Sans 3 + Mono 3 + Serif 1 files, 3 licenses.
+    It 'Dockerfile.<Name> fails the build unless <Fonts> WOFF2 files and <Licenses> OFL licenses are published' -ForEach @(
+        @{ Name = 'admin'; Fonts = 7; Licenses = 3 }
+        @{ Name = 'portal'; Fonts = 15; Licenses = 6 }
     ) {
         $text = Get-DockerfileText -Name $Name
         $fontCheck = 'test "$(find /app/publish/wwwroot/fonts -name ''*.woff2'' | wc -l)" -eq ' + $Fonts
-        $licenceCheck = 'test "$(find /app/publish/wwwroot/fonts -name LICENSE | wc -l)" -eq ' + $Licences
+        $licenceCheck = 'test "$(find /app/publish/wwwroot/fonts -name LICENSE | wc -l)" -eq ' + $Licenses
         $text.Contains($fontCheck) | Should -BeTrue -Because "Dockerfile.$Name must contain: $fontCheck"
         $text.Contains($licenceCheck) | Should -BeTrue -Because "Dockerfile.$Name must contain: $licenceCheck"
     }

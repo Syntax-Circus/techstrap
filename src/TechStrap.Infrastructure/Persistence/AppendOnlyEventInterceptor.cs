@@ -8,7 +8,7 @@ namespace TechStrap.Infrastructure.Persistence;
 /// Makes <c>ticket_events</c> and <c>admin_events</c> append-only inside EF: saving a modified event of either kind throws, and so does
 /// a deleted ticket event whose ticket is not also being deleted. The only removal that is allowed is the hard delete of the
 /// whole ticket (D-006); admin events have no exception. There is also no repository method that updates or deletes an event,
-/// so this is the second line of defence. Bulk <c>ExecuteUpdate</c>/<c>ExecuteDelete</c> bypass it; an architecture test scans for those.
+/// so this is the second line of defense. Bulk <c>ExecuteUpdate</c>/<c>ExecuteDelete</c> bypass it; an architecture test scans for those.
 /// </summary>
 internal sealed class AppendOnlyEventInterceptor : SaveChangesInterceptor
 {

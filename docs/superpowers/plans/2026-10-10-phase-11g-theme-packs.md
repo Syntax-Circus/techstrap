@@ -4,7 +4,7 @@
 
 **Goal:** Five built-in Portal theme packs, an Admin-editable deployment default, and a per-product skin of validated tokens, resolved by one shared function and rendered through the existing CSP-safe style carrier.
 
-**Architecture:** A pure `SkinResolver` in Contracts merges Classic < deployment default pack < product pack < product token overrides, derives the on-colours and inks, and checks contrast. The Portal turns the resolved skin into custom properties on the existing `ts-accent-scope` wrapper plus `data-ts-*` preset attributes, emitting only what differs from Classic so an unskinned page renders byte-identically. The skin travels as validated JSON in one product column and a one-row `site_settings` table.
+**Architecture:** A pure `SkinResolver` in Contracts merges Classic < deployment default pack < product pack < product token overrides, derives the on-colors and inks, and checks contrast. The Portal turns the resolved skin into custom properties on the existing `ts-accent-scope` wrapper plus `data-ts-*` preset attributes, emitting only what differs from Classic so an unskinned page renders byte-identically. The skin travels as validated JSON in one product column and a one-row `site_settings` table.
 
 **Tech Stack:** .NET 10, System.Text.Json source generation (Contracts), EF Core 10 + Npgsql (tool-generated migration), ASP.NET Core controllers, Blazor SSR (Portal), SCSS via AspNetCore.SassCompiler, xUnit v3 + Shouldly + NSubstitute, Pester 5.
 
@@ -153,7 +153,7 @@ Font stacks: `plex-sans` `'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI',
 
 Resolver algorithm (exact):
 1. `defaultPack = SkinPacks.Find(deploymentDefaultPack) ?? Classic`; `pack = SkinPacks.Find(productSkin?.Pack) ?? defaultPack`. An unknown `productSkin.Pack` adds problem `("skin-invalid","pack")` and uses `defaultPack`.
-2. Start from `pack.Tokens`. Apply each non-null override only when it passes `SkinRules` for that field (hex `^#[0-9A-Fa-f]{6}$` normalised to upper case; font in `SkinFonts`; enums known; `BorderWidth` 1 to 4); each failing override adds `("skin-invalid", <fieldName camel>)` and is ignored.
+2. Start from `pack.Tokens`. Apply each non-null override only when it passes `SkinRules` for that field (hex `^#[0-9A-Fa-f]{6}$` normalized to upper case; font in `SkinFonts`; enums known; `BorderWidth` 1 to 4); each failing override adds `("skin-invalid", <fieldName camel>)` and is ignored.
 3. `Brand` = valid `productSkin.Brand`, else valid `productAccent`, else pack brand. `BrandIsExplicit` is true when it came from either of the first two.
 4. Contrast pairs on the candidate tokens: `ink/background >= 4.5`, `ink/surface >= 4.5`, `muted/background >= 4.5`, `focus/background >= 3.0` (via `ProductAccent.ContrastRatio`). For each failing pair, revert to the pack value every member of the pair that was overridden, add `("skin-contrast-invalid", "<a>/<b>")`, then re-evaluate once. (A pack itself never fails; a test proves it.)
 5. Derive: `OnBrand = ProductAccent.TryDerive(brand).OnAccent`, `BrandInk = ProductAccent.ReadableOn(brand, background)`, `OnChrome = ProductAccent.TryDerive(chrome).OnAccent`.
@@ -292,7 +292,7 @@ public sealed class ProductAccentReadableOnTests
 }
 ```
 
-`SkinRulesTests.cs`: theory over `SkinRules.Validate`: valid full skin -> empty; `Background: "#abc"` -> `("skin-invalid","background")`; `BorderWidth: 0` and `5` invalid, `1` and `4` valid; `Pack: "nope"` invalid; font unknown invalid; `Header: "BAND"` invalid (case-sensitive). `SkinSerializerTests.cs`: round-trip of a full skin and of `new ProductSkin(Brand: "#112233")` (`{"brand":"#112233"}` exactly); empty skin serialises to `null`; `{"background":"#FFFFFF","extra":1}` -> `TryDeserialize` false; `"not json"` false; a 2001-character string false; `null` and `""` -> true with null skin. `SkinCssTests.cs`: `Classic_with_an_accent_emits_exactly_the_three_accent_properties` (resolve `("classic", null, "#F59E0B")`, `Properties` equals the three pairs `--ts-accent:#F59E0B`, `--ts-on-accent:#000000`, `--ts-accent-ink:#9D6507`, in order; `Attributes` empty); `Classic_with_nothing_emits_nothing`; `Midnight_emits_its_variables_and_presets` (contains `--p-bg:#0F1420`, `--ts-chrome:#0A0E17`, `--ts-focus:#FFD166`, attribute `data-ts-shadow=soft`, `data-ts-header=solid`, and the pack trio `--ts-accent:#6EA8FF`, `--ts-on-accent:#000000`, `--ts-accent-ink:#6EA8FF`, because Midnight's brand differs from Classic's); `A_font_and_radius_override_emit_their_variables` (`--ts-radius:0` for square, `--ts-font-heading` equals `SkinFonts.Stack("source-serif")`).
+`SkinRulesTests.cs`: theory over `SkinRules.Validate`: valid full skin -> empty; `Background: "#abc"` -> `("skin-invalid","background")`; `BorderWidth: 0` and `5` invalid, `1` and `4` valid; `Pack: "nope"` invalid; font unknown invalid; `Header: "BAND"` invalid (case-sensitive). `SkinSerializerTests.cs`: round-trip of a full skin and of `new ProductSkin(Brand: "#112233")` (`{"brand":"#112233"}` exactly); empty skin serializes to `null`; `{"background":"#FFFFFF","extra":1}` -> `TryDeserialize` false; `"not json"` false; a 2001-character string false; `null` and `""` -> true with null skin. `SkinCssTests.cs`: `Classic_with_an_accent_emits_exactly_the_three_accent_properties` (resolve `("classic", null, "#F59E0B")`, `Properties` equals the three pairs `--ts-accent:#F59E0B`, `--ts-on-accent:#000000`, `--ts-accent-ink:#9D6507`, in order; `Attributes` empty); `Classic_with_nothing_emits_nothing`; `Midnight_emits_its_variables_and_presets` (contains `--p-bg:#0F1420`, `--ts-chrome:#0A0E17`, `--ts-focus:#FFD166`, attribute `data-ts-shadow=soft`, `data-ts-header=solid`, and the pack trio `--ts-accent:#6EA8FF`, `--ts-on-accent:#000000`, `--ts-accent-ink:#6EA8FF`, because Midnight's brand differs from Classic's); `A_font_and_radius_override_emit_their_variables` (`--ts-radius:0` for square, `--ts-font-heading` equals `SkinFonts.Stack("source-serif")`).
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -305,19 +305,19 @@ Expected: compile errors (`TechStrap.Contracts.Skins` and `ProductAccent.Readabl
 
 ```csharp
     /// <summary>
-    /// The foreground as text on <paramref name="backgroundHex"/>: the colour itself (upper case) when it reaches 4.5:1, otherwise stepped toward black on a light background or toward white on a dark one,
-    /// at most 24 steps, then black or white. On white this is exactly <see cref="ProductAccentColors.AccentInk"/>. Throws <see cref="ArgumentException"/> for a malformed colour.
+    /// The foreground as text on <paramref name="backgroundHex"/>: the color itself (upper case) when it reaches 4.5:1, otherwise stepped toward black on a light background or toward white on a dark one,
+    /// at most 24 steps, then black or white. On white this is exactly <see cref="ProductAccentColors.AccentInk"/>. Throws <see cref="ArgumentException"/> for a malformed color.
     /// </summary>
     public static string ReadableOn(string foregroundHex, string backgroundHex)
     {
         if (!TryParse(foregroundHex, out var foreground))
         {
-            throw new ArgumentException("Not a #RRGGBB colour.", nameof(foregroundHex));
+            throw new ArgumentException("Not a #RRGGBB color.", nameof(foregroundHex));
         }
 
         if (!TryParse(backgroundHex, out var background))
         {
-            throw new ArgumentException("Not a #RRGGBB colour.", nameof(backgroundHex));
+            throw new ArgumentException("Not a #RRGGBB color.", nameof(backgroundHex));
         }
 
         if (Contrast(foreground, background) >= MinimumTextContrast)
@@ -820,7 +820,7 @@ Expected: compile errors (the new DTO parameters, handlers).
 
 - [ ] **Step 3: Implement**
 
-Contracts DTOs as in the Interfaces block. `ProductMapping.ToDto(product, logoUrls)`: `Skin = SkinSerializer.TryDeserialize(product.SkinJson, out var skin) ? skin : null`. A shared internal helper `ProductSkins.Prepare(ProductSkin? requested, string? accent, string defaultPack)` in `Application/Products` returns `Result<string?>` (the JSON to store, or the first problem as `ResultError`, kind Validation, target = problem target): `requested.IsEmpty` -> success null; `SkinRules.Validate` problems first, then `SkinResolver.Resolve(defaultPack, requested, accent).Problems` (skin-contrast-invalid only; format problems are already reported); then `SkinSerializer.Serialize(requested)`. `CreateProductRequestHandler` and `UpdateProductRequestHandler` gain `ISiteSettingsRepository siteSettings` (before `TimeProvider`), call `Prepare` with `branding.Value.AccentColour`, and `product.SetSkinJson(json)` only when `request.Skin is not null`; the `skin` change entry is added when the stored JSON differs. `GetPublicProductRequestHandler` and `ListPublicProductsRequestHandler` pass `SkinSerializer.TryDeserialize(product.SkinJson, ...)` into the new `Skin` parameter. New handlers follow the 11f logo handlers' structure (actor via `CurrentAgent.RequireActiveAsync`, unit of work, `AdminAudit.Record` with `AdminEventType.SiteSettingsUpdated`; add that enum value and its wire name beside `ProductUpdated`; check whether an enum-to-string pin test lists every event type and update it). Controllers: `SiteSettingsController` (`[Route("api/settings/site")]`, `[Authorize(Policy = AuthorizationPolicies.Admin)]`, `Get` and `Put`), `PublicSiteController` (`[Route("api/public/site")]`, `[Authorize(Policy = AuthorizationPolicies.Public)]`, `[EnableRateLimiting(PublicRateLimitOptions.PolicyName)]`, copy the cache-control pattern of `PublicProductsController`). Add `"GET api/settings/site"` and `"PUT api/settings/site"` to `AdminOnlyRoutes` in sorted position. `02-ARCHITECTURE.md`: three 7.1 rows with backticked route and handler names (`GetSiteSettingsRequestHandler`, `UpdateSiteSettingsRequestHandler`, `GetPublicSiteRequestHandler`) in the table format of neighbouring rows, decision `D-053`.
+Contracts DTOs as in the Interfaces block. `ProductMapping.ToDto(product, logoUrls)`: `Skin = SkinSerializer.TryDeserialize(product.SkinJson, out var skin) ? skin : null`. A shared internal helper `ProductSkins.Prepare(ProductSkin? requested, string? accent, string defaultPack)` in `Application/Products` returns `Result<string?>` (the JSON to store, or the first problem as `ResultError`, kind Validation, target = problem target): `requested.IsEmpty` -> success null; `SkinRules.Validate` problems first, then `SkinResolver.Resolve(defaultPack, requested, accent).Problems` (skin-contrast-invalid only; format problems are already reported); then `SkinSerializer.Serialize(requested)`. `CreateProductRequestHandler` and `UpdateProductRequestHandler` gain `ISiteSettingsRepository siteSettings` (before `TimeProvider`), call `Prepare` with `branding.Value.AccentColour`, and `product.SetSkinJson(json)` only when `request.Skin is not null`; the `skin` change entry is added when the stored JSON differs. `GetPublicProductRequestHandler` and `ListPublicProductsRequestHandler` pass `SkinSerializer.TryDeserialize(product.SkinJson, ...)` into the new `Skin` parameter. New handlers follow the 11f logo handlers' structure (actor via `CurrentAgent.RequireActiveAsync`, unit of work, `AdminAudit.Record` with `AdminEventType.SiteSettingsUpdated`; add that enum value and its wire name beside `ProductUpdated`; check whether an enum-to-string pin test lists every event type and update it). Controllers: `SiteSettingsController` (`[Route("api/settings/site")]`, `[Authorize(Policy = AuthorizationPolicies.Admin)]`, `Get` and `Put`), `PublicSiteController` (`[Route("api/public/site")]`, `[Authorize(Policy = AuthorizationPolicies.Public)]`, `[EnableRateLimiting(PublicRateLimitOptions.PolicyName)]`, copy the cache-control pattern of `PublicProductsController`). Add `"GET api/settings/site"` and `"PUT api/settings/site"` to `AdminOnlyRoutes` in sorted position. `02-ARCHITECTURE.md`: three 7.1 rows with backticked route and handler names (`GetSiteSettingsRequestHandler`, `UpdateSiteSettingsRequestHandler`, `GetPublicSiteRequestHandler`) in the table format of neighboring rows, decision `D-053`.
 
 - [ ] **Step 4: Build and test**
 
@@ -866,7 +866,7 @@ git commit -m "feat(api): product skin on the DTOs and handlers, site settings r
 
 - [ ] **Step 0: Capture the golden before changing anything**
 
-On the Task 5 head, add a throwaway test that renders `/p/paperplane` with the stub product of `ProductHomeHostTests` (`Product(...)` builder, Neutral site setting unreachable) and writes the HTML to `tests/TechStrap.Portal.Tests/Fixtures/unskinned-product-home.html` after normalising the asset fingerprint (`@Assets["css/app.css"]` renders a hashed URL: replace it with `/css/app.css` using a regex such as `/css/app(\.[A-Za-z0-9_-]+)?\.css(\?[^"]*)?` so the golden survives CSS changes). Mark the fixture `CopyToOutputDirectory` like the hostile-upload fixtures. Delete the throwaway writer; keep only the comparer in Step 1.
+On the Task 5 head, add a throwaway test that renders `/p/paperplane` with the stub product of `ProductHomeHostTests` (`Product(...)` builder, Neutral site setting unreachable) and writes the HTML to `tests/TechStrap.Portal.Tests/Fixtures/unskinned-product-home.html` after normalizing the asset fingerprint (`@Assets["css/app.css"]` renders a hashed URL: replace it with `/css/app.css` using a regex such as `/css/app(\.[A-Za-z0-9_-]+)?\.css(\?[^"]*)?` so the golden survives CSS changes). Mark the fixture `CopyToOutputDirectory` like the hostile-upload fixtures. Delete the throwaway writer; keep only the comparer in Step 1.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -997,7 +997,7 @@ Expected: compile errors (`ISiteSettingsClient`, `ProductThemeViewModel.Skin`, `
 
 `SiteSettingsClient`: `api.GetAsync<PublicSiteDto>("api/public/site", ct)` like `PublicProductClient.ListAsync`. `DefaultPackProvider`: copy the snapshot shape of `ProductHostMap` (volatile immutable snapshot, `TimeProvider`, 60 s TTL, one background reload, `ReadTimeout` 30 s linked token); value is validated with `SkinPacks.IsKnown` (unknown -> `classic`). `PortalSkinFactory.Resolve(string defaultPack, ProductSkin? skin, string? accent) => SkinResolver.Resolve(defaultPack, skin, accent).Skin` (a thin wrapper so components never call the resolver with unvalidated input; also the one place a log line for dropped tokens could go, but log only the token names, never values).
 
-`ProductThemeViewModel.From(PublicProductDto product, bool allowLoopbackImages)` passes `product.Skin`. `PortalLayout`: inject `DefaultPackProvider` and `PortalSkinFactory`; `protected override async Task OnInitializedAsync()` reads the pack; `_skin = factory.Resolve(pack, Theme?.Skin, Theme?.Accent)`; markup `<AccentScope Skin="@_skin">` (the layout subscribes to `ProductScope.Changed` already: recompute in the same handler). Because `Theme` is set by the page after the layout initialises, compute `_skin` lazily in `OnParametersSet`/the `Changed` handler, not only in `OnInitializedAsync`; mirror how the layout reads `Theme` today.
+`ProductThemeViewModel.From(PublicProductDto product, bool allowLoopbackImages)` passes `product.Skin`. `PortalLayout`: inject `DefaultPackProvider` and `PortalSkinFactory`; `protected override async Task OnInitializedAsync()` reads the pack; `_skin = factory.Resolve(pack, Theme?.Skin, Theme?.Accent)`; markup `<AccentScope Skin="@_skin">` (the layout subscribes to `ProductScope.Changed` already: recompute in the same handler). Because `Theme` is set by the page after the layout initializes, compute `_skin` lazily in `OnParametersSet`/the `Changed` handler, not only in `OnInitializedAsync`; mirror how the layout reads `Theme` today.
 
 `AccentScope.razor`: `<div class="ts-accent-scope" style="@_style" @attributes="_attributes">@ChildContent</div>`; code-behind:
 
@@ -1127,7 +1127,7 @@ git commit -m "feat(portal): resolved skin on the wrapper, default pack setting,
 
 ---
 
-### Task 7: Emails: chrome colour in the header bar
+### Task 7: Emails: chrome color in the header bar
 
 **Files:**
 - Modify: `src/TechStrap.Application/Email/EmailBranding.cs`, `DrainEmailOutboxHandler.cs`
@@ -1140,7 +1140,7 @@ git commit -m "feat(portal): resolved skin on the wrapper, default pack setting,
 
 - [ ] **Step 1: Write the failing tests**
 
-Renderer (copy the neighbouring renderer test's setup): `A_chrome_colour_fills_the_header_bar_with_a_readable_on_colour` (chrome `#0A0E17` -> html contains `background:#0A0E17;color:#FFFFFF`; the button and links still use the accent); `No_chrome_keeps_the_accent_header_bar` (output byte-equal to a render with `ChromeColour: null`); `A_hostile_chrome_is_ignored` (`"red;}"` and `"#12"` -> accent bar, output contains no `red`); the font stack `Arial,Helvetica,sans-serif` is unchanged. Handler: `A_product_skin_chrome_reaches_the_email_branding` (product with `SetSkinJson("{\"chrome\":\"#0A0E17\"}")`; `_renderer.Received(...)` with `EmailBranding.ChromeColour == "#0A0E17"`), `A_product_without_a_skin_passes_no_chrome`, `A_malformed_skin_json_passes_no_chrome`.
+Renderer (copy the neighboring renderer test's setup): `A_chrome_colour_fills_the_header_bar_with_a_readable_on_colour` (chrome `#0A0E17` -> html contains `background:#0A0E17;color:#FFFFFF`; the button and links still use the accent); `No_chrome_keeps_the_accent_header_bar` (output byte-equal to a render with `ChromeColour: null`); `A_hostile_chrome_is_ignored` (`"red;}"` and `"#12"` -> accent bar, output contains no `red`); the font stack `Arial,Helvetica,sans-serif` is unchanged. Handler: `A_product_skin_chrome_reaches_the_email_branding` (product with `SetSkinJson("{\"chrome\":\"#0A0E17\"}")`; `_renderer.Received(...)` with `EmailBranding.ChromeColour == "#0A0E17"`), `A_product_without_a_skin_passes_no_chrome`, `A_malformed_skin_json_passes_no_chrome`.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -1149,7 +1149,7 @@ Expected: compile errors (`ChromeColour`).
 
 - [ ] **Step 3: Implement**
 
-`DrainEmailOutboxHandler`: `SkinSerializer.TryDeserialize(product.SkinJson, out var skin)` -> `skin?.Chrome` into the new `EmailBranding` parameter (null when parsing fails). `EmailTemplateRenderer.Layout`: compute `var bar = branding.ChromeColour is { } c && ProductAccent.TryDerive(c, out var chrome) ? (chrome.Accent, chrome.OnAccent) : (colors.Accent, colors.OnAccent);` and use it only for the header bar's `background`/`color`; everything else keeps the accent trio. The value is written from `TryDerive`'s normalised output, never the raw string.
+`DrainEmailOutboxHandler`: `SkinSerializer.TryDeserialize(product.SkinJson, out var skin)` -> `skin?.Chrome` into the new `EmailBranding` parameter (null when parsing fails). `EmailTemplateRenderer.Layout`: compute `var bar = branding.ChromeColour is { } c && ProductAccent.TryDerive(c, out var chrome) ? (chrome.Accent, chrome.OnAccent) : (colors.Accent, colors.OnAccent);` and use it only for the header bar's `background`/`color`; everything else keeps the accent trio. The value is written from `TryDerive`'s normalized output, never the raw string.
 
 - [ ] **Step 4: Build and test**
 
@@ -1164,7 +1164,7 @@ Write `branding.ChromeColour` raw instead of the `TryDerive` output; `A_hostile_
 
 ```bash
 git add src/TechStrap.Application/Email src/TechStrap.Infrastructure/Email tests
-git commit -m "feat(email): the product skin's chrome colour fills the email header bar (D-053)"
+git commit -m "feat(email): the product skin's chrome color fills the email header bar (D-053)"
 ```
 
 ---
@@ -1206,7 +1206,7 @@ The sample (exact content of `docs/skins/dragon-poop.skin.json`, derived from dr
 
 `docs/skins/README.md` (ASCII) states: what the file is; how to apply it (Admin: product editor, "Skin (JSON)" field, paste, save; or `PUT api/products/{id}` with `"skin": { ... }` and the current `version`); how to clear it (empty the field, or send `"skin": {}`); how to switch the deployment default pack until the 11h page exists (`PUT api/settings/site`); and the **known gaps measured against dragon-poop's own site** (copy from the findings below).
 
-Known gaps to record in that README and in the spec's Known limits (evidence is dragon-poop's repo): the gold focus ring (`#FFCF4A`) fails the 3:1 rule against the parchment background, so the sample uses the wood-dark `#26140C` (dragon-poop uses gold only on dark chrome); text on the brand colour is derived white or black, not dragon-poop's cream `#FFF5D6`; the accent text colour `#B04A17` used for taglines and step titles has no token (links use the derived brand ink); the stepped two-layer heading shadow, the hero sky image, the pixel-art logo and mascot, the parchment "scrap" rotation and the ground and stone-band marketing strips are out of reach; copy and voice ("Off the map", "A rough landing") are not skin data.
+Known gaps to record in that README and in the spec's Known limits (evidence is dragon-poop's repo): the gold focus ring (`#FFCF4A`) fails the 3:1 rule against the parchment background, so the sample uses the wood-dark `#26140C` (dragon-poop uses gold only on dark chrome); text on the brand color is derived white or black, not dragon-poop's cream `#FFF5D6`; the accent text color `#B04A17` used for taglines and step titles has no token (links use the derived brand ink); the stepped two-layer heading shadow, the hero sky image, the pixel-art logo and mascot, the parchment "scrap" rotation and the ground and stone-band marketing strips are out of reach; copy and voice ("Off the map", "A rough landing") are not skin data.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1325,7 +1325,7 @@ Expected: compile errors (`SkinJson`, `ProductDetail(skin:)`).
 
 - [ ] **Step 3: Implement**
 
-`ProductEditorViewModel`: `SkinJson`/`OriginalSkinJson` set in `From` from `SkinSerializer` (pretty JSON using a local `JsonSerializerOptions { WriteIndented = true }` over the strongly typed `ProductSkin` is not source-generated: instead pretty-print by serialising with `SkinSerializer.Serialize`, parsing with `JsonDocument` and writing with `Utf8JsonWriter { Indented = true }`; empty skin -> empty string). `Check(ApiFields.Skin)`: blank is fine; otherwise `SkinSerializer.TryDeserialize` must succeed and `SkinRules.Validate` must be empty. `ToUpdateRequest`/`ToCreateRequest` append `ParsedSkinForUpdate()`/`ParsedSkinForCreate()` per the rules in Interfaces. `ProductFields.All` gains `ApiFields.Skin` last. `MapFieldErrors`: any 400 whose target is one of the skin token names (`background`, `ink`, `ink/background`, `pack`, ...) is shown at the skin field (extend the target list with `SkinTokenNames`), and an Api `skin-too-long` target `skin` maps naturally. Markup: after the Portal host field, a `<details>` titled `ProductsCopy.SkinHeading` ("Appearance (advanced)") containing the textarea with label `ProductsCopy.SkinLabel`, help `ProductsCopy.SkinHelp` (one sentence + "See docs/skins/README.md for a worked example and the list of tokens"), and the usual error slot. The field uses the same `@Field`-style id/`-error` conventions (a textarea variant helper, or inline markup mirroring `Field`).
+`ProductEditorViewModel`: `SkinJson`/`OriginalSkinJson` set in `From` from `SkinSerializer` (pretty JSON using a local `JsonSerializerOptions { WriteIndented = true }` over the strongly typed `ProductSkin` is not source-generated: instead pretty-print by serializing with `SkinSerializer.Serialize`, parsing with `JsonDocument` and writing with `Utf8JsonWriter { Indented = true }`; empty skin -> empty string). `Check(ApiFields.Skin)`: blank is fine; otherwise `SkinSerializer.TryDeserialize` must succeed and `SkinRules.Validate` must be empty. `ToUpdateRequest`/`ToCreateRequest` append `ParsedSkinForUpdate()`/`ParsedSkinForCreate()` per the rules in Interfaces. `ProductFields.All` gains `ApiFields.Skin` last. `MapFieldErrors`: any 400 whose target is one of the skin token names (`background`, `ink`, `ink/background`, `pack`, ...) is shown at the skin field (extend the target list with `SkinTokenNames`), and an Api `skin-too-long` target `skin` maps naturally. Markup: after the Portal host field, a `<details>` titled `ProductsCopy.SkinHeading` ("Appearance (advanced)") containing the textarea with label `ProductsCopy.SkinLabel`, help `ProductsCopy.SkinHelp` (one sentence + "See docs/skins/README.md for a worked example and the list of tokens"), and the usual error slot. The field uses the same `@Field`-style id/`-error` conventions (a textarea variant helper, or inline markup mirroring `Field`).
 
 `docs/skins` files as specified. The spec's Known limits section gains the gaps list (copy of the README text).
 
@@ -1419,4 +1419,4 @@ Verification at the Task 9 commit (HEAD `bbaaf61` plus the docs):
 - `dotnet test --solution TechStrap.CI.slnf -c Release --no-build` (Docker available): 8486 tests, 8484 passed, 2 failed in `TechStrap.Portal.Tests` on the full parallel run (`DefaultPackProviderTests.A_hung_cold_read_costs_the_first_caller_two_seconds_at_most_and_the_next_none` and `PortalLayoutTests.Disposing_the_layout_stops_it_listening_to_the_scope`, both timing-sensitive); the Portal project alone, run twice, passed 2069 of 2069. Treated as load-sensitive flakiness, not fixed here (no product or test code changes in Task 9).
 - `dotnet ef migrations has-pending-model-changes`: "No changes have been made to the model since the last migration."
 - Compose check: `docker compose up -d --build --wait` hit a port clash on 8025 (another stack holds Mailpit's port), so `TECHSTRAP_MAILPIT_PORT=18025 docker compose up -d --wait` was used; all six services healthy. `curl -s http://127.0.0.1:8080/api/public/site` returned `{"defaultPack":"classic"}`. For each pack the row was updated with `docker compose exec postgres psql -U techstrap -d techstrap -c "update site_settings set default_pack = '<pack>'"`, then 63 s, one warm-up request and a read of `http://127.0.0.1:8082/`: slate `--p-bg:#F8FAFC` with `data-ts-header="solid"`; paper `--p-bg:#FBF7EF` with `data-ts-header="band"`; contrast `data-ts-header="solid"` and no `--p-bg` (its white page equals Classic's, so nothing is emitted); midnight `--p-bg:#0F1420`, `data-ts-header="solid"` and `data-ts-scheme="dark"`; classic back with no pack variables or presets. The pack is stale-while-revalidate, so the first request after the 60 s expiry still shows the previous pack; a warm-up request is needed (the brief's single 65 s wait showed the previous pack one step behind). The pack was set back to `classic`; `down -v` was never run.
-- Not driven by hand: the Admin editor (PHASE-11h), and a visual check of landing cards, ticket pages, help-centre pages and mobile width for every pack.
+- Not driven by hand: the Admin editor (PHASE-11h), and a visual check of landing cards, ticket pages, help-center pages and mobile width for every pack.

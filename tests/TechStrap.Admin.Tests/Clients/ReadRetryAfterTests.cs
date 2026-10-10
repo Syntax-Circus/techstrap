@@ -8,7 +8,7 @@ using TechStrap.Contracts.Tickets;
 namespace TechStrap.Admin.Tests.Clients;
 
 /// <summary>
-/// The read client honours <c>Retry-After</c> but never waits more than <see cref="ApiClientRegistration.ReadRetryAfterCap"/> for it: an overloaded API that
+/// The read client honors <c>Retry-After</c> but never waits more than <see cref="ApiClientRegistration.ReadRetryAfterCap"/> for it: an overloaded API that
 /// asks for two minutes must not freeze a page on "Loading" until the client timeout.
 /// </summary>
 public sealed class ReadRetryAfterTests
@@ -72,7 +72,7 @@ public sealed class ReadRetryAfterTests
         finishedInTime.ShouldBeTrue("the retries must not wait for the 120 seconds the API asked for");
         (await call).Errors[0].Code.ShouldBe(ApiErrorCodes.ApiUnavailable);
         api.Stub.Count(HttpMethod.Get, "/api/thing").ShouldBe(1 + ApiClientRegistration.ReadRetryCount);
-        stepped.ShouldBeGreaterThanOrEqualTo(ApiClientRegistration.ReadRetryAfterCap, "the header is still honoured, not ignored");
+        stepped.ShouldBeGreaterThanOrEqualTo(ApiClientRegistration.ReadRetryAfterCap, "the header is still honored, not ignored");
         stepped.ShouldBeLessThanOrEqualTo(TimeSpan.FromSeconds(2 * ApiClientRegistration.ReadRetryCount + 1));
     }
 }

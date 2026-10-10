@@ -152,7 +152,7 @@ public sealed partial class TicketSidebar : IDisposable
         StateHasChanged();
         try
         {
-            // A write is never cancelled: it may already be applied, so the screen closing must not abandon it half-sent.
+            // A write is never canceled: it may already be applied, so the screen closing must not abandon it half-sent.
             var result = await send(CancellationToken.None);
             if (_disposed)
             {

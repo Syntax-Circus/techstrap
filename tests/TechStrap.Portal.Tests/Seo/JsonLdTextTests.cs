@@ -5,7 +5,7 @@ using TechStrap.Portal.Seo;
 namespace TechStrap.Portal.Tests.Seo;
 
 /// <summary>
-/// PHASE-09c Review Focus 1 (XSS in SEO): the text of a structured-data value cannot end its script block, and it reads back as exactly what was written. The serialiser options below are the ones
+/// PHASE-09c Review Focus 1 (XSS in SEO): the text of a structured-data value cannot end its script block, and it reads back as exactly what was written. The serializer options below are the ones
 /// <c>SyntaxCircus.Blazor.Seo</c> 0.1.4's <c>JsonLd</c> component uses (camel case, nulls left out, the encoder that leaves <c>&lt;</c>, <c>&gt;</c> and <c>&amp;</c> alone), so the test sees what the page would write.
 /// </summary>
 public sealed class JsonLdTextTests

@@ -70,12 +70,12 @@ Record the exact package version in the linked package map. In the foundation ph
 - [x] **P03-T01** Write `TicketStatusTransitionTests` and implement the `TicketStatus` enum and transition rules on `Ticket` (including Closed read-only and spam flag)
   - **Depends on:** none (inside this phase)
   - **Validation:** `TechStrap.Domain.Tests` `TicketStatusTransitionTests` covers every allowed and forbidden transition pair and passes
-- [x] **P03-T02** Write `ProductTests`, `ProductApiKeyTests`, `TagTests`, `AgentTests` and implement `Product` (key slug rules, branding fields, active flag), `ProductApiKey` (kind `Trusted`/`Public`, prefix, hash, revoked), `Tag` (unique slug, colour), `Agent` (subject, role `Agent`/`Admin`, active)
+- [x] **P03-T02** Write `ProductTests`, `ProductApiKeyTests`, `TagTests`, `AgentTests` and implement `Product` (key slug rules, branding fields, active flag), `ProductApiKey` (kind `Trusted`/`Public`, prefix, hash, revoked), `Tag` (unique slug, color), `Agent` (subject, role `Agent`/`Admin`, active)
   - **Depends on:** none
-  - **Validation:** domain tests pass for key slug validation, accent colour format, revoked key behaviour and role changes
+  - **Validation:** domain tests pass for key slug validation, accent color format, revoked key behavior and role changes
 - [x] **P03-T03** Write `RequesterTests`, `MessageTests`, `TicketAccessTokenTests` and implement `Requester` (case-insensitive email, optional external user ref), `Message` (author type, visibility, reserved email columns), `Attachment`, `TicketAccessToken` (hash, revoke, sliding expiry)
   - **Depends on:** P03-T01
-  - **Validation:** tests cover email normalisation, internal-vs-public visibility, token expiry sliding with a fake `TimeProvider`, and revoked tokens
+  - **Validation:** tests cover email normalization, internal-vs-public visibility, token expiry sliding with a fake `TimeProvider`, and revoked tokens
 - [x] **P03-T04** Write `TicketCreationTests` and implement ticket aggregate creation and mutations (reply, internal note, assign, priority, product move, tag add/remove, follow-up creation with `parent_ticket_id`) raising `TicketEvent`s and keeping the immutable number
   - **Depends on:** P03-T01, P03-T03
   - **Validation:** tests assert one event per mutation, number unchanged after `MoveToProduct`, follow-up links to the closed parent, and mutations on Closed return a conflict `Result`
@@ -162,8 +162,8 @@ Record the exact package version in the linked package map. In the foundation ph
 - [ ] Schema size makes one PR large; split by area (task order above) and merge incrementally.
 - [x] Ticket FTS over message bodies: resolved by D-027 (stored generated tsvector columns, no trigger, no application-maintained column).
 - [x] Whether EF maps Domain types directly or through separate persistence entities: resolved by D-026 (separate `*Record` persistence entities).
-- [ ] Erase-requester (PHASE-06) must anonymise messages and cascade attachments; confirm the schema supports it without breaking `TicketEvent` immutability (event payloads must not hold PII beyond ids).
-- [x] Postgres `xmin` concurrency token behaviour with Npgsql 10: verified (stale concurrent updates of Ticket, Product, Requester and KbArticle give one success and one conflict `Result`; `UnitOfWorkTests`, `TicketRepositoryGuardTests`).
+- [ ] Erase-requester (PHASE-06) must anonymize messages and cascade attachments; confirm the schema supports it without breaking `TicketEvent` immutability (event payloads must not hold PII beyond ids).
+- [x] Postgres `xmin` concurrency token behavior with Npgsql 10: verified (stale concurrent updates of Ticket, Product, Requester and KbArticle give one success and one conflict `Result`; `UnitOfWorkTests`, `TicketRepositoryGuardTests`).
 - [ ] Hash algorithm choices for tokens and API keys are settled in PHASE-04/05 (schema stores opaque hash plus prefix only).
 
 ## Carried forward

@@ -3,7 +3,7 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give TechStrap a knowledge base.
-- **Agents** write Markdown articles in the Admin, with a live sanitised preview, images and categories. They publish and archive articles and link them from replies.
+- **Agents** write Markdown articles in the Admin, with a live sanitized preview, images and categories. They publish and archive articles and link them from replies.
 - **The API** serves published articles, search, categories and a sitemap anonymously to the PHASE-09 portal. It serves uploaded images from a public URL.
 
 **Architecture:**
@@ -14,7 +14,7 @@
 - **Public endpoints:** anonymous, under the existing Public rate limiter, with short cache headers.
 - **Admin:** the KB list, editor and categories pages are built from the 07a-07c patterns: typed clients, thin pages, stale guards, uncertain writes, `ConfirmDialog`, the palette and `RailLink`.
 
-**Tech Stack:** .NET 10, ASP.NET Core, EF Core + Npgsql (Postgres full-text search), Markdig, the HTML sanitiser, `SyntaxCircus.Storage`, Blazor Server, xUnit v3, Shouldly, NSubstitute, bUnit and Pester.
+**Tech Stack:** .NET 10, ASP.NET Core, EF Core + Npgsql (Postgres full-text search), Markdig, the HTML sanitizer, `SyntaxCircus.Storage`, Blazor Server, xUnit v3, Shouldly, NSubstitute, bUnit and Pester.
 
 **Spec:** `docs/architecture/PHASE-08-knowledge-base.md`, the KB sections of `UX-BRIEF-admin.md`, `PHASE-09-public-portal.md` (consumers), D-021, D-043, and the owner decisions of 2026-10-05, recorded as D-044 in Task 1.
 
@@ -63,7 +63,7 @@
 - **CSP.** No change is needed. In Development, the Admin's `img-src` already allows `http://localhost:*` and `http://127.0.0.1:*`, and Production allows `https:`. `KbImageCspTests` pins this.
 
 ### Decisions made while drafting (D-044 records them)
-- **A KB-only content profile.** `IKbContentRenderer` (the KB Markdig profile with pipe tables, plus `KbHtmlSanitizer` allowing http(s) `img` and table tags) is added alongside the shared sanitiser, not by widening it.
+- **A KB-only content profile.** `IKbContentRenderer` (the KB Markdig profile with pipe tables, plus `KbHtmlSanitizer` allowing http(s) `img` and table tags) is added alongside the shared sanitizer, not by widening it.
   - Agent replies, which customers read, keep the old pipeline. This stops tracking pixels and tables appearing in replies.
   - `MessagePipelineUnchangedTests` pins the old output exactly.
 - **Category migration.** Categories gain a nullable `description` (300 chars) and an `xmin` concurrency version. This is one migration, `AddKbCategoryVersionAndDescription`, generated with `dotnet ef`.
@@ -137,7 +137,7 @@
    - Raw HTML, `javascript:` or `data:` links and images, and `on*` attributes are stripped.
    - `img` is limited to http(s).
    - Message-body rendering is unchanged.
-   - Pinned in Task 2 (sanitiser corpus) and Task 10 (preview pane).
+   - Pinned in Task 2 (sanitizer corpus) and Task 10 (preview pane).
 2. **Image upload abuse.** Polyglot or SVG files, a spoofed content type, oversize files and key traversal are refused. Images are served with `nosniff` and a CSP sandbox. Pinned in Task 5.
 3. **Unpublished or wrong-product content leaking publicly.** This covers search, article, category counts and the sitemap. Snippets are HTML-encoded. Pinned in Task 6.
 4. **Slug collisions across scopes, lost edits on a version conflict, and Archived-to-Draft edits.** Pinned in Tasks 1, 3, 4 and 10.
@@ -754,7 +754,7 @@ Modify `docs/architecture/04-DECISION-LOG.md` (each hunk shows its context; appl
 +### Context
 +PHASE-03 already delivered the KB tables, the unique `(product_id, slug)` indexes, the weighted `search_vector` and the dev seed, and PHASE-06a delivered `IMarkdownRenderer` and `IHtmlSanitizer`. Reading the code before PHASE-08 found these gaps:
 +- **Domain.** An Archived article could not be edited, `Publish` validated nothing, and `KbCategory` had no concurrency version.
-+- **Markdown.** The sanitiser allow-list had no `img` or table tags, and Markdig had no pipe tables. The same sanitiser renders agent replies that customers read in email and in the portal.
++- **Markdown.** The sanitizer allow-list had no `img` or table tags, and Markdig had no pipe tables. The same sanitizer renders agent replies that customers read in email and in the portal.
 +- **API.** There were no KB handlers or controllers, no image store, no public image route, no setting for the API's own public address, no `ts_headline` snippet and no cache headers.
 +- **Reply links.** The reply handler only checked that a linked article exists, and the customer email carried no article links.
 +- **Slugs.** The database lets a product article and a shared article use the same slug, so `/p/{key}/kb/{category}/{slug}` could be ambiguous.
@@ -780,7 +780,7 @@ Modify `docs/architecture/04-DECISION-LOG.md` (each hunk shows its context; appl
 +- **Seed.** One Paperplane category and one published Paperplane article.
 +
 +**Technical decisions (proposed in the plan; approved when the owner approves it)**
-+- **A separate KB content profile, not a wider shared sanitiser.** `IKbContentRenderer` (Markdig with pipe tables, then a KB sanitiser) serves the preview and the public article. `IMarkdownRenderer` and `IHtmlSanitizer` are untouched, so a tracking image or a table in an agent reply is still removed. A corpus test pins that the message pipeline output is unchanged. Both profiles keep raw HTML off.
++- **A separate KB content profile, not a wider shared sanitizer.** `IKbContentRenderer` (Markdig with pipe tables, then a KB sanitizer) serves the preview and the public article. `IMarkdownRenderer` and `IHtmlSanitizer` are untouched, so a tracking image or a table in an agent reply is still removed. A corpus test pins that the message pipeline output is unchanged. Both profiles keep raw HTML off.
 +- **No `422`, `415` or `413` from a handler.** `Result` has no such kinds, so an incomplete publish, a wrong image type and an oversize image inside the request limit are 400 with their own codes (`kb-publish-incomplete`, `kb-image-type-not-allowed`, `kb-image-too-large`). A body beyond the request limit is still stopped by Kestrel as 413.
 +- **Cross-scope slugs for categories too.** The same rule applies to category slugs (`kb-category-slug-taken`), so a category address is never ambiguous. The `search` slug is `kb-category-reserved-slug`.
 +- **A category gets a description and a version.** `kb_categories` gains a nullable `description` (300 characters) and the `xmin` concurrency token, in one generated migration. An update with a stale version is a 409 `concurrency-conflict`.
@@ -789,7 +789,7 @@ Modify `docs/architecture/04-DECISION-LOG.md` (each hunk shows its context; appl
 +- **No render cache.** The article is rendered on each read; a cache is added only if a measurement asks for one.
 +
 +### Alternatives Considered
-+- **Widen the shared sanitiser.** Rejected: agent replies reach customers by email and in the portal, so a widened list would let a reply carry a tracking image or a table.
++- **Widen the shared sanitizer.** Rejected: agent replies reach customers by email and in the portal, so a widened list would let a reply carry a tracking image or a table.
 +- **Per-scope slugs with the product winning at read time.** Rejected by the owner: a shared article could be hidden silently.
 +- **Relative `/kb-images/<key>` served on the portal origin.** Rejected by the owner: it needs a proxy route or a new Portal adapter that PHASE-09 does not plan.
 +- **Audit publish, archive and category changes.** Rejected for this phase (owner).
@@ -1440,7 +1440,7 @@ public sealed record ListKbArticlesRequest(
 
 public sealed record KbPreviewRequest(string? BodyMarkdown);
 
-/// <summary>Sanitised HTML, produced by the same pipeline the public article page uses.</summary>
+/// <summary>Sanitized HTML, produced by the same pipeline the public article page uses.</summary>
 public sealed record KbPreviewResponse(string Html);
 
 /// <summary>The stored key (<c>kb-images/{guid}.{ext}</c>) and the absolute public URL to put in the Markdown.</summary>
@@ -1473,7 +1473,7 @@ namespace TechStrap.Contracts.Kb;
 /// </summary>
 public sealed record PublicKbSearchResultDto(string Slug, string Title, string Snippet, string CategorySlug, string CategoryName, string? ProductKey);
 
-/// <summary>A published article for the portal. <paramref name="Html"/> is sanitised; there is no author and no id.</summary>
+/// <summary>A published article for the portal. <paramref name="Html"/> is sanitized; there is no author and no id.</summary>
 public sealed record PublishedKbArticleDto(
     string? ProductKey,
     string CategorySlug,
@@ -1596,7 +1596,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
 
 - [ ] **Step 1: Write the failing tests**
 
-Four new test files. `KbHtmlSanitizerTests` feeds raw HTML straight into the sanitiser, the second line of defence behind Markdig's disabled raw HTML; `KbContentRendererTests` feeds Markdown through the whole profile. Both share one checker (`KbSafeHtml.ShouldBeSafe`, which parses the output with AngleSharp and allows only the listed tags and attributes, no script link and an absolute http or https image source). `MessagePipelineUnchangedTests` holds exact outputs captured from the message pipeline before this task, so any widening of the shared pipeline fails there.
+Four new test files. `KbHtmlSanitizerTests` feeds raw HTML straight into the sanitizer, the second line of defense behind Markdig's disabled raw HTML; `KbContentRendererTests` feeds Markdown through the whole profile. Both share one checker (`KbSafeHtml.ShouldBeSafe`, which parses the output with AngleSharp and allows only the listed tags and attributes, no script link and an absolute http or https image source). `MessagePipelineUnchangedTests` holds exact outputs captured from the message pipeline before this task, so any widening of the shared pipeline fails there.
 
 Create `tests/TechStrap.Application.Tests/Knowledge/RenderKbPreviewRequestHandlerTests.cs`:
 
@@ -1836,7 +1836,7 @@ internal static class KbSafeHtml
 }
 
 /// <summary>
-/// The KB sanitiser on its own, fed raw HTML (D-044). Markdig has raw HTML off, so this is the second line of defence: if the Markdown
+/// The KB sanitizer on its own, fed raw HTML (D-044). Markdig has raw HTML off, so this is the second line of defense: if the Markdown
 /// step ever let markup through, these inputs must still come out safe.
 /// </summary>
 public sealed class KbHtmlSanitizerTests
@@ -1943,11 +1943,11 @@ public sealed class MessagePipelineUnchangedTests
 - [ ] **Step 2: Run the tests and confirm they fail**
 
 Run: `dotnet build TechStrap.slnx -c Release`
-Expected: the build FAILS with `CS0246` for `IKbContentRenderer`, `RenderKbPreviewRequestHandler`, `KbContentRenderer` and `KbHtmlSanitizer` ("could not be found"). `MessagePipelineUnchangedTests` compiles against code that exists today, and it passes before and after this task: it is a characterisation test, not a red one.
+Expected: the build FAILS with `CS0246` for `IKbContentRenderer`, `RenderKbPreviewRequestHandler`, `KbContentRenderer` and `KbHtmlSanitizer` ("could not be found"). `MessagePipelineUnchangedTests` compiles against code that exists today, and it passes before and after this task: it is a characterization test, not a red one.
 
-- [ ] **Step 3: Add the renderer, the sanitiser, the registration and the preview handler**
+- [ ] **Step 3: Add the renderer, the sanitizer, the registration and the preview handler**
 
-The KB profile is separate from the message profile on purpose. Agent replies reach customers by email and in the portal, so widening the shared sanitiser would let a reply carry a tracking image or a table (decision D-044). `KbErrors` is created here with the preview error and grows in later tasks. The handler is registered by the existing name-convention scan (`AddApplicationHandlers`); nothing else needs wiring.
+The KB profile is separate from the message profile on purpose. Agent replies reach customers by email and in the portal, so widening the shared sanitizer would let a reply carry a tracking image or a table (decision D-044). `KbErrors` is created here with the preview error and grows in later tasks. The handler is registered by the existing name-convention scan (`AddApplicationHandlers`); nothing else needs wiring.
 
 Create `src/TechStrap.Application/Content/IKbContentRenderer.cs`:
 
@@ -1956,7 +1956,7 @@ namespace TechStrap.Application.Content;
 
 /// <summary>
 /// Knowledge-base Markdown to safe HTML (D-021, D-044). One call runs the KB Markdown pipeline (raw HTML off, pipe tables) and the
-/// KB sanitiser, so the editor preview and the public article page cannot drift apart. The result is safe to place in a page as it is.
+/// KB sanitizer, so the editor preview and the public article page cannot drift apart. The result is safe to place in a page as it is.
 /// Agent replies and customer messages do not use it: they keep <see cref="IMarkdownRenderer"/> and <see cref="IHtmlSanitizer"/>.
 /// </summary>
 public interface IKbContentRenderer
@@ -2024,7 +2024,7 @@ using GanssHtmlSanitizer = Ganss.Xss.HtmlSanitizer;
 namespace TechStrap.Infrastructure.Content;
 
 /// <summary>
-/// The KB allow-list sanitiser (D-044): the message profile plus tables and <c>img</c>. It is the second line of defence behind Markdig's
+/// The KB allow-list sanitizer (D-044): the message profile plus tables and <c>img</c>. It is the second line of defense behind Markdig's
 /// disabled raw HTML, and it is tested on its own. An image keeps only an absolute http or https <c>src</c> and its <c>alt</c>; an image
 /// with any other source (relative, protocol-relative, <c>data:</c>, <c>javascript:</c>, <c>mailto:</c>) is removed.
 /// </summary>
@@ -2088,7 +2088,7 @@ internal sealed class KbHtmlSanitizer
 
     public string Sanitize(string html) => _sanitizer.Sanitize(html);
 
-    // The sanitiser has already dropped any scheme that is not allowed; a mailto: or a relative path is still a valid link target, but never an image source.
+    // The sanitizer has already dropped any scheme that is not allowed; a mailto: or a relative path is still a valid link target, but never an image source.
     private static bool IsAbsoluteWebUrl(string? value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 }
@@ -2167,7 +2167,7 @@ Expected: PASS, 45, 28, 6 and 5 tests.
 
 - [ ] **Step 5: Prove each pin with a mutation**
 
-Applied to the finished code, the named tests run, the change reverted (same method as Task 1). The two sanitiser mutations show why the corpus is run twice: the Markdown step already blocks raw HTML, so only the raw-HTML corpus proves the allow-list.
+Applied to the finished code, the named tests run, the change reverted (same method as Task 1). The two sanitizer mutations show why the corpus is run twice: the Markdown step already blocks raw HTML, so only the raw-HTML corpus proves the allow-list.
 
 | Mutation | Failing tests |
 | --- | --- |
@@ -2175,7 +2175,7 @@ Applied to the finished code, the named tests run, the change reverted (same met
 | `KbHtmlSanitizer`: replace `IsAbsoluteWebUrl(element.GetAttribute("src"))` with `element.GetAttribute("src") is not null` | `KbContentRendererTests.An_image_with_any_other_source_is_removed_entirely` (`/kb-images/a.png`, `//evil.example/a.png`, `mailto:`), `KbHtmlSanitizerTests.Attack_vectors_...` (`<img src="//evil.example/a.png">`) |
 | `KbHtmlSanitizer`: add `AllowedAttributes.Add("onerror")` and `Add("onclick")` | `KbHtmlSanitizerTests.Attack_vectors_...` (three inputs: the `onerror`/`onload` image, the `onclick` table) |
 | `KbHtmlSanitizer`: add `AllowedTags.Add("iframe")` | `KbHtmlSanitizerTests.Attack_vectors_...` (the `<iframe>` input) |
-| `KbContentRenderer`: remove `.DisableHtml()` from the Markdig pipeline | `KbContentRendererTests.Raw_html_is_shown_as_text_never_as_markup` (the corpus still passes: the sanitiser is the second line) |
+| `KbContentRenderer`: remove `.DisableHtml()` from the Markdig pipeline | `KbContentRendererTests.Raw_html_is_shown_as_text_never_as_markup` (the corpus still passes: the sanitizer is the second line) |
 | `HtmlSanitizerAdapter` (messages): add `"img"` to the tag list | `MessagePipelineUnchangedTests.An_image_in_a_reply_is_still_removed_so_a_reply_cannot_carry_a_tracking_pixel` |
 | `MarkdigMarkdownRenderer` (messages): add `.UsePipeTables()` | `MessagePipelineUnchangedTests.A_pipe_table_in_a_reply_is_still_plain_text_with_line_breaks` |
 | `RenderKbPreviewRequestHandler`: `markdown.Length > KbLimits.MaxPreviewChars` becomes `... * 2` | `RenderKbPreviewRequestHandlerTests.A_source_over_the_limit_is_a_validation_error_on_body_and_is_never_rendered` |
@@ -2192,7 +2192,7 @@ git add src/TechStrap.Application \
   src/TechStrap.Infrastructure \
   tests
 git diff --cached --stat
-git commit -m "feat(kb): the KB content profile (pipe tables, img and table tags), IKbContentRenderer and the preview handler" -m "The knowledge base gets its own Markdown profile: Markdig with raw HTML off and pipe tables, then a sanitiser that adds table tags and img (an absolute http or https source only, with alt). The message pipeline is untouched, so agent replies keep their output; exact outputs captured before the change pin that. RenderKbPreviewRequestHandler renders with the same renderer the public article page will use (D-021, D-044) and refuses a source over 200,000 characters." -m "$(printf '%s\n%s' 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' 'Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi')"
+git commit -m "feat(kb): the KB content profile (pipe tables, img and table tags), IKbContentRenderer and the preview handler" -m "The knowledge base gets its own Markdown profile: Markdig with raw HTML off and pipe tables, then a sanitizer that adds table tags and img (an absolute http or https source only, with alt). The message pipeline is untouched, so agent replies keep their output; exact outputs captured before the change pin that. RenderKbPreviewRequestHandler renders with the same renderer the public article page will use (D-021, D-044) and refuses a source over 200,000 characters." -m "$(printf '%s\n%s' 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' 'Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi')"
 ```
 
 The commit message ends with exactly these two lines, and nothing else is staged:
@@ -4824,7 +4824,7 @@ using TechStrap.Application.Knowledge;
 namespace TechStrap.Infrastructure.Attachments;
 
 /// <summary>
-/// What counts as a KB image (D-044): png, jpeg, gif or webp, recognised by the leading bytes and a plausible first structure, never by the file name or the
+/// What counts as a KB image (D-044): png, jpeg, gif or webp, recognized by the leading bytes and a plausible first structure, never by the file name or the
 /// declared type. SVG has no entry, so it is refused. A file that also carries markup a browser could run (a gif that is really a script) is refused too.
 /// </summary>
 internal static class KbImageSignatures
@@ -5105,7 +5105,7 @@ namespace TechStrap.Api.Startup;
 /// <summary>
 /// <c>GET /kb-images/{name}</c>, anonymous (D-021, D-044). It is the one public file route: it runs no application workflow, reads only an object
 /// whose name is exactly the shape the store writes, and serves it with headers that stop a browser treating it as anything but an image.
-/// The route is outside <c>api/</c> and is not part of the API contract, so the route-policy coverage test and the OpenAPI document leave it out; <c>KbImageServingTests</c> pins its behaviour.
+/// The route is outside <c>api/</c> and is not part of the API contract, so the route-policy coverage test and the OpenAPI document leave it out; <c>KbImageServingTests</c> pins its behavior.
 /// </summary>
 public static class KbImageEndpoints
 {
@@ -5298,7 +5298,7 @@ git add src \
   scripts/tests \
   tests
 git diff --cached --stat
-git commit -m "feat(kb): image upload store, public image serving and TECHSTRAP_API_PUBLIC_URL" -m "IKbImageStore stores png, jpeg, gif and webp (recognised by their first bytes and structure, never by name or declared type; SVG and anything carrying markup refused, 5 MB limit) under a random kb-images key. GET /kb-images/{name} serves only names the store could have written, anonymously, with nosniff, a sandbox CSP and a one-year immutable cache. The new setting TECHSTRAP_API_PUBLIC_URL builds the absolute image URL: required outside Development, validated on start, and never taken from the request when it is set. It follows the four D-043 edits and the runbook names the proxy route." -m "$(printf '%s\n%s' 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' 'Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi')"
+git commit -m "feat(kb): image upload store, public image serving and TECHSTRAP_API_PUBLIC_URL" -m "IKbImageStore stores png, jpeg, gif and webp (recognized by their first bytes and structure, never by name or declared type; SVG and anything carrying markup refused, 5 MB limit) under a random kb-images key. GET /kb-images/{name} serves only names the store could have written, anonymously, with nosniff, a sandbox CSP and a one-year immutable cache. The new setting TECHSTRAP_API_PUBLIC_URL builds the absolute image URL: required outside Development, validated on start, and never taken from the request when it is set. It follows the four D-043 edits and the runbook names the proxy route." -m "$(printf '%s\n%s' 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' 'Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi')"
 ```
 
 The commit message ends with exactly these two lines, and nothing else is staged:
@@ -5842,7 +5842,7 @@ namespace TechStrap.Application.Knowledge;
 
 /// <summary>
 /// A public (portal) full-text search over Published articles (D-044). With <see cref="ProductId"/> it searches that product's articles and the shared
-/// ones; <see cref="CategorySlug"/> narrows to one category. Implementations normalise <see cref="Page"/> and <see cref="PageSize"/>
+/// ones; <see cref="CategorySlug"/> narrows to one category. Implementations normalize <see cref="Page"/> and <see cref="PageSize"/>
 /// through <c>Paging</c> and truncate <see cref="Text"/> to <c>DomainLimits.SearchTextMaxLength</c>.
 /// </summary>
 public sealed record PublicKbSearchQuery(string Text, Guid ProductId, string? CategorySlug = null, int Page = 1, int PageSize = 10);
@@ -6293,7 +6293,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
 
 ### Task 7: Controllers, route policy, cache headers and the OpenAPI document
 
-**Review Focus pin:** Review Focus 1, 2 and 3 over HTTP, and the role rules. Pinned here by `KbEndpointTests` (the preview returns sanitised html for a hostile source, refuses an oversize source and non-agents; the upload refuses a polyglot, an SVG and a mislabelled file and answers 413, 415 and 400 for the oversize, wrong-type and missing-file cases; an article is public only while it is Published and its cache headers are exact; a category delete is Admin only; the public routes are rate limited), `RoutePolicyCoverageTests` (every public route carries the limiter), `ResultMappingTests` (every action has a success row) and the OpenAPI tests.
+**Review Focus pin:** Review Focus 1, 2 and 3 over HTTP, and the role rules. Pinned here by `KbEndpointTests` (the preview returns sanitized html for a hostile source, refuses an oversize source and non-agents; the upload refuses a polyglot, an SVG and a mislabeled file and answers 413, 415 and 400 for the oversize, wrong-type and missing-file cases; an article is public only while it is Published and its cache headers are exact; a category delete is Admin only; the public routes are rate limited), `RoutePolicyCoverageTests` (every public route carries the limiter), `ResultMappingTests` (every action has a success row) and the OpenAPI tests.
 
 **Files:**
 - Modify: `docs/architecture/02-ARCHITECTURE.md`
@@ -6857,7 +6857,7 @@ Expected: FAIL, 1 failed (`lists the as-built KB routes in PHASE-08 and the arch
 
 - [ ] **Step 3: Add the limits, the null-file rule and the five controllers**
 
-Every action takes its handler through one `[FromServices]` parameter, passes the `CancellationToken` and maps the `Result` with `ToActionResult`, like the existing controllers; every route carries an explicit policy. The public controller sets `no-store` first and replaces it with the short public cache only on a success, so a 404 or an error stays uncacheable. The image controller follows the intake multipart pattern (`ReadFormBeforeBinding`, a size limit and a form limit above it so Kestrel trips first as a 413 problem+json) and gives the handler a null image when the `file` field is missing. An unmatched path on the Api answers 401 or 404 through the fallback authorization; that is existing behaviour.
+Every action takes its handler through one `[FromServices]` parameter, passes the `CancellationToken` and maps the `Result` with `ToActionResult`, like the existing controllers; every route carries an explicit policy. The public controller sets `no-store` first and replaces it with the short public cache only on a success, so a 404 or an error stays uncacheable. The image controller follows the intake multipart pattern (`ReadFormBeforeBinding`, a size limit and a form limit above it so Kestrel trips first as a 413 problem+json) and gives the handler a null image when the `file` field is missing. An unmatched path on the Api answers 401 or 404 through the fallback authorization; that is existing behavior.
 
 Create `src/TechStrap.Api/Startup/KbRequestLimits.cs`:
 
@@ -7046,7 +7046,7 @@ using TechStrap.Contracts.Kb;
 
 namespace TechStrap.Api.Controllers;
 
-/// <summary>The Admin editor preview (D-021, D-044): Markdown in, sanitised HTML out, nothing stored. Agents only, and the source is limited so it cannot serve as a free renderer.</summary>
+/// <summary>The Admin editor preview (D-021, D-044): Markdown in, sanitized HTML out, nothing stored. Agents only, and the source is limited so it cannot serve as a free renderer.</summary>
 [ApiController]
 [Route("api/kb/preview")]
 [Authorize(Policy = AuthorizationPolicies.Agent)]
@@ -7145,7 +7145,7 @@ public sealed class PublicKbController : ControllerBase
     public async Task<IActionResult> Categories(string productKey, [FromServices] IListPublicKbCategoriesRequestHandler handler, CancellationToken cancellationToken) =>
         CachedFor(HitMaxAgeSeconds, await handler.HandleAsync(productKey, cancellationToken));
 
-    /// <summary>One Published article as sanitised HTML. A draft, an archived article, another product's article, a wrong category and an unknown key are the same 404.</summary>
+    /// <summary>One Published article as sanitized HTML. A draft, an archived article, another product's article, a wrong category and an unknown key are the same 404.</summary>
     [HttpGet("articles/{categorySlug}/{slug}")]
     public async Task<IActionResult> Article(
         string productKey, string categorySlug, string slug, [FromServices] IGetPublishedKbArticleRequestHandler handler, CancellationToken cancellationToken) =>
@@ -7906,7 +7906,7 @@ Modify `src/TechStrap.Application/Tickets/AddAgentReplyRequestHandler.cs` (each 
 @@ -23,7 +23,9 @@ public interface IAddAgentReplyRequestHandler
  
  /// <summary>
- /// A public agent reply: Markdown rendered then sanitised, attachments saved (with compensation if anything later fails), linked KB
+ /// A public agent reply: Markdown rendered then sanitized, attachments saved (with compensation if anything later fails), linked KB
 -/// articles, an optional "send and solve", and the customer email planned in the same unit of work.
 +/// articles, an optional "send and solve", and the customer email planned in the same unit of work. A linked article must be Published and
 +/// visible to the ticket (shared, or in the ticket's own product) and have a category, because the customer email links to its portal
@@ -8184,7 +8184,7 @@ Modify `docs/development/TICKET-OPERATIONS.md` (each hunk shows its context; app
 @@ -48,7 +48,10 @@ Spam tickets appear only in the `spam` view.
  ## Reply and note
  
- A reply is multipart so files can travel with it. The body is Markdown, rendered and sanitised on the server.
+ A reply is multipart so files can travel with it. The body is Markdown, rendered and sanitized on the server.
 -`statusAfter` is empty or `Pending` (the default) or `Solved` ("send and solve"). `linkedArticleIds` may repeat.
 +`statusAfter` is empty or `Pending` (the default) or `Solved` ("send and solve"). `linkedArticleIds` may repeat (at most 10).
 +Each linked article must be Published and either shared or in the ticket's product, and it must have a category; anything else is a 400
@@ -8549,7 +8549,7 @@ public sealed class KbClientTests
         var (api, client) = await StartAsync();
         await using var _ = api;
         api.Stub.OnJson(HttpMethod.Post, "/api/kb/preview", new KbPreviewResponse("<p>x</p>"));
-        using var cancelled = new CancellationTokenSource();
+        using var canceled = new CancellationTokenSource();
         await cancelled.CancelAsync();
 
         await Should.ThrowAsync<OperationCanceledException>(() => client.PreviewAsync(new KbPreviewRequest("Hi"), cancelled.Token));
@@ -9721,7 +9721,7 @@ public interface IKbClient
     Task<Result<KbArticleDto>> ArchiveAsync(Guid id, uint version, CancellationToken cancellationToken);
 
     /// <summary>
-    /// <c>POST /api/kb/preview</c>: the Markdown rendered and sanitised by the same pipeline as the portal. A write call, so it is never retried; the editor cancels a call that a newer
+    /// <c>POST /api/kb/preview</c>: the Markdown rendered and sanitized by the same pipeline as the portal. A write call, so it is never retried; the editor cancels a call that a newer
     /// keystroke has replaced.
     /// </summary>
     Task<Result<KbPreviewResponse>> PreviewAsync(KbPreviewRequest request, CancellationToken cancellationToken);
@@ -10369,7 +10369,7 @@ public sealed record KbListFilter(Guid? ProductId, bool SharedOnly, Guid? Catego
 `src/TechStrap.Admin/Features/Kb/KbStatusBadge.razor`
 
 ```razor
-@* The status in words first (never colour alone); the border style only repeats it. A status the Admin does not know is shown as the API sent it, as a plain pill. *@
+@* The status in words first (never color alone); the border style only repeats it. A status the Admin does not know is shown as the API sent it, as a plain pill. *@
 <span class="@CssClass" data-status="@Status">@Status</span>
 
 @code {
@@ -11885,7 +11885,7 @@ using TechStrap.Admin.Features.Kb;
 namespace TechStrap.Admin.Tests.Components;
 
 /// <summary>
-/// The preview pane is the one place the Admin draws HTML from an agent's text (Review Focus 1). It draws the sanitised HTML the API returned and nothing else: not the text the agent typed, not an error
+/// The preview pane is the one place the Admin draws HTML from an agent's text (Review Focus 1). It draws the sanitized HTML the API returned and nothing else: not the text the agent typed, not an error
 /// message from the API, and nothing of its own besides fixed copy.
 /// </summary>
 public sealed class KbPreviewPaneTests : BunitContext
@@ -11951,7 +11951,7 @@ using TechStrap.Contracts.Kb;
 namespace TechStrap.Admin.Tests.Components;
 
 /// <summary>
-/// The Markdown editor: a textarea, a toolbar and a live preview that asks the API. A burst of typing is one call 300 ms after the last keystroke; a call that a newer change replaced is cancelled and its answer
+/// The Markdown editor: a textarea, a toolbar and a live preview that asks the API. A burst of typing is one call 300 ms after the last keystroke; a call that a newer change replaced is canceled and its answer
 /// is never drawn; a failed preview keeps the text; nothing is previewed for an empty text; and the timer and the call go when the component does (PHASE-08 T16).
 /// </summary>
 public sealed class MarkdownEditorTests : AdminComponentTest
@@ -12589,7 +12589,7 @@ Replace (edit 1 of 2)
 ```csharp
 namespace TechStrap.Admin.Tests;
 
-/// <summary>The one place the Admin turns API HTML into markup is the message bubble; the server sanitises that body (PHASE-07 T10).</summary>
+/// <summary>The one place the Admin turns API HTML into markup is the message bubble; the server sanitizes that body (PHASE-07 T10).</summary>
 public sealed class MarkupStringSiteTests
 {
     [Fact]
@@ -12604,8 +12604,8 @@ with
 namespace TechStrap.Admin.Tests;
 
 /// <summary>
-/// The Admin turns API HTML into markup in exactly two places, and each shows HTML the server sanitised: the message bubble (a ticket message body, PHASE-07 T10) and the knowledge base preview pane
-/// (the answer of <c>POST /api/kb/preview</c>, which runs the same renderer and sanitiser as the portal, PHASE-08 T16). A third place must be argued for in the same commit that adds it.
+/// The Admin turns API HTML into markup in exactly two places, and each shows HTML the server sanitized: the message bubble (a ticket message body, PHASE-07 T10) and the knowledge base preview pane
+/// (the answer of <c>POST /api/kb/preview</c>, which runs the same renderer and sanitizer as the portal, PHASE-08 T16). A third place must be argued for in the same commit that adds it.
 /// </summary>
 public sealed class MarkupStringSiteTests
 {
@@ -12730,7 +12730,7 @@ namespace TechStrap.Api.Tests;
 
 /// <summary>
 /// Never log search text, an article's text or a picture's file name (PHASE-08, the 07c lesson): whatever the Admin does for a signed-in agent in the knowledge base, the words an agent typed or chose never reach a log line, even at
-/// Verbose, and a lapsed session sends nothing more (the auth package logs the path and query of an unauthenticated call, which would carry the search text). Each test proves the text really travelled, or it proves nothing.
+/// Verbose, and a lapsed session sends nothing more (the auth package logs the path and query of an unauthenticated call, which would carry the search text). Each test proves the text really traveled, or it proves nothing.
 /// </summary>
 /// <remarks>Runs in the non-parallel <see cref="ProcessEnvironmentCollection"/> like <see cref="AdminLeakTests"/>: the Admin host reads process environment variables while it starts.</remarks>
 [Collection(ProcessEnvironmentCollection.Name)]
@@ -12839,8 +12839,8 @@ public sealed class KbAdminLeakTests
             (await kb.UploadImageAsync(picture, CancellationToken.None)).IsFailure.ShouldBeTrue();
         }
 
-        factory.Api.Requests.ShouldContain(r => r.Path == "/api/kb/preview" && r.Body!.Contains(ArticleText, StringComparison.Ordinal), "the article text really travelled, or this test proves nothing");
-        factory.Api.Requests.ShouldContain(r => r.Path == "/api/kb/images" && r.Body!.Contains(PictureName, StringComparison.Ordinal), "the picture's name really travelled, or this test proves nothing");
+        factory.Api.Requests.ShouldContain(r => r.Path == "/api/kb/preview" && r.Body!.Contains(ArticleText, StringComparison.Ordinal), "the article text really traveled, or this test proves nothing");
+        factory.Api.Requests.ShouldContain(r => r.Path == "/api/kb/images" && r.Body!.Contains(PictureName, StringComparison.Ordinal), "the picture's name really traveled, or this test proves nothing");
         factory.Api.AssertEveryCallBore(AdminTestPrincipal.Agent);
         AssertVerboseWasCaptured(factory);
         AssertNothingLeaked(factory);
@@ -13078,7 +13078,7 @@ TECHSTRAP_PORTAL_PUBLIC_URL=
 </div>
 
 @code {
-    /// <summary>One labelled text input with its help text and its error; the value is bound on input and checked on blur.</summary>
+    /// <summary>One labeled text input with its help text and its error; the value is bound on input and checked on blur.</summary>
     private RenderFragment Field(string id, string label, string field, string value, Action<string> set, string? help = null) => @<div class="ts-field">
         <label for="@id" class="form-label">@label</label>
         <input id="@id" type="text" class="form-control @(_errors.ContainsKey(field) ? "is-invalid" : null)" value="@value" autocomplete="off" spellcheck="@(field == ApiFields.Slug ? "false" : "true")"
@@ -14047,7 +14047,7 @@ public sealed record KbUploadedImage(string AltText, string Url);
 /// <summary>
 /// Picks one picture, checks its type and size before anything is sent, uploads it and raises <see cref="OnUploaded"/> once. A picture the browser or the API refuses never changes the article.
 /// An upload has no effect on any article until the editor adds the returned address, so an answer that was lost needs no hold: the agent picks the picture again, and the earlier copy, if the API kept
-/// one, is an unreferenced file (D-044: no orphan cleanup). The write is never cancelled by the screen closing (<see cref="CancellationToken.None"/>); a result that arrives after that is dropped.
+/// one, is an unreferenced file (D-044: no orphan cleanup). The write is never canceled by the screen closing (<see cref="CancellationToken.None"/>); a result that arrives after that is dropped.
 /// </summary>
 public sealed partial class KbImageUploadButton : IDisposable
 {
@@ -14149,7 +14149,7 @@ public sealed partial class KbImageUploadButton : IDisposable
 `src/TechStrap.Admin/Features/Kb/KbPreviewPane.razor`
 
 ```razor
-@* The ONE place the Admin renders HTML an agent's text produced. Html is what POST /api/kb/preview answered: the API ran the Markdown through the same renderer and sanitiser as the portal, so nothing
+@* The ONE place the Admin renders HTML an agent's text produced. Html is what POST /api/kb/preview answered: the API ran the Markdown through the same renderer and sanitizer as the portal, so nothing
    the agent typed reaches this markup except through that answer. Nothing else in the Admin may use MarkupString (MarkupStringSiteTests). When the last call failed the previous good preview stays on
    screen under a fixed message (never the API's text), so a failed refresh never blanks what the agent was reading. *@
 <section class="ts-kb-preview" aria-label="@KbEditorCopy.PreviewLabel" aria-busy="@(Loading ? "true" : null)">
@@ -14168,7 +14168,7 @@ public sealed partial class KbImageUploadButton : IDisposable
 </section>
 
 @code {
-    /// <summary>The sanitised HTML the preview call returned; empty before the first answer and for an empty article.</summary>
+    /// <summary>The sanitized HTML the preview call returned; empty before the first answer and for an empty article.</summary>
     [Parameter]
     public string? Html { get; set; }
 
@@ -14250,7 +14250,7 @@ namespace TechStrap.Admin.Features.Kb;
 /// <summary>
 /// A plain textarea with a toolbar and a live preview beside it (PHASE-08: no editor library and no JavaScript). The text lives in the owner: this component reports every change through
 /// <see cref="ValueChanged"/> and never keeps text of its own. Whenever <see cref="Value"/> changes, the preview waits <see cref="KbDefaults.PreviewDebounce"/> after the last change and then asks the API
-/// to render it (<see cref="IKbClient.PreviewAsync"/>), so a burst of typing is one call. A call that a newer change has replaced is cancelled, and an answer that arrives after a newer call started
+/// to render it (<see cref="IKbClient.PreviewAsync"/>), so a burst of typing is one call. A call that a newer change has replaced is canceled, and an answer that arrives after a newer call started
 /// is ignored (<c>_previewId</c>). A failed preview leaves the text and the last good preview alone and says so beside it. Nothing is previewed for an empty text. The timer and the call are
 /// released when the component goes.
 /// </summary>
@@ -14770,7 +14770,7 @@ Mutations, each applied to the finished code, the tests run, and the change reve
 | `MarkdownEditor.razor.cs`: a failed preview shows the API message | `MarkdownEditorTests.A_failed_preview_keeps_the_text_and_the_last_good_preview_and_says_so_in_fixed_words` |
 | `MarkdownEditor.razor.cs`: preview with no debounce | `MarkdownEditorTests.A_burst_of_typing_is_one_preview_call_300_ms_after_the_last_keystroke`, `MarkdownEditorTests.A_pending_timer_is_released_with_the_component_so_no_call_is_made_after_it_is_gone` |
 | `MarkdownEditor.razor.cs`: no _previewId stale guard | `MarkdownEditorTests.A_call_that_a_newer_change_replaced_is_cancelled_and_its_late_answer_is_never_drawn`, `MarkdownEditorTests.An_answer_that_arrives_after_a_newer_call_started_is_ignored_even_when_the_call_was_not_cancelled` |
-| `MarkdownEditor.razor.cs`: a replaced call is not cancelled on the next change | `MarkdownEditorTests.A_call_that_a_newer_change_replaced_is_cancelled_and_its_late_answer_is_never_drawn` |
+| `MarkdownEditor.razor.cs`: a replaced call is not canceled on the next change | `MarkdownEditorTests.A_call_that_a_newer_change_replaced_is_cancelled_and_its_late_answer_is_never_drawn` |
 | `MarkdownEditor.razor.cs`: Dispose leaves the timer running | `MarkdownEditorTests.A_pending_timer_is_released_with_the_component_so_no_call_is_made_after_it_is_gone` |
 | `MarkdownEditor.razor.cs`: Dispose does not cancel the call in flight | `MarkdownEditorTests.A_call_in_flight_is_cancelled_with_the_component` |
 | `MarkdownEditor.razor.cs`: no limit guard before the preview call | `MarkdownEditorTests.A_text_the_api_could_not_save_either_is_not_sent_for_preview_and_keeps_the_last_good_preview` |
@@ -14862,7 +14862,7 @@ git add deploy/.env.admin.example \
   tests/TechStrap.Admin.Tests/Options/PortalUrlOptionsTests.cs \
   tests/TechStrap.Api.Tests/KbAdminLeakTests.cs
 git diff --cached --stat
-git commit -m "feat(admin): knowledge base editor with live preview and picture upload" -m "Markdown editor with a debounced server preview through one sanitised pane (the second MarkupString site), picture upload, publish and archive with the loaded version, a leave guard, the conflict banner and View on portal from the new optional TECHSTRAP_PORTAL_PUBLIC_URL." -m "$(printf '%s\n%s' 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' 'Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi')"
+git commit -m "feat(admin): knowledge base editor with live preview and picture upload" -m "Markdown editor with a debounced server preview through one sanitized pane (the second MarkupString site), picture upload, publish and archive with the loaded version, a leave guard, the conflict banner and View on portal from the new optional TECHSTRAP_PORTAL_PUBLIC_URL." -m "$(printf '%s\n%s' 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' 'Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi')"
 ```
 
 The commit message ends with exactly these two lines, and nothing else is staged:
@@ -16655,7 +16655,7 @@ public sealed partial class ArticlePicker : IDisposable
                 return;
             }
 
-            // Defence in depth: the request asks for published articles, and a row that is not one is never offered, whatever the answer holds.
+            // Defense in depth: the request asks for published articles, and a row that is not one is never offered, whatever the answer holds.
             _results = [.. result.Value.Items.Where(a => a.Status == KbArticleStatuses.Published).Select(a => new ArticleChoice(a.Id, a.Title, a.ProductId is null))];
             _searched = true;
             _announcement = ArticlePickerCopy.Count(_results.Count);
@@ -17931,7 +17931,7 @@ with
   max-width: 8rem;
 }
 
-// The article picker and the chips of the reply composer. A chip is a title and a Remove button, never colour alone; long titles wrap.
+// The article picker and the chips of the reply composer. A chip is a title and a Remove button, never color alone; long titles wrap.
 .ts-composer-articles {
   margin: 8px 0;
 }
@@ -18096,9 +18096,9 @@ edit(ADMIN_DOC, '''    Ops/          Admin only. DeadLetters/ (DeadLettersPage)
     Kb/           Every agent. KbArticleListPage, KbArticleEditorPage (with KbArticleEditorPresenter and the form model), MarkdownEditor, KbPreviewPane, KbImageUploadButton, MarkdownSnippets, KbCategoriesPage, ArticlePicker (mounted by ReplyComposer)
 ''')
 
-edit(ADMIN_DOC, '''- The single `MarkupString` is the message body in `MessageBubble` (the API sanitises it). Everything else is encoded.
-''', '''- `MarkupString` is used in exactly two files, and both draw HTML the API sanitised: the message body in `MessageBubble`, and the knowledge base preview in `KbPreviewPane` (the answer of `POST /api/kb/preview`, which runs the same renderer and
-  sanitiser as the portal). `MarkupStringSiteTests` pins the two. Everything else is encoded.
+edit(ADMIN_DOC, '''- The single `MarkupString` is the message body in `MessageBubble` (the API sanitizes it). Everything else is encoded.
+''', '''- `MarkupString` is used in exactly two files, and both draw HTML the API sanitized: the message body in `MessageBubble`, and the knowledge base preview in `KbPreviewPane` (the answer of `POST /api/kb/preview`, which runs the same renderer and
+  sanitizer as the portal). `MarkupStringSiteTests` pins the two. Everything else is encoded.
 ''')
 
 edit(ADMIN_DOC, '''| Go to | Queue: Unassigned, Mine, Open, Pending, All, Spam; My settings | Every agent |
@@ -18120,7 +18120,7 @@ Every agent can write and publish articles; deleting a category is the one thing
 - **Editor** (`/kb/new`, `/kb/{id}`): product (chosen once, or "Shared by every product"), category, title, slug, summary and the article text. The slug follows the title until you edit it, and like the product it is permanent once the article exists. The category list offers the
   shared categories and, for a product article, that product's own; a shared article can only use a shared category. The text is Markdown in a plain text box with a toolbar (bold, italic, link, list, code) beside a live preview.
 - **Preview**: 300 ms after you stop typing, the Admin asks the API to render the text (`POST /api/kb/preview`) and draws the answer, which is the same HTML the portal will show (tables and pictures included, anything unsafe removed). A call that a newer keystroke replaced is
-  cancelled and its answer is never drawn; a failed preview keeps your text and the last good preview and says so; an empty text is not previewed. Below 992 px Write and Preview are two buttons and one pane at a time.
+  canceled and its answer is never drawn; a failed preview keeps your text and the last good preview and says so; an empty text is not previewed. Below 992 px Write and Preview are two buttons and one pane at a time.
 - **Pictures**: "Add image" takes a PNG, JPEG, GIF or WebP file of up to 5 MB (anything else is refused before it is sent), uploads it and adds `![file name](address)` at the **end** of the text. The toolbar buttons also add their Markdown at the end. Blazor cannot read the
   caret, and paste and drag-and-drop are not built (D-044). If the answer to an upload is lost nothing is added to the text and you pick the picture again; the earlier copy, if the API kept one, is an unreferenced file.
 - **Save, publish, archive**: Save sends the version the article was loaded with, so a stale save is a 409: you see "This article changed since you opened it", your edits stay in the form, saving stays off, and Reload brings in the latest version (and replaces your edits, so copy what you need

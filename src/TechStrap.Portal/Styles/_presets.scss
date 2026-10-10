@@ -14,7 +14,7 @@
   background-color: var(--p-bg);
 }
 
-// A landing card sits in its own scope (D-053); the scope paints the page colour, which would show as a square backing behind a rounded card.
+// A landing card sits in its own scope (D-053); the scope paints the page color, which would show as a square backing behind a rounded card.
 .ts-landing > .ts-accent-scope {
   background-color: transparent;
 }
@@ -38,7 +38,7 @@ h6 {
   background-color: var(--ts-surface, var(--bs-body-bg));
 }
 
-// The file input's own button reads the body colour; on a dark pack it would be light text on Bootstrap's light fill.
+// The file input's own button reads the body color; on a dark pack it would be light text on Bootstrap's light fill.
 // Each state keeps Bootstrap's own fill as the fallback, so Classic (no --ts-surface) is unchanged.
 .form-control::file-selector-button {
   color: var(--p-ink);
@@ -107,11 +107,11 @@ h6 {
 }
 
 // Header presets. The skin supplies --ts-chrome and --ts-on-chrome only when they differ from Classic, so the fallbacks are Classic's:
-// #1b1b22 is SkinPacks.Classic.Tokens.Chrome and #fff its derived on-colour (PresetStyleTests pins both).
-// The header box is the 64rem container, so the colour is painted full-bleed with a border image whose outset reaches 100vmax to each side: no markup change, the nav keeps its width and padding, and ink overflow
+// #1b1b22 is SkinPacks.Classic.Tokens.Chrome and #fff its derived on-color (PresetStyleTests pins both).
+// The header box is the 64rem container, so the color is painted full-bleed with a border image whose outset reaches 100vmax to each side: no markup change, the nav keeps its width and padding, and ink overflow
 // never makes the page scroll sideways.
 .ts-accent-scope[data-ts-header="solid"] .ts-product-header {
-  // The focus ring and its halo sit on the chrome fill, where the skin's focus colour can equal the fill (Slate, Contrast): inside the header both are the on-chrome colour, which is at least 3:1 against it.
+  // The focus ring and its halo sit on the chrome fill, where the skin's focus color can equal the fill (Slate, Contrast): inside the header both are the on-chrome color, which is at least 3:1 against it.
   --ts-focus: var(--ts-on-chrome, #fff);
   --ts-accent: var(--ts-on-chrome, #fff);
   padding-bottom: 8px;
@@ -143,7 +143,7 @@ h6 {
   --bs-secondary-bg: #1a2233;
   --bs-tertiary-bg: #1a2233;
 
-  // Bootstrap's select chevron is a dark data image, which this stylesheet may not carry (no url reference outside the font faces); two gradients draw the same arrow in the text colour.
+  // Bootstrap's select chevron is a dark data image, which this stylesheet may not carry (no url reference outside the font faces); two gradients draw the same arrow in the text color.
   // A single-line select only: a multiple or sized one has no arrow in Bootstrap and gets none here.
   .form-select:not([multiple]):not([size]) {
     --bs-form-select-bg-img: none;
@@ -154,7 +154,7 @@ h6 {
   }
 }
 
-// On paper the colour fills are dropped (a browser omits backgrounds unless asked), so the white-on-chrome text must not stay white.
+// On paper the color fills are dropped (a browser omits backgrounds unless asked), so the white-on-chrome text must not stay white.
 @media print {
   .ts-accent-scope[data-ts-header] .ts-product-header {
     color: inherit;

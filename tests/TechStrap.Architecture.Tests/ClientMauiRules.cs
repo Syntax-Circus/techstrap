@@ -1,7 +1,7 @@
 namespace TechStrap.Architecture.Tests;
 
 /// <summary>
-/// Rules for the MAUI helper (PHASE-11b, D-048), modelled on <see cref="ClientRules"/>. TechStrap.Client.Maui is a plain net10.0 library that reads MAUI Essentials interfaces, so it needs no workload:
+/// Rules for the MAUI helper (PHASE-11b, D-048), modeled on <see cref="ClientRules"/>. TechStrap.Client.Maui is a plain net10.0 library that reads MAUI Essentials interfaces, so it needs no workload:
 /// a short list of reviewed packages, the Client and Contracts projects, no framework reference and never UseMaui. Pure over a parsed project so the tests can feed it a bad one.
 /// </summary>
 public static class ClientMauiRules

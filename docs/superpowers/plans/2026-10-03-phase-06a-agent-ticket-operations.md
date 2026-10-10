@@ -51,7 +51,7 @@
     - delete and erase;
     - dead letters;
     - the customer path of the attachment download.
-- **Markdown.** Agent reply bodies are Markdown, rendered and then sanitised. Internal notes use the same composer, so they are Markdown too.
+- **Markdown.** Agent reply bodies are Markdown, rendered and then sanitized. Internal notes use the same composer, so they are Markdown too.
 - **Attachments on replies.** Agents may attach files to public replies. The limits match customer uploads: 5 files, 10 MiB each, 25 MiB per message, checked by file content.
 - **Solved notice.** When an agent sets Solved, the customer gets a short notice that includes the ticket link.
 
@@ -244,7 +244,7 @@ In `PHASE-06-ticket-operations.md`:
   - **`ICurrentUserService`** becomes "`ICurrentAgentClaims` plus `CurrentAgent.RequireActiveAsync` (PHASE-04)".
   - **"Worker scheduled work uses constructor injection"** becomes "Worker loops resolve their scoped handler from a fresh DI scope per iteration (as `EmailOutboxWorker`)".
   - **`AgentPolicy` / `AdminPolicy`** become "`AuthorizationPolicies.Agent` / `.Admin`".
-  - **The anonymous customer endpoints wording** becomes "customer endpoints use the explicit `Public` policy plus rate limits (D-034) and are authorised by the token inside the handler".
+  - **The anonymous customer endpoints wording** becomes "customer endpoints use the explicit `Public` policy plus rate limits (D-034) and are authorized by the token inside the handler".
   - **The notification planner bullet:** change "implemented in Infrastructure over `IEmailOutbox` and `IEmailTemplateRenderer`" to "implemented in Infrastructure over `IEmailOutbox`; it stages template data only, and the Worker renders at send time (D-033)".
   - **The concurrency bullet** becomes "State-changing requests carry `RowVersion` in the body; replies and notes accept it optionally; every write returns `TicketStateDto` with the new `RowVersion` (D-036)".
   - **The tags rows** become "idempotent (D-036)".
@@ -390,7 +390,7 @@ public sealed record AttachmentDto(Guid Id, string FileName, string ContentType,
 
 public sealed record LinkedArticleDto(Guid Id, string Title, string Slug);
 
-/// <summary>A timeline message. BodyHtml is sanitised HTML. AuthorName is the agent's own name (agent views only) or the requester's name or email.</summary>
+/// <summary>A timeline message. BodyHtml is sanitized HTML. AuthorName is the agent's own name (agent views only) or the requester's name or email.</summary>
 public sealed record MessageDto(
     Guid Id, string AuthorType, Guid? AuthorId, string? AuthorName, string Visibility, string BodyHtml,
     DateTimeOffset CreatedAt, IReadOnlyList<AttachmentDto> Attachments, IReadOnlyList<LinkedArticleDto> LinkedArticles);
@@ -425,7 +425,7 @@ public sealed record ListTicketsRequest(
     string? View, Guid? ProductId, string? Status, string? Priority, Guid? AssigneeId,
     Guid? TagId, Guid? RequesterId, string? Search, int Page, int PageSize);
 
-/// <summary>StatusAfter: null or "Pending" (default Domain behaviour) or "Solved" ("Send and solve"). Files travel beside this record (D-016).</summary>
+/// <summary>StatusAfter: null or "Pending" (default Domain behavior) or "Solved" ("Send and solve"). Files travel beside this record (D-016).</summary>
 public sealed record AddAgentReplyRequest(string? Body, IReadOnlyList<Guid>? LinkedArticleIds, string? StatusAfter, uint? RowVersion);
 
 public sealed record AddInternalNoteRequest(string? Body, uint? RowVersion);
@@ -483,8 +483,8 @@ public sealed class TicketNamesParityTests
 
 `tests/TechStrap.Api.Tests/Tickets/TicketDtoSerializationTests.cs`: round-trip a fully populated `TicketDetailDto` and an `AgentMessageResponse` through `JsonSerializer` with `JsonSerializerDefaults.Web`. Assert:
 - equality on the scalar members;
-- `rowVersion` serialises as a JSON number;
-- `status` serialises as the string `"Pending"`.
+- `rowVersion` serializes as a JSON number;
+- `status` serializes as the string `"Pending"`.
 
 - [ ] **Step 2: Run the tests and confirm they fail**
 
@@ -640,7 +640,7 @@ Expected: PASS.
 
 ```bash
 git add src tests
-git commit -m "feat(content): Markdig renderer behind IMarkdownRenderer with sanitised output" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+git commit -m "feat(content): Markdig renderer behind IMarkdownRenderer with sanitized output" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 ```
 
@@ -808,7 +808,7 @@ public sealed record TicketAssignedEmail(string TicketNumber, string Subject, st
 public interface IEmailTemplateRenderer
 {
     RenderedEmail RenderTicketConfirmation(TicketConfirmationEmail model, EmailBranding branding);
-    /// <param name="messageHtml">The stored, already-sanitised message body.</param>
+    /// <param name="messageHtml">The stored, already-sanitized message body.</param>
     RenderedEmail RenderAgentReply(AgentReplyEmail model, string messageHtml, EmailBranding branding);
     RenderedEmail RenderTicketSolved(TicketSolvedEmail model, EmailBranding branding);
     RenderedEmail RenderTicketAssigned(TicketAssignedEmail model, EmailBranding branding);
@@ -819,7 +819,7 @@ public interface IEmailTemplateRenderer
 
 - **Agent reply.**
   - Subject: `[{TicketNumber}] Re: {Subject}`.
-  - HTML: greeting, then `{AgentPublicName} replied:`, then the message HTML inserted as-is (already sanitised; never re-encoded), then the button "View your request" linking `PortalLink`.
+  - HTML: greeting, then `{AgentPublicName} replied:`, then the message HTML inserted as-is (already sanitized; never re-encoded), then the button "View your request" linking `PortalLink`.
   - When `Solved`, add the line "We've marked this request as solved. Reply within {TicketNotices.ReopenDays} days if you need anything else." `TicketNotices` is defined in Task 7; until then use the literal 7 behind a renderer constant, and Task 7 points the renderer at `TicketNotices`.
   - Text part: the same content, with the message body converted by `HtmlText.ToPlainText(messageHtml)`. That helper is an internal static in Infrastructure/Email, built on AngleSharp. AngleSharp is already a transitive dependency via HtmlSanitizer, so add no new package.
     - Block elements become line breaks.
@@ -835,7 +835,7 @@ public interface IEmailTemplateRenderer
   - This email goes to an agent, so the Powered-by line is omitted. Branding still uses the ticket's product.
 - **From and Reply-To** follow the same rules as the confirmation template.
 
-**Drain dispatch.** Replace the single-kind guard in `SendOneAsync` with a `switch (item.Kind)`. Each case deserialises its own payload type with `JsonSerializerDefaults.Web`, validates the required fields (a blank `TicketNumber` or `PortalLink` gives `payload-invalid`), and calls its renderer method.
+**Drain dispatch.** Replace the single-kind guard in `SendOneAsync` with a `switch (item.Kind)`. Each case deserializes its own payload type with `JsonSerializerDefaults.Web`, validates the required fields (a blank `TicketNumber` or `PortalLink` gives `payload-invalid`), and calls its renderer method.
 
 The `AgentReply` case also needs the message:
 1. `var message = await tickets.GetMessageAsync(model.MessageId, ct)`.
@@ -896,7 +896,7 @@ Expected: a build failure.
 
 - [ ] **Step 3: Implement**
 
-Add the kinds, records, renderer methods, `HtmlText`, and the drain dispatch. Keep `ticket-confirmation` behaviour byte-for-byte. Its existing tests must stay green unchanged.
+Add the kinds, records, renderer methods, `HtmlText`, and the drain dispatch. Keep `ticket-confirmation` behavior byte-for-byte. Its existing tests must stay green unchanged.
 
 - [ ] **Step 4: Run the tests**
 
@@ -1100,7 +1100,7 @@ public sealed class AdminLinkOptions
   - Load the product. If it is missing, log and return.
   - Issue a token. On failure, log the code and return. On success, call `tickets.AddAccessToken(issued.Value.Token)`, then `link = portal.TicketLink(issued.Value.PlaintextToken)`.
   - For a reply, the public name is `AgentPublicIdentity.Resolve(author, product.Branding.DisplayName)`.
-  - Serialise the payload with `JsonSerializerDefaults.Web` and call `EmailOutboxItem.Enqueue(kind, requester.Email, json, ticket.ProductId, ticket.Id, clock)`. The ticket's **current** product goes on the row.
+  - Serialize the payload with `JsonSerializerDefaults.Web` and call `EmailOutboxItem.Enqueue(kind, requester.Email, json, ticket.ProductId, ticket.Id, clock)`. The ticket's **current** product goes on the row.
   - If enqueueing fails, log the code and return. On success, call `outbox.Enqueue(item.Value)`.
   - Never log the payload or the link.
 - **Assigned (agent).**
@@ -1650,7 +1650,7 @@ public interface IChangeTicketStatusRequestHandler
 - The constructor takes `ICurrentAgentClaims`, `IAgentRepository`, `ITicketRepository`, `IMarkdownRenderer`, `IHtmlSanitizer`, `IUnitOfWork` and `TimeProvider`.
 - The body is checked against the raw length limit first, using `IntakeErrors.BodyTooLong()`.
 - Load with `TicketMutation.LoadAsync(rowVersionRequired: false)`.
-- Render the Markdown, then sanitise it, then call `ticket.AddInternalNote(agent.Id, html, clock)`.
+- Render the Markdown, then sanitize it, then call `ticket.AddInternalNote(agent.Id, html, clock)`.
 - Then `tickets.Update`, then `TicketMutation.CommitAsync`.
 - Return a 201 `AgentMessageResponse` with `Visibility "Internal"`.
 - No planner call, so no email and no token. The status is unchanged.
@@ -2143,7 +2143,7 @@ Add to `SensitiveDataLeakTests`:
 ```csharp
 [Fact] public async Task An_agent_reply_keeps_the_agent_email_out_of_the_outbox_and_the_link_only_in_the_payload()
 // after a reply, email_outbox.payload contains the resolved public name and no "@" of the agent's address;
-// the reply's plaintext token appears only in email_outbox.payload (reuse the catalogue scan helper).
+// the reply's plaintext token appears only in email_outbox.payload (reuse the catalog scan helper).
 ```
 
 - [ ] **Step 2: Run the tests**

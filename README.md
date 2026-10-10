@@ -10,7 +10,7 @@
 
 ## What it is
 
-- **One installation, many products.** Each product has its own ticket prefix (`ACME-142`), web form, knowledge base, and branding on the portal and in emails. It is deliberately not multi-tenant: other organisations run their own copy.
+- **One installation, many products.** Each product has its own ticket prefix (`ACME-142`), web form, knowledge base, and branding on the portal and in emails. It is deliberately not multi-tenant: other organizations run their own copy.
 - **Customers need no account.** They submit a ticket from a per-product web form or from inside your apps, then follow the conversation through a private emailed link.
 - **Agents work in one app.** Queues, search, replies and internal notes, tags, assignment, and live updates, behind OIDC sign-in (any provider; Authentik is the worked example).
 - **Knowledge base.** Searchable public articles per product (or shared), suggested to customers as they type a ticket.

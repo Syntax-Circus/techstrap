@@ -37,7 +37,7 @@ public static class ProductsCopy
     public const string DisplayNameHelp = "The name customers see in the portal and in emails.";
     public const string LogoLabel = "Logo address";
     public const string LogoHelp = "A full https:// address of an image. Leave it blank for no logo.";
-    public const string AccentLabel = "Accent colour";
+    public const string AccentLabel = "Accent color";
     public const string AccentHelp = "A # and six hex digits, such as #1D4ED8. Leave it blank for the default.";
     public const string FromLabel = "Email from address";
     public const string ReplyToLabel = "Email reply-to address";
@@ -47,13 +47,13 @@ public static class ProductsCopy
     public const string PortalHostTaken = "Another product already uses this hostname.";
     public const string SkinHeading = "Appearance (advanced)";
     public const string SkinLabel = "Skin (JSON)";
-    public const string SkinHelp = "Optional. A JSON object of colours, fonts and presets that restyles this product's portal; empty it to remove the skin. See docs/skins/README.md for a worked example and the list of tokens.";
+    public const string SkinHelp = "Optional. A JSON object of colors, fonts and presets that restyles this product's portal; empty it to remove the skin. See docs/skins/README.md for a worked example and the list of tokens.";
     public const string SkinInvalid = "This is not a valid skin: use a JSON object of known members, up to 2000 characters.";
 
     private static readonly string[] SkinColourTokens = ["background", "surface", "ink", "muted", "border", "brand", "chrome", "focus"];
 
     public static string SkinTokenInvalid(string token) => SkinColourTokens.Contains(token)
-        ? $"The skin value \"{token}\" is not valid. A colour is # and six hex digits, such as #1D4ED8."
+        ? $"The skin value \"{token}\" is not valid. A color is # and six hex digits, such as #1D4ED8."
         : $"The skin value \"{token}\" is not valid. See docs/skins/README.md for the values it accepts.";
 
     public const string ActiveLabel = "Active";
@@ -72,7 +72,7 @@ public static class ProductsCopy
     public const string NumberPrefixInvalid = "Use 2 to 10 capital letters or numbers, starting with a letter.";
     public const string DisplayNameRequired = "Enter the name customers see.";
     public const string LogoInvalid = "Use a full https:// address for the logo.";
-    public const string AccentInvalid = "Use a colour like #1D4ED8: a # and six hex digits.";
+    public const string AccentInvalid = "Use a color like #1D4ED8: a # and six hex digits.";
     public const string EmailInvalid = "Enter a valid email address.";
 
     public const string ConflictTitle = "This product changed since you opened it.";

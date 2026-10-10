@@ -77,7 +77,7 @@ public sealed class DoubleSendHostTests
 
         public Task Arrived => _arrived.Task;
 
-        /// <summary>Whether the Portal's call had been cancelled at the moment the answer was given.</summary>
+        /// <summary>Whether the Portal's call had been canceled at the moment the answer was given.</summary>
         public bool CancelledWhenAnswered { get; private set; }
 
         public void Release() => _release.TrySetResult();

@@ -22,7 +22,7 @@ public sealed class ProductEditorRealApiTests : AdminPageTest
         await using var api = await ApiHarness.CreateAsync(AdminTestPrincipal.Admin);
         api.Stub.OnJson(HttpMethod.Get, $"/api/products/{TestData.OrbitlyId}", TestData.ProductDetail(version: 7));
         api.Stub.On(HttpMethod.Put, $"/api/products/{TestData.OrbitlyId}", _ =>
-            StubApiHandler.ValidationProblem("accent-colour", "accent-colour-invalid", "Use a colour like #RRGGBB."));
+            StubApiHandler.ValidationProblem("accent-colour", "accent-colour-invalid", "Use a color like #RRGGBB."));
         Services.AddSingleton(api.Get<IProductsClient>());
         var cut = Render<ProductEditorPage>(p => p.Add(c => c.Id, TestData.OrbitlyId.ToString()));
         cut.Find("#ts-product-name").Input("Orbitly Cloud");
@@ -30,7 +30,7 @@ public sealed class ProductEditorRealApiTests : AdminPageTest
 
         cut.Find("form").Submit();
 
-        cut.WaitForAssertion(() => cut.Find("#ts-product-accent-error").TextContent.ShouldBe("Use a colour like #RRGGBB."));
+        cut.WaitForAssertion(() => cut.Find("#ts-product-accent-error").TextContent.ShouldBe("Use a color like #RRGGBB."));
         cut.Find("#ts-product-name").GetAttribute("value").ShouldBe("Orbitly Cloud");
         var put = api.Stub.Requests.Single(r => r.Method == HttpMethod.Put);
         using var body = JsonDocument.Parse(put.Body!);

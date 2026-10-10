@@ -5,7 +5,7 @@ using TechStrap.Domain.Rules;
 namespace TechStrap.Domain.Tickets;
 
 /// <summary>The one rule for the display name stored with an attachment (D-039). The store saves this form, so anything that compares a
-/// customer-supplied name with a stored one must sanitise the customer's first.</summary>
+/// customer-supplied name with a stored one must sanitize the customer's first.</summary>
 public static class AttachmentFileName
 {
     public const string Fallback = "attachment";

@@ -48,7 +48,7 @@ public sealed class ShortcutService(IJSRuntime js) : IAsyncDisposable
     private DotNetObjectReference<ShortcutService>? _self;
     private Task? _starting;
 
-    /// <summary>Raised once per recognised shortcut; every handler is awaited in subscription order.</summary>
+    /// <summary>Raised once per recognized shortcut; every handler is awaited in subscription order.</summary>
     public event Func<ShortcutAction, Task>? Pressed;
 
     /// <summary>On by default. <see cref="PreferencesService"/> sets it from the stored My settings choice on the first interactive render and when the agent flips the toggle.</summary>

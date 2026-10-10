@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Give TechStrap's agents near-real-time behaviour from the server side, in one pull request (10a of two).
+**Goal:** Give TechStrap's agents near-real-time behavior from the server side, in one pull request (10a of two).
 - **The hub:** an agent-only SignalR `TicketHub` at `/hubs/tickets` that pushes `TicketChanged` to every agent's queue and `PresenceChanged` to the agents who have a ticket open.
 - **The post-commit hook:** a ticket change made by an Api request is announced once per ticket, after its database transaction commits, and never for work that rolled back or conflicted.
 - **The relay:** a change made by the Worker (auto-close) is sent as a Postgres `NOTIFY` and relayed by a listener in the Api, which reconnects by itself and tells the clients to resync.
@@ -39,7 +39,7 @@
   - **`ITicketChangeBroadcaster` has a second method, `PublishPresenceAsync`.** The brief names one abstraction for the handler's push; presence needs a push to a ticket group, the spec's handler table lists only `ITicketChangeBroadcaster` for the presence handler, and a second interface would add a registration for the same two implementations. The Worker's version does nothing for presence.
   - **`JoinTicket` returns the current presence** (`TicketPresenceDto`); 02-ARCHITECTURE said it returns void. A second tab of an agent already on the ticket changes nothing, so no broadcast reaches it; the return value is how it learns the state.
   - **A composing refresh counts as a change.** The brief says presence is broadcast only when the state really changes; the client's clear-after-10-seconds needs a heartbeat while the agent keeps typing, and the spec has the Admin refresh every 4 seconds. A refresh that extends the lease is therefore sent; a repeat that moves nothing (same instant, same state) is not, and a refresh after a lapse is a change because peers saw "viewing" meanwhile.
-  - **A deleted ticket publishes a `Resync`**, and so does an event for a ticket the context does not track. The brief is silent; the facts report called deletion a gap; the closest safe behaviour is "reload everything", which needs no new kind and no query inside SaveChanges.
+  - **A deleted ticket publishes a `Resync`**, and so does an event for a ticket the context does not track. The brief is silent; the facts report called deletion a gap; the closest safe behavior is "reload everything", which needs no new kind and no query inside SaveChanges.
   - **The hook's two classes are `TicketChangeCaptureInterceptor` and `TicketChangePublishingInterceptor`**, plus `PendingTicketChanges` (the per-context staging) and `TicketChangePublisher` (the broadcaster call with isolation and a 5-second limit). The brief names one class "in two parts".
   - **`TechStrapMetrics` lives in Infrastructure, and the hub takes it.** The gauge needs the hub's connections, and the listener (Infrastructure) records the counters; handlers cannot take a meter. The hub's constructor is the presence handler, the agent options and the metrics, pinned by a test.
   - **New Contracts types beyond the brief's list:** `UpdateTicketPresenceRequest` and `RelayTicketChangeRequest` (D-016: handlers take Contracts request records), `TicketViewerDto`, `TicketHubRoutes`, `TicketPresenceActions`, `TicketLiveLimits` and `TicketHubMessages`.
@@ -88,7 +88,7 @@
 
 ## Review Focus
 
-1. **Hub authentication and authorisation.** Only agents connect, by header token; a query token is refused; a deactivated agent is refused at the handshake; expiry closes the connection; `JoinTicket` cannot probe arbitrary ids and joins no group for an unknown one; no customer text is in any payload and no token in any log.
+1. **Hub authentication and authorization.** Only agents connect, by header token; a query token is refused; a deactivated agent is refused at the handshake; expiry closes the connection; `JoinTicket` cannot probe arbitrary ids and joins no group for an unknown one; no customer text is in any payload and no token in any log.
    - Pinned in Task 3 (`TicketHubTests`: 401, 403, deactivated, query token, raw negotiate, expiry, the unknown-ticket barrier test, the log scan at every level; `HubWebSocketTests`; `HubPolicyCoverageTests`) and Task 1 (`LiveContractsTests`: the payload's property list).
 2. **Post-commit correctness.** No broadcast for rolled-back or conflicted work; exactly one broadcast per ticket per commit; a broadcaster failure or hang never fails the request.
    - Pinned in Task 2 (`TicketChangePublishingTests`: commit, several events, two tickets, rollback, rollback then commit in one scope, conflict, unique violation, throwing, partly failing, hanging, no-transaction save, failed save, read-only events, delete) and Task 3 (a REST status change reaches a hub client once, a 409 never does).
@@ -132,7 +132,7 @@ Every mutation step of this plan uses two small tools: `mut.py` applies one or m
 usage: python mut.py <file> --replace <old> <new> [--replace <old> <new> ...] -- <command ...>
 
 Applies each replacement to <file> (each <old> must match exactly once; "\\n" in an argument means a newline), runs the command in the current
-directory, prints the lines that summarise the run, and ALWAYS puts the file back. The mutation is KILLED when the command fails (exit code 0), a SURVIVOR
+directory, prints the lines that summarize the run, and ALWAYS puts the file back. The mutation is KILLED when the command fails (exit code 0), a SURVIVOR
 (exit code 3) when it passes and NOT A MUTATION (exit code 4) when the mutated code does not compile: pick another mutation. Run it from the repository root, after `git add`-ing the task's files, so a failed run can also be undone with
 `git checkout -- <file>`.
 """
@@ -1403,7 +1403,7 @@ MUTATIONS = [
     ("3 a resync is validated like a change", RELAY, [("if (dto.Kind == TicketChangeKinds.Resync)", 'if (dto.Kind == "Never")')], APP),
     ("4 any kind is accepted", RELAY, [("dto is null || dto.Kind is null || !Kinds.Contains(dto.Kind)", "dto is null || dto.Kind is null")], APP),
     ("5 the event type is not checked", RELAY, [("&& dto.EventType is not null && EventTypes.Contains(dto.EventType)", "&& dto.EventType is not null")], APP),
-    ("6 a cancelled relay is swallowed", RELAY, [("catch (Exception exception) when (exception is not OperationCanceledException)", "catch (Exception exception)")], APP),
+    ("6 a canceled relay is swallowed", RELAY, [("catch (Exception exception) when (exception is not OperationCanceledException)", "catch (Exception exception)")], APP),
     ("7 the relay drops the cancellation token", RELAY, [("await broadcaster.PublishAsync(change, cancellationToken);", "await broadcaster.PublishAsync(change, CancellationToken.None);")], APP),
     ("8 a join does not check that the ticket exists", PRESENCE, [("if (await tickets.GetStateAsync(ticketId, cancellationToken) is null)", "if (await tickets.GetStateAsync(ticketId, cancellationToken) is null && ticketId == Guid.Empty)")], APP),
     ("9 presence is broadcast even when nothing changed", PRESENCE, [("        if (!change.Changed)\n        {\n            return;", "        if (change.Presence is null)\n        {\n            return;")], APP),
@@ -1426,7 +1426,7 @@ MUTATIONS = [
 | 3 | a resync is validated like a change | `RelayTicketChangeHandler.cs` | KILLED (1 failing) |
 | 4 | any kind is accepted | `RelayTicketChangeHandler.cs` | KILLED (1 failing) |
 | 5 | the event type is not checked | `RelayTicketChangeHandler.cs` | KILLED (1 failing) |
-| 6 | a cancelled relay is swallowed | `RelayTicketChangeHandler.cs` | KILLED (1 failing) |
+| 6 | a canceled relay is swallowed | `RelayTicketChangeHandler.cs` | KILLED (1 failing) |
 | 7 | the relay drops the cancellation token | `RelayTicketChangeHandler.cs` | KILLED (1 failing) |
 | 8 | a join does not check that the ticket exists | `UpdateTicketPresenceHandler.cs` | KILLED (1 failing) |
 | 9 | presence is broadcast even when nothing changed | `UpdateTicketPresenceHandler.cs` | KILLED (4 failing) |
@@ -1591,7 +1591,7 @@ PHASE-09 is merged, so PHASE-10 can start. Reading the code before planning foun
 - **`TicketChangedDto` has no event id** for the client's de-duplication.
 - **No custom meter exists**, and `AddSyntaxCircusObservability` exports a custom meter only when its name is passed to it.
 - **The spec and 02-ARCHITECTURE disagree on a join for an unknown ticket** (`HubException` or an aborted connection).
-- **Presence names and the detail page's behaviour when another agent changes the ticket** were open.
+- **Presence names and the detail page's behavior when another agent changes the ticket** were open.
 
 ### Decision
 **Owner decisions (2026-10-07)**
@@ -6234,7 +6234,7 @@ Test run summary: Passed!
   succeeded: 7064
 ```
 ```text
-  [+] tracks no font binaries or restored font licences 32ms
+  [+] tracks no font binaries or restored font licenses 32ms
   [+] loads no font, script or style from a CDN at runtime 548ms
 Tests completed in 46.79s
 Tests Passed: 328, Failed: 0, Skipped: 0, Inconclusive: 0, NotRun: 0

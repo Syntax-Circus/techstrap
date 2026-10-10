@@ -3,7 +3,7 @@ namespace TechStrap.Admin.Features.Tickets;
 
 /// <summary>
 /// The ticket screen's copy, defined once. The strings from UX-BRIEF-admin are used word for word; the rest follows the voice rules
-/// (plain cause plus next step, sentence case, no humour, no exclamation marks).
+/// (plain cause plus next step, sentence case, no humor, no exclamation marks).
 /// </summary>
 public static class TicketCopy
 {

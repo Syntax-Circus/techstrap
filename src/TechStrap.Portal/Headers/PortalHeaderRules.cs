@@ -17,7 +17,7 @@ internal static class PortalHeaderRules
     public const string CacheControl = "no-store";
     public const string RobotsTag = "noindex";
 
-    /// <summary>The rules for <c>UseTechStrapWebHost</c>: the ticket headers, the attachment sandbox, the form pages' headers, the help centre's cache headers and, in Products mode (D-052), the landing page's.</summary>
+    /// <summary>The rules for <c>UseTechStrapWebHost</c>: the ticket headers, the attachment sandbox, the form pages' headers, the help center's cache headers and, in Products mode (D-052), the landing page's.</summary>
     public static IReadOnlyList<PathHeaderRule> Rules(PortalOptions options) =>
     [
         PathHeaderRule.Set(IsTicketPath, ("Referrer-Policy", ReferrerPolicy), ("Cache-Control", CacheControl), ("X-Robots-Tag", RobotsTag)),
@@ -26,11 +26,11 @@ internal static class PortalHeaderRules
         // The form pages keep the shared referrer policy (a visitor's own address is no secret from the same site) but are never indexed and never stored: their address can carry a name, an address and a subject.
         PathHeaderRule.Set(IsFormPagePath, ("Cache-Control", CacheControl), ("X-Robots-Tag", RobotsTag)),
 
-        // The help centre (PHASE-09c): a delivered page may be kept by a browser for the minute the server keeps it, but only a delivered one: a 404, a 429 or a 503 never gets a public header. The search page is never kept anywhere.
+        // The help center (PHASE-09c): a delivered page may be kept by a browser for the minute the server keeps it, but only a delivered one: a 404, a 429 or a 503 never gets a public header. The search page is never kept anywhere.
         PathHeaderRule.SetOnSuccess(PortalCachePaths.IsKbPage, ("Cache-Control", PortalCachePaths.BrowserCacheControl)),
         PathHeaderRule.Set(PortalCachePaths.IsKbSearchPath, ("Cache-Control", CacheControl)),
 
-        // The landing page is the same for every visitor and is kept for a minute like a help-centre page; the Neutral root never gets a public header.
+        // The landing page is the same for every visitor and is kept for a minute like a help-center page; the Neutral root never gets a public header.
         PathHeaderRule.SetOnSuccess(path => options.ListsProducts && PortalCachePaths.IsRoot(path), ("Cache-Control", PortalCachePaths.BrowserCacheControl)),
     ];
 
@@ -39,7 +39,7 @@ internal static class PortalHeaderRules
 
     /// <summary>
     /// The four form pages of a product (D-045 addendum): <c>/p/{key}/contact</c>, <c>/p/{key}/contact/received</c>, <c>/p/{key}/lost-link</c> and <c>/p/{key}/suggest</c>, without regard to case or a trailing slash (routing
-    /// matches without regard to case, so the rule must too). Nothing deeper and nothing else, so the product home and the help centre stay cacheable.
+    /// matches without regard to case, so the rule must too). Nothing deeper and nothing else, so the product home and the help center stay cacheable.
     /// </summary>
     public static bool IsFormPagePath(PathString path) =>
         (path.StartsWithSegments(PortalRoutes.ProductPrefix, out var rest)

@@ -13,13 +13,13 @@
 Every agent also gets My settings: notification opt-ins, a public display name with a live preview, a keyboard-shortcut toggle and a theme choice.
 
 **Architecture:**
-- **Pages.** They reuse the 07a client and shell patterns. Typed clients sit over `ApiConnection`. Writes always go through the write client, are never retried, are never cancelled when a page closes, and show uncertain-write copy when the outcome is unclear.
+- **Pages.** They reuse the 07a client and shell patterns. Typed clients sit over `ApiConnection`. Writes always go through the write client, are never retried, are never canceled when a page closes, and show uncertain-write copy when the outcome is unclear.
 - **Admin-only pages.** They are wrapped in an `AdminOnly` guard that trusts the API's answer from `AgentSession`. It never denies while the session is loading.
 - **Browser preferences.** The shortcut toggle and theme are stored in the browser through a small ES module.
 - **Backend additions.** There are four, all small:
   - an Admin-only tag summary endpoint with ticket counts;
   - server-side validation of logo URLs;
-  - Contracts constants for admin event types and subject types, plus the colour pattern, each with a parity test;
+  - Contracts constants for admin event types and subject types, plus the color pattern, each with a parity test;
   - an Admin agent-list endpoint test.
 
 **Tech Stack:** .NET 10, Blazor Server, ASP.NET Core controllers, EF Core with Npgsql, SyntaxCircus.Common Result, xUnit v3, Shouldly, NSubstitute, bUnit 2.11.3, and node:test for the JS modules.
@@ -189,7 +189,7 @@ PHASE-07a merged the sign-in, the shell, the typed clients and the ticket pages.
 - **Roles.** The UX brief and the PHASE-07 table have an agents screen that changes roles and stops the last admin from being demoted. Since D-029 the role comes from the IdP groups and `UpdateAgentRequest` carries `IsActive` only.
 - **Logo.** The UX brief has a logo upload. The API has no upload endpoint and no file storage for branding. `ProductBranding.LogoPath` is a plain string of up to 500 characters with no URL check. The email renderer uses it as an image source, and `GET /api/public/products/{key}` hands it to the portal, which will do the same in PHASE-09.
 - **Tag counts.** The tag list should show how many tickets use each tag. `GET /api/tags` has no count. The count of a `409 tag-in-use` exists only in the message text, because the `ResultError` of `SyntaxCircus.Common` has no field for it.
-- **Test gaps.** No endpoint test covers the admin fields of `GET /api/agents`. `AdminEvent` type and subject names, and the `#RRGGBB` colour pattern, exist only in Domain, which the Admin cannot reference.
+- **Test gaps.** No endpoint test covers the admin fields of `GET /api/agents`. `AdminEvent` type and subject names, and the `#RRGGBB` color pattern, exist only in Domain, which the Admin cannot reference.
 - **Guard and session.** `AgentSession.ReloadAsync` drops to NotLoaded until the answer arrives, so a page that reloads the session after a save would be replaced by the "Checking" gate. The Admin has no admin-only guard: D-040 decided that the API's answer, not the group claim, says who is an admin.
 - **Stale text.** The PHASE-07 lines on the typed clients still say `ApiClientBase` and three retries, and D-040 says three retries. The read client retries twice (`ApiClientRegistration.ReadRetryCount`), only on transport errors, timeouts, 408 and 502/503/504, and has no circuit breaker. The PHASE-07 text says validation errors arrive as 422, but the API answers 400.
 
@@ -287,7 +287,7 @@ Use a small Python script (or the Edit tool) for the multi-line replacements; do
    - Carry-forwards: change the two lines `- [ ] Carried forward from the PHASE-04 final review: Return the `tag-in-use` count ...` and `- [ ] Carried forward from the PHASE-04 final review: Add an endpoint test for the admin agent-list fields ...` so that each starts `- [ ] [07b] Carried forward` (Task 9 ticks them; the first is closed by the tag summary endpoint, the second by the new `AgentManagementEndpointTests` case).
 5. **`UX-BRIEF-admin.md`** (exact fragments; each is replaced inside its line, the file wraps at about 80 columns so the third and sixth are two-line fragments):
    - `grant/revoke agent access and roles,` becomes `activate or deactivate agents (roles come from the IdP groups, D-029 and D-041),`
-   - `branding (display name, logo, accent colour, email from-address, reply-to),` becomes `branding (display name, logo URL, accent colour, email from-address, reply-to),`
+   - `branding (display name, logo, accent color, email from-address, reply-to),` becomes `branding (display name, logo URL, accent color, email from-address, reply-to),`
    - `duplicate key or invalid logo upload` becomes `duplicate key or invalid logo URL`
    - `create/edit product and branding, upload logo, pick accent` becomes `create/edit product and branding, set the logo URL (https, with a preview), pick accent`
    - `change role (Agent/Admin), deactivate/reactivate.` becomes `deactivate/reactivate; the role is a read-only badge with the note "Roles come from your identity provider's groups." (D-029, D-041).`
@@ -350,7 +350,7 @@ public static class AdminSubjectTypes    // 7 consts: Product, ApiKey, Agent, Ta
 namespace TechStrap.Contracts.Branding;
 public static class BrandingRules
 {
-    public const string ColourPattern = "^#[0-9A-Fa-f]{6}$";   // apply it to the trimmed value; the API stores the colour upper-case
+    public const string ColourPattern = "^#[0-9A-Fa-f]{6}$";   // apply it to the trimmed value; the API stores the color upper-case
     public const int LogoUrlMaxLength = 500;
     public static bool IsAcceptableLogoUrl(string? value);      // blank = true; https with a host and no user info = true; http only for localhost and 127.0.0.1; else false
 }
@@ -526,7 +526,7 @@ using TechStrap.Domain.Tickets;
 namespace TechStrap.Application.Tests.Products;
 
 /// <summary>
-/// The Admin editor checks colour and logo with Contracts <see cref="BrandingRules"/> before it submits; the API checks again with the Domain guard. Domain
+/// The Admin editor checks color and logo with Contracts <see cref="BrandingRules"/> before it submits; the API checks again with the Domain guard. Domain
 /// cannot reference Contracts, so these tests pin the two to the same answers (Review Focus 4: an unsafe logo URL must be refused by both).
 /// </summary>
 public sealed class BrandingRulesParityTests
@@ -551,14 +551,14 @@ public sealed class BrandingRulesParityTests
     ];
 
     [Theory]
-    [MemberData(nameof(Colours))]
+    [MemberData(nameof(Colors))]
     public void The_colour_pattern_and_the_domain_guard_accept_and_reject_the_same_values(string sample)
     {
         // Both sides work on the trimmed value: the Domain trims before it matches, and the Admin trims before it validates.
         var byPattern = Regex.IsMatch(sample.Trim(), BrandingRules.ColourPattern);
 
         ProductBranding.Create("Orbitly", null, sample, null, null).IsSuccess.ShouldBe(byPattern, $"product accent '{sample}'");
-        Tag.Create("bug", "Bug", sample, Clock).IsSuccess.ShouldBe(byPattern, $"tag colour '{sample}'");
+        Tag.Create("bug", "Bug", sample, Clock).IsSuccess.ShouldBe(byPattern, $"tag color '{sample}'");
     }
 
     [Fact]
@@ -661,7 +661,7 @@ namespace TechStrap.Contracts.Branding;
 /// </summary>
 public static class BrandingRules
 {
-    /// <summary>A hex colour, <c>#RRGGBB</c>, either case. The API stores it upper-case.</summary>
+    /// <summary>A hex color, <c>#RRGGBB</c>, either case. The API stores it upper-case.</summary>
     public const string ColourPattern = "^#[0-9A-Fa-f]{6}$";
 
     /// <summary>The longest logo URL, the same limit as the Domain (<c>DomainLimits.UrlMaxLength</c>).</summary>
@@ -1001,7 +1001,7 @@ var requester = Requester.Create(requesterEmail, "Ann", null, clock).Value;
     }
 ```
 
-7. `tests/TechStrap.Api.Tests/Agents/AgentManagementEndpointTests.cs`: add the admin list case. It pins existing behaviour, so it passes as soon as it compiles; Step 7 proves it is not vacuous.
+7. `tests/TechStrap.Api.Tests/Agents/AgentManagementEndpointTests.cs`: add the admin list case. It pins existing behavior, so it passes as soon as it compiles; Step 7 proves it is not vacuous.
 
 ```csharp
     [Fact]
@@ -1228,7 +1228,7 @@ public StubApiHandler OnValidationProblem(HttpMethod method, string path, string
 ```
 
 **Rules:**
-1. **Reads retry, writes never.** The list and get methods use `connection.GetAsync` (read client, two retries). Every create, update, delete, retry, discard, activate and profile or preferences save uses `connection.SendAsync` (write client). A write is never retried and a page never cancels it: its caller passes `CancellationToken.None` (07a rule; the interface still takes a token so the reads can be cancelled).
+1. **Reads retry, writes never.** The list and get methods use `connection.GetAsync` (read client, two retries). Every create, update, delete, retry, discard, activate and profile or preferences save uses `connection.SendAsync` (write client). A write is never retried and a page never cancels it: its caller passes `CancellationToken.None` (07a rule; the interface still takes a token so the reads can be canceled).
 2. **`UpdateProductRequest.IsActive` is not nullable.** The client sends the request as built, so the editor always passes the current value; an absent flag would deactivate the product (Review Focus 3). `UpdateAsync` is a pass-through and the tests pin that `isActive` and `version` are in the body.
 3. **Query strings go through `ApiUri.Build`,** which skips null and empty values. `DeleteAsync(id, force: false)` sends no query; `force: true` sends `?force=true` (`ApiUri` formats a `bool` as `True`, so the client passes the string). `asOf` is sent as an ISO 8601 round-trip string (`ToString("O")`), because the default formatting of a `DateTimeOffset` loses sub-second ticks and is ambiguous.
 4. **The kebab-case targets are the API's.** A 400 arrives as `ResultError.Target` exactly as the API sent it (`logo-path`, `accent-colour`, `public-display-name`), not camelCase. Forms compare targets with the `ApiFields` constants. `subjectType` (the audit filter) is the one camelCase target, because it is a query parameter name.
@@ -1262,11 +1262,11 @@ public sealed class StubApiHandlerValidationTests
     public async Task A_validation_problem_reaches_the_client_as_a_field_error_with_the_code_and_message()
     {
         await using var api = await ApiHarness.CreateAsync(AdminTestPrincipal.Admin);
-        api.Stub.OnValidationProblem(HttpMethod.Post, "/api/tags", ApiFields.Colour, "colour-invalid", "colour must be a #RRGGBB colour.");
+        api.Stub.OnValidationProblem(HttpMethod.Post, "/api/tags", ApiFields.Colour, "colour-invalid", "color must be a #RRGGBB color.");
 
         var result = await api.Get<ITagsClient>().CreateAsync(new CreateTagRequest("bug", "Bug", "red"), Ct);
 
-        result.Errors.ShouldHaveSingleItem().ShouldBe(new ResultError("colour-invalid", "colour must be a #RRGGBB colour.", ResultErrorKind.Validation, "colour"));
+        result.Errors.ShouldHaveSingleItem().ShouldBe(new ResultError("colour-invalid", "color must be a #RRGGBB color.", ResultErrorKind.Validation, "colour"));
     }
 
     [Fact]
@@ -1397,7 +1397,7 @@ public sealed class ProductsClientTests
         api.Stub.On(HttpMethod.Put, $"/api/products/{ProductId}", _ => StubApiHandler.ValidationProblem(
         [
             (ApiFields.LogoPath, ApiErrorCodes.LogoPathInvalid, "logo-path must be an https URL (or http for localhost)."),
-            (ApiFields.AccentColour, "accent-colour-invalid", "accent-colour must be a #RRGGBB colour."),
+            (ApiFields.AccentColour, "accent-colour-invalid", "accent-colour must be a #RRGGBB color."),
         ]));
 
         var result = await api.Get<IProductsClient>().UpdateAsync(
@@ -2068,10 +2068,10 @@ public interface ITagsClient
     /// <summary><c>GET /api/tags/summary</c> (Admin): every tag with the number of tickets that carry it, ordered by name (D-041).</summary>
     Task<Result<IReadOnlyList<TagSummaryDto>>> ListSummaryAsync(CancellationToken cancellationToken);
 
-    /// <summary><c>POST /api/tags</c> (Admin, 201). 409 tag-slug-taken; 400 fields: slug, name, colour.</summary>
+    /// <summary><c>POST /api/tags</c> (Admin, 201). 409 tag-slug-taken; 400 fields: slug, name, color.</summary>
     Task<Result<TagDto>> CreateAsync(CreateTagRequest request, CancellationToken cancellationToken);
 
-    /// <summary><c>PUT /api/tags/{id}</c> (Admin). The slug is permanent. 404 tag-not-found; 400 fields: name, colour.</summary>
+    /// <summary><c>PUT /api/tags/{id}</c> (Admin). The slug is permanent. 404 tag-not-found; 400 fields: name, color.</summary>
     Task<Result<TagDto>> UpdateAsync(Guid id, UpdateTagRequest request, CancellationToken cancellationToken);
 
     /// <summary>
@@ -2311,7 +2311,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 namespace TechStrap.Admin.Auth;
 public sealed class AgentSession
 {
-    // unchanged members, plus a changed behaviour:
+    // unchanged members, plus a changed behavior:
     public Task ReloadAsync(CancellationToken cancellationToken);   // a Ready session stays Ready, with the current Agent, until the answer arrives; Changed is raised once then
 }
 
@@ -2771,7 +2771,7 @@ public sealed class AgentSession(IAgentsClient agents)
                 return;
             }
 
-            // Someone else is already asking; share their answer. If their load ended without one (they were cancelled), ask again ourselves.
+            // Someone else is already asking; share their answer. If their load ended without one (they were canceled), ask again ourselves.
             await running;
             if (State != AgentSessionState.NotLoaded)
             {
@@ -2788,7 +2788,7 @@ public sealed class AgentSession(IAgentsClient agents)
         }
         finally
         {
-            // A failed or cancelled load must not pin the shared task: the next call asks again unless the state is final.
+            // A failed or canceled load must not pin the shared task: the next call asks again unless the state is final.
             _loading = null;
             source.SetResult();
         }
@@ -3306,7 +3306,7 @@ Expected: node fails with `ERR_MODULE_NOT_FOUND` (no `preferences.js`); the dotn
 1. `src/TechStrap.Admin/wwwroot/js/preferences.js`:
 
 ```javascript
-// The agent's browser preferences (UX-BRIEF-admin, My settings): the single-key keyboard shortcuts and the colour theme. They live in the browser, per
+// The agent's browser preferences (UX-BRIEF-admin, My settings): the single-key keyboard shortcuts and the color theme. They live in the browser, per
 // browser, not in the API. The storage and the page are always handed in, so the functions below are pure and tests/TechStrap.Admin.Tests/js/preferences.test.mjs
 // can run them under node:test without a DOM. Nothing here may throw: storage can be missing, full or blocked (private windows, site data off), and a bad
 // stored value must fall back to the default instead of breaking the page.
@@ -3340,7 +3340,7 @@ export function normaliseTheme(value) {
     return THEMES.includes(value) ? value : DEFAULTS.theme;
 }
 
-/** Reads both preferences. Never throws; a missing, unreadable or unrecognised value is the default. */
+/** Reads both preferences. Never throws; a missing, unreadable or unrecognized value is the default. */
 export function readPreferences(storage) {
     const singleKey = readItem(storage, SINGLE_KEY);
     const theme = readItem(storage, THEME);
@@ -3352,7 +3352,7 @@ export function readPreferences(storage) {
 
 /**
  * Stores one preference. key is 'singleKeyShortcuts' (value true or false) or 'theme' (value 'auto', 'light' or 'dark'). Returns true when the value was
- * written, false when the key or value is not recognised or the storage refused it (full, blocked, missing). Never throws.
+ * written, false when the key or value is not recognized or the storage refused it (full, blocked, missing). Never throws.
  */
 export function writePreference(storage, key, value) {
     if (!storage || !Object.hasOwn(STORAGE_KEYS, key)) {
@@ -3441,7 +3441,7 @@ using Microsoft.JSInterop;
 
 namespace TechStrap.Admin.Features.Shell;
 
-/// <summary>The colour theme choice. <see cref="Auto"/> follows the operating system and is the default (BRAND.md: Light, Dark, Auto).</summary>
+/// <summary>The color theme choice. <see cref="Auto"/> follows the operating system and is the default (BRAND.md: Light, Dark, Auto).</summary>
 public enum ThemeChoice
 {
     Auto,
@@ -3968,7 +3968,7 @@ using TechStrap.Tests.Shared;
 
 namespace TechStrap.Admin.Tests;
 
-/// <summary>The rail's admin group and the failed-email badge use brand tokens only, so both themes get a legible badge without a new colour.</summary>
+/// <summary>The rail's admin group and the failed-email badge use brand tokens only, so both themes get a legible badge without a new color.</summary>
 public sealed class RailStyleTests
 {
     private static readonly CompiledCss Css = CompiledCss.Load("TechStrap.Admin");
@@ -4269,9 +4269,9 @@ public static class AccentPreviewCopy
 2. **A product edit never loses data.** The update is built from the form: `IsActive` is the form's current value (the flag is a non-nullable bool, so an omitted one would deactivate the product) and `Version` is the one the product was loaded with. The model is replaced only by a successful save (with the answer, which carries the new `Version`) or by the Reload button; a validation error, a conflict, an uncertain answer or any other failure leaves every typed value where it is.
 3. **Conflict.** `concurrency-conflict` raises a banner ("This product changed since you opened it." + "Your edits are still on screen. Reload shows the saved version and drops them.") with a Reload button. Reload re-reads the product and replaces the form; the next save carries the reloaded `Version`.
 4. **Unknown outcome.** A timeout, an unreachable or unreadable answer (`ApiErrorCodes.IsUncertainWrite`) says "The save may have gone through. Reload to see the saved version before you save again." with Reload. It never says nothing was changed and never offers a bare retry. Writes use `CancellationToken.None` and are never retried; a finish after the page is gone changes nothing (`_disposed`).
-5. **Field errors.** A 400 names its field in kebab-case (`ResultError.Target`, the `ApiFields` constants); the message appears under that input with `role="alert"` and `aria-invalid`. A target the form has no input for, and any untargeted error, is shown once above the form in the API's words. `product-key-taken` (a key or a ticket number prefix) is one sentence above the form. Client checks use the server's own rules and run on blur and on submit; the colour with `BrandingRules.ColourPattern`.
+5. **Field errors.** A 400 names its field in kebab-case (`ResultError.Target`, the `ApiFields` constants); the message appears under that input with `role="alert"` and `aria-invalid`. A target the form has no input for, and any untargeted error, is shown once above the form in the API's words. `product-key-taken` (a key or a ticket number prefix) is one sentence above the form. Client checks use the server's own rules and run on blur and on submit; the color with `BrandingRules.ColourPattern`.
 6. **The logo is a URL (D-041), checked with `BrandingRules.IsAcceptableLogoUrl`.** An address that fails is refused at the field before anything is sent, and the preview never gets an `img` for it; only an address that passes is passed on to `AccentPreview`. Plain `http` is accepted for `localhost` and `127.0.0.1` only (the shared rule has no environment switch), and an address with user info or a space is refused.
-7. **Branding preview.** `AccentPreview` derives the three accent properties with `ProductAccent.TryDerive` (the portal's `AccentScope` rule, which Admin cannot reference); a blank or malformed colour sets nothing. A low-contrast colour (below `MinimumTextContrast` on white) only shows an information note whose ratio is rounded down; it never blocks a save.
+7. **Branding preview.** `AccentPreview` derives the three accent properties with `ProductAccent.TryDerive` (the portal's `AccentScope` rule, which Admin cannot reference); a blank or malformed color sets nothing. A low-contrast color (below `MinimumTextContrast` on white) only shows an information note whose ratio is rounded down; it never blocks a save.
 8. **Create.** The key and the ticket number prefix are asked for only when creating; afterwards they are read-only text (they are permanent). Success shows "Created {name}" in the status bar and goes to `/settings/products/{id}/keys` (Task 6). There is no `IsActive` switch on create.
 9. **Copy** lives in `ProductsCopy` and `AccentPreviewCopy`. Non-ASCII text is written as `\u` escapes in C# (`SourceEscapeTests` and `SourceEncodingTests` stay green); write these files with Python or an editor, never GNU sed, and grep afterwards.
 
@@ -4388,7 +4388,7 @@ public sealed class AccentPreviewTests : BunitContext
         var cut = Render<AccentPreview>(p => p.Add(c => c.Accent, "#FFEB3B"));
 
         var note = cut.Find("p[role=note]");
-        note.TextContent.ShouldContain("This colour has low contrast on white");
+        note.TextContent.ShouldContain("This color has low contrast on white");
         note.TextContent.ShouldContain("TechStrap darkens it wherever it is used for text");
         cut.Find(".ts-accent-preview").HasAttribute("style").ShouldBeTrue();
     }
@@ -4866,7 +4866,7 @@ public sealed class ProductEditorTests : AdminPageTest
 
         Type(cut, "ts-product-accent", accent);
         cut.Find("#ts-product-accent").Blur();
-        FieldError(cut, "ts-product-accent").ShouldBe("Use a colour like #1D4ED8: a # and six hex digits.");
+        FieldError(cut, "ts-product-accent").ShouldBe("Use a color like #1D4ED8: a # and six hex digits.");
         Save(cut);
 
         Updates.ShouldBeEmpty();
@@ -5090,7 +5090,7 @@ public sealed class ProductEditorRealApiTests : AdminPageTest
         await using var api = await ApiHarness.CreateAsync(AdminTestPrincipal.Admin);
         api.Stub.OnJson(HttpMethod.Get, $"/api/products/{TestData.OrbitlyId}", TestData.ProductDetail(version: 7));
         api.Stub.On(HttpMethod.Put, $"/api/products/{TestData.OrbitlyId}", _ =>
-            StubApiHandler.ValidationProblem("accent-colour", "accent-colour-invalid", "Use a colour like #RRGGBB."));
+            StubApiHandler.ValidationProblem("accent-colour", "accent-colour-invalid", "Use a color like #RRGGBB."));
         Services.AddSingleton(api.Get<IProductsClient>());
         var cut = Render<ProductEditorPage>(p => p.Add(c => c.Id, TestData.OrbitlyId.ToString()));
         cut.Find("#ts-product-name").Input("Orbitly Cloud");
@@ -5098,7 +5098,7 @@ public sealed class ProductEditorRealApiTests : AdminPageTest
 
         cut.Find("form").Submit();
 
-        cut.WaitForAssertion(() => cut.Find("#ts-product-accent-error").TextContent.ShouldBe("Use a colour like #RRGGBB."));
+        cut.WaitForAssertion(() => cut.Find("#ts-product-accent-error").TextContent.ShouldBe("Use a color like #RRGGBB."));
         cut.Find("#ts-product-name").GetAttribute("value").ShouldBe("Orbitly Cloud");
         var put = api.Stub.Requests.Single(r => r.Method == HttpMethod.Put);
         using var body = JsonDocument.Parse(put.Body!);
@@ -5249,7 +5249,7 @@ public static class ProductsCopy
     public const string DisplayNameHelp = "The name customers see in the portal and in emails.";
     public const string LogoLabel = "Logo address";
     public const string LogoHelp = "A full https:// address of an image. Leave it blank for no logo.";
-    public const string AccentLabel = "Accent colour";
+    public const string AccentLabel = "Accent color";
     public const string AccentHelp = "A # and six hex digits, such as #1D4ED8. Leave it blank for the default.";
     public const string FromLabel = "Email from address";
     public const string ReplyToLabel = "Email reply-to address";
@@ -5269,7 +5269,7 @@ public static class ProductsCopy
     public const string NumberPrefixInvalid = "Use 2 to 10 capital letters or numbers, starting with a letter.";
     public const string DisplayNameRequired = "Enter the name customers see.";
     public const string LogoInvalid = "Use a full https:// address for the logo.";
-    public const string AccentInvalid = "Use a colour like #1D4ED8: a # and six hex digits.";
+    public const string AccentInvalid = "Use a color like #1D4ED8: a # and six hex digits.";
     public const string EmailInvalid = "Enter a valid email address.";
 
     public const string ConflictTitle = "This product changed since you opened it.";
@@ -5295,7 +5295,7 @@ using TechStrap.Contracts.Products;
 namespace TechStrap.Admin.Features.Settings.Products;
 
 /// <summary>
-/// The form model of the product editor. It holds exactly what is on screen, validates it with the server's rules (the colour with the same Contracts constant as the API's pattern),
+/// The form model of the product editor. It holds exactly what is on screen, validates it with the server's rules (the color with the same Contracts constant as the API's pattern),
 /// and builds the requests. <see cref="IsActive"/> is always carried (the update request has a non-nullable flag, and an omitted one would deactivate the product) and <see cref="Version"/>
 /// is the one the product was loaded with.
 /// </summary>
@@ -5632,7 +5632,7 @@ public sealed partial class ProductsContent : IDisposable
     </div>
 
 @code {
-    /// <summary>One labelled text input with its help text and its error; the value is bound on input and checked on blur.</summary>
+    /// <summary>One labeled text input with its help text and its error; the value is bound on input and checked on blur.</summary>
     private RenderFragment Field(string id, string label, string field, string value, Action<string> set, string? help = null, string type = "text") => @<div class="ts-field">
         <label for="@id" class="form-label">@label</label>
         <input id="@id" type="@type" class="form-control @(_errors.ContainsKey(field) ? "is-invalid" : null)" value="@value" autocomplete="off"
@@ -5939,8 +5939,8 @@ namespace TechStrap.Admin.Components.Ui;
 
 /// <summary>
 /// A small preview of a product's branding: its name and logo on a bar, a button in the accent and a link in the readable accent ink. It sets the same three custom properties as the portal's
-/// accent scope (<c>--ts-accent</c>, <c>--ts-on-accent</c>, <c>--ts-accent-ink</c>), derived with the one shared rule (<see cref="ProductAccent"/>). A malformed or blank colour sets nothing and the stylesheet's
-/// fallbacks apply. A low-contrast colour only produces an information note: TechStrap darkens it where it is used as text, so it is never refused. The caller passes only a logo address that
+/// accent scope (<c>--ts-accent</c>, <c>--ts-on-accent</c>, <c>--ts-accent-ink</c>), derived with the one shared rule (<see cref="ProductAccent"/>). A malformed or blank color sets nothing and the stylesheet's
+/// fallbacks apply. A low-contrast color only produces an information note: TechStrap darkens it where it is used as text, so it is never refused. The caller passes only a logo address that
 /// passed the logo rule; this component renders whatever it is given.
 /// </summary>
 public partial class AccentPreview
@@ -5973,7 +5973,7 @@ public partial class AccentPreview
         _note = ratio < ProductAccent.MinimumTextContrast ? AccentPreviewCopy.LowContrast(Floor(ratio)) : null;
     }
 
-    // Rounded down, so "4.5:1" is never shown for a colour that is below 4.5.
+    // Rounded down, so "4.5:1" is never shown for a color that is below 4.5.
     private static string Floor(double ratio) => (Math.Floor(ratio * 10) / 10).ToString("0.0", CultureInfo.InvariantCulture);
 }
 
@@ -5983,7 +5983,7 @@ public static class AccentPreviewCopy
     public const string SampleLink = "Link";
 
     public static string LowContrast(string ratio) =>
-        $"This colour has low contrast on white ({ratio}:1; 4.5:1 is the aim for text). TechStrap darkens it wherever it is used for text, so it stays readable. You can keep it.";
+        $"This color has low contrast on white ({ratio}:1; 4.5:1 is the aim for text). TechStrap darkens it wherever it is used for text, so it stays readable. You can keep it.";
 }
 ```
 
@@ -6044,7 +6044,7 @@ public static class AccentPreviewCopy
   gap: 4px 12px;
 }
 
-// Status in words first; the border colour only repeats it.
+// Status in words first; the border color only repeats it.
 .ts-pill {
   display: inline-block;
   padding: 1px 8px;
@@ -8198,7 +8198,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
 
 ### Task 7: Agents page and My settings (P07-T16, P07-T23)
 
-**Review Focus pin (5):** deactivating an agent fires only after its confirmation and only once; activating (no confirmation, by design) fires once per click. Pinned by `AgentsPageTests`. The session-reload behaviour behind the display-name save is pinned in Task 4 and re-checked here by `PublicDisplayNameFieldTests`.
+**Review Focus pin (5):** deactivating an agent fires only after its confirmation and only once; activating (no confirmation, by design) fires once per click. Pinned by `AgentsPageTests`. The session-reload behavior behind the display-name save is pinned in Task 4 and re-checked here by `PublicDisplayNameFieldTests`.
 
 **Files:**
 - Create: `src/TechStrap.Admin/Features/Settings/Agents/AgentsCopy.cs`, `AgentRowViewModel.cs`, `AgentsContent.razor` and `.razor.cs`, `AgentsPage.razor`
@@ -9801,7 +9801,7 @@ namespace TechStrap.Admin.Features.Account;
 
 /// <summary>
 /// The optional name customers see in place of the agent's own (D-024). It shows a live preview, checks the two rules before it sends anything, and saves on blur or Enter, only when the text
-/// changed since the last save (so Enter followed by blur saves once). A save is never cancelled and never retried; after it the session is asked again, and because the session keeps its
+/// changed since the last save (so Enter followed by blur saves once). A save is never canceled and never retried; after it the session is asked again, and because the session keeps its
 /// agent while it reloads (it never drops to "not loaded"), the page does not flicker or lose what is on it.
 /// </summary>
 public sealed partial class PublicDisplayNameField : IDisposable
@@ -10299,7 +10299,7 @@ public static class EmailKinds                   // the seven outbox kinds and L
 2. **Delete is two flows.** *Unused* (`TicketCount == 0`): a medium confirmation naming the tag ("Delete the tag {name}?", "No tickets use this tag. This can't be undone."), no typed text, `force=false`. *In use*: an irreversible one: danger style, the count as "{n} tickets" ("1 ticket"), the body "This tag is on {n} tickets. Deleting it removes it from all of them, and each ticket records the change. This can't be undone.", the tag's name typed (`ConfirmDialog.RequiredText`, so Confirm stays disabled until it matches, ignoring case), and then `force=true`. `force` is never true for a tag the list shows as unused. Cancel and Esc make no call; a double click sends once (`_deleteBusy` and the dialog's `Busy`).
 3. **A stale count is caught by the API.** A 409 `tag-in-use` for a tag the list showed as unused reads the list again and keeps the dialog open with "This tag was just added to tickets. The count above is updated: type the name to delete it anyway." The dialog is built from the row looked up fresh by id, so after the reload it shows the new count and asks for the name.
 4. **Other outcomes.** `tag-not-found` closes the dialog, says "That tag no longer exists." and reloads; another failure: "Couldn't delete the tag. Nothing was changed. {message}"; a lost answer disables Confirm, says the delete may have gone through and offers Reload list (never "nothing was changed"). Writes use `CancellationToken.None`; a finish after the page is gone changes nothing.
-5. **Create and edit.** The slug follows the name ("Billing issue" gives "billing-issue") until the agent edits it. The colour is checked with `BrandingRules.ColourPattern`; name at most 50, slug at most 40 with the server's pattern. A 409 `tag-slug-taken` is a field error on the slug ("Another tag already uses this slug."); a 400 maps by its kebab-case target (`ApiFields`). Edit is in the row (name and colour; the slug is permanent); the count the list showed stays.
+5. **Create and edit.** The slug follows the name ("Billing issue" gives "billing-issue") until the agent edits it. The color is checked with `BrandingRules.ColourPattern`; name at most 50, slug at most 40 with the server's pattern. A 409 `tag-slug-taken` is a field error on the slug ("Another tag already uses this slug."); a 400 maps by its kebab-case target (`ApiFields`). Edit is in the row (name and color; the slug is permanent); the count the list showed stays.
 6. **The audit log is read-only and never renders a payload.** `AdminEventSummaryFactory` reads ids, slugs, prefixes, kinds and counts only, shortens every value to 60 characters, replaces control characters, and never returns the payload; the sentence is plain text that Razor encodes. All 12 `AdminEventTypes` have their own sentence; an unknown type is shown as words ("Something new"), and no payload shape (not JSON, an array, wrong kinds, huge numbers, hostile text) throws or echoes. `AdminEventSummaryFactoryTests` fails when a new constant has no sample.
 7. **Filters and paging.** Subject type and actor, both in the query string; a subject that is not one of the seven (case-insensitive) or an actor that is not a Guid is dropped, never sent. Changing a filter navigates with the other filter kept and the page dropped. The first page of a filter fixes `asOf` from the clock; later pages of the same filter send the same `asOf`; page 1 again, a changed filter, Refresh, or a page opened directly takes a new one. A failed agent list only means the actor filter has no names.
 8. **Thin shells.** `TagsPage` and `AdminEventsPage` are `<AdminOnly><...Content/></AdminOnly>`; all loading, including the agent list, is in the content.
@@ -10343,7 +10343,7 @@ using TechStrap.Contracts.Tags;
 
 namespace TechStrap.Admin.Tests.Components;
 
-/// <summary>The tag list with its ticket counts, create, and inline rename and recolour. Delete has its own class (Review Focus 5).</summary>
+/// <summary>The tag list with its ticket counts, create, and inline rename and recolor. Delete has its own class (Review Focus 5).</summary>
 public sealed class TagsPageTests : AdminPageTest
 {
     private readonly ITagsClient _tags = Substitute.For<ITagsClient>();
@@ -10474,7 +10474,7 @@ public sealed class TagsPageTests : AdminPageTest
 
         cut.Find("form.ts-tag-create").Submit();
 
-        cut.Find("#ts-tag-colour-error").TextContent.ShouldBe("Use a colour like #1D4ED8: a # and six hex digits.");
+        cut.Find("#ts-tag-colour-error").TextContent.ShouldBe("Use a color like #1D4ED8: a # and six hex digits.");
         Creates().ShouldBeEmpty();
     }
 
@@ -10599,7 +10599,7 @@ public sealed class TagsPageTests : AdminPageTest
         Row(cut, "urgent").QuerySelector("button.ts-edit")!.Click();
         cut.Find("#ts-edit-colour").Input("nope");
         cut.Find("button.ts-save").Click();
-        cut.Find("#ts-edit-colour-error").TextContent.ShouldBe("Use a colour like #1D4ED8: a # and six hex digits.");
+        cut.Find("#ts-edit-colour-error").TextContent.ShouldBe("Use a color like #1D4ED8: a # and six hex digits.");
         Updates().ShouldBeEmpty();
 
         _tags.UpdateAsync(Arg.Any<Guid>(), Arg.Any<UpdateTagRequest>(), Arg.Any<CancellationToken>())
@@ -10934,7 +10934,7 @@ public sealed class AdminEventSummaryFactoryTests
         [AdminEventTypes.ApiKeyRevoked] = ("{\"productId\":\"11111111-1111-1111-1111-111111111111\",\"keyPrefix\":\"tsk_ab12\"}", "Revoked API key tsk_ab12"),
         [AdminEventTypes.AgentUpdated] = ("{\"isActive\":false}", "Deactivated an agent"),
         [AdminEventTypes.TagCreated] = ("{\"slug\":\"bug\"}", "Created tag bug"),
-        [AdminEventTypes.TagUpdated] = ("{\"slug\":\"bug\",\"changed\":[\"name\",\"colour\"]}", "Updated tag bug: name, colour"),
+        [AdminEventTypes.TagUpdated] = ("{\"slug\":\"bug\",\"changed\":[\"name\",\"colour\"]}", "Updated tag bug: name, color"),
         [AdminEventTypes.TagDeleted] = ("{\"slug\":\"bug\",\"detachedTicketCount\":12}", "Deleted tag bug, removed from 12 tickets"),
         [AdminEventTypes.RequesterErased] = ("{\"tickets\":3,\"messages\":12,\"attachments\":1,\"links\":2,\"outboxRows\":4}", "Erased a requester: 3 tickets, 12 messages, 1 attachment, 2 access links, 4 queued emails"),
         [AdminEventTypes.TicketDeleted] = ("{\"number\":\"ORB-42\",\"messageCount\":1,\"attachmentCount\":0}", "Deleted ticket ORB-42 (1 message, 0 attachments)"),
@@ -11391,7 +11391,7 @@ public static class EmailKinds
 ```csharp
 namespace TechStrap.Admin.Features.Settings.Tags;
 
-/// <summary>The copy of the tags page: create, rename and recolour, and the two delete confirmations (an unused tag, and a tag in use with its count and a typed name).</summary>
+/// <summary>The copy of the tags page: create, rename and recolor, and the two delete confirmations (an unused tag, and a tag in use with its count and a typed name).</summary>
 public static class TagsCopy
 {
     public const string DefaultColour = "#4B5563";
@@ -11425,7 +11425,7 @@ public static class TagsCopy
     public const string SlugRequired = "Enter a slug.";
     public const string SlugInvalid = "Use lower-case letters, numbers and single hyphens, up to 40 characters.";
     public const string SlugTaken = "Another tag already uses this slug.";
-    public const string ColourInvalid = "Use a colour like #1D4ED8: a # and six hex digits.";
+    public const string ColourInvalid = "Use a color like #1D4ED8: a # and six hex digits.";
 
     public const string DeleteConfirm = "Delete tag";
     public const string DeleteUnusedBody = "No tickets use this tag. This can't be undone.";
@@ -11464,7 +11464,7 @@ internal sealed record TagRowViewModel(Guid Id, string Slug, string Name, string
 {
     public static TagRowViewModel From(TagSummaryDto tag) => new(tag.Id, tag.Slug, tag.Name, tag.Colour, tag.TicketCount);
 
-    /// <summary>The row after a rename or recolour: the API answers with the tag only, so the count the list already showed stays.</summary>
+    /// <summary>The row after a rename or recolor: the API answers with the tag only, so the count the list already showed stays.</summary>
     public TagRowViewModel With(TagDto tag) => this with { Name = tag.Name, Colour = tag.Colour };
 }
 ```
@@ -11477,7 +11477,7 @@ using TechStrap.Contracts.Branding;
 
 namespace TechStrap.Admin.Features.Settings.Tags;
 
-/// <summary>The checks the tag form makes before it sends, with the server's own rules (the colour with the same Contracts constant). The field names of a 400 are <see cref="Clients.ApiFields"/>.</summary>
+/// <summary>The checks the tag form makes before it sends, with the server's own rules (the color with the same Contracts constant). The field names of a 400 are <see cref="Clients.ApiFields"/>.</summary>
 internal static partial class TagForm
 {
     private const int NameMaxLength = 50;
@@ -11680,7 +11680,7 @@ using TechStrap.Contracts.Tags;
 namespace TechStrap.Admin.Features.Settings.Tags;
 
 /// <summary>
-/// The tag list with its ticket counts (Admin only), create, rename and recolour, and delete. Deleting an unused tag is a medium-tier confirmation and sends no force flag. Deleting a tag that is in use is
+/// The tag list with its ticket counts (Admin only), create, rename and recolor, and delete. Deleting an unused tag is a medium-tier confirmation and sends no force flag. Deleting a tag that is in use is
 /// irreversible: the dialog shows the count ("12 tickets"), asks for the tag's name to be typed, and only then sends <c>force=true</c>. A 409 <c>tag-in-use</c> (someone tagged a ticket after the list was read) refreshes
 /// the counts and keeps the dialog open, so the next confirmation is the typed one. Writes use <see cref="CancellationToken.None"/> and never retry; an unknown outcome says so and offers a reload.
 /// </summary>
@@ -12612,7 +12612,7 @@ public sealed partial class AdminEventsContent : IDisposable
 `src/TechStrap.Admin/Styles/_tags.scss`
 
 ```scss
-// Tags page (PHASE-07b): the colour row and the delete count.
+// Tags page (PHASE-07b): the color row and the delete count.
 
 .ts-colour-row {
   display: flex;
@@ -12718,7 +12718,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
 2. **Retry needs no confirmation and fires once**; every action button is disabled while one runs. **Discard is a medium-tier confirmation** that names the kind and the masked recipient and says "TechStrap will stop trying to send it, and it will not be sent. This can't be undone."; Cancel and Esc make no call; Confirm fires once.
 3. **After a retry or a discard** the list is read again and `FailedEmailCounter.Set(total)` follows from that read (the page sets it on every successful load), so the rail badge shows the new total without a second call; a retry that fails again comes back with its new error. `outbox-not-found` and `outbox-not-dead-lettered` ("already retried or discarded") say so and refresh. A failure says "Couldn't retry the email. Nothing was changed. {message}" (or discard); a lost answer says the retry or discard may have gone through, never "nothing was changed", disables a second discard and offers Reload list. Writes use `CancellationToken.None` and are never retried; a finish after the page is gone changes nothing.
 4. **Pin 1 at the host.** `AdminSettingsHostTests` opens every admin address as a plain agent and asserts the stub saw only `GET /api/agents/me` (zero admin API calls), the page-level no-access page, no admin data in the HTML and no admin links in the rail; as an admin it asserts each page shows its data, the first call is `/api/agents/me` and every call bore the token; anonymous and refused users never reach a page. My settings is open to a plain agent and asks only for what an agent may read.
-5. **Pin 2 at the host.** The leak test creates a key through the host's real client pipeline as the admin (the scope gets the sign-in a circuit would have), proves the secret really travelled, then opens the keys, editor and list pages and asserts the secret is in no page, no request path or query, no request body the Admin sent, and no Serilog event; the secret has a shape the log redactor does not mask, so the test proves the Admin never logs it, not that the redactor hid it. The second test opens all nine settings pages as an admin and asserts the access token is in no page and no log line.
+5. **Pin 2 at the host.** The leak test creates a key through the host's real client pipeline as the admin (the scope gets the sign-in a circuit would have), proves the secret really traveled, then opens the keys, editor and list pages and asserts the secret is in no page, no request path or query, no request body the Admin sent, and no Serilog event; the secret has a shape the log redactor does not mask, so the test proves the Admin never logs it, not that the redactor hid it. The second test opens all nine settings pages as an admin and asserts the access token is in no page and no log line.
 6. **Docs.** `ADMIN-APP.md` describes what an admin can do, the role table, the layout, the tests and the known gaps; `PHASE-07-admin-app.md` ticks T14, T15, T16, T17, T18 and T23 with their evidence and the two carry-forwards this phase closes; the roadmap and the index say "07a merged; 07b implemented (pending merge); 07c not started". A script applies them and asserts every replaced text exists exactly once.
 
 - [ ] **Step 1: Write the failing tests**
@@ -13440,7 +13440,7 @@ and add these two tests inside the class, after the existing test (the Api.Tests
 
             var created = await products.CreateApiKeyAsync(productId, new CreateProductApiKeyRequest(ApiKeyKinds.Trusted, "CI"), CancellationToken.None);
             created.IsSuccess.ShouldBeTrue(string.Join("; ", created.IsFailure ? created.Errors.Select(e => e.Message) : []));
-            created.Value.PlaintextKey.ShouldBe(KeySecret, "the secret really travelled through the pipeline, or this test proves nothing");
+            created.Value.PlaintextKey.ShouldBe(KeySecret, "the secret really traveled through the pipeline, or this test proves nothing");
             (await products.RevokeApiKeyAsync(productId, key.Id, CancellationToken.None)).IsSuccess.ShouldBeTrue();
         }
 
@@ -14057,7 +14057,7 @@ doc = replace_once(
 | My settings (email alerts, keyboard shortcuts, theme, public display name) | yes | yes |
 | Products, branding, API keys | no (page-level no-access) | yes |
 | Agents: see the list, activate, deactivate | no | yes |
-| Tags: create, rename, recolour, delete | no | yes |
+| Tags: create, rename, recolor, delete | no | yes |
 | Audit log, failed emails (retry, discard) | no | yes |
 
 **Roles are read-only here (D-041).** The agents page shows each role as a badge, with the note "Roles come from your identity provider's groups." An admin can only activate or deactivate an
@@ -14134,7 +14134,7 @@ Everything in this section needs the Admin role. The API refuses the same calls 
   will stop working.") and a revoked key stays in the list, marked Revoked.
 - **Agents** (`/settings/agents`): everyone who has signed in, with role badge, active or not, and last seen, 25 to a page. Activate needs no confirmation; Deactivate asks first. Deactivating the only active admin
   is refused by the API, and the page shows its message inside the dialog. Deactivating yourself warns you, and then shows the no-access page.
-- **Tags** (`/settings/tags`): every tag with a **ticket count**, create (the slug follows the name until you edit it), rename and recolour in the row, and delete. Deleting an unused tag asks first. Deleting a tag
+- **Tags** (`/settings/tags`): every tag with a **ticket count**, create (the slug follows the name until you edit it), rename and recolor in the row, and delete. Deleting an unused tag asks first. Deleting a tag
   that is in use shows its count ("12 tickets"), asks you to type the tag's name, and only then removes it from every ticket and deletes it.
 - **Audit log** (`/settings/audit`): who changed what, newest first, 25 to a page. Filter by what changed (product, API key, agent, tag, requester, ticket, email) and by who; both stay in the address so a view can
   be linked. Every event is one sentence built from the ids, slugs, prefixes and counts in its payload. The raw payload is never shown. The first page fixes a point in time, so events recorded while you read do
@@ -14280,7 +14280,7 @@ The edit the script makes to `docs/development/ADMIN-APP.md`, in full, as a diff
 +| My settings (email alerts, keyboard shortcuts, theme, public display name) | yes | yes |
 +| Products, branding, API keys | no (page-level no-access) | yes |
 +| Agents: see the list, activate, deactivate | no | yes |
-+| Tags: create, rename, recolour, delete | no | yes |
++| Tags: create, rename, recolor, delete | no | yes |
 +| Audit log, failed emails (retry, discard) | no | yes |
 +
 +**Roles are read-only here (D-041).** The agents page shows each role as a badge, with the note "Roles come from your identity provider's groups." An admin can only activate or deactivate an
@@ -14305,8 +14305,8 @@ The edit the script makes to `docs/development/ADMIN-APP.md`, in full, as a diff
    Styles/         SCSS partials over the brand tokens (docs/BRAND.md)
 @@ -123,3 +137,3 @@
  - **Components never inject `HttpClient`.** They inject the `I*Client` interfaces, which return `Result<T>`; the clients map the API's ProblemDetails (the error `type` is the code).
--- Every read takes the component's `CancellationToken`. Writes (reply, note, sidebar changes, spam, delete, erase) deliberately pass `CancellationToken.None`: the server may commit a write after the agent has left the screen, so cancelling the call would only hide the outcome.
-+- Every read takes the component's `CancellationToken`. Writes (reply, note, sidebar changes, spam, delete, erase, and every settings write) deliberately pass `CancellationToken.None`: the server may commit a write after the agent has left the screen, so cancelling the call would only hide the outcome.
+-- Every read takes the component's `CancellationToken`. Writes (reply, note, sidebar changes, spam, delete, erase) deliberately pass `CancellationToken.None`: the server may commit a write after the agent has left the screen, so canceling the call would only hide the outcome.
++- Every read takes the component's `CancellationToken`. Writes (reply, note, sidebar changes, spam, delete, erase, and every settings write) deliberately pass `CancellationToken.None`: the server may commit a write after the agent has left the screen, so canceling the call would only hide the outcome.
  - Razor components are always public classes, so a type used as a component parameter is public (a view model cannot be `internal`).
 @@ -140,3 +154,3 @@
  
@@ -14331,7 +14331,7 @@ The edit the script makes to `docs/development/ADMIN-APP.md`, in full, as a diff
 +  will stop working.") and a revoked key stays in the list, marked Revoked.
 +- **Agents** (`/settings/agents`): everyone who has signed in, with role badge, active or not, and last seen, 25 to a page. Activate needs no confirmation; Deactivate asks first. Deactivating the only active admin
 +  is refused by the API, and the page shows its message inside the dialog. Deactivating yourself warns you, and then shows the no-access page.
-+- **Tags** (`/settings/tags`): every tag with a **ticket count**, create (the slug follows the name until you edit it), rename and recolour in the row, and delete. Deleting an unused tag asks first. Deleting a tag
++- **Tags** (`/settings/tags`): every tag with a **ticket count**, create (the slug follows the name until you edit it), rename and recolor in the row, and delete. Deleting an unused tag asks first. Deleting a tag
 +  that is in use shows its count ("12 tickets"), asks you to type the tag's name, and only then removes it from every ticket and deletes it.
 +- **Audit log** (`/settings/audit`): who changed what, newest first, 25 to a page. Filter by what changed (product, API key, agent, tag, requester, ticket, email) and by who; both stay in the address so a view can
 +  be linked. Every event is one sentence built from the ids, slugs, prefixes and counts in its payload. The raw payload is never shown. The first page fixes a point in time, so events recorded while you read do

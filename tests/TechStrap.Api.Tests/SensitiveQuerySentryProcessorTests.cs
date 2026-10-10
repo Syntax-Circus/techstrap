@@ -11,7 +11,7 @@ namespace TechStrap.Api.Tests;
 /// Review Focus 4, Sentry: the text an agent searched for (a requester's email address, a subject line) never reaches Sentry in a request's query string or URL, in a breadcrumb, or in a span. The
 /// last test sends an event through the SDK with the host's registration and reads what the transport receives, with a control that proves the harness would see a leak.
 /// </summary>
-/// <remarks>The last test initialises the SDK, which is process-wide state, so the class runs in the non-parallel <see cref="ProcessEnvironmentCollection"/> with the other tests that must run alone.</remarks>
+/// <remarks>The last test initializes the SDK, which is process-wide state, so the class runs in the non-parallel <see cref="ProcessEnvironmentCollection"/> with the other tests that must run alone.</remarks>
 [Collection(ProcessEnvironmentCollection.Name)]
 public sealed class SensitiveQuerySentryProcessorTests
 {

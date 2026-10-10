@@ -8,7 +8,7 @@ using TechStrap.Portal.Tests.Forms;
 namespace TechStrap.Portal.Tests.Kb;
 
 /// <summary>
-/// What the help-centre host tests share: the paperplane product behind the stub API (<see cref="FormTestKit"/>, whose factory asserts that every API call carried the visitor's address), the three API paths the pages
+/// What the help-center host tests share: the paperplane product behind the stub API (<see cref="FormTestKit"/>, whose factory asserts that every API call carried the visitor's address), the three API paths the pages
 /// read, builders for the DTOs, and a parsed document, so a test asserts on elements and attributes, not on strings of markup.
 /// </summary>
 internal static class KbTestKit

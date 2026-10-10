@@ -71,7 +71,7 @@ The resulting issuer is `https://auth.example.com/application/o/techstrap/`, inc
 
 The Api reads group names from the `groups` claim of the access token. With the default Authentik `profile` scope mapping intact, the provider already emits `groups` (the list of the user's group names) in the token, so you add nothing.
 
-Fallback, only when the default mapping was customised or removed: open Customisation, Property Mappings, Create, Scope Mapping. Authentik puts a mapping's claims in the token only when the client requests that mapping's scope name, and the Admin requests `openid`, `profile`, `email` and `offline_access`. So give the new mapping the scope name `profile` (Authentik merges the claims of every selected mapping whose scope is requested, so it works alongside the default one or replaces it) and this expression:
+Fallback, only when the default mapping was customized or removed: open Customization, Property Mappings, Create, Scope Mapping. Authentik puts a mapping's claims in the token only when the client requests that mapping's scope name, and the Admin requests `openid`, `profile`, `email` and `offline_access`. So give the new mapping the scope name `profile` (Authentik merges the claims of every selected mapping whose scope is requested, so it works alongside the default one or replaces it) and this expression:
 
 ```python
 return {"groups": [g.name for g in request.user.ak_groups.all()]}

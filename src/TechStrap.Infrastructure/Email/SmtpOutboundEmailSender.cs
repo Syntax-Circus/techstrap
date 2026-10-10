@@ -5,7 +5,7 @@ using TechStrap.Application.Email;
 
 namespace TechStrap.Infrastructure.Email;
 
-/// <summary>Adapts <see cref="IEmailSender"/> to <see cref="IOutboundEmailSender"/>, reducing every failure to a sanitised category.</summary>
+/// <summary>Adapts <see cref="IEmailSender"/> to <see cref="IOutboundEmailSender"/>, reducing every failure to a sanitized category.</summary>
 internal sealed class SmtpOutboundEmailSender(IEmailSender sender, ILogger<SmtpOutboundEmailSender> logger) : IOutboundEmailSender
 {
     public async Task<Result> SendAsync(OutboundEmail email, CancellationToken cancellationToken)

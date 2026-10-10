@@ -1,17 +1,17 @@
-# PHASE-09c Help Centre, SEO and Caching Implementation Plan
+# PHASE-09c Help Center, SEO and Caching Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Give `TechStrap.Portal` its public help centre on top of the 09a foundation and the 09b customer flows.
+**Goal:** Give `TechStrap.Portal` its public help center on top of the 09a foundation and the 09b customer flows.
 - **API:** the two small public lists the portal needs: a category's published articles, and the active products (key and display name).
 - **Pages:** the knowledge base home, category, search and article pages, with the shared components (`KbArticleCard`, `KbBreadcrumbs`, `Pager`, `StateMessage`) and the words in `KbCopy`.
-- **SEO and speed:** the SEO head and escaped JSON-LD, output caching of the help-centre pages, and the sitemap with its own cache.
+- **SEO and speed:** the SEO head and escaped JSON-LD, output caching of the help-center pages, and the sitemap with its own cache.
 - **Close-out:** the developer guide, the PHASE-09 ticks and the D-045 as-built notes.
 
 **Architecture:**
-- **One answer for "not there".** Every help-centre page builds on `ProductPageBase`. An unknown product, an unknown, invisible or empty category, a page past the end and an unpublished or misfiled article all end in the neutral 404 of an unknown route, byte for byte, with none of the product's theme. A key or slug that is not a slug is refused by the client without a call.
-- **Text is text.** Only `KbArticleBody` (the API's sanitised HTML) and 09b's `CustomerMessageBody` turn text into markup. Everything else an agent wrote or a visitor typed is encoded by Razor, and every structured-data string is a `JsonLdText` whose converter keeps a `</script>` inside its string.
-- **One cache policy, one predicate.** The framework's output cache keeps a help-centre page for a minute, varying by the `page` query value only. `PortalCachePaths` decides what is kept; the search page, the forms, `/t/*` and every non-200 answer never are. The shared headers and the per-path rules wrap the cache, and one small step restores the request's own correlation id on a hit.
+- **One answer for "not there".** Every help-center page builds on `ProductPageBase`. An unknown product, an unknown, invisible or empty category, a page past the end and an unpublished or misfiled article all end in the neutral 404 of an unknown route, byte for byte, with none of the product's theme. A key or slug that is not a slug is refused by the client without a call.
+- **Text is text.** Only `KbArticleBody` (the API's sanitized HTML) and 09b's `CustomerMessageBody` turn text into markup. Everything else an agent wrote or a visitor typed is encoded by Razor, and every structured-data string is a `JsonLdText` whose converter keeps a `</script>` inside its string.
+- **One cache policy, one predicate.** The framework's output cache keeps a help-center page for a minute, varying by the `page` query value only. `PortalCachePaths` decides what is kept; the search page, the forms, `/t/*` and every non-200 answer never are. The shared headers and the per-path rules wrap the cache, and one small step restores the request's own correlation id on a hit.
 - **A sitemap no crawler can break.** `MapSeoSitemap` with a provider backed by one `IMemoryCache` entry (15 minutes), single-flight, a build on its own task with its own cancellation token, a failure remembered for a minute while the last good sitemap is served, and at most 50,000 addresses.
 
 **Tech Stack:** .NET 10, ASP.NET Core Blazor static SSR, the framework's `AddOutputCache` and `IMemoryCache` (no new package), `SyntaxCircus.Blazor.Seo` 0.1.4, EF Core on Postgres (Testcontainers), bUnit and AngleSharp (which bUnit brings), xUnit v3, Shouldly, NSubstitute and Pester.
@@ -32,22 +32,22 @@
 ### Decisions made while drafting (the D-045 addendum records them)
 - **Task split.** The five tasks of the brief. Two moves: the 09a `SeoHostTests` pin "the sitemap is not mapped" is replaced in Task 2 (mapping the sitemap there breaks it; Task 5 keeps the full sitemap host tests), and the output-cache host tests that need pages are split: Task 2 proves the mechanism on a small host with the real wiring (`OutputCachePipelineTests`), Tasks 3 and 4 prove it on the real pages.
 - **The spike, proved in a scratch copy before Tasks 2 to 4 were written (a temporary page, a probe pipeline and tests; each finding is now a durable test).**
-  - **The cache policy.** `AddBasePolicy(p => p.With(predicate).Expire(60 s).SetVaryByQuery("page").SetVaryByHost(false))` keeps exactly the help-centre paths: the same request twice makes one API call, while the product home and any other path make two. A 404, a 429 and a 503 are never stored (an unknown product asked twice reached the API twice; a 503 asked twice made six calls, three read retries each).
+  - **The cache policy.** `AddBasePolicy(p => p.With(predicate).Expire(60 s).SetVaryByQuery("page").SetVaryByHost(false))` keeps exactly the help-center paths: the same request twice makes one API call, while the product home and any other path make two. A 404, a 429 and a 503 are never stored (an unknown product asked twice reached the API twice; a 503 asked twice made six calls, three read retries each).
   - **The default key is wide.** Without the explicit rules six requests with different `utm` and `page` values made five API calls and two other `Host` values made two more; with `SetVaryByQuery("page")` and `SetVaryByHost(false)` the same requests made three and none. A cache that varies by the whole query string and the host lets a visitor fill the store with `?utm=1`, `?utm=2` and so on, so the Portal also keeps a request only when its `page` value is absent or one to four digits.
   - **A hit is not fully fresh.** Security headers and a rule's headers are right on a hit, but the stored copy replays the first request's `X-Correlation-Id`: a request that sent `cid-two` got `cid-one`. A step before `UseOutputCache` that sets the header again from `HttpContext.Items` when the response starts fixes it (the callbacks run last-registered-first, so it runs after the cache has written the stored copy). Pinned by `OutputCachePipelineTests` and `KbPageCacheHostTests`.
   - **Query binding.** `[SupplyParameterFromQuery]` binds case-insensitively and takes the first of two values, but an `int?` answers 500 for `?page=abc` and for a number that does not fit. The pages bind text and parse it (`KbPaging.Parse`).
   - **Head and JSON-LD.** `SeoHead` renders in static SSR (the layout already has `<HeadOutlet />`). The block is written as `type="application/ld&#x2B;json"`, which a browser reads as `application/ld+json`, so the tests parse the page with AngleSharp. It is data, not script: the CSP (`script-src 'self'`) does not change. `JsonLd` writes the JSON through a markup string with `UnsafeRelaxedJsonEscaping`: a title of `</script><img src=x onerror=alert(1)>` ended the block and an `img` element appeared in the page. A Razor file cannot hold the text `</script` in a string (the Razor parser reads a tag), so the hostile texts live in C#.
-  - **Pre-escaping cannot work.** Escaping the text before it reaches the package's schema records is escaped a second time by the serialiser (the JSON then reads back as backslash text). So the Portal's own records carry each string as a `JsonLdText`, a value type whose converter writes the string with `JavaScriptEncoder.Default` (`<`, `>`, `&`, the apostrophe, `+` and every non-ASCII character as u-escapes) through `Utf8JsonWriter.WriteRawValue`: no raw `<` in the block, and the JSON reads back as the original.
+  - **Pre-escaping cannot work.** Escaping the text before it reaches the package's schema records is escaped a second time by the serializer (the JSON then reads back as backslash text). So the Portal's own records carry each string as a `JsonLdText`, a value type whose converter writes the string with `JavaScriptEncoder.Default` (`<`, `>`, `&`, the apostrophe, `+` and every non-ASCII character as u-escapes) through `Utf8JsonWriter.WriteRawValue`: no raw `<` in the block, and the JSON reads back as the original.
   - **The sitemap.** `MapSeoSitemap` accepts a provider that reads an `IMemoryCache` with single-flight: twenty concurrent requests made one build, the result is `application/xml` with each `<loc>` XML-escaped, and `cacheDuration` sets only the client's `Cache-Control`. `MemoryCacheOptions` has no `TimeProvider` (only an obsolete clock), so the cache takes its lifetimes as constructor values and the tests that wait use short real ones.
 - **Deviations from the brief, each with its reason.**
   - **`JsonLdText` and Portal records instead of "escape, then use `BreadcrumbListSchema`".** The ruling says strings are escaped before they reach the schema; the spike shows that is double-escaped. The closest safe design is the converter above. The breadcrumb list is therefore a Portal record (`BreadcrumbListLd`), not the package's `BreadcrumbListSchema`, whose strings cannot carry the converter. The article record is local as ruled.
   - **The correlation-id step** (`UsePortalOutputCache`) is not in the brief; the spike found the defect.
   - **A cached request needs a plain `page` value** (absent, or one to four digits), so the key space is bounded by real content; the brief says only "varying by `page`".
   - **The search page is `no-store` for browsers** (a header rule), beside "never cached by the server". Two 09a/09b host tests that listed `/p/{key}/kb/search` among the paths that are never `no-store` are changed.
-  - **A page past the end is the neutral 404, and an empty category is the API's 404**, so the spec's "empty category shows an empty state" becomes: the help-centre home of a product with no article, and a search with no result, show the empty state. One page per real page number, and no empty page for a crawler to find.
+  - **A page past the end is the neutral 404, and an empty category is the API's 404**, so the spec's "empty category shows an empty state" becomes: the help-center home of a product with no article, and a search with no result, show the empty state. One page per real page number, and no empty page for a crawler to find.
   - **The static `/` entry is listed only when no default product is configured** (with one, `/` is a redirect, which a sitemap must not list), and the static entries count against the 50,000 limit, so the whole file never exceeds it.
   - **A sitemap that cannot be built and has no earlier version is the 500 page**, not a 503: the package's provider has no way to set a status.
-  - **One extra shared component, `KbSearchBox`**, used by the help-centre home and the search page (the product home keeps its own markup, which 09a pins).
+  - **One extra shared component, `KbSearchBox`**, used by the help-center home and the search page (the product home keeps its own markup, which 09a pins).
   - **No page-level slug check on the category page.** A mutation showed it was dead code (the client refuses a malformed slug without a call, which `PublicKbClientTests` pins), so it was removed rather than pinned.
   - **`KbSlugShape` lives in the Portal** (80 characters), like `ProductKeyShape` (40): the Portal cannot reference the Domain, so there is no parity test, only the client tests.
   - **"Pin the Admin as unchanged"** is a Hosting test with exactly the Admin's call shape plus `PublicCacheHeaderPinTests` in `TechStrap.Admin.Tests`.
@@ -66,7 +66,7 @@
 - **Portal conventions.**
   - Static SSR only, with no interactive render mode.
   - Components never inject `HttpClient`; only `Clients/` mentions it.
-  - Copy lives in `*Copy` constants (`KbCopy` for the help centre); no inline script or style.
+  - Copy lives in `*Copy` constants (`KbCopy` for the help center); no inline script or style.
   - All plain-text DTO fields are encoded. The `MarkupString` sites are exactly `CustomerMessageBody` and `KbArticleBody`; the word must not appear in any other Portal file, comments included (Task 4's architecture test counts the files).
   - Every route is a `PortalRoutes` constant or builder; no `/p...` or `/t...` literal outside `PortalRoutes`.
   - Every structured-data string is a `JsonLdText`; never put text an author wrote into the package's schema records or its `JsonLd` component.
@@ -156,7 +156,7 @@ Every mutation step of this plan uses two small tools (the mutation helper of 09
 usage: python mut.py <file> --replace <old> <new> [--replace <old> <new> ...] -- <command ...>
 
 Applies each replacement to <file> (each <old> must match exactly once; "\\n" in an argument means a newline), runs the command in the current
-directory, prints the lines that summarise the run, and ALWAYS puts the file back. The mutation is KILLED when the command fails (exit code 0), a SURVIVOR
+directory, prints the lines that summarize the run, and ALWAYS puts the file back. The mutation is KILLED when the command fails (exit code 0), a SURVIVOR
 (exit code 3) when it passes and NOT A MUTATION (exit code 4) when the mutated code does not compile: pick another mutation. Run it from the repository root, after `git add`-ing the task's files, so a failed run can also be undone with
 `git checkout -- <file>`.
 """
@@ -249,7 +249,7 @@ python $T/run_muts.py $T/specs/m1.py $T/res_m1.txt 1 2 3 4 5 6
 
 - [ ] **Step 2: Write the failing tests**
 
-Five test files arrive, five change, and one Pester block. The handler tests pin the neutral 404 (every malformed, unknown, inactive or invisible case), the page size and page normalisation, the trimming and the mapping; the product handler tests pin "active only", the ordering, the cap and the DTO shape; the Postgres tests run both handlers over the real repository and renderer scenario (published only, scope, order, paging, a page past the end and the repository's own page size cap); the host tests pin the headers, the 404s, the OpenAPI and `ControllerActions` rows and the rate limit; the Pester block pins the addendum and the rows in the architecture tables.
+Five test files arrive, five change, and one Pester block. The handler tests pin the neutral 404 (every malformed, unknown, inactive or invisible case), the page size and page normalization, the trimming and the mapping; the product handler tests pin "active only", the ordering, the cap and the DTO shape; the Postgres tests run both handlers over the real repository and renderer scenario (published only, scope, order, paging, a page past the end and the repository's own page size cap); the host tests pin the headers, the 404s, the OpenAPI and `ControllerActions` rows and the rate limit; the Pester block pins the addendum and the rows in the architecture tables.
 
 `scripts/tests/RepositoryDocs.Tests.ps1`
 
@@ -1064,7 +1064,7 @@ public sealed class ListPublicProductsRequestHandler(IProductRepository products
 namespace TechStrap.Contracts.Products;
 
 /// <summary>
-/// One row of the public product list (PHASE-09c): the key and the display name, nothing else. No logo, no colours, no id, no email. The list holds
+/// One row of the public product list (PHASE-09c): the key and the display name, nothing else. No logo, no colors, no id, no email. The list holds
 /// active products only and exists for the portal's sitemap; the portal's root page never shows it.
 /// </summary>
 public sealed record PublicProductSummaryDto(string Key, string DisplayName);
@@ -1226,7 +1226,7 @@ MUTATIONS = [
     ("1 handler: no slug check", H, [(" || !PublicProductScope.IsSlug(categorySlug, DomainLimits.KbSlugMaxLength))", ")")], HT),
     ("2 handler: no page size cap", H, [("Math.Min(pageSize, KbLimits.MaxPublicSearchPageSize)", "pageSize")], HT),
     ("3 handler: default page size 25", H, [("? KbLimits.DefaultPublicSearchPageSize :", "? KbLimits.MaxPublicSearchPageSize :")], HT),
-    ("4 handler: page not normalised", H, [("Paging.NormalizePage(page)", "page")], HT),
+    ("4 handler: page not normalized", H, [("Paging.NormalizePage(page)", "page")], HT),
     ("5 handler: slug not trimmed", H, [("categorySlug!.Trim()", "categorySlug!")], HT),
     ("6 handler: a null page is success", H, [("if (found is null)\n        {\n            return Result<PagedResponse<PublicKbArticleSummaryDto>>.Failure(KbErrors.CategoryNotFound());\n        }\n\n        return", "found ??= new PagedResult<PublicKbCategoryArticle>([], 1, size, 0);\n\n        return")], HT),
     ("7 repo: category slug filter removed", R, [("            where category.Slug == categorySlug\n", "")], INTT),
@@ -1257,7 +1257,7 @@ Run them (in three foreground batches; each takes about a minute) and record the
 | 1 | handler: no slug check | `ListPublicKbCategoryArticlesRequestHandler.cs` | KILLED (9 failing) |
 | 2 | handler: no page size cap | `ListPublicKbCategoryArticlesRequestHandler.cs` | KILLED (2 failing) |
 | 3 | handler: default page size 25 | `ListPublicKbCategoryArticlesRequestHandler.cs` | KILLED (2 failing) |
-| 4 | handler: page not normalised | `ListPublicKbCategoryArticlesRequestHandler.cs` | KILLED (2 failing) |
+| 4 | handler: page not normalized | `ListPublicKbCategoryArticlesRequestHandler.cs` | KILLED (2 failing) |
 | 5 | handler: slug not trimmed | `ListPublicKbCategoryArticlesRequestHandler.cs` | KILLED (1 failing) |
 | 6 | handler: a null page is success | `ListPublicKbCategoryArticlesRequestHandler.cs` | KILLED (1 failing) |
 | 7 | repo: category slug filter removed | `KbRepository.PublicReads.cs` | KILLED (7 failing) |
@@ -1356,7 +1356,7 @@ using TechStrap.Tests.Shared.AdminHost;
 namespace TechStrap.Admin.Tests;
 
 /// <summary>
-/// PHASE-09c adds a success-only <c>Cache-Control</c> rule to the shared header wiring for the Portal's help centre. The Admin shares that wiring, so this pins that nothing it serves, an ordinary page, an error page or
+/// PHASE-09c adds a success-only <c>Cache-Control</c> rule to the shared header wiring for the Portal's help center. The Admin shares that wiring, so this pins that nothing it serves, an ordinary page, an error page or
 /// a download, ever gets a public cache header from it: an agent's page must never be kept by a shared cache.
 /// </summary>
 public sealed class PublicCacheHeaderPinTests
@@ -1842,7 +1842,7 @@ using TechStrap.Portal.Routing;
 namespace TechStrap.Portal.Tests.Caching;
 
 /// <summary>
-/// PHASE-09c Review Focus 3 (cache safety): the one predicate that decides what the Portal keeps. Only the three kinds of help-centre page; never the search page, the form pages, the suggest adapter, <c>/t/*</c> or a
+/// PHASE-09c Review Focus 3 (cache safety): the one predicate that decides what the Portal keeps. Only the three kinds of help-center page; never the search page, the form pages, the suggest adapter, <c>/t/*</c> or a
 /// request whose <c>page</c> value could fill the store.
 /// </summary>
 public sealed class PortalCachePathsTests
@@ -2069,7 +2069,7 @@ public sealed class ProgramOrderTests
 +        var result = await api.Get<IPublicKbClient>().GetArticleAsync("paperplane", "accounts", "reset-password", Ct);
 +
 +        result.Value.ShouldBe(article);
-+        result.Value.Html.ShouldBe(article.Html, "the Portal never rewrites what the API sanitised");
++        result.Value.Html.ShouldBe(article.Html, "the Portal never rewrites what the API sanitized");
 +        api.Stub.Requests.ShouldHaveSingleItem().Client.ShouldBe(ApiClientNames.Read);
 +        api.Stub.AssertEveryCallBore(ApiHarness.DefaultClientIp);
 +    }
@@ -2239,7 +2239,7 @@ public sealed class ProgramOrderTests
          response.StatusCode.ShouldNotBe(HttpStatusCode.InternalServerError, path);
      }
 +
-+    // PHASE-09c: the help centre's search page is never stored by a browser or a cache (any text can be asked and shown), but it is not a form page: it is not marked noindex by a header (the page does that itself when it has a query).
++    // PHASE-09c: the help center's search page is never stored by a browser or a cache (any text can be asked and shown), but it is not a form page: it is not marked noindex by a header (the page does that itself when it has a query).
 +    [Theory]
 +    [InlineData("/p/probe/kb/search")]
 +    [InlineData("/p/probe/kb/search?q=x")]
@@ -2782,7 +2782,7 @@ public sealed class PortalSitemapCacheTests
         seen.ShouldNotBeNull();
         seen.Value.ShouldNotBe(crawler.Token);
         await crawler.CancelAsync();
-        seen.Value.IsCancellationRequested.ShouldBeFalse("cancelling the request never cancels the build");
+        seen.Value.IsCancellationRequested.ShouldBeFalse("canceling the request never cancels the build");
         localInBuild.ShouldBeNull("the request's HttpContext holder lives in its execution context, which the build must not inherit");
     }
 
@@ -3005,7 +3005,7 @@ using TechStrap.Portal.Routing;
 namespace TechStrap.Portal.Caching;
 
 /// <summary>
-/// Which requests the Portal may keep (D-045 addendum, PHASE-09c). Only the three kinds of help-centre page that show the same thing to every visitor: <c>/p/{key}/kb</c>, <c>/p/{key}/kb/{category}</c> and
+/// Which requests the Portal may keep (D-045 addendum, PHASE-09c). Only the three kinds of help-center page that show the same thing to every visitor: <c>/p/{key}/kb</c>, <c>/p/{key}/kb/{category}</c> and
 /// <c>/p/{key}/kb/{category}/{slug}</c>. The search page (any text can be asked), the form pages, the suggest adapter, <c>/t/*</c> and every other path are never kept; a 404, a 429 and a 503 never are either
 /// (the output cache stores a 200 only). The predicates are written like <c>PortalHeaderRules.IsFormPagePath</c>: without regard to case or a trailing slash, because routing matches that way.
 /// </summary>
@@ -3022,7 +3022,7 @@ internal static partial class PortalCachePaths
     [GeneratedRegex(@"\A[1-9][0-9]{0,3}\z", RegexOptions.CultureInvariant)]
     private static partial Regex PageNumber();
 
-    /// <summary>A help-centre page of the three kinds above (the search page is not one).</summary>
+    /// <summary>A help-center page of the three kinds above (the search page is not one).</summary>
     public static bool IsKbPage(PathString path) =>
         path.StartsWithSegments(PortalRoutes.ProductPrefix, out var rest)
         && Segments(rest) is [_, var kb, .. var tail]
@@ -3059,7 +3059,7 @@ using TechStrap.Portal.Routing;
 namespace TechStrap.Portal.Caching;
 
 /// <summary>
-/// The framework's output cache for the help centre (D-045 addendum, PHASE-09c): one base policy, not an attribute on a page, so the rule for what is kept is in one place (<see cref="PortalCachePaths"/>) and a form or
+/// The framework's output cache for the help center (D-045 addendum, PHASE-09c): one base policy, not an attribute on a page, so the rule for what is kept is in one place (<see cref="PortalCachePaths"/>) and a form or
 /// ticket page can never be kept by forgetting to leave something off. Kept for <see cref="PortalCachePaths.Lifetime"/>, varying by the <c>page</c> query value only and not by host: the framework's default key holds the whole
 /// query string and the host, so a visitor could fill the store with <c>?utm=1</c>, <c>?utm=2</c> and so on, and the page does not depend on either (the canonical address comes from <c>Seo:BaseUrl</c>, never the Host header).
 /// </summary>
@@ -3112,7 +3112,7 @@ internal static class PortalOutputCache
 -/// <summary>The public knowledge base (P09-T02). 09b needs the search only, for the contact page's suggestions; 09c extends this interface with the categories and the articles.</summary>
 +/// <summary>
 +/// The public knowledge base (P09-T02). Every call is a read: retried like every read, anonymous, and forwarding the visitor's address. Every text field of a result is plain text, a consumer encodes it; only
-+/// <see cref="PublishedKbArticleDto.Html"/> is HTML (the API sanitised it). A product key, a category slug or an article slug that is not a slug is the uniform not-found error and no call is made.
++/// <see cref="PublishedKbArticleDto.Html"/> is HTML (the API sanitized it). A product key, a category slug or an article slug that is not a slug is the uniform not-found error and no call is made.
 +/// </summary>
  public interface IPublicKbClient
  {
@@ -3124,7 +3124,7 @@ internal static class PortalOutputCache
      /// </summary>
      Task<Result<PagedResponse<PublicKbSearchResultDto>>> SearchAsync(string productKey, string text, int pageSize, CancellationToken cancellationToken);
 +
-+    /// <summary>The same for page <paramref name="page"/> (the API normalises a page below one).</summary>
++    /// <summary>The same for page <paramref name="page"/> (the API normalizes a page below one).</summary>
 +    Task<Result<PagedResponse<PublicKbSearchResultDto>>> SearchAsync(string productKey, string text, int page, int pageSize, CancellationToken cancellationToken);
 +
 +    /// <summary>The categories the product can see (its own and the shared ones) with their published article counts; an empty category is left out, and an unknown product gives an empty list.</summary>
@@ -3231,7 +3231,7 @@ internal static class PortalOutputCache
      public const string RobotsTag = "noindex";
  
 -    /// <summary>The rules for <c>UseTechStrapWebHost</c>: the ticket headers, the attachment sandbox, then the form pages' headers.</summary>
-+    /// <summary>The rules for <c>UseTechStrapWebHost</c>: the ticket headers, the attachment sandbox, the form pages' headers, then the help centre's cache headers.</summary>
++    /// <summary>The rules for <c>UseTechStrapWebHost</c>: the ticket headers, the attachment sandbox, the form pages' headers, then the help center's cache headers.</summary>
      public static IReadOnlyList<PathHeaderRule> Rules { get; } =
      [
          PathHeaderRule.Set(IsTicketPath, ("Referrer-Policy", ReferrerPolicy), ("Cache-Control", CacheControl), ("X-Robots-Tag", RobotsTag)),
@@ -3240,7 +3240,7 @@ internal static class PortalOutputCache
          // The form pages keep the shared referrer policy (a visitor's own address is no secret from the same site) but are never indexed and never stored: their address can carry a name, an address and a subject.
          PathHeaderRule.Set(IsFormPagePath, ("Cache-Control", CacheControl), ("X-Robots-Tag", RobotsTag)),
 +
-+        // The help centre (PHASE-09c): a delivered page may be kept by a browser for the minute the server keeps it, but only a delivered one: a 404, a 429 or a 503 never gets a public header. The search page is never kept anywhere.
++        // The help center (PHASE-09c): a delivered page may be kept by a browser for the minute the server keeps it, but only a delivered one: a 404, a 429 or a 503 never gets a public header. The search page is never kept anywhere.
 +        PathHeaderRule.SetOnSuccess(PortalCachePaths.IsKbPage, ("Cache-Control", PortalCachePaths.BrowserCacheControl)),
 +        PathHeaderRule.Set(PortalCachePaths.IsKbSearchPath, ("Cache-Control", CacheControl)),
      ];
@@ -3263,7 +3263,7 @@ internal static class PortalOutputCache
  
  builder.Services.AddRazorComponents();
  
-+// The framework's output cache, with one policy for the help-centre pages (PortalCachePaths): no form, ticket or search page is ever kept.
++// The framework's output cache, with one policy for the help-center pages (PortalCachePaths): no form, ticket or search page is ever kept.
 +builder.Services.AddPortalOutputCache();
 +
  // The API address, the Portal's public address and the optional default product: validated at start (D-043, D-045).
@@ -3273,7 +3273,7 @@ internal static class PortalOutputCache
  app.UsePortalSeo();
  app.UseTechStrapErrorPages();
  
-+// The help-centre pages are kept for a minute (D-045 addendum, PHASE-09c): after the error pages, before the endpoints, so the security headers and the correlation id are the request's own on a cached answer too.
++// The help-center pages are kept for a minute (D-045 addendum, PHASE-09c): after the error pages, before the endpoints, so the security headers and the correlation id are the request's own on a cached answer too.
 +app.UsePortalOutputCache();
 +
  // Before the antiforgery check, which reads the form: a post over the endpoint's size limit is a plain 413, not the framework's 400 about a token.
@@ -3311,7 +3311,7 @@ public static partial class KbSlugShape
      public const string LostLinkSegment = "lost-link";
      public const string SuggestSegment = "suggest";
  
-+    // The help centre's own segments and query parameters. The output cache and the header rules match on them (PortalCachePaths), so they are named once.
++    // The help center's own segments and query parameters. The output cache and the header rules match on them (PortalCachePaths), so they are named once.
 +    public const string KbSegment = "kb";
 +    public const string KbSearchSegment = "search";
 +
@@ -3350,7 +3350,7 @@ public static partial class KbSlugShape
  /// <summary>
  /// <c>SyntaxCircus.Blazor.Seo</c> in the Portal (D-045). <c>Seo:BaseUrl</c> is derived from <c>TECHSTRAP_PORTAL_PUBLIC_URL</c>, always, so there is one setting for one value and a stray
 -/// <c>Seo__BaseUrl</c> can never disagree with it. robots.txt disallows the ticket pages. The sitemap is not mapped in 09a: it needs the products endpoint PHASE-09c adds.
-+/// <c>Seo__BaseUrl</c> can never disagree with it. robots.txt disallows the ticket pages and names the sitemap, which lists every active product's help centre (PHASE-09c).
++/// <c>Seo__BaseUrl</c> can never disagree with it. robots.txt disallows the ticket pages and names the sitemap, which lists every active product's help center (PHASE-09c).
  /// </summary>
  public static class PortalSeoRegistration
  {
@@ -3449,8 +3449,8 @@ internal sealed class SitemapBuildException(string message) : Exception(message)
 
 /// <summary>
 /// Builds the Portal's sitemap entries from the API (D-045, PHASE-09c): one call for the active products, then one call per product for its published articles. For each product the entries are its home, its help
-/// centre home (only when it has an article), each category (found from the articles, last changed when its newest article was) and each article; a shared article (no product key) is listed under every product, because each
-/// product's help centre is its own site. Every address is absolute, built from <c>TECHSTRAP_PORTAL_PUBLIC_URL</c> by <see cref="PortalRoutes"/> (which escapes each segment); with no public address (Development only)
+/// center home (only when it has an article), each category (found from the articles, last changed when its newest article was) and each article; a shared article (no product key) is listed under every product, because each
+/// product's help center is its own site. Every address is absolute, built from <c>TECHSTRAP_PORTAL_PUBLIC_URL</c> by <see cref="PortalRoutes"/> (which escapes each segment); with no public address (Development only)
 /// they are root-relative. At most <see cref="MaxUrls"/> addresses are listed in all, the limit of one sitemap file, the static entries (the root page) included: the caller says how many of those there are, and the build keeps
 /// the rest of the room for the products; a cut is logged. The build is scoped: it uses the typed clients.
 /// </summary>
@@ -3492,7 +3492,7 @@ internal sealed class PortalSitemapBuilder(IPublicProductClient products, IPubli
         return distinct;
     }
 
-    /// <summary>The entries of one product: its home, its help centre home, its categories and its articles (see the class summary).</summary>
+    /// <summary>The entries of one product: its home, its help center home, its categories and its articles (see the class summary).</summary>
     internal static IEnumerable<SitemapEntry> EntriesOf(string baseUrl, string productKey, IReadOnlyList<KbSitemapEntryDto> articles)
     {
         yield return new SitemapEntry(baseUrl + PortalRoutes.ProductHome(productKey));
@@ -3674,11 +3674,11 @@ MUTATIONS = [
     ("22 builder: a duplicate address is listed twice", SB, [("entries.DistinctBy(entry => entry.Url).ToList()", "entries.ToList()")], SEO),
     ("23 builder: no cap", SB, [("distinct = distinct.Take(room).ToList();", "distinct = distinct.ToList();")], SEO),
     ("24 builder: the cap is 50,001", SB, [("MaxUrls = 50_000;", "MaxUrls = 50_001;")], SEO),
-    ("25 builder: the help centre is as old as its oldest article", SB, [("Day(articles.Max(article => article.UpdatedAt))", "Day(articles.Min(article => article.UpdatedAt))")], SEO),
+    ("25 builder: the help center is as old as its oldest article", SB, [("Day(articles.Max(article => article.UpdatedAt))", "Day(articles.Min(article => article.UpdatedAt))")], SEO),
     ("26 builder: a category is as old as its oldest article", SB, [("Day(category.Max(article => article.UpdatedAt))", "Day(category.Min(article => article.UpdatedAt))")], SEO),
     ("27 builder: a failing product is skipped", SB, [('throw new SitemapBuildException($"The sitemap of a product failed ({articles.Errors[0].Code}).");', "continue;")], SEO),
     ("28 builder: a failing product list is an empty sitemap", SB, [('throw new SitemapBuildException($"The product list failed ({listed.Errors[0].Code}).");', "return [];")], SEO),
-    ("29 builder: an empty product gets a help centre", SB, [("        if (articles.Count == 0)\n        {\n            yield break;\n        }\n\n", "")], SEO),
+    ("29 builder: an empty product gets a help center", SB, [("        if (articles.Count == 0)\n        {\n            yield break;\n        }\n\n", "")], SEO),
     ("30 cache: no single-flight", SC, [("flight = _flight ??= StartBuild(build);", "flight = _flight ?? StartBuild(build);")], SEO),
     ("31 cache: the build inherits the request's context", SC, [("        using (ExecutionContext.SuppressFlow())\n        {\n            return Task.Run(() => RunAsync(build));\n        }", "        return Task.Run(() => RunAsync(build));")], SEO),
     ("32 cache: the build has no timeout token", SC, [("await build(timeout.Token);", "await build(CancellationToken.None);")], SEO),
@@ -3726,11 +3726,11 @@ Run them in foreground batches (about a minute each) and record the results:
 | 22 | builder: a duplicate address is listed twice | `PortalSitemapBuilder.cs` | KILLED (1 failing) |
 | 23 | builder: no cap | `PortalSitemapBuilder.cs` | KILLED (3 failing) |
 | 24 | builder: the cap is 50,001 | `PortalSitemapBuilder.cs` | KILLED (1 failing) |
-| 25 | builder: the help centre is as old as its oldest article | `PortalSitemapBuilder.cs` | KILLED (1 failing) |
+| 25 | builder: the help center is as old as its oldest article | `PortalSitemapBuilder.cs` | KILLED (1 failing) |
 | 26 | builder: a category is as old as its oldest article | `PortalSitemapBuilder.cs` | KILLED (1 failing) |
 | 27 | builder: a failing product is skipped | `PortalSitemapBuilder.cs` | KILLED (1 failing) |
 | 28 | builder: a failing product list is an empty sitemap | `PortalSitemapBuilder.cs` | KILLED (4 failing) |
-| 29 | builder: an empty product gets a help centre | `PortalSitemapBuilder.cs` | KILLED (6 failing) |
+| 29 | builder: an empty product gets a help center | `PortalSitemapBuilder.cs` | KILLED (6 failing) |
 | 30 | cache: no single-flight | `PortalSitemapCache.cs` | KILLED (2 failing) |
 | 31 | cache: the build inherits the request's context | `PortalSitemapCache.cs` | KILLED (1 failing) |
 | 32 | cache: the build has no timeout token | `PortalSitemapCache.cs` | KILLED (1 failing) |
@@ -3763,7 +3763,7 @@ git commit -m "feat: PHASE-09c Portal clients, output cache, header rule and sit
 Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 ```
 
-### Task 3: The help-centre home, category and search pages, with the shared components and `KbCopy`
+### Task 3: The help-center home, category and search pages, with the shared components and `KbCopy`
 
 **Review Focus pin:** 1 (XSS: every name, title, summary, snippet and the typed search text is plain text shown by Razor, in the results, the box and the paging links), 2 (an unknown product, an unknown, invisible or empty category, a malformed slug and a page past the end are the one neutral 404, byte for byte, with no theme) and 3 (the real pages are kept once, a 404 and a 429 are not, the search page never, no cookie).
 
@@ -3805,8 +3805,8 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 - Produces:
   - `ProductPageBase.RequestAborted` (the request's token) and `ProductPageBase.Fail(ResultError)` (a not-found is the neutral 404 with the theme forgotten, a 429 or any other failure is `UnavailableMessage` and a 429 or 503).
   - Routes: `PortalRoutes.KbCategory(string key, string category, int page)` (page one is the category's own address) and `PortalRoutes.KbSearch(string key, string text, int page)` (the text escaped; a blank text is the search page itself).
-  - Helpers: `KbSearchText.Clean(string?)` (trim, cut at 200 characters without splitting a surrogate pair; the suggest adapter uses it too), `KbPaging.Parse(string?)` (a whole number of one or more, else page one, never throws) and `KbPaging.TotalPages(int totalCount, int pageSize)`, `KbCrumb(string Label, string? Href = null)`, `KbSeo.Image(ProductThemeViewModel)` and `KbSeo.FallbackImage` ("/icon-512.png"), `KbCopy` (all help-centre sentences and the title and description builders).
-  - Components: `StateMessage` (`Heading`, `ChildContent`; `role="status"`), `Pager` (`Page`, `PageSize`, `TotalCount`, `HrefFor`; plain `rel="prev"` and `rel="next"` links; nothing for one page), `KbArticleCard` (`Href`, `Title`, `Summary`, `Meta`), `KbBreadcrumbs` (`Crumbs`; the last step is `aria-current="page"` and has no link), `KbSearchBox` (`ProductKey`, `Query`; a labelled GET form).
+  - Helpers: `KbSearchText.Clean(string?)` (trim, cut at 200 characters without splitting a surrogate pair; the suggest adapter uses it too), `KbPaging.Parse(string?)` (a whole number of one or more, else page one, never throws) and `KbPaging.TotalPages(int totalCount, int pageSize)`, `KbCrumb(string Label, string? Href = null)`, `KbSeo.Image(ProductThemeViewModel)` and `KbSeo.FallbackImage` ("/icon-512.png"), `KbCopy` (all help-center sentences and the title and description builders).
+  - Components: `StateMessage` (`Heading`, `ChildContent`; `role="status"`), `Pager` (`Page`, `PageSize`, `TotalCount`, `HrefFor`; plain `rel="prev"` and `rel="next"` links; nothing for one page), `KbArticleCard` (`Href`, `Title`, `Summary`, `Meta`), `KbBreadcrumbs` (`Crumbs`; the last step is `aria-current="page"` and has no link), `KbSearchBox` (`ProductKey`, `Query`; a labeled GET form).
   - Pages: `KbHome` (`/p/{key}/kb`), `KbCategory` (`/p/{key}/kb/{category}`, `PageSize` 10) and `KbSearch` (`/p/{key}/kb/search`, `PageSize` 10), each building on `ProductPageBase` and setting its head with `SeoHead`.
   - Test seam: `KbTestKit` (the stub API paths, DTO builders, a parsed document and small helpers).
 
@@ -3824,7 +3824,7 @@ using TechStrap.Portal.Components.Ui;
 namespace TechStrap.Portal.Tests.Components;
 
 /// <summary>
-/// The shared help-centre components on their own (P09-T12, T13): what each renders for its parameters. Review Focus 1: a title, a summary, a crumb label and a search text are plain text, so a value that looks like markup
+/// The shared help-center components on their own (P09-T12, T13): what each renders for its parameters. Review Focus 1: a title, a summary, a crumb label and a search text are plain text, so a value that looks like markup
 /// is shown as text and never becomes an element.
 /// </summary>
 public sealed class KbComponentTests : BunitContext
@@ -3879,12 +3879,12 @@ public sealed class KbComponentTests : BunitContext
         var cut = Render<KbBreadcrumbs>(parameters => parameters.Add(trail => trail.Crumbs, new[]
         {
             new KbCrumb("Paperplane", "/p/paperplane"),
-            new KbCrumb("Help centre", "/p/paperplane/kb"),
+            new KbCrumb("Help center", "/p/paperplane/kb"),
             new KbCrumb("Accounts"),
         }));
 
         cut.Find("nav.ts-breadcrumbs").GetAttribute("aria-label").ShouldBe("Breadcrumb");
-        cut.FindAll("nav.ts-breadcrumbs ol > li").Select(li => li.TextContent.Trim()).ShouldBe(["Paperplane", "Help centre", "Accounts"]);
+        cut.FindAll("nav.ts-breadcrumbs ol > li").Select(li => li.TextContent.Trim()).ShouldBe(["Paperplane", "Help center", "Accounts"]);
         cut.FindAll("nav.ts-breadcrumbs a").Select(a => a.GetAttribute("href")).ShouldBe(["/p/paperplane", "/p/paperplane/kb"]);
         var last = cut.FindAll("li").Last();
         last.GetAttribute("aria-current").ShouldBe("page");
@@ -3966,19 +3966,19 @@ using TechStrap.Portal.Components;
 
 namespace TechStrap.Portal.Tests.Components;
 
-/// <summary>The few help-centre sentences that are built from a value (a name, a count, a page, a day). Plain text: the page encodes whatever is put in.</summary>
+/// <summary>The few help-center sentences that are built from a value (a name, a count, a page, a day). Plain text: the page encodes whatever is put in.</summary>
 public sealed class KbCopyTests
 {
     [Fact]
     public void The_titles_and_descriptions_name_the_product_and_the_page()
     {
-        KbCopy.HomeTitle("Paperplane").ShouldBe("Paperplane Help Centre");
+        KbCopy.HomeTitle("Paperplane").ShouldBe("Paperplane Help Center");
         KbCopy.HomeDescription("Paperplane").ShouldBe("Help articles and answers for Paperplane.");
-        KbCopy.CategoryTitle("Accounts", "Paperplane", 1).ShouldBe("Accounts - Paperplane Help Centre");
-        KbCopy.CategoryTitle("Accounts", "Paperplane", 0).ShouldBe("Accounts - Paperplane Help Centre");
-        KbCopy.CategoryTitle("Accounts", "Paperplane", 3).ShouldBe("Accounts (page 3) - Paperplane Help Centre");
+        KbCopy.CategoryTitle("Accounts", "Paperplane", 1).ShouldBe("Accounts - Paperplane Help Center");
+        KbCopy.CategoryTitle("Accounts", "Paperplane", 0).ShouldBe("Accounts - Paperplane Help Center");
+        KbCopy.CategoryTitle("Accounts", "Paperplane", 3).ShouldBe("Accounts (page 3) - Paperplane Help Center");
         KbCopy.CategoryDescription("Accounts", "Paperplane").ShouldBe("Help articles about Accounts for Paperplane.");
-        KbCopy.SearchTitle("Paperplane").ShouldBe("Search - Paperplane Help Centre");
+        KbCopy.SearchTitle("Paperplane").ShouldBe("Search - Paperplane Help Center");
         KbCopy.SearchDescription("Paperplane").ShouldBe("Search the help articles for Paperplane.");
     }
 
@@ -4022,7 +4022,7 @@ using TechStrap.Portal.Components.Kb;
 
 namespace TechStrap.Portal.Tests.Components;
 
-/// <summary>The page number and the search text of the help-centre pages are read from text a visitor controls; neither may ever throw or send more than the API takes.</summary>
+/// <summary>The page number and the search text of the help-center pages are read from text a visitor controls; neither may ever throw or send more than the API takes.</summary>
 public sealed class KbPagingTests
 {
     [Theory]
@@ -4126,7 +4126,7 @@ public sealed class KbCategoryHostTests
             "a shared article is linked under the product the visitor is on");
         KbTestKit.Texts(dom, ".ts-kb-card .ts-kb-summary").ShouldBe(["How to reset it", "For everyone"]);
         KbTestKit.Texts(dom, ".ts-kb-card .ts-kb-meta").ShouldBe(["Updated 5 Oct 2026", "Updated 5 Oct 2026", "Updated 5 Oct 2026"]);
-        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help centre", "Accounts"]);
+        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help center", "Accounts"]);
         KbTestKit.Links(dom, "nav.ts-breadcrumbs a").ShouldBe(["/p/paperplane", "/p/paperplane/kb"]);
         dom.QuerySelectorAll("nav.ts-pager").Length.ShouldBe(0, "one page needs no pager");
         var sent = factory.Api.Requests.Single(request => request.Path == KbTestKit.CategoryArticlesPath);
@@ -4209,7 +4209,7 @@ public sealed class KbCategoryHostTests
 
         var (_, _, dom) = await KbTestKit.GetAsync(client, "/p/paperplane/kb/accounts?page=2&utm=x", Ct);
 
-        dom.Title.ShouldBe("Accounts (page 2) - Paperplane Help Centre");
+        dom.Title.ShouldBe("Accounts (page 2) - Paperplane Help Center");
         KbTestKit.Meta(dom, "meta[name=description]").ShouldBe("Help articles about Accounts for Paperplane.");
         dom.QuerySelector("link[rel=canonical]")!.GetAttribute("href").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb/accounts?page=2");
         KbTestKit.Meta(dom, "meta[name=robots]").ShouldStartWith("index, follow");
@@ -4224,7 +4224,7 @@ public sealed class KbCategoryHostTests
 
         var (_, _, dom) = await KbTestKit.GetAsync(client, "/p/paperplane/kb/accounts", Ct);
 
-        dom.Title.ShouldBe("Accounts - Paperplane Help Centre");
+        dom.Title.ShouldBe("Accounts - Paperplane Help Center");
         dom.QuerySelector("link[rel=canonical]")!.GetAttribute("href").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb/accounts");
     }
 
@@ -4354,7 +4354,7 @@ using TechStrap.Portal.Tests.Tickets;
 namespace TechStrap.Portal.Tests.Kb;
 
 /// <summary>
-/// P09-T12 (the help-centre home) at the host, with a stub API behind the Portal: the categories with their counts and descriptions, the empty state, the head, the neutral 404 for an unknown product (no KB call is made)
+/// P09-T12 (the help-center home) at the host, with a stub API behind the Portal: the categories with their counts and descriptions, the empty state, the head, the neutral 404 for an unknown product (no KB call is made)
 /// and the calm failure states. Review Focus 1 (names and descriptions are plain text and encoded) and 2 (an unknown product tells nothing).
 /// </summary>
 public sealed class KbHomeHostTests
@@ -4377,14 +4377,14 @@ public sealed class KbHomeHostTests
         var (response, _, dom) = await KbTestKit.GetAsync(client, "/p/paperplane/kb", Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        KbTestKit.Texts(dom, "h1").ShouldBe(["Help centre"]);
+        KbTestKit.Texts(dom, "h1").ShouldBe(["Help center"]);
         KbTestKit.Texts(dom, ".ts-kb-list h2").ShouldBe(["Accounts", "Billing"]);
         KbTestKit.Links(dom, ".ts-kb-list h2 a").ShouldBe(["/p/paperplane/kb/accounts", "/p/paperplane/kb/billing"]);
         KbTestKit.Texts(dom, ".ts-kb-list .ts-kb-summary").ShouldBe(["Sign-in, passwords and security"]);
         KbTestKit.Texts(dom, ".ts-kb-list .ts-kb-meta").ShouldBe(["4 articles", "1 article"]);
-        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help centre"]);
+        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help center"]);
         KbTestKit.Links(dom, "nav.ts-breadcrumbs a").ShouldBe(["/p/paperplane"]);
-        dom.QuerySelector("nav.ts-breadcrumbs li[aria-current=page]")!.TextContent.ShouldBe("Help centre");
+        dom.QuerySelector("nav.ts-breadcrumbs li[aria-current=page]")!.TextContent.ShouldBe("Help center");
         var form = dom.QuerySelector("form[role=search]")!;
         form.GetAttribute("method").ShouldBe("get");
         form.GetAttribute("action").ShouldBe("/p/paperplane/kb/search");
@@ -4438,11 +4438,11 @@ public sealed class KbHomeHostTests
 
         var (_, _, dom) = await KbTestKit.GetAsync(client, "/p/paperplane/kb?utm_source=mail", Ct);
 
-        dom.Title.ShouldBe("Paperplane Help Centre");
+        dom.Title.ShouldBe("Paperplane Help Center");
         KbTestKit.Meta(dom, "meta[name=description]").ShouldBe("Help articles and answers for Paperplane.");
         dom.QuerySelector("link[rel=canonical]")!.GetAttribute("href").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb", "the canonical address has no query and comes from the public URL, never the Host header");
         KbTestKit.Meta(dom, "meta[name=robots]").ShouldStartWith("index, follow");
-        KbTestKit.Meta(dom, "meta[property='og:title']").ShouldBe("Paperplane Help Centre");
+        KbTestKit.Meta(dom, "meta[property='og:title']").ShouldBe("Paperplane Help Center");
         KbTestKit.Meta(dom, "meta[property='og:url']").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb");
         KbTestKit.Meta(dom, "meta[property='og:image']").ShouldBe(PortalFactory.PublicUrl + "/icon-512.png", "a product with no logo uses the Portal's own image, never the bare site address");
         KbTestKit.Meta(dom, "meta[property='og:image:alt']").ShouldBe("Paperplane");
@@ -4530,7 +4530,7 @@ namespace TechStrap.Portal.Tests.Kb;
 
 /// <summary>
 /// P09-T15 (output caching) at the host, on the real pages and the stub API: a repeated request makes one API call, a hit still carries the request's own headers, a 404 or a 429 is never stored, nothing that is not a
-/// help-centre page is ever kept, and a cache key is never shared between products. <c>OutputCachePipelineTests</c> proves the mechanism on a small host; this proves it on the pages. Review Focus 3.
+/// help-center page is ever kept, and a cache key is never shared between products. <c>OutputCachePipelineTests</c> proves the mechanism on a small host; this proves it on the pages. Review Focus 3.
 /// </summary>
 public sealed class KbPageCacheHostTests
 {
@@ -4738,7 +4738,7 @@ using TechStrap.Portal.Tests.Tickets;
 namespace TechStrap.Portal.Tests.Kb;
 
 /// <summary>
-/// P09-T13 (the help-centre search) at the host: a GET form that works without script, an empty-query prompt, a contact link when nothing matches, plain-text snippets, noindex for a query, paging links that keep the text,
+/// P09-T13 (the help-center search) at the host: a GET form that works without script, an empty-query prompt, a contact link when nothing matches, plain-text snippets, noindex for a query, paging links that keep the text,
 /// and that nothing about the page is ever kept. Review Focus 1 (XSS): the text, every title and every snippet are plain text and encoded, in the results and in the box.
 /// </summary>
 public sealed class KbSearchHostTests
@@ -4801,7 +4801,7 @@ public sealed class KbSearchHostTests
         KbTestKit.Texts(dom, "p.ts-kb-meta").ShouldContain("2 results");
         dom.QuerySelector("form[role=search] input[name=q]")!.GetAttribute("value").ShouldBe("reset password");
         KbTestKit.Meta(dom, "meta[name=robots]").ShouldBe("noindex, nofollow");
-        dom.Title.ShouldBe("Search - Paperplane Help Centre");
+        dom.Title.ShouldBe("Search - Paperplane Help Center");
         dom.QuerySelector("link[rel=canonical]")!.GetAttribute("href").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb/search", "the canonical address has no text");
         var sent = factory.Api.Requests.Single(request => request.Path == KbTestKit.SearchPath);
         sent.Query.ShouldBe("?q=reset%20password&page=1&pageSize=10");
@@ -4982,7 +4982,7 @@ using TechStrap.Portal.Tests.Forms;
 namespace TechStrap.Portal.Tests.Kb;
 
 /// <summary>
-/// What the help-centre host tests share: the paperplane product behind the stub API (<see cref="FormTestKit"/>, whose factory asserts that every API call carried the visitor's address), the three API paths the pages
+/// What the help-center host tests share: the paperplane product behind the stub API (<see cref="FormTestKit"/>, whose factory asserts that every API call carried the visitor's address), the three API paths the pages
 /// read, builders for the DTOs, and a parsed document, so a test asserts on elements and attributes, not on strings of markup.
 /// </summary>
 internal static class KbTestKit
@@ -5158,7 +5158,7 @@ using System.Globalization;
 namespace TechStrap.Portal.Components.Kb;
 
 /// <summary>
-/// The page number of a paged help-centre list, read from text. The page is bound as text and parsed here, because the framework's own binding to a number answers 500 for <c>?page=abc</c> or a number that
+/// The page number of a paged help-center list, read from text. The page is bound as text and parsed here, because the framework's own binding to a number answers 500 for <c>?page=abc</c> or a number that
 /// does not fit (the spike). Anything that is not a whole number of one or more is page one, so a link someone mangled still shows the first page and nothing throws.
 /// </summary>
 public static class KbPaging
@@ -5224,13 +5224,13 @@ using System.Globalization;
 namespace TechStrap.Portal.Components;
 
 /// <summary>
-/// The words of the help-centre pages (PHASE-09c). Plain copy, no humour (BRAND.md), the product's name only where a page needs it. A page references these and never writes a sentence of its own. Everything a
+/// The words of the help-center pages (PHASE-09c). Plain copy, no humor (BRAND.md), the product's name only where a page needs it. A page references these and never writes a sentence of its own. Everything a
 /// visitor typed or an agent wrote (a search text, a category name, an article title) is passed in as an argument and shown by Razor, which encodes it; none of it is ever markup.
 /// </summary>
 public static class KbCopy
 {
-    // The help-centre home.
-    public const string HomeHeading = "Help centre";
+    // The help-center home.
+    public const string HomeHeading = "Help center";
     public const string EmptyHomeHeading = "No articles yet";
     public const string EmptyHomeText = "There are no help articles for this product yet. If you need help, contact support.";
 
@@ -5248,16 +5248,16 @@ public static class KbCopy
     public const string NoResultsText = "Try different words, or contact support and we will help you.";
     public const string ContactUs = "Contact support";
 
-    public static string HomeTitle(string productName) => $"{productName} Help Centre";
+    public static string HomeTitle(string productName) => $"{productName} Help Center";
 
     public static string HomeDescription(string productName) => $"Help articles and answers for {productName}.";
 
     public static string CategoryTitle(string categoryName, string productName, int page) =>
-        page <= 1 ? $"{categoryName} - {productName} Help Centre" : $"{categoryName} (page {page.ToString(CultureInfo.InvariantCulture)}) - {productName} Help Centre";
+        page <= 1 ? $"{categoryName} - {productName} Help Center" : $"{categoryName} (page {page.ToString(CultureInfo.InvariantCulture)}) - {productName} Help Center";
 
     public static string CategoryDescription(string categoryName, string productName) => $"Help articles about {categoryName} for {productName}.";
 
-    public static string SearchTitle(string productName) => $"Search - {productName} Help Centre";
+    public static string SearchTitle(string productName) => $"Search - {productName} Help Center";
 
     public static string SearchDescription(string productName) => $"Search the help articles for {productName}.";
 
@@ -5313,7 +5313,7 @@ using TechStrap.Portal.Routing;
 namespace TechStrap.Portal.Components.Pages;
 
 /// <summary>
-/// One category of a product's help centre (P09-T12): a page of its published articles, newest update first, <see cref="PageSize"/> to a page, with plain <c>?page=n</c> links that work without script. Review Focus 2:
+/// One category of a product's help center (P09-T12): a page of its published articles, newest update first, <see cref="PageSize"/> to a page, with plain <c>?page=n</c> links that work without script. Review Focus 2:
 /// an unknown category, another product's category, an empty one, a slug that is not a slug and a page past the end are all the neutral 404, byte for byte the page an unknown route gets (the product is forgotten first), and
 /// a slug that is not a slug is answered without a call (the client refuses it: <see cref="IPublicKbClient"/>; a check of the page's own was dead code, as a surviving mutation showed). The page number is bound as text and parsed by <see cref="KbPaging"/>, because the framework's own number binding answers 500 for <c>?page=abc</c>.
 /// </summary>
@@ -5419,7 +5419,7 @@ using TechStrap.Portal.Routing;
 namespace TechStrap.Portal.Components.Pages;
 
 /// <summary>
-/// The help-centre home of a product (P09-T12): the categories it can see, each with its published article count and description, through <see cref="IPublicKbClient"/>. The product loads first (the base class): an unknown,
+/// The help-center home of a product (P09-T12): the categories it can see, each with its published article count and description, through <see cref="IPublicKbClient"/>. The product loads first (the base class): an unknown,
 /// inactive or malformed product is the neutral 404 before any KB call is made. A product with no category shows the empty state, not an error. Every name and description is plain text and encoded.
 /// </summary>
 public partial class KbHome : ProductPageBase
@@ -5510,7 +5510,7 @@ using TechStrap.Portal.Routing;
 namespace TechStrap.Portal.Components.Pages;
 
 /// <summary>
-/// The help-centre search (P09-T13): a plain GET form (<c>?q=&amp;page=</c>) that works without script. An empty text shows a prompt and makes no call; a text is cut at the API's limit (<see cref="KbSearchText"/>) and
+/// The help-center search (P09-T13): a plain GET form (<c>?q=&amp;page=</c>) that works without script. An empty text shows a prompt and makes no call; a text is cut at the API's limit (<see cref="KbSearchText"/>) and
 /// searched through <see cref="IPublicKbClient"/>; no result shows a way to contact support. Review Focus 1 (XSS): the text, every title and every snippet are plain text shown by Razor, which encodes them; the snippet is
 /// never markup (D-044). A page with a text is <c>noindex</c> (every text is a different page), the page is never kept by the cache (<c>PortalCachePaths</c>) or a browser (a header rule), and a paging link keeps the
 /// text, escaped by <see cref="PortalRoutes.KbSearch(string, string, int)"/>. The page number is bound as text and parsed by <see cref="KbPaging"/>.
@@ -5651,7 +5651,7 @@ public partial class KbSearch : ProductPageBase
 +    protected CancellationToken RequestAborted => HttpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None;
 +
 +    /// <summary>
-+    /// What a page does with a failed read of its own data once the product has loaded (the help-centre pages): a not-found is the neutral 404 (the product is forgotten first, so the 404 is byte for byte the page an unknown route
++    /// What a page does with a failed read of its own data once the product has loaded (the help-center pages): a not-found is the neutral 404 (the product is forgotten first, so the 404 is byte for byte the page an unknown route
 +    /// gets), a rate limit is a 429 and anything else a 503, each with the fixed sentence of <see cref="ProblemCopy"/>; whatever the API said is never shown. The page keeps its theme and shows <see cref="UnavailableMessage"/>.
 +    /// </summary>
 +    protected void Fail(ResultError error)
@@ -5726,7 +5726,7 @@ using TechStrap.Portal.Products;
 
 namespace TechStrap.Portal.Seo;
 
-/// <summary>What the help-centre pages tell <c>SeoHead</c> that is the same on every page.</summary>
+/// <summary>What the help-center pages tell <c>SeoHead</c> that is the same on every page.</summary>
 public static class KbSeo
 {
     /// <summary>A Portal asset: the Open Graph image of a product with no logo (the package would otherwise fall back to the bare site address, which is a page and not an image).</summary>
@@ -5745,7 +5745,7 @@ public static class KbSeo
    padding-left: 20px;
  }
 +
-+// The help centre (PHASE-09c): structure only (lists, the breadcrumb trail, the pager); the visual polish pass is PHASE-09d.
++// The help center (PHASE-09c): structure only (lists, the breadcrumb trail, the pager); the visual polish pass is PHASE-09d.
 +.ts-kb-list {
 +  margin: 24px 0;
 +  padding: 0;
@@ -5953,7 +5953,7 @@ Expected: 1330 tests pass.
 ```bash
 git add -A
 git diff --cached --stat
-git commit -m "feat: PHASE-09c help-centre home, category and search pages with shared components (D-045)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+git commit -m "feat: PHASE-09c help-center home, category and search pages with shared components (D-045)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 ```
 
@@ -5981,7 +5981,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 **Interfaces:**
 - Consumes: Task 3's `ProductPageBase.Fail`, `RequestAborted`, `KbBreadcrumbs`, `KbCrumb`, `KbSeo`, `KbCopy`, `KbTestKit`; Task 2's `IPublicKbClient.GetArticleAsync` and the cache; `PublishedKbArticleDto`; `ISeoUrlBuilder.AbsoluteUrl` (the package: a path gets the public address, an absolute address stays as it is); `SeoHead` and its `OgType` and `StructuredData` parameters; `PortalRules`, `ProjectGraph`.
 - Produces:
-  - `KbArticleBody` (`Html`: the API's sanitised HTML, rendered once; the second and last `MarkupString` site) and the page `KbArticle` (`/p/{key}/kb/{category}/{slug}`).
+  - `KbArticleBody` (`Html`: the API's sanitized HTML, rendered once; the second and last `MarkupString` site) and the page `KbArticle` (`/p/{key}/kb/{category}/{slug}`).
   - `KbPlainText.Describe(string? summary, string? html)`: the summary, else the first sentence of the body's first paragraph as plain text, at most `KbPlainText.MaxDescription` (160) characters cut at a word with an ellipsis, empty when there is no text.
   - `JsonLdText.Safe(string?)` (a value type; `Value`) and `JsonLdTextConverter`; the records `BreadcrumbItemLd`, `BreadcrumbListLd`, `WebPageLd`, `OrganizationLd` and `ArticleSchema`; `KbStructuredData.ForArticle(Func<string, string> absoluteUrl, ProductThemeViewModel theme, PublishedKbArticleDto article, string description, IReadOnlyList<KbCrumb> trail) : IReadOnlyList<object>` (the breadcrumb list, then the article).
   - `KbCopy.ArticleTitle(articleTitle, productName)`, `ArticleDescriptionFallback(articleTitle, productName)`, `StillNeedHelp`, `StillNeedHelpText`.
@@ -6004,10 +6004,10 @@ The architecture pin changes first (the second site), then the unit tests of the
          var files = PortalRules.Sources(ProjectGraph.FindRepositoryRoot()).ToList();
  
          files.Count.ShouldBeGreaterThan(20, "the scan must see the Portal sources");
--        PortalRules.MarkupStringSites.ShouldBe(["Components/Tickets/CustomerMessageBody.razor"], "09b adds CustomerMessageBody (the API sanitises the message body); 09c adds KbArticleBody in its own commit");
+-        PortalRules.MarkupStringSites.ShouldBe(["Components/Tickets/CustomerMessageBody.razor"], "09b adds CustomerMessageBody (the API sanitizes the message body); 09c adds KbArticleBody in its own commit");
 +        PortalRules.MarkupStringSites.ShouldBe(
 +            ["Components/Kb/KbArticleBody.razor", "Components/Tickets/CustomerMessageBody.razor"],
-+            "09b added CustomerMessageBody (the API sanitises the message body) and 09c added KbArticleBody (the API sanitises the article with the same rules, D-044); a third site is a design decision, argued in its own commit");
++            "09b added CustomerMessageBody (the API sanitizes the message body) and 09c added KbArticleBody (the API sanitizes the article with the same rules, D-044); a third site is a design decision, argued in its own commit");
          PortalRules.MarkupStringViolations(files).ShouldBeEmpty();
 +        files.Count(file => file.Text.Contains("MarkupString", StringComparison.Ordinal)).ShouldBe(2, "the word appears in those two files and nowhere else, comments included");
      }
@@ -6057,11 +6057,11 @@ The architecture pin changes first (the second site), then the unit tests of the
 @@ -29,10 +29,10 @@ public static partial class PortalRules
  
      /// <summary>
-     /// The files (relative to src/TechStrap.Portal) that may turn API text into markup, which is where a stored-XSS bug would live. The API sanitises the HTML before it sends it, and the Portal does not
--    /// sanitise again, so each site is argued for in the commit that adds it: 09b adds <c>CustomerMessageBody</c> (a ticket message body: the API's sanitised HTML, D-045 addendum) and 09c adds
+     /// The files (relative to src/TechStrap.Portal) that may turn API text into markup, which is where a stored-XSS bug would live. The API sanitizes the HTML before it sends it, and the Portal does not
+-    /// sanitize again, so each site is argued for in the commit that adds it: 09b adds <c>CustomerMessageBody</c> (a ticket message body: the API's sanitized HTML, D-045 addendum) and 09c adds
 -    /// <c>KbArticleBody</c> (a published article). Every other string the Portal shows is plain text, and Razor encodes it.
-+    /// sanitise again, so each site is argued for in the commit that adds it: 09b added <c>CustomerMessageBody</c> (a ticket message body: the API's sanitised HTML, D-045 addendum) and 09c added
-+    /// <c>KbArticleBody</c> (a published article: the same sanitiser, D-044, rendered once in this one component). There are exactly these two. Every other string the Portal shows is plain text, and Razor encodes it.
++    /// sanitize again, so each site is argued for in the commit that adds it: 09b added <c>CustomerMessageBody</c> (a ticket message body: the API's sanitized HTML, D-045 addendum) and 09c added
++    /// <c>KbArticleBody</c> (a published article: the same sanitizer, D-044, rendered once in this one component). There are exactly these two. Every other string the Portal shows is plain text, and Razor encodes it.
      /// </summary>
 -    public static IReadOnlyList<string> MarkupStringSites { get; } = ["Components/Tickets/CustomerMessageBody.razor"];
 +    public static IReadOnlyList<string> MarkupStringSites { get; } = ["Components/Kb/KbArticleBody.razor", "Components/Tickets/CustomerMessageBody.razor"];
@@ -6167,7 +6167,7 @@ public sealed class KbArticleHostTests
 
     private const string ArticlePath = "/api/public/kb/paperplane/articles/accounts/reset-password";
 
-    // What the API's sanitiser produces: headings, a paragraph with a link, a list, a table, code and an image.
+    // What the API's sanitizer produces: headings, a paragraph with a link, a list, a table, code and an image.
     private const string Body =
         "<h2>Steps</h2>\n<p>Open <a href=\"https://app.example.com/settings\" rel=\"nofollow\">settings</a> &amp; choose <em>Reset</em>. Then wait.</p>\n<ul>\n<li>One</li>\n<li>Two &lt;3</li>\n</ul>\n"
         + "<table>\n<thead><tr><th>A</th><th>B</th></tr></thead>\n<tbody><tr><td>1</td><td>2</td></tr></tbody>\n</table>\n<pre><code class=\"language-bash\">echo &quot;hi&quot;\n</code></pre>\n"
@@ -6210,7 +6210,7 @@ public sealed class KbArticleHostTests
 
         KbTestKit.Texts(dom, "h1").ShouldBe(["Reset your password"]);
         KbTestKit.Texts(dom, "article.ts-kb-article .ts-kb-meta").ShouldBe(["Updated 5 Oct 2026"]);
-        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help centre", "Accounts", "Reset your password"]);
+        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help center", "Accounts", "Reset your password"]);
         KbTestKit.Links(dom, "nav.ts-breadcrumbs a").ShouldBe(["/p/paperplane", "/p/paperplane/kb", "/p/paperplane/kb/accounts"]);
         KbTestKit.Texts(dom, "aside.ts-kb-help h2").ShouldBe(["Still need help?"]);
         KbTestKit.Links(dom, "aside.ts-kb-help a").ShouldBe(["/p/paperplane/contact"]);
@@ -6225,16 +6225,16 @@ public sealed class KbArticleHostTests
 
         var (_, _, dom) = await KbTestKit.GetAsync(client, "/p/paperplane/kb/accounts/reset-password?utm_source=mail", Ct);
 
-        dom.Title.ShouldBe("Reset your password - Paperplane Help Centre");
+        dom.Title.ShouldBe("Reset your password - Paperplane Help Center");
         KbTestKit.Meta(dom, "meta[name=description]").ShouldBe("How to reset it");
         dom.QuerySelector("link[rel=canonical]")!.GetAttribute("href").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb/accounts/reset-password");
         KbTestKit.Meta(dom, "meta[name=robots]").ShouldStartWith("index, follow");
         KbTestKit.Meta(dom, "meta[property='og:type']").ShouldBe("article");
-        KbTestKit.Meta(dom, "meta[property='og:title']").ShouldBe("Reset your password - Paperplane Help Centre");
+        KbTestKit.Meta(dom, "meta[property='og:title']").ShouldBe("Reset your password - Paperplane Help Center");
         KbTestKit.Meta(dom, "meta[property='og:description']").ShouldBe("How to reset it");
         KbTestKit.Meta(dom, "meta[property='og:url']").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb/accounts/reset-password");
         KbTestKit.Meta(dom, "meta[property='og:image']").ShouldBe(PortalFactory.PublicUrl + "/icon-512.png");
-        KbTestKit.Meta(dom, "meta[name='twitter:title']").ShouldBe("Reset your password - Paperplane Help Centre");
+        KbTestKit.Meta(dom, "meta[name='twitter:title']").ShouldBe("Reset your password - Paperplane Help Center");
     }
 
     [Theory]
@@ -6328,10 +6328,10 @@ public sealed class KbArticleHostTests
 
         // The text is still all there, as text: in the heading, the title, the meta tags and the trail.
         KbTestKit.Texts(dom, "h1").ShouldBe([hostile]);
-        dom.Title.ShouldBe(hostile + " - Paperplane Help Centre");
+        dom.Title.ShouldBe(hostile + " - Paperplane Help Center");
         KbTestKit.Meta(dom, "meta[name=description]").ShouldBe(hostile);
-        KbTestKit.Meta(dom, "meta[property='og:title']").ShouldBe(hostile + " - Paperplane Help Centre");
-        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help centre", hostile, hostile]);
+        KbTestKit.Meta(dom, "meta[property='og:title']").ShouldBe(hostile + " - Paperplane Help Center");
+        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help center", hostile, hostile]);
 
         // The JSON-LD blocks hold no angle bracket, are valid JSON, and read back as the original text.
         var scripts = dom.QuerySelectorAll("script[type='application/ld+json']").Select(script => script.TextContent).ToList();
@@ -6544,7 +6544,7 @@ using TechStrap.Portal.Seo;
 namespace TechStrap.Portal.Tests.Seo;
 
 /// <summary>
-/// PHASE-09c Review Focus 1 (XSS in SEO): the text of a structured-data value cannot end its script block, and it reads back as exactly what was written. The serialiser options below are the ones
+/// PHASE-09c Review Focus 1 (XSS in SEO): the text of a structured-data value cannot end its script block, and it reads back as exactly what was written. The serializer options below are the ones
 /// <c>SyntaxCircus.Blazor.Seo</c> 0.1.4's <c>JsonLd</c> component uses (camel case, nulls left out, the encoder that leaves <c>&lt;</c>, <c>&gt;</c> and <c>&amp;</c> alone), so the test sees what the page would write.
 /// </summary>
 public sealed class JsonLdTextTests
@@ -6670,7 +6670,7 @@ public sealed class KbStructuredDataTests
     private static KbCrumb[] Trail(PublishedKbArticleDto article) =>
     [
         new(Theme.DisplayName, "/p/paperplane"),
-        new("Help centre", "/p/paperplane/kb"),
+        new("Help center", "/p/paperplane/kb"),
         new(article.CategoryName, "/p/paperplane/kb/accounts"),
         new(article.Title),
     ];
@@ -6693,7 +6693,7 @@ public sealed class KbStructuredDataTests
         var items = list.GetProperty("itemListElement").EnumerateArray().ToList();
         items.Select(item => item.GetProperty("position").GetInt32()).ShouldBe([1, 2, 3, 4]);
         items.Select(item => item.GetProperty("@type").GetString()).ShouldAllBe(type => type == "ListItem");
-        items.Select(item => item.GetProperty("name").GetString()).ShouldBe(["Paperplane", "Help centre", "Accounts", "Reset your password"]);
+        items.Select(item => item.GetProperty("name").GetString()).ShouldBe(["Paperplane", "Help center", "Accounts", "Reset your password"]);
         items.Select(item => item.GetProperty("item").GetString()).ShouldBe(
         [
             "https://portal.test/p/paperplane",
@@ -6824,7 +6824,7 @@ error CS0246: The type or namespace name 'JsonLdText' could not be found
 
 @code {
     /// <summary>
-    /// The article body exactly as the API sent it. The API renders the agent's Markdown and sanitises the HTML (D-044); the Portal does not sanitise again and does not change a byte, so what a visitor reads is what the API
+    /// The article body exactly as the API sent it. The API renders the agent's Markdown and sanitizes the HTML (D-044); the Portal does not sanitize again and does not change a byte, so what a visitor reads is what the API
     /// decided is safe. This and <c>CustomerMessageBody</c> are the only two places the Portal turns text into elements (PortalRules.MarkupStringSites); every other string it shows is encoded.
     /// </summary>
     [Parameter, EditorRequired]
@@ -6841,7 +6841,7 @@ using System.Text.RegularExpressions;
 namespace TechStrap.Portal.Components.Kb;
 
 /// <summary>
-/// The description of an article for a search engine (PHASE-09c): the author's summary, else the first sentence of the body as plain text. The body is the API's sanitised HTML, read here only to take the words out of it:
+/// The description of an article for a search engine (PHASE-09c): the author's summary, else the first sentence of the body as plain text. The body is the API's sanitized HTML, read here only to take the words out of it:
 /// the result is plain text that Razor encodes when it is written into a meta tag, and it is never put back into markup, so an imperfect tag strip cannot become an injection.
 /// </summary>
 public static partial class KbPlainText
@@ -6930,11 +6930,11 @@ public static partial class KbPlainText
  
      public static string CategoryDescription(string categoryName, string productName) => $"Help articles about {categoryName} for {productName}.";
  
-+    public static string ArticleTitle(string articleTitle, string productName) => $"{articleTitle} - {productName} Help Centre";
++    public static string ArticleTitle(string articleTitle, string productName) => $"{articleTitle} - {productName} Help Center";
 +
 +    public static string ArticleDescriptionFallback(string articleTitle, string productName) => $"{articleTitle}. Help article for {productName}.";
 +
-     public static string SearchTitle(string productName) => $"Search - {productName} Help Centre";
+     public static string SearchTitle(string productName) => $"Search - {productName} Help Center";
  
      public static string SearchDescription(string productName) => $"Search the help articles for {productName}.";
 ```
@@ -6983,7 +6983,7 @@ namespace TechStrap.Portal.Components.Pages;
 
 /// <summary>
 /// One published article (P09-T14). Review Focus 2: an unpublished article, another product's, a wrong category, an unknown slug and an unknown product are the one neutral 404, byte for byte (the product is forgotten first),
-/// and a slug that is not a slug is answered without a call (the client refuses it). Review Focus 1: the body is the API's sanitised HTML shown by <see cref="KbArticleBody"/>, the one place that renders it; the title, the
+/// and a slug that is not a slug is answered without a call (the client refuses it). Review Focus 1: the body is the API's sanitized HTML shown by <see cref="KbArticleBody"/>, the one place that renders it; the title, the
 /// category, the summary and every meta value are plain text and encoded; the structured data is written through <see cref="JsonLdText"/>. The canonical address is the product path the visitor is on (a shared article is
 /// canonical under each product, D-045). <c>/p/{key}/kb/search/{slug}</c> matches this route with the category <c>search</c>, which the API refuses (it is reserved), so it is a 404 here too.
 /// </summary>
@@ -7055,7 +7055,7 @@ namespace TechStrap.Portal.Seo;
 
 /// <summary>
 /// A string of structured data that cannot end the script block it is written into. <c>SyntaxCircus.Blazor.Seo</c> 0.1.4 writes its JSON-LD through a markup string with an encoder that leaves <c>&lt;</c>, <c>&gt;</c> and
-/// <c>&amp;</c> alone, so an article title that contains <c>&lt;/script&gt;</c> ends the block and injects markup into the head (the PHASE-09c spike reproduced it). Escaping the text before it reaches that serialiser would
+/// <c>&amp;</c> alone, so an article title that contains <c>&lt;/script&gt;</c> ends the block and injects markup into the head (the PHASE-09c spike reproduced it). Escaping the text before it reaches that serializer would
 /// be escaped a second time (the JSON would read back as backslash text), so a value is wrapped in this type, whose converter writes the string itself with the strict encoder: <c>&lt;</c>, <c>&gt;</c>, <c>&amp;</c>, the
 /// apostrophe, <c>+</c> and every non-ASCII character become <c>\uXXXX</c> escapes, which a JSON reader turns back into the original text. <see cref="Safe"/> is the only way to make one; every string of every
 /// structured-data record the Portal writes is one.
@@ -7105,7 +7105,7 @@ public sealed record BreadcrumbItemLd(
     [property: JsonPropertyName("@type")] string Type = "ListItem");
 
 /// <summary>
-/// schema.org <c>BreadcrumbList</c>. The package has a record of the same shape, but its strings are plain strings that its serialiser writes without escaping <c>&lt;</c>; this one carries <see cref="JsonLdText"/>.
+/// schema.org <c>BreadcrumbList</c>. The package has a record of the same shape, but its strings are plain strings that its serializer writes without escaping <c>&lt;</c>; this one carries <see cref="JsonLdText"/>.
 /// </summary>
 public sealed record BreadcrumbListLd(
     IReadOnlyList<BreadcrumbItemLd> ItemListElement,
@@ -7176,7 +7176,7 @@ public static class KbStructuredData
    margin: 24px 0;
  }
 +
-+// An article's body is the API's sanitised HTML: a wide table, a code block or an image scrolls or shrinks inside its own box instead of widening the page.
++// An article's body is the API's sanitized HTML: a wide table, a code block or an image scrolls or shrinks inside its own box instead of widening the page.
 +.ts-kb-article-body {
 +  overflow-wrap: anywhere;
 +
@@ -7245,7 +7245,7 @@ MUTATIONS = [
     ("16 text: an inline tag splits a word", C + "Kb/KbPlainText.cs", [("AnyTag().Replace(BlockTag().Replace(ScriptAndStyle().Replace(html, \" \"), \" \"), string.Empty)", "AnyTag().Replace(BlockTag().Replace(ScriptAndStyle().Replace(html, \" \"), \" \"), \" \")")], COMPONENTS),
     ("17 copy: the article title is product first", C + "KbCopy.cs", [("$\"{articleTitle} - {productName} Help Centre\"", "$\"{productName} - {articleTitle} Help Centre\"")], KB),
     ("18 page: no contact link", P + "KbArticle.razor", [('        <p><a class="btn btn-primary" href="@PortalRoutes.Contact(theme.Key)">@KbCopy.ContactUs</a></p>\n', "")], KB),
-    ("19 page: the category crumb links the help centre home", P + "KbArticle.razor.cs", [("new KbCrumb(article.CategoryName, PortalRoutes.KbCategory(theme.Key, article.CategorySlug)),", "new KbCrumb(article.CategoryName, PortalRoutes.KbHome(theme.Key)),")], KB),
+    ("19 page: the category crumb links the help center home", P + "KbArticle.razor.cs", [("new KbCrumb(article.CategoryName, PortalRoutes.KbCategory(theme.Key, article.CategorySlug)),", "new KbCrumb(article.CategoryName, PortalRoutes.KbHome(theme.Key)),")], KB),
     ("20 rules: the article body is not a listed site", "tests/TechStrap.Architecture.Tests/PortalRules.cs", [('["Components/Kb/KbArticleBody.razor", "Components/Tickets/CustomerMessageBody.razor"]', '["Components/Tickets/CustomerMessageBody.razor"]')], ARCH),
     ("21 page: an article is noindex", P + "KbArticle.razor", [(' OgType="article"', ' OgType="article" NoIndex="true"')], KB),
     ("22 page: the canonical is the route's own category", P + "KbArticle.razor", [("PortalRoutes.KbArticle(theme.Key, article.CategorySlug, article.Slug)\" ImageUrl", "PortalRoutes.KbHome(theme.Key)\" ImageUrl")], KB),
@@ -7274,7 +7274,7 @@ Run them in foreground batches and record the results:
 | 16 | text: an inline tag splits a word | `KbPlainText.cs` | KILLED (2 failing) |
 | 17 | copy: the article title is product first | `KbCopy.cs` | KILLED (4 failing) |
 | 18 | page: no contact link | `KbArticle.razor` | KILLED (1 failing) |
-| 19 | page: the category crumb links the help centre home | `KbArticle.razor.cs` | KILLED (3 failing) |
+| 19 | page: the category crumb links the help center home | `KbArticle.razor.cs` | KILLED (3 failing) |
 | 20 | rules: the article body is not a listed site | `PortalRules.cs` | KILLED (3 failing) |
 | 21 | page: an article is noindex | `KbArticle.razor` | KILLED (1 failing) |
 | 22 | page: the canonical is the route's own category | `KbArticle.razor` | KILLED (2 failing) |
@@ -7317,12 +7317,12 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 - Consumes: Task 2's `PortalSitemap`, `PortalSitemapBuilder`, `PortalSitemapCache`, `MapPortalSeo`; `PortalFactory`, `FormTestKit.Factory(environment, configure, settings, product)` and `FormTestKit.Client`, `StubApiHandler` (`OnJson`, `OnStatus`, `OnProblem`, `On`, `Count`, `JsonResponse`), `PortalOptions.DefaultProductKey`; `Get-RepoText` (the Pester helper).
 - Produces:
   - `SitemapHostTests`: ten host tests over the real wiring and the stub API (`PortalFactory.PublicUrl`).
-  - Docs: the "Consequences of the addendum (as built in 09c)" notes in D-045; the PHASE-09 spec with T02, T04 and T12 to T15 ticked (each with its 09c evidence), the deliverables and one success criterion ticked, T09 now deferred to 09d, the sitemap handoff names corrected (`GetKbSitemapRequestHandler`, `ListPublicProductsRequestHandler`, `PortalSitemapBuilder`, `MapSeoSitemap`) and a "Corrections (D-045 addendum, 2026-10-06, PHASE-09c)" block; `PORTAL-APP.md` rewritten for the help centre, the SEO head, the cache and the sitemap; the roadmap and discovery rows "09a merged (PR #14); 09b merged (PR #15); 09c complete (pending merge); 09d not started"; the old handler name removed from 02-ARCHITECTURE and UX-BRIEF-portal.
+  - Docs: the "Consequences of the addendum (as built in 09c)" notes in D-045; the PHASE-09 spec with T02, T04 and T12 to T15 ticked (each with its 09c evidence), the deliverables and one success criterion ticked, T09 now deferred to 09d, the sitemap handoff names corrected (`GetKbSitemapRequestHandler`, `ListPublicProductsRequestHandler`, `PortalSitemapBuilder`, `MapSeoSitemap`) and a "Corrections (D-045 addendum, 2026-10-06, PHASE-09c)" block; `PORTAL-APP.md` rewritten for the help center, the SEO head, the cache and the sitemap; the roadmap and discovery rows "09a merged (PR #14); 09b merged (PR #15); 09c complete (pending merge); 09d not started"; the old handler name removed from 02-ARCHITECTURE and UX-BRIEF-portal.
   - `RepositoryDocs.Tests.ps1`: the tick pin updated, a new `Describe 'D-045 as built in 09c'`, and the guide headings.
 
 - [ ] **Step 1: Write the failing tests**
 
-`SitemapHostTests` pins behaviour that Task 2 built, so it passes at once; each of its rows is proved by a mutation below instead. The Pester changes are the red ones: the ticks, the corrected names, the guide headings and the as-built notes.
+`SitemapHostTests` pins behavior that Task 2 built, so it passes at once; each of its rows is proved by a mutation below instead. The Pester changes are the red ones: the ticks, the corrected names, the guide headings and the as-built notes.
 
 `scripts/tests/RepositoryDocs.Tests.ps1`
 
@@ -7602,7 +7602,7 @@ public sealed class SitemapHostTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         Locations(xml).ShouldContain(PortalFactory.PublicUrl + "/p/orbitly");
-        factory.Api.Count(HttpMethod.Get, "/api/public/products").ShouldBe(1, "the build the first crawler started was not cancelled and not repeated");
+        factory.Api.Count(HttpMethod.Get, "/api/public/products").ShouldBe(1, "the build the first crawler started was not canceled and not repeated");
     }
 
     [Fact]
@@ -7719,7 +7719,7 @@ The D-045 as-built notes, the spec (ticks with evidence, the corrected sitemap h
 +- **As built in 09c: the cache.** `PortalCachePaths.IsCacheable` is the one predicate: a help-centre page whose `page` value is absent or one to four digits. The search page, the form pages, the suggest adapter, `/t/*`, `/not-found`, the sitemap and every non-200 answer are never kept; the search page also gets `Cache-Control: no-store` from a header rule, and a delivered KB page gets `public, max-age=60` from `PathHeaderRule.SetOnSuccess` (Hosting; the Admin's use of the shared wiring is unchanged and pinned by `PublicCacheHeaderPinTests`). `UsePortalOutputCache` also sets the request's own `X-Correlation-Id` again when the response starts, because a stored copy replays the first request's. `ProgramOrderTests` pins the order of the pipeline.
 +- **As built in 09c: structured data.** `JsonLdText` and the Portal's own `BreadcrumbListLd` and `ArticleSchema` records replace the package's `BreadcrumbListSchema` for the article page, because the package's strings cannot carry the converter. The hostile-title tests pin the head, the heading, the breadcrumb and both JSON-LD blocks. `KbPlainText.Describe` takes the description (the summary, else the first sentence of the body's first paragraph as plain text, at most 160 characters).
 +- **As built in 09c: the sitemap.** `PortalSitemapBuilder` makes one products call and one sitemap call per product, and fails whole when any call fails (a half sitemap kept for 15 minutes would be worse than none). `PortalSitemapCache` holds the entries for 15 minutes with single-flight, its own cancellation token, a 2-minute build timeout, a failure remembered for 1 minute and the last good sitemap served meanwhile; with none, the request is the 500 error page. The static root entry counts against the 50,000-address limit, so the whole file never exceeds it. The build runs without the request's execution context and with a stand-in `HttpContext` that carries only the first visitor's address.
-+- **As built in 09c: the second markup site.** `KbArticleBody` renders the API's sanitised HTML byte for byte (`KbArticleHostTests` compares it with the API's string); `PortalRules.MarkupStringSites` lists exactly it and `CustomerMessageBody`, and a test counts that the word appears in those two files and nowhere else.
++- **As built in 09c: the second markup site.** `KbArticleBody` renders the API's sanitized HTML byte for byte (`KbArticleHostTests` compares it with the API's string); `PortalRules.MarkupStringSites` lists exactly it and `CustomerMessageBody`, and a test counts that the word appears in those two files and nowhere else.
 +- **Known in 09c: the sitemap build's calls carry the first crawler's address.** The build's `X-Forwarded-For` is the address of the visitor whose request started it, so the API rate-limits that address (120 a minute) for the 1 + N calls of a build; a Portal with more than about 100 products would fail its build. Accepted for the products this install has; a service address for the build is the follow-up.
 +- **Known in 09c: a plain-http image in an article is blocked** by `img-src 'self' https: data:` in Production. That is the right posture and is documented, not changed.
 +- **Known in 09c: the category page shows no description** (the article list does not carry it, and a second call per page was not worth it), the product home still has no category list, and the visual polish, the no-JS and accessibility pass, the double-send guard and the JavaScript niceties of 09b's known gaps are PHASE-09d.
@@ -7768,7 +7768,7 @@ The D-045 as-built notes, the spec (ticks with evidence, the corrected sitemap h
 +- **Category page.** `GET api/public/kb/{productKey}/categories/{categorySlug}/articles` (paged, published only, 404 for an unknown, invisible or empty category) feeds it; the search endpoint cannot, because a blank text gives an empty page.
 +- **Article JSON-LD.** The breadcrumb list and the article are Portal records whose strings are `JsonLdText`: the package's `JsonLd` writes `<` unescaped, so a `</script>` in a title would end the block.
 +- **Caching.** One base policy with a path predicate (not an attribute): 60 seconds, varying by the `page` query value only; a delivered page tells browsers `public, max-age=60`; the search page, the form pages and `/t/*` are never kept.
-+- **Empty states.** An empty category is the neutral 404 (the API says so), so the empty state is the help-centre home of a product with no article and a search with no result.
++- **Empty states.** An empty category is the neutral 404 (the API says so), so the empty state is the help-center home of a product with no article and a search with no result.
 +- **Search page.** `/p/{key}/kb/search?q=&page=`; a query makes it `noindex`.
 +
  ## Application Boundaries
@@ -7812,7 +7812,7 @@ The D-045 as-built notes, the spec (ticks with evidence, the corrected sitemap h
 +  - **09c evidence:** the rest of the KB client (categories, a category's articles, the article, the sitemap and a paged search) and `IPublicProductClient.ListAsync` are done (`PublicKbClientTests`, `PublicProductClientTests`, `KbSlugShapeTests`): every call is a read, retried, forwarding the visitor's address, and a key or slug that is not a slug is the uniform not-found without a call.
  - [x] **P09-T03** Implement `BrandingThemeFactory`, `PortalLayout`, header/footer and the product-scope resolution (unknown/inactive -> NotFound)
    - **Depends on:** P09-T02, P02 tokens
-   - **Validation:** Theory over accent colours (black, white, mid-gray, brand) asserts the computed `--ts-on-accent` meets 4.5:1 on the accent and `--ts-accent-ink` meets 4.5:1 on white; invalid colour falls back to the default; bUnit: unknown key renders NotFound.
+   - **Validation:** Theory over accent colors (black, white, mid-gray, brand) asserts the computed `--ts-on-accent` meets 4.5:1 on the accent and `--ts-accent-ink` meets 4.5:1 on white; invalid color falls back to the default; bUnit: unknown key renders NotFound.
    - **09a evidence:** `ProductThemeViewModelTests`, `PortalLayoutTests`, `NeutralPagesGuardTests`, `ProductHomeHostTests`. There is no `BrandingThemeFactory` (D-045); the contrast theory is `ProductAccentContrastTests`.
 -- [ ] **P09-T04** Wire `Blazor.Seo` (`AddSyntaxCircusSeo`, `UseCanonicalHost`, `MapRobotsTxt`, `MapSitemap` with `ApiSitemapEntryProvider`) and security headers/CSP
 +- [x] **P09-T04** Wire `Blazor.Seo` (`AddSyntaxCircusSeo`, `UseSyntaxCircusSeo`, `MapSeoRobotsTxt`, `MapSeoSitemap` with the `PortalSitemap` provider) and security headers/CSP
@@ -7862,7 +7862,7 @@ The D-045 as-built notes, the spec (ticks with evidence, the corrected sitemap h
 @@ -233,7 +249,7 @@ Not used: `Blazor.Auth` (portal is anonymous), `Blazor.Tracking` (Not applicable
  - [ ] Following the emailed `/t/{token}` link shows the public conversation; the customer can reply; replying on a Closed ticket creates and links a follow-up ticket.
  - [ ] Invalid, expired and revoked tokens are indistinguishable (identical 404); lost-link responses are identical for known and unknown emails.
- - [ ] Each product's portal pages use its name, logo and accent colour, including readable contrast; an unknown product key shows NotFound.
+ - [ ] Each product's portal pages use its name, logo and accent color, including readable contrast; an unknown product key shows NotFound.
 -- [ ] KB pages are browsable, searchable, SEO-tagged with sitemap/robots as specified; ticket pages are `noindex`/disallowed.
 +- [x] KB pages are browsable, searchable, SEO-tagged with sitemap/robots as specified; ticket pages are `noindex`/disallowed.
  - [ ] The contact URL prefills `subject`, `name` and `email` (visible, editable, validated like typed input); "Powered by TechStrap" links to the GitHub repo and disappears when `TECHSTRAP_PORTAL_SHOW_POWERED_BY=false`; agents appear as the resolved public name (D-024).
@@ -7908,7 +7908,7 @@ The D-045 as-built notes, the spec (ticks with evidence, the corrected sitemap h
 -the attachment pass-through and the lost-link page. **09c** adds the knowledge base pages, the sitemap and the polish pass. The routes of all three are in `PortalRoutes`.
 +PHASE-09 is delivered in four pull requests. **09a** is the foundation: the settings, the API client, the per-product theme and shell, the product home, the root page, the ticket-page headers, robots.txt, log
 +redaction and the architecture rules. **09b** adds the customer flows: the contact form with its suggestions and received page, the ticket page with replies and the Closed follow-up, the attachment pass-through
-+and the lost-link page. **09c** (this page describes all three) adds the help centre: the knowledge base home, category, search and article pages, the SEO head and structured data, output caching and the sitemap.
++and the lost-link page. **09c** (this page describes all three) adds the help center: the knowledge base home, category, search and article pages, the SEO head and structured data, output caching and the sitemap.
 +**09d** is the polish pass (styling, accessibility, the no-JS check, the double-send guard and the copy button, counter and sending state). The routes of all of them are in `PortalRoutes`.
  
  ## Run it locally
@@ -7926,7 +7926,7 @@ The D-045 as-built notes, the spec (ticks with evidence, the corrected sitemap h
  characters, returns at most 5 `{title, snippet, href}` items with the links built by `PortalRoutes.KbArticle`, passes the API's 429 through and answers an empty list for a blank text or any other failure.
  The module is tested with `node --test` (`tests/TechStrap.Portal.Tests/js/kb-suggestions.test.mjs`, run by `scripts/tests/PortalScripts.Tests.ps1`, skipped without node).
  
-+### The help centre
++### The help center
 +
 +Four pages, each on `ProductPageBase`, each static SSR with plain links and a GET form, so everything works without script:
 +
@@ -7935,7 +7935,7 @@ The D-045 as-built notes, the spec (ticks with evidence, the corrected sitemap h
 +- `/p/{key}/kb/search?q=&page=` (`KbSearch`) is a GET form (`KbSearchBox`). An empty text shows a prompt and makes no call; no result shows a link to contact support; a snippet is plain text; a text is cut at 200
 +  characters; a page with a text is `noindex`; paging links keep the escaped text.
 +- `/p/{key}/kb/{category}/{slug}` (`KbArticle`) shows the article: breadcrumbs, the title, the day it changed, the body and a "Still need help?" link. **`KbArticleBody` is the second and last place the Portal turns
-+  text into markup** (`PortalRules.MarkupStringSites` lists exactly it and `CustomerMessageBody`): the API renders the Markdown and sanitises the HTML (D-044), and the Portal passes it on byte for byte
++  text into markup** (`PortalRules.MarkupStringSites` lists exactly it and `CustomerMessageBody`): the API renders the Markdown and sanitizes the HTML (D-044), and the Portal passes it on byte for byte
 +  (`KbArticleHostTests` compares it with the API's string). A plain-http image in an article is blocked by the CSP's `img-src 'self' https: data:` in Production; that is the intended posture.
 +
 +Everything an agent wrote or a visitor typed (a name, a title, a summary, a snippet, a search text) is plain text shown by Razor, which encodes it. `/p/{key}/kb/search/{x}` matches the article route with the category
@@ -7948,7 +7948,7 @@ The D-045 as-built notes, the spec (ticks with evidence, the corrected sitemap h
 +
 +### SEO and structured data
 +
-+Each page sets its head with `SeoHead` (`SyntaxCircus.Blazor.Seo`): a unique title ("{page} - {product} Help Centre", the product being the site because `Seo:SiteName` is global), a description, the canonical
++Each page sets its head with `SeoHead` (`SyntaxCircus.Blazor.Seo`): a unique title ("{page} - {product} Help Center", the product being the site because `Seo:SiteName` is global), a description, the canonical
 +address (built from `TECHSTRAP_PORTAL_PUBLIC_URL`, never the Host header; a page of a category names its own page, and a shared article is canonical under the product the visitor is on), Open Graph (the product's logo
 +when it has an acceptable one, else `/icon-512.png`, never the bare site address) and `NoIndex` for a search with a text. The description of an article is its summary, else the first sentence of the body as plain
 +text (`KbPlainText`), else the title and product. The article page also writes a `BreadcrumbList` and an `Article` as JSON-LD.
@@ -7963,12 +7963,12 @@ The D-045 as-built notes, the spec (ticks with evidence, the corrected sitemap h
 +The help-centre home, a category page and an article page are kept for 60 seconds by the framework's output cache (`AddPortalOutputCache`, one base policy with the path predicate `PortalCachePaths.IsCacheable`; no
 +attribute on a page). The key varies by the `page` query value only and never by host (the framework's default key holds the whole query string and the host, so `?utm=1`, `?utm=2` ... would fill the store); a `page`
 +value that is not one to four digits is answered but never kept. The search page, the form pages, `/p/{key}` itself, `/t/*`, the suggest adapter, `/not-found`, the sitemap and every answer that is not a 200 are never kept,
-+and the output cache never stores a response that sets a cookie (no help-centre page does). A delivered KB page tells browsers `Cache-Control: public, max-age=60` (`PathHeaderRule.SetOnSuccess` in Hosting: a 404,
++and the output cache never stores a response that sets a cookie (no help-center page does). A delivered KB page tells browsers `Cache-Control: public, max-age=60` (`PathHeaderRule.SetOnSuccess` in Hosting: a 404,
 +429 or 503 never gets it); the search page is `no-store`. `UsePortalOutputCache` goes after the error pages and before the endpoints (`ProgramOrderTests` pins the order), so the shared security headers and the per-path
 +rules are applied to a cached answer too, and it sets the request's own `X-Correlation-Id` again when the response starts, because a stored copy replays the first request's.
 +
 +`/sitemap.xml` is `MapSeoSitemap` with a provider (`PortalSitemap`). A build (`PortalSitemapBuilder`) asks for the active products (`IPublicProductClient.ListAsync`), then for each product's published articles, and
-+lists the root page (only when no default product is configured: `/` is then a redirect), each product's home, its help centre home, its categories and its articles; a shared article is listed under each product. Every
++lists the root page (only when no default product is configured: `/` is then a redirect), each product's home, its help center home, its categories and its articles; a shared article is listed under each product. Every
 +address is absolute (from the public URL) and at most 50,000 are listed, the root page included. `PortalSitemapCache` keeps the result for 15 minutes in an `IMemoryCache` with single-flight (twenty concurrent
 +requests make one build), builds on its own task with its own cancellation token (a crawler that goes away stops waiting but cannot cancel the build), remembers a failed build for one minute while the last good sitemap is
 +served, and fails the request (the 500 page) only when there has never been a good one. The build's calls carry the address of the visitor whose request started it (a stand-in `HttpContext`; known gap below).
@@ -7989,7 +7989,7 @@ The D-045 as-built notes, the spec (ticks with evidence, the corrected sitemap h
  `X-Robots-Tag: noindex`, only `/t/{token}/attachments/{id}` is sandboxed (so the ticket page keeps the normal CSP), and the four form pages of a product (`/p/{key}/contact`, `/contact/received`, `/lost-link` and
 -`/suggest`) get `no-store` and `noindex`. `/robots.txt` disallows `/t/` and names `{public url}/sitemap.xml`, which answers 404 until 09c. The canonical-host redirect is an allow-list of legacy hosts and does
 -nothing until configured.
-+`/suggest`) get `no-store` and `noindex`; a delivered help-centre page gets `public, max-age=60` and the search page `no-store` (see Caching). `/robots.txt` disallows `/t/` and names `{public url}/sitemap.xml`. The
++`/suggest`) get `no-store` and `noindex`; a delivered help-center page gets `public, max-age=60` and the search page `no-store` (see Caching). `/robots.txt` disallows `/t/` and names `{public url}/sitemap.xml`. The
 +canonical-host redirect is an allow-list of legacy hosts and does nothing until configured.
  
  ### Logs and Sentry
@@ -8010,10 +8010,10 @@ The D-045 as-built notes, the spec (ticks with evidence, the corrected sitemap h
 +    Pages/        Home (the root), ProductHome, KbHome, KbCategory, KbSearch, KbArticle, Contact, ContactReceived, Ticket, LostLink, NotFound, Error, StyleGuide (Development only)
 +    Tickets/      CustomerMessageBody (a markup site), MessageThread, TicketStatusBanner
 +    Ui/           AccentScope, PoweredByFooter, ProductUnavailable, DevelopmentOnly, ErrorSummary, FieldError, FormField, AttachmentInput, HoneypotField, Pager, StateMessage
-+    KbCopy.cs     the words of the help centre (beside ShellCopy)
++    KbCopy.cs     the words of the help center (beside ShellCopy)
    Forms/          FormError and FormFields, FormCopy, FormFailure, AttachmentRules, EmailRules, ContactFormViewModel and its validator, ReplyForm, LostLinkForm, ContactCopy, ReceivedReference
 -  Headers/        PortalHeaderRules (the /t rules, the attachment sandbox and the form pages)
-+  Headers/        PortalHeaderRules (the /t rules, the attachment sandbox, the form pages and the help centre)
++  Headers/        PortalHeaderRules (the /t rules, the attachment sandbox, the form pages and the help center)
    Products/       ProductThemeViewModel, ProductScope, ProductPageBase
 -  Routing/        PortalRoutes, ProductKeyShape
 -  Seo/            PortalSeoRegistration (Blazor.Seo: base URL, robots.txt, canonical host)
@@ -8148,7 +8148,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 ```
 
 **Owner manual checks (not run by the plan; the PR description lists them):**
-- Under compose, browse the help centre of a product with articles (`/p/<key>/kb`, a category, an article with an image), search it, and page through a category with more than ten articles.
+- Under compose, browse the help center of a product with articles (`/p/<key>/kb`, a category, an article with an image), search it, and page through a category with more than ten articles.
 - View the source of an article for the canonical address, the Open Graph tags and the two JSON-LD blocks; confirm the page loads with no console error under the CSP.
 - Load `/sitemap.xml` and `/robots.txt` and confirm the sitemap lists the products' pages with the public address and robots.txt names it.
 - Confirm a draft or archived article, an unknown category and `/p/<key>/kb/search/anything` all show the same plain "Page not found" page.

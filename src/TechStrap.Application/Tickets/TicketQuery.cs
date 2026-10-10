@@ -86,7 +86,7 @@ public sealed record TicketState(
     DateTimeOffset LastActivityAt,
     uint Version);
 
-/// <summary>A follow-up created from a parent, with its first public message body (sanitised HTML) and that message's attachment file names for the dedupe check.</summary>
+/// <summary>A follow-up created from a parent, with its first public message body (sanitized HTML) and that message's attachment file names for the dedupe check.</summary>
 public sealed record FollowUpCandidate(
     Guid TicketId, string Number, Guid FirstMessageId, string FirstMessageBody, DateTimeOffset CreatedAt, IReadOnlyList<string> FirstMessageFileNames);
 

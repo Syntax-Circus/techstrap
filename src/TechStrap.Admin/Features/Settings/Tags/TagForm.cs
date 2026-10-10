@@ -3,7 +3,7 @@ using TechStrap.Contracts.Branding;
 
 namespace TechStrap.Admin.Features.Settings.Tags;
 
-/// <summary>The checks the tag form makes before it sends, with the server's own rules (the colour with the same Contracts constant). The field names of a 400 are <see cref="Clients.ApiFields"/>.</summary>
+/// <summary>The checks the tag form makes before it sends, with the server's own rules (the color with the same Contracts constant). The field names of a 400 are <see cref="Clients.ApiFields"/>.</summary>
 internal static partial class TagForm
 {
     private const int NameMaxLength = 50;

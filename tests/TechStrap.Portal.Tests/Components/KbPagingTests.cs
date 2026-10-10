@@ -3,7 +3,7 @@ using TechStrap.Portal.Kb;
 
 namespace TechStrap.Portal.Tests.Components;
 
-/// <summary>The page number and the search text of the help-centre pages are read from text a visitor controls; neither may ever throw or send more than the API takes.</summary>
+/// <summary>The page number and the search text of the help-center pages are read from text a visitor controls; neither may ever throw or send more than the API takes.</summary>
 public sealed class KbPagingTests
 {
     [Theory]

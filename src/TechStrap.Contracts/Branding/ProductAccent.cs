@@ -2,8 +2,8 @@ using System.Globalization;
 
 namespace TechStrap.Contracts.Branding;
 
-/// <summary>The three values derived from one product accent colour (docs/BRAND.md section 22), all as uppercase <c>#RRGGBB</c>.</summary>
-/// <param name="Accent">Fills and borders: the product's colour, as entered (normalised to uppercase).</param>
+/// <summary>The three values derived from one product accent color (docs/BRAND.md section 22), all as uppercase <c>#RRGGBB</c>.</summary>
+/// <param name="Accent">Fills and borders: the product's color, as entered (normalized to uppercase).</param>
 /// <param name="OnAccent">Text on an accent fill: white or black, whichever contrasts more.</param>
 /// <param name="AccentInk">The accent as text or an outline on white: the accent itself when it already reaches 4.5:1, otherwise darkened until it does.</param>
 public readonly record struct ProductAccentColors(string Accent, string OnAccent, string AccentInk);
@@ -26,7 +26,7 @@ public static class ProductAccent
 
     /// <summary>
     /// Derives the three accent properties from a <c>#RRGGBB</c> value. Only a malformed value is rejected;
-    /// no colour is rejected for low contrast because white-or-black on-accent always reaches at least 4.58:1.
+    /// no color is rejected for low contrast because white-or-black on-accent always reaches at least 4.58:1.
     /// </summary>
     public static bool TryDerive(string? value, out ProductAccentColors colors)
     {
@@ -41,36 +41,36 @@ public static class ProductAccent
         return true;
     }
 
-    /// <summary>WCAG contrast ratio (1 to 21) between two <c>#RRGGBB</c> colours. Throws <see cref="ArgumentException"/> for a malformed colour.</summary>
+    /// <summary>WCAG contrast ratio (1 to 21) between two <c>#RRGGBB</c> colors. Throws <see cref="ArgumentException"/> for a malformed color.</summary>
     public static double ContrastRatio(string foregroundHex, string backgroundHex)
     {
         if (!TryParse(foregroundHex, out var foreground))
         {
-            throw new ArgumentException("Not a #RRGGBB colour.", nameof(foregroundHex));
+            throw new ArgumentException("Not a #RRGGBB color.", nameof(foregroundHex));
         }
 
         if (!TryParse(backgroundHex, out var background))
         {
-            throw new ArgumentException("Not a #RRGGBB colour.", nameof(backgroundHex));
+            throw new ArgumentException("Not a #RRGGBB color.", nameof(backgroundHex));
         }
 
         return Contrast(foreground, background);
     }
 
     /// <summary>
-    /// The foreground as text on <paramref name="backgroundHex"/>: the colour itself (upper case) when it reaches 4.5:1, otherwise stepped toward black on a light background or toward white on a dark one,
-    /// at most 24 steps, then black or white. On white this is exactly <see cref="ProductAccentColors.AccentInk"/>. Throws <see cref="ArgumentException"/> for a malformed colour.
+    /// The foreground as text on <paramref name="backgroundHex"/>: the color itself (upper case) when it reaches 4.5:1, otherwise stepped toward black on a light background or toward white on a dark one,
+    /// at most 24 steps, then black or white. On white this is exactly <see cref="ProductAccentColors.AccentInk"/>. Throws <see cref="ArgumentException"/> for a malformed color.
     /// </summary>
     public static string ReadableOn(string foregroundHex, string backgroundHex)
     {
         if (!TryParse(foregroundHex, out var foreground))
         {
-            throw new ArgumentException("Not a #RRGGBB colour.", nameof(foregroundHex));
+            throw new ArgumentException("Not a #RRGGBB color.", nameof(foregroundHex));
         }
 
         if (!TryParse(backgroundHex, out var background))
         {
-            throw new ArgumentException("Not a #RRGGBB colour.", nameof(backgroundHex));
+            throw new ArgumentException("Not a #RRGGBB color.", nameof(backgroundHex));
         }
 
         if (Contrast(foreground, background) >= MinimumTextContrast)
@@ -96,7 +96,7 @@ public static class ProductAccent
     private static readonly (int R, int G, int B) WhiteRgb = (255, 255, 255);
     private static readonly (int R, int G, int B) BlackRgb = (0, 0, 0);
 
-    // Scale each channel of the ORIGINAL colour by (1 - 0.04 k), k = 1, 2, 3 ..., until the result reaches 4.5:1 on white.
+    // Scale each channel of the ORIGINAL color by (1 - 0.04 k), k = 1, 2, 3 ..., until the result reaches 4.5:1 on white.
     // Integer arithmetic: round(c * (25 - k) / 25) never lands on a .5 tie, so (c * (25 - k) + 12) / 25 is exact.
     private static (int R, int G, int B) DarkenUntilReadableOnWhite((int R, int G, int B) accent)
     {

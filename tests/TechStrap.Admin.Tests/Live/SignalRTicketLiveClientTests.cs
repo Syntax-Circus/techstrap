@@ -11,7 +11,7 @@ using static TechStrap.Admin.Tests.Live.LiveTestData;
 namespace TechStrap.Admin.Tests.Live;
 
 /// <summary>
-/// The client's own behaviour over a scripted connection: one start, the state it reports, the token it hands the hub, the reconnect it asks for, what it re-joins and re-announces afterwards, the
+/// The client's own behavior over a scripted connection: one start, the state it reports, the token it hands the hub, the reconnect it asks for, what it re-joins and re-announces afterwards, the
 /// duplicates it drops, and a disposal that stops everything. A failure of the hub never reaches a caller.
 /// </summary>
 public sealed class SignalRTicketLiveClientTests

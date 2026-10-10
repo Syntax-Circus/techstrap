@@ -18,8 +18,8 @@ public static class ApiClientRegistration
     public const int WriteTimeoutFloorSeconds = 300;
 
     /// <summary>
-    /// The longest a read waits before a retry, whatever the API's <c>Retry-After</c> asks for. The resilience default honours the header with no limit, so an
-    /// overloaded API that says "120" would freeze a page on "Loading" until the client timeout (30 s). The header is still honoured below this cap.
+    /// The longest a read waits before a retry, whatever the API's <c>Retry-After</c> asks for. The resilience default honors the header with no limit, so an
+    /// overloaded API that says "120" would freeze a page on "Loading" until the client timeout (30 s). The header is still honored below this cap.
     /// </summary>
     public static readonly TimeSpan ReadRetryAfterCap = TimeSpan.FromSeconds(2);
 
@@ -76,7 +76,7 @@ public static class ApiClientRegistration
         BackoffType = DelayBackoffType.Exponential,
         UseJitter = true,
 
-        // The default honours Retry-After without a limit; this one honours it up to ReadRetryAfterCap and otherwise falls back to the backoff above.
+        // The default honors Retry-After without a limit; this one honors it up to ReadRetryAfterCap and otherwise falls back to the backoff above.
         ShouldRetryAfterHeader = false,
         DelayGenerator = args => ValueTask.FromResult(RetryAfterDelay(args.Outcome.Result, TimeProvider.System.GetUtcNow())),
         ShouldHandle = args => ValueTask.FromResult(args.Outcome switch

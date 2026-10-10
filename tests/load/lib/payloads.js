@@ -21,7 +21,7 @@ const SUBJECTS = [
 ];
 const PARAGRAPHS = [
   'Since this morning I am unable to complete the action I use every day. The page loads but nothing happens when I press the button.',
-  'I tried again in a private window and on a second computer and the behaviour is the same, so I do not think it is my browser.',
+  'I tried again in a private window and on a second computer and the behavior is the same, so I do not think it is my browser.',
   'Our team of eight relies on this feature for our weekly planning, so a quick answer would be very much appreciated.',
   'I have attached nothing yet but can send screenshots and the exact time of each attempt if that helps your investigation.',
   'The problem started after the latest release notes were published. Before that everything worked without any trouble at all.',

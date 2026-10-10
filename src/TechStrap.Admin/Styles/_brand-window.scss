@@ -1,5 +1,5 @@
 // The retro window (BRAND.md section 18). Allowed only on Admin all-caught-up, sign-in, 404 and the style guide. The --bm-* tokens are
-// valid inside this window and nowhere else (TintStyleTests scans the styles for that). No close, minimise or maximise buttons,
+// valid inside this window and nowhere else (TintStyleTests scans the styles for that). No close, minimize or maximize buttons,
 // no bevels, no other fake OS chrome.
 
 .ts-window {
@@ -110,7 +110,7 @@
   text-underline-offset: 3px;
 }
 
-// The page that centres one window on the plain background (404, all caught up).
+// The page that centers one window on the plain background (404, all caught up).
 .ts-window-page {
   display: grid;
   place-items: center;

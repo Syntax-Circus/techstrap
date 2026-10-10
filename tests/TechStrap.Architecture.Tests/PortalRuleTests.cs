@@ -134,7 +134,7 @@ public sealed class PortalRuleTests
         files.Count.ShouldBeGreaterThan(20, "the scan must see the Portal sources");
         PortalRules.MarkupStringSites.ShouldBe(
             ["Components/Kb/KbArticleBody.razor", "Components/Tickets/CustomerMessageBody.razor"],
-            "09b added CustomerMessageBody (the API sanitises the message body) and 09c added KbArticleBody (the API sanitises the article with the same rules, D-044); a third site is a design decision, argued in its own commit");
+            "09b added CustomerMessageBody (the API sanitizes the message body) and 09c added KbArticleBody (the API sanitizes the article with the same rules, D-044); a third site is a design decision, argued in its own commit");
         PortalRules.MarkupStringViolations(files).ShouldBeEmpty();
         files.Count(file => file.Text.Contains("MarkupString", StringComparison.Ordinal)).ShouldBe(2, "the word appears in those two files and nowhere else, comments included");
     }

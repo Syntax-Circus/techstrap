@@ -180,7 +180,7 @@ public sealed class DrainEmailOutboxHandler(
         return reply with { Articles = kept.Count == 0 ? null : kept };
     }
 
-    /// <summary>The one place that knows the kinds: deserialises and validates a payload, or names why it cannot be sent.</summary>
+    /// <summary>The one place that knows the kinds: deserializes and validates a payload, or names why it cannot be sent.</summary>
     private static (object? Model, string? Failure) Parse(EmailOutboxItem item)
     {
         try

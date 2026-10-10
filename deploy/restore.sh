@@ -18,10 +18,10 @@
 #   --db-network <net>        Docker network for --db-url (default: techstrap-db)
 #   --confirm-project <name>  Promotion only: must equal --target-project (and the manifest project when they are the same)
 #   --yes                     Confirm a restore into an external database
-#   --overwrite               Replace volumes the target already owns; in scratch mode only objects labelled
+#   --overwrite               Replace volumes the target already owns; in scratch mode only objects labeled
 #                             techstrap.restore-scratch=1, never a protected or live project
 #   --skip-volume <name>      Do not restore techstrap-storage, admin-keys or portal-keys (repeatable, loudly warned)
-#   --teardown                Remove only the labelled scratch container, networks and the four named volumes of the target
+#   --teardown                Remove only the labeled scratch container, networks and the four named volumes of the target
 #   --dry-run                 Check the backup and print the plan; touch no docker
 #   --help                    Show this text
 #
@@ -93,7 +93,7 @@ mget() { # $1 = key; prints the value from manifest.txt
   tr -d '\r' < "$FROM/manifest.txt" | awk -F= -v k="$1" '$1 == k { print substr($0, length(k) + 2); exit }'
 }
 
-# $1 = docker object kind (volume|network|container), $2 = name. Prints "missing", "scratch" or "unlabelled".
+# $1 = docker object kind (volume|network|container), $2 = name. Prints "missing", "scratch" or "unlabeled".
 scratch_state() {
   local out
   if [[ "$1" == "container" ]]; then  # a container keeps its labels under .Config
@@ -101,7 +101,7 @@ scratch_state() {
   else
     out=$(docker "$1" inspect -f '{{ index .Labels "techstrap.restore-scratch" }}' "$2" 2>/dev/null) || { echo missing; return 0; }
   fi
-  if [[ "$out" == "1" ]]; then echo scratch; else echo unlabelled; fi
+  if [[ "$out" == "1" ]]; then echo scratch; else echo unlabeled; fi
 }
 
 # Teardown removes only explicitly named objects and never a real project.
@@ -113,25 +113,25 @@ if (( TEARDOWN )); then
   done
   NAMES=("${TARGET}_pgdata" "${TARGET}_techstrap-storage" "${TARGET}_admin-keys" "${TARGET}_portal-keys")
   if (( DRY_RUN )); then
-    echo "DRY-RUN: docker rm -f ${TARGET}-postgres (only if labelled techstrap.restore-scratch=1)"
-    echo "DRY-RUN: docker network rm ${TARGET}-db (only if labelled techstrap.restore-scratch=1)"
-    for n in "${NAMES[@]}"; do echo "DRY-RUN: docker volume rm $n (only if labelled techstrap.restore-scratch=1)"; done
+    echo "DRY-RUN: docker rm -f ${TARGET}-postgres (only if labeled techstrap.restore-scratch=1)"
+    echo "DRY-RUN: docker network rm ${TARGET}-db (only if labeled techstrap.restore-scratch=1)"
+    for n in "${NAMES[@]}"; do echo "DRY-RUN: docker volume rm $n (only if labeled techstrap.restore-scratch=1)"; done
     exit 0
   fi
   case "$(scratch_state container "${TARGET}-postgres")" in
     scratch) docker rm -f "${TARGET}-postgres" >/dev/null 2>&1 && echo "removed container ${TARGET}-postgres" || echo "container ${TARGET}-postgres not removed (missing or in use)" ;;
-    unlabelled) echo "container ${TARGET}-postgres is not a restore-scratch object (no label); left alone" ;;
+    unlabeled) echo "container ${TARGET}-postgres is not a restore-scratch object (no label); left alone" ;;
     *) echo "container ${TARGET}-postgres not found" ;;
   esac
   case "$(scratch_state network "${TARGET}-db")" in
     scratch) docker network rm "${TARGET}-db" >/dev/null 2>&1 && echo "removed network ${TARGET}-db" || echo "network ${TARGET}-db not removed (missing or in use)" ;;
-    unlabelled) echo "network ${TARGET}-db is not a restore-scratch object (no label); left alone" ;;
+    unlabeled) echo "network ${TARGET}-db is not a restore-scratch object (no label); left alone" ;;
     *) echo "network ${TARGET}-db not found" ;;
   esac
   for n in "${NAMES[@]}"; do
     case "$(scratch_state volume "$n")" in
       scratch) docker volume rm "$n" >/dev/null 2>&1 && echo "removed volume $n" || echo "volume $n not removed (missing or in use)" ;;
-      unlabelled) echo "volume $n is not a restore-scratch object (no label); left alone" ;;
+      unlabeled) echo "volume $n is not a restore-scratch object (no label); left alone" ;;
       *) echo "volume $n not found" ;;
     esac
   done
@@ -233,7 +233,7 @@ if (( DRY_RUN == 0 )); then
   fi
   if [[ -z "$DB_URL" ]]; then
     for pair in "container:${TARGET}-postgres" "network:${TARGET}-db"; do
-      if [[ "$(scratch_state "${pair%%:*}" "${pair#*:}")" == "unlabelled" ]]; then
+      if [[ "$(scratch_state "${pair%%:*}" "${pair#*:}")" == "unlabeled" ]]; then
         refuse "${pair%%:*} ${pair#*:} exists but carries no techstrap.restore-scratch=1 label, so it is not a scratch object"
       fi
     done
@@ -248,12 +248,12 @@ else
   # The network is named like the deploy compose's external db network (TECHSTRAP_DB_NETWORK=<target>-db), so the apps can join it.
   RESTORE_NETWORK="${TARGET}-db"
   if (( DRY_RUN )); then
-    echo "DRY-RUN: scratch $POSTGRES_IMAGE container ${TARGET}-postgres on network $RESTORE_NETWORK with volume ${TARGET}_pgdata (all labelled techstrap.restore-scratch=1)"
+    echo "DRY-RUN: scratch $POSTGRES_IMAGE container ${TARGET}-postgres on network $RESTORE_NETWORK with volume ${TARGET}_pgdata (all labeled techstrap.restore-scratch=1)"
     export TS_DB_URL=
     export PGPASSWORD=
   else
     if (( OVERWRITE )); then
-      # Only labelled objects reach this point (checked above), so these removals cannot hit a real stack.
+      # Only labeled objects reach this point (checked above), so these removals cannot hit a real stack.
       docker rm -f "${TARGET}-postgres" >/dev/null 2>&1 || true
       docker volume rm "${TARGET}_pgdata" >/dev/null 2>&1 || true
     fi
@@ -293,9 +293,9 @@ for v in ${RESTORE_VOLUMES[@]+"${RESTORE_VOLUMES[@]}"}; do
     continue
   fi
   if (( OVERWRITE )) && docker volume inspect "${TARGET}_${v}" >/dev/null 2>&1; then
-    # Scratch mode: only a volume labelled techstrap.restore-scratch=1 may be cleared. Promotion is already gated by --yes and --confirm-project.
+    # Scratch mode: only a volume labeled techstrap.restore-scratch=1 may be cleared. Promotion is already gated by --yes and --confirm-project.
     if [[ -z "$DB_URL" && "$(scratch_state volume "${TARGET}_${v}")" != "scratch" ]]; then
-      refuse "volume ${TARGET}_${v} is not a labelled scratch volume; not clearing it"
+      refuse "volume ${TARGET}_${v} is not a labeled scratch volume; not clearing it"
     fi
     echo "+ clearing ${TARGET}_${v} before the restore (--overwrite)"
     docker run --rm -v "${TARGET}_${v}:/v" "$ALPINE_IMAGE" find /v -mindepth 1 -delete

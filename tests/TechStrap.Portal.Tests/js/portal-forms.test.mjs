@@ -170,7 +170,7 @@ describe('the sending state', () => {
         assert.equal(prevented, 1);
     });
 
-    it('leaves a submit that something else already cancelled alone: the button is not disabled', () => {
+    it('leaves a submit that something else already canceled alone: the button is not disabled', () => {
         const state = createSendingState(fakeClock());
         const { form, submit } = formWith();
 

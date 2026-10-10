@@ -21,7 +21,7 @@ public sealed class StyleGuideContentTests : IAsyncLifetime
     public async ValueTask DisposeAsync() => await _factory.DisposeAsync();
 
     private IElement Section(string headingId) =>
-        _page.QuerySelector($"section[aria-labelledby='{headingId}']") ?? throw new InvalidOperationException($"No section labelled by #{headingId}");
+        _page.QuerySelector($"section[aria-labelledby='{headingId}']") ?? throw new InvalidOperationException($"No section labeled by #{headingId}");
 
     [Theory]
     [InlineData("sg-type")]

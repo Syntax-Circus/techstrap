@@ -7,12 +7,12 @@
 > designer's to propose within the chosen direction. **Visual direction is
 > decided:** Carbon Copy v2 (owner decision, 2026-10-02), produced in
 > [PHASE-02 (brand and UX)](PHASE-02-brand-and-ux.md).
-> [`docs/BRAND.md`](../BRAND.md) is the system of record for colour, type,
+> [`docs/BRAND.md`](../BRAND.md) is the system of record for color, type,
 > geometry, tokens and mascot usage; the reference mockup is
 > [`docs/design/mockups/direction-carbon-copy-v2.html`](../design/mockups/direction-carbon-copy-v2.html).
 > See [Visual Direction](#visual-direction). No significant admin UI is built
 > (PHASE-07) until BRAND.md is final. Where this brief and BRAND.md disagree on
-> a visual value, BRAND.md wins; on behaviour, content or accessibility, this
+> a visual value, BRAND.md wins; on behavior, content or accessibility, this
 > brief wins and BRAND.md is corrected. Where it says "Bootstrap prefers" it is
 > a starting point, not a style decision.
 
@@ -44,8 +44,8 @@
     Admin-only screens require the admin group claim.
   - One company, one installation: no tenant switcher, no per-customer branding
     in the admin. Product identity (name, logo, accent) appears only as a
-    recognisable product chip so agents can tell products apart at a glance. The
-    chip must not rely on colour alone.
+    recognizable product chip so agents can tell products apart at a glance. The
+    chip must not rely on color alone.
   - Desktop-first (agents work at a desk), but must remain usable on a tablet and
     degrade to a readable single-column phone layout for quick checks.
   - English only in v1 (an i18n seam exists; no translations to design).
@@ -79,7 +79,7 @@
     unclear blast radius of a revoke or delete; no record of who changed what.
   - **Access/permissions:** admin group claim (all Agent abilities plus the
     screens marked Admin below). The first admin is whoever is in the IdP
-    admin group (D-029); an unauthorised signed-in user sees a clear
+    admin group (D-029); an unauthorized signed-in user sees a clear
     "no access" screen, never an empty app.
 
 ## Key User Flows
@@ -111,7 +111,7 @@
   ticket awaiting an agent response).
 - **Steps:**
   1. [ ] Write the reply (plain text or limited formatting; Assumption: plain
-     text with line breaks in v1, sanitised server-side).
+     text with line breaks in v1, sanitized server-side).
   2. [ ] Optionally attach files (same type/size rules as the portal) and link
      KB articles through the article linker (search published articles, pick
      one or more; they render as links in the email and customer view).
@@ -185,10 +185,10 @@
 - **Trigger:** a new product needs a portal and/or in-app support.
 - **Steps:**
   1. [ ] Create the product: key (URL-safe, immutable once tickets exist), name,
-     branding (display name, logo URL, accent colour, email from-address, reply-to),
+     branding (display name, logo URL, accent color, email from-address, reply-to),
      active flag.
   2. [ ] Preview how the branding looks in the portal header and email (live
-     preview with the entered accent colour, including a contrast warning).
+     preview with the entered accent color, including a contrast warning).
   3. [ ] Create an API key: choose the **kind** (Trusted or Public) with a plain
      explanation of each; name/label it.
   4. [ ] The secret is shown **once** in a modal with copy button and an
@@ -238,7 +238,7 @@
   1. [ ] Choose **Mark as spam** (any Agent), **Delete ticket** or **Erase requester** (Admins only; the entries are absent for Agents, D-022).
   2. [ ] A confirmation dialog states exactly what will happen (spam: hides and
      flags; delete: permanent, removes messages and attachments; erase:
-     anonymises the requester across **all** their tickets and deletes their
+     anonymizes the requester across **all** their tickets and deletes their
      attachments), including counts ("12 tickets, 31 attachments").
   3. [ ] Irreversible actions require typing the ticket number or requester email.
   4. [ ] **Not spam** (D-024) is reversible and needs no dialog: choose it from the overflow menu or the Spam view row, or press `u`. The ticket leaves the Spam view, returns to its normal views with its status unchanged, and the status bar says "Restored ACME-142 from spam".
@@ -253,7 +253,7 @@ Routes are an **Assumption** for the implementation team; designers need the
 inventory, not the URLs.
 
 - **Screen/route:** Queue `/queue/{view?}` (`/` opens the queue)
-  - **Purpose:** find and prioritise work.
+  - **Purpose:** find and prioritize work.
   - **Primary actions:** switch view (Unassigned, Mine, Open, Pending, All, and a separate **Spam** view in the rail, D-024; the first five exclude spam),
     filter (product, status, tag, priority), search (full-text over tickets),
     page, open ticket. Bulk actions are out of scope for v1 (Handoff Notes,
@@ -279,7 +279,7 @@ inventory, not the URLs.
   (branding), `/settings/products/{id}/keys` (API keys)
   - **Purpose:** configure products, branding and integrations.
   - **Primary actions:** create/edit product and branding, set the logo URL (https, with a preview), pick accent
-    colour (with contrast check), activate/deactivate, create/revoke API keys.
+    color (with contrast check), activate/deactivate, create/revoke API keys.
   - **Data/state:** product and key lists; secret held in memory only for the
     one-time reveal.
   - **Authorization:** Admin for management; the product list is Agent-readable
@@ -294,7 +294,7 @@ inventory, not the URLs.
     admin (409 last-active-admin) and the screen shows its message inline (D-041).
 - **Screen/route:** Tags `/settings/tags`
   - **Purpose:** curate the global tag set.
-  - **Primary actions:** create, rename, recolour, delete (with usage count).
+  - **Primary actions:** create, rename, recolor, delete (with usage count).
   - **Data/state:** tag list with ticket counts.
   - **Authorization:** Admin (Assumption: agents may apply but not manage tags).
 - **Screen/route:** KB list `/kb`, editor `/kb/new` and `/kb/{id}`, and
@@ -356,7 +356,7 @@ inventory, not the URLs.
     for the administrator if configured.
   - **Data/state:** current principal name and email.
   - **Authorization:** Signed in without the agent group claim. Plain screen:
-    no mascot, no window frame, no humour (it blocks work).
+    no mascot, no window frame, no humor (it blocks work).
 - **Screen/route:** All caught up (queue empty state, not a route)
   - **Purpose:** positive empty state for a truly empty Unassigned, Mine or Open
     view.
@@ -376,7 +376,7 @@ inventory, not the URLs.
   - **Purpose:** recoverable failure states for the whole app.
   - **Primary actions:** "Try again"; reload; sign in again.
   - **Data/state:** correlation id on the error page.
-  - **Authorization:** Any. Plain: no mascot, no window frame, no humour.
+  - **Authorization:** Any. Plain: no mascot, no window frame, no humor.
 
 ## Razor Presentation Architecture
 
@@ -416,7 +416,7 @@ lifecycle work, state, callbacks or JS interop are paired `.razor` /
     status, product chip, and any presence hint. Moved tickets keep the original
     number; the product chip shows the current product.
   - The requester's `metadata` (app version, device) shows in the side panel;
-    metadata from public API keys is labelled **untrusted** and visually
+    metadata from public API keys is labeled **untrusted** and visually
     distinct from trusted metadata.
   - Follow-up tickets show a link to the parent ("Follow-up to ACME-142") and the
     parent shows its follow-ups.
@@ -433,7 +433,7 @@ lifecycle work, state, callbacks or JS interop are paired `.razor` /
   - **Composer distinction (hard requirement):** the carbon tint code applies
     to the timeline and to the composer. Customer message = white sheet;
     public agent reply = canary; internal note = pink with a dashed border and
-    a notched corner. Colour is never the only cue. In the **composer**:
+    a notched corner. Color is never the only cue. In the **composer**:
     - A two-option segmented control, "Public reply `r`" and "Internal note
       `n`" (pressed state exposed with `aria-pressed`). The control, not the
       body text, decides the mode; switching never moves or converts typed text
@@ -460,7 +460,7 @@ lifecycle work, state, callbacks or JS interop are paired `.razor` /
       the dashed notched edge for notes, and an indent for agent entries. A
       small legend (Customer white, Public reply canary, Internal note pink)
       sits under the timeline. The system must still read in grayscale and
-      forced-colours mode through label, border style and notch alone.
+      forced-colors mode through label, border style and notch alone.
 - **Notifications and errors:**
   - Success toasts are brief and non-blocking (`role="status"`, polite); errors
     that need action are inline, persistent and `role="alert"`.
@@ -469,7 +469,7 @@ lifecycle work, state, callbacks or JS interop are paired `.razor` /
     lost, so unsent composer drafts need a plan (Handoff Notes, question 6).
   - Conflict, connectivity and permission failures each have distinct,
     plain-language copy (what happened, what was kept, what to do).
-  - Email alerts are separate from in-app: v1 has no in-app notification centre.
+  - Email alerts are separate from in-app: v1 has no in-app notification center.
 - **Destructive actions and confirmation:**
   - Tiered: reversible actions (status, assignment, tag removal) need no
     confirmation but are undoable via the timeline/toast "Undo" where cheap.
@@ -478,12 +478,12 @@ lifecycle work, state, callbacks or JS interop are paired `.razor` /
     Irreversible (delete ticket, erase requester, delete tag/category with
     usage): dialog with counts and a typed confirmation.
   - Danger actions live in an overflow menu, away from primary controls, and use
-    a distinct danger style plus the word, not colour alone.
+    a distinct danger style plus the word, not color alone.
   - **API key secret:** shown exactly once at creation in a modal; copy-to-
     clipboard with feedback; the dialog cannot be dismissed by backdrop click or
     Esc until the admin ticks "I have stored this key"; afterward only the key
     prefix and label are visible. Key kind (Trusted/Public) is always shown as a
-    labelled badge with a one-line explanation (Trusted: server-side only, may
+    labeled badge with a one-line explanation (Trusted: server-side only, may
     set external user ref and trusted metadata; Public: safe to embed in a
     client app, create-only, rate limited, metadata treated as untrusted).
     Revoke explains that apps using the key stop working immediately.
@@ -563,7 +563,7 @@ Target: **WCAG 2.2 AA**.
     announce every keystroke.
   - Dialogs trap and restore focus, label themselves, and have a clear first
     focus target (the safe option on destructive dialogs).
-  - Markdown editor: toolbar buttons labelled; preview is a labelled region;
+  - Markdown editor: toolbar buttons labeled; preview is a labeled region;
     drag-and-drop upload has a keyboard-operable "Add image" button; alt text is
     required or explicitly marked decorative.
   - Targets at least 24x24 CSS px (2.5.8); no drag-only interactions
@@ -574,22 +574,22 @@ Target: **WCAG 2.2 AA**.
   - Text 4.5:1, large text and UI components 3:1 in **both** the light and the
     dark theme (both ship in v1; carbon tints, stamps and ledger rules are
     re-derived for dark and checked separately). Status, priority, product and
-    tag chips combine text label plus shape/icon; colour never carries meaning
-    alone. Product accent colours and tag colours are arbitrary admin input: the
+    tag chips combine text label plus shape/icon; color never carries meaning
+    alone. Product accent colors and tag colors are arbitrary admin input: the
     UI must compute a legible foreground and never put text directly on an
-    unchecked colour.
+    unchecked color.
   - Internal vs public, trusted vs untrusted metadata, and danger actions each use
-    at least two non-colour cues.
+    at least two non-color cues.
 - **Responsive layout behavior:**
   - Breakpoints from Bootstrap defaults. Desktop (>=1200): navigation + list/detail
     with side panel. Tablet: collapsible navigation, side panel below the
     header. Phone: single column; queue rows become stacked cards or a reduced
     table; the composer is reachable without hiding the timeline; settings screens
-    usable but not optimised. No horizontal page scroll; wide tables scroll
+    usable but not optimized. No horizontal page scroll; wide tables scroll
     inside their own region with a visible cue.
   - Respect browser zoom to 400% and text spacing overrides (1.4.4, 1.4.10,
     1.4.12).
-- **Reduced-motion or other preferences:** honour `prefers-reduced-motion`
+- **Reduced-motion or other preferences:** honor `prefers-reduced-motion`
   (no animated row insertion, scroll animations or pulsing indicators, and no
   stamp "thud" animation on the ticket view: the stamp changes state instantly;
   use static highlights), `prefers-color-scheme` (default theme is "auto";
@@ -600,12 +600,12 @@ Target: **WCAG 2.2 AA**.
 
 ## Visual Direction
 
-**System of record:** [`docs/BRAND.md`](../BRAND.md) (colour, type, geometry,
+**System of record:** [`docs/BRAND.md`](../BRAND.md) (color, type, geometry,
 tokens, mascot rules). **Reference mockup:**
 [`docs/design/mockups/direction-carbon-copy-v2.html`](../design/mockups/direction-carbon-copy-v2.html)
 (queue, ticket, caught-up, brand moments and portal views; light and dark).
 Direction: **Carbon Copy v2**, chosen by the owner on 2026-10-02. Personality:
-**cheeky frame, serious tools** (humour only in brand moments; see below).
+**cheeky frame, serious tools** (humor only in brand moments; see below).
 
 How it applies to Admin:
 
@@ -613,7 +613,7 @@ How it applies to Admin:
   margin rule, mono ticket numbers and tabular figures; dense, one line per
   ticket (see Density).
 - **Status stamps:** the five statuses (and a `Spam?` stamp with a double
-  border) are stamp-shaped, text-labelled marks. **Straight and static in
+  border) are stamp-shaped, text-labeled marks. **Straight and static in
   lists. Tilted, with a one-off "thud" animation when the status changes, only
   on the ticket view** (animation off under reduced motion).
 - **Carbon tint code:** white = customer, canary = public reply, pink + dashed
@@ -642,7 +642,7 @@ that block work, and legal or security copy stay plain.
 | Screen | Frame | Copy (mockup wording, provisional) | Notes |
 | :----- | :---- | :--------------------------------- | :---- |
 | **All caught up** (empty Unassigned, Mine or Open view, no filters) | Beige Box window, title bar `queue.exe - 0 items` | Heading "All caught up"; line "Zero tickets, fully supported."; action "View open tickets" | Never shown for filtered-empty or load failure (those are plain). Mascot is decorative: `alt=""`. |
-| **Agent sign-in** | Beige Box window, title bar `techstrap - sign in` | Heading "Agent sign-in"; plain security copy "Single sign-on through your company's identity provider. No passwords are entered here."; action "Sign in"; fine print "Agents only. Customers: use your product's support page." | The security and legal-style lines are plain by rule; humour, if any, is limited to the title bar and mascot. |
+| **Agent sign-in** | Beige Box window, title bar `techstrap - sign in` | Heading "Agent sign-in"; plain security copy "Single sign-on through your company's identity provider. No passwords are entered here."; action "Sign in"; fine print "Agents only. Customers: use your product's support page." | The security and legal-style lines are plain by rule; humor, if any, is limited to the title bar and mascot. |
 | **404** | Beige Box window, title bar `ERROR 404 - not found` | Heading may be cheeky ("This page fell out of its strap."); body must be plain and useful: "The address you followed doesn't match any page here. It may have moved, or the link may have a typo."; action "Back to the queue" | A missing ticket number inside a known ticket route still says plainly that the ticket was not found. |
 
 **Where the mascot MAY appear:** inside the Beige Box window on the three
@@ -669,7 +669,7 @@ the three brand moments and never wrap working content.
   placeholders for skeletons, `visually-hidden` helpers. Prefer composition of
   utilities over custom classes.
 - **SCSS variable overrides:** token overrides only, produced by PHASE-02 and
-  recorded in BRAND.md: colours for both themes (via Bootstrap colour modes),
+  recorded in BRAND.md: colors for both themes (via Bootstrap color modes),
   fonts and scale, zero border radius, spacing and table-density variables,
   focus ring, and the semantic status/priority palette (checked for contrast).
 - **Custom SCSS justified only for:** the ledger rows and rules, status stamps
@@ -711,9 +711,9 @@ the three brand moments and never wrap working content.
      requirement (never silently lose typed text) is unchanged.
   7. Product chip for arbitrary accents, and the product-filter breakpoint.
      **Answered:** a chip with a text label (product name or key prefix) on a
-     background that uses the derived on-accent colour (same derivation as the
+     background that uses the derived on-accent color (same derivation as the
      Portal brief: white or near-black, whichever contrasts more, at least
-     4.5:1), never colour alone. **Deferred to PHASE-07 (P07-T07):** the product
+     4.5:1), never color alone. **Deferred to PHASE-07 (P07-T07):** the product
      count at which the product filter becomes a searchable combobox (needs a
      realistic product list to judge).
   8. KB editor: split-pane vs tab; toolbar scope; "create article from
@@ -754,7 +754,7 @@ the three brand moments and never wrap working content.
   - [ ] `docs/BRAND.md` exists and the design follows it; the logo-removal test
     was considered.
   - [ ] Public reply and internal note are unmistakable in the composer and the
-    timeline, in light, dark, grayscale and forced-colours modes, including the
+    timeline, in light, dark, grayscale and forced-colors modes, including the
     exact "INTERNAL: the customer will NOT see this note." warning.
   - [ ] Stamps are straight and static in lists and tilted and animated only on
     the ticket view; the animation is off under reduced motion.
@@ -770,7 +770,7 @@ the three brand moments and never wrap working content.
   - [ ] Presence and live-update patterns never move content under the
     pointer or steal focus.
   - [ ] Contrast checked (4.5:1 text, 3:1 UI) for all status, priority and tag
-    colours and for arbitrary product accents, in light and dark.
+    colors and for arbitrary product accents, in light and dark.
   - [ ] Keyboard-only walkthrough of triage, reply, note, assign, palette and
     key creation passes; shortcut help and opt-out exist; single-key shortcuts
     are inactive while typing.

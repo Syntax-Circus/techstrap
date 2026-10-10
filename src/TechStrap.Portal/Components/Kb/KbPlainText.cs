@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 namespace TechStrap.Portal.Components.Kb;
 
 /// <summary>
-/// The description of an article for a search engine (PHASE-09c): the author's summary, else the first sentence of the body as plain text. The body is the API's sanitised HTML, read here only to take the words out of it:
+/// The description of an article for a search engine (PHASE-09c): the author's summary, else the first sentence of the body as plain text. The body is the API's sanitized HTML, read here only to take the words out of it:
 /// the result is plain text that Razor encodes when it is written into a meta tag, and it is never put back into markup, so an imperfect tag strip cannot become an injection.
 /// </summary>
 public static partial class KbPlainText
@@ -12,7 +12,7 @@ public static partial class KbPlainText
     /// <summary>The longest description: a search engine shows about 160 characters.</summary>
     public const int MaxDescription = 160;
 
-    /// <summary>The longest any one pattern may run on a body. The body is the API's sanitised HTML, which can be large, and an unclosed-tag body makes a lazy pattern quadratic, so a pattern that runs this long ends the description (empty) instead of holding a request. It is generous on purpose: a normal body takes microseconds, but a busy runner can stall a small one for over 100 ms, and a description that vanishes at random is worse than a request that waits a second.</summary>
+    /// <summary>The longest any one pattern may run on a body. The body is the API's sanitized HTML, which can be large, and an unclosed-tag body makes a lazy pattern quadratic, so a pattern that runs this long ends the description (empty) instead of holding a request. It is generous on purpose: a normal body takes microseconds, but a busy runner can stall a small one for over 100 ms, and a description that vanishes at random is worse than a request that waits a second.</summary>
     public const int MatchTimeoutMs = 1000;
 
     [GeneratedRegex(@"<p(?:\s[^>]*)?>(.*?)</p\s*>", RegexOptions.CultureInvariant | RegexOptions.Singleline | RegexOptions.IgnoreCase, matchTimeoutMilliseconds: MatchTimeoutMs)]
@@ -64,7 +64,7 @@ public static partial class KbPlainText
     }
 
     // Known and accepted: a '>' inside a quoted attribute value ends a tag early for these patterns, so the rest of that value can show up as stray words in the description (<a title="a>b">). It is cosmetic only: the result is plain
-    // text that is encoded when written, never put back into markup, and the API's sanitiser leaves few attributes. A robust fix needs a real HTML parser (AngleSharp is not a Portal package, and a new dependency for a meta tag is not worth it).
+    // text that is encoded when written, never put back into markup, and the API's sanitizer leaves few attributes. A robust fix needs a real HTML parser (AngleSharp is not a Portal package, and a new dependency for a meta tag is not worth it).
     private static string Strip(string html) => WebUtility.HtmlDecode(AnyTag().Replace(BlockTag().Replace(ScriptAndStyle().Replace(html, " "), " "), string.Empty));
 
     private static string Collapse(string? text) => Whitespace().Replace(text ?? string.Empty, " ").Trim();

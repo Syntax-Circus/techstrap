@@ -30,7 +30,7 @@ public static class HostNameShape
         return true;
     }
 
-    /// <summary>True when <paramref name="host"/> is already in the normalised form <see cref="TryNormalize"/> produces (and is not blank).</summary>
+    /// <summary>True when <paramref name="host"/> is already in the normalized form <see cref="TryNormalize"/> produces (and is not blank).</summary>
     public static bool IsWellFormed(string host) =>
         TryNormalize(host, out var normalised) && normalised is not null && string.Equals(normalised, host, StringComparison.Ordinal);
 

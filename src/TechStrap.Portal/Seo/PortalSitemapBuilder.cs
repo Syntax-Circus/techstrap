@@ -13,8 +13,8 @@ internal sealed class SitemapBuildException(string message) : Exception(message)
 
 /// <summary>
 /// Builds the Portal's sitemap entries from the API (D-045, PHASE-09c): one call for the active products, then one call per product for its published articles. For each product the entries are its home, its help
-/// centre home (only when it has an article), each category (found from the articles, last changed when its newest article was) and each article; a shared article (no product key) is listed under every product, because each
-/// product's help centre is its own site. Every address is absolute, built by <see cref="PortalLinks"/> (which escapes each segment) from the host the product has in the fresh product list (never the host map's snapshot), or from <c>TECHSTRAP_PORTAL_PUBLIC_URL</c> on the default host; with no public address (Development only)
+/// center home (only when it has an article), each category (found from the articles, last changed when its newest article was) and each article; a shared article (no product key) is listed under every product, because each
+/// product's help center is its own site. Every address is absolute, built by <see cref="PortalLinks"/> (which escapes each segment) from the host the product has in the fresh product list (never the host map's snapshot), or from <c>TECHSTRAP_PORTAL_PUBLIC_URL</c> on the default host; with no public address (Development only)
 /// they are root-relative. At most <see cref="MaxUrls"/> addresses are listed in all, the limit of one sitemap file, the static entries (the root page) included: the caller says how many of those there are, and the build keeps
 /// the rest of the room for the products; a cut is logged. The build is scoped: it uses the typed clients.
 /// </summary>
@@ -66,7 +66,7 @@ internal sealed class PortalSitemapBuilder(IPublicProductClient products, IPubli
         return distinct;
     }
 
-    /// <summary>The entries of one product: its home, its help centre home, its categories and its articles (see the class summary).</summary>
+    /// <summary>The entries of one product: its home, its help center home, its categories and its articles (see the class summary).</summary>
     internal static IEnumerable<SitemapEntry> EntriesOf(PortalLinks links, string productKey, IReadOnlyList<KbSitemapEntryDto> articles)
     {
         yield return new SitemapEntry(links.Absolute(links.ProductHome(productKey)));

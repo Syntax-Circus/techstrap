@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace TechStrap.Admin.Tests;
 
-/// <summary>An unhandled exception in production shows a plain error page: cause and next step, no humour (BRAND.md section 3).</summary>
+/// <summary>An unhandled exception in production shows a plain error page: cause and next step, no humor (BRAND.md section 3).</summary>
 public sealed class UnhandledErrorHostTests
 {
     private sealed class ThrowingStartupFilter : IStartupFilter

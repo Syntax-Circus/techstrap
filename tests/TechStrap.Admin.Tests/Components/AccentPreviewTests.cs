@@ -39,7 +39,7 @@ public sealed class AccentPreviewTests : BunitContext
         var cut = Render<AccentPreview>(p => p.Add(c => c.Accent, "#FFEB3B"));
 
         var note = cut.Find("p[role=note]");
-        note.TextContent.ShouldContain("This colour has low contrast on white");
+        note.TextContent.ShouldContain("This color has low contrast on white");
         note.TextContent.ShouldContain("TechStrap darkens it wherever it is used for text");
         cut.Find(".ts-accent-preview").HasAttribute("style").ShouldBeTrue();
     }

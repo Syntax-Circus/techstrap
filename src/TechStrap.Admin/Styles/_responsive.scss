@@ -12,8 +12,8 @@
     linear-gradient(to left, var(--shadow), transparent) right center / 10px 100% no-repeat scroll;
 }
 
-// Forced colours (Windows high contrast) replaces every colour with a system colour, so anything that is said by colour or fill alone is said again by shape.
-// The current rail link, tab and row had only a fill and a coloured edge: they get an outline, and the edges that are transparent on purpose stay invisible.
+// Forced colors (Windows high contrast) replaces every color with a system color, so anything that is said by color or fill alone is said again by shape.
+// The current rail link, tab and row had only a fill and a colored edge: they get an outline, and the edges that are transparent on purpose stay invisible.
 @media (forced-colors: active) {
   .ts-rail-link,
   .ts-tab,

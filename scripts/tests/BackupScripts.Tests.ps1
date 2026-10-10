@@ -137,7 +137,7 @@ Describe 'deploy/backup.sh and deploy/restore.sh (static pins, PHASE-12b)' {
         $line | Should -Not -Match 'overwrite' -Because 'the refusal must not suggest --overwrite'
     }
 
-    It 'scratch objects are labelled and only labelled objects are overwritten or torn down' {
+    It 'scratch objects are labeled and only labeled objects are overwritten or torn down' {
         $text = [System.IO.File]::ReadAllText($script:Restore)
         $text | Should -Match ([regex]::Escape('docker volume create --label techstrap.restore-scratch=1 "${TARGET}_pgdata"'))
         $text | Should -Match ([regex]::Escape('docker volume create --label techstrap.restore-scratch=1 "${TARGET}_${v}"'))

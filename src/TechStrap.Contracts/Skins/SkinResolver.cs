@@ -2,7 +2,7 @@ using TechStrap.Contracts.Branding;
 
 namespace TechStrap.Contracts.Skins;
 
-/// <summary>A skin after resolution: the pack, its scheme, the complete tokens and the derived colours.</summary>
+/// <summary>A skin after resolution: the pack, its scheme, the complete tokens and the derived colors.</summary>
 /// <param name="Pack">The pack key that supplied the base tokens.</param>
 /// <param name="Scheme"><see cref="SkinValues.Light"/> or <see cref="SkinValues.Dark"/>.</param>
 /// <param name="Tokens">The complete, validated tokens.</param>
@@ -29,7 +29,7 @@ public static class SkinResolver
     /// <summary>Resolves a skin. Never throws for bad input.</summary>
     /// <param name="deploymentDefaultPack">The site's default pack key; unknown or null means Classic.</param>
     /// <param name="productSkin">The product's skin, or null.</param>
-    /// <param name="productAccent">The product's accent colour, or null.</param>
+    /// <param name="productAccent">The product's accent color, or null.</param>
     public static SkinResolution Resolve(string? deploymentDefaultPack, ProductSkin? productSkin, string? productAccent)
     {
         var problems = new List<SkinProblem>();
@@ -111,7 +111,7 @@ public static class SkinResolver
 
     // Every pair is evaluated on the candidate in one pass; every overridden member of every failing pair reverts together,
     // then all pairs are re-checked. A pair still failing can only involve pack values (a test proves packs pass), so the
-    // whole colour group goes back to the pack as a last resort. Each failing pair is reported once.
+    // whole color group goes back to the pack as a last resort. Each failing pair is reported once.
     private static SkinTokens EnforceContrast(SkinTokens tokens, SkinTokens pack, Overrides overrides, List<SkinProblem> problems)
     {
         var reported = new HashSet<string>(StringComparer.Ordinal);

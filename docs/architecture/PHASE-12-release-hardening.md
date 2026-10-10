@@ -143,7 +143,7 @@ phase verifies configuration and upgrades only for security fixes.
 - [x] **P12-T05** Review and test the sanitizer/rendering paths (message bodies, KB render, admin preview, email HTML) with an XSS corpus and enumerate all `MarkupString` sites
   - **Depends on:** P12-T01
   - **Validation:** Corpus run yields no executable output in any path; architecture test fails if `MarkupString` appears outside the four allowed components; email templates HTML-encode all user content (test with `<script>` subject).
-  - **As built (12a):** sanitiser paths: `tests/Shared/Fixtures/xss-corpus.txt` with `XssCorpus`/`XssAssertions` run through `HtmlSanitizerTests`, `KbHtmlSanitizerTests`, `KbContentRendererTests`, `KbPreviewXssTests`, `EmailTemplateRendererTests`, `MarkupStringSiteTests`; review group 4.
+  - **As built (12a):** sanitizer paths: `tests/Shared/Fixtures/xss-corpus.txt` with `XssCorpus`/`XssAssertions` run through `HtmlSanitizerTests`, `KbHtmlSanitizerTests`, `KbContentRendererTests`, `KbPreviewXssTests`, `EmailTemplateRendererTests`, `MarkupStringSiteTests`; review group 4.
 - [x] **P12-T06** Audit authorization: every agent endpoint group requires the policy; Admin-only operations (D-022) enforced; IDOR checks on tickets, attachments, KB, products; hub auth; group-derived role behavior (D-029)
   - **Depends on:** P12-T01
   - **Validation:** Parameterized Api.Tests enumerate all controller routes via endpoint metadata and assert 401 anonymous / 403 non-agent / 403 Agent-on-Admin-route; the test fails for a newly added route lacking a policy.

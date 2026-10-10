@@ -1,7 +1,7 @@
 namespace TechStrap.Admin.Components.Ui;
 
 /// <summary>
-/// Copy shared by the shell and the reusable states. Plain, sentence case, no humour (docs/BRAND.md section 3); brand moments live in
+/// Copy shared by the shell and the reusable states. Plain, sentence case, no humor (docs/BRAND.md section 3); brand moments live in
 /// <see cref="BrandMomentCopy"/> and blocking failures in <see cref="UiCopy"/>.
 /// </summary>
 public static class ShellCopy

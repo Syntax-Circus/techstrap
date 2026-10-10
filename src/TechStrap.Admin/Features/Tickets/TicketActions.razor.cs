@@ -20,7 +20,7 @@ public enum ActionDialog
 /// <summary>
 /// The overflow menu of a ticket and the dialogs behind it, in the three tiers of UX-BRIEF-admin. Not spam is reversible and has no dialog. Mark as spam asks for a confirmation that names
 /// the ticket. Delete and erase are Admin-only, irreversible, and need the ticket number or the requester's email typed: for an Agent they are not hidden but not rendered at all (no menu
-/// entry, no dialog, nothing to trigger), and the API enforces the same rule. A failure leaves the dialog open and everything unchanged; only success navigates. A write is never cancelled
+/// entry, no dialog, nothing to trigger), and the API enforces the same rule. A failure leaves the dialog open and everything unchanged; only success navigates. A write is never canceled
 /// when the component goes away, and a failure that leaves the outcome unknown says so and offers a reload instead of a retry.
 /// The menu follows the WAI-ARIA menu button pattern: the list has <c>role="menu"</c> and its buttons <c>role="menuitem"</c>; opening it puts focus on the first item; ArrowDown, ArrowUp, Home and
 /// End move between items; Escape closes it and returns focus to the button; Tab closes it. The keys are handled in <c>menu.js</c>, which tells this component when to open or close.
@@ -241,7 +241,7 @@ public sealed partial class TicketActions : IDisposable, IAsyncDisposable
         StateHasChanged();
         try
         {
-            // A write is never cancelled: it may already be applied, so the screen closing must not abandon it half-sent.
+            // A write is never canceled: it may already be applied, so the screen closing must not abandon it half-sent.
             var result = await send(CancellationToken.None);
             if (_disposed)
             {

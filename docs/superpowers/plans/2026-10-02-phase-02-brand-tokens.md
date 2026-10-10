@@ -15,18 +15,18 @@
 Every task's requirements include this section. Values are copied from the spec and the repository.
 
 - **Branch and state:** work on `feat/phase-02-brand-and-ux`. P02-T01 to P02-T04 are done; commit `8842aff` did most of P02-T05 (libman Bootstrap 5.3.8, `sasscompiler.json`, placeholder `_tokens.scss`, `TechStrap.{Admin,Portal}.Tests` with `StyleBuildTests`). This plan does not redo them.
-- **BRAND.md is the system of record.** If a mockup and BRAND.md disagree, BRAND.md wins. Never invent a colour, shadow or radius; never copy hex values out of a mockup; tokens are used by name (`var(--ink)`).
+- **BRAND.md is the system of record.** If a mockup and BRAND.md disagree, BRAND.md wins. Never invent a color, shadow or radius; never copy hex values out of a mockup; tokens are used by name (`var(--ink)`).
 - **Surfaces:** Admin is dense, calm and plain-spoken; Portal is plain, light only and product-led (small radii, Plex Sans, the product's three accent properties, nothing of ours except one "Powered by TechStrap" line). The mascot, the retro window and `--bm-*` tokens appear only on Admin all-caught-up, sign-in, 404 and the style guide.
 - **Tint code (hard rule):** white = customer, canary = public reply, pink + dashed edge + notched corner = internal note. Never reused for any other meaning.
 - **Stamps:** straight, single 1.5px border in lists; tilted -2deg (spam +2deg) with the 0.35s stamp-down only on the ticket view. `prefers-reduced-motion: reduce` disables all animation and transition.
-- **Fonts:** self-hosted WOFF2 in `wwwroot/fonts`, `font-display: swap`, Latin subset, SIL OFL licence text shipped beside the files, no Google Fonts or any CDN at runtime. Fallbacks: Sans `system-ui, "Segoe UI", Arial, sans-serif`; Mono `ui-monospace, Consolas, monospace`; Serif `Georgia, serif`.
+- **Fonts:** self-hosted WOFF2 in `wwwroot/fonts`, `font-display: swap`, Latin subset, SIL OFL license text shipped beside the files, no Google Fonts or any CDN at runtime. Fallbacks: Sans `system-ui, "Segoe UI", Arial, sans-serif`; Mono `ui-monospace, Consolas, monospace`; Serif `Georgia, serif`.
 - **Product accent (BRAND.md section 22):** `--ts-on-accent` is `#FFFFFF` or `#000000`, whichever has the higher WCAG contrast; `--ts-accent-ink` is the accent unchanged when it has at least 4.5:1 on white, otherwise the accent with R, G and B scaled by (1 - 0.04 k), k = 1, 2, 3 ..., until it does. The only validation is a well-formed `#RRGGBB`; no contrast rejection. Test vectors: `#7C3AED` gives `#FFFFFF` / `#7C3AED`; `#F59E0B` gives `#000000` / `#9D6507`; `#0F3D2E` gives `#FFFFFF` / `#0F3D2E`; `#2E9AFF` gives `#000000` / `#2375C2`; `#4B7D87` gives `#FFFFFF` at 4.58:1.
 - **Admin theme:** Light, Dark and Auto (default Auto) through Bootstrap's `data-bs-theme`; persistence of the choice is PHASE-07's job. **Portal:** light only.
 - **No Domain reference from Admin or Portal** (architecture tests): the UI enums (`StampStatus`, `PriorityLevel`, `EntryKind`) are UI-local presentation types, and `TechStrap.Contracts` stays free of project, package and framework references.
 - **Razor rules:** a component is inline only if it has simple parameters and at most one trivial synchronous callback; everything else is `.razor` + `.razor.cs` with all C# in the code-behind. Style-guide pages stay inline (static markup).
 - **Build settings:** `TreatWarningsAsErrors`, `EnforceCodeStyleInBuild`, private fields `_camelCase`, constants PascalCase, central package versions (no `Version` attribute in any csproj; `scripts/Check-PackageVersions.ps1` enforces it; this plan adds no NuGet package).
 - **Never committed:** compiled CSS (`wwwroot/css/app.css`), Bootstrap vendor files (`Styles/Vendor/`), font binaries (`wwwroot/fonts/`). Dockerfiles assert that the CSS and fonts exist after publish.
-- **Voice (BRAND.md section 3):** sentence case, no exclamation marks, no emoji; humour only inside the three Admin brand moments; blocking errors are a plain cause plus a next step.
+- **Voice (BRAND.md section 3):** sentence case, no exclamation marks, no emoji; humor only inside the three Admin brand moments; blocking errors are a plain cause plus a next step.
 - **Commits:** Conventional Commits, one per task, test-first. Every commit message ends with exactly these two lines:
 
 ```
@@ -40,7 +40,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
 
 The failure modes the spec implies but a first implementation is most likely to miss, most likely first. Each is pinned to a test in the task that owns the code.
 
-1. **Accent edge cases.** Pure white (`#FFFFFF`), pure black (`#000000`), mid-grey `#777777` (just misses 4.5:1 on white, so its ink must darken to `#727272` while its on-accent is black), `#767676` (just meets it, ink unchanged) and the worst case `#4B7D87` must all produce readable on-accent and ink, and a malformed value (`#12345`, `red`, empty, `#123456;background:url(x)`) must be rejected without throwing and without reaching a `style` attribute. Pinned by `ProductAccentContrastTests` and `AccentScopeTests` (Tasks 2 and 11).
+1. **Accent edge cases.** Pure white (`#FFFFFF`), pure black (`#000000`), mid-gray `#777777` (just misses 4.5:1 on white, so its ink must darken to `#727272` while its on-accent is black), `#767676` (just meets it, ink unchanged) and the worst case `#4B7D87` must all produce readable on-accent and ink, and a malformed value (`#12345`, `red`, empty, `#123456;background:url(x)`) must be rejected without throwing and without reaching a `style` attribute. Pinned by `ProductAccentContrastTests` and `AccentScopeTests` (Tasks 2 and 11).
 2. **Dark-mode readability of the pink internal note.** The note's body text and `note-ink` head must reach 4.5:1 on `--pink` in both themes, and the rest of the text pairs of BRAND.md section 12 must too. The check found one pair that does not: `--ink-3` on `--sel` in dark is 4.32:1 (rule added to BRAND.md). Pinned by `TintStyleTests.Internal_note_text_is_readable_in_both_themes` and `TokenContrastTests` (Tasks 8 and 3).
 3. **Reduced motion.** With `prefers-reduced-motion: reduce` every animation and transition is off, and the stamp still ends in its correct tilted state because the tilt is the static style, not part of the animation. Pinned by `StampStyleTests.Reduced_motion_...` and `Ticket_stamps_tilt_...` (Task 7).
 4. **The style guide leaking into Production.** `/_styleguide` must return 200 in Development and a real 404, with none of its markup, in Production and Staging, in both apps, including when a circuit navigates to it without an HTTP request. Pinned by `StyleGuideEnvironmentTests`, `DevelopmentOnlyTests` and `PortalHostTests` (Tasks 6 and 11).
@@ -221,8 +221,8 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 - Produces (used by Tasks 3, 8, 11 and by PHASE-04 `UpdateProductRequestHandler`, PHASE-05 email rendering, PHASE-09 portal theming):
   - `namespace TechStrap.Contracts.Branding`
   - `readonly record struct ProductAccentColors(string Accent, string OnAccent, string AccentInk)` (all uppercase `#RRGGBB`)
-  - `static bool ProductAccent.TryDerive(string? value, out ProductAccentColors colors)` (false and `default` for anything but a six-digit hex colour; never throws)
-  - `static double ProductAccent.ContrastRatio(string foregroundHex, string backgroundHex)` (throws `ArgumentException` for a malformed colour)
+  - `static bool ProductAccent.TryDerive(string? value, out ProductAccentColors colors)` (false and `default` for anything but a six-digit hex color; never throws)
+  - `static double ProductAccent.ContrastRatio(string foregroundHex, string backgroundHex)` (throws `ArgumentException` for a malformed color)
   - `const double ProductAccent.MinimumTextContrast = 4.5`
 
 **Why Contracts (D-025):** the architecture tests allow `Admin`/`Portal` to reference only Contracts, `Application` only Domain/Contracts, and Api/Worker Application/Infrastructure/Contracts. Contracts is the only project every consumer already references, and the helper needs only the BCL, so the "no project, package or framework reference" rule still holds. The cost is that the helper becomes public surface of the published `TechStrap.Contracts` package; D-025 records that.
@@ -280,8 +280,8 @@ public sealed class ProductAccentContrastTests
     private const double Aa = 4.5;
     private const int SweepStep = 5;
 
-    // The vectors of BRAND.md section 22, plus the edge cases: pure white, pure black, the mid-grey that just
-    // misses AA on white (#777777) and the grey that just meets it (#767676).
+    // The vectors of BRAND.md section 22, plus the edge cases: pure white, pure black, the mid-gray that just
+    // misses AA on white (#777777) and the gray that just meets it (#767676).
     public static TheoryData<string, string, string> Vectors() => new()
     {
         { "#7C3AED", "#FFFFFF", "#7C3AED" },
@@ -403,8 +403,8 @@ using System.Globalization;
 
 namespace TechStrap.Contracts.Branding;
 
-/// <summary>The three values derived from one product accent colour (docs/BRAND.md section 22), all as uppercase <c>#RRGGBB</c>.</summary>
-/// <param name="Accent">Fills and borders: the product's colour, as entered (normalised to uppercase).</param>
+/// <summary>The three values derived from one product accent color (docs/BRAND.md section 22), all as uppercase <c>#RRGGBB</c>.</summary>
+/// <param name="Accent">Fills and borders: the product's color, as entered (normalized to uppercase).</param>
 /// <param name="OnAccent">Text on an accent fill: white or black, whichever contrasts more.</param>
 /// <param name="AccentInk">The accent as text or an outline on white: the accent itself when it already reaches 4.5:1, otherwise darkened until it does.</param>
 public readonly record struct ProductAccentColors(string Accent, string OnAccent, string AccentInk);
@@ -427,7 +427,7 @@ public static class ProductAccent
 
     /// <summary>
     /// Derives the three accent properties from a <c>#RRGGBB</c> value. Only a malformed value is rejected;
-    /// no colour is rejected for low contrast because white-or-black on-accent always reaches at least 4.58:1.
+    /// no color is rejected for low contrast because white-or-black on-accent always reaches at least 4.58:1.
     /// </summary>
     public static bool TryDerive(string? value, out ProductAccentColors colors)
     {
@@ -442,17 +442,17 @@ public static class ProductAccent
         return true;
     }
 
-    /// <summary>WCAG contrast ratio (1 to 21) between two <c>#RRGGBB</c> colours. Throws <see cref="ArgumentException"/> for a malformed colour.</summary>
+    /// <summary>WCAG contrast ratio (1 to 21) between two <c>#RRGGBB</c> colors. Throws <see cref="ArgumentException"/> for a malformed color.</summary>
     public static double ContrastRatio(string foregroundHex, string backgroundHex)
     {
         if (!TryParse(foregroundHex, out var foreground))
         {
-            throw new ArgumentException("Not a #RRGGBB colour.", nameof(foregroundHex));
+            throw new ArgumentException("Not a #RRGGBB color.", nameof(foregroundHex));
         }
 
         if (!TryParse(backgroundHex, out var background))
         {
-            throw new ArgumentException("Not a #RRGGBB colour.", nameof(backgroundHex));
+            throw new ArgumentException("Not a #RRGGBB color.", nameof(backgroundHex));
         }
 
         return Contrast(foreground, background);
@@ -461,7 +461,7 @@ public static class ProductAccent
     private static readonly (int R, int G, int B) WhiteRgb = (255, 255, 255);
     private static readonly (int R, int G, int B) BlackRgb = (0, 0, 0);
 
-    // Scale each channel of the ORIGINAL colour by (1 - 0.04 k), k = 1, 2, 3 ..., until the result reaches 4.5:1 on white.
+    // Scale each channel of the ORIGINAL color by (1 - 0.04 k), k = 1, 2, 3 ..., until the result reaches 4.5:1 on white.
     // Integer arithmetic: round(c * (25 - k) / 25) never lands on a .5 tie, so (c * (25 - k) + 12) / 25 is exact.
     private static (int R, int G, int B) DarkenUntilReadableOnWhite((int R, int G, int B) accent)
     {
@@ -530,7 +530,7 @@ public static class ProductAccent
 - [ ] **Step 4: Run to verify it passes**
 
 Run: `dotnet test --project tests/TechStrap.Portal.Tests` then `dotnet test --project tests/TechStrap.Architecture.Tests`
-Expected: PASS, `total: 29` in Portal.Tests (the RGB sweep checks 52 x 52 x 52 = 140,608 colours in about a second) and `total: 30` in Architecture.Tests (Contracts still has no project, package or framework reference).
+Expected: PASS, `total: 29` in Portal.Tests (the RGB sweep checks 52 x 52 x 52 = 140,608 colors in about a second) and `total: 30` in Architecture.Tests (Contracts still has no project, package or framework reference).
 
 - [ ] **Step 5: Record decision D-025**
 
@@ -632,7 +632,7 @@ using System.Text.RegularExpressions;
 
 namespace TechStrap.Tests.Shared;
 
-/// <summary>One colour token of docs/BRAND.md section 12. <see cref="Dark"/> is null for tokens with a single value (the portal tokens).</summary>
+/// <summary>One color token of docs/BRAND.md section 12. <see cref="Dark"/> is null for tokens with a single value (the portal tokens).</summary>
 internal sealed record BrandToken(string Name, string Light, string? Dark);
 
 /// <summary>
@@ -680,7 +680,7 @@ using System.Text.RegularExpressions;
 
 namespace TechStrap.Tests.Shared;
 
-/// <summary>Compares CSS colours semantically: Sass compressed output rewrites <c>#FFFFFF</c> as <c>#fff</c> and <c>0.14</c> as <c>.14</c>.</summary>
+/// <summary>Compares CSS colors semantically: Sass compressed output rewrites <c>#FFFFFF</c> as <c>#fff</c> and <c>0.14</c> as <c>.14</c>.</summary>
 internal static partial class CssColor
 {
     [GeneratedRegex(@"^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$")]
@@ -736,7 +736,7 @@ internal sealed partial class CompiledCss
         return new CompiledCss(File.ReadAllText(path));
     }
 
-    /// <summary>Every declaration of every rule whose selector is exactly <paramref name="selector"/> (Bootstrap and brand rules merged, last wins), colours normalised.</summary>
+    /// <summary>Every declaration of every rule whose selector is exactly <paramref name="selector"/> (Bootstrap and brand rules merged, last wins), colors normalized.</summary>
     public IReadOnlyDictionary<string, string> Declarations(string selector)
     {
         var declarations = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -1165,14 +1165,14 @@ $ts-font-serif: "Source Serif 4", Georgia, serif;
 
 - [ ] **Step 5: Write the Admin Sass**
 
-`_tokens.scss` maps tokens to Bootstrap variables before Bootstrap's variables load. Surfaces that must follow the theme at runtime use `var(--sheet)` and friends instead of a compiled colour.
+`_tokens.scss` maps tokens to Bootstrap variables before Bootstrap's variables load. Surfaces that must follow the theme at runtime use `var(--sheet)` and friends instead of a compiled color.
 
 ```scss
 // Admin: maps the brand tokens (docs/BRAND.md section 12) onto Bootstrap's Sass variables.
 // Imported by app.scss after Bootstrap's functions and before its variables, so every !default is overridden here.
 @import "../../../assets/brand/scss/brand-tokens";
 
-// Semantic colours. TechStrap's primary is the Admin accent; statuses reuse the Bootstrap semantic names.
+// Semantic colors. TechStrap's primary is the Admin accent; statuses reuse the Bootstrap semantic names.
 $primary: ts-color("accent");
 $secondary: ts-color("st-closed");
 $success: ts-color("st-open");
@@ -1203,7 +1203,7 @@ $body-tertiary-bg-dark: ts-color("rail", "dark");
 $border-color-dark: ts-color("rule", "dark");
 $link-color-dark: ts-color("accent", "dark");
 
-// Surfaces that must follow the theme at runtime point at the brand custom properties instead of a compiled colour.
+// Surfaces that must follow the theme at runtime point at the brand custom properties instead of a compiled color.
 $card-bg: var(--sheet);
 $card-cap-bg: var(--head);
 $card-border-color: var(--rule-strong);
@@ -1575,7 +1575,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 - Consumes: `CompiledCss` (Task 3), the font stacks `$ts-font-*` (Task 3).
 - Produces: `@mixin ts-font-face($family, $directory, $file, $weight)`; restored files `wwwroot/fonts/<family>/files/*.woff2` and `wwwroot/fonts/<family>/LICENSE`; `CompiledCss.FontFaces()`; test factories `AdminFactory(string environment = "Development")` and `PortalFactory(...)` (internal, `WebApplicationFactory<Program>`, DotEnv off).
 
-**Font decision (verified in the scratch build):** libman restores the WOFF2 files from the `@fontsource` npm packages on jsdelivr, so no binary font is committed. Packages and versions: `@fontsource/ibm-plex-sans@5.3.0` (400, 500, 600; 22 to 24 KB each), `@fontsource/ibm-plex-mono@5.3.0` (400, 500, 600; about 15 KB each), `@fontsource-variable/source-serif-4@5.3.0` (`source-serif-4-latin-opsz-normal.woff2`, 122 KB, weight and optical-size axes; Admin only). Each package's `LICENSE` (the SIL OFL 1.1 text) is restored beside its files, so the licence ships with the fonts, including in the published image. The restore needs jsdelivr at build time, exactly like Bootstrap already does; the Dockerfile assertion makes an offline build fail loudly. The scratch publish from a clean tree contained all seven files and three licences in `wwwroot/fonts`.
+**Font decision (verified in the scratch build):** libman restores the WOFF2 files from the `@fontsource` npm packages on jsdelivr, so no binary font is committed. Packages and versions: `@fontsource/ibm-plex-sans@5.3.0` (400, 500, 600; 22 to 24 KB each), `@fontsource/ibm-plex-mono@5.3.0` (400, 500, 600; about 15 KB each), `@fontsource-variable/source-serif-4@5.3.0` (`source-serif-4-latin-opsz-normal.woff2`, 122 KB, weight and optical-size axes; Admin only). Each package's `LICENSE` (the SIL OFL 1.1 text) is restored beside its files, so the license ships with the fonts, including in the published image. The restore needs jsdelivr at build time, exactly like Bootstrap already does; the Dockerfile assertion makes an offline build fail loudly. The scratch publish from a clean tree contained all seven files and three licenses in `wwwroot/fonts`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1610,7 +1610,7 @@ Extend `tests/Shared/CompiledCss.cs` with `@font-face` parsing:
 +                .ToDictionary(d => d.Groups["name"].Value, d => d.Groups["value"].Value.Trim().Trim('"')))
 +            .ToList();
 +
-     /// <summary>Every declaration of every rule whose selector is exactly <paramref name="selector"/> (Bootstrap and brand rules merged, last wins), colours normalised.</summary>
+     /// <summary>Every declaration of every rule whose selector is exactly <paramref name="selector"/> (Bootstrap and brand rules merged, last wins), colors normalized.</summary>
      public IReadOnlyDictionary<string, string> Declarations(string selector)
 ```
 
@@ -1877,7 +1877,7 @@ Extend `scripts/tests/Dockerfiles.Tests.ps1`:
  
 +Describe 'self-hosted font assertion' {
 +    # Fonts are restored by libman (jsdelivr) during publish and never committed, so an image built without network
-+    # access must fail the build instead of shipping without fonts. Admin: Sans 3 + Mono 3 + Serif 1 files, 3 licences.
++    # access must fail the build instead of shipping without fonts. Admin: Sans 3 + Mono 3 + Serif 1 files, 3 licenses.
 +    It 'Dockerfile.<Name> fails the build unless <Fonts> WOFF2 files and <Licences> OFL licences are published' -ForEach @(
 +        @{ Name = 'admin'; Fonts = 7; Licences = 3 }
 +        @{ Name = 'portal'; Fonts = 6; Licences = 2 }
@@ -2095,7 +2095,7 @@ Append three rows to the table of section 4b in `docs/architecture/03-PACKAGE-MA
 @include ts-font-face("IBM Plex Mono", "ibm-plex-mono", "ibm-plex-mono-latin-600-normal", 600);
 ```
 
-Add `@import "fonts";` after `@import "theme";` in both `app.scss` files. Then add the font assertion after the existing CSS assertion in both Dockerfiles (Admin expects 7 WOFF2 files and 3 licences, Portal 6 and 2):
+Add `@import "fonts";` after `@import "theme";` in both `app.scss` files. Then add the font assertion after the existing CSS assertion in both Dockerfiles (Admin expects 7 WOFF2 files and 3 licenses, Portal 6 and 2):
 
 ```diff
 @@ -17,4 +17,7 @@ RUN --mount=type=cache,id=techstrap-nuget,target=/root/.nuget/packages \
@@ -2338,7 +2338,7 @@ def remove_background(image: Image.Image) -> Image.Image:
     fringe_alpha = np.clip((255 - rgb.min(axis=2)) / (255 - FRINGE_OPAQUE_AT) * 255, 0, 255)
     alpha[fringe] = fringe_alpha[fringe]
 
-    # Un-premultiply fringe colours against the white they were composited on.
+    # Un-premultiply fringe colors against the white they were composited on.
     a = (alpha / 255.0)[..., None]
     safe = np.where(a > 0.02, a, 1)
     unmixed = np.clip((rgb - 255 * (1 - a)) / safe, 0, 255)
@@ -2472,7 +2472,7 @@ if __name__ == "__main__":
 @@ -18,4 +19,8 @@ python scripts/brand/generate-brand-assets.py
  | `apple-touch-icon.png` | iOS home screen, 180 px, opaque white background |
  | `icon-192.png`, `icon-512.png` | Web app manifest icons |
-+| `mark.svg`, `logo.svg` | **Provisional.** Auto-traced SVGs (vtracer) of the head mark and the full mascot, 5 colour levels, about 31 KB and 79 KB. Used by the Admin layout, brand moments and style guide |
++| `mark.svg`, `logo.svg` | **Provisional.** Auto-traced SVGs (vtracer) of the head mark and the full mascot, 5 color levels, about 31 KB and 79 KB. Used by the Admin layout, brand moments and style guide |
 +| `wordmark.svg` | **Provisional.** The text `TechStrap` in IBM Plex Mono SemiBold, converted to outlines (no font needed at runtime), `fill="currentColor"` so it follows the theme |
 +
 +The SVGs are provisional until the owner supplies hand-drawn vector artwork: the traced edges are approximations of the PNG source, and colours are quantised, so they differ slightly from the brand palette in `docs/BRAND.md`. `scripts/brand/generate-brand-assets.py` also copies `mark.svg`, `logo.svg` and `wordmark.svg` into `src/TechStrap.Admin/wwwroot/brand/` and `mark.svg` into `src/TechStrap.Portal/wwwroot/brand/` (the apps cannot read `assets/`); `scripts/tests/BrandAssets.Tests.ps1` fails when a copy drifts.
@@ -2485,7 +2485,7 @@ if __name__ == "__main__":
  
  - **Mascot:** a retro beige CRT in a jockstrap with tube socks, thumbs up. Two forms: the **head mark** (`assets/brand/mark*.png`: Admin rail at 36px, favicon, avatars, 16px portal footer, 96px inside the retro window) and the **full figure** (`assets/brand/logo*.png`: README, style guide and sign-in only; unreadable below about 64px). The 404 uses the head mark.
 -- **Current format is PNG.** Auto-traced SVGs (cleaner scaling, themeable) are pending in task P02-T08; until then use the PNGs generated by `scripts/brand/generate-brand-assets.py`. Never redraw or recolour the mascot by hand.
-+- **Formats.** The product uses the SVGs `assets/brand/mark.svg` (head mark) and `assets/brand/logo.svg` (full figure), auto-traced by `scripts/brand/generate-brand-assets.py` with vtracer, and `assets/brand/wordmark.svg` (the text `TechStrap` in IBM Plex Mono SemiBold, outlined, `currentColor`). **All three SVGs are provisional** (P02-T08): the traces approximate the PNG source and quantise colours, and the owner may supply hand-drawn vectors later. PNGs remain for favicons, app icons, README and social images. Never redraw or recolour the mascot by hand.
++- **Formats.** The product uses the SVGs `assets/brand/mark.svg` (head mark) and `assets/brand/logo.svg` (full figure), auto-traced by `scripts/brand/generate-brand-assets.py` with vtracer, and `assets/brand/wordmark.svg` (the text `TechStrap` in IBM Plex Mono SemiBold, outlined, `currentColor`). **All three SVGs are provisional** (P02-T08): the traces approximate the PNG source and quantize colors, and the owner may supply hand-drawn vectors later. PNGs remain for favicons, app icons, README and social images. Never redraw or recolor the mascot by hand.
  - The mascot never appears on working screens (queue, ticket, composer, forms, settings), in the portal body, in emails, or beside an error. Product logos in the portal are the product's own.
  - No stock photography or stock illustration, no decorative blobs or hero art. Screenshots (README, docs) show the real app.
 ```
@@ -2522,7 +2522,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 - Produces:
   - `DevelopmentOnly` (parameter `RenderFragment? ChildContent`): renders its content in Development only; otherwise renders nothing and calls `NavigationManager.NotFound()`.
   - `MainLayout` (`LayoutComponentBase`): `.ts-shell` grid, `.ts-rail` with `a.ts-brand > img[src="brand/mark.svg"]`, `main.ts-main` wrapping `@Body` in a `GlobalErrorBoundary` with `CssClass="ts-error"`.
-  - Route `/_styleguide` (page title `TechStrap style guide`), sections labelled `sg-type`, `sg-palette`, `sg-buttons`, `sg-forms`, `sg-tables`, `sg-alerts`, `sg-states` (later tasks add `sg-stamps`, `sg-tints`, `sg-keys`, `sg-windows`, `sg-reconnect`).
+  - Route `/_styleguide` (page title `TechStrap style guide`), sections labeled `sg-type`, `sg-palette`, `sg-buttons`, `sg-forms`, `sg-tables`, `sg-alerts`, `sg-states` (later tasks add `sg-stamps`, `sg-tints`, `sg-keys`, `sg-windows`, `sg-reconnect`).
   - Sass classes `.ts-page-title`, `.ts-label`, `.ts-mono`, `.ts-serif` (Task 3), `.ts-sg-*`, `.ts-error`.
 
 **Gating decision (verified):** the style-guide page is wrapped in `DevelopmentOnly`, which calls `NavigationManager.NotFound()` outside Development. In static SSR that produces a real 404 through the router's `NotFoundPage` (the scratch test for Production and Staging passes, and the body contains none of the guide). It also covers an interactive circuit navigating to the route, which never makes an HTTP request, so no middleware is needed. `Production` refuses to start without a trusted network, so the test factory sets `TRUSTEDPROXY__TRUSTEDNETWORKS__0` as an environment variable (that option is bound before a factory can override configuration).
@@ -3132,7 +3132,7 @@ public partial class PaletteSwatches
 ```
 
 ```scss
-// Style guide page (/_styleguide, Development only). Layout only; every colour comes from the brand tokens.
+// Style guide page (/_styleguide, Development only). Layout only; every color comes from the brand tokens.
 
 .ts-sg {
   max-width: 1100px;
@@ -3252,7 +3252,7 @@ public partial class PaletteSwatches
 
 ```scss
 // Styles for the SyntaxCircus.Blazor.Components error view. The package ships no CSS and exposes the class we pass
-// (CssClass="ts-error") plus stable data attributes. Plain, calm and legible: errors never carry the mascot or humour.
+// (CssClass="ts-error") plus stable data attributes. Plain, calm and legible: errors never carry the mascot or humor.
 .ts-error {
   max-width: 560px;
   margin: 24px 16px;
@@ -3526,7 +3526,7 @@ public sealed class StyleGuideContentTests : IAsyncLifetime
     public async ValueTask DisposeAsync() => await _factory.DisposeAsync();
 
     private IElement Section(string headingId) =>
-        _page.QuerySelector($"section[aria-labelledby='{headingId}']") ?? throw new InvalidOperationException($"No section labelled by #{headingId}");
+        _page.QuerySelector($"section[aria-labelledby='{headingId}']") ?? throw new InvalidOperationException($"No section labeled by #{headingId}");
 
     [Theory]
     [InlineData("sg-type")]
@@ -3612,7 +3612,7 @@ using Microsoft.AspNetCore.Components;
 namespace TechStrap.Admin.Components.Ui;
 
 /// <summary>
-/// A rubber-stamp status badge. The status is always the word itself plus a shape class, never colour alone.
+/// A rubber-stamp status badge. The status is always the word itself plus a shape class, never color alone.
 /// Queue stamps are straight with one border; ticket stamps are tilted and may play the stamp-down animation.
 /// </summary>
 public partial class StatusStamp
@@ -3665,7 +3665,7 @@ using Microsoft.AspNetCore.Components;
 
 namespace TechStrap.Admin.Components.Ui;
 
-/// <summary>A square marker plus the priority word (never colour alone). Urgent uses the spam red, High the pending amber, Normal and Low the secondary ink; Low's marker is dashed.</summary>
+/// <summary>A square marker plus the priority word (never color alone). Urgent uses the spam red, High the pending amber, Normal and Low the secondary ink; Low's marker is dashed.</summary>
 public partial class PriorityMark
 {
     [Parameter, EditorRequired]
@@ -3859,7 +3859,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 - Produces (used by the PHASE-07 ticket timeline and composer):
   - `enum EntryKind { Customer, PublicReply, InternalNote }`
   - `<TintedEntry Kind="EntryKind" Author="string" Time="string">body</TintedEntry>` rendering `article.ts-entry.ts-entry--{customer|public|note}` with `.ts-entry-head` (`strong` author, role word `customer` or `agent reply`, or the `.ts-entry-label` text `INTERNAL NOTE`), `.ts-entry-time`, `.ts-entry-body`
-  - `<TintLegend />` (`.ts-legend`, three labelled swatches), `<Kbd>key</Kbd>` (`kbd.ts-kbd`)
+  - `<TintLegend />` (`.ts-legend`, three labeled swatches), `<Kbd>key</Kbd>` (`kbd.ts-kbd`)
   - Guard tests: tint tokens (`--canary`, `--pink`, `--note-ink`) may be used only by `_tinted-entry.scss`; `--bm-*` only by `_brand-window.scss`. PHASE-07 extends the allowed list consciously when the composer, avatar and status bar land.
 
 - [ ] **Step 1: Write the failing tests**
@@ -3870,7 +3870,7 @@ using TechStrap.Admin.Components.Ui;
 
 namespace TechStrap.Admin.Tests.Components;
 
-/// <summary>The carbon tint code (BRAND.md section 12): white customer, canary public reply, pink dashed notched internal note. Colour is never the only cue.</summary>
+/// <summary>The carbon tint code (BRAND.md section 12): white customer, canary public reply, pink dashed notched internal note. Color is never the only cue.</summary>
 public sealed class TintedEntryTests : BunitContext
 {
     private IRenderedComponent<TintedEntry> Render(EntryKind kind) =>
@@ -3964,7 +3964,7 @@ using TechStrap.Tests.Shared;
 namespace TechStrap.Admin.Tests;
 
 /// <summary>
-/// The carbon tint code is a hard rule (BRAND.md section 12): the tints keep their meaning, carry non-colour cues, stay readable in
+/// The carbon tint code is a hard rule (BRAND.md section 12): the tints keep their meaning, carry non-color cues, stay readable in
 /// both themes, and are never reused for decoration.
 /// </summary>
 public sealed class TintStyleTests
@@ -4157,7 +4157,7 @@ namespace TechStrap.Admin.Components.Ui;
 
 /// <summary>
 /// One message in a ticket timeline, drawn with the carbon tint code: white customer message, canary public reply, pink dashed
-/// notched internal note. Every kind also carries a word (customer, agent reply, INTERNAL NOTE), so colour is never the only cue.
+/// notched internal note. Every kind also carries a word (customer, agent reply, INTERNAL NOTE), so color is never the only cue.
 /// </summary>
 public partial class TintedEntry
 {
@@ -4345,7 +4345,7 @@ public partial class TintedEntry
   margin-left: 2px;
 }
 
-// Inside a button the keycap is transparent and borrows the button's colour.
+// Inside a button the keycap is transparent and borrows the button's color.
 .btn .ts-kbd {
   margin-left: 4px;
   color: inherit;
@@ -4645,7 +4645,7 @@ Expected: FAIL to compile (`BrandWindow` does not exist).
 
 ```scss
 // The retro window (BRAND.md section 18). Allowed only on Admin all-caught-up, sign-in, 404 and the style guide. The --bm-* tokens are
-// valid inside this window and nowhere else (TintStyleTests scans the styles for that). No close, minimise or maximise buttons,
+// valid inside this window and nowhere else (TintStyleTests scans the styles for that). No close, minimize or maximize buttons,
 // no bevels, no other fake OS chrome.
 
 .ts-window {
@@ -4755,7 +4755,7 @@ Expected: FAIL to compile (`BrandWindow` does not exist).
   text-underline-offset: 3px;
 }
 
-// The page that centres one window on the plain background (404, all caught up).
+// The page that centers one window on the plain background (404, all caught up).
 .ts-window-page {
   display: grid;
   place-items: center;
@@ -4906,7 +4906,7 @@ namespace TechStrap.Admin.Tests;
 
 /// <summary>
 /// Admin is Blazor Server, so a lost circuit is a normal event. The SyntaxCircus.Blazor.Components reconnect dialog is mounted once in
-/// App.razor, styled with brand tokens, with plain copy (no humour on a blocking error: BRAND.md section 3).
+/// App.razor, styled with brand tokens, with plain copy (no humor on a blocking error: BRAND.md section 3).
 /// </summary>
 public sealed class ReconnectAndErrorTests
 {
@@ -4981,7 +4981,7 @@ namespace TechStrap.Admin.Components.Ui;
 
 /// <summary>
 /// Copy for the blocking-failure states, defined once so the running app and the style guide cannot drift apart.
-/// Voice rules (docs/BRAND.md section 3): plain cause plus next step, sentence case, no humour, no exclamation marks.
+/// Voice rules (docs/BRAND.md section 3): plain cause plus next step, sentence case, no humor, no exclamation marks.
 /// </summary>
 public static class UiCopy
 {
@@ -5753,11 +5753,11 @@ For light versus dark, open the guide in a normal browser and flip `document.doc
 
   - no horizontal scroll at 320 px; the three windows stack under 760 px; the rail becomes a strip under 820 px
   - the tint code, stamps (straight in the table, tilted in the ticket column), the dashed notched pink note and the keycaps match the v2 mockup in both themes
-  - no mascot, window or `--bm-*` colour in the Portal capture; the Powered-by line is the only TechStrap element
+  - no mascot, window or `--bm-*` color in the Portal capture; the Powered-by line is the only TechStrap element
   - Keyboard: Tab through the guide and confirm the 3px focus ring is visible on every control in both apps
   - Emulate reduced motion in DevTools (Rendering, `prefers-reduced-motion: reduce`) and confirm nothing animates
 
-Then run Lighthouse on the Admin guide: `npx lighthouse http://127.0.0.1:5090/_styleguide --only-categories=accessibility --chrome-flags="--headless" --quiet --output=json --output-path=$env:TEMP\lh-admin.json` and read `categories.accessibility.score`. The phase asks for at least 0.95. Known candidates if it falls short: the dark `--bs-*-bg-subtle` alert colours (derived by Sass `shade-color`, not pinned by `TokenContrastTests`), and the `Spam?` stamp text size. Fix the token or markup, never the threshold.
+Then run Lighthouse on the Admin guide: `npx lighthouse http://127.0.0.1:5090/_styleguide --only-categories=accessibility --chrome-flags="--headless" --quiet --output=json --output-path=$env:TEMP\lh-admin.json` and read `categories.accessibility.score`. The phase asks for at least 0.95. Known candidates if it falls short: the dark `--bs-*-bg-subtle` alert colors (derived by Sass `shade-color`, not pinned by `TokenContrastTests`), and the `Spam?` stamp text size. Fix the token or markup, never the threshold.
 
 - [ ] **Step 3: Record the logo-removal result**
 
@@ -5809,11 +5809,11 @@ Write `$env:TEMP\phase-02-pr-body.md` (do not commit it) with: the summary of Ta
 - [x] BRAND.md exists and reflects the selected direction (Carbon Copy v2; contrast exception added)
 - [x] the implementation follows the project's visual grammar (ledger, stamps, tint code, hard shadows, square corners)
 - [x] typography is intentional (Plex Sans chrome, Plex Mono labels, Source Serif 4 message bodies; self-hosted)
-- [x] composition is intentional (208px rail, dense ledger tables, one centred window per brand moment)
+- [x] composition is intentional (208px rail, dense ledger tables, one centered window per brand moment)
 - [x] generic patterns have not been introduced without reason (Bootstrap is a base; radii, shadows, buttons and focus are overridden)
 - [x] desktop layout has been visually reviewed (admin-1280, portal-1280)
 - [x] mobile layout has been visually reviewed (admin-390, admin-320, portal-390)
-- [x] accessibility has been considered (AA token pairs pinned by tests, 3px focus ring, labels with every colour cue, Lighthouse score)
+- [x] accessibility has been considered (AA token pairs pinned by tests, 3px focus ring, labels with every color cue, Lighthouse score)
 - [x] reduced-motion behavior has been considered (global rule, static end state of the stamp, tested)
 - [x] rendered screenshots have been critically reviewed (list what was fixed)
 - [x] obvious AI/template design clichés have been addressed (no gradient, glass, pill or hero patterns; mascot confined to brand moments)
@@ -5836,13 +5836,13 @@ Every API this plan relies on, what was proved, and what was not. The code in th
 
 | Item | Verified | Not verified |
 | --- | --- | --- |
-| **`SyntaxCircus.Blazor.Components` 0.1.3** | Package README is identical to the source README; markup read from `D:\dev\SyntaxCircus\SyntaxCircus.Blazor.Components`. `GlobalErrorBoundary`/`GlobalErrorView` parameters (`CssClass`, `Title`, `Description`, `HomeLabel`) work: bUnit renders the error view for a throwing page. `ReconnectModal` renders one `dialog#components-reconnect-modal` through HTTP, takes all the `*Content` fragments and its script is served at `/_content/SyntaxCircus.Blazor.Components/Components/Feedback/ReconnectModal.razor.js`. `NotFoundView` was deliberately not used (the 404 is the BrandWindow). | The reconnect JavaScript behaviour in a real browser (killing the circuit and watching the dialog show, retry and resume) was not exercised; the style guide previews the states statically. |
-| **`AspNetCore.SassCompiler` 1.105.1 / Dart Sass** | `@import` of a file outside the project by relative path works with the existing `sasscompiler.json` (arguments silence the `import`, `global-builtin`, `color-functions` and `if-function` deprecations). Redefining Bootstrap's `color-mode` mixin after its `mixins` import works, and gives dark rules for both `[data-bs-theme=dark]` and Auto. Compressed output keeps spaces after `:` and `,` in custom properties and `polygon(...)`, rewrites `rgba(20,33,61,.06)` as `rgba(20, 33, 61, 0.06)`, and prefixes the file with a BOM (the test helper normalises all three). Sass-computed colours may print as `rgb(91.76%, ...)`. | Behaviour under a future Dart Sass that removes `@import` (the repo already silences the deprecation; migrating to `@use` is a later task). |
-| **libman fonts** | `@fontsource/ibm-plex-sans@5.3.0`, `@fontsource/ibm-plex-mono@5.3.0`, `@fontsource-variable/source-serif-4@5.3.0` restore through the jsdelivr provider with the `files` filter, including `LICENSE`; a clean `dotnet publish` contains all of them; the host serves them as `font/woff2`. `.dockerignore` re-include `!assets/brand/scss/` works in BuildKit. | Offline behaviour was reasoned, not run: libman restore needs jsdelivr on every clean build, so a build without network access fails (Bootstrap already had this property); the Docker assertion turns that into a loud failure. Whether libman skips the download when the files already exist (incremental builds) was not measured. The `LICENSE` file has no extension and is not served over HTTP (the test checks the disk and the Dockerfile checks the publish folder). |
-| **vtracer 0.6.15** | `pip install vtracer` installs a Windows wheel and traces the head mark (31 KB) and mascot (79 KB); both rendered faithfully in headless Edge next to the PNG. The traced SVG has only `width` and `height`, so the generator rewrites the root with a `viewBox`. fonttools reads the WOFF2 (needs `brotli`) and outlines the wordmark (3 KB), which renders correctly. | Traced colours are quantised (about 5 levels per channel), so they are close to, not identical with, the BRAND.md palette; treated as provisional. Running the generator on Linux or macOS was not tried. |
+| **`SyntaxCircus.Blazor.Components` 0.1.3** | Package README is identical to the source README; markup read from `D:\dev\SyntaxCircus\SyntaxCircus.Blazor.Components`. `GlobalErrorBoundary`/`GlobalErrorView` parameters (`CssClass`, `Title`, `Description`, `HomeLabel`) work: bUnit renders the error view for a throwing page. `ReconnectModal` renders one `dialog#components-reconnect-modal` through HTTP, takes all the `*Content` fragments and its script is served at `/_content/SyntaxCircus.Blazor.Components/Components/Feedback/ReconnectModal.razor.js`. `NotFoundView` was deliberately not used (the 404 is the BrandWindow). | The reconnect JavaScript behavior in a real browser (killing the circuit and watching the dialog show, retry and resume) was not exercised; the style guide previews the states statically. |
+| **`AspNetCore.SassCompiler` 1.105.1 / Dart Sass** | `@import` of a file outside the project by relative path works with the existing `sasscompiler.json` (arguments silence the `import`, `global-builtin`, `color-functions` and `if-function` deprecations). Redefining Bootstrap's `color-mode` mixin after its `mixins` import works, and gives dark rules for both `[data-bs-theme=dark]` and Auto. Compressed output keeps spaces after `:` and `,` in custom properties and `polygon(...)`, rewrites `rgba(20,33,61,.06)` as `rgba(20, 33, 61, 0.06)`, and prefixes the file with a BOM (the test helper normalizes all three). Sass-computed colors may print as `rgb(91.76%, ...)`. | Behavior under a future Dart Sass that removes `@import` (the repo already silences the deprecation; migrating to `@use` is a later task). |
+| **libman fonts** | `@fontsource/ibm-plex-sans@5.3.0`, `@fontsource/ibm-plex-mono@5.3.0`, `@fontsource-variable/source-serif-4@5.3.0` restore through the jsdelivr provider with the `files` filter, including `LICENSE`; a clean `dotnet publish` contains all of them; the host serves them as `font/woff2`. `.dockerignore` re-include `!assets/brand/scss/` works in BuildKit. | Offline behavior was reasoned, not run: libman restore needs jsdelivr on every clean build, so a build without network access fails (Bootstrap already had this property); the Docker assertion turns that into a loud failure. Whether libman skips the download when the files already exist (incremental builds) was not measured. The `LICENSE` file has no extension and is not served over HTTP (the test checks the disk and the Dockerfile checks the publish folder). |
+| **vtracer 0.6.15** | `pip install vtracer` installs a Windows wheel and traces the head mark (31 KB) and mascot (79 KB); both rendered faithfully in headless Edge next to the PNG. The traced SVG has only `width` and `height`, so the generator rewrites the root with a `viewBox`. fonttools reads the WOFF2 (needs `brotli`) and outlines the wordmark (3 KB), which renders correctly. | Traced colors are quantized (about 5 levels per channel), so they are close to, not identical with, the BRAND.md palette; treated as provisional. Running the generator on Linux or macOS was not tried. |
 | **bUnit 2.11.3 / AngleSharp** | `BunitContext`, `Render<T>(p => p.Add(...).AddChildContent(...))`, `NavigationManager.OnNotFound` for the `NotFound()` call, and `IHostEnvironment` substitution all work with xUnit v3. AngleSharp is available transitively and is used in the host tests. | Rendering `ReconnectModal` itself in bUnit (it needs `Assets`) was not attempted; it is covered over HTTP instead. |
 | **`NavigationManager.NotFound()` gating** | In static SSR it returns a real 404 with the not-found page (Production and Staging tests pass for Admin and Portal). | A circuit that navigates client-side to `/_styleguide` in Production was reasoned (the same component runs and calls `NotFound()`), not driven in a browser. |
 | **Docker** | `docker build -f Dockerfile.admin` passed in the scratch clone with the CSS and font assertions and the shared-SCSS context. | `Dockerfile.portal` image build, `docker compose up -d --build --wait` and the Production-image 404 check were not run in the scratch clone (Step 5 of Task 12 does it on a clean clone). |
-| **Not run at all** | Lighthouse, DevTools reduced-motion emulation, keyboard walk-through, 320 px visual review, Auto-versus-explicit theme comparison in a real browser (only one headless Edge capture of the Admin guide in the OS dark theme was inspected). Contrast of Bootstrap's Sass-derived alert colours in dark. | Task 12 Step 2 covers these by hand. |
+| **Not run at all** | Lighthouse, DevTools reduced-motion emulation, keyboard walk-through, 320 px visual review, Auto-versus-explicit theme comparison in a real browser (only one headless Edge capture of the Admin guide in the OS dark theme was inspected). Contrast of Bootstrap's Sass-derived alert colors in dark. | Task 12 Step 2 covers these by hand. |
 
 **Findings the owner should know about** (also in the tasks): BRAND.md claims every text pair is AA, but `--ink-3` on `--sel` in dark is 4.32:1 (rule added); the mockup's `$secondary-color` mapping names are really `$body-secondary-color` and `$body-tertiary-color` in Bootstrap 5.3.8; D-025 (accent helper in Contracts) needs owner confirmation; the SVG logos are provisional.

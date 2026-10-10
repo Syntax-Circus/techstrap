@@ -11,7 +11,7 @@ public sealed record CustomerTicketDto(
 
 /// <summary>
 /// One public message. AuthorType is a MessageAuthorTypes name; AuthorDisplayName is the resolved public agent name for agent
-/// messages (AgentPublicIdentity) and null for the customer's own and system messages. BodyHtml is sanitised HTML.
+/// messages (AgentPublicIdentity) and null for the customer's own and system messages. BodyHtml is sanitized HTML.
 /// </summary>
 public sealed record CustomerMessageDto(
     Guid Id, string AuthorType, string? AuthorDisplayName, string BodyHtml, DateTimeOffset CreatedAt, IReadOnlyList<AttachmentDto> Attachments);

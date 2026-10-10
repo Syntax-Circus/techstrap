@@ -13,7 +13,7 @@ namespace TechStrap.Hosting.Wiring;
 /// <summary>
 /// The wiring the two browser hosts (Admin and Portal) share. Each host calls <see cref="AddTechStrapWebHost"/> with its services, <see cref="UseTechStrapWebHost"/> first
 /// in its pipeline and <see cref="UseTechStrapErrorPages"/> right after it, so a change to forwarded headers, correlation, security headers or the error pages is made once.
-/// Admin-only behaviour (token forwarding, sign-in) stays in the Admin.
+/// Admin-only behavior (token forwarding, sign-in) stays in the Admin.
 /// </summary>
 public static class BrowserHostExtensions
 {
@@ -127,7 +127,7 @@ public static class BrowserHostExtensions
     /// <summary>
     /// The policy with a bare <c>sandbox</c> directive. A directive counts only when its whole name is <c>sandbox</c> (a source such as <c>sandbox.example.com</c> in another
     /// directive does not), compared without regard to case. A <c>sandbox</c> directive that lists allowed capabilities (<c>sandbox allow-scripts</c>) is weaker than the
-    /// download needs, and a browser honours only the first <c>sandbox</c> directive, so it is replaced rather than left in front of an appended one.
+    /// download needs, and a browser honors only the first <c>sandbox</c> directive, so it is replaced rather than left in front of an appended one.
     /// </summary>
     internal static string WithSandbox(string policy)
     {
@@ -146,7 +146,7 @@ public static class BrowserHostExtensions
 
     /// <summary>
     /// The plain error page for an unhandled exception (outside Development; BRAND.md section 3), the branded not-found page for a 404 (re-executed, so the 404 status
-    /// is kept), and nothing else: humour never covers an error that blocks work, so every other status code keeps its own response.
+    /// is kept), and nothing else: humor never covers an error that blocks work, so every other status code keeps its own response.
     /// </summary>
     public static WebApplication UseTechStrapErrorPages(this WebApplication app)
     {

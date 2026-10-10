@@ -15,7 +15,7 @@ internal static class KbSafeHtml
 
     private static readonly string[] _allowedAttributes = ["href", "src", "alt", "rel", "loading", "referrerpolicy"];
 
-    // An attribute that is allowed on one tag only (the sanitiser adds these itself).
+    // An attribute that is allowed on one tag only (the sanitizer adds these itself).
     private static readonly Dictionary<string, string> _attributeOwner = new() { ["rel"] = "a", ["loading"] = "img", ["referrerpolicy"] = "img" };
 
     public static void ShouldBeSafe(string html)
@@ -51,7 +51,7 @@ internal static class KbSafeHtml
 }
 
 /// <summary>
-/// The KB sanitiser on its own, fed raw HTML (D-044). Markdig has raw HTML off, so this is the second line of defence: if the Markdown
+/// The KB sanitizer on its own, fed raw HTML (D-044). Markdig has raw HTML off, so this is the second line of defense: if the Markdown
 /// step ever let markup through, these inputs must still come out safe.
 /// </summary>
 public sealed class KbHtmlSanitizerTests

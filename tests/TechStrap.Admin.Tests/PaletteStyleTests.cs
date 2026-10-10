@@ -2,7 +2,7 @@ using TechStrap.Tests.Shared;
 
 namespace TechStrap.Admin.Tests;
 
-/// <summary>The palette's selected line is set apart by a fill, a bar and weight, and by an outline when forced colours drop the fill. Colour is never the only cue.</summary>
+/// <summary>The palette's selected line is set apart by a fill, a bar and weight, and by an outline when forced colors drop the fill. Color is never the only cue.</summary>
 public sealed class PaletteStyleTests
 {
     private static readonly CompiledCss Css = CompiledCss.Load("TechStrap.Admin");

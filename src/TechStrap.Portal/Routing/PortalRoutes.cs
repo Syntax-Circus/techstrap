@@ -20,7 +20,7 @@ public static class PortalRoutes
     public const string LostLinkSegment = "lost-link";
     public const string SuggestSegment = "suggest";
 
-    // The help centre's own segments and query parameters. The output cache and the header rules match on them (PortalCachePaths), so they are named once.
+    // The help center's own segments and query parameters. The output cache and the header rules match on them (PortalCachePaths), so they are named once.
     public const string KbSegment = "kb";
     public const string KbSearchSegment = "search";
 

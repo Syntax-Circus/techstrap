@@ -8,7 +8,7 @@
 
 **Tech Stack:** .NET 10, ASP.NET Core controllers, `SyntaxCircus.AspNetCore.Authentication` 0.1.5 (JWT bearer), `SyntaxCircus.AspNetCore.Common` 0.1.15 (`AddResultProblemDetails`, `ToActionResult`), `SyntaxCircus.Common` 0.1.3 (`Result`, `ResultError`, `PagedResult<T>`), EF Core and Npgsql 10 (PHASE-03 repositories), xUnit v3, Shouldly, NSubstitute, Testcontainers, `Microsoft.AspNetCore.Mvc.Testing`, and bUnit for the Admin and Portal error pages.
 
-**Spec:** `docs/architecture/PHASE-04-agent-auth-and-admin-config.md`, read together with the owner decisions taken on 2026-10-03 (recorded in Task 1 as D-029, D-030 and D-031). Supporting docs: `docs/architecture/02-ARCHITECTURE.md` (sections 3.1, 4 and 7.1), `docs/architecture/04-DECISION-LOG.md` (D-001, D-004, D-006, D-016, D-022, D-024, D-026, D-028), `docs/BRAND.md` section 3, and `_template/docs/APPLICATION_ARCHITECTURE.md` (summarised in Global Constraints).
+**Spec:** `docs/architecture/PHASE-04-agent-auth-and-admin-config.md`, read together with the owner decisions taken on 2026-10-03 (recorded in Task 1 as D-029, D-030 and D-031). Supporting docs: `docs/architecture/02-ARCHITECTURE.md` (sections 3.1, 4 and 7.1), `docs/architecture/04-DECISION-LOG.md` (D-001, D-004, D-006, D-016, D-022, D-024, D-026, D-028), `docs/BRAND.md` section 3, and `_template/docs/APPLICATION_ARCHITECTURE.md` (summarized in Global Constraints).
 
 ### Owner decisions this plan implements (2026-10-03)
 
@@ -24,7 +24,7 @@ The plan deviates from the PHASE-04 doc wherever these decisions apply. Task 1 u
   - Without `force`, the delete is rejected with `409 tag-in-use` and the usage count.
   - With `?force=true`, the tag is removed from every ticket that carries it, each ticket recording a `TagRemoved` event, and then deleted.
   - Closed tickets are read-only, but they are detached through a dedicated Domain method that still records the event.
-- **D-031, product accent validation is format only (`#RRGGBB`).** The PHASE-02 `ProductAccent` helper derives readable on-accent and ink colours for any accent, so the PHASE-04 doc's "400 low-contrast accent" case is dropped.
+- **D-031, product accent validation is format only (`#RRGGBB`).** The PHASE-02 `ProductAccent` helper derives readable on-accent and ink colors for any accent, so the PHASE-04 doc's "400 low-contrast accent" case is dropped.
 
 ### Resolved inconsistencies
 
@@ -78,7 +78,7 @@ These are inconsistencies between the docs and the code. They are not new decisi
   - Verification uses `CryptographicOperations.FixedTimeEquals`.
   - The plaintext appears only in `CreateProductApiKeyResponse`. It never appears in logs, audit payloads or list responses.
 - **Customer-facing identity (D-024).** Agent emails never appear in customer-facing output. This phase's endpoints are all agent-facing, so emails may appear in Admin-only agent lists.
-- **Copy (BRAND.md section 3).** Error text uses sentence case and an active voice, has no humour, no exclamation marks and no emoji, and states the plain cause plus the next step.
+- **Copy (BRAND.md section 3).** Error text uses sentence case and an active voice, has no humor, no exclamation marks and no emoji, and states the plain cause plus the next step.
 - **Commits.** Use Conventional Commits. Every commit message ends with exactly these two lines:
   ```
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -286,7 +286,7 @@ Tags are global. A tag that tickets still carry cannot simply disappear: the dat
 - **Related artifacts:** D-025, PHASE-02, PHASE-04 (`CreateProductRequestHandler`, `UpdateProductRequestHandler`), `ProductAccent`
 
 ### Context
-PHASE-04 asked for a 400 on a "low-contrast" product accent. The PHASE-02 `ProductAccent` helper (D-025) already derives an on-accent colour (white or black, at least 4.58:1) and an ink colour darkened to 4.5:1 for any accent, so no accent produces unreadable text.
+PHASE-04 asked for a 400 on a "low-contrast" product accent. The PHASE-02 `ProductAccent` helper (D-025) already derives an on-accent color (white or black, at least 4.58:1) and an ink color darkened to 4.5:1 for any accent, so no accent produces unreadable text.
 
 ### Decision
 - A product accent must be `#RRGGBB`. A malformed value is `400 accent-colour-invalid` from `ProductBranding.Create`.
@@ -294,11 +294,11 @@ PHASE-04 asked for a 400 on a "low-contrast" product accent. The PHASE-02 `Produ
 - `ProductBrandingDto` returns the derived `OnAccentColour` and `AccentInkColour`, so the Admin preview shows exactly what customers see.
 
 ### Alternatives Considered
-- **Reject accents below 3:1 against the white portal page:** stops near-white accents, but refuses brand colours some products really use. The derived ink keeps links and text readable regardless.
+- **Reject accents below 3:1 against the white portal page:** stops near-white accents, but refuses brand colors some products really use. The derived ink keeps links and text readable regardless.
 
 ### Consequences
 - The PHASE-04 "400 low-contrast accent" test is dropped.
-- The PHASE-07 branding form shows a live preview built from the derived colours.
+- The PHASE-07 branding form shows a live preview built from the derived colors.
 
 ### Approval
 - **Approved by:** Jon Seeley (owner, 2026-10-03 PHASE-04 planning)
@@ -314,7 +314,7 @@ Edit `docs/architecture/PHASE-04-agent-auth-and-admin-config.md`:
    - **Authentication bullet.** Rename the policies `AgentPolicy`/`AdminPolicy` to `Agent`/`Admin`, and add: "The `Agent` policy accepts the agent group or the admin group. Both policies refuse an agent whose stored row is deactivated (D-029)."
    - **Role-source bullet.** Replace it with: "Role source of truth (D-029): the group claim alone. The stored `Agent.Role` mirrors the claim at each `GET /api/agents/me`. `UpdateAgentRequestHandler` changes only `IsActive`."
    - **Bootstrap-admin bullet.** Delete it.
-   - **Product-branding bullet.** Change "accent validated for the contrast rule from PHASE-02" to "accent validated for format only (D-031); the derived on-accent and ink colours are returned in `ProductBrandingDto`".
+   - **Product-branding bullet.** Change "accent validated for the contrast rule from PHASE-02" to "accent validated for format only (D-031); the derived on-accent and ink colors are returned in `ProductBrandingDto`".
    - **Tags bullet.** Replace the **Assumption** sentence with "Delete is rejected with `409 tag-in-use` unless `force=true`, which detaches the tag from every ticket with `TagRemoved` events (D-030)."
    - **Errors bullet.** Replace "400/422" with "400".
    - **Abstractions bullet.** Replace it with: "Abstractions introduced in this phase: `ICurrentAgentClaims` (Application-owned identity: subject, name, email, group-derived role) and `IApiKeyHasher`, plus the Api options type `AgentAccessOptions` (group names and claim type)."
@@ -322,7 +322,7 @@ Edit `docs/architecture/PHASE-04-agent-auth-and-admin-config.md`:
    - `GetCurrentAgentRequestHandler` row: the handler column reads "(provisions agent on first call, mirrors the group-derived role)", and the abstractions are `IAgentRepository`, `IUnitOfWork`, `ICurrentAgentClaims`, `TimeProvider`.
    - Every other row: replace `ICurrentUserService` with `ICurrentAgentClaims`.
    - `PUT /api/agents/{id}`: change "(role, active)" to "(active only, D-029)".
-   - `PUT /api/products/{id}`: change "400 (colour/contrast)" to "400 (colour format, D-031)".
+   - `PUT /api/products/{id}`: change "400 (color/contrast)" to "400 (color format, D-031)".
    - Add a row after `PUT /api/agents/me/notification-preferences`:
      ```markdown
      | `GET /api/agents/me/notification-preferences` | `GetMyNotificationPreferencesRequestHandler` | `IAgentRepository`, `IProductRepository`, `ICurrentAgentClaims` | EF repositories | 200 `NotificationPreferenceDto[]` (every active product, default off) | Mandatory flow |
@@ -333,7 +333,7 @@ Edit `docs/architecture/PHASE-04-agent-auth-and-admin-config.md`:
    - **P04-T03:** rename it to "Implement `ICurrentAgentClaims` for ASP.NET (subject, email, name, group-derived role) and `ClaimsCurrentAgentClaimsTests`".
    - **P04-T04 validation:** replace the bootstrap clauses with "first call provisions with the group-derived role, second call updates name, email and role, a token without an email is refused (`agent-email-required`), an inactive agent is forbidden".
    - **P04-T05:** replace "role change" with "deactivate and reactivate", and add "concurrent deactivation of the last two admins leaves one active admin".
-   - **P04-T07 validation:** replace "400 low-contrast accent" with "400 malformed accent colour".
+   - **P04-T07 validation:** replace "400 low-contrast accent" with "400 malformed accent color".
    - **P04-T14:** replace "(an admin from the bootstrap setting)" with "(dev API keys hashed through `IApiKeyHasher` with documented dev plaintexts)".
 5. **Success Criteria.** Delete the `TECHSTRAP_BOOTSTRAP_ADMIN` criterion. Change "All 17 handlers" to "All 18 handlers". Add: "Roles come from IdP groups only; a deactivated agent gets 403 on every agent endpoint (D-029)."
 6. **Risks and Open Questions.**
@@ -363,7 +363,7 @@ In `03-PACKAGE-MAP.md`, in the `SyntaxCircus.AspNetCore.Authentication` row, rep
 - [ ] **Step 6: Check nothing else still documents the bootstrap admin**
 
 Run: `git grep -n -i "bootstrap" -- docs README.md`
-Expected: matches only in `04-DECISION-LOG.md` (D-004's history and D-029). If another doc still describes `TECHSTRAP_BOOTSTRAP_ADMIN` as current behaviour, reword it to D-029. Leave history in the PHASE-03 docs and the plans untouched.
+Expected: matches only in `04-DECISION-LOG.md` (D-004's history and D-029). If another doc still describes `TECHSTRAP_BOOTSTRAP_ADMIN` as current behavior, reword it to D-029. Leave history in the PHASE-03 docs and the plans untouched.
 
 - [ ] **Step 7: Run the doc tests**
 
@@ -435,7 +435,7 @@ public sealed class BadWidgetModel;
 namespace TechStrap.Architecture.Tests;
 
 /// <summary>
-/// Every public, non-static type in TechStrap.Contracts ends in Dto, Request or Response, so API shapes are recognisable
+/// Every public, non-static type in TechStrap.Contracts ends in Dto, Request or Response, so API shapes are recognizable
 /// wherever they are used. Static classes hold shared constants and helpers. The single named exemption is
 /// ProductAccentColors, a value tuple returned by the PHASE-02 ProductAccent helper (D-025), which is not an API shape.
 /// </summary>
@@ -589,7 +589,7 @@ public sealed record UpdateNotificationPreferencesRequest(IReadOnlyList<Notifica
 ```csharp
 namespace TechStrap.Contracts.Products;
 
-/// <summary>Branding as stored, plus the colours derived from the accent (D-025, D-031) for previews.</summary>
+/// <summary>Branding as stored, plus the colors derived from the accent (D-025, D-031) for previews.</summary>
 public sealed record ProductBrandingDto(
     string DisplayName,
     string? LogoPath,
@@ -1761,7 +1761,7 @@ using TechStrap.Domain.Agents;
 namespace TechStrap.Application.Auditing;
 
 /// <summary>
-/// Stages an AdminEvent in the caller's unit of work (D-006, D-022). Payloads are small anonymous objects serialised as camelCase JSON.
+/// Stages an AdminEvent in the caller's unit of work (D-006, D-022). Payloads are small anonymous objects serialized as camelCase JSON.
 /// AdminEvent.Record rejects secrets and personal data; a rejected payload is a bug in the calling handler, so it throws.
 /// </summary>
 internal static class AdminAudit
@@ -2371,7 +2371,7 @@ namespace TechStrap.Api.Security;
 
 /// <summary>
 /// Turns a refusal from AgentAccessAuthorizationHandler into a 403 problem with a stable type code, so the Admin app can tell
-/// "not in the group" from "deactivated". Other outcomes keep the framework behaviour.
+/// "not in the group" from "deactivated". Other outcomes keep the framework behavior.
 /// </summary>
 public sealed class ProblemDetailsAuthorizationResultHandler : IAuthorizationMiddlewareResultHandler
 {
@@ -3582,7 +3582,7 @@ internal static class ProductMapping
     {
         var branding = product.Branding;
 
-        // The stored accent is always a valid #RRGGBB (ProductBranding.Create); the derived colours are what customers see (D-025, D-031).
+        // The stored accent is always a valid #RRGGBB (ProductBranding.Create); the derived colors are what customers see (D-025, D-031).
         var colours = ProductAccent.TryDerive(branding.AccentColour, out var derived)
             ? derived
             : new ProductAccentColors(branding.AccentColour, "#FFFFFF", branding.AccentColour);
@@ -4326,7 +4326,7 @@ public sealed class CreateProductApiKeyRequestHandlerTests
 - An unknown key is NotFound.
 
 `ListProductApiKeysRequestHandlerTests` has these cases:
-- The keys map to DTOs with `RevokedAt` set for revoked keys. Serialise the DTO list with `System.Text.Json` and assert that the JSON contains neither `sha256` nor `KeyHash`.
+- The keys map to DTOs with `RevokedAt` set for revoked keys. Serialize the DTO list with `System.Text.Json` and assert that the JSON contains neither `sha256` nor `KeyHash`.
 - An unknown product is NotFound.
 
 - [ ] **Step 2: Run the tests and confirm they fail**
@@ -4739,16 +4739,16 @@ Add a fourth test, `Force_detaches_the_tag_from_every_ticket_then_deletes_it`, t
 7. Assert the audit payload is exactly `{"slug":"bug","detachedTicketCount":2}`.
 
 `CreateTagRequestHandlerTests` covers:
-- A tag is created and returned, with the colour stored in upper case, and `TagCreated` is audited with payload `{"slug":"bug"}`.
+- A tag is created and returned, with the color stored in upper case, and `TagCreated` is audited with payload `{"slug":"bug"}`.
 - A bad slug (`"Not A Slug"`) returns a Validation error with target `slug`.
-- A bad colour (`"red"`) returns a Validation error with target `colour`.
+- A bad color (`"red"`) returns a Validation error with target `colour`.
 - A commit that fails with `Duplicate` returns a Conflict with code `tag-slug-taken`.
 
 `UpdateTagRequestHandlerTests` covers:
-- Name and colour change; `TagUpdated` is audited with payload `{"slug":"bug","changed":["name","colour"]}`.
+- Name and color change; `TagUpdated` is audited with payload `{"slug":"bug","changed":["name","colour"]}`.
 - An unchanged update succeeds and adds no audit event.
 - An unknown tag returns NotFound.
-- A bad colour returns a Validation error with target `colour`.
+- A bad color returns a Validation error with target `colour`.
 
 `ListTagsRequestHandlerTests` covers: the tags are mapped to DTOs in repository order.
 
@@ -4866,7 +4866,7 @@ The other three handlers follow the same shape:
   5. Return `TagMapping.ToDto(tag)`.
 - **`UpdateTagRequestHandler`** takes the same dependencies as create.
   1. Open the unit of work, resolve the actor, then load the tag. A missing tag returns `TagErrors.NotFound()`.
-  2. Work out `changed`: `"name"` if the name differs from `request.Name?.Trim()`, and `"colour"` if the colour differs from `request.Colour?.Trim().ToUpperInvariant()`.
+  2. Work out `changed`: `"name"` if the name differs from `request.Name?.Trim()`, and `"colour"` if the color differs from `request.Colour?.Trim().ToUpperInvariant()`.
   3. Call `tag.Update(request.Name, request.Colour)`. On failure, return the converted Domain error.
   4. If nothing changed, return the DTO without committing.
   5. Otherwise call `tags.Update(tag)`, audit `TagUpdated` with `new { slug = tag.Slug, changed }`, commit, and return the DTO.
@@ -5827,7 +5827,7 @@ public sealed partial class OpenApiSurfaceTests
 - [ ] **Step 2: Run the test**
 
 Run: `dotnet test --project tests/TechStrap.Api.Tests -c Release --filter OpenApiSurfaceTests`
-Expected: PASS. ASP.NET's document generator emits every controller action by default. If a path differs only in formatting (for example a trailing slash), normalise both sides the same way. Do not drop routes.
+Expected: PASS. ASP.NET's document generator emits every controller action by default. If a path differs only in formatting (for example a trailing slash), normalize both sides the same way. Do not drop routes.
 
 - [ ] **Step 3: Write the self-host auth note**
 
@@ -5920,7 +5920,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace TechStrap.Admin.Tests;
 
-/// <summary>An unhandled exception in production shows a plain error page: cause and next step, no humour (BRAND.md section 3).</summary>
+/// <summary>An unhandled exception in production shows a plain error page: cause and next step, no humor (BRAND.md section 3).</summary>
 public sealed class UnhandledErrorHostTests
 {
     private sealed class ThrowingStartupFilter : IStartupFilter

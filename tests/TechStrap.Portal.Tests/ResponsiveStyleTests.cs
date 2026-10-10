@@ -6,7 +6,7 @@ namespace TechStrap.Portal.Tests;
 /// <summary>
 /// The Portal's layout and accessibility rules (PHASE-09 T16, UX-BRIEF-portal, BRAND.md sections 14, 17 and 24), read from the compiled CSS so a rule that is renamed, moved to the wrong breakpoint or deleted fails
 /// here: one token for the reading width and one for the wide container, one column on a phone and cards from a tablet up, a 44px target for every link a visitor has to hit, a skip link that appears on focus,
-/// forced colours that keep the 3px focus outline, and no motion at all for a visitor who asked for none. Every class the markup uses has a rule. How it looks is the owner's checklist in PORTAL-APP.md.
+/// forced colors that keep the 3px focus outline, and no motion at all for a visitor who asked for none. Every class the markup uses has a rule. How it looks is the owner's checklist in PORTAL-APP.md.
 /// </summary>
 public sealed partial class ResponsiveStyleTests
 {
@@ -150,7 +150,7 @@ public sealed partial class ResponsiveStyleTests
         Css.Declarations(".ts-portal-main:focus")["outline"].ShouldBe("none", "main takes focus for the skip link but shows no ring around the whole page");
     }
 
-    // ---- states are never colour alone ----
+    // ---- states are never color alone ----
 
     [Fact]
     public void Errors_use_the_error_tokens_and_a_field_in_error_gets_a_heavier_border_and_text()
@@ -177,7 +177,7 @@ public sealed partial class ResponsiveStyleTests
         Css.Declarations(".ts-char-count[hidden]")["display"].ShouldBe("none");
     }
 
-    // ---- forced colours ----
+    // ---- forced colors ----
 
     [Fact]
     public void Forced_colours_keep_the_3px_focus_outline_and_drop_the_halo()

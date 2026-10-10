@@ -34,7 +34,7 @@ public static class IntakeLimits
     public const int MaxMetadataValueLength = 1_000;
 
     // The Domain owns the value (DomainLimits.MetadataMaxLength); IntakeLimitsParityTests keeps this copy equal.
-    /// <summary>The longest metadata once serialised to JSON, in characters (16,000). The API rejects a larger set.</summary>
+    /// <summary>The longest metadata once serialized to JSON, in characters (16,000). The API rejects a larger set.</summary>
     public const int MaxMetadataJsonLength = 16_000;
     /// <summary>The longest <c>Idempotency-Key</c> the API accepts, in characters (200).</summary>
     public const int MaxIdempotencyKeyLength = 200;

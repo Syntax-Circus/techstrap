@@ -27,8 +27,8 @@ public static class KbLimits
     public const int MaxPreviewChars = 200_000;
 
     /// <summary>
-    /// The most Markdown elements (blocks plus inlines, table cells and list items included) one article body may parse to. The sanitiser is
-    /// roughly quadratic in element count, so a body over this is refused on save and preview (<c>kb-body-too-complex</c>) and never sanitised (D-044).
+    /// The most Markdown elements (blocks plus inlines, table cells and list items included) one article body may parse to. The sanitizer is
+    /// roughly quadratic in element count, so a body over this is refused on save and preview (<c>kb-body-too-complex</c>) and never sanitized (D-044).
     /// </summary>
     public const int MaxRenderedElements = 5_000;
 

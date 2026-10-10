@@ -88,7 +88,7 @@ public sealed class UpdateNotificationPreferencesRequestHandlerTests
     [Fact]
     public void The_cap_leaves_room_for_the_full_set_the_Admin_page_saves_on_every_toggle()
     {
-        // The Admin page sends one entry per active product; the cap is only a pre-lookup bound, so it must stay well above a plausible catalogue.
+        // The Admin page sends one entry per active product; the cap is only a pre-lookup bound, so it must stay well above a plausible catalog.
         DomainLimits.NotificationPreferencesMaxCount.ShouldBeGreaterThanOrEqualTo(2000);
     }
 

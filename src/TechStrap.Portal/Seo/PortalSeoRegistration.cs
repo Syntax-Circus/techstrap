@@ -7,7 +7,7 @@ namespace TechStrap.Portal.Seo;
 
 /// <summary>
 /// <c>SyntaxCircus.Blazor.Seo</c> in the Portal (D-045). <c>Seo:BaseUrl</c> is derived from <c>TECHSTRAP_PORTAL_PUBLIC_URL</c>, always, so there is one setting for one value and a stray
-/// <c>Seo__BaseUrl</c> can never disagree with it. robots.txt disallows the ticket pages and names the sitemap, which lists every active product's help centre (PHASE-09c).
+/// <c>Seo__BaseUrl</c> can never disagree with it. robots.txt disallows the ticket pages and names the sitemap, which lists every active product's help center (PHASE-09c).
 /// </summary>
 public static class PortalSeoRegistration
 {

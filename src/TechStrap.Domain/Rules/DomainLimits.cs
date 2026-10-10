@@ -54,10 +54,10 @@ public static class DomainLimits
     /// <summary>The longest formatted ticket number (for example <c>ACME-142</c>): a prefix of up to 10 characters, the hyphen and up to 13 digits. <see cref="Tickets.TicketNumber"/> accepts any positive <see cref="long"/>, but a per-product counter cannot realistically pass 13 digits.</summary>
     public const int TicketNumberMaxLength = 24;
 
-    /// <summary>The length of a hex colour such as <c>#1A2B3C</c>: the hash plus six digits.</summary>
+    /// <summary>The length of a hex color such as <c>#1A2B3C</c>: the hash plus six digits.</summary>
     public const int ColourHexLength = 7;
 
-    /// <summary>The most per-product entries one notification-preferences update may carry; a larger list is refused before any lookup. A pre-lookup bound well above any plausible product catalogue; the list cannot legitimately exceed the number of active products.</summary>
+    /// <summary>The most per-product entries one notification-preferences update may carry; a larger list is refused before any lookup. A pre-lookup bound well above any plausible product catalog; the list cannot legitimately exceed the number of active products.</summary>
     public const int NotificationPreferencesMaxCount = 2000;
 
     // A query limit, not a column length.

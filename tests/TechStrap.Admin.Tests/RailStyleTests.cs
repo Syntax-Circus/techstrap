@@ -2,7 +2,7 @@ using TechStrap.Tests.Shared;
 
 namespace TechStrap.Admin.Tests;
 
-/// <summary>The rail's admin group and the failed-email badge use brand tokens only, so both themes get a legible badge without a new colour.</summary>
+/// <summary>The rail's admin group and the failed-email badge use brand tokens only, so both themes get a legible badge without a new color.</summary>
 public sealed class RailStyleTests
 {
     private static readonly CompiledCss Css = CompiledCss.Load("TechStrap.Admin");

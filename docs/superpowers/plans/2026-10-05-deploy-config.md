@@ -82,7 +82,7 @@
 ## Review Focus
 
 1. **A Production host that starts from the blank template**, or from one blank array element. Pinned in Task 2 by `ProductionBlankTemplateTests` and the array rules.
-2. **A behaviour change hidden in an `appsettings.json` default**: a blank number, flag or enum that fails binding, a default that differs from the code, or a list that is appended twice. Pinned in Task 2.
+2. **A behavior change hidden in an `appsettings.json` default**: a blank number, flag or enum that fails binding, a default that differs from the code, or a list that is appended twice. Pinned in Task 2.
 3. **A secret, or a secret-shaped value, in a committed file**, including the connection string and the OTLP headers. Pinned in Tasks 2 and 4.
 4. **The local stack no longer starting**, or the Admin placeholders clashing with `.env.local` again. Pinned in Task 3, including a real compose smoke run.
 5. **The deploy compose doing more than the owner decided**: building, running a database, giving the Admin or the Portal the database network, publishing beyond loopback, trusting too much, or defaulting an image to `latest`. Pinned in Task 4.
@@ -412,7 +412,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
 
 **Review Focus pin:**
 - **(1)** Production must not start from the blank template. Pinned by `ProductionBlankTemplateTests` (per host, naming the keys), by the "array element" rules (`TrustedProxy` with one blank network passes the check) and by `No_deploy_template_leaves_an_array_element_blank`.
-- **(2)** No behaviour change. Pinned by the "blank only where blank is valid" contract rule (a blank number, flag or enum fails binding), by `DevelopmentStartupTests.A_host_starts_in_Development_from_its_appsettings_and_only_the_settings_it_cannot_default`, and by leaving `Auth:Scopes` out (array binding appends to a non-empty default).
+- **(2)** No behavior change. Pinned by the "blank only where blank is valid" contract rule (a blank number, flag or enum fails binding), by `DevelopmentStartupTests.A_host_starts_in_Development_from_its_appsettings_and_only_the_settings_it_cannot_default`, and by leaving `Auth:Scopes` out (array binding appends to a non-empty default).
 - **(3)** No secret in a committed file. Pinned by the secret-shaped rule and the connection-string rule.
 
 **Files:**
@@ -456,7 +456,7 @@ $script:ExcludedPrefixes, $script:ComposeOwned, $script:ComposeNonSettings, $scr
 ```
 
 **Rules (each one was found by running the hosts in the scratch copy; they are the content of D-043):**
-1. **Defaults.** Every value in an `appsettings.json` equals today's code default or is blank. Behaviour does not change.
+1. **Defaults.** Every value in an `appsettings.json` equals today's code default or is blank. Behavior does not change.
 2. **Blank versus validation.** Check each blank against its options' `ValidateOnStart` and binding.
    - A blank string is allowed only where it is the default or the required-and-missing state (`ConnectionStrings:TechStrap`, an authority, a host, a public URL, `Storage:Local:RootPath`, `Api:BaseUrl`, the secrets, the observability strings).
    - A blank number, flag or enum fails binding at start (`Failed to convert configuration value '' at 'Email:Smtp:Port'`). So `Port`, `MaxRetryAttempts`, `UseStartTls`, `RetryMode`, every rate limit, `MigrateOnStartup`, `TECHSTRAP_SEED_DEV_DATA`, `TECHSTRAP_AUTOCLOSE_DAYS` and the group keys carry their real default. A blank group key would fail `ValidateOnStart` too.

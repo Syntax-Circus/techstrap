@@ -5,7 +5,7 @@ namespace TechStrap.Portal.Tests.Products;
 
 /// <summary>
 /// Review Focus 5 (untrusted branding): a stored product is data an agent typed, and a logo stored before the Admin validated it was never checked. The view model keeps only what is safe to
-/// render: an accent that the one derivation rule accepts (the three colours are derived from it by <c>AccentScope</c>, never taken from the DTO's own strings), and a logo address that is https,
+/// render: an accent that the one derivation rule accepts (the three colors are derived from it by <c>AccentScope</c>, never taken from the DTO's own strings), and a logo address that is https,
 /// or http to loopback in Development only (the same rule as the Content-Security-Policy's <c>img-src</c>).
 /// </summary>
 public sealed class ProductThemeViewModelTests

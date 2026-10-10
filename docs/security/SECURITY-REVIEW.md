@@ -4,13 +4,13 @@ Release 0.3.0 (PHASE-12a). Evidence-based review of the security-relevant paths 
 
 ## Purpose and method
 
-The review walks six path groups taken from the PHASE-12 spec (Review scope, with the D-051 corrections): customer access tokens, API keys, uploads, sanitiser and rendering, authorization and headers, privacy and operations.
+The review walks six path groups taken from the PHASE-12 spec (Review scope, with the D-051 corrections): customer access tokens, API keys, uploads, sanitizer and rendering, authorization and headers, privacy and operations.
 
 For each group the method is:
 
 1. List the checks the spec asks for.
 2. Find the test that already proves each check, and cite it by name. A check without a test gets a test (a `Task N adds` note) or a finding.
-3. Record anything that is a judgement rather than a provable behaviour as a finding with a severity and a status.
+3. Record anything that is a judgment rather than a provable behavior as a finding with a severity and a status.
 4. Keep the evidence honest: a row that cites a test means that test fails if the control is removed (the mutation check done in the task that adds or edits the test).
 
 Scans (dependency and image) run in CI (P12-T09); no SBOM is published (owner decision 2026-10-09) and are recorded here (SR-13); the architecture conformance gate (P12-T19) fills in the last section.
@@ -85,18 +85,18 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 | Disk full or storage failure | `SubmitTicketRequestHandlerTests.An_exception_removes_the_files_the_attempt_stored_and_propagates`, `SubmitTicketIntegrationTests.A_failure_after_creation_leaves_no_rows_and_no_orphan_file`; HTTP level: `DiskFullIntakeTests.A_full_disk_on_the_second_file_is_a_clean_problem_response_with_no_ticket_and_no_file` and `KbImageDiskFullTests.A_full_disk_on_a_kb_image_upload_is_a_clean_problem_response_and_leaves_no_file`; no quota is SR-11 |
 | Antivirus | SR-08 |
 
-### 4. Sanitiser and rendering
+### 4. Sanitizer and rendering
 
 | Check | Evidence or finding |
 | --- | --- |
-| Shared XSS corpus (P12-T05) | `tests/Shared/Fixtures/xss-corpus.txt` (54 ASCII vectors incl. two inert-by-construction encoded controls) read by `XssCorpus`; `XssAssertions` detects active tags, in-tag event handlers, script schemes in attribute values, `srcdoc` and CSS `expression(` (its own `XssAssertionsTests`: eight positives, five negatives, corpus size and ASCII check). Every vector was run through every sanitiser and renderer below: no vector got through, no production change (no SR entry needed) |
-| Message sanitiser | `HtmlSanitizerTests` (inline vectors); `HtmlSanitizerTests.Every_corpus_vector_sanitises_to_no_active_content` |
+| Shared XSS corpus (P12-T05) | `tests/Shared/Fixtures/xss-corpus.txt` (54 ASCII vectors incl. two inert-by-construction encoded controls) read by `XssCorpus`; `XssAssertions` detects active tags, in-tag event handlers, script schemes in attribute values, `srcdoc` and CSS `expression(` (its own `XssAssertionsTests`: eight positives, five negatives, corpus size and ASCII check). Every vector was run through every sanitizer and renderer below: no vector got through, no production change (no SR entry needed) |
+| Message sanitizer | `HtmlSanitizerTests` (inline vectors); `HtmlSanitizerTests.Every_corpus_vector_sanitises_to_no_active_content` |
 | Knowledge-base content (Markdown and HTML) | `KbHtmlSanitizerTests`, `KbContentRendererTests`, `MarkdownRendererTests`, `MessagePipelineUnchangedTests`; `KbHtmlSanitizerTests.Every_corpus_vector_sanitises_to_no_active_content` and `KbContentRendererTests.Every_corpus_vector_renders_inert_from_markdown_source_alone_and_under_a_heading` |
 | Admin knowledge-base preview | `RenderKbPreviewRequestHandlerTests`; Api `KbPreviewXssTests.Every_corpus_vector_renders_to_no_active_content_in_the_preview` |
-| Email templates | `EmailTemplateRendererTests.Customer_content_is_escaped_in_html_and_plain_in_text`, `EmailTemplateRendererTests.The_reply_body_is_inserted_as_given_but_model_fields_are_encoded` (the reply body is raw because it is already sanitised); `EmailTemplateRendererTests.Every_corpus_vector_is_encoded_in_the_subject_name_and_article_title_fields` and `EmailTemplateRendererTests.The_sanitised_reply_body_stays_inert_in_the_email` |
+| Email templates | `EmailTemplateRendererTests.Customer_content_is_escaped_in_html_and_plain_in_text`, `EmailTemplateRendererTests.The_reply_body_is_inserted_as_given_but_model_fields_are_encoded` (the reply body is raw because it is already sanitized); `EmailTemplateRendererTests.Every_corpus_vector_is_encoded_in_the_subject_name_and_article_title_fields` and `EmailTemplateRendererTests.The_sanitised_reply_body_stays_inert_in_the_email` |
 | MarkupString sites (Admin `Features/Tickets/MessageBubble.razor` and `Features/Kb/KbPreviewPane.razor`; Portal `Components/Kb/KbArticleBody.razor` and `Components/Tickets/CustomerMessageBody.razor`) | Admin.Tests `MarkupStringSiteTests.MarkupString_is_used_in_exactly_two_files_the_message_bubble_and_the_kb_preview_pane`; Architecture `PortalRuleTests.In_09c_exactly_KbArticleBody_and_CustomerMessageBody_turn_text_into_markup`; the bUnit pins `MessageBubbleBodyTests.A_sanitised_body_is_rendered_inside_the_message_body_div_with_nothing_added` (Admin) and `CustomerMessageBodyTests.A_sanitised_body_is_rendered_with_headings_demoted_and_nothing_added` (Portal), and the end-to-end Api `MessageBodyXssEndpointTests.A_hostile_body_is_inert_in_the_agent_and_the_customer_views`. The rule that only two Admin files and two Portal files use `MarkupString` stays in `MarkupStringSiteTests` (Admin) and `PortalRules`/`PortalRuleTests` (Portal) |
 | No inline script or event-handler attributes | `AdminRuleTests`, `PortalRuleTests`; Api `ContentSecurityPolicyHostTests.No_Admin_page_renders_an_inline_script_a_style_element_or_an_event_handler_attribute` |
-| Product skins and theme packs (D-053, PHASE-11g) | The skin is structured tokens, never CSS: a closed grammar (`SkinRules`: hex `#RRGGBB` only, font keys from `SkinFonts`, closed enums, border width 1 to 4, strict JSON with unknown members rejected on write, at most 2000 characters) is checked by the Api on save; `SkinResolver` (Contracts, the only merge and derive function) re-validates every token at render and falls back to the pack value for a failing one without writing it. Only validated values become custom properties on the single `ts-accent-scope` wrapper or closed constants in `data-ts-*` attributes. Tests: Application.Tests `SkinResolverTests.A_hostile_skin_resolves_to_pack_values_and_reports_problems`, `SkinRulesTests`, `SkinSerializerTests`; Api `ProductSkinEndpointTests.An_unknown_member_inside_skin_is_rejected_and_nothing_is_stored`; Portal `SkinRenderingHostTests.Hostile_skin_values_never_reach_the_page` (every `style=` value matches the token shape, no `evil.test`, no `display:none`, no script); the unchanged CSP and `CspStyleTests` (no `<style>`, `[style]` only on `ts-accent-scope`, no `url(` outside the font faces); email `EmailTemplateRendererTests.A_hostile_chrome_is_ignored` (the chrome colour passes `ProductAccent.TryDerive` again in the renderer). Every renderer calls the one resolver by convention and review; no automated architecture rule enforces it. See SR-19. |
+| Product skins and theme packs (D-053, PHASE-11g) | The skin is structured tokens, never CSS: a closed grammar (`SkinRules`: hex `#RRGGBB` only, font keys from `SkinFonts`, closed enums, border width 1 to 4, strict JSON with unknown members rejected on write, at most 2000 characters) is checked by the Api on save; `SkinResolver` (Contracts, the only merge and derive function) re-validates every token at render and falls back to the pack value for a failing one without writing it. Only validated values become custom properties on the single `ts-accent-scope` wrapper or closed constants in `data-ts-*` attributes. Tests: Application.Tests `SkinResolverTests.A_hostile_skin_resolves_to_pack_values_and_reports_problems`, `SkinRulesTests`, `SkinSerializerTests`; Api `ProductSkinEndpointTests.An_unknown_member_inside_skin_is_rejected_and_nothing_is_stored`; Portal `SkinRenderingHostTests.Hostile_skin_values_never_reach_the_page` (every `style=` value matches the token shape, no `evil.test`, no `display:none`, no script); the unchanged CSP and `CspStyleTests` (no `<style>`, `[style]` only on `ts-accent-scope`, no `url(` outside the font faces); email `EmailTemplateRendererTests.A_hostile_chrome_is_ignored` (the chrome color passes `ProductAccent.TryDerive` again in the renderer). Every renderer calls the one resolver by convention and review; no automated architecture rule enforces it. See SR-19. |
 
 ### 5. Authorization and headers
 
@@ -118,7 +118,7 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 
 #### Browser-facing headers per host (P12-T08)
 
-| Header or behaviour | API | Admin | Portal |
+| Header or behavior | API | Admin | Portal |
 | --- | --- | --- | --- |
 | Content-Security-Policy | `ContentSecurityPolicyHostTests`, `CspBuilderTests`, `HealthEndpointTests.Responses_carry_security_headers` (the API policy allows nothing) | `ContentSecurityPolicyHostTests`, `CspStyleTests`, `AdminRuleTests` | `ContentSecurityPolicyHostTests`, `KbImageCspTests`, `PortalRuleTests` |
 | X-Content-Type-Options nosniff | `SecurityHeadersHostTests`, `HealthEndpointTests.Responses_carry_security_headers` | `SecurityHeadersHostTests`, `PathHeaderRuleHostTests` | `SecurityHeadersHostTests`, `PathHeaderRuleHostTests` |
@@ -165,7 +165,7 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 - Path group: 3. Uploads
 - Severity: Low
 - Status: Accepted
-- Evidence: a `.txt` or `.log` file whose text is HTML passes the signature check as `text/plain`. It is neutralised by `Content-Disposition: attachment`, `nosniff` and the download sandbox header, and is never rendered inline. The corpus row `html-as-txt` pins it: `page.txt` holding `<html><script>` is stored as `text/plain` by the attachment store and refused by the KB image store.
+- Evidence: a `.txt` or `.log` file whose text is HTML passes the signature check as `text/plain`. It is neutralized by `Content-Disposition: attachment`, `nosniff` and the download sandbox header, and is never rendered inline. The corpus row `html-as-txt` pins it: `page.txt` holding `<html><script>` is stored as `text/plain` by the attachment store and refused by the KB image store.
 
 ### SR-05: Storage keys are time-ordered GUIDs
 - Path group: 3. Uploads
@@ -231,7 +231,7 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 - Path group: 6. Privacy and operations
 - Severity: Low
 - Status: Fixed
-- Evidence: forced tag delete now loads the carrying tickets with `ITicketRepository.GetByIdsAsync` in chunks of 200 (`DeleteTagRequestHandlerTests.A_forced_delete_loads_the_carrying_tickets_in_batches_not_one_by_one`, `A_missing_carrying_ticket_fails_loudly`; real Postgres `DeleteTagIntegrationTests.A_forced_delete_across_two_batches_detaches_every_ticket` with 205 tickets; `TicketBatchLoadTests` for graph parity). Notification preferences are capped at `DomainLimits.NotificationPreferencesMaxCount` (2000) with `notification-preferences-too-many`, refused before any lookup (the cap is only a pre-lookup bound: duplicates and unknown ids are already refused, so a valid list cannot exceed the catalogue; the Admin page saves the full set, one entry per active product, on every toggle, which is why the bound is generous), and products are checked with one `IProductRepository.GetExistingIdsAsync` call (`UpdateNotificationPreferencesRequestHandlerTests.More_than_the_cap_is_refused_before_any_lookup`, `Products_are_checked_with_one_repository_call`, `ProductRepositoryTests.GetExistingIdsAsync_returns_only_the_ids_that_exist_and_nothing_for_an_empty_list`). Fixed in P12-T07.
+- Evidence: forced tag delete now loads the carrying tickets with `ITicketRepository.GetByIdsAsync` in chunks of 200 (`DeleteTagRequestHandlerTests.A_forced_delete_loads_the_carrying_tickets_in_batches_not_one_by_one`, `A_missing_carrying_ticket_fails_loudly`; real Postgres `DeleteTagIntegrationTests.A_forced_delete_across_two_batches_detaches_every_ticket` with 205 tickets; `TicketBatchLoadTests` for graph parity). Notification preferences are capped at `DomainLimits.NotificationPreferencesMaxCount` (2000) with `notification-preferences-too-many`, refused before any lookup (the cap is only a pre-lookup bound: duplicates and unknown ids are already refused, so a valid list cannot exceed the catalog; the Admin page saves the full set, one entry per active product, on every toggle, which is why the bound is generous), and products are checked with one `IProductRepository.GetExistingIdsAsync` call (`UpdateNotificationPreferencesRequestHandlerTests.More_than_the_cap_is_refused_before_any_lookup`, `Products_are_checked_with_one_repository_call`, `ProductRepositoryTests.GetExistingIdsAsync_returns_only_the_ids_that_exist_and_nothing_for_an_empty_list`). Fixed in P12-T07.
 
 ### SR-16: Concurrent double revoke can write and audit twice
 - Path group: 2. API keys
@@ -252,7 +252,7 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 - Evidence: at Trace (Serilog Verbose), ASP.NET Core MVC rendered the bound request record (name, subject, body) in `Executing action method ... with arguments`. `EraseRequesterEndpointTests.Erasing_a_requester_writes_no_email_name_or_token_to_any_log_event` (Verbose, intake then erase, scanning message, properties and exception for the email, name, subject, body and token) failed on that event. `MvcArgumentsRedactionEnricher` (Hosting; Api, Admin and Portal) now replaces the `Arguments` property of MVC events with `[arguments]` at any level; proved by `MvcArgumentsRedactionEnricherTests` and the Verbose erase test. Fixed in P12-T07.
 
 ### SR-19: A saved skin can fall below contrast after a default-pack change
-- Path group: 4. Sanitiser and rendering
+- Path group: 4. Sanitizer and rendering
 - Severity: Info
 - Status: Accepted
 - Evidence: D-053. A product's token overrides are checked for contrast against the pack they would use when they are saved. A later change of the deployment default pack (`PUT api/settings/site`) can leave a saved override below a rule. The renderer never trusts a stored value: `SkinResolver` re-checks the four pairs (ink on background and surface, muted on background, focus on background) at render, reverts both members of a failing pair to the pack's values and reports it; nothing is rewritten, and an unchanged skin resent by an editor is kept rather than re-refused (`ProductSkinHandlerTests.An_unchanged_skin_resent_is_kept_even_when_a_new_default_pack_would_fail_its_contrast`). A product that sets no skin token keeps D-031's rule that its accent contrast is not validated. Residual: the page then shows the pack's values for that pair, not the owner's, until the skin is edited.
