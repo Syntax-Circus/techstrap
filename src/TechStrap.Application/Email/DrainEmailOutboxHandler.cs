@@ -6,6 +6,7 @@ using TechStrap.Application.Intake;
 using TechStrap.Application.Knowledge;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Products;
+using TechStrap.Contracts.Skins;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
 using TechStrap.Domain.Tickets;
@@ -118,7 +119,7 @@ public sealed class DrainEmailOutboxHandler(
         try
         {
             var branding = product.Branding;
-            var emailBranding = new EmailBranding(branding.DisplayName, ProductLogos.EffectiveLogoUrl(branding, logoUrls), branding.AccentColour, branding.FromAddress, branding.ReplyTo);
+            var emailBranding = new EmailBranding(branding.DisplayName, ProductLogos.EffectiveLogoUrl(branding, logoUrls), branding.AccentColour, branding.FromAddress, branding.ReplyTo, ChromeFor(product, branding.AccentColour));
             rendered = model switch
             {
                 TicketConfirmationEmail confirmation => renderer.RenderTicketConfirmation(confirmation, emailBranding),
@@ -209,4 +210,18 @@ public sealed class DrainEmailOutboxHandler(
     }
 
     private static bool Present(params string?[] values) => values.All(value => !string.IsNullOrWhiteSpace(value));
+
+    // The Worker has no site-settings client, so the deployment default pack is unknown here: resolve against Classic and
+    // use the chrome only when the product's own skin sets a chrome or a pack and the result differs from Classic's.
+    // A missing or malformed skin keeps the accent header bar.
+    private static string? ChromeFor(Product product, string accentColour)
+    {
+        if (!SkinSerializer.TryDeserialize(product.SkinJson, out var skin) || skin is null || (skin.Chrome is null && skin.Pack is null))
+        {
+            return null;
+        }
+
+        var chrome = SkinResolver.Resolve(SkinPacks.DefaultKey, skin, accentColour).Skin.Tokens.Chrome;
+        return string.Equals(chrome, SkinPacks.Classic.Tokens.Chrome, StringComparison.OrdinalIgnoreCase) ? null : chrome;
+    }
 }

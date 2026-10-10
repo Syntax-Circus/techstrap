@@ -79,6 +79,52 @@ public sealed class DrainEmailOutboxHandlerTests
         result.Value.ShouldBe(new DrainResult(1, 1, 0));
     }
 
+    private async Task<EmailBranding> DrainBrandingAsync(string? skinJson)
+    {
+        if (skinJson is not null)
+        {
+            _product.SetSkinJson(skinJson);
+        }
+
+        Claims(Item());
+        await _handler.HandleAsync("w1", CancellationToken.None);
+        return (EmailBranding)_renderer.ReceivedCalls().Single(c => c.GetMethodInfo().Name == nameof(IEmailTemplateRenderer.RenderTicketConfirmation)).GetArguments()[1]!;
+    }
+
+    [Fact]
+    public async Task A_product_skin_chrome_reaches_the_email_branding()
+    {
+        var branding = await DrainBrandingAsync("{\"chrome\":\"#0A0E17\"}");
+
+        branding.ChromeColour.ShouldBe("#0A0E17");
+    }
+
+    [Fact]
+    public async Task A_product_pack_reaches_the_email_branding_as_its_chrome()
+    {
+        var branding = await DrainBrandingAsync("{\"pack\":\"midnight\"}");
+
+        branding.ChromeColour.ShouldBe("#0A0E17");
+    }
+
+    [Fact]
+    public async Task A_product_without_a_skin_passes_no_chrome()
+    {
+        (await DrainBrandingAsync(null)).ChromeColour.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_skin_without_chrome_or_pack_passes_no_chrome()
+    {
+        (await DrainBrandingAsync("{\"radius\":\"round\"}")).ChromeColour.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_malformed_skin_json_passes_no_chrome()
+    {
+        (await DrainBrandingAsync("{not json")).ChromeColour.ShouldBeNull();
+    }
+
     [Fact]
     public async Task A_send_failure_marks_the_row_failed_with_the_sanitised_category()
     {
