@@ -65,5 +65,5 @@ internal static class ProductSkins
 
     private static string Message(SkinProblem problem) => problem.Code == SkinRules.ContrastInvalidCode
         ? $"The {problem.Target.Replace("/", " and ", StringComparison.Ordinal)} colours are too close to read together. Choose colours with more contrast."
-        : $"The skin value for {problem.Target} is not valid. Choose one of the listed options or a colour such as #1F6FEB.";
+        : $"The skin value for {problem.Target} is not valid. Choose one of the listed options or a colour such as #1D4ED8.";
 }

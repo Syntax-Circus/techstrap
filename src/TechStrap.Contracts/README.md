@@ -18,7 +18,7 @@ The package follows semantic versioning, scoped as follows. `v1.0.0` locks the S
 
 ### 0.4.0
 
-Trailing optional `Skin` parameters (type `TechStrap.Contracts.Skins.ProductSkin`, null means no skin) were added to `ProductDto`, `CreateProductRequest`, `UpdateProductRequest`, `PublicProductDto` and `PublicProductSummaryDto`; null on `UpdateProductRequest` leaves the stored skin unchanged, and an all-null `ProductSkin` clears it. This is source-compatible but changes the constructor and `Deconstruct` signatures: recompile consumers built against 0.3.0. New types: the `TechStrap.Contracts.Skins` namespace, `SiteSettingsDto`, `UpdateSiteSettingsRequest`, `PublicSiteDto`. `ProductAccent.ReadableOn` is new. `TechStrap.Client` and `TechStrap.Client.Maui` move with it.
+Trailing optional `Skin` parameters (type `TechStrap.Contracts.Skins.ProductSkin`, null means no skin) were added to `ProductDto`, `CreateProductRequest`, `UpdateProductRequest`, `PublicProductDto` and `PublicProductSummaryDto`; null on `UpdateProductRequest` leaves the stored skin unchanged, and an all-null `ProductSkin` clears it. This is source-compatible but changes the constructor and `Deconstruct` signatures: recompile consumers built against 0.3.0. New types: the `TechStrap.Contracts.Skins` namespace, `SiteSettingsDto`, `UpdateSiteSettingsRequest`, `PublicSiteDto`. `ProductAccent.ReadableOn` is new. The wire values `AdminEventTypes.SiteSettingsUpdated` and `AdminSubjectTypes.SiteSettings` are new: a consumer that switches on these values will see values it did not know. `TechStrap.Client` and `TechStrap.Client.Maui` move with it.
 
 ### 0.3.0
 

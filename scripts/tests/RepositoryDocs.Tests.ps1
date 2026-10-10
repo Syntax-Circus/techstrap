@@ -1144,7 +1144,7 @@ Describe 'PHASE-11g theme packs and skins (D-053)' {
         (Get-RepoText 'docs/architecture/UX-BRIEF-portal.md') | Should -Match 'Amended by D-053'
     }
 
-    It 'has the 11g spec with eight tasks and its roadmap and discovery rows' {
+    It 'has the 11g spec with nine tasks and its roadmap and discovery rows' {
         foreach ($n in 1..9) {
             $script:Spec | Should -Match ('- \[[ x]\] \*\*P11g-T' + $n.ToString('00') + '\*\*') -Because "P11g-T$($n.ToString('00')) exists"
         }

@@ -130,7 +130,7 @@ h6 {
   border-image: linear-gradient(var(--ts-chrome, #1b1b22), var(--ts-chrome, #1b1b22)) 1 / 0 0 4px 0 / 0 100vmax 0 100vmax;
 }
 
-// A dark pack (data-ts-scheme="dark", from the resolved pack's scheme) redefines the light-only semantic and soft surfaces of BRAND.md, which were tuned for a white page. The values are chosen so that every
+// A dark page (data-ts-scheme="dark", from the resolved page background) redefines the light-only semantic and soft surfaces of BRAND.md, which were tuned for a white page. The values are chosen so that every
 // text and ground pair below is at least 4.5:1 (PresetStyleTests checks each from the compiled CSS).
 .ts-accent-scope[data-ts-scheme="dark"] {
   --p-soft: #1a2233;

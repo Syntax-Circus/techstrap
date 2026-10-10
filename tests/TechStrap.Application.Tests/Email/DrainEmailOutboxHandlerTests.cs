@@ -108,6 +108,18 @@ public sealed class DrainEmailOutboxHandlerTests
     }
 
     [Fact]
+    public async Task A_classic_pack_passes_no_chrome()
+    {
+        (await DrainBrandingAsync("{\"pack\":\"classic\"}")).ChromeColour.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_chrome_equal_to_the_classic_chrome_passes_no_chrome()
+    {
+        (await DrainBrandingAsync("{\"chrome\":\"#1B1B22\"}")).ChromeColour.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task A_product_without_a_skin_passes_no_chrome()
     {
         (await DrainBrandingAsync(null)).ChromeColour.ShouldBeNull();
