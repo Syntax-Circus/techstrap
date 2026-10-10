@@ -134,6 +134,16 @@ public sealed partial class ResponsiveStyleTests
         Containing(Css, selector)["min-height"].ShouldBe("44px", selector);
     }
 
+    [Fact]
+    public void The_breadcrumb_row_centers_every_item_so_the_separators_and_the_current_page_line_up_with_the_44px_links()
+    {
+        var row = Containing(Css, ".ts-breadcrumbs ol");
+
+        row["display"].ShouldBe("flex");
+        row["flex-wrap"].ShouldBe("wrap");
+        row["align-items"].ShouldBe("center", "stretched items leave the non-link text and the / at the top of the 44px row");
+    }
+
     // ---- skip link ----
 
     [Fact]
