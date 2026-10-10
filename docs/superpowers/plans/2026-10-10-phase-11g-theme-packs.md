@@ -131,7 +131,7 @@ public static class SkinSerializer
 
 public static class SkinCss
 {
-    public static IReadOnlyList<KeyValuePair<string, string>> Properties(ResolvedSkin skin);   // only what differs from Classic; accent trio iff BrandIsExplicit
+    public static IReadOnlyList<KeyValuePair<string, string>> Properties(ResolvedSkin skin);   // only what differs from Classic; accent trio when BrandIsExplicit or the brand differs from Classic's (As built)
     public static IReadOnlyList<KeyValuePair<string, string>> Attributes(ResolvedSkin skin);   // data-ts-shadow, data-ts-button, data-ts-header iff not the Classic value
 }
 
@@ -158,7 +158,7 @@ Resolver algorithm (exact):
 4. Contrast pairs on the candidate tokens: `ink/background >= 4.5`, `ink/surface >= 4.5`, `muted/background >= 4.5`, `focus/background >= 3.0` (via `ProductAccent.ContrastRatio`). For each failing pair, revert to the pack value every member of the pair that was overridden, add `("skin-contrast-invalid", "<a>/<b>")`, then re-evaluate once. (A pack itself never fails; a test proves it.)
 5. Derive: `OnBrand = ProductAccent.TryDerive(brand).OnAccent`, `BrandInk = ProductAccent.ReadableOn(brand, background)`, `OnChrome = ProductAccent.TryDerive(chrome).OnAccent`.
 
-`SkinCss.Properties` order and names: when `BrandIsExplicit`: `--ts-accent` (brand), `--ts-on-accent`, `--ts-accent-ink` first, in that order (exactly today's trio). Then, each only when it differs from Classic's token: `--p-bg` (background), `--ts-surface`, `--p-ink`, `--p-ink2` (muted), `--p-line` (border), `--ts-chrome`, `--ts-on-chrome` (when chrome differs), `--ts-focus`, `--ts-radius` (`SkinValues.RadiusRem`), `--ts-border-w` (`{n}px`), `--ts-font-heading` and `--ts-font-body` (`SkinFonts.Stack`). `Attributes`: `data-ts-shadow`, `data-ts-button`, `data-ts-header` when not `none`/`flat`/`plain`.
+`SkinCss.Properties` order and names: when `BrandIsExplicit` or the resolved brand differs from Classic's brand (a pack brand such as Midnight's; amended in Task 6, otherwise a dark pack shows Classic blue links at about 2:1): `--ts-accent` (brand), `--ts-on-accent`, `--ts-accent-ink` first, in that order (exactly today's trio). Then, each only when it differs from Classic's token: `--p-bg` (background), `--ts-surface`, `--p-ink`, `--p-ink2` (muted), `--p-line` (border), `--ts-chrome`, `--ts-on-chrome` (when chrome differs), `--ts-focus`, `--ts-radius` (`SkinValues.RadiusRem`), `--ts-border-w` (`{n}px`), `--ts-font-heading` and `--ts-font-body` (`SkinFonts.Stack`). `Attributes`: `data-ts-shadow`, `data-ts-button`, `data-ts-header` when not `none`/`flat`/`plain`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -292,7 +292,7 @@ public sealed class ProductAccentReadableOnTests
 }
 ```
 
-`SkinRulesTests.cs`: theory over `SkinRules.Validate`: valid full skin -> empty; `Background: "#abc"` -> `("skin-invalid","background")`; `BorderWidth: 0` and `5` invalid, `1` and `4` valid; `Pack: "nope"` invalid; font unknown invalid; `Header: "BAND"` invalid (case-sensitive). `SkinSerializerTests.cs`: round-trip of a full skin and of `new ProductSkin(Brand: "#112233")` (`{"brand":"#112233"}` exactly); empty skin serialises to `null`; `{"background":"#FFFFFF","extra":1}` -> `TryDeserialize` false; `"not json"` false; a 2001-character string false; `null` and `""` -> true with null skin. `SkinCssTests.cs`: `Classic_with_an_accent_emits_exactly_the_three_accent_properties` (resolve `("classic", null, "#F59E0B")`, `Properties` equals the three pairs `--ts-accent:#F59E0B`, `--ts-on-accent:#000000`, `--ts-accent-ink:#9D6507`, in order; `Attributes` empty); `Classic_with_nothing_emits_nothing`; `Midnight_emits_its_variables_and_presets` (contains `--p-bg:#0F1420`, `--ts-chrome:#0A0E17`, `--ts-focus:#FFD166`, attribute `data-ts-shadow=soft`, `data-ts-header=solid`, and no `--ts-accent` because the brand is not explicit); `A_font_and_radius_override_emit_their_variables` (`--ts-radius:0` for square, `--ts-font-heading` equals `SkinFonts.Stack("source-serif")`).
+`SkinRulesTests.cs`: theory over `SkinRules.Validate`: valid full skin -> empty; `Background: "#abc"` -> `("skin-invalid","background")`; `BorderWidth: 0` and `5` invalid, `1` and `4` valid; `Pack: "nope"` invalid; font unknown invalid; `Header: "BAND"` invalid (case-sensitive). `SkinSerializerTests.cs`: round-trip of a full skin and of `new ProductSkin(Brand: "#112233")` (`{"brand":"#112233"}` exactly); empty skin serialises to `null`; `{"background":"#FFFFFF","extra":1}` -> `TryDeserialize` false; `"not json"` false; a 2001-character string false; `null` and `""` -> true with null skin. `SkinCssTests.cs`: `Classic_with_an_accent_emits_exactly_the_three_accent_properties` (resolve `("classic", null, "#F59E0B")`, `Properties` equals the three pairs `--ts-accent:#F59E0B`, `--ts-on-accent:#000000`, `--ts-accent-ink:#9D6507`, in order; `Attributes` empty); `Classic_with_nothing_emits_nothing`; `Midnight_emits_its_variables_and_presets` (contains `--p-bg:#0F1420`, `--ts-chrome:#0A0E17`, `--ts-focus:#FFD166`, attribute `data-ts-shadow=soft`, `data-ts-header=solid`, and the pack trio `--ts-accent:#6EA8FF`, `--ts-on-accent:#000000`, `--ts-accent-ink:#6EA8FF`, because Midnight's brand differs from Classic's); `A_font_and_radius_override_emit_their_variables` (`--ts-radius:0` for square, `--ts-font-heading` equals `SkinFonts.Stack("source-serif")`).
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -905,7 +905,7 @@ On the Task 5 head, add a throwaway test that renders `/p/paperplane` with the s
             html.ShouldContain("data-ts-header=\"solid\"");
         }
         product.ShouldContain("--ts-accent:#F59E0B");   // the product's accent still wins
-        root.ShouldNotContain("--ts-accent:");           // neutral page: no product, no explicit brand
+        root.ShouldContain("--ts-accent:#6EA8FF");       // neutral page: no product accent, so the pack's own brand (it differs from Classic's)
     }
 
     [Fact]
@@ -1401,3 +1401,22 @@ git commit -m "docs(11g): self-hosting, portal app, brand, security review and p
 - **Spec coverage:** token grammar, resolver, contrast, packs, fonts -> Task 2 (+ fonts in Task 6); storage -> Tasks 3, 4; Api and DTOs -> Task 5; Portal rendering, neutral default, landing scopes, presets -> Task 6; emails -> Task 7; amended documents, pins, security row -> Tasks 1, 9; Success Criteria map to Task 6 tests (default pack switches root/product/ticket pages via the shared layout; override isolation; golden; hostile values; CSP/style/font suites).
 - **Type consistency:** `ProductSkin` (Contracts, Tasks 2, 5, 6, 7), `Product.SkinJson` (Domain, Tasks 3, 4, 5, 7), `ResolvedSkin` and `SkinCss` (Tasks 2, 6), `ISiteSettingsRepository.GetAsync/Update` (Tasks 4, 5), `PublicSiteDto(string DefaultPack)` (Tasks 5, 6), `EmailBranding.ChromeColour` (Task 7), `DefaultPackProvider.GetAsync` (Task 6).
 - **Known places an implementer must check against the real code:** repository registration site and tracking idiom (Task 4); how `AdminEventType` wire names are pinned (Task 5); `ProductPageBase`/`ProductScope` change notification and where the layout reads `Theme` (Task 6); exact existing selector names for the preset SCSS (Task 6); jsdelivr font package versions (Task 6); the renderer test file location (Task 7). None changes the design.
+
+## As built
+
+Commits on `feat/phase-11g-skin-engine`: Task 1 `bf02e2a`; plan `b110eed`, `b0a0118`, `041e2ce`; Task 2 `599198d`, `2a988d4`; Task 3 `5a026f3`; Task 4 `27d66e0`; Task 5 `0855d85`, `79680f0`; Task 6 `fed2afe`, `3dfefbf`, `805a3e7`, `33b2ce5`, `0caf49d`, `3bae3e8`; Task 7 `b934432`; Task 8 `9e65207`, `bbaaf61`; Task 9 is the docs commit that carries this section. The spec's "As built" section lists what differs from the design per task.
+
+Rulings that changed text of this plan after it was written:
+
+- The accent trio (`--ts-accent`, `--ts-on-accent`, `--ts-accent-ink`) is emitted when the brand is explicit or differs from Classic's brand (a pack brand such as Midnight's is emitted, otherwise a dark pack shows Classic-blue links at about 2:1). The lines that said "only when BrandIsExplicit" (Task 2 interface comment and the `SkinCss` order text, the Midnight test text and the Task 6 root assertion) are amended in place.
+- The spec's T03 row ("Domain tests for the grammar") and Portal row ("pack SCSS and Contracts parity") are amended: the Domain stores opaque JSON, and there is no SCSS mirror of pack data (packs are resolved on the server).
+- `data-ts-scheme="dark"` follows the resolved background, not the pack; `color-scheme: dark` is not used.
+
+Verification at the Task 9 commit (HEAD `bbaaf61` plus the docs):
+
+- `pwsh -NoProfile -File scripts/Invoke-ScriptTests.ps1`: the two new pins failed first (516 passed, 2 failed), then passed with the docs.
+- `dotnet build TechStrap.slnx -c Release`: 0 Warning(s), 0 Error(s).
+- `dotnet test --solution TechStrap.CI.slnf -c Release --no-build` (Docker available): 8486 tests, 8484 passed, 2 failed in `TechStrap.Portal.Tests` on the full parallel run (`DefaultPackProviderTests.A_hung_cold_read_costs_the_first_caller_two_seconds_at_most_and_the_next_none` and `PortalLayoutTests.Disposing_the_layout_stops_it_listening_to_the_scope`, both timing-sensitive); the Portal project alone, run twice, passed 2069 of 2069. Treated as load-sensitive flakiness, not fixed here (no product or test code changes in Task 9).
+- `dotnet ef migrations has-pending-model-changes`: "No changes have been made to the model since the last migration."
+- Compose check: `docker compose up -d --build --wait` hit a port clash on 8025 (another stack holds Mailpit's port), so `TECHSTRAP_MAILPIT_PORT=18025 docker compose up -d --wait` was used; all six services healthy. `curl -s http://127.0.0.1:8080/api/public/site` returned `{"defaultPack":"classic"}`. For each pack the row was updated with `docker compose exec postgres psql -U techstrap -d techstrap -c "update site_settings set default_pack = '<pack>'"`, then 63 s, one warm-up request and a read of `http://127.0.0.1:8082/`: slate `--p-bg:#F8FAFC` with `data-ts-header="solid"`; paper `--p-bg:#FBF7EF` with `data-ts-header="band"`; contrast `data-ts-header="solid"` and no `--p-bg` (its white page equals Classic's, so nothing is emitted); midnight `--p-bg:#0F1420`, `data-ts-header="solid"` and `data-ts-scheme="dark"`; classic back with no pack variables or presets. The pack is stale-while-revalidate, so the first request after the 60 s expiry still shows the previous pack; a warm-up request is needed (the brief's single 65 s wait showed the previous pack one step behind). The pack was set back to `classic`; `down -v` was never run.
+- Not driven by hand: the Admin editor (PHASE-11h), and a visual check of landing cards, ticket pages, help-centre pages and mobile width for every pack.

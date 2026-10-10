@@ -26,7 +26,7 @@ Delivery is two pull requests. **11g (this phase)**: the token model, the five p
 - **Packs are data.** Each pack is a full vetted token set with a declared scheme (light or dark), held in Contracts (`SkinPacks`) and resolved on the server into custom properties; SCSS holds only preset rules. **Midnight** is a dark pack: it sets its own variables and never follows the OS (`prefers-color-scheme` stays absent from the CSS).
 - **Storage.** `Product.Skin` (owned value, validated by the Contracts grammar in Application; Domain guards only the JSON length, one `skin` text column holding versioned size-capped JSON; unknown keys rejected). New singleton `SiteSettings` (`DefaultPack`), table `site_settings` with one row seeded to `classic` by the migration.
 - **Api.** `GET api/settings/site` and `PUT api/settings/site` (Admin), `GET api/public/site` (anonymous, `public` limit, `Cache-Control: public, max-age=300`, returns only the default pack key). `PublicProductDto`, `ProductDto`, `CreateProductRequest` and `UpdateProductRequest` gain `Skin` as trailing optionals (null means unchanged on update, as `PortalHost`). Audit `changed: ["skin"]`; admin event `SiteSettingsUpdated`. Contracts 0.4.0 with a `### 0.4.0` note; no shims.
-- **Portal rendering.** A `TimeProvider` snapshot client for the site setting (60 s, stale-while-revalidate; last good value, else Classic). `PortalThemeViewModel` replaces the accent-only theme. `AccentScope` stays the only `style=` carrier and additionally writes the validated resolved variables; presets travel as `data-ts-pack`, `data-ts-button`, `data-ts-header`, `data-ts-shadow` attributes (attribute selectors satisfy `ResponsiveStyleTests`). Neutral pages (root, 404, error) use the deployment default pack only, never a product, so their body is identical for every address (D-045). Landing cards each get their own scope. Existing selectors read the new variables with today's values as fallbacks, so an unthemed page is pixel-identical.
+- **Portal rendering.** A `TimeProvider` snapshot client for the site setting (60 s, stale-while-revalidate; last good value, else Classic). `PortalThemeViewModel` replaces the accent-only theme. `AccentScope` stays the only `style=` carrier and additionally writes the validated resolved variables; presets travel as `data-ts-shadow`, `data-ts-button`, `data-ts-header` and `data-ts-scheme` attributes (no `data-ts-pack`: packs are resolved on the server) (attribute selectors satisfy `ResponsiveStyleTests`). Neutral pages (root, 404, error) use the deployment default pack only, never a product, so their body is identical for every address (D-045). Landing cards each get their own scope. Existing selectors read the new variables with today's values as fallbacks, so an unthemed page is pixel-identical.
 - **Fonts.** OFL families added through libman and `_fonts.scss` (Nunito, Atkinson Hyperlegible, Source Serif 4, Pixelify Sans, beside IBM Plex Sans); `FontHostingTests` gains rows; no font binary is tracked; no CDN.
 - **Amended text (owner-approved with the plan).** BRAND.md "Portal tokens (light only in v1)", the "Use the mascot's palette as a portal theme" line (the prohibition on TechStrap colours and the mascot stays), and the "Product-accent override rule" (section 22: an accent sets only three variables); UX-BRIEF-portal "light-only in v1" and "do not generate per-product stylesheets"; the 2026-10-02 owner decision that the Portal is light only in v1. Each is amended by an "Amended by D-053" line, not rewritten.
 - **Still forbidden.** TechStrap colours, mascot or name on a customer page beyond the footer; raw CSS; background images (deferred); a theme that follows the visitor's OS.
@@ -61,68 +61,92 @@ No package is added or upgraded. `SyntaxCircus.Common` carries the new error cod
 
 ## Deliverables
 
-- [ ] Contracts 0.4.0: token model, `SkinPacks`, `SkinFonts`, `SkinResolver`, contrast derivation, rules, README notes.
-- [ ] Domain `ProductSkin` and `SiteSettings`; persistence and migration `AddSkinAndSiteSettings`.
-- [ ] Application and Api: skin on product DTOs and handlers; three site routes; D-022 list; entry-point catalog.
-- [ ] Portal: settings client, theme view model, `AccentScope` extension, packs and presets SCSS, fonts, landing-card scopes.
-- [ ] Emails: chrome colour.
-- [ ] D-053; BRAND.md, UX-BRIEF, SELF-HOSTING, PORTAL-APP, security review; Pester pins.
+- [x] Contracts 0.4.0: token model, `SkinPacks`, `SkinFonts`, `SkinResolver`, contrast derivation, rules, README notes.
+- [x] Domain `ProductSkin` and `SiteSettings`; persistence and migration `AddSkinAndSiteSettings`.
+- [x] Application and Api: skin on product DTOs and handlers; three site routes; D-022 list; entry-point catalog.
+- [x] Portal: settings client, theme view model, `AccentScope` extension, packs and presets SCSS, fonts, landing-card scopes.
+- [x] Emails: chrome colour.
+- [x] D-053; BRAND.md, UX-BRIEF, SELF-HOSTING, PORTAL-APP, security review; Pester pins.
 
 ## Actionable Tasks
 
-- [ ] **P11g-T01** Spec, D-053, "Amended by D-053" lines, roadmap and discovery rows, pins
+- [x] **P11g-T01** Spec, D-053, "Amended by D-053" lines, roadmap and discovery rows, pins
   - **Depends on:** plan approval 2026-10-10
   - **Validation:** `scripts/Invoke-ScriptTests.ps1` green with the new pins.
-- [ ] **P11g-T02** Contracts: skin record, `SkinPacks` (five), `SkinFonts`, `SkinResolver`, contrast derivation, `BrandingRules` skin rules, 0.4.0 note
+- [x] **P11g-T02** Contracts: skin record, `SkinPacks` (five), `SkinFonts`, `SkinResolver`, contrast derivation, `BrandingRules` skin rules, 0.4.0 note
   - **Depends on:** P11g-T01
   - **Validation:** precedence table test; every pack passes the contrast rules; a hostile token set fails naming the right pair; `ProductAccent` results unchanged; the dragon-poop fixture resolves with the documented used and unused tokens.
-- [ ] **P11g-T03** Domain: `ProductSkin` value and validation, `SiteSettings` aggregate
+- [x] **P11g-T03** Domain: skin JSON on `Product` (opaque, length guard only) and the `SiteSettings` aggregate
   - **Depends on:** P11g-T02
-  - **Validation:** Domain tests for the grammar, unknown keys, size cap; parity with `BrandingRules`.
-- [ ] **P11g-T04** Persistence: `skin` column, `site_settings` table and seed, migration via the `ef-migrate` skill, schema docs
+  - **Validation:** Domain tests for the 2000-character cap and the `SiteSettings` rules; the grammar (keys, hex, enums, unknown members) is tested in Contracts and Application, and a parity test pins that the Domain cap equals `SkinRules.MaxJsonLength`.
+- [x] **P11g-T04** Persistence: `skin` column, `site_settings` table and seed, migration via the `ef-migrate` skill, schema docs
   - **Depends on:** P11g-T03
   - **Validation:** round trip; the seed row reads `classic`; no pending model changes.
-- [ ] **P11g-T05** Application and Api: product skin on DTOs and handlers, site-settings handlers and routes, D-022 list, entry-point catalog
+- [x] **P11g-T05** Application and Api: product skin on DTOs and handlers, site-settings handlers and routes, D-022 list, entry-point catalog
   - **Depends on:** P11g-T04
   - **Validation:** null means unchanged; contrast failure is 400; agent is 403 on the admin routes; public site read is anonymous with the cache header; OpenAPI surface includes the routes.
-- [ ] **P11g-T06** Portal: client, view model, `AccentScope` extension, packs and presets SCSS, fonts, landing scopes, neutral default pack
+- [x] **P11g-T06** Portal: client, view model, `AccentScope` extension, packs and presets SCSS, fonts, landing scopes, neutral default pack
   - **Depends on:** P11g-T05
-  - **Validation:** unthemed product page byte-compares to the previous output; each pack renders its variables and attributes; hostile values never reach `style=`; neutral pages identical across hosts; no `<style>`, no new `[style]` class, no new `url(`; pack SCSS and Contracts parity; font pins.
-- [ ] **P11g-T07** Emails: chrome colour in the header bar
+  - **Validation:** unthemed product page byte-compares to the previous output; each pack renders its variables and attributes; hostile values never reach `style=`; neutral pages identical across hosts; no `<style>`, no new `[style]` class, no new `url(`; the compiled preset rules and the dark block's contrast pairs (`PresetStyleTests`); font pins. There is no SCSS mirror of pack data: packs are resolved on the server.
+- [x] **P11g-T07** Emails: chrome colour in the header bar
   - **Depends on:** P11g-T05
   - **Validation:** renderer tests with and without a chrome colour; fixed font stack unchanged.
-- [ ] **P11g-T08** Admin: an interim "Skin (JSON)" field on the product editor (validated through the Contracts grammar) and the dragon-poop sample skin in `docs/skins/dragon-poop.skin.json`, so a skin can be set and tested before the PHASE-11h editor
+- [x] **P11g-T08** Admin: an interim "Skin (JSON)" field on the product editor (validated through the Contracts grammar) and the dragon-poop sample skin in `docs/skins/dragon-poop.skin.json`, so a skin can be set and tested before the PHASE-11h editor
   - **Depends on:** P11g-T05
   - **Validation:** bUnit: the field round-trips the stored skin as JSON; blank on an unskinned product sends nothing, blanked on a skinned product clears it; invalid JSON and Api token errors show at the field; the dragon-poop sample resolves without problems and its limits are listed.
-- [ ] **P11g-T09** Docs and close-out: SELF-HOSTING, PORTAL-APP, BRAND, UX-BRIEF, security review, roadmap, Pester pins, As built
+- [x] **P11g-T09** Docs and close-out: SELF-HOSTING, PORTAL-APP, BRAND, UX-BRIEF, security review, roadmap, Pester pins, As built
   - **Depends on:** P11g-T01 to P11g-T08
   - **Validation:** build, full test run, Pester, migration check green; compose check of the five packs.
 
 ## Success Criteria
 
-- [ ] An Admin-chosen default pack changes the root, product pages and ticket pages; a product override changes only that product.
-- [ ] A product with no skin looks as it did before.
-- [ ] No token value reaches the page unvalidated; contrast rules hold for every pack and every saved skin.
-- [ ] CSP, style, font, responsive and neutral-body tests are green; the CSP is unchanged.
-- [ ] D-053 recorded; the amended documents carry "Amended by D-053" lines.
+- [x] An Admin-chosen default pack changes the root, product pages and ticket pages; a product override changes only that product.
+- [x] A product with no skin looks as it did before.
+- [x] No token value reaches the page unvalidated; contrast rules hold for every pack and every saved skin.
+- [x] CSP, style, font, responsive and neutral-body tests are green; the CSP is unchanged.
+- [x] D-053 recorded; the amended documents carry "Amended by D-053" lines.
 
 ## Boundary Validation
 
-- [ ] Entry points delegate to the named handlers; one `[FromServices]` handler per action.
-- [ ] Handler dependencies are approved abstractions; `SkinResolver` is a pure Contracts function.
-- [ ] Persistence records do not cross boundaries; the Portal sees `PublicProductDto` and `PublicSiteDto`.
-- [ ] Cancellation reaches asynchronous dependencies.
-- [ ] Every renderer of a skin value goes through `SkinResolver` (architecture rule).
-- [ ] Docs ASCII; new files LF; non-ASCII in C# only as `\u` escapes.
+- [x] Entry points delegate to the named handlers; one `[FromServices]` handler per action.
+- [x] Handler dependencies are approved abstractions; `SkinResolver` is a pure Contracts function.
+- [x] Persistence records do not cross boundaries; the Portal sees `PublicProductDto` and `PublicSiteDto`.
+- [x] Cancellation reaches asynchronous dependencies.
+- [x] Every renderer of a skin value goes through `SkinResolver` (the Portal, the Api handlers and the email handler; held by convention and review, there is no automated architecture rule).
+- [x] Docs ASCII; new files LF; non-ASCII in C# only as `\u` escapes.
 
 ## Risks and Open Questions
 
-- [ ] **Reversals.** Light-only and "an accent may set only three variables" are amended; recorded in D-053.
-- [ ] **Contrast generalisation** is new logic in one resolver; every consumer must use it.
-- [ ] **Pixel-identical default.** Moving neutrals to variables risks regressions; fallbacks equal today's values and a golden test guards it.
-- [ ] **Tokens will not match everything.** The 11h dragon-poop build records the follow-ups (background image, copy overrides, more presets).
-- [ ] **Font weight and licences.** Only used faces download; every family is OFL and restored from libman, never tracked.
-- [ ] **Contracts 0.4.0** is another binary break (trailing optionals), named in the notes, no shims.
+- [x] **Reversals.** Light-only and "an accent may set only three variables" are amended; recorded in D-053.
+- [x] **Contrast generalisation** is new logic in one resolver; every consumer must use it.
+- [x] **Pixel-identical default.** Moving neutrals to variables risks regressions; fallbacks equal today's values and a golden test guards it.
+- [x] **Tokens will not match everything.** The 11h dragon-poop build records the follow-ups (background image, copy overrides, more presets).
+- [x] **Font weight and licences.** Only used faces download; every family is OFL and restored from libman, never tracked.
+- [x] **Contracts 0.4.0** is another binary break (trailing optionals), named in the notes, no shims.
+
+## As built
+
+Where the build differs from the text above (the plan's task reports and review rounds are the source; the code is the authority).
+
+- **P11g-T01** Spec, D-053, "Amended by D-053" lines, roadmap and discovery rows and pins, as planned.
+- **P11g-T02** Contracts. `ProductSkin.IsEmpty` is `[JsonIgnore]` so the serializer never writes it. The four contrast pairs (ink/background, ink/surface, muted/background, focus/background) are evaluated in one pass; every overridden member of a failing pair reverts together and each failing pair is reported once; if a pair still fails after that, the whole colour group reverts as a last resort. A skin that puts a light page on a dark pack therefore also needs `muted` and `focus`, because both members of a failing pair revert. A malformed product accent is ignored without a problem. `ProductAccent.ReadableOn` is the dark-background case of the derivation.
+- **P11g-T03** Domain stores the skin as opaque JSON (`Product.SkinJson`, at most 2000 characters, guarded by `DomainLimits.SkinJsonMaxLength`, parity with `SkinRules.MaxJsonLength` pinned in Application tests) and holds a `SiteSettings` aggregate; the grammar is not in the Domain. The Domain row's "Domain tests for the grammar" and the Portal row's "pack SCSS and Contracts parity" in the plan text were amended to this.
+- **P11g-T04** Migration `AddSkinAndSiteSettings` (tool-generated): `products.skin varchar(2000)` null, `site_settings` (smallint id, `default_pack`, `xmin`) seeded `classic`.
+- **P11g-T05** `AdminSubjectType.SiteSettings` with a fixed subject id exists because the audit needs a subject. A request is validated against the pack it would use now, but an unchanged skin resent by an editor is kept without a new contrast check (a default-pack change cannot lock an editor out of saving). The Api reads an unknown member inside `skin` as 400; a plain reader (older client) ignores it, so version skew does not break reads. `skin-too-long` exists in `ProductErrors` but no valid input reaches it.
+- **P11g-T06** Portal. The accent trio is emitted when the brand is explicit (a product accent or skin brand) or differs from Classic's brand, so a dark pack's own brand is emitted (the earlier text "only when `BrandIsExplicit`" was amended). `data-ts-scheme="dark"` is emitted from the resolved page background (its contrast against white is greater than against black), not from the pack; the dark block of `_presets.scss` redefines the soft and semantic surfaces and the select arrow. `color-scheme: dark` is not used (`StyleBuildTests` forbids it), so native scrollbars and widgets stay light on Midnight. Solid header presets use the on-chrome colour for the focus ring and the accent so the ring is visible on the fill; forced-colours and print drop the header's `border-image`. `DefaultPackProvider`: the very first read waits at most about 2 s, then answers Classic (a stale placeholder) and refreshes in the background; a real read always wins; a failed read is retried at most every 10 s. Presets travel as `data-ts-shadow`, `data-ts-button`, `data-ts-header`, `data-ts-scheme` (no `data-ts-pack`). Font packages are pinned at 5.3.0 and the Dockerfile counts 15 woff2 and 6 licences.
+- **P11g-T07** The Worker cannot know the deployment default pack, so emails resolve with Classic as the default pack and use the product's chrome only when its skin sets Chrome or Pack and the result differs from Classic; the header text uses the derived on-colour.
+- **P11g-T08** The Admin field is an interim "Skin (JSON)" textarea in a details element "Appearance (advanced)". Untouched sends `null` (leaves the stored skin), blank on a product that has a skin sends `{}` (clears it), an unchanged stored skin skips the local check; the 11h editor replaces it. The sample is `docs/skins/dragon-poop.skin.json` (15 members) with its known gaps in `docs/skins/README.md`.
+- **P11g-T09** Docs and pins. The security-review row names the real test `Hostile_skin_values_never_reach_the_page` (Portal `SkinRenderingHostTests`); the next free finding is SR-19 (a saved override can fall below contrast after a default-pack change; accepted, the renderer drops it).
+
+### Known limits and deferred minors (as built)
+
+- A hand-deleted `site_settings` row makes `PUT api/settings/site` throw: there is no upsert (a read returns the default).
+- A skin resent unchanged is not re-checked against a new default pack, so it can render with a pack value for a failing pair (SR-19).
+- The last-resort group revert drops passing overrides without reporting them.
+- Output-cached help-centre pages keep the old look for their own 60 s, and a default-pack change shows within about a minute.
+- Landing cards, ticket and help-centre pages and the mobile width of each pack were covered by host and compiled-CSS tests, not by a hand visual check.
+- `DragonPoopSkinTests` holds a copy of the sample JSON; a Pester pin checks the sample's member names only, so the two can drift.
+- Test gaps recorded by the reviews: no handler test for the `ChromeFor` branch where the pack is Classic or the chrome equals Classic's; `Product.Create` leaving the skin null and `SiteSettings` refusal paths are not pinned.
 
 ## Handoff
 

@@ -30,7 +30,7 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 | 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | Alongside 06 to 10 | D-005, D-020, D-047, D-048, D-049 | 11a merged (PR #20); 11b merged (PR #21); 11c merged (PR #22); v0.1.0 published 2026-10-08 (PHASE-11 complete); T05 (attachments) deferred to 11d, which first needs multipart intake |
 | 11e | [Product hosts](PHASE-11e-product-hosts.md) | 09, 05, 04, 07 | 12 | After 11 | D-050 | 11e merged (PR #25): T01 to T07 |
 | 11f | [Landing page and product logos](PHASE-11f-landing-and-logos.md) | 09, 11e, 08, 04, 07 | 12c | After 12b, before 12c | D-052 | D-052 recorded; 11f complete (pending merge): T01 to T10 |
-| 11g | [Theme packs and skins](PHASE-11g-theme-packs.md) | 09, 11e, 11f, 04, 07 | 11h, 12c | After 11f | D-053 | D-053 recorded; 11g in progress (engine and packs; Contracts 0.4.0); 11h is the Admin editor |
+| 11g | [Theme packs and skins](PHASE-11g-theme-packs.md) | 09, 11e, 11f, 04, 07 | 11h, 12c | After 11f | D-053 | D-053 recorded; 11g complete (pending merge): T01 to T09 (engine, packs, Contracts 0.4.0, interim Admin skin field); 11h is the Admin editor |
 | 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 (v0.3.0 per D-051; 1.0.0 is a later API-lock decision) | Last; security, load, restore and UAT tasks can overlap once their inputs exist | D-003, D-022, D-051 | D-051 recorded; 12a merged (PR #28); 12b merged (PR #29); v0.2.1 (PR #30 Admin token refresh, PR #31 amd64-only images and CI without Docker Hub); 12c waits for 11f |
 
 Edges: 01 to 02 and 03; 03 to 04 to 05 to 06; 05 to 11; 02 and 06 to 07; 06 and 07 to 08; 02, 06 and 08 to 09; 07 to 10; all to 12.

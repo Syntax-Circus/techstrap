@@ -366,6 +366,33 @@ This code **never changes meaning and is never reused** for decoration, status, 
 | `--p-warn-bg` | Ground of a notice | `#FFF3E0` | none |
 | `--accent`, `--on-accent`, `--accent-ink` | Product-supplied; see section 22 | per product | `$primary`, button text, `$link-color` |
 
+**Amended by D-053 (2026-10-10):** the table above is the **Classic** pack, today's look and the baseline every other pack and every skin is diffed against; the Portal is no longer light only. The pack and the product skin set the extra variables and presets below. A variable is emitted only when its resolved value differs from Classic's, so an unskinned page is unchanged.
+
+### Portal theme packs (D-053)
+
+| Pack | Scheme | Background | Surface | Ink | Muted | Border | Brand | Chrome | Focus | Fonts (heading / body) | Radius | Border | Shadow | Button | Header |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Classic | light | `#FFFFFF` | `#FFFFFF` | `#1B1B22` | `#4A4A57` | `#D4D4DC` | `#1D4FA8` | `#1B1B22` | `#1B1B22` | Plex Sans / Plex Sans | soft | 1px | none | flat | plain |
+| Slate | light | `#F8FAFC` | `#FFFFFF` | `#0F172A` | `#475569` | `#CBD5E1` | `#334155` | `#0F172A` | `#0F172A` | Plex Sans / Plex Sans | soft | 1px | soft | flat | solid |
+| Paper | light | `#FBF7EF` | `#FFFDF8` | `#2B2118` | `#5C4F42` | `#DDD0BC` | `#8A3B12` | `#3B2A1E` | `#2B2118` | Source Serif 4 / Nunito | soft | 1px | none | flat | band |
+| Contrast | light | `#FFFFFF` | `#FFFFFF` | `#000000` | `#333333` | `#000000` | `#0033A0` | `#000000` | `#000000` | Atkinson Hyperlegible / Atkinson Hyperlegible | square | 3px | none | outline | solid |
+| Midnight | dark | `#0F1420` | `#181F2E` | `#F1F5F9` | `#A9B4C6` | `#2B364A` | `#6EA8FF` | `#0A0E17` | `#FFD166` | Plex Sans / Plex Sans | soft | 1px | soft | flat | solid |
+
+Every pack passes the skin contrast rules (ink on background and on surface 4.5:1 or better, muted on background 4.5:1, focus on background 3:1; `Border` is decorative and has no rule). A product's accent always wins over a pack's brand.
+
+| Variable | Role | Set by |
+| --- | --- | --- |
+| `--ts-accent`, `--ts-on-accent`, `--ts-accent-ink` | Brand, derived text on the brand, derived brand text on the page | the product accent or skin brand, or a pack brand that differs from Classic's |
+| `--p-bg`, `--p-ink`, `--p-ink2`, `--p-line` | Page, text, secondary text, decorative lines | pack or skin `background`, `ink`, `muted`, `border` |
+| `--ts-surface` | Fill of cards and fields | `surface` |
+| `--ts-chrome`, `--ts-on-chrome` | Header fill and its derived text | `chrome` |
+| `--ts-focus` | Focus ring colour | `focus` |
+| `--ts-radius`, `--ts-border-w` | Corner radius (`square` 0, `soft` .25rem, `round` .75rem) and border width (1 to 4px) | `radius`, `borderWidth` |
+| `--ts-font-heading`, `--ts-font-body` | Font stacks from the closed list `plex-sans`, `nunito`, `atkinson`, `source-serif`, `pixelify` | `headingFont`, `bodyFont` |
+| `data-ts-shadow`, `data-ts-button`, `data-ts-header`, `data-ts-scheme` | Presets on the scope: `soft` or `hard`; `bevel` or `outline`; `solid` or `band`; `dark` | `shadow`, `button`, `header`, and the resolved background |
+
+In a dark scheme the soft and semantic surfaces are redefined: `--p-soft` `#1A2233`, error `#FF8A8F` on `#3A1519`, warning `#FFB454` on `#33230A`, success `#5FD08A` on `#10291A`. No pack follows the visitor's operating system setting.
+
 # 13. Geometry
 
 - **Square corners** in Admin: `border-radius: 0` on sheets, inputs, `kbd` and buttons. The only exceptions are the irregular stamp corners (`3px 6px 3px 5px / 5px 3px 6px 3px`), the note label, and the round presence dot and LED. The portal uses small radii (4 to 6px) as a neutral product UI.

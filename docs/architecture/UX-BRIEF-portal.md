@@ -537,7 +537,7 @@ Target: **WCAG 2.2 AA** (the audience is the general public).
   - **Accent-derivation rule (hard requirement).** Input: one admin-chosen
     `#RRGGBB` accent (re-validated before use). The portal is **light-only in
     v1**, so contrast is always measured against a white (`#FFFFFF`) page and
-    surface. `BrandingThemeFactory` derives, automatically and verifiably, from
+    surface. **Amended by D-053 (2026-10-10):** the page and surface are the resolved skin's background and surface (white on Classic), and `SkinResolver` derives the accent trio against them, so a dark pack keeps readable links. `BrandingThemeFactory` derives, automatically and verifiably, from
     that single input:
     1. **`--ts-accent`**: the accent as entered. Used only for fills that
        carry their own label or are decorative: primary button background,
@@ -596,7 +596,7 @@ Target: **WCAG 2.2 AA** (the audience is the general public).
 - **Reduced-motion or other preferences:** honour `prefers-reduced-motion`
   (no animated suggestion entry or scroll effects), forced-colors mode, and
   user font-size settings. The portal is light-only in v1 and does not switch on
-  `prefers-color-scheme`. No autoplay media, no carousels.
+  `prefers-color-scheme`. No autoplay media, no carousels. **Amended by D-053 (2026-10-10):** the Midnight pack is dark, but it is chosen by the deployment or the product, never by the visitor's setting; forced-colors mode drops the header fill and its border image.
 
 ### SEO (public KB and product pages)
 
@@ -731,7 +731,7 @@ How it applies to the Portal:
       the maximum file count, which is an attachment-rule constant (the 10 MB
       and 25 MB limits stand).
   12. Dark theme for the portal. **Answered:** light-only in v1 (owner decision
-      2026-10-02).
+      2026-10-02). **Amended by D-053 (2026-10-10):** five built-in packs (Classic, Slate, Paper, Contrast, Midnight, the last dark) and per-product skins; the deployment default is an Admin setting (`PUT api/settings/site`), a product's own pack and tokens win over it, contrast is enforced on every saved skin, and nothing follows `prefers-color-scheme`.
   13. In-app launch prefill. **Answered (owner 2026-10-02, D-024):** the URL may
       prefill `subject`, `name` and `email`, all visible and editable, no hidden
       fields, validated and length-limited like typed input. App context (version,

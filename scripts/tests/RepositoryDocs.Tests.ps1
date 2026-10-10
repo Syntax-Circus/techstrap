@@ -1153,6 +1153,21 @@ Describe 'PHASE-11g theme packs and skins (D-053)' {
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11g-T09 \|'
     }
 
+    It 'ticks every 11g task and marks 11g complete pending merge' {
+        foreach ($n in 1..9) { $script:Spec | Should -Match ('- \[x\] \*\*P11g-T' + $n.ToString('00') + '\*\*') -Because "P11g-T$($n.ToString('00')) is ticked" }
+        $script:Spec | Should -Not -Match '- \[ \] \*\*P11g-T'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11g \|.*\| D-053 recorded; 11g complete \(pending merge\): T01 to T09'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11g \|.*\| D-053 recorded; 11g complete \(pending merge\): T01 to T09'
+    }
+
+    It 'documents the packs, the default setting and the skin grammar' {
+        $selfHost = Get-RepoText 'docs/self-hosting/SELF-HOSTING.md'
+        foreach ($phrase in 'Portal appearance', 'api/settings/site', 'Classic', 'Midnight', 'Contrast') { $selfHost | Should -Match $phrase -Because $phrase }
+        $review = Get-RepoText 'docs/security/SECURITY-REVIEW.md'
+        foreach ($phrase in 'D-053', 'SkinResolver', 'Hostile_skin_values_never_reach_the_page') { $review | Should -Match $phrase -Because $phrase }
+        (Get-RepoText 'docs/development/PORTAL-APP.md') | Should -Match 'data-ts-button'
+    }
+
     It 'ships the dragon-poop sample skin and the README that explains it' {
         $names = (Get-RepoText 'docs/skins/dragon-poop.skin.json' | ConvertFrom-Json).PSObject.Properties.Name
         $expected = 'background', 'surface', 'ink', 'muted', 'border', 'brand', 'chrome', 'focus', 'headingFont', 'bodyFont', 'radius', 'borderWidth', 'shadow', 'button', 'header'

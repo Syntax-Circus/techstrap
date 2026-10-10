@@ -385,6 +385,8 @@ Rules applied (_template RAZOR_COMPONENT_ARCHITECTURE.md): any injection, lifecy
 | KB article (`/p/{key}/kb/{category}/{slug}`) | Paired page; inline `ArticleBody` that renders trusted sanitized HTML | `KbArticleViewModel` | None | Server-rendered; SEO meta and canonical link; 404 not-found state; cached by API response | `PublishedKbArticleDto` |
 | KB search (`/p/{key}/kb/search`) | Paired page | `KbSearchViewModel` | None | Query string driven (GET form, works without JS); empty and no-results states | `KbSearchResponse` |
 
+**Theming (D-053).** Every Portal page is rendered in one resolved skin. `SkinResolver` (Contracts) merges Classic, the deployment default pack (`site_settings`, read through `GET api/public/site` and kept by `DefaultPackProvider` for 60 s), the product's pack and the product's token overrides, and checks contrast. `PortalSkinFactory` turns the result into custom properties and `data-ts-*` preset attributes on the existing `ts-accent-scope` wrapper (the only `style=` carrier; the CSP is unchanged); only values that differ from Classic are emitted, so an unskinned page is byte-identical. Neutral pages use the default pack only (D-045). Landing cards each get their own scope. Emails take only the accent and the chrome colour through the same resolver, with Classic as the default pack because the Worker does not read the site setting.
+
 ## 9. Error, abuse and concurrency
 
 - **Errors:** RFC 7807 ProblemDetails from `AspNetCore.Common`, with stable `ResultError` codes; correlation id in every response and log. Unexpected exceptions return a generic 500. Email failures never fail user requests (outbox).
