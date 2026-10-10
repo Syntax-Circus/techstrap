@@ -26,7 +26,7 @@ public sealed class AccentScopeTests : BunitContext
 
         var scope = cut.Find("div.ts-accent-scope");
         scope.GetAttribute("style")!.ShouldContain("--p-bg:#0F1420");
-        scope.GetAttribute("style")!.ShouldNotContain("--ts-accent");
+        scope.GetAttribute("style")!.ShouldStartWith("--ts-accent:#6EA8FF;--ts-on-accent:#000000;--ts-accent-ink:#6EA8FF", Case.Sensitive, "the pack's own brand comes first");
         scope.GetAttribute("data-ts-shadow").ShouldBe("soft");
         scope.GetAttribute("data-ts-header").ShouldBe("solid");
         scope.HasAttribute("data-ts-button").ShouldBeFalse();

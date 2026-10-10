@@ -56,7 +56,7 @@ public sealed class SkinRenderingHostTests
         }
 
         product.ShouldContain("--ts-accent:#F59E0B");
-        root.ShouldNotContain("--ts-accent:");
+        root.ShouldContain("--ts-accent:#6EA8FF", Case.Sensitive, "a neutral page carries the pack's own brand");
     }
 
     [Fact]

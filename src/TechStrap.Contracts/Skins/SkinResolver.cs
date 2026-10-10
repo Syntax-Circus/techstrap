@@ -6,7 +6,7 @@ namespace TechStrap.Contracts.Skins;
 /// <param name="Pack">The pack key that supplied the base tokens.</param>
 /// <param name="Scheme"><see cref="SkinValues.Light"/> or <see cref="SkinValues.Dark"/>.</param>
 /// <param name="Tokens">The complete, validated tokens.</param>
-/// <param name="BrandIsExplicit">True when the brand came from the product skin or the product accent rather than the pack.</param>
+/// <param name="BrandIsExplicit">True when the brand came from the product skin or the product accent rather than the pack. A pack brand that differs from Classic's is emitted too (<see cref="SkinCss.Properties"/>).</param>
 /// <param name="OnBrand">Text on a brand fill: white or black.</param>
 /// <param name="BrandInk">The brand as text or an outline on the background.</param>
 /// <param name="OnChrome">Text on the chrome fill: white or black.</param>

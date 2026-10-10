@@ -36,11 +36,34 @@ public sealed class SkinCssTests
         properties["--p-bg"].ShouldBe("#0F1420");
         properties["--ts-chrome"].ShouldBe("#0A0E17");
         properties["--ts-focus"].ShouldBe("#FFD166");
-        properties.ShouldNotContainKey("--ts-accent");
+        properties["--ts-accent"].ShouldBe("#6EA8FF");
+        properties["--ts-on-accent"].ShouldBe("#000000");
+        properties["--ts-accent-ink"].ShouldBe("#6EA8FF");
 
         var attributes = SkinCss.Attributes(skin).ToDictionary(p => p.Key, p => p.Value);
         attributes["data-ts-shadow"].ShouldBe("soft");
         attributes["data-ts-header"].ShouldBe("solid");
+    }
+
+    [Fact]
+    public void Slate_emits_the_trio_built_from_its_own_brand_first_and_in_order()
+    {
+        var skin = SkinResolver.Resolve("slate", null, null).Skin;
+
+        var properties = SkinCss.Properties(skin);
+        properties.Take(3).Select(p => p.Key).ShouldBe(["--ts-accent", "--ts-on-accent", "--ts-accent-ink"]);
+        properties[0].Value.ShouldBe("#334155");
+        properties[2].Value.ShouldBe(skin.BrandInk);
+    }
+
+    [Fact]
+    public void A_product_accent_on_midnight_emits_its_trio_with_ink_readable_on_the_dark_page()
+    {
+        var skin = SkinResolver.Resolve("midnight", null, "#F59E0B").Skin;
+
+        var properties = SkinCss.Properties(skin).ToDictionary(p => p.Key, p => p.Value);
+        properties["--ts-accent"].ShouldBe("#F59E0B");
+        TechStrap.Contracts.Branding.ProductAccent.ContrastRatio(properties["--ts-accent-ink"], "#0F1420").ShouldBeGreaterThanOrEqualTo(4.5);
     }
 
     [Fact]

@@ -9,8 +9,8 @@ namespace TechStrap.Contracts.Skins;
 public static class SkinCss
 {
     /// <summary>
-    /// The CSS custom properties: the accent trio first when the brand is explicit (<c>--ts-accent</c>, <c>--ts-on-accent</c>, <c>--ts-accent-ink</c>),
-    /// then each token that differs from Classic.
+    /// The CSS custom properties: the accent trio first (<c>--ts-accent</c>, <c>--ts-on-accent</c>, <c>--ts-accent-ink</c>) when the brand is explicit
+    /// (a product skin or accent) or the resolved brand differs from Classic's (a pack's own brand, so a dark pack keeps readable links), then each token that differs from Classic.
     /// </summary>
     public static IReadOnlyList<KeyValuePair<string, string>> Properties(ResolvedSkin skin)
     {
@@ -19,7 +19,7 @@ public static class SkinCss
         var t = skin.Tokens;
         var c = SkinPacks.Classic.Tokens;
         var list = new List<KeyValuePair<string, string>>();
-        if (skin.BrandIsExplicit)
+        if (skin.BrandIsExplicit || !string.Equals(t.Brand, c.Brand, StringComparison.Ordinal))
         {
             list.Add(new("--ts-accent", t.Brand));
             list.Add(new("--ts-on-accent", skin.OnBrand));

@@ -90,10 +90,13 @@ h6 {
 }
 
 // Header presets. The skin supplies --ts-chrome and --ts-on-chrome only when they differ from Classic, so the fallbacks are Classic's.
+// The header box is the 64rem container, so the colour is painted full-bleed with a border image whose outset reaches 100vmax to each side: no markup change, the nav keeps its width and padding, and ink overflow
+// never makes the page scroll sideways.
 .ts-accent-scope[data-ts-header="solid"] .ts-product-header {
   padding-bottom: 8px;
   color: var(--ts-on-chrome, #fff);
   background: var(--ts-chrome, #1b1b22);
+  border-image: linear-gradient(var(--ts-chrome, #1b1b22), var(--ts-chrome, #1b1b22)) 1 fill / 0 / 0 100vmax 0 100vmax;
 
   a,
   .ts-product-name {
@@ -103,4 +106,5 @@ h6 {
 
 .ts-accent-scope[data-ts-header="band"] .ts-product-header {
   border-bottom: 4px solid var(--ts-chrome, #1b1b22);
+  border-image: linear-gradient(var(--ts-chrome, #1b1b22), var(--ts-chrome, #1b1b22)) 1 / 0 0 4px 0 / 0 100vmax 0 100vmax;
 }

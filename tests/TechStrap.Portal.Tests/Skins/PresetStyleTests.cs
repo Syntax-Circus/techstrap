@@ -28,6 +28,17 @@ public sealed class PresetStyleTests
         Css.Text.ShouldContain("var(--ts-font-heading");
     }
 
+    [Theory]
+    [InlineData("solid")]
+    [InlineData("band")]
+    public void The_header_presets_are_full_bleed_through_a_border_image_outset_with_no_markup_change(string preset)
+    {
+        var rule = Regex.Match(Css.Text, @"\[data-ts-header=" + preset + @"\]\s+\.ts-product-header\s*\{(?<body>[^}]*)\}").Groups["body"].Value;
+
+        rule.ShouldContain("border-image:");
+        rule.ShouldContain("0 100vmax 0 100vmax");
+    }
+
     [Fact]
     public void The_portal_stays_light_only_and_adds_no_url_outside_fonts_and_data_images()
     {
