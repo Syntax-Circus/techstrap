@@ -91,8 +91,9 @@ public sealed record ProductBranding
 /// <summary>A product (a customer application) that receives tickets. The number prefix is fixed at creation (D-009).</summary>
 public sealed class Product
 {
-    private Product(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive, uint version, string? portalHost, bool listedOnLanding)
+    private Product(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive, uint version, string? portalHost, bool listedOnLanding, string? skinJson)
     {
+        SkinJson = skinJson;
         ListedOnLanding = listedOnLanding;
         Id = id;
         Key = key;
@@ -124,6 +125,9 @@ public sealed class Product
     /// <summary>Whether the product appears on the Portal's landing page when it lists products (D-052). It changes nothing else: the product stays reachable by key and host.</summary>
     public bool ListedOnLanding { get; private set; }
 
+    /// <summary>The product's skin as JSON (D-053): opaque to Domain, validated by the Contracts grammar in Application. Null means no skin.</summary>
+    public string? SkinJson { get; private set; }
+
     /// <summary>
     /// Opaque optimistic-concurrency token as loaded (Postgres <c>xmin</c>); 0 for a product that was never stored. The persistence layer
     /// applies it as the original token when the product is updated, so a stale copy is rejected on save.
@@ -146,11 +150,24 @@ public sealed class Product
         }
 
         var defaultBranding = ProductBranding.Create(productName.Value, null, null, null, null).Value;
-        return DomainResult<Product>.Ok(new Product(EntityId.New(clock), slug.Value, productName.Value, prefix!, branding ?? defaultBranding, isActive: true, version: 0, portalHost: null, listedOnLanding: true));
+        return DomainResult<Product>.Ok(new Product(EntityId.New(clock), slug.Value, productName.Value, prefix!, branding ?? defaultBranding, isActive: true, version: 0, portalHost: null, listedOnLanding: true, skinJson: null));
     }
 
-    public static Product Restore(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive, uint version, string? portalHost = null, bool listedOnLanding = true) =>
-        new(id, key, name, numberPrefix, branding, isActive, version, portalHost, listedOnLanding);
+    public static Product Restore(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive, uint version, string? portalHost = null, bool listedOnLanding = true, string? skinJson = null) =>
+        new(id, key, name, numberPrefix, branding, isActive, version, portalHost, listedOnLanding, skinJson);
+
+    /// <summary>Stores the skin JSON (D-053); null or whitespace clears it. Only the length is checked here; the grammar is validated in Application.</summary>
+    public DomainResult SetSkinJson(string? json)
+    {
+        var text = string.IsNullOrWhiteSpace(json) ? null : json.Trim();
+        if (text is { Length: > DomainLimits.SkinJsonMaxLength })
+        {
+            return DomainErrors.Validation("skin-too-long", $"The skin must be at most {DomainLimits.SkinJsonMaxLength} characters.", "skin");
+        }
+
+        SkinJson = text;
+        return DomainResult.Ok();
+    }
 
     /// <summary>Sets the portal hostname from user input (trimmed and lower-cased); a blank input clears it. Uniqueness across products is the caller's check.</summary>
     public DomainResult SetPortalHost(string? input)
