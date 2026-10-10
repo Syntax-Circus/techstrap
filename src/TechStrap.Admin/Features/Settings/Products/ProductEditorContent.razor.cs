@@ -293,9 +293,13 @@ public sealed partial class ProductEditorContent : IDisposable
     {
         foreach (var error in errors)
         {
-            if (error.Target is { } target && ProductFields.All.Contains(target) && (_creating || !ProductFields.CreateOnly.Contains(target)))
+            if (error.Target is { } target && ProductFields.IsSkinTarget(target))
             {
-                _errors.TryAdd(target, error.Message);
+                _errors.TryAdd(ApiFields.Skin, error.Message);
+            }
+            else if (error.Target is { } field && ProductFields.All.Contains(field) && (_creating || !ProductFields.CreateOnly.Contains(field)))
+            {
+                _errors.TryAdd(field, error.Message);
             }
             else
             {

@@ -25,8 +25,20 @@ public sealed class StubApiHandler : HttpMessageHandler
     private readonly List<(HttpMethod Method, string Path, Func<StubApiRequest, CancellationToken, Task<HttpResponseMessage>> Respond)> _routes = [];
     private readonly object _gate = new();
 
-    /// <summary>Every request received so far, in order.</summary>
-    public IReadOnlyList<StubApiRequest> Requests
+    /// <summary>The path of the deployment's public site setting (D-053), which every page's layout asks for once a minute.</summary>
+    public const string SiteSettingPath = "/api/public/site";
+
+    /// <summary>
+    /// Every request received so far, in order, except the site setting (<see cref="SiteSettingRequests"/>). Every page's layout now reads the default theme pack, so counting that call here would change what every
+    /// "the api is never asked" and "exactly these calls" assertion means; the site setting has its own list, and <see cref="AllRequests"/> holds both.
+    /// </summary>
+    public IReadOnlyList<StubApiRequest> Requests => [.. AllRequests.Where(r => !IsSiteSetting(r))];
+
+    /// <summary>The reads of the site setting (<c>GET /api/public/site</c>), in order.</summary>
+    public IReadOnlyList<StubApiRequest> SiteSettingRequests => [.. AllRequests.Where(IsSiteSetting)];
+
+    /// <summary>Every request received so far, in order, the site setting included.</summary>
+    public IReadOnlyList<StubApiRequest> AllRequests
     {
         get
         {
@@ -37,8 +49,10 @@ public sealed class StubApiHandler : HttpMessageHandler
         }
     }
 
+    private static bool IsSiteSetting(StubApiRequest request) => string.Equals(request.Path, SiteSettingPath, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>How many requests with this method and path (any query) were received.</summary>
-    public int Count(HttpMethod method, string path) => Requests.Count(r => r.Method == method && string.Equals(r.Path, path, StringComparison.OrdinalIgnoreCase));
+    public int Count(HttpMethod method, string path) => AllRequests.Count(r => r.Method == method && string.Equals(r.Path, path, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Answers requests for <paramref name="path"/> (path only, no query) with whatever <paramref name="respond"/> returns. A later route for the same method and path replaces an earlier one.</summary>
     public StubApiHandler On(HttpMethod method, string path, Func<StubApiRequest, HttpResponseMessage> respond) => OnAsync(method, path, (request, _) => Task.FromResult(respond(request)));

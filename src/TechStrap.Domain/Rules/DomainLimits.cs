@@ -63,4 +63,10 @@ public static class DomainLimits
     // A query limit, not a column length.
     /// <summary>The maximum search text; longer text is truncated.</summary>
     public const int SearchTextMaxLength = 200;
+
+    /// <summary>The maximum length of a product's skin JSON (D-053); equals the Contracts skin grammar's limit.</summary>
+    public const int SkinJsonMaxLength = 2000;
+
+    /// <summary>The maximum length of a theme pack key.</summary>
+    public const int PackKeyMaxLength = 32;
 }

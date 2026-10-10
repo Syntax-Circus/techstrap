@@ -1,7 +1,10 @@
+using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using TechStrap.Admin.Clients;
 using TechStrap.Contracts.Branding;
 using TechStrap.Contracts.Products;
+using TechStrap.Contracts.Skins;
 
 namespace TechStrap.Admin.Features.Settings.Products;
 
@@ -44,6 +47,12 @@ internal sealed partial class ProductEditorViewModel
 
     public string Tagline { get; set; } = string.Empty;
 
+    /// <summary>The skin as the agent edits it: indented JSON, or empty when the product has none.</summary>
+    public string SkinJson { get; set; } = string.Empty;
+
+    /// <summary>The skin text the product was loaded with. Text that still equals it sends no skin (unchanged).</summary>
+    public string OriginalSkinJson { get; set; } = string.Empty;
+
     /// <summary>Whether the product has a card on the portal's landing page. A new product is listed; both requests always carry the shown value.</summary>
     public bool ListedOnLanding { get; set; } = true;
 
@@ -69,14 +78,67 @@ internal sealed partial class ProductEditorViewModel
         FromAddress = product.Branding.FromAddress ?? string.Empty,
         ReplyTo = product.Branding.ReplyTo ?? string.Empty,
         PortalHost = product.PortalHost ?? string.Empty,
+        SkinJson = PrettySkin(product.Skin),
+        OriginalSkinJson = PrettySkin(product.Skin),
         IsActive = product.IsActive,
         Version = product.Version,
     };
 
-    public CreateProductRequest ToCreateRequest() => new(Key.Trim(), Name.Trim(), NumberPrefix.Trim(), ToBranding(), NormalisedHost(), ListedOnLanding);
+    public CreateProductRequest ToCreateRequest() => new(Key.Trim(), Name.Trim(), NumberPrefix.Trim(), ToBranding(), NormalisedHost(), ListedOnLanding, ParsedSkin());
 
     // The editor always sends the shown flag (null means "unchanged" only for clients that do not know the field).
-    public UpdateProductRequest ToUpdateRequest() => new(Name.Trim(), ToBranding(), IsActive, Version, NormalisedHostForUpdate(), ListedOnLanding);
+    public UpdateProductRequest ToUpdateRequest() => new(Name.Trim(), ToBranding(), IsActive, Version, NormalisedHostForUpdate(), ListedOnLanding, ParsedSkinForUpdate());
+
+    // Update: unchanged text sends null (unchanged); emptied text (or a skin with no member) on a product that had a skin sends an empty skin, the explicit clear; anything else sends the parsed skin.
+    // Text that does not parse is refused by Check before a save, so null here is only the unchanged case.
+    private ProductSkin? ParsedSkinForUpdate()
+    {
+        if (string.Equals(SkinJson, OriginalSkinJson, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return ParsedSkin() ?? (string.IsNullOrWhiteSpace(OriginalSkinJson) ? null : new ProductSkin());
+    }
+
+    // Create: the parsed skin, or null for blank text.
+    private ProductSkin? ParsedSkin() => SkinSerializer.TryDeserialize(SkinJson, out var skin) ? skin : null;
+
+    // Indented, camelCase JSON of a skin (two-space indent, LF), or empty for none. Pretty-printed from the source-generated compact form.
+    private static string PrettySkin(ProductSkin? skin)
+    {
+        var compact = SkinSerializer.Serialize(skin);
+        if (compact is null)
+        {
+            return string.Empty;
+        }
+
+        using var document = JsonDocument.Parse(compact);
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true, NewLine = "\n" }))
+        {
+            document.WriteTo(writer);
+        }
+
+        return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private string? CheckSkin()
+    {
+        // Unchanged text is never checked here (the Api reads leniently and an untouched field sends no skin), so a stored skin that a stricter rule now refuses cannot block an unrelated save.
+        if (string.IsNullOrWhiteSpace(SkinJson) || string.Equals(SkinJson, OriginalSkinJson, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        if (!SkinSerializer.TryDeserialize(SkinJson, out var skin))
+        {
+            return ProductsCopy.SkinInvalid;
+        }
+
+        var problem = skin is null ? null : SkinRules.Validate(skin).FirstOrDefault();
+        return problem is null ? null : ProductsCopy.SkinTokenInvalid(problem.Target);
+    }
 
     private ProductBrandingRequest ToBranding() =>
         new(DisplayName.Trim(), Blank(LogoPath), Blank(AccentColour), Blank(FromAddress), Blank(ReplyTo), Blank(Tagline));
@@ -108,6 +170,7 @@ internal sealed partial class ProductEditorViewModel
         ApiFields.FromAddress => IsEmailOrBlank(FromAddress) ? null : ProductsCopy.EmailInvalid,
         ApiFields.ReplyTo => IsEmailOrBlank(ReplyTo) ? null : ProductsCopy.EmailInvalid,
         ApiFields.PortalHost => ProductHostRules.TryNormalize(PortalHost, out _) ? null : ProductsCopy.PortalHostInvalid,
+        ApiFields.Skin => CheckSkin(),
         _ => null,
     };
 

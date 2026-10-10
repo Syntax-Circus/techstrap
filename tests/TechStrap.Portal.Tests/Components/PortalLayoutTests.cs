@@ -1,6 +1,10 @@
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using SyntaxCircus.Common;
+using TechStrap.Contracts.Settings;
+using TechStrap.Contracts.Skins;
+using TechStrap.Portal.Clients;
 using TechStrap.Portal.Components.Layout;
 using TechStrap.Portal.Components.Ui;
 using TechStrap.Portal.Tests.Routing;
@@ -15,14 +19,34 @@ public sealed class PortalLayoutTests : BunitContext
 
     private ProductScope Scope { get; } = new();
 
+    // The default pack the fake site setting answers with; set before the first render, because the provider reads it once.
+    private string SitePack { get; set; } = "classic";
+
+    private sealed class FixedSiteSettings(string pack) : ISiteSettingsClient
+    {
+        public Task<Result<PublicSiteDto>> GetAsync(CancellationToken cancellationToken) => Task.FromResult(Result<PublicSiteDto>.Success(new PublicSiteDto(pack)));
+    }
+
     public PortalLayoutTests()
     {
         Services.AddSingleton(Options.Create(new PoweredByOptions()));
         Services.AddSingleton(Scope);
         Services.AddPortalLinks();
+
+        // The default pack comes from the site setting (Classic here), through the same provider and factory the host uses.
+        Services.AddHttpContextAccessor();
+        Services.AddSingleton(TimeProvider.System);
+        Services.AddScoped<ISiteSettingsClient>(_ => new FixedSiteSettings(SitePack));
+        Services.AddSingleton<DefaultPackProvider>();
+        Services.AddSingleton<PortalSkinFactory>();
     }
 
-    private IRenderedComponent<PortalLayout> RenderLayout() => Render<PortalLayout>(p => p.Add(l => l.Body, "<p id=\"page\">the page</p>"));
+    private IRenderedComponent<PortalLayout> RenderLayout()
+    {
+        // Read the default pack first, so the layout takes the provider's synchronous snapshot path and no test depends on the real clock or the thread pool.
+        Services.GetRequiredService<DefaultPackProvider>().GetAsync(Xunit.TestContext.Current.CancellationToken).AsTask().GetAwaiter().GetResult();
+        return Render<PortalLayout>(p => p.Add(l => l.Body, "<p id=\"page\">the page</p>"));
+    }
 
     [Fact]
     public void Without_a_product_the_layout_is_neutral_no_header_no_product_footer_no_accent_and_the_powered_by_line()
@@ -102,6 +126,29 @@ public sealed class PortalLayoutTests : BunitContext
 
         cut.Find("div.ts-accent-scope").HasAttribute("style").ShouldBeFalse();
         cut.Find("header.ts-product-header").ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void A_product_skin_is_resolved_against_the_default_pack_and_reaches_the_one_style_carrier()
+    {
+        Scope.Set(Theme(accent: "#F59E0B") with { Skin = new ProductSkin(Pack: "midnight") });
+
+        var cut = RenderLayout();
+
+        var scope = cut.Find("div.ts-accent-scope");
+        scope.GetAttribute("style")!.ShouldContain("--p-bg:#0F1420");
+        scope.GetAttribute("style")!.ShouldContain("--ts-accent:#F59E0B");
+        scope.GetAttribute("data-ts-header").ShouldBe("solid");
+    }
+
+    [Fact]
+    public void The_default_pack_of_the_site_setting_themes_a_neutral_page()
+    {
+        SitePack = "slate";
+
+        var cut = RenderLayout();
+
+        cut.Find("div.ts-accent-scope").GetAttribute("style")!.ShouldContain("--p-bg:#F8FAFC");
     }
 
     [Fact]

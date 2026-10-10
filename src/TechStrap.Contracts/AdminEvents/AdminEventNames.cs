@@ -27,6 +27,8 @@ public static class AdminEventTypes
     public const string DeadLetterRetried = "DeadLetterRetried";
     /// <summary>A dead-lettered outgoing email was discarded without being sent.</summary>
     public const string DeadLetterDiscarded = "DeadLetterDiscarded";
+    /// <summary>The deployment's default theme pack was changed (D-053).</summary>
+    public const string SiteSettingsUpdated = "SiteSettingsUpdated";
 }
 
 /// <summary>Wire names for the admin subject type enum (<c>AdminEventDto.SubjectType</c> and the <c>subjectType</c> filter). Contracts carries no enums (naming rule).</summary>
@@ -46,4 +48,6 @@ public static class AdminSubjectTypes
     public const string Ticket = "Ticket";
     /// <summary>The event concerns a queued outgoing email.</summary>
     public const string EmailOutbox = "EmailOutbox";
+    /// <summary>The event concerns the deployment-wide site settings (D-053).</summary>
+    public const string SiteSettings = "SiteSettings";
 }

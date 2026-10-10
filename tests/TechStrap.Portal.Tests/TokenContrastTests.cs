@@ -52,7 +52,7 @@ public sealed class TokenContrastTests
     {
         Css.Declarations(".ts-skip-link")["color"].ShouldBe("var(--p-ink)");
         Css.Declarations(".ts-skip-link")["background"].ShouldBe("var(--p-bg)");
-        Css.OutsideMedia().Declarations(":focus-visible,.btn:focus-visible,.form-control:focus,.form-select:focus,.form-check-input:focus")["outline"].ShouldBe("3px solid var(--p-ink) !important");
+        Css.OutsideMedia().Declarations(":focus-visible,.btn:focus-visible,.form-control:focus,.form-select:focus,.form-check-input:focus")["outline"].ShouldBe("3px solid var(--ts-focus, var(--p-ink)) !important", "the ring is the skin's focus token, which falls back to the ink");
         ProductAccent.ContrastRatio(Tokens["--p-ink"], Tokens["--p-bg"]).ShouldBeGreaterThanOrEqualTo(7.0, "the ring is ink on the page");
     }
 

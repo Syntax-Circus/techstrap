@@ -32,8 +32,9 @@ public static class PortalTestApi
     /// </summary>
     public static void AssertEveryCallBore(this StubApiHandler stub, string clientIp)
     {
-        var requests = stub.Requests;
-        if (requests.Count == 0)
+        // The site setting is a call like any other: it must carry the visitor's address too.
+        var requests = stub.AllRequests;
+        if (stub.Requests.Count == 0)
         {
             throw new InvalidOperationException("The Portal made no API call, so there is no X-Forwarded-For header to check.");
         }

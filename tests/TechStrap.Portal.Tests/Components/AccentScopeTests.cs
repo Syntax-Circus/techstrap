@@ -1,4 +1,5 @@
 using Bunit;
+using TechStrap.Contracts.Skins;
 using TechStrap.Portal.Components.Ui;
 
 namespace TechStrap.Portal.Tests.Components;
@@ -14,6 +15,31 @@ public sealed class AccentScopeTests : BunitContext
 
         cut.Find("div.ts-accent-scope").GetAttribute("style").ShouldBe(expectedStyle);
         cut.Find("div.ts-accent-scope p").TextContent.ShouldBe("x");
+    }
+
+    [Fact]
+    public void A_resolved_skin_writes_only_what_differs_from_classic_and_its_preset_attributes()
+    {
+        var midnight = SkinResolver.Resolve("midnight", null, null).Skin;
+
+        var cut = Render<AccentScope>(p => p.Add(s => s.Skin, midnight).AddChildContent("<p>x</p>"));
+
+        var scope = cut.Find("div.ts-accent-scope");
+        scope.GetAttribute("style")!.ShouldContain("--p-bg:#0F1420");
+        scope.GetAttribute("style")!.ShouldStartWith("--ts-accent:#6EA8FF;--ts-on-accent:#000000;--ts-accent-ink:#6EA8FF", Case.Sensitive, "the pack's own brand comes first");
+        scope.GetAttribute("data-ts-shadow").ShouldBe("soft");
+        scope.GetAttribute("data-ts-header").ShouldBe("solid");
+        scope.HasAttribute("data-ts-button").ShouldBeFalse();
+    }
+
+    [Fact]
+    public void The_classic_skin_writes_no_style_and_no_attribute_at_all()
+    {
+        var classic = SkinResolver.Resolve("classic", null, null).Skin;
+
+        var cut = Render<AccentScope>(p => p.Add(s => s.Skin, classic).AddChildContent("<p>x</p>"));
+
+        cut.Markup.ShouldBe("<div class=\"ts-accent-scope\"><p>x</p></div>");
     }
 
     [Theory]

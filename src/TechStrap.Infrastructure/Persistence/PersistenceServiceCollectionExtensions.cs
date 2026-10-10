@@ -50,6 +50,7 @@ public static class PersistenceServiceCollectionExtensions
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<ISiteSettingsRepository, SiteSettingsRepository>();
         services.AddScoped<IAdminEventRepository, AdminEventRepository>();
         services.AddScoped<IAgentRepository, AgentRepository>();
         services.AddScoped<IRequesterRepository, RequesterRepository>();

@@ -1,3 +1,5 @@
+using TechStrap.Contracts.Skins;
+
 namespace TechStrap.Contracts.Products;
 
 /// <summary>Branding as stored, plus the colours derived from the accent (D-025, D-031) for previews. <paramref name="UploadedLogoUrl"/> is the absolute address of an uploaded logo (D-052), read-only: it is set through the logo upload route, not through this DTO's request.</summary>
@@ -46,6 +48,7 @@ public sealed record ProductBrandingRequest(
 /// <param name="Version">The concurrency token.</param>
 /// <param name="PortalHost">The product's own public hostname (lower-case, e.g. support.example.com), or null when it is served only on the default portal host.</param>
 /// <param name="ListedOnLanding">Whether the product appears on the Portal's landing page when it lists products (D-052). It changes nothing else.</param>
+/// <param name="Skin">The product's stored skin (D-053), or null when it sets none and the deployment's default pack applies.</param>
 public sealed record ProductDto(
     Guid Id,
     string Key,
@@ -55,7 +58,8 @@ public sealed record ProductDto(
     ProductBrandingDto Branding,
     uint Version,
     string? PortalHost = null,
-    bool ListedOnLanding = true);
+    bool ListedOnLanding = true,
+    ProductSkin? Skin = null);
 
 /// <summary>Key and number prefix are permanent once created. A null branding derives the default from the name.</summary>
 /// <param name="Key">The permanent product key.</param>
@@ -64,7 +68,9 @@ public sealed record ProductDto(
 /// <param name="Branding">The branding input, or null for the default.</param>
 /// <param name="PortalHost">The product's own public hostname (lower-case, e.g. support.example.com), or null when it is served only on the default portal host.</param>
 /// <param name="ListedOnLanding">Whether the product appears on the landing page; null means true.</param>
-public sealed record CreateProductRequest(string? Key, string? Name, string? NumberPrefix, ProductBrandingRequest? Branding, string? PortalHost = null, bool? ListedOnLanding = null);
+/// <param name="Skin">The product's skin (D-053), or null or empty for none. It is validated against the skin grammar and contrast rules on save.</param>
+public sealed record CreateProductRequest(
+    string? Key, string? Name, string? NumberPrefix, ProductBrandingRequest? Branding, string? PortalHost = null, bool? ListedOnLanding = null, ProductSkin? Skin = null);
 
 /// <summary><paramref name="Version"/> must equal the version last read; otherwise the update is a 409 conflict.</summary>
 /// <param name="Name">The internal product name.</param>
@@ -73,4 +79,6 @@ public sealed record CreateProductRequest(string? Key, string? Name, string? Num
 /// <param name="Version">The version last read.</param>
 /// <param name="PortalHost">The product's own public hostname (lower-case, e.g. support.example.com), or null when it is served only on the default portal host. Null leaves the stored host unchanged; an empty or whitespace value clears it; any other value is normalised, validated and set.</param>
 /// <param name="ListedOnLanding">Whether the product appears on the landing page. Null leaves the stored value unchanged (a 0.2.0 client never unlists a product); true or false sets it.</param>
-public sealed record UpdateProductRequest(string? Name, ProductBrandingRequest Branding, bool IsActive, uint Version, string? PortalHost = null, bool? ListedOnLanding = null);
+/// <param name="Skin">The product's skin (D-053). Null leaves the stored skin unchanged; an empty skin (every field null) clears it; anything else is validated and replaces it as a whole.</param>
+public sealed record UpdateProductRequest(
+    string? Name, ProductBrandingRequest Branding, bool IsActive, uint Version, string? PortalHost = null, bool? ListedOnLanding = null, ProductSkin? Skin = null);

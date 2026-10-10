@@ -50,6 +50,7 @@ public static class AdminEventSummaryFactory
             AdminEventTypes.TicketDeleted => TicketDeleted(root),
             AdminEventTypes.DeadLetterRetried => DeadLetter(root, "Retried a failed", "after"),
             AdminEventTypes.DeadLetterDiscarded => DeadLetter(root, "Discarded a failed", "after"),
+            AdminEventTypes.SiteSettingsUpdated => Join("Changed the default theme pack to", Text(root, "defaultPack"), null, "Changed the default theme pack"),
             _ => Humanize(type),
         };
     }
@@ -64,6 +65,7 @@ public static class AdminEventSummaryFactory
         AdminSubjectTypes.Requester => "Requester",
         AdminSubjectTypes.Ticket => "Ticket",
         AdminSubjectTypes.EmailOutbox => "Email",
+        AdminSubjectTypes.SiteSettings => "Site settings",
         _ => Clip(subjectType),
     };
 
@@ -121,6 +123,7 @@ public static class AdminEventSummaryFactory
         "name" => "name",
         "branding" => "branding",
         "isActive" => "active status",
+        "skin" => "skin",
         _ => field,
     };
 

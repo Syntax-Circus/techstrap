@@ -55,6 +55,19 @@ Every page is static server-side rendering: there is no render mode, no circuit 
   rule as the CSP's `img-src`). The product name is always encoded.
 - **Copy** lives in `ShellCopy`, `ProblemCopy`, `FormCopy`, `ContactCopy`, `LostLinkCopy`, `TicketCopy` and `KbCopy`; routes in `PortalRoutes` (a page declares `@attribute [Route(PortalRoutes.XTemplate)]` and builds every link with a builder).
 
+### Themes and skins (D-053)
+
+The look of every page is one resolved skin, written onto the single `ts-accent-scope` wrapper as custom properties and preset attributes. Nothing is raw CSS and nothing is a `<style>` element.
+
+- **One resolver.** `SkinResolver` (Contracts) merges Classic, then the deployment default pack, then the product's pack, then the product's token overrides, and derives the on-colours and inks. The Portal, the Api validation and the email renderer all call it; `PortalSkinFactory` (Portal `Products/`) is the Portal's only caller and `PortalLayout` and the landing cards use its result.
+- **Classic baseline: emit only what differs.** `SkinCss.Properties` writes a variable only when its resolved value differs from Classic's, so a product with no skin renders byte-identical HTML (a golden test, `An_unskinned_product_page_is_byte_identical`, guards it). Every SCSS rule reads the variable with today's value as the fallback. The accent trio (`--ts-accent`, `--ts-on-accent`, `--ts-accent-ink`) comes first and is emitted when the brand is explicit (a product accent or a skin brand) or differs from Classic's brand, so a dark pack keeps readable links.
+- **Variables.** `--p-bg`, `--ts-surface`, `--p-ink`, `--p-ink2` (muted), `--p-line` (border), `--ts-chrome` and `--ts-on-chrome`, `--ts-focus`, `--ts-radius`, `--ts-border-w`, `--ts-font-heading`, `--ts-font-body`, plus the accent trio. Values are validated hex, `rem` or `px` numbers, or a font stack built from the closed `SkinFonts` list; a value that fails the grammar never reaches `style=` (`Hostile_skin_values_never_reach_the_page`).
+- **Presets.** `data-ts-shadow` (`soft`, `hard`), `data-ts-button` (`bevel`, `outline`), `data-ts-header` (`solid`, `band`) and `data-ts-scheme="dark"` are closed constants emitted only when not Classic's. The rules are attribute selectors in `Styles/_presets.scss` (imported after the layout and before `_a11y`), so no composed class name has to exist. A solid header uses the on-chrome colour for the focus ring and the accent so the ring is visible on the fill; forced-colours and print drop the header's `border-image`.
+- **Dark scheme.** `data-ts-scheme="dark"` follows the resolved page background (its contrast against white is greater than against black), not the pack: a light page on Midnight is a light page. The dark block redefines the soft and semantic surfaces (error, warning, success) and the select arrow. `color-scheme: dark` is deliberately not used (`StyleBuildTests` forbids it), so native scrollbars and widgets stay light on Midnight. A light page on a dark pack must also set `muted` and `focus`, because the resolver reverts both members of a failing contrast pair.
+- **The default pack.** `DefaultPackProvider` (singleton, over `ISiteSettingsClient`, `GET api/public/site`) keeps the key for 60 seconds and refreshes in the background. The first read waits at most about 2 seconds, then answers Classic (a stale placeholder) while the read finishes; a real read always wins. A failed read keeps the last good value and is retried at most every 10 seconds. Neutral pages (root, 404, error) use the default pack only, never a product, so their body is identical for every address (D-045).
+- **Landing cards** each get their own scope, resolved from the summary's `Skin` and accent.
+- **Fonts.** The five families come from libman (fontsource) through `_fonts.scss`; no binary is tracked and nothing comes from a CDN.
+
 ### Forms and uploads
 
 The contact form, the reply form and the lost-link form are plain static-SSR forms: `<form method="post" @formname=...>` with `<AntiforgeryToken />`, a `[SupplyParameterFromForm]` model and a redirect after the post, so
@@ -264,7 +277,7 @@ and as `203.0.113.11` (a 200). It never runs `down -v`.
 src/TechStrap.Portal/
   Caching/        PortalCachePaths (what is kept), PortalOutputCache (the policy and the pipeline step)
   Clients/        ApiConnection, ProblemMapping and ProblemCopy, TicketToken, ApiClientRegistration (the two named clients), the typed clients (IPublicProductClient, IPublicTicketClient,
-                  ICustomerTicketClient, IPublicKbClient), MultipartForm, AttachmentFileName, ApiQuery, ApiDownload
+                  ICustomerTicketClient, IPublicKbClient, ISiteSettingsClient), MultipartForm, AttachmentFileName, ApiQuery, ApiDownload
   Components/
     Kb/           KbArticleBody (the other markup site), KbArticleCard, KbBreadcrumbs and KbCrumb, KbSearchBox, KbPlainText
     Layout/       PortalLayout, ProductHeader, ProductFooter
@@ -277,7 +290,7 @@ src/TechStrap.Portal/
                   SubmitIds, SubmitKey and SubmitGuard (the double-send guard)
   Kb/             KbPaging, KbSearchText (plain helpers the pages and the suggest adapter share)
   Headers/        PortalHeaderRules (the /t rules, the attachment sandbox, the form pages and the help centre)
-  Products/       ProductThemeViewModel, ProductScope, ProductPageBase
+  Products/       ProductThemeViewModel, ProductScope, ProductPageBase, PortalSkinFactory (the one caller of SkinResolver), DefaultPackProvider (the 60 s default-pack snapshot)
   Routing/        PortalRoutes, PageLinks (a link to a place on the current page), ProductKeyShape, KbSlugShape
   Seo/            PortalSeoRegistration (Blazor.Seo: base URL, robots.txt, the sitemap, canonical host), PortalSitemap, PortalSitemapBuilder, PortalSitemapCache, JsonLdText,
                   KbStructuredData (the breadcrumb and article records), KbSeo
@@ -303,7 +316,7 @@ small host with the real wiring to prove what the cache keeps. The cache and sit
 `tests/TechStrap.Portal.Tests/js` holds the node tests of the two browser modules. The start-failure tests of all three test projects use the one `tests/Shared/StartupFailure.cs`, which reads a host's refusal to start
 from the log sink of its factory when `CreateClient()` loses a race with the host's disposal, and the "neutral 404" tests compare `Seen`, which holds every response header except the per-request ones. The accessibility and
 style tests are `ResponsiveStyleTests`, `TokenContrastTests`, `CspStyleTests`, `HeadingHostTests`, `LayoutLandmarkHostTests` and `ErrorSummaryLinkHostTests`; the double-send tests are `SubmitGuardTests` and `DoubleSendHostTests`. The shared rules are in `TechStrap.Architecture.Tests` (`PortalRules`), the Hosting header-rule mechanism in `TechStrap.Api.Tests`
-(`PathHeaderRuleHostTests`), and the log and Sentry redaction in `TechStrap.Api.Tests`.
+(`PathHeaderRuleHostTests`), and the log and Sentry redaction in `TechStrap.Api.Tests`. The skin tests are `SkinRenderingHostTests` (the byte-identical golden `Fixtures/unskinned-product-home.html`, the hostile-values test, neutral pages identical across hosts), `PresetStyleTests` (the compiled preset rules and the dark block's contrast pairs) and `DefaultPackProviderTests` (a fake clock moves the 2 s cold wait and the refresh).
 
 ## Manual checks (owner, before merging 09d)
 
@@ -330,6 +343,7 @@ recorded in the pull request (the checklist there is ticked by the owner). Run t
 
 ## Known gaps
 
+- Skins (D-053): a change of the default pack shows within about a minute (the Portal's 60 s snapshot), and output-cached help-centre pages keep the old look until their own 60 s lifetime ends. Native scrollbars and widgets stay light on Midnight (`color-scheme` is not used). Tokens cannot express pixel-art imagery, hero sections, copy and voice, stepped text shadows, background images or a product's own display face outside the built-in list (see `docs/skins/README.md`). The landing cards, ticket and help-centre pages and the mobile width of the five packs have had host and compiled-CSS tests but no hand visual check yet (the root, product home and contact pages of each pack were looked at in a headless browser).
 - Product hosts (D-050): `robots.txt`, the canonical fallback and the Open Graph image on a product host follow that host (`ProductHostSeoUrlBuilder`; amended 2026-10-08); the output cache keys per raw Host value, so unknown hosts each get entries (a bound is PHASE-12 hardening); the canonical 301s carry `Cache-Control: public, max-age=3600` (a 301 from a form page or the KB search keeps that page's `no-store`), so a changed or removed host reaches visitors in about an hour, though emailed links still point at the old host (no redirect table).
 - The product home has the shared search box (`KbSearchBox`, merged in 09d) and the header's link to the help centre, but still no list of categories.
 - The sitemap build's API calls carry the address of the visitor whose request started it, so each sitemap build makes 1 + N API calls under one forwarded IP, and the API's public limit is 120 per minute per IP:

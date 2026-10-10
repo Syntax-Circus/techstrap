@@ -1,9 +1,19 @@
 @import "../../../assets/brand/scss/brand-fonts";
 
-// Plex Sans is the portal's only text face; Plex Mono is loaded for the ticket id.
+// Plex Sans is the default text face and Plex Mono is loaded for the ticket id. The four faces below are the other families a skin can name (SkinFonts, D-053);
+// the font file of a pack nobody uses is never requested, because the browser fetches a face only when text in it is rendered.
 @include ts-font-face("IBM Plex Sans", "ibm-plex-sans", "ibm-plex-sans-latin-400-normal", 400);
 @include ts-font-face("IBM Plex Sans", "ibm-plex-sans", "ibm-plex-sans-latin-500-normal", 500);
 @include ts-font-face("IBM Plex Sans", "ibm-plex-sans", "ibm-plex-sans-latin-600-normal", 600);
 @include ts-font-face("IBM Plex Mono", "ibm-plex-mono", "ibm-plex-mono-latin-400-normal", 400);
 @include ts-font-face("IBM Plex Mono", "ibm-plex-mono", "ibm-plex-mono-latin-500-normal", 500);
 @include ts-font-face("IBM Plex Mono", "ibm-plex-mono", "ibm-plex-mono-latin-600-normal", 600);
+@include ts-font-face("Nunito", "nunito", "nunito-latin-400-normal", 400);
+@include ts-font-face("Nunito", "nunito", "nunito-latin-600-normal", 600);
+@include ts-font-face("Nunito", "nunito", "nunito-latin-700-normal", 700);
+@include ts-font-face("Atkinson Hyperlegible", "atkinson-hyperlegible", "atkinson-hyperlegible-latin-400-normal", 400);
+@include ts-font-face("Atkinson Hyperlegible", "atkinson-hyperlegible", "atkinson-hyperlegible-latin-700-normal", 700);
+@include ts-font-face("Source Serif 4", "source-serif-4", "source-serif-4-latin-400-normal", 400);
+@include ts-font-face("Source Serif 4", "source-serif-4", "source-serif-4-latin-600-normal", 600);
+@include ts-font-face("Pixelify Sans", "pixelify-sans", "pixelify-sans-latin-400-normal", 400);
+@include ts-font-face("Pixelify Sans", "pixelify-sans", "pixelify-sans-latin-700-normal", 700);

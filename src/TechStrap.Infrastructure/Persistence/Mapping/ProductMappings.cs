@@ -16,7 +16,8 @@ internal static class ProductMappings
             record.IsActive,
             record.Version,
             record.PortalHost,
-            record.ListedOnLanding);
+            record.ListedOnLanding,
+            record.Skin);
 
     public static ProductRecord ToRecord(this Product product)
     {
@@ -44,6 +45,7 @@ internal static class ProductMappings
         record.Tagline = product.Branding.Tagline;
         record.UploadedLogo = product.Branding.UploadedLogo;
         record.ListedOnLanding = product.ListedOnLanding;
+        record.Skin = product.SkinJson;
     }
 
     public static ProductApiKey ToDomain(this ProductApiKeyRecord record) =>

@@ -1,0 +1,17 @@
+{
+  "background": "#F6E8C2",
+  "surface": "#FFF8E4",
+  "ink": "#1D120B",
+  "muted": "#4A4640",
+  "border": "#1D120B",
+  "brand": "#63371F",
+  "chrome": "#26140C",
+  "focus": "#26140C",
+  "headingFont": "pixelify",
+  "bodyFont": "nunito",
+  "radius": "square",
+  "borderWidth": 4,
+  "shadow": "hard",
+  "button": "bevel",
+  "header": "solid"
+}

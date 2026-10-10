@@ -39,7 +39,7 @@ public sealed class UpdateProductRequestHandlerTests
     }
 
     private UpdateProductRequestHandler Handler(params Result[] commits) =>
-        new(_claims, _agents, _products, _events, UnitOfWorkSubstitute.Create(commits), Options.Create(_portal), _logoUrls, _clock);
+        new(_claims, _agents, _products, _events, UnitOfWorkSubstitute.Create(commits), Options.Create(_portal), _logoUrls, Substitute.For<ISiteSettingsRepository>(), _clock);
 
     [Fact]
     public async Task An_update_changes_name_branding_and_status_and_audits_what_changed()

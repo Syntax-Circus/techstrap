@@ -26,6 +26,6 @@ public sealed class ListPublicProductsRequestHandler(IProductRepository products
                 .Where(product => product.IsActive)
                 .OrderBy(product => product.Key, StringComparer.Ordinal)
                 .Take(PublicProductLimits.MaxListed)
-                .Select(product => new PublicProductSummaryDto(product.Key, product.Branding.DisplayName, product.PortalHost, product.Branding.Tagline, ProductLogos.EffectiveLogoUrl(product.Branding, logoUrls), product.Branding.AccentColour, product.ListedOnLanding))]);
+                .Select(product => new PublicProductSummaryDto(product.Key, product.Branding.DisplayName, product.PortalHost, product.Branding.Tagline, ProductLogos.EffectiveLogoUrl(product.Branding, logoUrls), product.Branding.AccentColour, product.ListedOnLanding, ProductMapping.SkinOf(product)))]);
     }
 }

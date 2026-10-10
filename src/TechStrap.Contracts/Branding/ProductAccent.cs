@@ -57,6 +57,42 @@ public static class ProductAccent
         return Contrast(foreground, background);
     }
 
+    /// <summary>
+    /// The foreground as text on <paramref name="backgroundHex"/>: the colour itself (upper case) when it reaches 4.5:1, otherwise stepped toward black on a light background or toward white on a dark one,
+    /// at most 24 steps, then black or white. On white this is exactly <see cref="ProductAccentColors.AccentInk"/>. Throws <see cref="ArgumentException"/> for a malformed colour.
+    /// </summary>
+    public static string ReadableOn(string foregroundHex, string backgroundHex)
+    {
+        if (!TryParse(foregroundHex, out var foreground))
+        {
+            throw new ArgumentException("Not a #RRGGBB colour.", nameof(foregroundHex));
+        }
+
+        if (!TryParse(backgroundHex, out var background))
+        {
+            throw new ArgumentException("Not a #RRGGBB colour.", nameof(backgroundHex));
+        }
+
+        if (Contrast(foreground, background) >= MinimumTextContrast)
+        {
+            return Format(foreground);
+        }
+
+        var towardWhite = Luminance(background) < 0.5;
+        for (var k = 1; k < DarkenDenominator; k++)
+        {
+            var stepped = towardWhite
+                ? (Lighten(foreground.R, k), Lighten(foreground.G, k), Lighten(foreground.B, k))
+                : (Scale(foreground.R, k), Scale(foreground.G, k), Scale(foreground.B, k));
+            if (Contrast(stepped, background) >= MinimumTextContrast)
+            {
+                return Format(stepped);
+            }
+        }
+
+        return towardWhite ? White : Black;
+    }
+
     private static readonly (int R, int G, int B) WhiteRgb = (255, 255, 255);
     private static readonly (int R, int G, int B) BlackRgb = (0, 0, 0);
 
@@ -82,6 +118,8 @@ public static class ProductAccent
     }
 
     private static int Scale(int channel, int k) => ((channel * (DarkenDenominator - k)) + DarkenRoundingOffset) / DarkenDenominator;
+
+    private static int Lighten(int channel, int k) => ((channel * (DarkenDenominator - k)) + (255 * k) + DarkenRoundingOffset) / DarkenDenominator;
 
     private static bool TryParse(string? value, out (int R, int G, int B) rgb)
     {

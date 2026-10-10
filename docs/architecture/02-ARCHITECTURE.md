@@ -149,8 +149,9 @@ All tables snake_case, UTC `timestamptz`, `uuid` primary keys unless noted (**As
 
 | Entity (table) | Key columns | Indexes and constraints |
 | --- | --- | --- |
-| `products` | `id`, `key` (unique slug), `name`, `number_prefix` (unique), branding (`display_name`, `logo`, `accent_colour`, `from_address`, `reply_to`), `portal_host`, `tagline`, `uploaded_logo`, `listed_on_landing`, `is_active`, `xmin` (concurrency token) | unique `key`, unique `number_prefix` |
+| `products` | `id`, `key` (unique slug), `name`, `number_prefix` (unique), branding (`display_name`, `logo`, `accent_colour`, `from_address`, `reply_to`), `portal_host`, `tagline`, `uploaded_logo`, `listed_on_landing`, `skin`, `is_active`, `xmin` (concurrency token) | unique `key`, unique `number_prefix` |
 | `product_ticket_sequences` | `product_id` (PK, FK to `products`), `next_number` | the per-product ticket counter, separate from `products` so taking a number never changes the product row's `xmin` (D-009) |
+| `site_settings` | `id` (smallint PK, always 1), `default_pack` (the Portal theme pack key, seeded `classic`), `xmin` (concurrency token) | the single deployment-wide settings row (D-053) |
 | `product_api_keys` | `id`, `product_id`, `kind` (`Trusted`/`Public`), `key_hash`, `key_prefix`, `label`, `created_at`, `revoked_at`, `last_used_at` | unique `key_hash`; index `product_id` |
 | `agents` | `id`, `oidc_subject` (unique), `name`, `email`, `role` (`Agent`/`Admin`), `is_active`, `last_seen_at`, `public_display_name` (nullable, max 60; customer-facing name override, D-024) | unique `oidc_subject`; index `email` |
 | `agent_notification_preferences` | `agent_id`, `product_id`, `notify_new_ticket` | PK (`agent_id`, `product_id`) |
@@ -245,8 +246,8 @@ Conventions:
 | `PUT /api/agents/me/profile` (Agent; sets or clears `public_display_name`) | `UpdateMyProfileRequestHandler` | `IAgentRepository`, `ICurrentAgentClaims` | EF repos | 204; 400 invalid name | H, C, I | D-024 |
 | `GET /api/products` (Agent) | `ListProductsRequestHandler` | `IProductRepository`, `ICurrentAgentClaims` | EF repos | 200 `ProductDto[]` | H, C | none |
 | `GET /api/products/{id}` (Agent) | `GetProductRequestHandler` | `IProductRepository`, `ICurrentAgentClaims` | EF repos | 200 `ProductDto`; 404 | H, C | none |
-| `POST /api/products` (Admin) | `CreateProductRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 201 `ProductDto`; 409 duplicate key or prefix | H, C, I | D-009 |
-| `PUT /api/products/{id}` (Admin; incl. branding) | `UpdateProductRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 200 `ProductDto`; 404; 409 | H, C, I | D-002 |
+| `POST /api/products` (Admin) | `CreateProductRequestHandler` | `IProductRepository`, `ISiteSettingsRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 201 `ProductDto`; 400 `skin-invalid`, `skin-contrast-invalid`; 409 duplicate key or prefix | H, C, I | D-009, D-053 |
+| `PUT /api/products/{id}` (Admin; incl. branding) | `UpdateProductRequestHandler` | `IProductRepository`, `ISiteSettingsRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 200 `ProductDto`; 400 `skin-invalid`, `skin-contrast-invalid`; 404; 409 | H, C, I | D-002, D-053 |
 | `GET /api/products/{id}/api-keys` (Admin) | `ListProductApiKeysRequestHandler` | `IProductRepository` | EF repos | 200 `ProductApiKeyDto[]` (no secrets) | H, C | D-001 |
 | `POST /api/products/{id}/api-keys` (Admin) | `CreateProductApiKeyRequestHandler` | `IProductRepository`, `IApiKeyHasher`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW, hasher | 201 `CreateProductApiKeyResponse` (plain key shown once); 404; 400 invalid kind | H, C, I | D-001 |
 | `DELETE /api/products/{id}/api-keys/{keyId}` (Admin) | `RevokeProductApiKeyRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 204; 404 | H, C, I | D-001 |
@@ -258,6 +259,8 @@ Conventions:
 | `PUT /api/tags/{id}` (Admin) | `UpdateTagRequestHandler` | `ITagRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 200 `TagDto`; 404; 409 | H, C | none |
 | `DELETE /api/tags/{id}` (Admin) | `DeleteTagRequestHandler` | `ITagRepository`, `ITicketRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 204; 404; 409 in use | H, C, I | none |
 | `GET /api/admin-events` (Admin) | `ListAdminEventsRequestHandler` | `IAdminEventRepository`, `IAgentRepository` | EF repos | 200 paged `AdminEventDto` | H, C, I | none |
+| `GET /api/settings/site` (Admin) | `GetSiteSettingsRequestHandler` | `ISiteSettingsRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos | 200 `SiteSettingsDto` (default pack key and version) | H, C, I | D-053 |
+| `PUT /api/settings/site` (Admin) | `UpdateSiteSettingsRequestHandler` | `ISiteSettingsRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims`, `IUnitOfWork`, `TimeProvider` | EF repos, UoW | 200 `SiteSettingsDto`; 400 `skin-pack-unknown` on `default-pack`; 409 stale version; audits `SiteSettingsUpdated` | H, C, I | D-053 |
 
 ### 7.2 Intake, email and worker (PHASE-05)
 
@@ -268,6 +271,7 @@ Conventions:
 | Worker outbox loop (`EmailOutboxWorker` hosted service, resolves the scoped handler from a fresh DI scope per iteration via `IServiceScopeFactory`) | `DrainEmailOutboxHandler` (plain `Task` or `Result`; no caller branching other than loop delay) | `IEmailOutboxStore`, `IEmailTemplateRenderer`, `IProductRepository`, `IOutboundEmailSender`, `IOptions<EmailOutboxWorkerOptions>`, `ILogger` | Outbox store (`SKIP LOCKED`), SMTP sender | Loop: batch processed means poll again; empty or failure means delay; unexpected exception logged and loop continues | H, I, W | D-010, D-012 |
 | `GET /api/public/products/{productKey}` (anonymous, `public` limit, Cache-Control) | `GetPublicProductRequestHandler` | `IProductRepository` | EF repos | 200 `PublicProductDto` (name, logo, accent; no secrets) with `Cache-Control: public, max-age`; 404 `no-store` | H, C, I | D-002 |
 | `GET /api/public/products` (anonymous, `public` limit; for the Portal sitemap) | `ListPublicProductsRequestHandler` | `IProductRepository` | EF repos | 200 `PublicProductSummaryDto[]` (key and display name of the active products, by key, at most 1,000) with `Cache-Control: public, max-age=300` | H, C, I | D-045 |
+| `GET /api/public/site` (anonymous, `public` limit; the default theme pack for the Portal) | `GetPublicSiteRequestHandler` | `ISiteSettingsRepository` | EF repos | 200 `PublicSiteDto` (the default pack key only) with `Cache-Control: public, max-age=300` | H, C, I | D-053 |
 
 ### 7.3 Ticket operations (PHASE-06)
 
@@ -381,6 +385,8 @@ Rules applied (_template RAZOR_COMPONENT_ARCHITECTURE.md): any injection, lifecy
 | KB article (`/p/{key}/kb/{category}/{slug}`) | Paired page; inline `ArticleBody` that renders trusted sanitized HTML | `KbArticleViewModel` | None | Server-rendered; SEO meta and canonical link; 404 not-found state; cached by API response | `PublishedKbArticleDto` |
 | KB search (`/p/{key}/kb/search`) | Paired page | `KbSearchViewModel` | None | Query string driven (GET form, works without JS); empty and no-results states | `KbSearchResponse` |
 
+**Theming (D-053).** Every Portal page is rendered in one resolved skin. `SkinResolver` (Contracts) merges Classic, the deployment default pack (`site_settings`, read through `GET api/public/site` and kept by `DefaultPackProvider` for 60 s), the product's pack and the product's token overrides, and checks contrast. `PortalSkinFactory` turns the result into custom properties and `data-ts-*` preset attributes on the existing `ts-accent-scope` wrapper (the only `style=` carrier; the CSP is unchanged); only values that differ from Classic are emitted, so an unskinned page is byte-identical. Neutral pages use the default pack only (D-045). Landing cards each get their own scope. Emails take only the accent and the chrome colour through the same resolver, with Classic as the default pack because the Worker does not read the site setting.
+
 ## 9. Error, abuse and concurrency
 
 - **Errors:** RFC 7807 ProblemDetails from `AspNetCore.Common`, with stable `ResultError` codes; correlation id in every response and log. Unexpected exceptions return a generic 500. Email failures never fail user requests (outbox).
@@ -423,7 +429,7 @@ Per _template pattern CLIENT_IP_RATE_LIMITING.md (reverse proxy in front of Dock
 
 | Policy | Applies to | Partition | Default |
 | --- | --- | --- | --- |
-| `public` | `GET /api/public/products`, `GET /api/public/products/{key}`, public KB endpoints, sitemap | client IP | 120 / min |
+| `public` | `GET /api/public/products`, `GET /api/public/products/{key}`, public KB endpoints, sitemap, `GET /api/public/site` | client IP | 120 / min |
 | `public-submit` | `POST /api/public/products/{productKey}/tickets` | client IP | 5 / 10 min |
 | `intake-key` (Public key) | `POST /api/intake/tickets` with a Public key | key prefix + client IP | 10 / min |
 | `intake-key` (Trusted key) | `POST /api/intake/tickets` with a Trusted key | key prefix + client IP (a key id is impossible before authentication; the limiter reads the raw `X-Api-Key` prefix, so a spoofer who knows a prefix exhausts only their own IP's partition) | 120 / min |

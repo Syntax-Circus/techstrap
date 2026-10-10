@@ -28,6 +28,6 @@ public sealed class GetPublicProductRequestHandler(IProductRepository products, 
         var branding = product.Branding;
         ProductAccent.TryDerive(branding.AccentColour, out var colors);
         return Result<PublicProductDto>.Success(new PublicProductDto(
-            product.Key, branding.DisplayName, ProductLogos.EffectiveLogoUrl(branding, logoUrls), colors.Accent, colors.OnAccent, colors.AccentInk, product.PortalHost, branding.Tagline));
+            product.Key, branding.DisplayName, ProductLogos.EffectiveLogoUrl(branding, logoUrls), colors.Accent, colors.OnAccent, colors.AccentInk, product.PortalHost, branding.Tagline, ProductMapping.SkinOf(product)));
     }
 }

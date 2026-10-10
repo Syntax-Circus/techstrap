@@ -677,6 +677,11 @@ namespace TechStrap.Infrastructure.Migrations
                         .HasColumnType("character varying(320)")
                         .HasColumnName("reply_to");
 
+                    b.Property<string>("Skin")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("skin");
+
                     b.Property<string>("Tagline")
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)")
@@ -769,6 +774,38 @@ namespace TechStrap.Infrastructure.Migrations
                         .HasDatabaseName("ix_requesters_external_user_ref");
 
                     b.ToTable("requesters", (string)null);
+                });
+
+            modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.SiteSettingsRecord", b =>
+                {
+                    b.Property<short>("Id")
+                        .HasColumnType("smallint")
+                        .HasColumnName("id");
+
+                    b.Property<string>("DefaultPack")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("default_pack");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_site_settings");
+
+                    b.ToTable("site_settings", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = (short)1,
+                            DefaultPack = "classic",
+                            Version = 0u
+                        });
                 });
 
             modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.TagRecord", b =>

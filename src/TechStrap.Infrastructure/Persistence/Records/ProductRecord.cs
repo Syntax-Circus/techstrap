@@ -32,6 +32,9 @@ internal sealed class ProductRecord
 
     public bool ListedOnLanding { get; set; } = true;
 
+    /// <summary>The versioned skin JSON (validated tokens), or null for no skin (D-053).</summary>
+    public string? Skin { get; set; }
+
     /// <summary>Postgres <c>xmin</c>, the optimistic concurrency token.</summary>
     public uint Version { get; set; }
 }

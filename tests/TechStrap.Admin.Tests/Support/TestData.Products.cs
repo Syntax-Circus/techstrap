@@ -1,4 +1,5 @@
 using TechStrap.Contracts.Products;
+using TechStrap.Contracts.Skins;
 
 namespace TechStrap.Admin.Tests.Support;
 
@@ -19,7 +20,8 @@ internal static partial class TestData
         string? portalHost = null,
         string? tagline = null,
         string? uploadedLogoUrl = null,
-        bool listed = true) => new(
+        bool listed = true,
+        ProductSkin? skin = null) => new(
             id ?? OrbitlyId, key, name, prefix, active,
-            new ProductBrandingDto(name, logo, accent, "#FFFFFF", accent, from, replyTo, tagline, uploadedLogoUrl), version, portalHost, listed);
+            new ProductBrandingDto(name, logo, accent, "#FFFFFF", accent, from, replyTo, tagline, uploadedLogoUrl), version, portalHost, listed, skin);
 }

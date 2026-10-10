@@ -396,4 +396,45 @@ public sealed class EmailTemplateRendererTests
 
         XssAssertions.ShouldHaveNoActiveContent(WithoutTemplateHead(email.Html), vector);
     }
+
+    [Fact]
+    public void A_chrome_colour_fills_the_header_bar_with_a_readable_on_colour()
+    {
+        var html = Renderer().RenderTicketConfirmation(Model, Orbitly with { ChromeColour = "#0A0E17" }).Html;
+
+        html.ShouldContain("background:#0A0E17;color:#FFFFFF");
+        html.ShouldContain("display:inline-block;background:#7C3AED;color:#FFFFFF");
+        html.ShouldContain("font-family:Arial,Helvetica,sans-serif");
+    }
+
+    [Fact]
+    public void No_chrome_keeps_the_accent_header_bar()
+    {
+        var plain = Renderer().RenderTicketConfirmation(Model, Orbitly).Html;
+        var nullChrome = Renderer().RenderTicketConfirmation(Model, Orbitly with { ChromeColour = null }).Html;
+
+        nullChrome.ShouldBe(plain);
+        plain.ShouldContain("<td style=\"background:#7C3AED;color:#FFFFFF;padding:20px 24px;");
+    }
+
+    [Fact]
+    public void The_header_bar_writes_the_normalised_chrome_not_the_raw_string()
+    {
+        var html = Renderer().RenderTicketConfirmation(Model, Orbitly with { ChromeColour = "#0a0e17" }).Html;
+
+        html.ShouldContain("background:#0A0E17;color:#FFFFFF");
+        html.ShouldNotContain("#0a0e17", Case.Sensitive);
+    }
+
+    [Theory]
+    [InlineData("red;}")]
+    [InlineData("#12")]
+    public void A_hostile_chrome_is_ignored(string chrome)
+    {
+        var plain = Renderer().RenderTicketConfirmation(Model, Orbitly).Html;
+        var html = Renderer().RenderTicketConfirmation(Model, Orbitly with { ChromeColour = chrome }).Html;
+
+        html.ShouldBe(plain);
+        html.ShouldNotContain(chrome);
+    }
 }

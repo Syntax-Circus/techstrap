@@ -1,5 +1,6 @@
 using TechStrap.Contracts.Branding;
 using TechStrap.Contracts.Products;
+using TechStrap.Contracts.Skins;
 using TechStrap.Domain.Products;
 
 namespace TechStrap.Application.Products;
@@ -24,6 +25,11 @@ internal static class ProductMapping
                 branding.Tagline, branding.UploadedLogo is { } name ? logoUrls.UrlFor(name) : null),
             product.Version,
             product.PortalHost,
-            product.ListedOnLanding);
+            product.ListedOnLanding,
+            SkinOf(product));
     }
+
+    /// <summary>The product's stored skin, or null when it has none or the stored JSON no longer parses (the Portal then falls back to the default pack).</summary>
+    public static ProductSkin? SkinOf(Product product) =>
+        SkinSerializer.TryDeserialize(product.SkinJson, out var skin) ? skin : null;
 }

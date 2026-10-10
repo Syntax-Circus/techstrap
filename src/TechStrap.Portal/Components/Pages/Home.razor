@@ -9,17 +9,19 @@
     <section class="ts-landing" aria-label="@ShellCopy.LandingHeading">
         @foreach (var card in _cards)
         {
-            <a class="ts-landing-card" href="@card.Href" data-product="@card.Key">
-                @if (card.LogoUrl is { } logo)
-                {
-                    <img class="ts-landing-logo" src="@logo" alt="" height="40" loading="lazy" />
-                }
-                <span class="ts-landing-name">@card.DisplayName</span>
-                @if (card.Tagline is { } tagline)
-                {
-                    <span class="ts-landing-tagline">@tagline</span>
-                }
-            </a>
+            <AccentScope Skin="@card.Skin">
+                <a class="ts-landing-card" href="@card.Href" data-product="@card.Key">
+                    @if (card.LogoUrl is { } logo)
+                    {
+                        <img class="ts-landing-logo" src="@logo" alt="" height="40" loading="lazy" />
+                    }
+                    <span class="ts-landing-name">@card.DisplayName</span>
+                    @if (card.Tagline is { } tagline)
+                    {
+                        <span class="ts-landing-tagline">@tagline</span>
+                    }
+                </a>
+            </AccentScope>
         }
     </section>
 }
