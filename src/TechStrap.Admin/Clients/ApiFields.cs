@@ -16,6 +16,7 @@ public static class ApiFields
     public const string FromAddress = "from-address";
     public const string ReplyTo = "reply-to";
     public const string PortalHost = "portal-host";
+    public const string Tagline = "tagline";
 
     // API keys.
     public const string Kind = "kind";

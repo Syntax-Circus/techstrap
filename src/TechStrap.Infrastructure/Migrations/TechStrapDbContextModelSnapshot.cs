@@ -644,6 +644,12 @@ namespace TechStrap.Infrastructure.Migrations
                         .HasColumnType("character varying(40)")
                         .HasColumnName("key");
 
+                    b.Property<bool>("ListedOnLanding")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("listed_on_landing");
+
                     b.Property<string>("Logo")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -670,6 +676,16 @@ namespace TechStrap.Infrastructure.Migrations
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)")
                         .HasColumnName("reply_to");
+
+                    b.Property<string>("Tagline")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("tagline");
+
+                    b.Property<string>("UploadedLogo")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("uploaded_logo");
 
                     b.Property<uint>("Version")
                         .IsConcurrencyToken()

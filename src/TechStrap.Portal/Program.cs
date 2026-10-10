@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using SyntaxCircus.AspNetCore.Common;
 using SyntaxCircus.DotEnv;
 using TechStrap.Hosting.Security;
@@ -75,7 +76,7 @@ telemetry.LogStartupWarning(app.Logger);
 
 // Forwarded headers, correlation id and security headers first (with the ticket pages' own header rules, which win over the shared ones), then the canonical-host redirect, then the
 // plain error page and the not-found page (only 404 is re-executed).
-app.UseTechStrapWebHost(PortalHeaderRules.Rules);
+app.UseTechStrapWebHost(PortalHeaderRules.Rules(app.Services.GetRequiredService<IOptions<PortalOptions>>().Value));
 app.UsePortalSeo();
 
 // A product's own host: its clean paths become the /p/{key} routes, before routing and before the error pages (a 404 re-executed on a product host sees the rewritten path), and before the output cache.

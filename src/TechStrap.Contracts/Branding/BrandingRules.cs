@@ -4,7 +4,7 @@ namespace TechStrap.Contracts.Branding;
 
 /// <summary>
 /// The branding field rules the Admin editor applies before it submits, so an agent sees the error at the field. The API stays the authority: the Domain
-/// repeats each rule (<c>Guard.Colour</c>, <c>Guard.OptionalImageUrl</c>) and a parity test in Application.Tests keeps the two in step, because Domain cannot reference Contracts.
+/// repeats each rule (<c>Guard.Colour</c>, <c>Guard.OptionalImageUrl</c>, <c>Guard.OptionalTagline</c>) and a parity test in Application.Tests keeps the two in step, because Domain cannot reference Contracts.
 /// </summary>
 public static class BrandingRules
 {
@@ -13,6 +13,21 @@ public static class BrandingRules
 
     /// <summary>The longest logo URL, the same limit as the Domain (<c>DomainLimits.UrlMaxLength</c>).</summary>
     public const int LogoUrlMaxLength = 500;
+
+    /// <summary>The longest tagline, the same limit as the Domain (<c>DomainLimits.TaglineMaxLength</c>).</summary>
+    public const int TaglineMaxLength = 160;
+
+    /// <summary>True for a blank value (no tagline) and for one line of plain text of at most <see cref="TaglineMaxLength"/> characters after trimming: no line breaks, tabs or other control characters.</summary>
+    public static bool IsAcceptableTagline(string? value)
+    {
+        var text = value?.Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            return true;
+        }
+
+        return text.Length <= TaglineMaxLength && !text.Any(char.IsControl);
+    }
 
     /// <summary>
     /// True for a blank value (no logo) and for an absolute <c>https</c> URL with a host and no user info. <c>http</c> is accepted only for the

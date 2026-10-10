@@ -30,8 +30,8 @@ public sealed class ProductsPageTests : AdminPageTest
 
         var rows = cut.FindAll("tbody tr");
         rows.Select(r => r.QuerySelector("td a")!.TextContent).ShouldBe(["Acme", "Orbitly"]);
-        rows[0].QuerySelector(".ts-pill")!.TextContent.ShouldBe("Inactive");
-        rows[1].QuerySelector(".ts-pill")!.TextContent.ShouldBe("Active");
+        rows[0].QuerySelectorAll(".ts-pill").Last().TextContent.ShouldBe("Inactive");
+        rows[1].QuerySelectorAll(".ts-pill").Last().TextContent.ShouldBe("Active");
         rows[1].QuerySelectorAll("code").Select(c => c.TextContent).ShouldBe(["orbitly", "ORB"]);
     }
 
@@ -51,6 +51,22 @@ public sealed class ProductsPageTests : AdminPageTest
         orbitly[3].TextContent.ShouldBe("support.orbitly.test");
         orbitly[3].QuerySelector("code").ShouldNotBeNull();
         cut.Find("tr[data-product=acme]").QuerySelectorAll("td")[3].TextContent.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void The_list_shows_whether_a_product_is_listed_on_the_landing_page()
+    {
+        _products.ListAsync(Arg.Any<CancellationToken>()).Returns(TestData.Ok<IReadOnlyList<ProductDto>>(
+        [
+            TestData.ProductDetail("Orbitly", key: "orbitly", prefix: "ORB"),
+            TestData.ProductDetail("Acme", id: Guid.Parse("aaaaaaaa-0000-0000-0000-0000000000a2"), key: "acme", prefix: "ACM", listed: false),
+        ]));
+
+        var cut = Render<ProductsPage>();
+
+        cut.FindAll("thead th").Select(h => h.TextContent.Trim()).ShouldContain(ProductsCopy.ColumnListed);
+        cut.Find("tr[data-product=orbitly]").QuerySelectorAll("td")[4].TextContent.ShouldBe(ProductsCopy.Listed);
+        cut.Find("tr[data-product=acme]").QuerySelectorAll("td")[4].TextContent.ShouldBe(ProductsCopy.Hidden);
     }
 
     [Fact]

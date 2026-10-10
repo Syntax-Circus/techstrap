@@ -10,7 +10,7 @@ public interface IGetPublicProductRequestHandler
     Task<Result<PublicProductDto>> HandleAsync(string? productKey, CancellationToken cancellationToken);
 }
 
-public sealed class GetPublicProductRequestHandler(IProductRepository products) : IGetPublicProductRequestHandler
+public sealed class GetPublicProductRequestHandler(IProductRepository products, IProductLogoUrls logoUrls) : IGetPublicProductRequestHandler
 {
     public async Task<Result<PublicProductDto>> HandleAsync(string? productKey, CancellationToken cancellationToken)
     {
@@ -28,6 +28,6 @@ public sealed class GetPublicProductRequestHandler(IProductRepository products) 
         var branding = product.Branding;
         ProductAccent.TryDerive(branding.AccentColour, out var colors);
         return Result<PublicProductDto>.Success(new PublicProductDto(
-            product.Key, branding.DisplayName, branding.LogoPath, colors.Accent, colors.OnAccent, colors.AccentInk, product.PortalHost));
+            product.Key, branding.DisplayName, ProductLogos.EffectiveLogoUrl(branding, logoUrls), colors.Accent, colors.OnAccent, colors.AccentInk, product.PortalHost, branding.Tagline));
     }
 }

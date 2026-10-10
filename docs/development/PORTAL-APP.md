@@ -33,7 +33,8 @@ The Portal refuses to start with a message that names the missing or malformed k
 | --- | --- | --- | --- |
 | `API__BASEURL` (`Api:BaseUrl`) | Yes | blank (the compose files set `http://api/`) | The address of the TechStrap API, absolute http or https |
 | `TECHSTRAP_PORTAL_PUBLIC_URL` | Outside Development | blank | The Portal's public address as customers see it, absolute http or https, no query or fragment. The base of canonical URLs and robots.txt's sitemap line (`Seo:BaseUrl` is derived from it); the same value as the Api's key |
-| `TECHSTRAP_PORTAL_DEFAULT_PRODUCT` | No | blank | A product key. When set, `/` redirects (302) to `/p/<key>`; blank shows a neutral page with no product list |
+| `TECHSTRAP_PORTAL_DEFAULT_PRODUCT` | No | blank | A product key. When set, `/` redirects (302) to `/p/<key>`; blank shows the neutral page (or the landing page when `TECHSTRAP_PORTAL_LANDING=Products`) |
+| `TECHSTRAP_PORTAL_LANDING` | No | `Neutral` | `Neutral` or `Products` (D-052). `Products` lists the active products whose landing flag is on, as cards (name, uploaded or linked logo, tagline) on the default host's `/`; a hosted product's card links to its own host. An unreachable Api shows the neutral copy. Not allowed with `TECHSTRAP_PORTAL_DEFAULT_PRODUCT` (the Portal stops at start). A product host's `/` is always that product's home |
 | `TECHSTRAP_PORTAL_SHOW_POWERED_BY` | No | `true` | `false` hides the "Powered by TechStrap" line on every page. Any other value than `true` or `false` stops the start (D-024) |
 | `CANONICALHOST__CANONICALHOST` | No | blank | The host to redirect legacy hosts to; blank turns the redirect off |
 | `CANONICALHOST__LEGACYHOSTS__0` ... | No | none | The hosts that are redirected. Only these are; any other host is left alone |

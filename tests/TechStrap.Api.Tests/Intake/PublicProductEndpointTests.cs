@@ -56,11 +56,10 @@ public sealed class PublicProductEndpointTests(TestPostgres postgres) : IAsyncLi
         response.Headers.CacheControl.MaxAge.ShouldBe(TimeSpan.FromSeconds(300));
         var raw = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         var list = System.Text.Json.JsonSerializer.Deserialize<List<PublicProductSummaryDto>>(raw, System.Text.Json.JsonSerializerOptions.Web)!;
-        list.ShouldBe([new PublicProductSummaryDto("orbitly", "Orbitly"), new PublicProductSummaryDto("paperplane", "Paperplane")]);
+        list.ShouldBe([new PublicProductSummaryDto("orbitly", "Orbitly", AccentColour: "#1F6FEB"), new PublicProductSummaryDto("paperplane", "Paperplane", AccentColour: "#1F6FEB")]);
         raw.ShouldNotContain("dormant");
         raw.ShouldNotContain("logoPath");
-        raw.ShouldNotContain("accentColour");
-        System.Text.Json.JsonDocument.Parse(raw).RootElement[0].EnumerateObject().Select(property => property.Name).ShouldBe(["key", "displayName", "portalHost"]);
+        System.Text.Json.JsonDocument.Parse(raw).RootElement[0].EnumerateObject().Select(property => property.Name).ShouldBe(["key", "displayName", "portalHost", "tagline", "logoUrl", "accentColour", "listedOnLanding"]);
     }
 
     [Theory]

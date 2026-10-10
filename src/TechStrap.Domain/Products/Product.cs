@@ -9,8 +9,10 @@ public sealed record ProductBranding
     public const string DefaultAccentColour = "#1F6FEB";
 
     // Private constructor and get-only properties: neither `new` nor `with` can build a branding that skipped validation.
-    private ProductBranding(string displayName, string? logoPath, string accentColour, string? fromAddress, string? replyTo)
+    private ProductBranding(string displayName, string? logoPath, string accentColour, string? fromAddress, string? replyTo, string? tagline, string? uploadedLogo)
     {
+        Tagline = tagline;
+        UploadedLogo = uploadedLogo;
         DisplayName = displayName;
         LogoPath = logoPath;
         AccentColour = accentColour;
@@ -28,22 +30,32 @@ public sealed record ProductBranding
 
     public string? ReplyTo { get; }
 
+    /// <summary>One line of plain text shown on the landing card, or null (D-052).</summary>
+    public string? Tagline { get; }
+
+    /// <summary>The stored file name of the uploaded logo (<c>{32 hex}.{ext}</c> under <c>product-logos/</c>), never a URL; it supersedes <see cref="LogoPath"/> (D-052).</summary>
+    public string? UploadedLogo { get; }
+
     /// <summary>Rebuilds branding that was validated when it was stored; persistence mappings use it, callers use <see cref="Create"/>.</summary>
-    public static ProductBranding Restore(string displayName, string? logoPath, string accentColour, string? fromAddress, string? replyTo) =>
-        new(displayName, logoPath, accentColour, fromAddress, replyTo);
+    public static ProductBranding Restore(string displayName, string? logoPath, string accentColour, string? fromAddress, string? replyTo, string? tagline = null, string? uploadedLogo = null) =>
+        new(displayName, logoPath, accentColour, fromAddress, replyTo, tagline, uploadedLogo);
 
     public static DomainResult<ProductBranding> Create(
         string? displayName,
         string? logoPath,
         string? accentColour,
         string? fromAddress,
-        string? replyTo) =>
-        Build(displayName, Guard.OptionalImageUrl(logoPath, DomainLimits.UrlMaxLength, "logo-path"), accentColour, fromAddress, replyTo);
+        string? replyTo,
+        string? tagline = null) =>
+        Build(displayName, Guard.OptionalImageUrl(logoPath, DomainLimits.UrlMaxLength, "logo-path"), accentColour, fromAddress, replyTo, tagline, uploadedLogo: null);
+
+    /// <summary>The same branding with the uploaded logo replaced (null removes it). The name is the store's own and is not validated here.</summary>
+    public ProductBranding WithUploadedLogo(string? fileName) => new(DisplayName, LogoPath, AccentColour, FromAddress, ReplyTo, Tagline, fileName);
 
     /// <summary>
     /// Branding for an update of a stored product. The logo address the product already has is accepted as it is when the request carries it unchanged (compared after trimming), because
     /// products saved before the logo rule (a relative path, say) must stay editable: renaming one must not need a logo it never had. A different address, or one for a product that has none,
-    /// is checked by the full rule; every other field is always checked.
+    /// is checked by the full rule; every other field is always checked. The uploaded logo is carried over from <paramref name="current"/>: the request cannot carry it (D-052), only the logo routes change it.
     /// </summary>
     public static DomainResult<ProductBranding> CreateForUpdate(
         ProductBranding current,
@@ -51,34 +63,37 @@ public sealed record ProductBranding
         string? logoPath,
         string? accentColour,
         string? fromAddress,
-        string? replyTo)
+        string? replyTo,
+        string? tagline = null)
     {
         ArgumentNullException.ThrowIfNull(current);
         var unchanged = string.Equals(logoPath?.Trim(), current.LogoPath, StringComparison.Ordinal);
         var logo = unchanged
             ? DomainResult<string?>.Ok(current.LogoPath)
             : Guard.OptionalImageUrl(logoPath, DomainLimits.UrlMaxLength, "logo-path");
-        return Build(displayName, logo, accentColour, fromAddress, replyTo);
+        return Build(displayName, logo, accentColour, fromAddress, replyTo, tagline, current.UploadedLogo);
     }
 
-    private static DomainResult<ProductBranding> Build(string? displayName, DomainResult<string?> logo, string? accentColour, string? fromAddress, string? replyTo)
+    private static DomainResult<ProductBranding> Build(string? displayName, DomainResult<string?> logo, string? accentColour, string? fromAddress, string? replyTo, string? tagline, string? uploadedLogo)
     {
+        var line = Guard.OptionalTagline(tagline, DomainLimits.TaglineMaxLength, "tagline");
         var name = Guard.RequiredText(displayName, DomainLimits.NameMaxLength, "display-name");
         var accent = Guard.Colour(accentColour ?? DefaultAccentColour, "accent-colour");
         var from = Guard.OptionalEmail(fromAddress, "from-address");
         var reply = Guard.OptionalEmail(replyTo, "reply-to");
 
-        return Guard.FirstError(name, logo, accent, from, reply) is { } error
+        return Guard.FirstError(name, logo, accent, from, reply, line) is { } error
             ? error
-            : DomainResult<ProductBranding>.Ok(new ProductBranding(name.Value, logo.Value, accent.Value, from.Value, reply.Value));
+            : DomainResult<ProductBranding>.Ok(new ProductBranding(name.Value, logo.Value, accent.Value, from.Value, reply.Value, line.Value, uploadedLogo));
     }
 }
 
 /// <summary>A product (a customer application) that receives tickets. The number prefix is fixed at creation (D-009).</summary>
 public sealed class Product
 {
-    private Product(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive, uint version, string? portalHost)
+    private Product(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive, uint version, string? portalHost, bool listedOnLanding)
     {
+        ListedOnLanding = listedOnLanding;
         Id = id;
         Key = key;
         Name = name;
@@ -106,6 +121,9 @@ public sealed class Product
     /// <summary>The public hostname this product's portal is served on (lower-case, unique), or null when it has none (D-050).</summary>
     public string? PortalHost { get; private set; }
 
+    /// <summary>Whether the product appears on the Portal's landing page when it lists products (D-052). It changes nothing else: the product stays reachable by key and host.</summary>
+    public bool ListedOnLanding { get; private set; }
+
     /// <summary>
     /// Opaque optimistic-concurrency token as loaded (Postgres <c>xmin</c>); 0 for a product that was never stored. The persistence layer
     /// applies it as the original token when the product is updated, so a stale copy is rejected on save.
@@ -128,11 +146,11 @@ public sealed class Product
         }
 
         var defaultBranding = ProductBranding.Create(productName.Value, null, null, null, null).Value;
-        return DomainResult<Product>.Ok(new Product(EntityId.New(clock), slug.Value, productName.Value, prefix!, branding ?? defaultBranding, isActive: true, version: 0, portalHost: null));
+        return DomainResult<Product>.Ok(new Product(EntityId.New(clock), slug.Value, productName.Value, prefix!, branding ?? defaultBranding, isActive: true, version: 0, portalHost: null, listedOnLanding: true));
     }
 
-    public static Product Restore(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive, uint version, string? portalHost = null) =>
-        new(id, key, name, numberPrefix, branding, isActive, version, portalHost);
+    public static Product Restore(Guid id, string key, string name, string numberPrefix, ProductBranding branding, bool isActive, uint version, string? portalHost = null, bool listedOnLanding = true) =>
+        new(id, key, name, numberPrefix, branding, isActive, version, portalHost, listedOnLanding);
 
     /// <summary>Sets the portal hostname from user input (trimmed and lower-cased); a blank input clears it. Uniqueness across products is the caller's check.</summary>
     public DomainResult SetPortalHost(string? input)
@@ -163,4 +181,10 @@ public sealed class Product
     }
 
     public void SetActive(bool isActive) => IsActive = isActive;
+
+    /// <summary>Lists the product on the Portal's landing page or takes it off (D-052).</summary>
+    public void SetListedOnLanding(bool listed) => ListedOnLanding = listed;
+
+    /// <summary>Sets or clears (null) the uploaded logo's stored file name; the logo routes are the only callers.</summary>
+    public void SetUploadedLogo(string? fileName) => Branding = Branding.WithUploadedLogo(fileName);
 }

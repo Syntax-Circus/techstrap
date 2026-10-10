@@ -12,7 +12,7 @@ public interface IGetProductRequestHandler
 }
 
 /// <summary>GET /api/products/{id} (Agent): an inactive product is visible to admins only (D-022).</summary>
-public sealed class GetProductRequestHandler(ICurrentAgentClaims currentAgent, IProductRepository products) : IGetProductRequestHandler
+public sealed class GetProductRequestHandler(ICurrentAgentClaims currentAgent, IProductRepository products, IProductLogoUrls logoUrls) : IGetProductRequestHandler
 {
     public async Task<Result<ProductDto>> HandleAsync(Guid productId, CancellationToken cancellationToken)
     {
@@ -27,6 +27,6 @@ public sealed class GetProductRequestHandler(ICurrentAgentClaims currentAgent, I
             return Result<ProductDto>.Failure(ProductErrors.NotFound());
         }
 
-        return Result<ProductDto>.Success(ProductMapping.ToDto(product));
+        return Result<ProductDto>.Success(ProductMapping.ToDto(product, logoUrls));
     }
 }

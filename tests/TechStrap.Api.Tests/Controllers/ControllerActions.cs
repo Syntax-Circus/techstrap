@@ -22,6 +22,8 @@ public static class ControllerActions
         ["ProductsController.Get"] = 200,
         ["ProductsController.Create"] = 201,
         ["ProductsController.Update"] = 200,
+        ["ProductsController.UploadLogo"] = 200,
+        ["ProductsController.RemoveLogo"] = 200,
         ["ProductsController.ListApiKeys"] = 200,
         ["ProductsController.CreateApiKey"] = 201,
         ["ProductsController.RevokeApiKey"] = 204,

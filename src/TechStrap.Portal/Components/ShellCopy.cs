@@ -6,10 +6,12 @@ namespace TechStrap.Portal.Components;
 /// </summary>
 public static class ShellCopy
 {
-    // The root page, shown only when no default product is configured. No product list: nothing may be enumerated.
+    // The root page: the neutral copy (TECHSTRAP_PORTAL_LANDING=Neutral, or nothing to list), and the landing page (Products, D-052). Inactive products never appear.
     public const string RootTitle = "Support";
     public const string RootHeading = "Support";
     public const string RootIntro = "Open the help page of your product, or follow a ticket with the link in your email.";
+    public const string LandingHeading = "Support";
+    public const string LandingIntro = "Choose your product to find help articles or contact support.";
 
     // A product page.
     public const string HomeHeading = "How can we help?";

@@ -5,6 +5,7 @@ using SyntaxCircus.Common;
 using TechStrap.Application.Intake;
 using TechStrap.Application.Knowledge;
 using TechStrap.Application.Persistence;
+using TechStrap.Application.Products;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
 using TechStrap.Domain.Tickets;
@@ -35,6 +36,7 @@ public sealed class DrainEmailOutboxHandler(
     IKbRepository knowledgeBase,
     IEmailTemplateRenderer renderer,
     IOutboundEmailSender sender,
+    IProductLogoUrls logoUrls,
     IOptions<EmailOutboxWorkerOptions> options,
     ILogger<DrainEmailOutboxHandler> logger) : IDrainEmailOutboxHandler
 {
@@ -116,7 +118,7 @@ public sealed class DrainEmailOutboxHandler(
         try
         {
             var branding = product.Branding;
-            var emailBranding = new EmailBranding(branding.DisplayName, branding.LogoPath, branding.AccentColour, branding.FromAddress, branding.ReplyTo);
+            var emailBranding = new EmailBranding(branding.DisplayName, ProductLogos.EffectiveLogoUrl(branding, logoUrls), branding.AccentColour, branding.FromAddress, branding.ReplyTo);
             rendered = model switch
             {
                 TicketConfirmationEmail confirmation => renderer.RenderTicketConfirmation(confirmation, emailBranding),

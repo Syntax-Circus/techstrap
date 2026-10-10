@@ -78,6 +78,9 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 | Served as attachment with nosniff and a sandbox header | Api `AttachmentDownloadEndpointTests`, `CustomerAttachmentEndpointTests`; Portal `TicketAttachmentHostTests`; Admin `AttachmentPassThroughTests` |
 | SVG and HTML images refused | `KbImageStoreTests.Anything_that_is_not_a_plain_png_jpeg_gif_or_webp_is_refused_and_nothing_is_stored` |
 | Knowledge-base prefix isolation from attachments | `KbImageStoreTests.An_attachment_cannot_be_reached_through_the_image_reader`, `KbImageStoreTests.A_name_the_store_could_not_have_written_is_never_opened`; Api `KbImageServingTests` |
+| Uploaded product logos (D-052): type, size and name rules | `ProductLogoStoreTests` (a GIF, an SVG and a zero-byte file are refused as `product-logo-type-not-allowed`, an oversize file as `product-logo-too-large`, nothing is stored), `ProductLogoEndpointTests` (admin-only routes, 400, 413) and the `productLogo` column of the hostile-upload corpus |
+| Product logo serving and prefix isolation | `ProductLogoServingTests` (nosniff, sandbox CSP, immutable cache, 404 with `no-store` for any name the store could not have written) |
+| Product logo disk full | `ProductLogoDiskFullTests` (a full disk leaves no partial file and answers the generic 500) |
 | Download authorization | `GetAttachmentRequestHandlerTests.An_anonymous_caller_is_refused_without_a_lookup`, `AttachmentDownloadEndpointTests.An_anonymous_caller_is_401` |
 | Disk full or storage failure | `SubmitTicketRequestHandlerTests.An_exception_removes_the_files_the_attempt_stored_and_propagates`, `SubmitTicketIntegrationTests.A_failure_after_creation_leaves_no_rows_and_no_orphan_file`; HTTP level: `DiskFullIntakeTests.A_full_disk_on_the_second_file_is_a_clean_problem_response_with_no_ticket_and_no_file` and `KbImageDiskFullTests.A_full_disk_on_a_kb_image_upload_is_a_clean_problem_response_and_leaves_no_file`; no quota is SR-11 |
 | Antivirus | SR-08 |
@@ -167,7 +170,7 @@ Statuses are `Open` (work remains, named in the finding), `Fixed` (closed by a c
 - Path group: 3. Uploads
 - Severity: Info
 - Status: Accepted
-- Evidence: storage keys use time-ordered v7 GUIDs. Guessing one grants nothing because every read is authorized by ticket and role (agent) or by token (customer).
+- Evidence: storage keys use time-ordered v7 GUIDs. Guessing one grants nothing because every read is authorized by ticket and role (agent) or by token (customer). Uploaded product logos (D-052) are public by design, like KB images; their names are version 7 GUIDs and nothing else is in the path.
 
 ### SR-06: Agents are single-tenant by design
 - Path group: 5. Authorization and headers

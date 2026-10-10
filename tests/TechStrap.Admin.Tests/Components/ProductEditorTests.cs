@@ -51,6 +51,103 @@ public sealed class ProductEditorTests : AdminPageTest
 
     private static void Save(IRenderedComponent<ProductEditorPage> cut) => cut.Find("form").Submit();
 
+    // ---- landing page, tagline and uploaded logo (D-052) ---------------------------------------------------------
+
+    [Fact]
+    public void A_new_product_sends_the_listed_flag_explicitly_and_the_tagline_trimmed()
+    {
+        var cut = RenderNew();
+        Type(cut, "ts-product-key", "orbitly");
+        Type(cut, "ts-product-name", "Orbitly");
+        Type(cut, "ts-product-prefix", "ORB");
+        Type(cut, "ts-product-display", "Orbitly");
+        Type(cut, "ts-product-tagline", "  Tickets for the app.  ");
+        cut.Find("#ts-product-listed").Change(false);
+        Save(cut);
+
+        var sent = Creates.ShouldHaveSingleItem();
+        sent.ListedOnLanding.ShouldBe(false);
+        sent.Branding!.Tagline.ShouldBe("Tickets for the app.");
+    }
+
+    [Fact]
+    public void An_edit_sends_the_listed_flag_as_shown_and_a_blank_tagline_as_null()
+    {
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(tagline: "Old", listed: false)));
+        var cut = RenderEdit();
+        cut.Find("#ts-product-listed").GetAttribute("checked").ShouldBeNull();
+        Value(cut, "ts-product-tagline").ShouldBe("Old");
+
+        Type(cut, "ts-product-tagline", "   ");
+        Save(cut);
+
+        var sent = Updates.ShouldHaveSingleItem();
+        sent.ListedOnLanding.ShouldBe(false);
+        sent.Branding.Tagline.ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_tagline_over_160_characters_or_with_a_line_break_blocks_the_save_at_the_field()
+    {
+        var cut = RenderEdit();
+
+        Type(cut, "ts-product-tagline", new string('a', 161));
+        Save(cut);
+
+        FieldError(cut, "ts-product-tagline").ShouldBe(ProductsCopy.TaglineInvalid);
+        Updates.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void The_preview_prefers_the_uploaded_logo_and_the_new_form_has_no_upload_control()
+    {
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(logo: "https://cdn.example.com/linked.png", uploadedLogoUrl: "https://api.test/product-logos/0123456789abcdef0123456789abcdef.png")));
+        var edit = RenderEdit();
+        edit.Find("img.ts-accent-preview-logo").GetAttribute("src").ShouldBe("https://api.test/product-logos/0123456789abcdef0123456789abcdef.png");
+        edit.FindAll("#ts-product-logo-upload").Count.ShouldBe(1);
+        edit.FindAll("#ts-product-logo-remove").Count.ShouldBe(1);
+
+        var create = RenderNew();
+        create.FindAll("#ts-product-logo-upload").ShouldBeEmpty();
+        create.Markup.ShouldContain(ProductsCopy.LogoUploadAfterSave);
+    }
+
+    [Fact]
+    public async Task Removing_the_uploaded_logo_splices_the_new_version_and_keeps_a_pending_edit()
+    {
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(version: 7, uploadedLogoUrl: "https://api.test/product-logos/0123456789abcdef0123456789abcdef.png")));
+        _products.RemoveLogoAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(version: 8)));
+        var cut = RenderEdit();
+        Type(cut, "ts-product-name", "Orbitly Cloud");
+
+        await cut.Find("#ts-product-logo-remove").ClickAsync(new());
+        cut.WaitForAssertion(() => cut.FindAll("img.ts-accent-preview-logo").ShouldBeEmpty());
+        Save(cut);
+
+        Value(cut, "ts-product-name").ShouldBe("Orbitly Cloud");
+        var sent = Updates.ShouldHaveSingleItem();
+        sent.Name.ShouldBe("Orbitly Cloud");
+        sent.Version.ShouldBe(8u);
+    }
+
+    [Fact]
+    public async Task A_form_submit_during_an_upload_sends_nothing()
+    {
+        var pending = new TaskCompletionSource<Result<ProductDto>>();
+        _products.RemoveLogoAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(_ => pending.Task);
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(version: 7, uploadedLogoUrl: "https://api.test/product-logos/0123456789abcdef0123456789abcdef.png")));
+        var cut = RenderEdit();
+        Type(cut, "ts-product-name", "Orbitly Cloud");
+
+        var removing = cut.Find("#ts-product-logo-remove").ClickAsync(new());
+        cut.WaitForAssertion(() => cut.Find("button[type=submit]").HasAttribute("disabled").ShouldBeTrue());
+        Save(cut);
+
+        Updates.ShouldBeEmpty();
+        pending.SetResult(TestData.Ok(TestData.ProductDetail(version: 8)));
+        await removing;
+    }
+
     // ---- loading -------------------------------------------------------------------------------------------------
 
     [Fact]
@@ -666,7 +763,7 @@ public sealed class ProductEditorTests : AdminPageTest
 
         Save(cut);
 
-        Creates.ShouldHaveSingleItem().ShouldBe(new CreateProductRequest("nimbus", "Nimbus", "NIM", new ProductBrandingRequest("Nimbus Cloud", null, "#0F766E", null, null)));
+        Creates.ShouldHaveSingleItem().ShouldBe(new CreateProductRequest("nimbus", "Nimbus", "NIM", new ProductBrandingRequest("Nimbus Cloud", null, "#0F766E", null, null), null, true));
         _navigation.Uri.ShouldEndWith($"/settings/products/{NewId}/keys");
         StatusMessages.Current.ShouldBe("Created Nimbus");
         _products.Received(1).CreateAsync(Arg.Any<CreateProductRequest>(), Arg.Is<CancellationToken>(t => !t.CanBeCanceled));

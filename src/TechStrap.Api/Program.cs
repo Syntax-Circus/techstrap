@@ -119,6 +119,7 @@ builder.Services.AddOptions<ApiPublicUrlOptions>()
     .ValidateOnStart();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<TechStrap.Application.Knowledge.IKbImageUrls, KbImageUrls>();
+builder.Services.AddScoped<TechStrap.Application.Products.IProductLogoUrls, ProductLogoUrls>();
 
 var app = builder.Build();
 telemetry.LogStartupWarning(app.Logger);
@@ -186,6 +187,7 @@ app.MapOpenApi().AllowAnonymous().RequireRateLimiting(PublicRateLimitOptions.Pol
 
 app.MapControllers();
 app.MapKbImages();
+app.MapProductLogos();
 app.MapTechStrapLiveHub();
 
 app.Run();

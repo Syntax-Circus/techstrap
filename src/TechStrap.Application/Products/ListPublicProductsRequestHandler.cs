@@ -10,10 +10,10 @@ public interface IListPublicProductsRequestHandler
 }
 
 /// <summary>
-/// GET /api/public/products (anonymous, PHASE-09c, D-045 addendum). The ACTIVE products' key, display name and portal host, ordered by key and capped at
-/// <see cref="PublicProductLimits.MaxListed"/>, for the portal's sitemap. An inactive product never appears. Listing the keys is accepted because the sitemap publishes them anyway.
+/// GET /api/public/products (anonymous, PHASE-09c, D-045 addendum). The list feeds the Portal's sitemap, its host map and (D-052) its landing page. It still holds every ACTIVE product, ordered by key and capped at
+/// <see cref="PublicProductLimits.MaxListed"/>; an unlisted one carries <c>ListedOnLanding = false</c> and the landing page hides it. An inactive product never appears. Listing the keys is accepted because the sitemap publishes them anyway.
 /// </summary>
-public sealed class ListPublicProductsRequestHandler(IProductRepository products) : IListPublicProductsRequestHandler
+public sealed class ListPublicProductsRequestHandler(IProductRepository products, IProductLogoUrls logoUrls) : IListPublicProductsRequestHandler
 {
     public async Task<Result<IReadOnlyList<PublicProductSummaryDto>>> HandleAsync(CancellationToken cancellationToken)
     {
@@ -26,6 +26,6 @@ public sealed class ListPublicProductsRequestHandler(IProductRepository products
                 .Where(product => product.IsActive)
                 .OrderBy(product => product.Key, StringComparer.Ordinal)
                 .Take(PublicProductLimits.MaxListed)
-                .Select(product => new PublicProductSummaryDto(product.Key, product.Branding.DisplayName, product.PortalHost))]);
+                .Select(product => new PublicProductSummaryDto(product.Key, product.Branding.DisplayName, product.PortalHost, product.Branding.Tagline, ProductLogos.EffectiveLogoUrl(product.Branding, logoUrls), product.Branding.AccentColour, product.ListedOnLanding))]);
     }
 }

@@ -36,6 +36,35 @@ public sealed class ProductsClientTests
     }
 
     [Fact]
+    public async Task UploadLogoAsync_posts_multipart_with_the_file_part_named_file()
+    {
+        await using var api = await ApiHarness.CreateAsync(AdminTestPrincipal.Admin);
+        api.Stub.OnJson(HttpMethod.Post, $"/api/products/{ProductId}/logo", Product(version: 4));
+
+        var result = await api.Get<IProductsClient>().UploadLogoAsync(ProductId, new ProductLogoFile("dir/\"logo\".png", "image/png", () => new MemoryStream([0x89, 0x50, 0x4E, 0x47])), Ct);
+
+        result.Value.Version.ShouldBe(4u);
+        var request = api.Stub.Requests.ShouldHaveSingleItem();
+        request.ContentType!.ShouldStartWith("multipart/form-data");
+        var body = request.Body!;
+        body.ShouldContain("name=file");
+        body.ShouldContain("filename=dirlogo.png");
+        body.ShouldContain("Content-Type: image/png");
+    }
+
+    [Fact]
+    public async Task RemoveLogoAsync_sends_delete_and_returns_the_product()
+    {
+        await using var api = await ApiHarness.CreateAsync(AdminTestPrincipal.Admin);
+        api.Stub.OnJson(HttpMethod.Delete, $"/api/products/{ProductId}/logo", Product(version: 5));
+
+        var result = await api.Get<IProductsClient>().RemoveLogoAsync(ProductId, Ct);
+
+        result.Value.Version.ShouldBe(5u);
+        api.Stub.Count(HttpMethod.Delete, $"/api/products/{ProductId}/logo").ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Create_posts_the_request_and_returns_the_product()
     {
         await using var api = await ApiHarness.CreateAsync(AdminTestPrincipal.Admin);

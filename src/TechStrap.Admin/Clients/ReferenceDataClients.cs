@@ -1,4 +1,6 @@
+using System.Net.Http.Headers;
 using SyntaxCircus.Common;
+using TechStrap.Admin.Features.Tickets;
 using TechStrap.Contracts.Agents;
 using TechStrap.Contracts.ApiKeys;
 using TechStrap.Contracts.Paging;
@@ -42,7 +44,19 @@ public interface IProductsClient
 
     /// <summary><c>DELETE /api/products/{id}/api-keys/{keyId}</c> (Admin, 204). Idempotent: revoking a revoked key succeeds. 404 api-key-not-found.</summary>
     Task<Result> RevokeApiKeyAsync(Guid productId, Guid keyId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// <c>POST /api/products/{id}/logo</c> (Admin, multipart, part <c>file</c>): 400 product-logo-type-not-allowed, product-logo-too-large or file-required; 404 product-not-found;
+    /// returns the re-read product with the new Version.
+    /// </summary>
+    Task<Result<ProductDto>> UploadLogoAsync(Guid productId, ProductLogoFile file, CancellationToken cancellationToken);
+
+    /// <summary><c>DELETE /api/products/{id}/logo</c> (Admin): idempotent; returns the re-read product.</summary>
+    Task<Result<ProductDto>> RemoveLogoAsync(Guid productId, CancellationToken cancellationToken);
 }
+
+/// <summary>A logo to upload. The stream is opened when the request is built and closed when it has been sent, so the same file can be sent again after a failure.</summary>
+public sealed record ProductLogoFile(string FileName, string ContentType, Func<Stream> OpenRead);
 
 /// <summary>Tags. <see cref="ListAsync"/> serves every agent (the tag picker and the queue filter); the summary and the writes are Admin only.</summary>
 public interface ITagsClient
@@ -133,6 +147,32 @@ internal sealed class ProductsClient(ApiConnection connection) : IProductsClient
 
     public Task<Result> RevokeApiKeyAsync(Guid productId, Guid keyId, CancellationToken cancellationToken) =>
         connection.SendAsync(HttpMethod.Delete, $"api/products/{productId}/api-keys/{keyId}", null, cancellationToken);
+
+    public async Task<Result<ProductDto>> UploadLogoAsync(Guid productId, ProductLogoFile file, CancellationToken cancellationToken)
+    {
+        Stream? stream = null;
+        try
+        {
+            stream = file.OpenRead();
+            using var form = new MultipartFormDataContent();
+            var part = new StreamContent(stream);
+            part.Headers.ContentType = MediaTypeHeaderValue.TryParse(file.ContentType, out var type) ? type : new MediaTypeHeaderValue("application/octet-stream");
+
+            // The browser's file name is cleaned first: an empty or odd name would make the multipart body throw.
+            form.Add(part, ProductLogoLimits.FieldName, AttachmentFileName.Clean(file.FileName));
+            return await connection.SendContentAsync<ProductDto>(HttpMethod.Post, $"api/products/{productId}/logo", form, cancellationToken);
+        }
+        finally
+        {
+            if (stream is not null)
+            {
+                await stream.DisposeAsync();
+            }
+        }
+    }
+
+    public Task<Result<ProductDto>> RemoveLogoAsync(Guid productId, CancellationToken cancellationToken) =>
+        connection.SendAsync<ProductDto>(HttpMethod.Delete, $"api/products/{productId}/logo", null, cancellationToken);
 
     internal static Result<IReadOnlyList<T>> Narrow<T>(Result<List<T>> result) =>
         result.IsSuccess ? Result<IReadOnlyList<T>>.Success(result.Value) : Result<IReadOnlyList<T>>.Failure(result.Errors[0], [.. result.Errors.Skip(1)]);

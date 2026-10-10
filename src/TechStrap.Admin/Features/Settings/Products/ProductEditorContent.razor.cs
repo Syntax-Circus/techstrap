@@ -3,6 +3,7 @@ using SyntaxCircus.Common;
 using TechStrap.Admin.Clients;
 using TechStrap.Admin.Features.Shell;
 using TechStrap.Contracts.Branding;
+using TechStrap.Contracts.Products;
 
 namespace TechStrap.Admin.Features.Settings.Products;
 
@@ -24,6 +25,7 @@ public sealed partial class ProductEditorContent : IDisposable
     private bool _creating;
     private bool _loading;
     private bool _busy;
+    private bool _logoBusy;
     private bool _dirty;
     private bool _conflict;
     private bool _uncertain;
@@ -50,10 +52,12 @@ public sealed partial class ProductEditorContent : IDisposable
 
     // Save is offered for a new product, and for an edit once something changed. After a create whose outcome is unknown the product may exist: no second create (it would meet a 409 product-key-taken
     // that says the wrong thing) until the agent has left for the products list.
-    private bool CanSave => _creating ? !_uncertain : _dirty;
+    // A logo upload or removal that is on its way holds the save, so the Version it returns is the one the save sends.
+    private bool CanSave => (_creating ? !_uncertain : _dirty) && !_logoBusy;
 
-    // The preview never loads an address that failed the rule.
-    private string? PreviewLogo => BrandingRules.IsAcceptableLogoUrl(_model.LogoPath) && !string.IsNullOrWhiteSpace(_model.LogoPath) ? _model.LogoPath.Trim() : null;
+    // An uploaded logo wins, as it does wherever the logo is shown. The preview never loads a typed address that failed the rule.
+    private string? PreviewLogo => _model.UploadedLogoUrl
+        ?? (BrandingRules.IsAcceptableLogoUrl(_model.LogoPath) && !string.IsNullOrWhiteSpace(_model.LogoPath) ? _model.LogoPath.Trim() : null);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -151,6 +155,21 @@ public sealed partial class ProductEditorContent : IDisposable
         _dirty = true;
     }
 
+    private void OnListedChanged(ChangeEventArgs e)
+    {
+        _model.ListedOnLanding = e.Value is true;
+        _dirty = true;
+    }
+
+    // Only the uploaded logo and the version are taken from the answer: a pending edit on screen is never replaced.
+    private void OnLogoChanged(ProductDto saved)
+    {
+        _model.UploadedLogoUrl = saved.Branding.UploadedLogoUrl;
+        _model.Version = saved.Version;
+    }
+
+    private void OnLogoUploadingChanged(bool uploading) => _logoBusy = uploading;
+
     private void CheckField(string field)
     {
         var message = _model.Check(field, _creating);
@@ -176,7 +195,7 @@ public sealed partial class ProductEditorContent : IDisposable
 
     private async Task SaveAsync()
     {
-        if (_busy || (_creating && _uncertain))
+        if (_busy || _logoBusy || (_creating && _uncertain))
         {
             return;
         }

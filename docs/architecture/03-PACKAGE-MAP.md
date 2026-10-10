@@ -112,7 +112,7 @@ These are artifacts this repository produces, not dependencies.
 
 | Artifact | Kind | Version | Owning phase | Notes |
 | --- | --- | --- | --- | --- |
-| `TechStrap.Contracts` | NuGet package | Lockstep GitVersion SemVer on tag `v*` | P11 | Public DTO surface; semver-stable after 1.0.0 (D-005, D-016). No MVC, EF or ASP.NET dependencies |
+| `TechStrap.Contracts` | NuGet package | Lockstep GitVersion SemVer on tag `v*` | P11 | Public DTO surface; semver-stable after 1.0.0 (D-005, D-016). No MVC, EF or ASP.NET dependencies. 0.3.0 (PHASE-11f, D-052) adds trailing optional product parameters, `ProductLogoName` and `ProductLogoLimits`; no version change here, the package takes the `v0.3.0` tag |
 | `TechStrap.Client` | NuGet package | Lockstep with Contracts | P11 | Typed client over Contracts (JSON submit only, D-047); depends on `TechStrap.Contracts`, `SyntaxCircus.Http.Resilience`, `SyntaxCircus.Common`, `Microsoft.Extensions.Http`, `Microsoft.Extensions.Options` and `Microsoft.Extensions.DependencyInjection.Abstractions` |
 | `TechStrap.Client.Maui` | NuGet package | Lockstep with Contracts | P11 | Device and app metadata plus submit helper; `net10.0` only; depends on `TechStrap.Client`, `TechStrap.Contracts`, `Microsoft.Maui.Essentials`, `Microsoft.Extensions.DependencyInjection.Abstractions` and `Microsoft.Extensions.Options` (D-048) |
 | `ghcr.io/syntax-circus/techstrap-api` | Container image | GitVersion SemVer and `latest` | P01 (script, workflows), P12 (v1.0.0) | `linux/amd64` (arm64 dropped 2026-10-09, D-051 12b rulings) |

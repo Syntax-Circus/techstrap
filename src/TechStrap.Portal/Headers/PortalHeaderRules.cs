@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using TechStrap.Hosting.Wiring;
 using TechStrap.Portal.Caching;
 using TechStrap.Portal.Routing;
+using TechStrap.Portal.Settings;
 
 namespace TechStrap.Portal.Headers;
 
@@ -16,8 +17,8 @@ internal static class PortalHeaderRules
     public const string CacheControl = "no-store";
     public const string RobotsTag = "noindex";
 
-    /// <summary>The rules for <c>UseTechStrapWebHost</c>: the ticket headers, the attachment sandbox, the form pages' headers, then the help centre's cache headers.</summary>
-    public static IReadOnlyList<PathHeaderRule> Rules { get; } =
+    /// <summary>The rules for <c>UseTechStrapWebHost</c>: the ticket headers, the attachment sandbox, the form pages' headers, the help centre's cache headers and, in Products mode (D-052), the landing page's.</summary>
+    public static IReadOnlyList<PathHeaderRule> Rules(PortalOptions options) =>
     [
         PathHeaderRule.Set(IsTicketPath, ("Referrer-Policy", ReferrerPolicy), ("Cache-Control", CacheControl), ("X-Robots-Tag", RobotsTag)),
         PathHeaderRule.Sandbox(IsTicketAttachmentPath),
@@ -28,6 +29,9 @@ internal static class PortalHeaderRules
         // The help centre (PHASE-09c): a delivered page may be kept by a browser for the minute the server keeps it, but only a delivered one: a 404, a 429 or a 503 never gets a public header. The search page is never kept anywhere.
         PathHeaderRule.SetOnSuccess(PortalCachePaths.IsKbPage, ("Cache-Control", PortalCachePaths.BrowserCacheControl)),
         PathHeaderRule.Set(PortalCachePaths.IsKbSearchPath, ("Cache-Control", CacheControl)),
+
+        // The landing page is the same for every visitor and is kept for a minute like a help-centre page; the Neutral root never gets a public header.
+        PathHeaderRule.SetOnSuccess(path => options.ListsProducts && PortalCachePaths.IsRoot(path), ("Cache-Control", PortalCachePaths.BrowserCacheControl)),
     ];
 
     /// <summary><c>/t</c> and everything under it, without regard to case or a trailing slash.</summary>

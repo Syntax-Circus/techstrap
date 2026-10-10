@@ -87,7 +87,7 @@ Notes for reading the tables:
 | `LOSTLINK__PERADDRESSLIMIT` | no | `3` | Lost-link emails per address within the window (1..20). |
 | `LOSTLINK__PERADDRESSWINDOWMINUTES` | no | `60` | Window for the per-address lost-link cap in minutes (1..1440). |
 | `TECHSTRAP_PORTAL_PUBLIC_URL` | yes | `https://<host>` | Public address of the Portal as customers see it; absolute http or https, no query or fragment. Used for emailed links, canonical URLs and the sitemap. Same value in every file that sets it. |
-| `TECHSTRAP_API_PUBLIC_URL` | yes | `https://<host>` | Public address of the Api as portal readers reach it; knowledge-base images load from `{url}/kb-images/{name}`. The Api refuses to start without it. |
+| `TECHSTRAP_API_PUBLIC_URL` | yes | `https://<host>` | Public address of the Api as portal readers reach it; knowledge-base images load from `{url}/kb-images/{name}` and uploaded product logos from `{url}/product-logos/{name}`. The Api refuses to start without it. An Api behind plain http in Production shows no uploaded logo anywhere: the Portal and the email layout accept https logos only. |
 | `TECHSTRAP_ADMIN_PUBLIC_URL` | no | (blank) | Admin base URL; when set, assignment emails link to `{url}/tickets/{number}`. |
 | `TECHSTRAP_AUTOCLOSE_DAYS` | no | `7` | Days a Solved ticket stays open to a customer reply (1..365). Keep equal in the Api and the Worker. |
 | `STORAGE__PROVIDER` | no | `Local` | Attachment storage provider; Local stores in the `techstrap-storage` volume. |
@@ -137,6 +137,7 @@ Notes for reading the tables:
 | `EMAILOUTBOX__BATCHSIZE` | no | `20` | Messages per batch. |
 | `EMAILOUTBOX__LEASESECONDS` | no | `900` | Lease for one batch; at least BATCHSIZE x send timeout seconds + 60 or the Worker fails to boot. |
 | `EMAILOUTBOX__WORKERID` | no | (blank) | Worker identity; blank uses the machine name plus a random suffix. |
+| `TECHSTRAP_API_PUBLIC_URL` | no | (blank) | The Api's public address, the same value as the Api's own. When set, emails show a product's uploaded logo; blank keeps the linked logo address. |
 | `TECHSTRAP_PORTAL_SHOW_POWERED_BY` | no | `true` | Show the "Powered by TechStrap" mark on portal pages and customer email. Installation-wide; same value in .env.worker and .env.portal. |
 | `TECHSTRAP_AUTOCLOSE_DAYS` | no | `7` | Days a Solved ticket stays open to a customer reply (1..365). Keep equal in the Api and the Worker. |
 | `AUTOCLOSE__ENABLED` | no | `true` | Run the auto-close job. |
@@ -209,6 +210,7 @@ Notes for reading the tables:
 | --- | --- | --- | --- |
 | `TECHSTRAP_PORTAL_PUBLIC_URL` | yes | `https://<host>` | Public address of the Portal as customers see it; absolute http or https, no query or fragment. Used for emailed links, canonical URLs and the sitemap. Same value in every file that sets it. |
 | `TECHSTRAP_PORTAL_DEFAULT_PRODUCT` | no | (blank) | Product key; when set the Portal root redirects to `/p/<key>`. |
+| `TECHSTRAP_PORTAL_LANDING` | no | `Neutral` | `Neutral` shows the neutral root page; `Products` lists the products whose "Listed on the landing page" flag is on, as cards (name, logo, tagline). Not allowed together with `TECHSTRAP_PORTAL_DEFAULT_PRODUCT`. |
 | `CANONICALHOST__CANONICALHOST` | no | (blank) | Host name (no scheme) that legacy hosts redirect to; blank turns the redirect off. |
 | `CANONICALHOST__LEGACYHOSTS__0` | no | (blank) | Optional host to redirect; add more as __1, __2. |
 | `CANONICALHOST__FORCEHTTPS` | no | `false` | Make the redirect target https. |
@@ -261,7 +263,7 @@ Compose refuses to resolve while a required value is missing. The templates ship
 
 ## Reverse proxy
 
-Caddy, nginx or any proxy that terminates TLS works. The proxy forwards to the loopback ports, passes the client address in `X-Forwarded-For` and `X-Forwarded-Proto`, and routes `/kb-images/` on the Api host to the Api.
+Caddy, nginx or any proxy that terminates TLS works. The proxy forwards to the loopback ports, passes the client address in `X-Forwarded-For` and `X-Forwarded-Proto`, and routes `/kb-images/` and `/product-logos/` on the Api host to the Api.
 
 ### Default-site Caddy block
 
@@ -273,6 +275,7 @@ api.example.com {
     request_body {
         max_size 26MiB
     }
+    # /kb-images/ and /product-logos/ are served by the Api; this site already sends them there.
     reverse_proxy 127.0.0.1:8080
 }
 
@@ -298,7 +301,7 @@ A ticket carries up to 25 MiB of attachments in total, plus form overhead. The P
 
 ### Knowledge-base images
 
-`/kb-images/{name}` is served by the Api itself from the `techstrap-storage` volume. The Portal builds image URLs from `TECHSTRAP_API_PUBLIC_URL`, so the proxy must route that path on the Api host to the Api. The default-site block above already does, because it sends the whole Api host to the Api. No static-file mapping is needed.
+`/kb-images/{name}` and `/product-logos/{name}` are served by the Api itself from the `techstrap-storage` volume. The Portal builds image URLs from `TECHSTRAP_API_PUBLIC_URL`, so the proxy must route both paths on the Api host to the Api. The default-site block above already does, because it sends the whole Api host to the Api. No static-file mapping is needed.
 
 ### Forwarded headers and the pinned subnet
 
@@ -316,7 +319,7 @@ The Worker sends all mail. `EMAIL__SMTP__HOST` and `EMAIL__SMTP__DEFAULTFROM` ar
 
 | Volume | Holds | Used by |
 | --- | --- | --- |
-| `techstrap-storage` | Ticket attachments and knowledge-base images. This is the only place they live. | Api |
+| `techstrap-storage` | Ticket attachments, knowledge-base images and uploaded product logos. This is the only place they live. | Api |
 | `admin-keys` | The Admin's data-protection key ring (cookie keys). | Admin |
 | `portal-keys` | The Portal's data-protection key ring (antiforgery and link keys). | Portal |
 

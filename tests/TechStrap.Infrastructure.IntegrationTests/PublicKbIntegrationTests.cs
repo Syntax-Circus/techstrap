@@ -606,7 +606,7 @@ public sealed class PublicKbIntegrationTests(PostgresFixture postgres) : Postgre
         dormant.SetActive(false);
         (await host.CommitAsync(sp => { sp.GetRequiredService<IProductRepository>().Add(dormant); return Task.CompletedTask; })).IsSuccess.ShouldBeTrue();
 
-        var result = await host.ReadAsync(sp => new ListPublicProductsRequestHandler(sp.GetRequiredService<IProductRepository>()).HandleAsync(Ct));
+        var result = await host.ReadAsync(sp => new ListPublicProductsRequestHandler(sp.GetRequiredService<IProductRepository>(), new NoLogoUrls()).HandleAsync(Ct));
 
         result.Value.Select(product => product.Key).ShouldBe(["acme", "orbitly"]);
         result.Value.Select(product => product.DisplayName).ShouldBe(["Acme", "Orbitly"]);
@@ -622,5 +622,10 @@ public sealed class PublicKbIntegrationTests(PostgresFixture postgres) : Postgre
         names.ShouldNotContain("Version");
         names.ShouldNotContain("BodyMarkdown");
         typeof(PublicKbSearchResultDto).GetProperties().Select(property => property.Name).ShouldNotContain("Id");
+    }
+
+    private sealed class NoLogoUrls : IProductLogoUrls
+    {
+        public string? UrlFor(string fileName) => null;
     }
 }

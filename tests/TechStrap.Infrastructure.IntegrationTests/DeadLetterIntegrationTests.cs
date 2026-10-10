@@ -12,6 +12,7 @@ using TechStrap.Application.Persistence;
 using TechStrap.Domain.Agents;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
+using TechStrap.Infrastructure.Attachments;
 using TechStrap.Infrastructure.Email;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
@@ -54,6 +55,7 @@ public sealed class DeadLetterIntegrationTests(PostgresFixture postgres) : Postg
         {
             services.AddSingleton<IOutboundEmailSender>(sender);
             services.AddTechStrapEmail(configuration);
+            services.AddTechStrapProductLogoUrls(configuration);
         });
     }
 

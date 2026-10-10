@@ -35,7 +35,7 @@ public sealed class OutputCachePipelineTests
         builder.Services.AddTechStrapWebHost(builder.Configuration, "default-src 'self'; frame-ancestors 'none'");
         builder.Services.AddPortalOutputCache();
         var app = builder.Build();
-        app.UseTechStrapWebHost(PortalHeaderRules.Rules);
+        app.UseTechStrapWebHost(PortalHeaderRules.Rules(new TechStrap.Portal.Settings.PortalOptions()));
         app.UseTechStrapErrorPages();
         app.UsePortalOutputCache();
         app.Map("/{**path}", (HttpContext context) =>

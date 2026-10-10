@@ -1,13 +1,15 @@
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 using TechStrap.Portal.Routing;
+using TechStrap.Portal.Settings;
 
 namespace TechStrap.Portal.Caching;
 
 /// <summary>
 /// Which requests the Portal may keep (D-045 addendum, PHASE-09c). Only the three kinds of help-centre page that show the same thing to every visitor: <c>/p/{key}/kb</c>, <c>/p/{key}/kb/{category}</c> and
 /// <c>/p/{key}/kb/{category}/{slug}</c>. The search page (any text can be asked), the form pages, the suggest adapter, <c>/t/*</c> and every other path are never kept; a 404, a 429 and a 503 never are either
-/// (the output cache stores a 200 only). The predicates are written like <c>PortalHeaderRules.IsFormPagePath</c>: without regard to case or a trailing slash, because routing matches that way.
+/// (the output cache stores a 200 only). The landing page (D-052) is the one other kept page: the bare root, in Products mode only. The predicates are written like <c>PortalHeaderRules.IsFormPagePath</c>: without regard to case or a trailing slash, because routing matches that way.
 /// </summary>
 internal static partial class PortalCachePaths
 {
@@ -77,6 +79,12 @@ internal static partial class PortalCachePaths
     /// </summary>
     public static bool IsCacheable(HttpRequest request)
     {
+        // The landing page (D-052): only the bare root, with no query string at all (so ?utm=... cannot fill the store), and only in Products mode.
+        if (IsRoot(request.Path))
+        {
+            return !request.QueryString.HasValue && request.HttpContext.RequestServices.GetRequiredService<IOptions<PortalOptions>>().Value.ListsProducts;
+        }
+
         if (!IsProductKbPage(request.Path) || request.Path.Value!.AsSpan().IndexOfAnyInRange('A', 'Z') >= 0)
         {
             return false;
@@ -90,6 +98,9 @@ internal static partial class PortalCachePaths
 
         return !request.Query.ContainsKey(PortalRoutes.PageParameter);
     }
+
+    /// <summary>The Portal's root: <c>/</c> or an empty path.</summary>
+    public static bool IsRoot(PathString path) => !path.HasValue || path.Value == "/";
 
     private static string[] Segments(PathString rest) => (rest.Value ?? string.Empty).Split('/', StringSplitOptions.RemoveEmptyEntries);
 

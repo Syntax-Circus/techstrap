@@ -25,6 +25,7 @@ public sealed class CreateProductRequestHandler(
     IAdminEventRepository adminEvents,
     IUnitOfWork unitOfWork,
     IOptions<PortalLinkOptions> portal,
+    IProductLogoUrls logoUrls,
     TimeProvider clock) : ICreateProductRequestHandler
 {
     public async Task<Result<ProductDto>> HandleAsync(CreateProductRequest request, CancellationToken cancellationToken)
@@ -39,7 +40,7 @@ public sealed class CreateProductRequestHandler(
         ProductBranding? branding = null;
         if (request.Branding is { } input)
         {
-            var built = ProductBranding.Create(input.DisplayName, input.LogoPath, input.AccentColour, input.FromAddress, input.ReplyTo);
+            var built = ProductBranding.Create(input.DisplayName, input.LogoPath, input.AccentColour, input.FromAddress, input.ReplyTo, input.Tagline);
             if (built.IsFailure)
             {
                 return Result<ProductDto>.Failure(built.Error!.ToError());
@@ -72,6 +73,7 @@ public sealed class CreateProductRequestHandler(
 
         var product = created.Value;
         product.SetPortalHost(host);
+        product.SetListedOnLanding(request.ListedOnLanding ?? true);
         products.Add(product);
         AdminAudit.Record(adminEvents, AdminEventType.ProductCreated, actor.Value, AdminSubjectType.Product, product.Id,
             new { productKey = product.Key, numberPrefix = product.NumberPrefix }, clock);
@@ -85,6 +87,6 @@ public sealed class CreateProductRequestHandler(
 
         // Re-read so the returned Version is the stored concurrency token.
         var saved = await products.GetByIdAsync(product.Id, cancellationToken) ?? product;
-        return Result<ProductDto>.Success(ProductMapping.ToDto(saved));
+        return Result<ProductDto>.Success(ProductMapping.ToDto(saved, logoUrls));
     }
 }

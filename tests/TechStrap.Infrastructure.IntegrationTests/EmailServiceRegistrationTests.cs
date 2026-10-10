@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SyntaxCircus.Email;
 using TechStrap.Application.Email;
+using TechStrap.Infrastructure.Attachments;
 using TechStrap.Infrastructure.Email;
 using TechStrap.Infrastructure.Persistence;
 
@@ -23,6 +24,7 @@ public sealed class EmailServiceRegistrationTests
         services.AddLogging();
         services.AddTechStrapPersistence();
         services.AddTechStrapEmail(configuration);
+        services.AddTechStrapProductLogoUrls(configuration);
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = validate, ValidateOnBuild = validate });
     }
 

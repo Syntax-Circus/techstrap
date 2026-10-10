@@ -32,6 +32,15 @@ internal sealed class PortalOptionsValidator(IHostEnvironment environment) : IVa
             failures.Add($"{PortalOptions.DefaultProductKey} must be a product key (lowercase letters, digits and single hyphens, at most {ProductKeyShape.MaxLength} characters), or blank.");
         }
 
+        if (!PortalLandingModes.IsKnown(options.Landing))
+        {
+            failures.Add($"{PortalOptions.LandingKey} must be {PortalLandingModes.Neutral} or {PortalLandingModes.Products}.");
+        }
+        else if (options.ListsProducts && options.DefaultProductKeyOrNull is not null)
+        {
+            failures.Add($"{PortalOptions.LandingKey}={PortalLandingModes.Products} and {PortalOptions.DefaultProductKey} cannot both be set: the root either lists the products or redirects to one. Blank one of them.");
+        }
+
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 

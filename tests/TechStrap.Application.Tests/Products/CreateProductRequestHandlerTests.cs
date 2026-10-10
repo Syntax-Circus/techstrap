@@ -20,6 +20,7 @@ public sealed class CreateProductRequestHandlerTests
     private readonly IAgentRepository _agents = Substitute.For<IAgentRepository>();
     private readonly IProductRepository _products = Substitute.For<IProductRepository>();
     private readonly IAdminEventRepository _events = Substitute.For<IAdminEventRepository>();
+    private readonly IProductLogoUrls _logoUrls = Substitute.For<IProductLogoUrls>();
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 10, 3, 9, 0, 0, TimeSpan.Zero));
     private readonly PortalLinkOptions _portal = new() { PublicUrl = "https://help.test/" };
     private readonly Agent _admin;
@@ -35,7 +36,7 @@ public sealed class CreateProductRequestHandlerTests
     }
 
     private CreateProductRequestHandler Handler(params Result[] commits) =>
-        new(_claims, _agents, _products, _events, UnitOfWorkSubstitute.Create(commits), Options.Create(_portal), _clock);
+        new(_claims, _agents, _products, _events, UnitOfWorkSubstitute.Create(commits), Options.Create(_portal), _logoUrls, _clock);
 
     [Fact]
     public async Task A_product_is_created_with_branding_and_audited_without_personal_data()
@@ -184,5 +185,22 @@ public sealed class CreateProductRequestHandlerTests
         var result = await Handler().HandleAsync(new CreateProductRequest("orbitly", "Orbitly", "ORB", null, "help.test"), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_null_listed_flag_lists_the_product()
+    {
+        var result = await Handler().HandleAsync(new CreateProductRequest("orbitly", "Orbitly", "ORB", null, null, null), TestContext.Current.CancellationToken);
+
+        result.Value.ListedOnLanding.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task An_explicit_false_unlists_it_at_creation()
+    {
+        var result = await Handler().HandleAsync(new CreateProductRequest("orbitly", "Orbitly", "ORB", null, null, false), TestContext.Current.CancellationToken);
+
+        result.Value.ListedOnLanding.ShouldBeFalse();
+        _added!.ListedOnLanding.ShouldBeFalse();
     }
 }

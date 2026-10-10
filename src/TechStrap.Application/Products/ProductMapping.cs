@@ -6,7 +6,7 @@ namespace TechStrap.Application.Products;
 
 internal static class ProductMapping
 {
-    public static ProductDto ToDto(Product product)
+    public static ProductDto ToDto(Product product, IProductLogoUrls logoUrls)
     {
         var branding = product.Branding;
 
@@ -20,8 +20,10 @@ internal static class ProductMapping
             product.Name,
             product.NumberPrefix,
             product.IsActive,
-            new ProductBrandingDto(branding.DisplayName, branding.LogoPath, colours.Accent, colours.OnAccent, colours.AccentInk, branding.FromAddress, branding.ReplyTo),
+            new ProductBrandingDto(branding.DisplayName, branding.LogoPath, colours.Accent, colours.OnAccent, colours.AccentInk, branding.FromAddress, branding.ReplyTo,
+                branding.Tagline, branding.UploadedLogo is { } name ? logoUrls.UrlFor(name) : null),
             product.Version,
-            product.PortalHost);
+            product.PortalHost,
+            product.ListedOnLanding);
     }
 }

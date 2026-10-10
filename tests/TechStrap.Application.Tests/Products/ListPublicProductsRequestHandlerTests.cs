@@ -12,6 +12,7 @@ public sealed class ListPublicProductsRequestHandlerTests
     private static readonly CancellationToken Ct = TestContext.Current.CancellationToken;
 
     private readonly IProductRepository _products = Substitute.For<IProductRepository>();
+    private readonly IProductLogoUrls _logoUrls = Substitute.For<IProductLogoUrls>();
 
     private static Product Stored(string key, string displayName, bool isActive)
     {
@@ -24,9 +25,9 @@ public sealed class ListPublicProductsRequestHandlerTests
     {
         _products.ListAsync(true, Arg.Any<CancellationToken>()).Returns([Stored("paperplane", "Paperplane", true), Stored("acme", "Acme Corp", true), Stored("orbitly", "Orbitly", true)]);
 
-        var result = await new ListPublicProductsRequestHandler(_products).HandleAsync(Ct);
+        var result = await new ListPublicProductsRequestHandler(_products, _logoUrls).HandleAsync(Ct);
 
-        result.Value.ShouldBe([new PublicProductSummaryDto("acme", "Acme Corp"), new PublicProductSummaryDto("orbitly", "Orbitly"), new PublicProductSummaryDto("paperplane", "Paperplane")]);
+        result.Value.Select(product => (product.Key, product.DisplayName)).ShouldBe([("acme", "Acme Corp"), ("orbitly", "Orbitly"), ("paperplane", "Paperplane")]);
         await _products.Received(1).ListAsync(true, Ct);
         await _products.DidNotReceive().ListAsync(false, Ct);
     }
@@ -36,7 +37,7 @@ public sealed class ListPublicProductsRequestHandlerTests
     {
         _products.ListAsync(Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns([Stored("dormant", "Dormant", false), Stored("orbitly", "Orbitly", true)]);
 
-        var result = await new ListPublicProductsRequestHandler(_products).HandleAsync(Ct);
+        var result = await new ListPublicProductsRequestHandler(_products, _logoUrls).HandleAsync(Ct);
 
         result.Value.Select(product => product.Key).ShouldBe(["orbitly"]);
     }
@@ -47,7 +48,7 @@ public sealed class ListPublicProductsRequestHandlerTests
         var many = Enumerable.Range(0, PublicProductLimits.MaxListed + 5).Select(i => Stored($"p{i:D5}", $"Product {i}", true)).Reverse().ToList();
         _products.ListAsync(true, Arg.Any<CancellationToken>()).Returns(many);
 
-        var result = await new ListPublicProductsRequestHandler(_products).HandleAsync(Ct);
+        var result = await new ListPublicProductsRequestHandler(_products, _logoUrls).HandleAsync(Ct);
 
         result.Value.Count.ShouldBe(PublicProductLimits.MaxListed);
         result.Value[0].Key.ShouldBe("p00000");
@@ -59,7 +60,7 @@ public sealed class ListPublicProductsRequestHandlerTests
     {
         _products.ListAsync(true, Arg.Any<CancellationToken>()).Returns([]);
 
-        var result = await new ListPublicProductsRequestHandler(_products).HandleAsync(Ct);
+        var result = await new ListPublicProductsRequestHandler(_products, _logoUrls).HandleAsync(Ct);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBeEmpty();
@@ -71,16 +72,31 @@ public sealed class ListPublicProductsRequestHandlerTests
         var withHost = Product.Restore(Guid.CreateVersion7(), "orbitly", "Orbitly", "ORB", ProductBranding.Restore("Orbitly", null, "#7C3AED", null, null), true, 1, "support.orbitly.example");
         _products.ListAsync(true, Arg.Any<CancellationToken>()).Returns([withHost, Stored("acme", "Acme Corp", true)]);
 
-        var result = await new ListPublicProductsRequestHandler(_products).HandleAsync(Ct);
+        var result = await new ListPublicProductsRequestHandler(_products, _logoUrls).HandleAsync(Ct);
 
-        result.Value.ShouldBe([new PublicProductSummaryDto("acme", "Acme Corp"), new PublicProductSummaryDto("orbitly", "Orbitly", "support.orbitly.example")]);
+        result.Value.Select(product => product.PortalHost).ShouldBe([null, "support.orbitly.example"]);
         result.Value[0].PortalHost.ShouldBeNull();
     }
 
     [Fact]
-    public void The_summary_dto_has_the_key_the_display_name_and_the_portal_host_only()
+    public void The_summary_dto_carries_only_what_a_landing_card_shows()
     {
-        typeof(PublicProductSummaryDto).GetProperties().Select(property => property.Name).Order().ShouldBe(["DisplayName", "Key", "PortalHost"]);
+        typeof(PublicProductSummaryDto).GetProperties().Select(property => property.Name).Order().ShouldBe(["AccentColour", "DisplayName", "Key", "ListedOnLanding", "LogoUrl", "PortalHost", "Tagline"]);
         PublicProductLimits.MaxListed.ShouldBe(1_000);
+    }
+
+    [Fact]
+    public async Task The_list_keeps_unlisted_active_products_and_carries_the_landing_fields()
+    {
+        var unlisted = Product.Restore(Guid.CreateVersion7(), "acme", "Acme Corp", "ACM", ProductBranding.Restore("Acme Corp", "https://cdn.acme.test/l.png", "#7C3AED", null, null, "Acme tagline"), true, 1, null, listedOnLanding: false);
+        var uploaded = Product.Restore(Guid.CreateVersion7(), "orbitly", "Orbitly", "ORB", ProductBranding.Restore("Orbitly", null, "#1F6FEB", null, null, null, "0123456789abcdef0123456789abcdef.webp"), true, 1, "support.orbitly.example");
+        _products.ListAsync(true, Arg.Any<CancellationToken>()).Returns([uploaded, unlisted]);
+        _logoUrls.UrlFor("0123456789abcdef0123456789abcdef.webp").Returns("https://api.test/product-logos/0123456789abcdef0123456789abcdef.webp");
+
+        var result = await new ListPublicProductsRequestHandler(_products, _logoUrls).HandleAsync(Ct);
+
+        result.Value.ShouldBe([
+            new PublicProductSummaryDto("acme", "Acme Corp", null, "Acme tagline", "https://cdn.acme.test/l.png", "#7C3AED", ListedOnLanding: false),
+            new PublicProductSummaryDto("orbitly", "Orbitly", "support.orbitly.example", null, "https://api.test/product-logos/0123456789abcdef0123456789abcdef.webp", "#1F6FEB", ListedOnLanding: true)]);
     }
 }

@@ -1,0 +1,18 @@
+<div class="ts-product-logo-upload">
+    <label for="ts-product-logo-upload" class="ts-product-logo-upload-label">@ProductsCopy.LogoUploadLabel</label>
+    @* A new input after every pick, so the same image can be chosen again after a failure. *@
+    <InputFile @key="_inputKey" id="ts-product-logo-upload" OnChange="OnPickedAsync" accept="@Accept" disabled="@(Disabled || _working)" />
+    <p class="ts-field-help">@ProductsCopy.LogoUploadHelp</p>
+    @if (HasUploadedLogo)
+    {
+        <button type="button" id="ts-product-logo-remove" class="btn btn-outline-secondary" disabled="@(Disabled || _working)" @onclick="RemoveAsync">@ProductsCopy.LogoRemove</button>
+    }
+    @if (_working && _uploading)
+    {
+        <span class="ts-product-logo-status" role="status">@ProductsCopy.LogoUploading</span>
+    }
+    @if (_error is not null)
+    {
+        <p class="ts-field-error" role="alert">@_error</p>
+    }
+</div>

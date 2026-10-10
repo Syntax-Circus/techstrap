@@ -119,19 +119,31 @@ public sealed class PortalHeaderRulesTests
     [Fact]
     public void The_rules_are_the_ticket_headers_the_attachment_sandbox_the_form_page_headers_and_the_two_help_centre_rules_and_nothing_else()
     {
-        PortalHeaderRules.Rules.Count.ShouldBe(5);
-        PortalHeaderRules.Rules[3].Matches(new PathString("/p/x/kb/accounts")).ShouldBeTrue();
-        PortalHeaderRules.Rules[3].Matches(new PathString("/p/x/kb/search")).ShouldBeFalse();
-        PortalHeaderRules.Rules[3].Matches(new PathString("/p/x/contact")).ShouldBeFalse();
-        PortalHeaderRules.Rules[3].Matches(new PathString("/t/x")).ShouldBeFalse();
-        PortalHeaderRules.Rules[4].Matches(new PathString("/p/x/kb/search")).ShouldBeTrue();
-        PortalHeaderRules.Rules[4].Matches(new PathString("/p/x/kb")).ShouldBeFalse();
-        PortalHeaderRules.Rules[2].Matches(new PathString("/p/x/contact")).ShouldBeTrue();
-        PortalHeaderRules.Rules[2].Matches(new PathString("/p/x")).ShouldBeFalse();
-        PortalHeaderRules.Rules[2].Matches(new PathString("/t/x")).ShouldBeFalse();
-        PortalHeaderRules.Rules[0].Matches(new PathString("/t/x")).ShouldBeTrue();
-        PortalHeaderRules.Rules[0].Matches(new PathString("/p/x")).ShouldBeFalse();
-        PortalHeaderRules.Rules[1].Matches(new PathString("/t/" + Token + "/attachments/" + Id)).ShouldBeTrue();
-        PortalHeaderRules.Rules[1].Matches(new PathString("/t/" + Token)).ShouldBeFalse();
+        var rules = PortalHeaderRules.Rules(new TechStrap.Portal.Settings.PortalOptions());
+        rules.Count.ShouldBe(6);
+        rules[3].Matches(new PathString("/p/x/kb/accounts")).ShouldBeTrue();
+        rules[3].Matches(new PathString("/p/x/kb/search")).ShouldBeFalse();
+        rules[3].Matches(new PathString("/p/x/contact")).ShouldBeFalse();
+        rules[3].Matches(new PathString("/t/x")).ShouldBeFalse();
+        rules[4].Matches(new PathString("/p/x/kb/search")).ShouldBeTrue();
+        rules[4].Matches(new PathString("/p/x/kb")).ShouldBeFalse();
+        rules[2].Matches(new PathString("/p/x/contact")).ShouldBeTrue();
+        rules[2].Matches(new PathString("/p/x")).ShouldBeFalse();
+        rules[2].Matches(new PathString("/t/x")).ShouldBeFalse();
+        rules[0].Matches(new PathString("/t/x")).ShouldBeTrue();
+        rules[0].Matches(new PathString("/p/x")).ShouldBeFalse();
+        rules[1].Matches(new PathString("/t/" + Token + "/attachments/" + Id)).ShouldBeTrue();
+        rules[1].Matches(new PathString("/t/" + Token)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void The_landing_rule_matches_the_bare_root_only_in_Products_mode()
+    {
+        var neutral = PortalHeaderRules.Rules(new TechStrap.Portal.Settings.PortalOptions());
+        var products = PortalHeaderRules.Rules(new TechStrap.Portal.Settings.PortalOptions { Landing = "Products" });
+
+        neutral[5].Matches(new PathString("/")).ShouldBeFalse();
+        products[5].Matches(new PathString("/")).ShouldBeTrue();
+        products[5].Matches(new PathString("/p/x")).ShouldBeFalse();
     }
 }

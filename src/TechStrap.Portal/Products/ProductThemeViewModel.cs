@@ -24,12 +24,12 @@ public sealed record ProductThemeViewModel(string Key, string DisplayName, strin
             product.Key,
             string.IsNullOrEmpty(name) ? product.Key : name,
             ProductAccent.TryDerive(product.AccentColour, out var colours) ? colours.Accent : null,
-            AcceptableLogo(product.LogoPath, allowLoopbackImages));
+            AcceptableLogoUrl(product.LogoPath, allowLoopbackImages));
     }
 
-    private static string? AcceptableLogo(string? logoPath, bool allowLoopbackImages)
+    internal static string? AcceptableLogoUrl(string? logoUrl, bool allowLoopbackImages)
     {
-        var text = logoPath?.Trim();
+        var text = logoUrl?.Trim();
         if (string.IsNullOrEmpty(text) || !BrandingRules.IsAcceptableLogoUrl(text))
         {
             return null;

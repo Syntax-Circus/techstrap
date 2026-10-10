@@ -24,7 +24,7 @@ public sealed class GetProductRequestHandlerTests
     private GetProductRequestHandler Handler(AgentRole role)
     {
         _claims.Current.Returns(new AgentClaims("a", "Sam", "sam@example.com", role));
-        return new GetProductRequestHandler(_claims, _products);
+        return new GetProductRequestHandler(_claims, _products, Substitute.For<IProductLogoUrls>());
     }
 
     [Fact]

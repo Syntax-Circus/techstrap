@@ -3,90 +3,112 @@
     "id": "oversize", "fileName": "big.png", "declaredContentType": "image/png",
     "content": { "generate": { "prefixHex": "89504e470d0a1a0a", "totalBytes": 10485761 } },
     "attachment": { "stored": false, "errorCode": "attachment-too-large" },
-    "kbImage": { "stored": false, "errorCode": "kb-image-too-large" }
+    "kbImage": { "stored": false, "errorCode": "kb-image-too-large" },
+    "productLogo": { "stored": false, "errorCode": "product-logo-too-large" }
   },
   {
     "id": "double-extension", "fileName": "report.pdf.exe", "declaredContentType": "application/octet-stream",
     "content": "content/mz.bin",
     "attachment": { "stored": false, "errorCode": "attachment-type-not-allowed" },
-    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" }
+    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" },
+    "productLogo": { "stored": false, "errorCode": "product-logo-type-not-allowed" }
   },
   {
     "id": "png-named-pdf", "fileName": "scan.pdf", "declaredContentType": "application/pdf",
     "content": "content/pixel.png",
     "attachment": { "stored": false, "errorCode": "attachment-type-not-allowed" },
-    "kbImage": { "stored": true }
+    "kbImage": { "stored": true },
+    "productLogo": { "stored": true }
   },
   {
     "id": "traversal-passwd", "fileName": "../../etc/passwd", "declaredContentType": "text/plain",
     "content": "content/hello.txt",
     "attachment": { "stored": false, "errorCode": "attachment-type-not-allowed" },
-    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" }
+    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" },
+    "productLogo": { "stored": false, "errorCode": "product-logo-type-not-allowed" }
   },
   {
     "id": "traversal-text", "fileName": "../../notes.txt", "declaredContentType": "text/plain",
     "content": "content/hello.txt",
     "attachment": { "stored": true, "storedName": "notes.txt" },
-    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" }
+    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" },
+    "productLogo": { "stored": false, "errorCode": "product-logo-type-not-allowed" }
   },
   {
     "id": "backslash-traversal", "fileName": "..\\..\\x.txt", "declaredContentType": "text/plain",
     "content": "content/hello.txt",
     "attachment": { "stored": true, "storedName": "x.txt" },
-    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" }
+    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" },
+    "productLogo": { "stored": false, "errorCode": "product-logo-type-not-allowed" }
   },
   {
     "id": "rtl-override", "fileName": "invoice\u202Etxt.png", "declaredContentType": "image/png",
     "content": "content/pixel.png",
     "attachment": { "stored": true, "storedName": "invoicetxt.png" },
-    "kbImage": { "stored": true }
+    "kbImage": { "stored": true },
+    "productLogo": { "stored": true }
   },
   {
     "id": "zero-byte", "fileName": "empty.txt", "declaredContentType": "text/plain",
     "content": "content/empty.bin",
     "attachment": { "stored": false, "errorCode": "attachment-empty" },
-    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" }
+    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" },
+    "productLogo": { "stored": false, "errorCode": "product-logo-type-not-allowed" }
   },
   {
     "id": "svg-as-png", "fileName": "logo.png", "declaredContentType": "image/png",
     "content": "content/svg.txt",
     "attachment": { "stored": false, "errorCode": "attachment-type-not-allowed" },
-    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" }
+    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" },
+    "productLogo": { "stored": false, "errorCode": "product-logo-type-not-allowed" }
   },
   {
     "id": "html-as-txt", "fileName": "page.txt", "declaredContentType": "text/plain",
     "content": "content/html.txt",
     "attachment": { "stored": true, "storedName": "page.txt", "contentType": "text/plain" },
-    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" }
+    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" },
+    "productLogo": { "stored": false, "errorCode": "product-logo-type-not-allowed" }
   },
   {
     "id": "long-name", "fileName": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.txt", "declaredContentType": "text/plain",
     "content": "content/hello.txt",
     "attachment": { "stored": true, "storedNameRule": "maxLength:255,suffix:.txt" },
-    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" }
+    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" },
+    "productLogo": { "stored": false, "errorCode": "product-logo-type-not-allowed" }
   },
   {
     "id": "nul-in-name", "fileName": "a\u0000b.txt", "declaredContentType": "text/plain",
     "content": "content/hello.txt",
     "attachment": { "stored": true, "storedName": "ab.txt" },
-    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" }
+    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" },
+    "productLogo": { "stored": false, "errorCode": "product-logo-type-not-allowed" }
   },
   {
     "id": "exe-with-png-bytes", "fileName": "tool.exe", "declaredContentType": "image/png",
     "content": "content/pixel.png",
     "attachment": { "stored": false, "errorCode": "attachment-type-not-allowed" },
-    "kbImage": { "stored": true }
+    "kbImage": { "stored": true },
+    "productLogo": { "stored": true }
   },
   {
     "id": "bat-with-text", "fileName": "run.bat", "declaredContentType": "text/plain",
     "content": "content/hello.txt",
     "attachment": { "stored": false, "errorCode": "attachment-type-not-allowed" },
-    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" }
+    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" },
+    "productLogo": { "stored": false, "errorCode": "product-logo-type-not-allowed" }
   },
   {
     "id": "pdf-bytes-named-exe", "fileName": "invoice.exe", "declaredContentType": "application/pdf",
     "content": "content/minimal.pdf",
     "attachment": { "stored": false, "errorCode": "attachment-type-not-allowed" },
-    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" }
+    "kbImage": { "stored": false, "errorCode": "kb-image-type-not-allowed" },
+    "productLogo": { "stored": false, "errorCode": "product-logo-type-not-allowed" }
+  },
+  {
+    "id": "logo-just-over", "fileName": "logo.png", "declaredContentType": "image/png",
+    "content": { "generate": { "prefixHex": "89504e470d0a1a0a0000000d49484452", "totalBytes": 1048577 } },
+    "attachment": { "stored": true, "storedName": "logo.png", "contentType": "image/png" },
+    "kbImage": { "stored": true },
+    "productLogo": { "stored": false, "errorCode": "product-logo-too-large" }
   }
 ]
