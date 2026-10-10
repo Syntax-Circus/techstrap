@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Microsoft.AspNetCore.RateLimiting;
 using Sentry;
 using Serilog;
@@ -53,7 +55,16 @@ builder.Services.AddTechStrapHttpClientDefaults();
 // The API serves JSON and downloads, never a page, so its policy allows nothing; UseAttachmentSandbox adds sandbox to downloads.
 builder.Services.AddTechStrapSecurityHeaders(builder.Configuration, TechStrapCsp.ForApi());
 builder.Services.AddProblemDetailsExceptionHandling();
-builder.Services.AddControllers();
+// A request body with an unknown member inside a product skin is a 400 (D-053). The strictness lives here, on the request reader only: the ProductSkin
+// record itself stays lenient, so an older client or Portal still reads a response that carries a token added by a later release.
+builder.Services.AddControllers().AddJsonOptions(options =>
+    options.JsonSerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver().WithAddedModifier(info =>
+    {
+        if (info.Type == typeof(TechStrap.Contracts.Skins.ProductSkin))
+        {
+            info.UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow;
+        }
+    }));
 builder.Services.AddOpenApi(options => options.AddTechStrapSecuritySchemes());
 builder.Services.AddTechStrapPersistence();
 builder.Services.AddTechStrapSecurity();

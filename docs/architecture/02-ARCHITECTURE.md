@@ -246,8 +246,8 @@ Conventions:
 | `PUT /api/agents/me/profile` (Agent; sets or clears `public_display_name`) | `UpdateMyProfileRequestHandler` | `IAgentRepository`, `ICurrentAgentClaims` | EF repos | 204; 400 invalid name | H, C, I | D-024 |
 | `GET /api/products` (Agent) | `ListProductsRequestHandler` | `IProductRepository`, `ICurrentAgentClaims` | EF repos | 200 `ProductDto[]` | H, C | none |
 | `GET /api/products/{id}` (Agent) | `GetProductRequestHandler` | `IProductRepository`, `ICurrentAgentClaims` | EF repos | 200 `ProductDto`; 404 | H, C | none |
-| `POST /api/products` (Admin) | `CreateProductRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 201 `ProductDto`; 409 duplicate key or prefix | H, C, I | D-009 |
-| `PUT /api/products/{id}` (Admin; incl. branding) | `UpdateProductRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 200 `ProductDto`; 404; 409 | H, C, I | D-002 |
+| `POST /api/products` (Admin) | `CreateProductRequestHandler` | `IProductRepository`, `ISiteSettingsRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 201 `ProductDto`; 400 `skin-invalid`, `skin-contrast-invalid`; 409 duplicate key or prefix | H, C, I | D-009, D-053 |
+| `PUT /api/products/{id}` (Admin; incl. branding) | `UpdateProductRequestHandler` | `IProductRepository`, `ISiteSettingsRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 200 `ProductDto`; 400 `skin-invalid`, `skin-contrast-invalid`; 404; 409 | H, C, I | D-002, D-053 |
 | `GET /api/products/{id}/api-keys` (Admin) | `ListProductApiKeysRequestHandler` | `IProductRepository` | EF repos | 200 `ProductApiKeyDto[]` (no secrets) | H, C | D-001 |
 | `POST /api/products/{id}/api-keys` (Admin) | `CreateProductApiKeyRequestHandler` | `IProductRepository`, `IApiKeyHasher`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW, hasher | 201 `CreateProductApiKeyResponse` (plain key shown once); 404; 400 invalid kind | H, C, I | D-001 |
 | `DELETE /api/products/{id}/api-keys/{keyId}` (Admin) | `RevokeProductApiKeyRequestHandler` | `IProductRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 204; 404 | H, C, I | D-001 |
@@ -427,7 +427,7 @@ Per _template pattern CLIENT_IP_RATE_LIMITING.md (reverse proxy in front of Dock
 
 | Policy | Applies to | Partition | Default |
 | --- | --- | --- | --- |
-| `public` | `GET /api/public/products`, `GET /api/public/products/{key}`, `GET /api/public/site`, public KB endpoints, sitemap | client IP | 120 / min |
+| `public` | `GET /api/public/products`, `GET /api/public/products/{key}`, public KB endpoints, sitemap, `GET /api/public/site` | client IP | 120 / min |
 | `public-submit` | `POST /api/public/products/{productKey}/tickets` | client IP | 5 / 10 min |
 | `intake-key` (Public key) | `POST /api/intake/tickets` with a Public key | key prefix + client IP | 10 / min |
 | `intake-key` (Trusted key) | `POST /api/intake/tickets` with a Trusted key | key prefix + client IP (a key id is impossible before authentication; the limiter reads the raw `X-Api-Key` prefix, so a spoofer who knows a prefix exhausts only their own IP's partition) | 120 / min |

@@ -56,7 +56,8 @@ public sealed class SiteSettingsHandlerTests
         result.IsSuccess.ShouldBeTrue();
         _site.Received(1).Update(Arg.Is<SiteSettings>(s => s.DefaultPackKey == "slate"));
         _events.Received(1).Add(Arg.Is<AdminEvent>(e =>
-            e.Type == AdminEventType.SiteSettingsUpdated && e.ActorId == _admin.Id && e.PayloadJson == "{\"defaultPack\":\"slate\"}"));
+            e.Type == AdminEventType.SiteSettingsUpdated && e.ActorId == _admin.Id && e.SubjectType == AdminSubjectType.SiteSettings
+            && e.SubjectId == new Guid("00000000-0000-0000-0000-000000000001") && e.PayloadJson == "{\"defaultPack\":\"slate\"}"));
     }
 
     [Fact]

@@ -6,6 +6,7 @@ using TechStrap.Application.Intake;
 using TechStrap.Application.Persistence;
 using TechStrap.Application.Results;
 using TechStrap.Contracts.Products;
+using TechStrap.Contracts.Skins;
 using TechStrap.Domain.Admin;
 using TechStrap.Domain.Products;
 using TechStrap.Domain.Rules;
@@ -91,8 +92,10 @@ public sealed class UpdateProductRequestHandler(
         // null = the caller did not send the field: the stored skin stays and no skin check runs. An empty skin clears it; anything else is validated
         // against the grammar and the contrast rules of the deployment's current default pack, and replaces the stored skin as a whole (D-053).
         var skinJson = product.SkinJson;
-        if (request.Skin is not null)
+        if (request.Skin is not null && !string.Equals(SkinSerializer.Serialize(request.Skin), product.SkinJson, StringComparison.Ordinal))
         {
+            // An unchanged skin resent by a form is kept as stored and not re-judged: a later change of the default pack must not make it unsavable
+            // (the render re-checks contrast anyway).
             var prepared = await ProductSkins.PrepareAsync(siteSettings, request.Skin, branding.Value.AccentColour, cancellationToken);
             if (prepared.IsFailure)
             {

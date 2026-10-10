@@ -130,6 +130,21 @@ public sealed class ProductSkinHandlerTests
     }
 
     [Fact]
+    public async Task An_unchanged_skin_resent_is_kept_even_when_a_new_default_pack_would_fail_its_contrast()
+    {
+        // Dark ink on a light background is fine under Classic; Midnight's background would reject it if it were judged again.
+        _product.SetSkinJson("{\"ink\":\"#222222\"}");
+        _site.GetAsync(Arg.Any<CancellationToken>()).Returns(SiteSettings.Restore("midnight", 2));
+
+        var result = await Handler().HandleAsync(_product.Id, Update(new ProductSkin(Ink: "#222222")), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        _product.SkinJson.ShouldBe("{\"ink\":\"#222222\"}");
+        _events.DidNotReceive().Add(Arg.Any<AdminEvent>());
+        _products.DidNotReceive().Update(Arg.Any<Product>());
+    }
+
+    [Fact]
     public async Task Create_stores_a_valid_skin_and_none_when_null()
     {
         var none = await CreateHandler().HandleAsync(new CreateProductRequest("orbitly", "Orbitly", "ORB", null), TestContext.Current.CancellationToken);

@@ -2,8 +2,9 @@ namespace TechStrap.Architecture.Tests;
 
 /// <summary>
 /// Every public, non-static type in TechStrap.Contracts ends in Dto, Request or Response, so API shapes are recognisable
-/// wherever they are used. Static classes hold shared constants and helpers. The single named exemption is
-/// ProductAccentColors, a value tuple returned by the PHASE-02 ProductAccent helper (D-025), which is not an API shape.
+/// wherever they are used. Static classes hold shared constants and helpers. The named exemptions are
+/// ProductAccentColors, a value tuple returned by the PHASE-02 ProductAccent helper (D-025), and the Contracts.Skins value types (D-053),
+/// none of which is a top-level API shape.
 /// </summary>
 public static class ContractNamingRules
 {
