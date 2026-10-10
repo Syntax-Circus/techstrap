@@ -33,6 +33,13 @@ h6 {
   background-color: var(--ts-surface, var(--bs-body-bg));
 }
 
+// The file input's own button reads the body colour; on a dark pack it would be light text on Bootstrap's light fill.
+.form-control::file-selector-button,
+.form-control:hover:not(:disabled):not([readonly])::file-selector-button {
+  color: var(--p-ink);
+  background-color: var(--ts-surface, var(--bs-tertiary-bg));
+}
+
 .ts-landing-card,
 .ts-kb-card {
   background: var(--ts-surface, var(--p-bg));

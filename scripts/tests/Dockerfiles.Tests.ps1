@@ -80,7 +80,7 @@ Describe 'self-hosted font assertion' {
     # access must fail the build instead of shipping without fonts. Admin: Sans 3 + Mono 3 + Serif 1 files, 3 licences.
     It 'Dockerfile.<Name> fails the build unless <Fonts> WOFF2 files and <Licences> OFL licences are published' -ForEach @(
         @{ Name = 'admin'; Fonts = 7; Licences = 3 }
-        @{ Name = 'portal'; Fonts = 6; Licences = 2 }
+        @{ Name = 'portal'; Fonts = 15; Licences = 6 }
     ) {
         $text = Get-DockerfileText -Name $Name
         $fontCheck = 'test "$(find /app/publish/wwwroot/fonts -name ''*.woff2'' | wc -l)" -eq ' + $Fonts
