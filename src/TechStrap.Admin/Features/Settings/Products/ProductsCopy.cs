@@ -72,6 +72,25 @@ public static class ProductsCopy
     public const string OpenList = "Open the products list";
     public const string ProductKeyTaken = "Another product already uses this key or ticket number prefix.";
 
+    public const string TaglineLabel = "Tagline";
+    public const string TaglineHelp = "One line about the product, shown on the landing page card. Optional.";
+    public const string TaglineInvalid = "Use one line of plain text, 160 characters or fewer.";
+    public const string ListedLabel = "Listed on the landing page";
+    public const string ListedHelp = "When the portal lists products on its front page, this product has a card. Unlisting hides the card only: the product's own pages, host and help articles stay reachable.";
+    public const string ColumnListed = "Landing";
+    public const string Listed = "Listed";
+    public const string Hidden = "Hidden";
+    public const string LogoUploadLabel = "Upload a logo";
+    public const string LogoUploadHelp = "PNG, JPEG or WebP, up to 1 MB. An uploaded logo replaces the logo address wherever the logo is shown.";
+    public const string LogoUploading = "Uploading…";
+    public const string LogoRemove = "Remove uploaded logo";
+    public const string LogoUploadAfterSave = "Save the product first, then upload a logo from its editor.";
+    public const string LogoTypeNotAllowed = "Choose a PNG, JPEG or WebP image.";
+    public const string LogoTooLarge = "That image is too large. Logos can be up to 1 MB.";
+    public const string LogoReadFailed = "That image could not be read. Choose it again.";
+    public const string LogoUncertain = "The upload may have gone through. Reload the product to see its logo.";
+    public const string LogoFailed = "The logo could not be uploaded.";
+
     public static string Saved(string name) => $"Saved {name}";
 
     public static string Created(string name) => $"Created {name}";

@@ -16,7 +16,10 @@ internal static partial class TestData
         string? replyTo = null,
         string key = "orbitly",
         string prefix = "ORB",
-        string? portalHost = null) => new(
+        string? portalHost = null,
+        string? tagline = null,
+        string? uploadedLogoUrl = null,
+        bool listed = true) => new(
             id ?? OrbitlyId, key, name, prefix, active,
-            new ProductBrandingDto(name, logo, accent, "#FFFFFF", accent, from, replyTo), version, portalHost);
+            new ProductBrandingDto(name, logo, accent, "#FFFFFF", accent, from, replyTo, tagline, uploadedLogoUrl), version, portalHost, listed);
 }

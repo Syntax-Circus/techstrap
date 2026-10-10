@@ -14,5 +14,5 @@ public static class ProductFields
     public static readonly IReadOnlyList<string> CreateOnly = [ApiFields.Key, ApiFields.NumberPrefix];
 
     public static readonly IReadOnlyList<string> All =
-        [ApiFields.Key, ApiFields.Name, ApiFields.NumberPrefix, ApiFields.DisplayName, ApiFields.LogoPath, ApiFields.AccentColour, ApiFields.FromAddress, ApiFields.ReplyTo, ApiFields.PortalHost];
+        [ApiFields.Key, ApiFields.Name, ApiFields.NumberPrefix, ApiFields.DisplayName, ApiFields.Tagline, ApiFields.LogoPath, ApiFields.AccentColour, ApiFields.FromAddress, ApiFields.ReplyTo, ApiFields.PortalHost];
 }

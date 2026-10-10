@@ -29,6 +29,7 @@
                         <th role="columnheader" scope="col">@ProductsCopy.ColumnKey</th>
                         <th role="columnheader" scope="col">@ProductsCopy.ColumnPrefix</th>
                         <th role="columnheader" scope="col">@ProductsCopy.ColumnPortalHost</th>
+                        <th role="columnheader" scope="col">@ProductsCopy.ColumnListed</th>
                         <th role="columnheader" scope="col">@ProductsCopy.ColumnStatus</th>
                         <th role="columnheader" scope="col"><span class="visually-hidden">@ProductsCopy.ColumnActions</span></th>
                     </tr>
@@ -46,6 +47,7 @@
                                     <code>@row.PortalHost</code>
                                 }
                             </td>
+                            <td role="cell"><span class="ts-pill @(row.ListedOnLanding ? "ts-pill--on" : "ts-pill--off")">@(row.ListedOnLanding ? ProductsCopy.Listed : ProductsCopy.Hidden)</span></td>
                             <td role="cell"><span class="ts-pill @(row.IsActive ? "ts-pill--on" : "ts-pill--off")">@(row.IsActive ? ProductsCopy.Active : ProductsCopy.Inactive)</span></td>
                             <td role="cell" class="ts-settings-actions">
                                 <a href="/settings/products/@row.Id">@ProductsCopy.Edit</a>

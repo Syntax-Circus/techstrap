@@ -7,7 +7,7 @@ namespace TechStrap.Admin.Features.Settings.Products;
 
 /// <summary>
 /// The form model of the product editor. It holds exactly what is on screen, validates it with the server's rules (the colour with the same Contracts constant as the API's pattern),
-/// and builds the requests. <see cref="IsActive"/> is always carried (the update request has a non-nullable flag, and an omitted one would deactivate the product) and <see cref="Version"/>
+/// and builds the requests. <see cref="ListedOnLanding"/> is always carried as shown. <see cref="IsActive"/> is always carried (the update request has a non-nullable flag, and an omitted one would deactivate the product) and <see cref="Version"/>
 /// is the one the product was loaded with.
 /// </summary>
 internal sealed partial class ProductEditorViewModel
@@ -42,6 +42,14 @@ internal sealed partial class ProductEditorViewModel
 
     public string PortalHost { get; set; } = string.Empty;
 
+    public string Tagline { get; set; } = string.Empty;
+
+    /// <summary>Whether the product has a card on the portal's landing page. A new product is listed; both requests always carry the shown value.</summary>
+    public bool ListedOnLanding { get; set; } = true;
+
+    /// <summary>The address of the uploaded logo, or null. Changed only by the upload and remove buttons, never by the form fields.</summary>
+    public string? UploadedLogoUrl { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public uint Version { get; set; }
@@ -52,6 +60,9 @@ internal sealed partial class ProductEditorViewModel
         Name = product.Name,
         NumberPrefix = product.NumberPrefix,
         DisplayName = product.Branding.DisplayName,
+        Tagline = product.Branding.Tagline ?? string.Empty,
+        UploadedLogoUrl = product.Branding.UploadedLogoUrl,
+        ListedOnLanding = product.ListedOnLanding,
         LogoPath = product.Branding.LogoPath ?? string.Empty,
         OriginalLogoPath = product.Branding.LogoPath ?? string.Empty,
         AccentColour = product.Branding.AccentColour,
@@ -62,12 +73,13 @@ internal sealed partial class ProductEditorViewModel
         Version = product.Version,
     };
 
-    public CreateProductRequest ToCreateRequest() => new(Key.Trim(), Name.Trim(), NumberPrefix.Trim(), ToBranding(), NormalisedHost());
+    public CreateProductRequest ToCreateRequest() => new(Key.Trim(), Name.Trim(), NumberPrefix.Trim(), ToBranding(), NormalisedHost(), ListedOnLanding);
 
-    public UpdateProductRequest ToUpdateRequest() => new(Name.Trim(), ToBranding(), IsActive, Version, NormalisedHostForUpdate());
+    // The editor always sends the shown flag (null means "unchanged" only for clients that do not know the field).
+    public UpdateProductRequest ToUpdateRequest() => new(Name.Trim(), ToBranding(), IsActive, Version, NormalisedHostForUpdate(), ListedOnLanding);
 
     private ProductBrandingRequest ToBranding() =>
-        new(DisplayName.Trim(), Blank(LogoPath), Blank(AccentColour), Blank(FromAddress), Blank(ReplyTo));
+        new(DisplayName.Trim(), Blank(LogoPath), Blank(AccentColour), Blank(FromAddress), Blank(ReplyTo), Blank(Tagline));
 
     // Update: null would mean "unchanged" to the Api, so a blanked field is sent as "" (the explicit clear); a valid host goes trimmed and lower-case. An invalid value
     // (which Check refuses before a save) is sent as typed, never as "": the Api answers 400 on the field rather than clearing a stored host.
@@ -90,6 +102,7 @@ internal sealed partial class ProductEditorViewModel
         ApiFields.NumberPrefix when creating => NumberPrefixPattern().IsMatch(NumberPrefix.Trim()) ? null : ProductsCopy.NumberPrefixInvalid,
         ApiFields.DisplayName => string.IsNullOrWhiteSpace(DisplayName) ? ProductsCopy.DisplayNameRequired
             : DisplayName.Trim().Length > ProductFields.DisplayNameMaxLength ? ProductsCopy.NameTooLong : null,
+        ApiFields.Tagline => BrandingRules.IsAcceptableTagline(Tagline) ? null : ProductsCopy.TaglineInvalid,
         ApiFields.LogoPath => BrandingRules.IsAcceptableLogoUrl(LogoPath) || LogoUnchanged ? null : ProductsCopy.LogoInvalid,
         ApiFields.AccentColour => string.IsNullOrWhiteSpace(AccentColour) || Regex.IsMatch(AccentColour.Trim(), BrandingRules.ColourPattern) ? null : ProductsCopy.AccentInvalid,
         ApiFields.FromAddress => IsEmailOrBlank(FromAddress) ? null : ProductsCopy.EmailInvalid,
