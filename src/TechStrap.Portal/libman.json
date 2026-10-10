@@ -28,6 +28,43 @@
         "files/ibm-plex-mono-latin-600-normal.woff2",
         "LICENSE"
       ]
+    },
+    {
+      "library": "@fontsource/nunito@5.3.0",
+      "destination": "wwwroot/fonts/nunito",
+      "files": [
+        "files/nunito-latin-400-normal.woff2",
+        "files/nunito-latin-600-normal.woff2",
+        "files/nunito-latin-700-normal.woff2",
+        "LICENSE"
+      ]
+    },
+    {
+      "library": "@fontsource/atkinson-hyperlegible@5.3.0",
+      "destination": "wwwroot/fonts/atkinson-hyperlegible",
+      "files": [
+        "files/atkinson-hyperlegible-latin-400-normal.woff2",
+        "files/atkinson-hyperlegible-latin-700-normal.woff2",
+        "LICENSE"
+      ]
+    },
+    {
+      "library": "@fontsource/source-serif-4@5.3.0",
+      "destination": "wwwroot/fonts/source-serif-4",
+      "files": [
+        "files/source-serif-4-latin-400-normal.woff2",
+        "files/source-serif-4-latin-600-normal.woff2",
+        "LICENSE"
+      ]
+    },
+    {
+      "library": "@fontsource/pixelify-sans@5.3.0",
+      "destination": "wwwroot/fonts/pixelify-sans",
+      "files": [
+        "files/pixelify-sans-latin-400-normal.woff2",
+        "files/pixelify-sans-latin-700-normal.woff2",
+        "LICENSE"
+      ]
     }
   ]
 }

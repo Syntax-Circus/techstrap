@@ -33,10 +33,11 @@ a {
 .btn-outline-primary {
   --bs-btn-color: var(--ts-accent-ink);
   --bs-btn-border-color: var(--ts-accent-ink);
-  --bs-btn-hover-color: #fff;
+  // The text on the filled button is the page colour (white on Classic), so it stays readable on a dark pack.
+  --bs-btn-hover-color: var(--p-bg);
   --bs-btn-hover-bg: var(--ts-accent-ink);
   --bs-btn-hover-border-color: var(--ts-accent-ink);
-  --bs-btn-active-color: #fff;
+  --bs-btn-active-color: var(--p-bg);
   --bs-btn-active-bg: var(--ts-accent-ink);
   --bs-btn-active-border-color: var(--ts-accent-ink);
 }
@@ -51,7 +52,7 @@ a {
 .form-control:focus,
 .form-select:focus,
 .form-check-input:focus {
-  outline: 3px solid var(--p-ink) !important;
+  outline: 3px solid var(--ts-focus, var(--p-ink)) !important;
   outline-offset: 2px;
   box-shadow: 0 0 0 5px var(--ts-accent) !important;
 }

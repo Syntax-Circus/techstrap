@@ -51,6 +51,10 @@ builder.Services.AddProductHosts();
 // The product the current request is about, read by the layout (one per request).
 builder.Services.AddScoped<ProductScope>();
 
+// The deployment's default theme pack (read from the API, kept for a minute, Classic when it cannot be read) and the one place a skin is resolved (D-053).
+builder.Services.AddSingleton<DefaultPackProvider>();
+builder.Services.AddSingleton<PortalSkinFactory>();
+
 // The protected, 10-minute reference that carries a ticket number to the "received" page (D-045 addendum). It needs the data-protection key ring (persisted in production) and a clock.
 builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ReceivedReference>();

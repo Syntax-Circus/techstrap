@@ -44,7 +44,7 @@ public sealed class ProductThemeViewModelTests
 
         theme.ToString().ShouldNotContain("evil");
         theme.ToString().ShouldNotContain("red;x:y");
-        typeof(ProductThemeViewModel).GetProperties().Select(p => p.Name).ShouldBe(["Key", "DisplayName", "Accent", "LogoUrl"], ignoreOrder: true);
+        typeof(ProductThemeViewModel).GetProperties().Select(p => p.Name).ShouldBe(["Key", "DisplayName", "Accent", "LogoUrl", "Skin"], ignoreOrder: true);
     }
 
     [Theory]

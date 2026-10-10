@@ -1,5 +1,6 @@
 using TechStrap.Contracts.Branding;
 using TechStrap.Contracts.Products;
+using TechStrap.Contracts.Skins;
 
 namespace TechStrap.Portal.Products;
 
@@ -11,10 +12,12 @@ namespace TechStrap.Portal.Products;
 /// single implementation, so none of the DTO's three colour strings is ever written to a style attribute as it arrived.</item>
 /// <item>The logo is kept only when <see cref="BrandingRules.IsAcceptableLogoUrl"/> accepts it and it is https, or http to <c>localhost</c> or <c>127.0.0.1</c> when
 /// <paramref name="allowLoopbackImages"/> is set (Development), which is exactly what the Content-Security-Policy's <c>img-src</c> allows (<c>TechStrapCsp.ForBlazorApp</c>).</item>
+/// <item>The skin (D-053) is carried as it arrived and is never written anywhere as it is: <see cref="PortalSkinFactory"/> resolves it (<c>SkinResolver</c> validates every field and drops what fails) and only the
+/// resolved, validated tokens reach the page.</item>
 /// </list>
 /// The name is kept as text; every renderer encodes it, and no page may render it as markup.
 /// </summary>
-public sealed record ProductThemeViewModel(string Key, string DisplayName, string? Accent, string? LogoUrl)
+public sealed record ProductThemeViewModel(string Key, string DisplayName, string? Accent, string? LogoUrl, ProductSkin? Skin = null)
 {
     public static ProductThemeViewModel From(PublicProductDto product, bool allowLoopbackImages)
     {
@@ -24,7 +27,8 @@ public sealed record ProductThemeViewModel(string Key, string DisplayName, strin
             product.Key,
             string.IsNullOrEmpty(name) ? product.Key : name,
             ProductAccent.TryDerive(product.AccentColour, out var colours) ? colours.Accent : null,
-            AcceptableLogoUrl(product.LogoPath, allowLoopbackImages));
+            AcceptableLogoUrl(product.LogoPath, allowLoopbackImages),
+            product.Skin);
     }
 
     internal static string? AcceptableLogoUrl(string? logoUrl, bool allowLoopbackImages)

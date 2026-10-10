@@ -42,6 +42,12 @@ public partial class Home
     [Inject]
     private IHttpContextAccessor Http { get; set; } = default!;
 
+    [Inject]
+    private DefaultPackProvider DefaultPack { get; set; } = default!;
+
+    [Inject]
+    private PortalSkinFactory Skins { get; set; } = default!;
+
     private bool ShowsCards => _cards.Count > 0;
 
     protected override async Task OnInitializedAsync()
@@ -57,11 +63,15 @@ public partial class Home
             return;
         }
 
-        var listed = await Products.ListAsync(Http.HttpContext?.RequestAborted ?? CancellationToken.None);
+        var aborted = Http.HttpContext?.RequestAborted ?? CancellationToken.None;
+        var listed = await Products.ListAsync(aborted);
         if (listed.IsFailure)
         {
             return;
         }
+
+        // Read once for the whole list; each card is then resolved against it with its own product's overrides and accent.
+        var pack = await DefaultPack.GetAsync(aborted);
 
         _cards = [.. listed.Value
             .Where(product => product.ListedOnLanding)
@@ -70,7 +80,8 @@ public partial class Home
                 string.IsNullOrWhiteSpace(product.DisplayName) ? product.Key : product.DisplayName.Trim(),
                 string.IsNullOrWhiteSpace(product.Tagline) ? null : product.Tagline.Trim(),
                 ProductThemeViewModel.AcceptableLogoUrl(product.LogoUrl, Environment.IsDevelopment()),
-                HrefFor(product)))];
+                HrefFor(product),
+                Skins.Resolve(pack, product.Skin, product.AccentColour)))];
     }
 
     // A hosted product's card goes to its own host (an absolute https address built from the stored host, never from a header); the others stay on this host under /p/{key}.
