@@ -7,7 +7,7 @@ How to back up and restore a TechStrap installation with `deploy/backup.sh` and 
 Backed up:
 
 - the TechStrap Postgres database (`pg_dump -Fc`);
-- the `techstrap-storage` volume (`/app/storage`: `attachments/{ticketId:N}/{guid:N}` and `kb-images/{guid}.{ext}`);
+- the `techstrap-storage` volume (`/app/storage`: `attachments/{ticketId:N}/{guid:N}`, `kb-images/{guid}.{ext}` and `product-logos/{guid}.{ext}`);
 - the `admin-keys` and `portal-keys` volumes (ASP.NET Data Protection keys, `/app/dataprotection-keys`);
 - a plain-text `manifest.txt` with the creation time, the project, the row counts and the size and SHA-256 of every file. It holds no key, passphrase or URL.
 
@@ -171,7 +171,7 @@ Promotion into the real stack is a deliberate second step. It needs `--db-url` (
 
 - [ ] The `__EFMigrationsHistory` count equals the manifest (the script stops with an error if not).
 - [ ] The ticket and attachment counts match the manifest (`ok`, not `MISMATCH`); the attachment file count printed next to the database count is plausible. The manifest counts are read after the dump, so fewer restored rows than the manifest prints `WARNING: fewer rows than the manifest; writes during the backup window are expected` and the restore continues; more rows than the manifest, or a different migrations count, fails.
-- [ ] After a restore run (in Git Bash prefix `MSYS_NO_PATHCONV=1`) `docker run --rm -v <project>_techstrap-storage:/v:ro alpine:3.23 stat -c %u /v /v/attachments`: `attachments/` must show `10001` (the Api runs as uid 10001; tar runs as root and restores the archived ownership). The volume root itself (`/v`) is an open check for the 12c drill.
+- [ ] After a restore run (in Git Bash prefix `MSYS_NO_PATHCONV=1`) `docker run --rm -v <project>_techstrap-storage:/v:ro alpine:3.23 stat -c %u /v /v/attachments`: `attachments/` (and `kb-images/` and `product-logos/` once they exist) must show `10001` (the Api runs as uid 10001; tar runs as root and restores the archived ownership). The volume root itself (`/v`) is an open check for the 12c drill.
 - [ ] One attachment downloads in the Admin.
 - [ ] An admin signs in.
 - [ ] `/health/ready` is 200 on api and worker; `/health/live` is 200 on admin and portal.
@@ -203,7 +203,7 @@ Run this against the live database before you overwrite it (or against a copy ta
 
 ## Volume ownership
 
-Never write into the storage or keys volumes as root. The Api, Admin and Portal containers run as uid 10001, so a directory created by a root `docker run` (for example `attachments/`) makes uploads answer 403 until it is chowned. Use `--user 10001:10001` on any `docker run` that writes into those volumes, or go through the app. A restore extracts with `tar` as root and restores the ownership recorded in the archive, so verify it afterwards (see the checklist).
+Never write into the storage or keys volumes as root. The Api, Admin and Portal containers run as uid 10001, so a directory created by a root `docker run` (for example `attachments/`) makes uploads answer 403 until it is chowned (the same holds for `kb-images/` and `product-logos/`). Use `--user 10001:10001` on any `docker run` that writes into those volumes, or go through the app. A restore extracts with `tar` as root and restores the ownership recorded in the archive, so verify it afterwards (see the checklist).
 
 ## Open checks for 12c (T15)
 

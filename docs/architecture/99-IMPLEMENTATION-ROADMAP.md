@@ -29,7 +29,7 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 | 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | 08, 09, 11 alongside | D-007, D-018, D-046 | 10a merged (PR #18); 10b merged (PR #19); PHASE-10 complete: the owner's manual checks with a real identity provider (two browsers, a worker auto-close, the kill switch) are open |
 | 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | Alongside 06 to 10 | D-005, D-020, D-047, D-048, D-049 | 11a merged (PR #20); 11b merged (PR #21); 11c merged (PR #22); v0.1.0 published 2026-10-08 (PHASE-11 complete); T05 (attachments) deferred to 11d, which first needs multipart intake |
 | 11e | [Product hosts](PHASE-11e-product-hosts.md) | 09, 05, 04, 07 | 12 | After 11 | D-050 | 11e merged (PR #25): T01 to T07 |
-| 11f | [Landing page and product logos](PHASE-11f-landing-and-logos.md) | 09, 11e, 08, 04, 07 | 12c | After 12b, before 12c | D-052 | D-052 recorded; 11f in progress (one PR, Contracts 0.3.0) |
+| 11f | [Landing page and product logos](PHASE-11f-landing-and-logos.md) | 09, 11e, 08, 04, 07 | 12c | After 12b, before 12c | D-052 | D-052 recorded; 11f complete (pending merge): T01 to T10 |
 | 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 (v0.3.0 per D-051; 1.0.0 is a later API-lock decision) | Last; security, load, restore and UAT tasks can overlap once their inputs exist | D-003, D-022, D-051 | D-051 recorded; 12a merged (PR #28); 12b merged (PR #29); v0.2.1 (PR #30 Admin token refresh, PR #31 amd64-only images and CI without Docker Hub); 12c waits for 11f |
 
 Edges: 01 to 02 and 03; 03 to 04 to 05 to 06; 05 to 11; 02 and 06 to 07; 06 and 07 to 08; 02, 06 and 08 to 09; 07 to 10; all to 12.

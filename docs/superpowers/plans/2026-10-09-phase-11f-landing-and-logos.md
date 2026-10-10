@@ -2238,3 +2238,54 @@ git commit -m "docs(11f): self-hosting, runbook, security review, app docs and p
 - **Type consistency:** `IProductLogoUrls.UrlFor(string) : string?` (Tasks 5, 6, 7); `ProductLogos.EffectiveLogoUrl(ProductBranding, IProductLogoUrls)` (5, 7); `ProductMapping.ToDto(Product, IProductLogoUrls)` (5, 6); `IncomingProductLogo(long, Stream)` (6); `ProductLogoFile(string, string, Func<Stream>)` (9); `PortalOptions.ListsProducts` (8); `ProductBranding.Restore(displayName, logoPath, accentColour, fromAddress, replyTo, tagline, uploadedLogo)` and `Product.Restore(..., portalHost, listedOnLanding)` (3, 4, 5, 6).
 - **Review Focus pins:** 1 -> Task 3 and Task 5 tests named in the list; 2 -> Task 5 handler test and the raw-JSON PUT in `ProductLandingFieldsEndpointTests`; 3 -> Task 6 store, corpus and serving tests; 4 -> Task 8 `A_product_host_root_is_its_product_home_never_the_landing` and the `https://support.paperplane.test/` assertion; 5 -> Task 8 `Products_with_a_default_product_stops_the_host_at_start`.
 - **Known deviations the implementer may meet:** the test fixture method names in Tasks 4, 5, 6, 8 and 9 are taken from neighbouring tests and must be checked against the real helpers before use; `AccentPreview`'s logo selector; whether `factory.Api.Count` exists; where handler interfaces are registered. None of these change the design.
+
+## As built
+
+Branch `feat/phase-11f-landing-and-logos`, Tasks 2 to 10 (commits 739fc49 to the Task 10 commit). The per-task differences are recorded in the spec (`docs/architecture/PHASE-11f-landing-and-logos.md`, the **As built** line under each task). Summary of where the build departs from this plan:
+
+- Task 2: XML-doc gate forced extra `<param>` and `<summary>` tags; the summary DTO property pin changed to seven properties.
+- Task 5: a PUT that omits the tagline clears it (branding is replaced whole, as `LogoPath` is); the raw-JSON PUT test repeats the tagline. `errorCodes.tagline` is an array.
+- Task 6: the two handler rows sit in 02-ARCHITECTURE section 7.1 beside the api-keys rows (the plan said 7.2); handlers are auto-registered; no hostile-corpus entry has a GIF body, so the GIF rule is pinned in `ProductLogoStoreTests`; the 413 test runs on real Kestrel.
+- Task 7: `EmailDrainIntegrationTests`, `EmailServiceRegistrationTests` and `DeadLetterIntegrationTests` register `AddTechStrapProductLogoUrls`.
+- Task 8: the request token comes from `IHttpContextAccessor`; a `.ts-landing-intro` rule exists; in Products mode a product host's bare `/` also receives the one-minute public `Cache-Control` header (accepted, browser-only; added to the spec's Risks).
+- Task 9: the preview selector is `img.ts-accent-preview-logo`; `SaveAsync` also returns early while a logo upload or removal is running.
+- Task 10: `ResultMappingTests` (`ControllerActions.cs`) needed the two new logo actions at 200, found only by the whole-suite run.
+
+### Verification
+
+- `pwsh -NoProfile -File scripts/Invoke-ScriptTests.ps1`: Tests Passed: 512, Failed: 0 (before the docs: 508 passed, 4 failed).
+- `dotnet build TechStrap.slnx -c Release`: Build succeeded, 0 Warning(s).
+- `dotnet test --solution TechStrap.CI.slnf -c Release --no-build`: total 8310, failed 0, succeeded 8310, skipped 0.
+- `dotnet ef migrations has-pending-model-changes ...`: No changes have been made to the model since the last migration.
+- `git diff --check` clean; the new text in the spec and SELF-HOSTING is ASCII.
+
+### Manual compose check
+
+Port 8025 was held by another project's container (`gat_dev-mailhog-1`), so Mailpit moved with `TECHSTRAP_MAILPIT_PORT=18025`. The Admin upload could not be driven: the Admin signs in through an OIDC provider that is not part of the dev stack, and the Api routes need an admin JWT, so the upload, the SVG refusal (`product-logo-type-not-allowed`) and the served-logo headers (`sandbox`, `immutable`, `nosniff`) are covered by `ProductLogoEndpointTests`, `ProductLogoServingTests` and `ProductLogoStoreTests`, not performed by hand. What was performed on the compose stack:
+
+```
+$ TECHSTRAP_MAILPIT_PORT=18025 docker compose up -d --build --wait
+ Container techstrap-api-1 Healthy / techstrap-portal-1 Healthy / techstrap-admin-1 Healthy / techstrap-worker-1 Healthy / techstrap-mailpit-1 Healthy / techstrap-postgres-1 Healthy
+$ curl -s -D - -o /dev/null http://127.0.0.1:8080/product-logos/0123456789abcdef0123456789abcdef.png
+HTTP/1.1 404 Not Found
+Cache-Control: no-store
+X-Content-Type-Options: nosniff
+Content-Security-Policy: default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+$ curl -s -o /dev/null -w '%{http_code}
+' http://127.0.0.1:8080/product-logos/x.svg
+404
+$ curl -s -D - -o /dev/null http://127.0.0.1:8082/        (Neutral)
+HTTP/1.1 200 OK
+$ curl -s http://127.0.0.1:8082/ | grep -o ts-landing-card | wc -l
+0
+$ curl -s http://127.0.0.1:8080/api/public/products
+[{"key":"orbitly","displayName":"Orbitly","portalHost":null,"tagline":null,"logoUrl":null,"accentColour":"#7C3AED","listedOnLanding":true},{"key":"paperplane",...,"listedOnLanding":true}]
+$ docker compose run -d --rm --name ts-landing-portal -e TECHSTRAP_PORTAL_LANDING=Products -p 127.0.0.1:18082:80 portal
+$ curl -s -D - -o /dev/null http://127.0.0.1:18082/
+HTTP/1.1 200 OK
+Cache-Control: public, max-age=60
+$ curl -s http://127.0.0.1:18082/ | grep -o ts-landing-card | wc -l
+2          (Orbitly and Paperplane, one card each)
+```
+
+The extra Portal container was removed afterwards; the main stack was left running (no `down -v`). The migration `AddProductLandingAndLogo` applied on start (the public list already returns the new fields). The "hidden product absent" step was not performed: both seeded products are listed and unlisting needs the Admin; `The_root_lists_the_listed_products_as_cards_in_api_order_with_safe_logos_only` pins it.

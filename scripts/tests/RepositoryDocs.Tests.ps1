@@ -1104,4 +1104,22 @@ Describe 'PHASE-11f landing page and product logos (D-052)' {
         (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11f \|.*\| D-052 recorded; 11f'
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11f-T10 \|'
     }
+
+    It 'ticks every 11f task and marks 11f complete pending merge' {
+        foreach ($n in 1..10) { $script:Spec | Should -Match ('- \[x\] \*\*P11f-T' + $n.ToString('00') + '\*\*') -Because "P11f-T$($n.ToString('00')) is ticked" }
+        $script:Spec | Should -Not -Match '- \[ \] \*\*P11f-T'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11f \|.*\| D-052 recorded; 11f complete \(pending merge\): T01 to T10'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11f \|.*\| D-052 recorded; 11f complete \(pending merge\): T01 to T10'
+    }
+
+    It 'documents the landing setting, the logo proxy path, the runbook prefix and the security tests' {
+        $selfHost = Get-RepoText 'docs/self-hosting/SELF-HOSTING.md'
+        $selfHost | Should -Match 'TECHSTRAP_PORTAL_LANDING'
+        $selfHost | Should -Match '/product-logos/'
+        $selfHost | Should -Match 'plain http'
+        (Get-RepoText 'docs/runbooks/backup-restore.md') | Should -Match 'product-logos/'
+        $review = Get-RepoText 'docs/security/SECURITY-REVIEW.md'
+        foreach ($phrase in 'ProductLogoStoreTests', 'ProductLogoServingTests', 'ProductLogoDiskFullTests', 'D-052') { $review | Should -Match $phrase -Because $phrase }
+        (Get-RepoText 'docs/architecture/02-ARCHITECTURE.md') | Should -Match 'TECHSTRAP_PORTAL_LANDING=Products'
+    }
 }

@@ -132,8 +132,8 @@ Describe 'SELF-HOSTING.md content (PHASE-12b)' {
         $oidc | Should -Match '(?m)^- \*\*Email\.\*\*.*`agent-email-required`'
     }
 
-    It 'gives a default-site Caddy block with the body limit, the kb-images route and the forwarded headers' {
-        foreach ($phrase in 'request_body', 'max_size 26MiB', 'reverse_proxy 127.0.0.1:8080', 'reverse_proxy 127.0.0.1:8081', 'reverse_proxy 127.0.0.1:8082', '/kb-images/', 'REVERSE_PROXY_CIDR', 'TECHSTRAP_SUBNET', 'X-Forwarded-For') {
+    It 'gives a default-site Caddy block with the body limit, the kb-images and product-logos routes and the forwarded headers' {
+        foreach ($phrase in 'request_body', 'max_size 26MiB', 'reverse_proxy 127.0.0.1:8080', 'reverse_proxy 127.0.0.1:8081', 'reverse_proxy 127.0.0.1:8082', '/kb-images/', '/product-logos/', 'REVERSE_PROXY_CIDR', 'TECHSTRAP_SUBNET', 'X-Forwarded-For') {
             $script:Guide | Should -Match ([regex]::Escape($phrase)) -Because $phrase
         }
     }
