@@ -14,6 +14,11 @@
   background-color: var(--p-bg);
 }
 
+// A landing card sits in its own scope (D-053); the scope paints the page colour, which would show as a square backing behind a rounded card.
+.ts-landing > .ts-accent-scope {
+  background-color: transparent;
+}
+
 .ts-portal {
   font-family: var(--ts-font-body, var(--ts-font-sans));
 }
@@ -34,10 +39,15 @@ h6 {
 }
 
 // The file input's own button reads the body colour; on a dark pack it would be light text on Bootstrap's light fill.
-.form-control::file-selector-button,
-.form-control:hover:not(:disabled):not([readonly])::file-selector-button {
+// Each state keeps Bootstrap's own fill as the fallback, so Classic (no --ts-surface) is unchanged.
+.form-control::file-selector-button {
   color: var(--p-ink);
   background-color: var(--ts-surface, var(--bs-tertiary-bg));
+}
+
+.form-control:hover:not(:disabled):not([readonly])::file-selector-button {
+  color: var(--p-ink);
+  background-color: var(--ts-surface, var(--bs-secondary-bg));
 }
 
 .ts-landing-card,
@@ -96,10 +106,14 @@ h6 {
   --bs-border-width: max(2px, var(--ts-border-w, 1px));
 }
 
-// Header presets. The skin supplies --ts-chrome and --ts-on-chrome only when they differ from Classic, so the fallbacks are Classic's.
+// Header presets. The skin supplies --ts-chrome and --ts-on-chrome only when they differ from Classic, so the fallbacks are Classic's:
+// #1b1b22 is SkinPacks.Classic.Tokens.Chrome and #fff its derived on-colour (PresetStyleTests pins both).
 // The header box is the 64rem container, so the colour is painted full-bleed with a border image whose outset reaches 100vmax to each side: no markup change, the nav keeps its width and padding, and ink overflow
 // never makes the page scroll sideways.
 .ts-accent-scope[data-ts-header="solid"] .ts-product-header {
+  // The focus ring and its halo sit on the chrome fill, where the skin's focus colour can equal the fill (Slate, Contrast): inside the header both are the on-chrome colour, which is at least 3:1 against it.
+  --ts-focus: var(--ts-on-chrome, #fff);
+  --ts-accent: var(--ts-on-chrome, #fff);
   padding-bottom: 8px;
   color: var(--ts-on-chrome, #fff);
   background: var(--ts-chrome, #1b1b22);
@@ -114,4 +128,41 @@ h6 {
 .ts-accent-scope[data-ts-header="band"] .ts-product-header {
   border-bottom: 4px solid var(--ts-chrome, #1b1b22);
   border-image: linear-gradient(var(--ts-chrome, #1b1b22), var(--ts-chrome, #1b1b22)) 1 / 0 0 4px 0 / 0 100vmax 0 100vmax;
+}
+
+// A dark pack (data-ts-scheme="dark", from the resolved pack's scheme) redefines the light-only semantic and soft surfaces of BRAND.md, which were tuned for a white page. The values are chosen so that every
+// text and ground pair below is at least 4.5:1 (PresetStyleTests checks each from the compiled CSS).
+.ts-accent-scope[data-ts-scheme="dark"] {
+  --p-soft: #1a2233;
+  --p-error: #ff8a8f;
+  --p-error-bg: #3a1519;
+  --p-warn: #ffb454;
+  --p-warn-bg: #33230a;
+  --p-success: #5fd08a;
+  --p-success-bg: #10291a;
+  --bs-secondary-bg: #1a2233;
+  --bs-tertiary-bg: #1a2233;
+
+  // Bootstrap's select chevron is a dark data image, which this stylesheet may not carry (no url reference outside the font faces); two gradients draw the same arrow in the text colour.
+  .form-select {
+    --bs-form-select-bg-img: none;
+    background-image: linear-gradient(45deg, transparent 50%, currentcolor 50%), linear-gradient(135deg, currentcolor 50%, transparent 50%);
+    background-repeat: no-repeat;
+    background-position: calc(100% - 1.25rem) 50%, calc(100% - .9rem) 50%;
+    background-size: .35rem .35rem;
+  }
+}
+
+// On paper the colour fills are dropped (a browser omits backgrounds unless asked), so the white-on-chrome text must not stay white.
+@media print {
+  .ts-accent-scope[data-ts-header] .ts-product-header {
+    color: inherit;
+    background: none;
+    border-image: none;
+
+    a,
+    .ts-product-name {
+      color: inherit;
+    }
+  }
 }

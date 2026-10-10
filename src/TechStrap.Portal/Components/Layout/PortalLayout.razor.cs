@@ -54,11 +54,11 @@ public partial class PortalLayout : LayoutComponentBase, IDisposable
     public void Dispose() => Scope.Changed -= OnScopeChanged;
 
     // The page sets the product while it initialises, after this layout first rendered: the skin is resolved again with it.
-    private void OnScopeChanged()
+    private void OnScopeChanged() => _ = InvokeAsync(() =>
     {
         Resolve();
-        _ = InvokeAsync(StateHasChanged);
-    }
+        StateHasChanged();
+    });
 
     private void Resolve() => _skin = Skins.Resolve(_pack, Theme?.Skin, Theme?.Accent);
 }

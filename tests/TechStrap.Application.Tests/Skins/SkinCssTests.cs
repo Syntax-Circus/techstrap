@@ -67,6 +67,26 @@ public sealed class SkinCssTests
     }
 
     [Fact]
+    public void A_dark_pack_emits_its_scheme_and_a_light_pack_does_not()
+    {
+        SkinCss.Attributes(SkinResolver.Resolve("midnight", null, null).Skin).ShouldContain(new KeyValuePair<string, string>("data-ts-scheme", "dark"));
+        foreach (var pack in SkinPacks.All.Where(p => p.Scheme == SkinValues.Light))
+        {
+            SkinCss.Attributes(SkinResolver.Resolve(pack.Key, null, null).Skin).ShouldNotContain(a => a.Key == "data-ts-scheme", pack.Key);
+        }
+    }
+
+    [Fact]
+    public void Text_on_the_chrome_fill_is_at_least_3_to_1_in_every_pack_so_the_header_focus_ring_can_use_it()
+    {
+        foreach (var pack in SkinPacks.All)
+        {
+            var skin = SkinResolver.Resolve(pack.Key, null, null).Skin;
+            TechStrap.Contracts.Branding.ProductAccent.ContrastRatio(skin.OnChrome, skin.Tokens.Chrome).ShouldBeGreaterThanOrEqualTo(3.0, pack.Key);
+        }
+    }
+
+    [Fact]
     public void A_font_and_radius_override_emit_their_variables()
     {
         var skin = SkinResolver.Resolve("classic", new ProductSkin(Radius: "square", HeadingFont: "source-serif"), null).Skin;

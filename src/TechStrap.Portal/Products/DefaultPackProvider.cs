@@ -8,14 +8,18 @@ namespace TechStrap.Portal.Products;
 /// The key of the deployment's default theme pack (D-053), read from the API and kept for <see cref="ProductHostMapOptions.Ttl"/>. One singleton; the client is scoped, so every read opens a scope of its own.
 /// <list type="bullet">
 /// <item><b>Stale-while-revalidate.</b> With a value, every call answers at once; an expired value starts one background read and nobody waits for it. Only the very first call (nothing read yet) waits.</item>
-/// <item><b>Never an error.</b> A failed read keeps the last good value; with none the answer is <see cref="SkinPacks.DefaultKey"/>, and a key the Portal does not know is Classic too. A read that failed is not repeated
-/// inside <see cref="ProductHostMapOptions.MissRefreshInterval"/>, so a down API costs one call in ten seconds, not one per page.</item>
+/// <item><b>Never an error, never a stall.</b> A failed read keeps the last good value; with none the answer is <see cref="SkinPacks.DefaultKey"/>, and a key the Portal does not know is Classic too. A read that failed is not
+/// repeated inside <see cref="ProductHostMapOptions.MissRefreshInterval"/>, so a down API costs one call in ten seconds, not one per page. The very first caller waits at most <see cref="ColdWait"/>: when the read has not
+/// answered by then (or failed) a Classic snapshot that is already stale is stored, so every later call answers Classic at once while the read finishes or is retried in the background, and a success replaces it.</item>
 /// <item><b>One read at a time, on its own deadline.</b> The read runs as a task of its own, without the request's execution context or token (a hung call is cut off after <see cref="ProductHostMapOptions.ReadTimeout"/>).</item>
 /// </list>
 /// The age is measured by the <see cref="TimeProvider"/>, so a test moves the clock instead of waiting.
 /// </summary>
 public sealed class DefaultPackProvider(IServiceScopeFactory scopes, TimeProvider clock, ILogger<DefaultPackProvider> logger, IHttpContextAccessor? accessor = null)
 {
+    /// <summary>The longest the first request waits for the very first read before it renders Classic.</summary>
+    public static readonly TimeSpan ColdWait = TimeSpan.FromSeconds(2);
+
     private sealed record Snapshot(string Pack, DateTimeOffset LoadedAt);
 
     private readonly Lock _lock = new();
@@ -32,8 +36,16 @@ public sealed class DefaultPackProvider(IServiceScopeFactory scopes, TimeProvide
         var snapshot = _snapshot;
         if (snapshot is null)
         {
-            await (Begin() ?? _flight).WaitAsync(cancellationToken);
-            return _snapshot?.Pack ?? SkinPacks.DefaultKey;
+            try
+            {
+                await (Begin() ?? _flight).WaitAsync(ColdWait, clock, cancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                // The read is still running (a hung API): this request is Classic, and so is every request until the read ends.
+            }
+
+            return (_snapshot ?? StoreStaleClassic()).Pack;
         }
 
         if (clock.GetUtcNow() - snapshot.LoadedAt >= ProductHostMapOptions.Ttl)
@@ -42,6 +54,15 @@ public sealed class DefaultPackProvider(IServiceScopeFactory scopes, TimeProvide
         }
 
         return snapshot.Pack;
+    }
+
+    // With nothing read yet: Classic, already expired, so the next call refreshes (at most once per miss interval) and answers at once. Never replaces a value that has arrived meanwhile.
+    private Snapshot StoreStaleClassic()
+    {
+        lock (_lock)
+        {
+            return _snapshot ??= new Snapshot(SkinPacks.DefaultKey, clock.GetUtcNow() - ProductHostMapOptions.Ttl);
+        }
     }
 
     // Starts a read unless one is running or the last one began less than the miss interval ago; null then.

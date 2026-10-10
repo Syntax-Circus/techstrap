@@ -61,7 +61,7 @@ public static class SkinCss
         return list;
     }
 
-    /// <summary>The preset attributes: <c>data-ts-shadow</c>, <c>data-ts-button</c>, <c>data-ts-header</c>, each only when not the Classic value.</summary>
+    /// <summary>The preset attributes: <c>data-ts-shadow</c>, <c>data-ts-button</c>, <c>data-ts-header</c>, each only when not the Classic value, and <c>data-ts-scheme="dark"</c> for a dark pack.</summary>
     public static IReadOnlyList<KeyValuePair<string, string>> Attributes(ResolvedSkin skin)
     {
         ArgumentNullException.ThrowIfNull(skin);
@@ -81,6 +81,12 @@ public static class SkinCss
         if (SkinValues.IsHeader(t.Header) && t.Header != SkinValues.HeaderPlain)
         {
             list.Add(new("data-ts-header", t.Header));
+        }
+
+        // A dark pack redefines the light-only semantic and soft surfaces of the Portal; the scheme is a closed value, never raw text.
+        if (skin.Scheme == SkinValues.Dark)
+        {
+            list.Add(new("data-ts-scheme", SkinValues.Dark));
         }
 
         return list;

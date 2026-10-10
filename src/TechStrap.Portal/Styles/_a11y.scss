@@ -198,6 +198,11 @@
     border: 2px solid CanvasText;
   }
 
+  // The header presets paint a border image, which forced colours keep: the system colours must win, so it goes.
+  .ts-accent-scope[data-ts-header] .ts-product-header {
+    border-image: none;
+  }
+
   .ts-error-summary,
   .ts-confirmation,
   .alert-warning {

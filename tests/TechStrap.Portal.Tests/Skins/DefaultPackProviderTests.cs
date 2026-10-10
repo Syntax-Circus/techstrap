@@ -19,10 +19,18 @@ public sealed class DefaultPackProviderTests
 
         public Func<Result<PublicSiteDto>> Answer { get; set; } = () => Result<PublicSiteDto>.Success(new PublicSiteDto("slate"));
 
-        public Task<Result<PublicSiteDto>> GetAsync(CancellationToken cancellationToken)
+        /// <summary>When set, a read never answers by itself: it ends only when the caller's token is cancelled (a hung API).</summary>
+        public bool Hang { get; set; }
+
+        public async Task<Result<PublicSiteDto>> GetAsync(CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref Reads);
-            return Task.FromResult(Answer());
+            if (Hang)
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+            }
+
+            return Answer();
         }
     }
 
@@ -83,6 +91,32 @@ public sealed class DefaultPackProviderTests
         client.Answer = () => Result<PublicSiteDto>.Failure(ProblemMapping.Unavailable());
 
         (await provider.GetAsync(Ct)).ShouldBe("classic");
+    }
+
+    [Fact]
+    public async Task A_hung_cold_read_costs_the_first_caller_two_seconds_at_most_and_the_next_none()
+    {
+        var (provider, client, clock) = Build();
+        client.Hang = true;
+
+        var first = provider.GetAsync(Ct).AsTask();
+        clock.Advance(DefaultPackProvider.ColdWait + TimeSpan.FromMilliseconds(1));
+        (await first).ShouldBe("classic", "the first caller stopped waiting at the bound");
+
+        var second = provider.GetAsync(Ct);
+        second.IsCompletedSuccessfully.ShouldBeTrue("a second request does not wait for the hung read");
+        (await second).ShouldBe("classic");
+        client.Reads.ShouldBe(1, "and does not start another read while one is running");
+
+        // The hung read is cut off by its own deadline; the next read (after the retry interval) succeeds and replaces Classic.
+        clock.Advance(TimeSpan.FromSeconds(31));
+        await provider.PendingRefresh;
+        client.Hang = false;
+        clock.Advance(TimeSpan.FromSeconds(11));
+        (await provider.GetAsync(Ct)).ShouldBe("classic", "the stale Classic is answered at once while the refresh runs");
+        await provider.PendingRefresh;
+
+        (await provider.GetAsync(Ct)).ShouldBe("slate");
     }
 
     [Fact]
