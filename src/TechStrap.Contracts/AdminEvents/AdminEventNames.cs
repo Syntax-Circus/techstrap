@@ -15,7 +15,7 @@ public static class AdminEventTypes
     public const string AgentUpdated = "AgentUpdated";
     /// <summary>A tag was created.</summary>
     public const string TagCreated = "TagCreated";
-    /// <summary>A tag's name or colour was changed.</summary>
+    /// <summary>A tag's name or color was changed.</summary>
     public const string TagUpdated = "TagUpdated";
     /// <summary>A tag was deleted and removed from every ticket that carried it.</summary>
     public const string TagDeleted = "TagDeleted";

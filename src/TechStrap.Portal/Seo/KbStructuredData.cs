@@ -14,7 +14,7 @@ public sealed record BreadcrumbItemLd(
     [property: JsonPropertyName("@type")] string Type = "ListItem");
 
 /// <summary>
-/// schema.org <c>BreadcrumbList</c>. The package has a record of the same shape, but its strings are plain strings that its serialiser writes without escaping <c>&lt;</c>; this one carries <see cref="JsonLdText"/>.
+/// schema.org <c>BreadcrumbList</c>. The package has a record of the same shape, but its strings are plain strings that its serializer writes without escaping <c>&lt;</c>; this one carries <see cref="JsonLdText"/>.
 /// </summary>
 public sealed record BreadcrumbListLd(
     IReadOnlyList<BreadcrumbItemLd> ItemListElement,

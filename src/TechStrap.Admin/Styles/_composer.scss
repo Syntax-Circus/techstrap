@@ -1,6 +1,6 @@
 // The reply composer wears the carbon tint code (BRAND.md section 12, UX-BRIEF-admin "Composer distinction"): canary with a solid edge for a public reply,
 // pink with a dashed edge and a notched corner for an internal note. This file is allowed to paint with the tint tokens (TintStyleTests lists it), and
-// the same rule applies as in _tinted-entry.scss: a tint never decorates anything else, and colour is never the only cue (the label, the warning text
+// the same rule applies as in _tinted-entry.scss: a tint never decorates anything else, and color is never the only cue (the label, the warning text
 // and the dashed edge say it too).
 
 .ts-composer {

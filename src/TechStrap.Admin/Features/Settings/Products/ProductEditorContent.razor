@@ -127,7 +127,7 @@
 </div>
 
 @code {
-    /// <summary>One labelled text input with its help text and its error; the value is bound on input and checked on blur.</summary>
+    /// <summary>One labeled text input with its help text and its error; the value is bound on input and checked on blur.</summary>
     private RenderFragment Field(string id, string label, string field, string value, Action<string> set, string? help = null, string type = "text") => @<div class="ts-field">
         <label for="@id" class="form-label">@label</label>
         <input id="@id" type="@type" class="form-control @(_errors.ContainsKey(field) ? "is-invalid" : null)" value="@value" autocomplete="off"

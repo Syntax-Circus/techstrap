@@ -1,4 +1,4 @@
-# Normalise line endings in the repo; checkouts use the platform default except where noted.
+# Normalize line endings in the repo; checkouts use the platform default except where noted.
 * text=auto
 
 # Shell and container files must stay LF so they run inside Linux containers and CI.

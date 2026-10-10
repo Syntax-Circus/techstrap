@@ -5,7 +5,7 @@ using TechStrap.Hosting.Logging;
 namespace TechStrap.Api.Tests.Redaction;
 
 /// <summary>
-/// P09-T17 / T21: the contact page may be opened with <c>?name=...&amp;email=...</c> (a prefill from the product's own app). A name cannot be recognised by pattern, so the value of these two query
+/// P09-T17 / T21: the contact page may be opened with <c>?name=...&amp;email=...</c> (a prefill from the product's own app). A name cannot be recognized by pattern, so the value of these two query
 /// parameters is masked wherever a logged text carries a query string, in addition to the email and token patterns the redactor already has. The match is on the parameter's decoded name, so
 /// <c>%6Eame=</c> and <c>NAME=</c> are caught, and on nothing else: a text that merely says "name=" is left alone.
 /// </summary>

@@ -10,7 +10,7 @@ using TechStrap.Portal.Routing;
 namespace TechStrap.Portal.Components.Pages;
 
 /// <summary>
-/// The help-centre search (P09-T13): a plain GET form (<c>?q=&amp;page=</c>) that works without script. An empty text shows a prompt and makes no call; a text is cut at the API's limit (<see cref="KbSearchText"/>) and
+/// The help-center search (P09-T13): a plain GET form (<c>?q=&amp;page=</c>) that works without script. An empty text shows a prompt and makes no call; a text is cut at the API's limit (<see cref="KbSearchText"/>) and
 /// searched through <see cref="IPublicKbClient"/>; no result shows a way to contact support. Review Focus 1 (XSS): the text, every title and every snippet are plain text shown by Razor, which encodes them; the snippet is
 /// never markup (D-044). A page with a text is <c>noindex</c> (every text is a different page), the page is never kept by the cache (<c>PortalCachePaths</c>) or a browser (a header rule), and a paging link keeps the
 /// text, escaped by <see cref="Links.KbSearch(string, string, int)"/>. The page number is bound as text and parsed by <see cref="KbPaging"/>.

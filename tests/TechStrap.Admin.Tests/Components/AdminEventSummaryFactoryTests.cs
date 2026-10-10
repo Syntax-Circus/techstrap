@@ -18,7 +18,7 @@ public sealed class AdminEventSummaryFactoryTests
         [AdminEventTypes.ApiKeyRevoked] = ("{\"productId\":\"11111111-1111-1111-1111-111111111111\",\"keyPrefix\":\"tsk_ab12\"}", "Revoked API key tsk_ab12"),
         [AdminEventTypes.AgentUpdated] = ("{\"isActive\":false}", "Deactivated an agent"),
         [AdminEventTypes.TagCreated] = ("{\"slug\":\"bug\"}", "Created tag bug"),
-        [AdminEventTypes.TagUpdated] = ("{\"slug\":\"bug\",\"changed\":[\"name\",\"colour\"]}", "Updated tag bug: name, colour"),
+        [AdminEventTypes.TagUpdated] = ("{\"slug\":\"bug\",\"changed\":[\"name\",\"colour\"]}", "Updated tag bug: name, color"),
         [AdminEventTypes.TagDeleted] = ("{\"slug\":\"bug\",\"detachedTicketCount\":12}", "Deleted tag bug, removed from 12 tickets"),
         [AdminEventTypes.RequesterErased] = ("{\"tickets\":3,\"messages\":12,\"attachments\":1,\"links\":2,\"outboxRows\":4}", "Erased a requester: 3 tickets, 12 messages, 1 attachment, 2 access links, 4 queued emails"),
         [AdminEventTypes.TicketDeleted] = ("{\"number\":\"ORB-42\",\"messageCount\":1,\"attachmentCount\":0}", "Deleted ticket ORB-42 (1 message, 0 attachments)"),

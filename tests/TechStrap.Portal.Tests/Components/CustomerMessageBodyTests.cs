@@ -4,7 +4,7 @@ using TechStrap.Tests.Shared;
 
 namespace TechStrap.Portal.Tests.Components;
 
-/// <summary>P12-T05: the Portal's one MarkupString site shows the API's sanitised body with only the h1 demoted to h2, and adds nothing.</summary>
+/// <summary>P12-T05: the Portal's one MarkupString site shows the API's sanitized body with only the h1 demoted to h2, and adds nothing.</summary>
 public sealed class CustomerMessageBodyTests : BunitContext
 {
     [Theory]

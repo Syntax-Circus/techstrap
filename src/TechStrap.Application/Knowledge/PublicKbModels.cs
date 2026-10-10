@@ -4,7 +4,7 @@ namespace TechStrap.Application.Knowledge;
 
 /// <summary>
 /// A public (portal) full-text search over Published articles (D-044). With <see cref="ProductId"/> it searches that product's articles and the shared
-/// ones; <see cref="CategorySlug"/> narrows to one category. Implementations normalise <see cref="Page"/> and <see cref="PageSize"/>
+/// ones; <see cref="CategorySlug"/> narrows to one category. Implementations normalize <see cref="Page"/> and <see cref="PageSize"/>
 /// through <c>Paging</c> and truncate <see cref="Text"/> to <c>DomainLimits.SearchTextMaxLength</c>.
 /// </summary>
 public sealed record PublicKbSearchQuery(string Text, Guid ProductId, string? CategorySlug = null, int Page = 1, int PageSize = 10);

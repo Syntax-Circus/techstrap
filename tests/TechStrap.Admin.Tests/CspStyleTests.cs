@@ -6,7 +6,7 @@ namespace TechStrap.Admin.Tests;
 
 /// <summary>
 /// Review Focus 1, the style half: the policy lets the stylesheet draw everything it draws. The compiled CSS of both Blazor hosts may reference only same-origin fonts and
-/// <c>data:</c> images, and the policy must allow exactly those, or a colour, a font or an icon silently disappears in a browser while every other test is green.
+/// <c>data:</c> images, and the policy must allow exactly those, or a color, a font or an icon silently disappears in a browser while every other test is green.
 /// </summary>
 public sealed partial class CspStyleTests
 {

@@ -94,7 +94,7 @@ public sealed class AgentSession
                 return;
             }
 
-            // Someone else is already asking; share their answer. If their load ended without one (they were cancelled), ask again ourselves.
+            // Someone else is already asking; share their answer. If their load ended without one (they were canceled), ask again ourselves.
             await running;
             if (State != AgentSessionState.NotLoaded)
             {
@@ -111,7 +111,7 @@ public sealed class AgentSession
         }
         finally
         {
-            // A failed or cancelled load must not pin the shared task: the next call asks again unless the state is final.
+            // A failed or canceled load must not pin the shared task: the next call asks again unless the state is final.
             _loading = null;
             source.SetResult();
         }

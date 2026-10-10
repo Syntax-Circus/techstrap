@@ -17,7 +17,7 @@ public sealed class KbArticleHostTests
 
     private const string ArticlePath = "/api/public/kb/paperplane/articles/accounts/reset-password";
 
-    // What the API's sanitiser produces: headings, a paragraph with a link, a list, a table, code and an image.
+    // What the API's sanitizer produces: headings, a paragraph with a link, a list, a table, code and an image.
     private const string Body =
         "<h2>Steps</h2>\n<p>Open <a href=\"https://app.example.com/settings\" rel=\"nofollow\">settings</a> &amp; choose <em>Reset</em>. Then wait.</p>\n<ul>\n<li>One</li>\n<li>Two &lt;3</li>\n</ul>\n"
         + "<table>\n<thead><tr><th>A</th><th>B</th></tr></thead>\n<tbody><tr><td>1</td><td>2</td></tr></tbody>\n</table>\n<pre><code class=\"language-bash\">echo &quot;hi&quot;\n</code></pre>\n"
@@ -60,7 +60,7 @@ public sealed class KbArticleHostTests
 
         KbTestKit.Texts(dom, "h1").ShouldBe(["Reset your password"]);
         KbTestKit.Texts(dom, "article.ts-kb-article .ts-kb-meta").ShouldBe(["Updated 5 Oct 2026"]);
-        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help centre", "Accounts", "Reset your password"]);
+        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help center", "Accounts", "Reset your password"]);
         KbTestKit.Links(dom, "nav.ts-breadcrumbs a").ShouldBe(["/p/paperplane", "/p/paperplane/kb", "/p/paperplane/kb/accounts"]);
         KbTestKit.Texts(dom, "aside.ts-kb-help h2").ShouldBe(["Still need help?"]);
         KbTestKit.Links(dom, "aside.ts-kb-help a").ShouldBe(["/p/paperplane/contact"]);
@@ -75,16 +75,16 @@ public sealed class KbArticleHostTests
 
         var (_, _, dom) = await KbTestKit.GetAsync(client, "/p/paperplane/kb/accounts/reset-password?utm_source=mail", Ct);
 
-        dom.Title.ShouldBe("Reset your password - Paperplane Help Centre");
+        dom.Title.ShouldBe("Reset your password - Paperplane Help Center");
         KbTestKit.Meta(dom, "meta[name=description]").ShouldBe("How to reset it");
         dom.QuerySelector("link[rel=canonical]")!.GetAttribute("href").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb/accounts/reset-password");
         KbTestKit.Meta(dom, "meta[name=robots]").ShouldStartWith("index, follow");
         KbTestKit.Meta(dom, "meta[property='og:type']").ShouldBe("article");
-        KbTestKit.Meta(dom, "meta[property='og:title']").ShouldBe("Reset your password - Paperplane Help Centre");
+        KbTestKit.Meta(dom, "meta[property='og:title']").ShouldBe("Reset your password - Paperplane Help Center");
         KbTestKit.Meta(dom, "meta[property='og:description']").ShouldBe("How to reset it");
         KbTestKit.Meta(dom, "meta[property='og:url']").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb/accounts/reset-password");
         KbTestKit.Meta(dom, "meta[property='og:image']").ShouldBe(PortalFactory.PublicUrl + "/icon-512.png");
-        KbTestKit.Meta(dom, "meta[name='twitter:title']").ShouldBe("Reset your password - Paperplane Help Centre");
+        KbTestKit.Meta(dom, "meta[name='twitter:title']").ShouldBe("Reset your password - Paperplane Help Center");
     }
 
     [Theory]
@@ -178,10 +178,10 @@ public sealed class KbArticleHostTests
 
         // The text is still all there, as text: in the heading, the title, the meta tags and the trail.
         KbTestKit.Texts(dom, "h1").ShouldBe([hostile]);
-        dom.Title.ShouldBe(hostile + " - Paperplane Help Centre");
+        dom.Title.ShouldBe(hostile + " - Paperplane Help Center");
         KbTestKit.Meta(dom, "meta[name=description]").ShouldBe(hostile);
-        KbTestKit.Meta(dom, "meta[property='og:title']").ShouldBe(hostile + " - Paperplane Help Centre");
-        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help centre", hostile, hostile]);
+        KbTestKit.Meta(dom, "meta[property='og:title']").ShouldBe(hostile + " - Paperplane Help Center");
+        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help center", hostile, hostile]);
 
         // The JSON-LD blocks hold no angle bracket, are valid JSON, and read back as the original text.
         var scripts = dom.QuerySelectorAll("script[type='application/ld+json']").Select(script => script.TextContent).ToList();

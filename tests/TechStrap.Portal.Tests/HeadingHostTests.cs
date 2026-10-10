@@ -9,7 +9,7 @@ using TechStrap.Portal.Tests.Tickets;
 namespace TechStrap.Portal.Tests;
 
 /// <summary>
-/// Every Portal page has exactly one <c>h1</c> (PHASE-09 T16, UX brief, Review Focus 4), and the help-centre search page's is not the home's. The Admin has the same test for its two odd pages; the Portal's check
+/// Every Portal page has exactly one <c>h1</c> (PHASE-09 T16, UX brief, Review Focus 4), and the help-center search page's is not the home's. The Admin has the same test for its two odd pages; the Portal's check
 /// covers every kind of page, including the states (an API failure, an empty result, a ticket that cannot be loaded) and the pages whose body is HTML an author wrote.
 /// </summary>
 public sealed class HeadingHostTests
@@ -49,10 +49,10 @@ public sealed class HeadingHostTests
         { "/p/paperplane/contact/received", "We have received your request." },
         { "/p/paperplane/lost-link", "Lost your ticket link?" },
         { "/p/paperplane/lost-link?sent=1", "Lost your ticket link?" },
-        { "/p/paperplane/kb", "Help centre" },
+        { "/p/paperplane/kb", "Help center" },
         { "/p/paperplane/kb/accounts", "Accounts" },
-        { "/p/paperplane/kb/search", "Search the help centre" },
-        { "/p/paperplane/kb/search?q=reset", "Search the help centre" },
+        { "/p/paperplane/kb/search", "Search the help center" },
+        { "/p/paperplane/kb/search?q=reset", "Search the help center" },
         { "/p/paperplane/kb/accounts/reset-password", "Reset your password" },
     };
 

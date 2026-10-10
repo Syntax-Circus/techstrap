@@ -8,7 +8,7 @@ using TechStrap.Portal.Routing;
 namespace TechStrap.Portal.Components.Pages;
 
 /// <summary>
-/// The help-centre home of a product (P09-T12): the categories it can see, each with its published article count and description, through <see cref="IPublicKbClient"/>. The product loads first (the base class): an unknown,
+/// The help-center home of a product (P09-T12): the categories it can see, each with its published article count and description, through <see cref="IPublicKbClient"/>. The product loads first (the base class): an unknown,
 /// inactive or malformed product is the neutral 404 before any KB call is made. A product with no category shows the empty state, not an error. Every name and description is plain text and encoded.
 /// </summary>
 public partial class KbHome : ProductPageBase

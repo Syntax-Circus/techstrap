@@ -4,7 +4,7 @@ namespace TechStrap.Admin.Tests;
 
 /// <summary>
 /// The responsive and accessibility rules (UX-BRIEF-admin, "Responsive and accessibility"): the rail folds away below 992px, the queue stacks below 768px, a wide table scrolls in its own region,
-/// the composer follows the conversation on a phone, and forced colours keep what colour alone would say. Reads the compiled CSS, so a rule that is renamed, moved to the wrong breakpoint or
+/// the composer follows the conversation on a phone, and forced colors keep what color alone would say. Reads the compiled CSS, so a rule that is renamed, moved to the wrong breakpoint or
 /// deleted fails here. How it looks is the owner's checklist in ADMIN-APP.md.
 /// </summary>
 public sealed class ResponsiveStyleTests

@@ -12,8 +12,8 @@ public sealed class ProductAccentContrastTests
     private const double Aa = 4.5;
     private const int SweepStep = 5;
 
-    // The vectors of BRAND.md section 22, plus the edge cases: pure white, pure black, the mid-grey that just
-    // misses AA on white (#777777) and the grey that just meets it (#767676).
+    // The vectors of BRAND.md section 22, plus the edge cases: pure white, pure black, the mid-gray that just
+    // misses AA on white (#777777) and the gray that just meets it (#767676).
     public static TheoryData<string, string, string> Vectors() => new()
     {
         { "#7C3AED", "#FFFFFF", "#7C3AED" },

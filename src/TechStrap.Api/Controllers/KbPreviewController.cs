@@ -8,7 +8,7 @@ using TechStrap.Contracts.Kb;
 
 namespace TechStrap.Api.Controllers;
 
-/// <summary>The Admin editor preview (D-021, D-044): Markdown in, sanitised HTML out, nothing stored. Agents only, and the source is limited so it cannot serve as a free renderer.</summary>
+/// <summary>The Admin editor preview (D-021, D-044): Markdown in, sanitized HTML out, nothing stored. Agents only, and the source is limited so it cannot serve as a free renderer.</summary>
 [ApiController]
 [Route("api/kb/preview")]
 [Authorize(Policy = AuthorizationPolicies.Agent)]

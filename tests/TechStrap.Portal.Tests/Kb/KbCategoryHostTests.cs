@@ -37,7 +37,7 @@ public sealed class KbCategoryHostTests
             "a shared article is linked under the product the visitor is on");
         KbTestKit.Texts(dom, ".ts-kb-card .ts-kb-summary").ShouldBe(["How to reset it", "For everyone"]);
         KbTestKit.Texts(dom, ".ts-kb-card .ts-kb-meta").ShouldBe(["Updated 5 Oct 2026", "Updated 5 Oct 2026", "Updated 5 Oct 2026"]);
-        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help centre", "Accounts"]);
+        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help center", "Accounts"]);
         KbTestKit.Links(dom, "nav.ts-breadcrumbs a").ShouldBe(["/p/paperplane", "/p/paperplane/kb"]);
         dom.QuerySelectorAll("nav.ts-pager").Length.ShouldBe(0, "one page needs no pager");
         var sent = factory.Api.Requests.Single(request => request.Path == KbTestKit.CategoryArticlesPath);
@@ -120,7 +120,7 @@ public sealed class KbCategoryHostTests
 
         var (_, _, dom) = await KbTestKit.GetAsync(client, "/p/paperplane/kb/accounts?page=2&utm=x", Ct);
 
-        dom.Title.ShouldBe("Accounts (page 2) - Paperplane Help Centre");
+        dom.Title.ShouldBe("Accounts (page 2) - Paperplane Help Center");
         KbTestKit.Meta(dom, "meta[name=description]").ShouldBe("Help articles about Accounts for Paperplane.");
         dom.QuerySelector("link[rel=canonical]")!.GetAttribute("href").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb/accounts?page=2");
         KbTestKit.Meta(dom, "meta[name=robots]").ShouldStartWith("index, follow");
@@ -135,7 +135,7 @@ public sealed class KbCategoryHostTests
 
         var (_, _, dom) = await KbTestKit.GetAsync(client, "/p/paperplane/kb/accounts", Ct);
 
-        dom.Title.ShouldBe("Accounts - Paperplane Help Centre");
+        dom.Title.ShouldBe("Accounts - Paperplane Help Center");
         dom.QuerySelector("link[rel=canonical]")!.GetAttribute("href").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb/accounts");
     }
 

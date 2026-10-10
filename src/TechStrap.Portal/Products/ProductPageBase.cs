@@ -48,7 +48,7 @@ public abstract class ProductPageBase : ComponentBase
     protected CancellationToken RequestAborted => HttpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None;
 
     /// <summary>
-    /// What a page does with a failed read of its own data once the product has loaded (the help-centre pages): a not-found is the neutral 404 (the product is forgotten first, so the 404 is byte for byte the page an unknown route
+    /// What a page does with a failed read of its own data once the product has loaded (the help-center pages): a not-found is the neutral 404 (the product is forgotten first, so the 404 is byte for byte the page an unknown route
     /// gets), a rate limit is a 429 and anything else a 503, each with the fixed sentence of <see cref="ProblemCopy"/>; whatever the API said is never shown. The page keeps its theme and shows <see cref="UnavailableMessage"/>.
     /// </summary>
     protected void Fail(ResultError error)

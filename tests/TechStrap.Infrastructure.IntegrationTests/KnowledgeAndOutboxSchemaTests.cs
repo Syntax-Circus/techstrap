@@ -6,7 +6,7 @@ using TechStrap.Infrastructure.Persistence.Records;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
 
-/// <summary>Database-level behaviour of the knowledge-base, audit, outbox and idempotency tables.</summary>
+/// <summary>Database-level behavior of the knowledge-base, audit, outbox and idempotency tables.</summary>
 public sealed class KnowledgeAndOutboxSchemaTests(PostgresFixture postgres) : PostgresIntegrationTestBase(postgres)
 {
     [Theory]

@@ -4,7 +4,7 @@ using TechStrap.Tests.Shared;
 namespace TechStrap.Admin.Tests;
 
 /// <summary>
-/// The carbon tint code is a hard rule (BRAND.md section 12): the tints keep their meaning, carry non-colour cues, stay readable in
+/// The carbon tint code is a hard rule (BRAND.md section 12): the tints keep their meaning, carry non-color cues, stay readable in
 /// both themes, and are never reused for decoration.
 /// </summary>
 public sealed class TintStyleTests

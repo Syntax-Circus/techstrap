@@ -12,7 +12,7 @@ namespace TechStrap.Api.Tests;
 
 /// <summary>
 /// Never log search text, an article's text or a picture's file name (PHASE-08, the 07c lesson): whatever the Admin does for a signed-in agent in the knowledge base, the words an agent typed or chose never reach a log line, even at
-/// Verbose, and a lapsed session sends nothing more (the auth package logs the path and query of an unauthenticated call, which would carry the search text). Each test proves the text really travelled, or it proves nothing.
+/// Verbose, and a lapsed session sends nothing more (the auth package logs the path and query of an unauthenticated call, which would carry the search text). Each test proves the text really traveled, or it proves nothing.
 /// </summary>
 /// <remarks>Runs in the non-parallel <see cref="ProcessEnvironmentCollection"/> like <see cref="AdminLeakTests"/>: the Admin host reads process environment variables while it starts.</remarks>
 [Collection(ProcessEnvironmentCollection.Name)]
@@ -121,8 +121,8 @@ public sealed class KbAdminLeakTests
             (await kb.UploadImageAsync(picture, CancellationToken.None)).IsFailure.ShouldBeTrue();
         }
 
-        factory.Api.Requests.ShouldContain(r => r.Path == "/api/kb/preview" && r.Body!.Contains(ArticleText, StringComparison.Ordinal), "the article text really travelled, or this test proves nothing");
-        factory.Api.Requests.ShouldContain(r => r.Path == "/api/kb/images" && r.Body!.Contains(PictureName, StringComparison.Ordinal), "the picture's name really travelled, or this test proves nothing");
+        factory.Api.Requests.ShouldContain(r => r.Path == "/api/kb/preview" && r.Body!.Contains(ArticleText, StringComparison.Ordinal), "the article text really traveled, or this test proves nothing");
+        factory.Api.Requests.ShouldContain(r => r.Path == "/api/kb/images" && r.Body!.Contains(PictureName, StringComparison.Ordinal), "the picture's name really traveled, or this test proves nothing");
         factory.Api.AssertEveryCallBore(AdminTestPrincipal.Agent);
         AssertVerboseWasCaptured(factory);
         AssertNothingLeaked(factory);

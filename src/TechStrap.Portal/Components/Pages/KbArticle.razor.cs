@@ -11,7 +11,7 @@ namespace TechStrap.Portal.Components.Pages;
 
 /// <summary>
 /// One published article (P09-T14). Review Focus 2: an unpublished article, another product's, a wrong category, an unknown slug and an unknown product are the one neutral 404, byte for byte (the product is forgotten first),
-/// and a slug that is not a slug is answered without a call (the client refuses it). Review Focus 1: the body is the API's sanitised HTML shown by <see cref="KbArticleBody"/>, the one place that renders it; the title, the
+/// and a slug that is not a slug is answered without a call (the client refuses it). Review Focus 1: the body is the API's sanitized HTML shown by <see cref="KbArticleBody"/>, the one place that renders it; the title, the
 /// category, the summary and every meta value are plain text and encoded; the structured data is written through <see cref="JsonLdText"/>. The canonical address is the product path the visitor is on (a shared article is
 /// canonical under each product, D-045). <c>/p/{key}/kb/search/{slug}</c> matches this route with the category <c>search</c>, which the API refuses (it is reserved), so it is a 404 here too.
 /// </summary>

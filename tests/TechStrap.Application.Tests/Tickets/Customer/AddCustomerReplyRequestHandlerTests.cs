@@ -441,7 +441,7 @@ public sealed class AddCustomerReplyRequestHandlerTests
         _tickets.ListRecentFollowUpsAsync(parent.Id, _clock.GetUtcNow() - AddCustomerReplyRequestHandler.FollowUpDedupeWindow, Arg.Any<CancellationToken>())
             .Returns([new FollowUpCandidate(followUpId, "ORB-70", firstMessageId, "<p>It broke again</p>", _clock.GetUtcNow(), ["attachment", "attachment"])]);
 
-        // Incoming has two names that sanitise to fallback: ".." and "." -> replays the existing follow-up
+        // Incoming has two names that sanitize to fallback: ".." and "." -> replays the existing follow-up
         var result = await Reply("It broke again", [Png(".."), Png(".")]);
 
         result.IsSuccess.ShouldBeTrue();
@@ -460,7 +460,7 @@ public sealed class AddCustomerReplyRequestHandlerTests
         _tickets.ListRecentFollowUpsAsync(parent.Id, _clock.GetUtcNow() - AddCustomerReplyRequestHandler.FollowUpDedupeWindow, Arg.Any<CancellationToken>())
             .Returns([new FollowUpCandidate(Guid.NewGuid(), "ORB-70", Guid.NewGuid(), "<p>It broke again</p>", _clock.GetUtcNow(), ["attachment", "attachment"])]);
 
-        // Incoming has only one name that sanitises to fallback -> different count, creates new follow-up
+        // Incoming has only one name that sanitizes to fallback -> different count, creates new follow-up
         var result = await Reply("It broke again", [Png("..")]);
 
         result.Value.FollowUpCreated.ShouldBeTrue();

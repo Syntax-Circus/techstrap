@@ -9,7 +9,7 @@ namespace TechStrap.Admin.Features.Kb;
 /// <summary>
 /// A plain textarea with a toolbar and a live preview beside it (PHASE-08: no editor library and no JavaScript). The text lives in the owner: this component reports every change through
 /// <see cref="ValueChanged"/> and never keeps text of its own. Whenever <see cref="Value"/> changes, the preview waits <see cref="KbDefaults.PreviewDebounce"/> after the last change and then asks the API
-/// to render it (<see cref="IKbClient.PreviewAsync"/>), so a burst of typing is one call. A call that a newer change has replaced is cancelled, and an answer that arrives after a newer call started
+/// to render it (<see cref="IKbClient.PreviewAsync"/>), so a burst of typing is one call. A call that a newer change has replaced is canceled, and an answer that arrives after a newer call started
 /// is ignored (<c>_previewId</c>). A failed preview leaves the text and the last good preview alone and says so beside it. Nothing is previewed for an empty text. The timer and the call are
 /// released when the component goes.
 /// </summary>

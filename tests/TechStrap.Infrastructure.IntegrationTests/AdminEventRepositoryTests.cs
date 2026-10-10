@@ -45,7 +45,7 @@ public sealed class AdminEventRepositoryTests(PostgresFixture postgres) : Postgr
         firstPage.TotalCount.ShouldBe(3);
         firstPage.Items.Select(e => e.Type).ShouldBe([AdminEventType.RequesterErased, AdminEventType.TagCreated]);
         secondPage.Items.Select(e => e.Type).ShouldBe([AdminEventType.ProductCreated]);
-        firstPage.Items[0].PayloadJson.ShouldContain("requesterId");  // jsonb normalises whitespace, so compare content not text
+        firstPage.Items[0].PayloadJson.ShouldContain("requesterId");  // jsonb normalizes whitespace, so compare content not text
     }
 
     [Fact]

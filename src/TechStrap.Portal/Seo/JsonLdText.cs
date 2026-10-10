@@ -6,7 +6,7 @@ namespace TechStrap.Portal.Seo;
 
 /// <summary>
 /// A string of structured data that cannot end the script block it is written into. <c>SyntaxCircus.Blazor.Seo</c> 0.1.4 writes its JSON-LD through a markup string with an encoder that leaves <c>&lt;</c>, <c>&gt;</c> and
-/// <c>&amp;</c> alone, so an article title that contains <c>&lt;/script&gt;</c> ends the block and injects markup into the head (the PHASE-09c spike reproduced it). Escaping the text before it reaches that serialiser would
+/// <c>&amp;</c> alone, so an article title that contains <c>&lt;/script&gt;</c> ends the block and injects markup into the head (the PHASE-09c spike reproduced it). Escaping the text before it reaches that serializer would
 /// be escaped a second time (the JSON would read back as backslash text), so a value is wrapped in this type, whose converter writes the string itself with the strict encoder: <c>&lt;</c>, <c>&gt;</c>, <c>&amp;</c>, the
 /// apostrophe, <c>+</c> and every non-ASCII character become <c>\uXXXX</c> escapes, which a JSON reader turns back into the original text. <see cref="Safe"/> is the only way to make one; every string of every
 /// structured-data record the Portal writes is one.

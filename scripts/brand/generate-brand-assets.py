@@ -97,13 +97,13 @@ def remove_background(image: Image.Image) -> Image.Image:
     fringe_alpha = np.clip((255 - rgb.min(axis=2)) / (255 - FRINGE_OPAQUE_AT) * 255, 0, 255)
     alpha[fringe] = fringe_alpha[fringe]
 
-    # Un-premultiply fringe colours against the white they were composited on.
+    # Un-premultiply fringe colors against the white they were composited on.
     a = (alpha / 255.0)[..., None]
     safe = np.where(a > 0.02, a, 1)
     unmixed = np.clip((rgb - 255 * (1 - a)) / safe, 0, 255)
-    colour = np.where(fringe[..., None], unmixed, rgb)
+    color = np.where(fringe[..., None], unmixed, rgb)
 
-    return Image.fromarray(np.dstack([colour, alpha]).astype(np.uint8), "RGBA")
+    return Image.fromarray(np.dstack([color, alpha]).astype(np.uint8), "RGBA")
 
 
 def square(image: Image.Image, padding: int) -> Image.Image:

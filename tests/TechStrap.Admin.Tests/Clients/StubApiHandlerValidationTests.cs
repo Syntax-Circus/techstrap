@@ -18,11 +18,11 @@ public sealed class StubApiHandlerValidationTests
     public async Task A_validation_problem_reaches_the_client_as_a_field_error_with_the_code_and_message()
     {
         await using var api = await ApiHarness.CreateAsync(AdminTestPrincipal.Admin);
-        api.Stub.OnValidationProblem(HttpMethod.Post, "/api/tags", ApiFields.Colour, "colour-invalid", "colour must be a #RRGGBB colour.");
+        api.Stub.OnValidationProblem(HttpMethod.Post, "/api/tags", ApiFields.Colour, "colour-invalid", "color must be a #RRGGBB color.");
 
         var result = await api.Get<ITagsClient>().CreateAsync(new CreateTagRequest("bug", "Bug", "red"), Ct);
 
-        result.Errors.ShouldHaveSingleItem().ShouldBe(new ResultError("colour-invalid", "colour must be a #RRGGBB colour.", ResultErrorKind.Validation, "colour"));
+        result.Errors.ShouldHaveSingleItem().ShouldBe(new ResultError("colour-invalid", "color must be a #RRGGBB color.", ResultErrorKind.Validation, "colour"));
     }
 
     [Fact]

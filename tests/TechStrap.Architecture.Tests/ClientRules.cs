@@ -1,7 +1,7 @@
 namespace TechStrap.Architecture.Tests;
 
 /// <summary>
-/// Rules for the Client SDK (PHASE-11, D-047), modelled on <see cref="PortalRules"/>. TechStrap.Client ships as a public NuGet package, so what it references is what every consumer restores:
+/// Rules for the Client SDK (PHASE-11, D-047), modeled on <see cref="PortalRules"/>. TechStrap.Client ships as a public NuGet package, so what it references is what every consumer restores:
 /// the Contracts project, a short list of reviewed packages and no framework reference. Pure over a parsed project so the tests can feed it a bad one.
 /// </summary>
 public static class ClientRules

@@ -6,7 +6,7 @@ namespace TechStrap.Portal.Clients;
 
 /// <summary>
 /// The public knowledge base (P09-T02). Every call is a read: retried like every read, anonymous, and forwarding the visitor's address. Every text field of a result is plain text, a consumer encodes it; only
-/// <see cref="PublishedKbArticleDto.Html"/> is HTML (the API sanitised it). A product key, a category slug or an article slug that is not a slug is the uniform not-found error and no call is made.
+/// <see cref="PublishedKbArticleDto.Html"/> is HTML (the API sanitized it). A product key, a category slug or an article slug that is not a slug is the uniform not-found error and no call is made.
 /// </summary>
 public interface IPublicKbClient
 {
@@ -16,7 +16,7 @@ public interface IPublicKbClient
     /// </summary>
     Task<Result<PagedResponse<PublicKbSearchResultDto>>> SearchAsync(string productKey, string text, int pageSize, CancellationToken cancellationToken);
 
-    /// <summary>The same for page <paramref name="page"/> (the API normalises a page below one).</summary>
+    /// <summary>The same for page <paramref name="page"/> (the API normalizes a page below one).</summary>
     Task<Result<PagedResponse<PublicKbSearchResultDto>>> SearchAsync(string productKey, string text, int page, int pageSize, CancellationToken cancellationToken);
 
     /// <summary>The categories the product can see (its own and the shared ones) with their published article counts; an empty category is left out, and an unknown product gives an empty list.</summary>

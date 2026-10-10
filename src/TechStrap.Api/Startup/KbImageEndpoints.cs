@@ -5,7 +5,7 @@ namespace TechStrap.Api.Startup;
 /// <summary>
 /// <c>GET /kb-images/{name}</c>, anonymous (D-021, D-044). It is the one public file route: it runs no application workflow, reads only an object
 /// whose name is exactly the shape the store writes, and serves it with headers that stop a browser treating it as anything but an image.
-/// The route is outside <c>api/</c> and is not part of the API contract, so the route-policy coverage test and the OpenAPI document leave it out; <c>KbImageServingTests</c> pins its behaviour.
+/// The route is outside <c>api/</c> and is not part of the API contract, so the route-policy coverage test and the OpenAPI document leave it out; <c>KbImageServingTests</c> pins its behavior.
 /// </summary>
 public static class KbImageEndpoints
 {

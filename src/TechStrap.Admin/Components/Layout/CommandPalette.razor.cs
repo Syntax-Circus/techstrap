@@ -161,7 +161,7 @@ public sealed partial class CommandPalette : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            // OnAfterRenderAsync must never throw: an exception here would end the circuit, whatever the exception is (a cancelled command included: nothing awaits a cancellation
+            // OnAfterRenderAsync must never throw: an exception here would end the circuit, whatever the exception is (a canceled command included: nothing awaits a cancellation
             // from the palette). Log the type only, and tell the agent.
             Logger.LogWarning("A command palette command {CommandId} failed ({ExceptionType}).", command.Id, ex.GetType().Name);
             StatusMessages.Show(PaletteCopy.CommandFailed);

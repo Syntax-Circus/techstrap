@@ -1,5 +1,5 @@
 // Client identity rotation: the Api and Portal rate-limit per client IP, so each request carries a synthetic
-// X-Forwarded-For (honoured only when the runner is a trusted proxy; see README).
+// X-Forwarded-For (honored only when the runner is a trusted proxy; see README).
 export const PREFIX = __ENV.TS_FORWARDED_PREFIX || '10.99.0.';
 const requested = Number(__ENV.TS_IP_COUNT || 60);
 export const IP_COUNT = Math.min(240, Math.max(1, Number.isFinite(requested) ? Math.floor(requested) : 60));

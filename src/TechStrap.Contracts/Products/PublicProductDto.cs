@@ -6,8 +6,8 @@ namespace TechStrap.Contracts.Products;
 /// <param name="Key">The product key.</param>
 /// <param name="DisplayName">The name customers see.</param>
 /// <param name="LogoPath">The logo address, or null.</param>
-/// <param name="AccentColour">The accent colour as #RRGGBB.</param>
-/// <param name="OnAccentColour">The text colour that reads on the accent.</param>
+/// <param name="AccentColour">The accent color as #RRGGBB.</param>
+/// <param name="OnAccentColour">The text color that reads on the accent.</param>
 /// <param name="AccentInkColour">The accent adjusted for text on the page background.</param>
 /// <param name="PortalHost">The product's own public hostname (lower-case, e.g. support.example.com), or null when it is served only on the default portal host.</param>
 /// <param name="Tagline">One line of plain text about the product, or null.</param>

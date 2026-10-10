@@ -12,7 +12,7 @@ namespace TechStrap.Portal.Hosting;
 /// <item><b>Stale-while-revalidate.</b> Once there is a map, every lookup answers from it at once; an expired map starts one background read and nobody waits for it. Only the very first lookup (no map yet) waits.</item>
 /// <item><b>One read at a time, on its own token.</b> The read runs as a task of its own, without the request's execution context and without any request's token: a caller that gives up stops waiting but cannot cancel it.</item>
 /// <item><b>A host the map does not know</b> may start a read, but never twice inside <see cref="ProductHostMapOptions.MissRefreshInterval"/>; that window is checked before the lock is taken, so a miss inside it costs nothing. A failed read counts as a read.</item>
-/// <item>A failed read keeps the previous map (logged as a warning, nothing thrown); with no previous map every host is unknown, which is the default host's behaviour.</item>
+/// <item>A failed read keeps the previous map (logged as a warning, nothing thrown); with no previous map every host is unknown, which is the default host's behavior.</item>
 /// </list>
 /// The age is measured by the <see cref="TimeProvider"/>, so a test moves the clock instead of waiting (<c>MemoryCacheOptions</c> has no <see cref="TimeProvider"/>, so no <c>IMemoryCache</c> entry is used).
 /// </summary>

@@ -18,7 +18,7 @@ public static class ProductHostRules
     /// returns false with a null host.
     /// </summary>
     /// <param name="input">The hostname as typed.</param>
-    /// <param name="host">The normalised hostname, or null when the input is blank or invalid.</param>
+    /// <param name="host">The normalized hostname, or null when the input is blank or invalid.</param>
     /// <returns>True when the input is blank or a well-formed hostname.</returns>
     public static bool TryNormalize(string? input, out string? host)
     {

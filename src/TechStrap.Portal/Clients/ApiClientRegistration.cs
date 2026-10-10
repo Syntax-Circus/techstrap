@@ -20,8 +20,8 @@ public static class ApiClientRegistration
     public const int WriteTimeoutSeconds = 300;
 
     /// <summary>
-    /// The longest a read waits before a retry, whatever the API's <c>Retry-After</c> asks for. The resilience default honours the header with no limit, so an overloaded API that says "120"
-    /// would freeze a page on "loading" until the client timeout. The header is still honoured below this cap.
+    /// The longest a read waits before a retry, whatever the API's <c>Retry-After</c> asks for. The resilience default honors the header with no limit, so an overloaded API that says "120"
+    /// would freeze a page on "loading" until the client timeout. The header is still honored below this cap.
     /// </summary>
     public static readonly TimeSpan ReadRetryAfterCap = TimeSpan.FromSeconds(2);
 
@@ -68,14 +68,14 @@ public static class ApiClientRegistration
         BackoffType = DelayBackoffType.Exponential,
         UseJitter = true,
 
-        // The default honours Retry-After without a limit; this one honours it up to ReadRetryAfterCap and otherwise falls back to the backoff above.
+        // The default honors Retry-After without a limit; this one honors it up to ReadRetryAfterCap and otherwise falls back to the backoff above.
         ShouldRetryAfterHeader = false,
         DelayGenerator = args => ValueTask.FromResult(RetryAfterDelay(args.Outcome.Result, TimeProvider.System.GetUtcNow())),
         ShouldHandle = args => ValueTask.FromResult(IsRetryable(args)),
     };
 
     /// <summary>
-    /// Defence in depth: the read client is only ever given GETs by <see cref="ApiConnection"/>, but a write must never be retried even if one is sent through it by mistake. The request is taken
+    /// Defense in depth: the read client is only ever given GETs by <see cref="ApiConnection"/>, but a write must never be retried even if one is sent through it by mistake. The request is taken
     /// from the response when there is one, and from the resilience context otherwise (an exception has no response), so a transport failure of a non-GET is not retried either. A request that
     /// cannot be found is not retried.
     /// </summary>

@@ -368,7 +368,7 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
     /// <summary>
     /// Not spam from the Spam view (the <c>u</c> key or the row button): no dialog, the status is unchanged. A queue row carries no RowVersion (the summary DTO has none) and the API
     /// requires one for this write, so the ticket is read first and the write is made against what was read; a 409 means it changed since and the agent should open it. The write is never
-    /// cancelled when the page closes (it may already be applied); a failure with an unknown outcome says so and offers a reload.
+    /// canceled when the page closes (it may already be applied); a failure with an unknown outcome says so and offers a reload.
     /// </summary>
     private async Task NotSpamAsync(TicketRowViewModel row)
     {

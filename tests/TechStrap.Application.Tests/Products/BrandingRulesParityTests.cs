@@ -8,7 +8,7 @@ using TechStrap.Domain.Tickets;
 namespace TechStrap.Application.Tests.Products;
 
 /// <summary>
-/// The Admin editor checks colour and logo with Contracts <see cref="BrandingRules"/> before it submits; the API checks again with the Domain guard. Domain
+/// The Admin editor checks color and logo with Contracts <see cref="BrandingRules"/> before it submits; the API checks again with the Domain guard. Domain
 /// cannot reference Contracts, so these tests pin the two to the same answers (Review Focus 4: an unsafe logo URL must be refused by both).
 /// </summary>
 public sealed class BrandingRulesParityTests
@@ -42,7 +42,7 @@ public sealed class BrandingRulesParityTests
         var byPattern = Regex.IsMatch(sample.Trim(), BrandingRules.ColourPattern);
 
         ProductBranding.Create("Orbitly", null, sample, null, null).IsSuccess.ShouldBe(byPattern, $"product accent '{sample}'");
-        Tag.Create("bug", "Bug", sample, Clock).IsSuccess.ShouldBe(byPattern, $"tag colour '{sample}'");
+        Tag.Create("bug", "Bug", sample, Clock).IsSuccess.ShouldBe(byPattern, $"tag color '{sample}'");
     }
 
     [Fact]

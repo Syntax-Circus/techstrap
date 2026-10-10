@@ -2,7 +2,7 @@ namespace TechStrap.Tests.Shared;
 
 /// <summary>
 /// The shared XSS corpus (Fixtures/xss-corpus.txt, copied beside the test assembly): one hostile string per line, run through every
-/// sanitiser and renderer so they are held to one list.
+/// sanitizer and renderer so they are held to one list.
 /// </summary>
 public static class XssCorpus
 {

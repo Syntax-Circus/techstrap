@@ -65,6 +65,6 @@ public sealed class ProductHostRulesParityTests
         var contracts = ProductHostRules.TryNormalize(sample, out var contractsHost);
 
         contracts.ShouldBe(domain, $"validity of '{sample}'");
-        contractsHost.ShouldBe(domainHost, $"normalised form of '{sample}'");
+        contractsHost.ShouldBe(domainHost, $"normalized form of '{sample}'");
     }
 }

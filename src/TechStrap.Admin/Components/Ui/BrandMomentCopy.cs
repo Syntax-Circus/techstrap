@@ -1,7 +1,7 @@
 namespace TechStrap.Admin.Components.Ui;
 
 /// <summary>
-/// Copy for the Admin brand moments, where humour is allowed (docs/BRAND.md section 3). Kept apart from <see cref="UiCopy"/>,
+/// Copy for the Admin brand moments, where humor is allowed (docs/BRAND.md section 3). Kept apart from <see cref="UiCopy"/>,
 /// which is for failures that block work and never jokes. Defined once so the running page and the style guide cannot drift apart.
 /// </summary>
 public static class BrandMomentCopy

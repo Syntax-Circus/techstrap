@@ -3,7 +3,7 @@ using TechStrap.Admin.Components.Ui;
 
 namespace TechStrap.Admin.Tests.Components;
 
-/// <summary>The carbon tint code (BRAND.md section 12): white customer, canary public reply, pink dashed notched internal note. Colour is never the only cue.</summary>
+/// <summary>The carbon tint code (BRAND.md section 12): white customer, canary public reply, pink dashed notched internal note. Color is never the only cue.</summary>
 public sealed class TintedEntryTests : BunitContext
 {
     private IRenderedComponent<TintedEntry> Render(EntryKind kind) =>

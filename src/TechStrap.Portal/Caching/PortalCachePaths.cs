@@ -7,7 +7,7 @@ using TechStrap.Portal.Settings;
 namespace TechStrap.Portal.Caching;
 
 /// <summary>
-/// Which requests the Portal may keep (D-045 addendum, PHASE-09c). Only the three kinds of help-centre page that show the same thing to every visitor: <c>/p/{key}/kb</c>, <c>/p/{key}/kb/{category}</c> and
+/// Which requests the Portal may keep (D-045 addendum, PHASE-09c). Only the three kinds of help-center page that show the same thing to every visitor: <c>/p/{key}/kb</c>, <c>/p/{key}/kb/{category}</c> and
 /// <c>/p/{key}/kb/{category}/{slug}</c>. The search page (any text can be asked), the form pages, the suggest adapter, <c>/t/*</c> and every other path are never kept; a 404, a 429 and a 503 never are either
 /// (the output cache stores a 200 only). The landing page (D-052) is the one other kept page: the bare root, in Products mode only. The predicates are written like <c>PortalHeaderRules.IsFormPagePath</c>: without regard to case or a trailing slash, because routing matches that way.
 /// </summary>
@@ -34,7 +34,7 @@ internal static partial class PortalCachePaths
     private static partial Regex PageQuery();
 
     /// <summary>
-    /// A help-centre page of the three kinds above (the search page is not one), under <c>/p/{key}</c> or in the clean form a product host serves (<c>/kb</c>, <c>/kb/{category}</c>, <c>/kb/{category}/{slug}</c>). The header rules
+    /// A help-center page of the three kinds above (the search page is not one), under <c>/p/{key}</c> or in the clean form a product host serves (<c>/kb</c>, <c>/kb/{category}</c>, <c>/kb/{category}/{slug}</c>). The header rules
     /// see the path as it arrives, before a product host's middleware rewrites it, so they need both shapes; on the default host the clean form is a 404, which the header step skips.
     /// </summary>
     public static bool IsKbPage(PathString path) => IsProductKbPage(path) || IsCleanKbPage(path);
@@ -73,9 +73,9 @@ internal static partial class PortalCachePaths
     /// A KB page that is kept when its <c>page</c> query value is absent; a category page is kept only when its raw query string is empty or literally <c>?page=</c> and a page number from two up (no case variant, no
     /// percent-encoding, no other parameter). On the home and an article any <c>page</c> value is not kept (it changes nothing, so each value would be a copy of the same page), and on a category <c>page=1</c> is not
     /// kept either (it is the page with no value). On the home and an article other query values do not change the page, so they do not change the key.
-    /// Only an all-lowercase path is kept. The framework's key compares the path without regard to case, so if a capitalised path could be looked up, <c>/p/ACME/kb</c> would be answered from the stored
-    /// <c>/p/acme/kb</c> instead of the neutral 404. A path with an upper-case letter makes the predicate false, so the cache neither stores nor looks it up: an unknown capitalised key stays the byte-identical 404,
-    /// and a capitalised fixed segment (<c>/p/acme/KB</c>) is a 200 that is never stored (D-045 as-built).
+    /// Only an all-lowercase path is kept. The framework's key compares the path without regard to case, so if a capitalized path could be looked up, <c>/p/ACME/kb</c> would be answered from the stored
+    /// <c>/p/acme/kb</c> instead of the neutral 404. A path with an upper-case letter makes the predicate false, so the cache neither stores nor looks it up: an unknown capitalized key stays the byte-identical 404,
+    /// and a capitalized fixed segment (<c>/p/acme/KB</c>) is a 200 that is never stored (D-045 as-built).
     /// </summary>
     public static bool IsCacheable(HttpRequest request)
     {

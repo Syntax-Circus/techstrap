@@ -118,7 +118,7 @@ public sealed class ProductsClientTests
         api.Stub.On(HttpMethod.Put, $"/api/products/{ProductId}", _ => StubApiHandler.ValidationProblem(
         [
             (ApiFields.LogoPath, ApiErrorCodes.LogoPathInvalid, "logo-path must be an https URL (or http for localhost)."),
-            (ApiFields.AccentColour, "accent-colour-invalid", "accent-colour must be a #RRGGBB colour."),
+            (ApiFields.AccentColour, "accent-colour-invalid", "accent-colour must be a #RRGGBB color."),
         ]));
 
         var result = await api.Get<IProductsClient>().UpdateAsync(

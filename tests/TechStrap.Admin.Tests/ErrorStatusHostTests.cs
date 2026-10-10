@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace TechStrap.Admin.Tests;
 
-/// <summary>BRAND.md section 3: the cheeky 404 belongs to 404 only. An error that blocks work never gets the humour.</summary>
+/// <summary>BRAND.md section 3: the cheeky 404 belongs to 404 only. An error that blocks work never gets the humor.</summary>
 public sealed class ErrorStatusHostTests
 {
     [Theory]

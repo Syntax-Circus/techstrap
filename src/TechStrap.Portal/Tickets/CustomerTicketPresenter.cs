@@ -8,7 +8,7 @@ namespace TechStrap.Portal.Tickets;
 /// <summary>
 /// Builds what the ticket page shows from the API's <see cref="CustomerTicketDto"/> (P09-T08, T23). The status becomes the customer's words (UX brief); a message's author becomes "You" for the customer, the name
 /// the API resolved for an agent exactly as it came (no email, id or avatar exists in the DTO or here) and a neutral word for a system message; an attachment becomes the Portal's own link
-/// (<see cref="PortalRoutes.TicketAttachment(TicketToken, Guid)"/>, built from the real token, never from its printed form). Every text field stays plain text: the page encodes them, and only the sanitised message
+/// (<see cref="PortalRoutes.TicketAttachment(TicketToken, Guid)"/>, built from the real token, never from its printed form). Every text field stays plain text: the page encodes them, and only the sanitized message
 /// body is ever rendered as markup. The messages keep the order the API gave (chronological).
 /// </summary>
 public static class CustomerTicketPresenter

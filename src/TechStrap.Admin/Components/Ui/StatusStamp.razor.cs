@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components;
 namespace TechStrap.Admin.Components.Ui;
 
 /// <summary>
-/// A rubber-stamp status badge. The status is always the word itself plus a shape class, never colour alone.
+/// A rubber-stamp status badge. The status is always the word itself plus a shape class, never color alone.
 /// Queue stamps are straight with one border; ticket stamps are tilted and may play the stamp-down animation.
 /// </summary>
 public partial class StatusStamp

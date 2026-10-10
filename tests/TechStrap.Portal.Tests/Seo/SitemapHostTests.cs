@@ -189,7 +189,7 @@ public sealed class SitemapHostTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         Locations(xml).ShouldContain(PortalFactory.PublicUrl + "/p/orbitly");
-        factory.Api.Count(HttpMethod.Get, "/api/public/products").ShouldBe(1, "the build the first crawler started was not cancelled and not repeated");
+        factory.Api.Count(HttpMethod.Get, "/api/public/products").ShouldBe(1, "the build the first crawler started was not canceled and not repeated");
     }
 
     [Fact]

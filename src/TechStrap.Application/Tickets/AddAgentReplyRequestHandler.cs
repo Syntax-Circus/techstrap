@@ -22,7 +22,7 @@ public interface IAddAgentReplyRequestHandler
 }
 
 /// <summary>
-/// A public agent reply: Markdown rendered then sanitised, attachments saved (with compensation if anything later fails), linked KB
+/// A public agent reply: Markdown rendered then sanitized, attachments saved (with compensation if anything later fails), linked KB
 /// articles, an optional "send and solve", and the customer email planned in the same unit of work. A linked article must be Published and
 /// visible to the ticket (shared, or in the ticket's own product) and have a category, because the customer email links to its portal
 /// page; anything else is a 400 <c>kb-article-not-linkable</c> and nothing is stored or sent (D-044).

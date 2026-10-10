@@ -2,7 +2,7 @@ namespace TechStrap.Admin.Components.Ui;
 
 /// <summary>
 /// Copy for the blocking-failure states, defined once so the running app and the style guide cannot drift apart.
-/// Voice rules (docs/BRAND.md section 3): plain cause plus next step, sentence case, no humour, no exclamation marks.
+/// Voice rules (docs/BRAND.md section 3): plain cause plus next step, sentence case, no humor, no exclamation marks.
 /// </summary>
 public static class UiCopy
 {

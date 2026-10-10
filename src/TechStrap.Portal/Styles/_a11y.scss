@@ -1,6 +1,6 @@
 // Portal accessibility styling (PHASE-09d, T16; BRAND.md sections 17, 18 and 24; UX-BRIEF-portal). Imported last. WCAG 2.2 AA.
 //
-// The semantic colours are the --p-error, --p-success and --p-warn tokens of BRAND.md (never a product accent). A state is never colour alone: the error summary has a heading and a list, a success has its sentence,
+// The semantic colors are the --p-error, --p-success and --p-warn tokens of BRAND.md (never a product accent). A state is never color alone: the error summary has a heading and a list, a success has its sentence,
 // a field in error has text and a heavier border, the counter over its limit is bold and underlined.
 
 // ---- skip link and the focus target of main ----
@@ -78,7 +78,7 @@
   border-radius: $border-radius;
 }
 
-// A control's edge must be seen by everyone (WCAG 1.4.11): the neutral border is the secondary ink, not the decorative line colour.
+// A control's edge must be seen by everyone (WCAG 1.4.11): the neutral border is the secondary ink, not the decorative line color.
 .form-control,
 .form-select {
   border-color: var(--p-ink2);
@@ -182,7 +182,7 @@
   margin-bottom: 8px;
 }
 
-// ---- forced colours (Windows high contrast): keep what colour alone would say, and keep the 3px focus outline (the accent halo is dropped) ----
+// ---- forced colors (Windows high contrast): keep what color alone would say, and keep the 3px focus outline (the accent halo is dropped) ----
 
 @media (forced-colors: active) {
   :focus-visible,
@@ -198,7 +198,7 @@
     border: 2px solid CanvasText;
   }
 
-  // The header presets paint a border image, which forced colours keep: the system colours must win, so it goes.
+  // The header presets paint a border image, which forced colors keep: the system colors must win, so it goes.
   .ts-accent-scope[data-ts-header] .ts-product-header {
     border-image: none;
   }

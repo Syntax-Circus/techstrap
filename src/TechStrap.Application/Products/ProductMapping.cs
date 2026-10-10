@@ -11,7 +11,7 @@ internal static class ProductMapping
     {
         var branding = product.Branding;
 
-        // The stored accent is always a valid #RRGGBB (ProductBranding.Create); the derived colours are what customers see (D-025, D-031).
+        // The stored accent is always a valid #RRGGBB (ProductBranding.Create); the derived colors are what customers see (D-025, D-031).
         var colours = ProductAccent.TryDerive(branding.AccentColour, out var derived)
             ? derived
             : new ProductAccentColors(branding.AccentColour, "#FFFFFF", branding.AccentColour);

@@ -46,7 +46,7 @@ describe('readPreferences', () => {
         assert.deepEqual(readPreferences(storage), { singleKeyShortcuts: false, theme: 'dark' });
     });
 
-    it('treats an unrecognised stored value as the default', () => {
+    it('treats an unrecognized stored value as the default', () => {
         const storage = memoryStorage({ 'techstrap.admin.singleKeyShortcuts': 'maybe', 'techstrap.admin.theme': 'sepia' });
         assert.deepEqual(readPreferences(storage), { singleKeyShortcuts: true, theme: 'auto' });
     });

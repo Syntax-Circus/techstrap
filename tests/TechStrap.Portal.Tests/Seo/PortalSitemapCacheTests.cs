@@ -139,7 +139,7 @@ public sealed class PortalSitemapCacheTests
         seen.ShouldNotBeNull();
         seen.Value.ShouldNotBe(crawler.Token);
         await crawler.CancelAsync();
-        seen.Value.IsCancellationRequested.ShouldBeFalse("cancelling the request never cancels the build");
+        seen.Value.IsCancellationRequested.ShouldBeFalse("canceling the request never cancels the build");
         localInBuild.ShouldBeNull("the request's HttpContext holder lives in its execution context, which the build must not inherit");
     }
 

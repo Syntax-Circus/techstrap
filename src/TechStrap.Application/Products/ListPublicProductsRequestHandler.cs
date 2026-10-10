@@ -19,7 +19,7 @@ public sealed class ListPublicProductsRequestHandler(IProductRepository products
     {
         var active = await products.ListAsync(activeOnly: true, cancellationToken);
 
-        // The repository already filters on activeOnly; the second IsActive filter below is defence in depth, so an inactive product can never be listed whatever the repository does. The cap is applied here, in memory,
+        // The repository already filters on activeOnly; the second IsActive filter below is defense in depth, so an inactive product can never be listed whatever the repository does. The cap is applied here, in memory,
         // after the whole active list was read: the list is small (one row per product), so a database-side limit is not worth a second repository method.
         return Result<IReadOnlyList<PublicProductSummaryDto>>.Success(
             [.. active

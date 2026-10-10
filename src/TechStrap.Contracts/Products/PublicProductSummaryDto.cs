@@ -12,7 +12,7 @@ namespace TechStrap.Contracts.Products;
 /// <param name="PortalHost">The product's own public hostname (lower-case, e.g. support.example.com), or null when it is served only on the default portal host.</param>
 /// <param name="Tagline">One line of plain text about the product, or null.</param>
 /// <param name="LogoUrl">The logo address to show: the uploaded logo when there is one, else the linked logo address, else null.</param>
-/// <param name="AccentColour">The accent colour as #RRGGBB, or null for the default.</param>
+/// <param name="AccentColour">The accent color as #RRGGBB, or null for the default.</param>
 /// <param name="ListedOnLanding">Whether the product appears on the landing page.</param>
 /// <param name="Skin">The product's skin (D-053), or null when it sets none; the landing card is drawn with it.</param>
 public sealed record PublicProductSummaryDto(

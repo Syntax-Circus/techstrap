@@ -17,7 +17,7 @@ using static TechStrap.Admin.Tests.Live.LiveTestData;
 namespace TechStrap.Admin.Tests.Live;
 
 /// <summary>
-/// The detail page's live behaviour (T14, T15). The rule that matters: a change by someone else only raises a banner. The page keeps its model, its row version and the agent's draft until the banner is clicked, so a send
+/// The detail page's live behavior (T14, T15). The rule that matters: a change by someone else only raises a banner. The page keeps its model, its row version and the agent's draft until the banner is clicked, so a send
 /// before that still meets the existing 409 and an agent never acts on a version they have not seen. Own changes are ignored; the page joins the ticket on load, leaves it on navigation and disposal, and shows who else is here.
 /// </summary>
 public sealed class TicketDetailLiveTests : AdminComponentTest

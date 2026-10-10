@@ -1,6 +1,6 @@
 namespace TechStrap.Admin.Components.Layout;
 
-/// <summary>Plain copy for the access states (BRAND.md section 3: no humour on anything that blocks work).</summary>
+/// <summary>Plain copy for the access states (BRAND.md section 3: no humor on anything that blocks work).</summary>
 public static class GateCopy
 {
     public const string Checking = "Checking your access...";

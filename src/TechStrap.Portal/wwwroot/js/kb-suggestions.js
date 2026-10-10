@@ -6,7 +6,7 @@
 // The words come from the server as data attributes (ContactCopy), so the page owns its copy; DEFAULT_COPY below is only a fallback for an element rendered without them.
 //
 // The module lists suggestions only: the form works without it and is never blocked by it. Everything it needs from the browser is passed in (fetch, the timers, AbortController, the document), so the
-// behaviour is tested with `node --test` and no browser. Text from the server is plain text and is only ever put on the page with textContent; a link is only ever built from a root-relative path
+// behavior is tested with `node --test` and no browser. Text from the server is plain text and is only ever put on the page with textContent; a link is only ever built from a root-relative path
 // (isSafeHref). This file never parses text as markup, and a test fails if it starts to.
 
 export const DEBOUNCE_MS = 300;

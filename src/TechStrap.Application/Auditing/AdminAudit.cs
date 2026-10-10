@@ -6,7 +6,7 @@ using TechStrap.Domain.Agents;
 namespace TechStrap.Application.Auditing;
 
 /// <summary>
-/// Stages an AdminEvent in the caller's unit of work (D-006, D-022). Payloads are small anonymous objects serialised as camelCase JSON.
+/// Stages an AdminEvent in the caller's unit of work (D-006, D-022). Payloads are small anonymous objects serialized as camelCase JSON.
 /// AdminEvent.Record rejects secrets and personal data; a rejected payload is a bug in the calling handler, so it throws.
 /// </summary>
 internal static class AdminAudit

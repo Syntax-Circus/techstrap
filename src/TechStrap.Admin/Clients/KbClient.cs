@@ -49,7 +49,7 @@ public interface IKbClient
     Task<Result<KbArticleDto>> ArchiveAsync(Guid id, uint version, CancellationToken cancellationToken);
 
     /// <summary>
-    /// <c>POST /api/kb/preview</c>: the Markdown rendered and sanitised by the same pipeline as the portal. A write call, so it is never retried; the editor cancels a call that a newer
+    /// <c>POST /api/kb/preview</c>: the Markdown rendered and sanitized by the same pipeline as the portal. A write call, so it is never retried; the editor cancels a call that a newer
     /// keystroke has replaced.
     /// </summary>
     Task<Result<KbPreviewResponse>> PreviewAsync(KbPreviewRequest request, CancellationToken cancellationToken);

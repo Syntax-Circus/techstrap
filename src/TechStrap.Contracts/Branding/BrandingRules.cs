@@ -8,7 +8,7 @@ namespace TechStrap.Contracts.Branding;
 /// </summary>
 public static class BrandingRules
 {
-    /// <summary>A hex colour, <c>#RRGGBB</c>, either case. The API stores it upper-case.</summary>
+    /// <summary>A hex color, <c>#RRGGBB</c>, either case. The API stores it upper-case.</summary>
     public const string ColourPattern = "^#[0-9A-Fa-f]{6}$";
 
     /// <summary>The longest logo URL, the same limit as the Domain (<c>DomainLimits.UrlMaxLength</c>).</summary>

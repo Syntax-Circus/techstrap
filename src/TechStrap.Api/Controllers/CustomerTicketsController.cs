@@ -12,7 +12,7 @@ using TechStrap.Contracts.Tickets;
 
 namespace TechStrap.Api.Controllers;
 
-/// <summary>The customer's ticket by link. Authorised by the X-Ticket-Token header; every failure is the same 404 (D-038).</summary>
+/// <summary>The customer's ticket by link. Authorized by the X-Ticket-Token header; every failure is the same 404 (D-038).</summary>
 [ApiController]
 [Route("api/customer")]
 [Authorize(Policy = AuthorizationPolicies.Public)]

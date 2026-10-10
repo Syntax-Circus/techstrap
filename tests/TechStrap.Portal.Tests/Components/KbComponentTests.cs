@@ -6,7 +6,7 @@ using TechStrap.Portal.Tests.Routing;
 namespace TechStrap.Portal.Tests.Components;
 
 /// <summary>
-/// The shared help-centre components on their own (P09-T12, T13): what each renders for its parameters. Review Focus 1: a title, a summary, a crumb label and a search text are plain text, so a value that looks like markup
+/// The shared help-center components on their own (P09-T12, T13): what each renders for its parameters. Review Focus 1: a title, a summary, a crumb label and a search text are plain text, so a value that looks like markup
 /// is shown as text and never becomes an element.
 /// </summary>
 public sealed class KbComponentTests : BunitContext
@@ -64,12 +64,12 @@ public sealed class KbComponentTests : BunitContext
         var cut = Render<KbBreadcrumbs>(parameters => parameters.Add(trail => trail.Crumbs, new[]
         {
             new KbCrumb("Paperplane", "/p/paperplane"),
-            new KbCrumb("Help centre", "/p/paperplane/kb"),
+            new KbCrumb("Help center", "/p/paperplane/kb"),
             new KbCrumb("Accounts"),
         }));
 
         cut.Find("nav.ts-breadcrumbs").GetAttribute("aria-label").ShouldBe("Breadcrumb");
-        cut.FindAll("nav.ts-breadcrumbs ol > li").Select(li => li.TextContent.Trim()).ShouldBe(["Paperplane", "Help centre", "Accounts"]);
+        cut.FindAll("nav.ts-breadcrumbs ol > li").Select(li => li.TextContent.Trim()).ShouldBe(["Paperplane", "Help center", "Accounts"]);
         cut.FindAll("nav.ts-breadcrumbs a").Select(a => a.GetAttribute("href")).ShouldBe(["/p/paperplane", "/p/paperplane/kb"]);
         var last = cut.FindAll("li").Last();
         last.GetAttribute("aria-current").ShouldBe("page");

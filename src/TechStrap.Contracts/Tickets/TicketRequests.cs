@@ -5,7 +5,7 @@ public sealed record ListTicketsRequest(
     string? View, Guid? ProductId, string? Status, string? Priority, Guid? AssigneeId,
     Guid? TagId, Guid? RequesterId, string? Search, int Page, int PageSize);
 
-/// <summary>StatusAfter: null or "Pending" (default Domain behaviour) or "Solved" ("Send and solve"). Files travel beside this record (D-016).</summary>
+/// <summary>StatusAfter: null or "Pending" (default Domain behavior) or "Solved" ("Send and solve"). Files travel beside this record (D-016).</summary>
 public sealed record AddAgentReplyRequest(string? Body, IReadOnlyList<Guid>? LinkedArticleIds, string? StatusAfter, uint? RowVersion);
 
 /// <summary>Add an internal note to a ticket.</summary>

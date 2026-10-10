@@ -110,7 +110,7 @@ public sealed record SubmitOutcome(SubmitStatus Status, SubmitTarget Target, IRe
 /// <item>A failure releases the claim, so a retry writes. A repeat that was already waiting gets the same failure, never a second write. A timeout or a fault keeps the claim as "unknown". The guard's deadline
 /// (<see cref="WriteTimeout"/>) is a few seconds shorter than the write client's, so a timeout is always this "unknown" and never a client-side failure that would release the claim.</item>
 /// <item>The cache is this class's own <see cref="MemoryCache"/> with a size cap, never the shared one (the sitemap cache lives there and has no size). A claim lives <see cref="Lifetime"/>, shorter than the
-/// reference it may hold (<see cref="ReceivedReference.Lifetime"/>). When the cap is reached a new post is simply not guarded (the old behaviour), never refused.</item>
+/// reference it may hold (<see cref="ReceivedReference.Lifetime"/>). When the cap is reached a new post is simply not guarded (the old behavior), never refused.</item>
 /// <item>The stored target can hold another ticket's access token (a follow-up). It lives in memory only, for <see cref="Lifetime"/>, and this class never logs and never takes a logger.</item>
 /// </list>
 /// Per instance: a restart or a second Portal replica forgets the claims (documented in PORTAL-APP.md, like the sitemap cache).
@@ -148,7 +148,7 @@ public sealed class SubmitGuard : IDisposable
     }
 
     /// <summary>
-    /// Runs <paramref name="write"/> at most once for <paramref name="key"/>. With no key (a missing or malformed id) it is the old behaviour: the write runs on <paramref name="requestAborted"/>, unguarded.
+    /// Runs <paramref name="write"/> at most once for <paramref name="key"/>. With no key (a missing or malformed id) it is the old behavior: the write runs on <paramref name="requestAborted"/>, unguarded.
     /// <paramref name="fallback"/> is where a repeat goes when the first answer is unknown.
     /// </summary>
     public async Task<SubmitOutcome> RunAsync(SubmitKey? key, SubmitTarget fallback, Func<CancellationToken, Task<Result<SubmitTarget>>> write, CancellationToken requestAborted)

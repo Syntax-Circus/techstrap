@@ -4,7 +4,7 @@ using TechStrap.Admin.Features.Kb;
 namespace TechStrap.Admin.Tests.Components;
 
 /// <summary>
-/// The preview pane is the one place the Admin draws HTML from an agent's text (Review Focus 1). It draws the sanitised HTML the API returned and nothing else: not the text the agent typed, not an error
+/// The preview pane is the one place the Admin draws HTML from an agent's text (Review Focus 1). It draws the sanitized HTML the API returned and nothing else: not the text the agent typed, not an error
 /// message from the API, and nothing of its own besides fixed copy.
 /// </summary>
 public sealed class KbPreviewPaneTests : BunitContext

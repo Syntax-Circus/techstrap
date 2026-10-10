@@ -44,7 +44,7 @@
     background: var(--hover);
   }
 
-  // The selected line is set apart by a fill, a bar and weight, never by colour alone (forced-colors drops the fill, so it gets an outline below).
+  // The selected line is set apart by a fill, a bar and weight, never by color alone (forced-colors drops the fill, so it gets an outline below).
   &[aria-selected="true"] {
     font-weight: 700;
     background: var(--sel);

@@ -39,7 +39,7 @@ internal static class TicketMappings
         return record;
     }
 
-    /// <summary>Copies the mutable fields and synchronises the tag links. The number, subject and requester never change.</summary>
+    /// <summary>Copies the mutable fields and synchronizes the tag links. The number, subject and requester never change.</summary>
     public static void CopyTo(this Ticket ticket, TicketRecord record)
     {
         record.ProductId = ticket.ProductId;

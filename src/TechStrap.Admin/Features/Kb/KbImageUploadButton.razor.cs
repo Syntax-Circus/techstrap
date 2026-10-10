@@ -13,7 +13,7 @@ public sealed record KbUploadedImage(string AltText, string Url);
 /// <summary>
 /// Picks one picture, checks its type and size before anything is sent, uploads it and raises <see cref="OnUploaded"/> once. A picture the browser or the API refuses never changes the article.
 /// An upload has no effect on any article until the editor adds the returned address, so an answer that was lost needs no hold: the agent picks the picture again, and the earlier copy, if the API kept
-/// one, is an unreferenced file (D-044: no orphan cleanup). The write is never cancelled by the screen closing (<see cref="CancellationToken.None"/>); a result that arrives after that is dropped.
+/// one, is an unreferenced file (D-044: no orphan cleanup). The write is never canceled by the screen closing (<see cref="CancellationToken.None"/>); a result that arrives after that is dropped.
 /// </summary>
 public sealed partial class KbImageUploadButton : IDisposable
 {

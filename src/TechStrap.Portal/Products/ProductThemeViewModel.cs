@@ -8,8 +8,8 @@ namespace TechStrap.Portal.Products;
 /// What a page needs to look like one product's own, and nothing it does not (D-045; there is no <c>BrandingThemeFactory</c>). A stored product is data an agent typed, and a logo stored before the
 /// Admin validated it was never checked, so it is re-checked here, once, for every page:
 /// <list type="bullet">
-/// <item>The accent is kept only when <see cref="ProductAccent.TryDerive"/> accepts it, in that rule's own spelling. <c>AccentScope</c> derives the on-accent and ink colours from it with the same
-/// single implementation, so none of the DTO's three colour strings is ever written to a style attribute as it arrived.</item>
+/// <item>The accent is kept only when <see cref="ProductAccent.TryDerive"/> accepts it, in that rule's own spelling. <c>AccentScope</c> derives the on-accent and ink colors from it with the same
+/// single implementation, so none of the DTO's three color strings is ever written to a style attribute as it arrived.</item>
 /// <item>The logo is kept only when <see cref="BrandingRules.IsAcceptableLogoUrl"/> accepts it and it is https, or http to <c>localhost</c> or <c>127.0.0.1</c> when
 /// <paramref name="allowLoopbackImages"/> is set (Development), which is exactly what the Content-Security-Policy's <c>img-src</c> allows (<c>TechStrapCsp.ForBlazorApp</c>).</item>
 /// <item>The skin (D-053) is carried as it arrived and is never written anywhere as it is: <see cref="PortalSkinFactory"/> resolves it (<c>SkinResolver</c> validates every field and drops what fails) and only the

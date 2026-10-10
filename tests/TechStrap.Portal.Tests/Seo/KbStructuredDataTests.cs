@@ -35,7 +35,7 @@ public sealed class KbStructuredDataTests
     private static KbCrumb[] Trail(PublishedKbArticleDto article) =>
     [
         new(Theme.DisplayName, "/p/paperplane"),
-        new("Help centre", "/p/paperplane/kb"),
+        new("Help center", "/p/paperplane/kb"),
         new(article.CategoryName, "/p/paperplane/kb/accounts"),
         new(article.Title),
     ];
@@ -58,7 +58,7 @@ public sealed class KbStructuredDataTests
         var items = list.GetProperty("itemListElement").EnumerateArray().ToList();
         items.Select(item => item.GetProperty("position").GetInt32()).ShouldBe([1, 2, 3, 4]);
         items.Select(item => item.GetProperty("@type").GetString()).ShouldAllBe(type => type == "ListItem");
-        items.Select(item => item.GetProperty("name").GetString()).ShouldBe(["Paperplane", "Help centre", "Accounts", "Reset your password"]);
+        items.Select(item => item.GetProperty("name").GetString()).ShouldBe(["Paperplane", "Help center", "Accounts", "Reset your password"]);
         items.Select(item => item.GetProperty("item").GetString()).ShouldBe(
         [
             "https://portal.test/p/paperplane",

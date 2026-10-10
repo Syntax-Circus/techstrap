@@ -67,7 +67,7 @@ public sealed class Requester
         return DomainResult.Ok();
     }
 
-    /// <summary>Anonymises the requester (D-006). Idempotent: a second call keeps the first erasure time.</summary>
+    /// <summary>Anonymizes the requester (D-006). Idempotent: a second call keeps the first erasure time.</summary>
     public void Erase(TimeProvider clock)
     {
         Email = $"erased-{Id}@{ErasedEmailDomain}";

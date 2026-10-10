@@ -133,7 +133,7 @@ public sealed class StubApiHandler : HttpMessageHandler
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        // A real handler gives up on a cancelled token before it sends anything.
+        // A real handler gives up on a canceled token before it sends anything.
         cancellationToken.ThrowIfCancellationRequested();
         var body = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
         var seen = new StubApiRequest(

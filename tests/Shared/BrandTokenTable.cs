@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace TechStrap.Tests.Shared;
 
-/// <summary>One colour token of docs/BRAND.md section 12. <see cref="Dark"/> is null for tokens with a single value (the portal tokens).</summary>
+/// <summary>One color token of docs/BRAND.md section 12. <see cref="Dark"/> is null for tokens with a single value (the portal tokens).</summary>
 internal sealed record BrandToken(string Name, string Light, string? Dark);
 
 /// <summary>

@@ -111,7 +111,7 @@ public sealed class AdminLeakTests
 
             var created = await products.CreateApiKeyAsync(productId, new CreateProductApiKeyRequest(ApiKeyKinds.Trusted, "CI"), CancellationToken.None);
             created.IsSuccess.ShouldBeTrue(string.Join("; ", created.IsFailure ? created.Errors.Select(e => e.Message) : []));
-            created.Value.PlaintextKey.ShouldBe(KeySecret, "the secret really travelled through the pipeline, or this test proves nothing");
+            created.Value.PlaintextKey.ShouldBe(KeySecret, "the secret really traveled through the pipeline, or this test proves nothing");
             (await products.RevokeApiKeyAsync(productId, key.Id, CancellationToken.None)).IsSuccess.ShouldBeTrue();
         }
 

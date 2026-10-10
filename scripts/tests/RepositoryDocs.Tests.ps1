@@ -200,7 +200,7 @@ Describe 'D-045 (the public portal)' {
 
     It 'has a Portal developer guide, linked from the README, that lists every setting and the known gaps' {
         $guide = Get-RepoText 'docs/development/PORTAL-APP.md'
-        foreach ($heading in '## Run it locally', '### Configuration', '## How a page is served', '### Forms and uploads', '### The double-send guard', '### Suggestions beside the subject', '### Form helpers (`portal-forms.js`)', '### Accessibility, layout and the base address', '### The help centre', '### SEO and structured data', '### Caching and the sitemap', '### The ticket page and attachments', '### The lost-link page', '## Where things live', '## Tests', '## Known gaps') {
+        foreach ($heading in '## Run it locally', '### Configuration', '## How a page is served', '### Forms and uploads', '### The double-send guard', '### Suggestions beside the subject', '### Form helpers (`portal-forms.js`)', '### Accessibility, layout and the base address', '### The help center', '### SEO and structured data', '### Caching and the sitemap', '### The ticket page and attachments', '### The lost-link page', '## Where things live', '## Tests', '## Known gaps') {
             $guide | Should -Match ('(?m)^' + [regex]::Escape($heading))
         }
         foreach ($key in 'API__BASEURL', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TECHSTRAP_PORTAL_DEFAULT_PRODUCT', 'TECHSTRAP_PORTAL_SHOW_POWERED_BY', 'CANONICALHOST__CANONICALHOST') {
@@ -404,7 +404,7 @@ Describe 'D-045 as built in 09c' {
         }
     }
 
-    It 'has a developer guide that describes the help centre, the SEO head, the cache, the sitemap and the two markup sites' {
+    It 'has a developer guide that describes the help center, the SEO head, the cache, the sitemap and the two markup sites' {
         foreach ($phrase in 'KbArticleBody', 'KbHome', 'KbCategory', 'KbSearch', 'KbArticle', 'Pager', 'StateMessage', 'KbCopy', 'JsonLdText', 'PortalCachePaths', 'AddPortalOutputCache', 'SetOnSuccess', 'X-Correlation-Id',
                 'PortalSitemapCache', 'PortalSitemapBuilder', 'single-flight', '50,000', 'exactly two files', 'KbPaging', 'KbSlugShape', 'ListAsync') {
             $script:Guide | Should -Match ([regex]::Escape($phrase)) -Because "PORTAL-APP.md must mention $phrase"
@@ -902,7 +902,7 @@ Describe 'Security review (PHASE-12a)' {
     }
 
     It 'has the six path-group checklists' {
-        foreach ($group in '1\. Customer access tokens', '2\. API keys', '3\. Uploads', '4\. Sanitiser and rendering', '5\. Authorization and headers', '6\. Privacy and operations') {
+        foreach ($group in '1\. Customer access tokens', '2\. API keys', '3\. Uploads', '4\. Sanitizer and rendering', '5\. Authorization and headers', '6\. Privacy and operations') {
             $script:Review | Should -Match ('(?m)^### ' + $group + '\s*$')
         }
     }
@@ -936,7 +936,7 @@ Describe 'PHASE-12a close-out' {
     }
 
     It 'has an evidence cell in every checklist row' {
-        $rows = [regex]::Matches($script:Review, '(?m)^\| (?!Check \||Header or behaviour|---)[^\r\n]*\|\s*$')
+        $rows = [regex]::Matches($script:Review, '(?m)^\| (?!Check \||Header or behavior|---)[^\r\n]*\|\s*$')
         $rows.Count | Should -BeGreaterThan 40
         foreach ($row in $rows) {
             $cells = $row.Value.Trim().Trim('|') -split '(?<!\\)\|' | ForEach-Object { $_.Trim() }

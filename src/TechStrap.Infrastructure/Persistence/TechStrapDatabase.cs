@@ -9,10 +9,10 @@ public static class TechStrapDatabase
     /// <summary>Name under ConnectionStrings: ConnectionStrings__TechStrap.</summary>
     public const string ConnectionStringName = "TechStrap";
 
-    /// <summary>Postgres advisory lock key that serialises migrate-on-startup across API instances.</summary>
+    /// <summary>Postgres advisory lock key that serializes migrate-on-startup across API instances.</summary>
     public const long MigrationLockKey = 6_387_541_208;
 
-    /// <summary>Postgres advisory lock key that serialises development seeding across API instances.</summary>
+    /// <summary>Postgres advisory lock key that serializes development seeding across API instances.</summary>
     public const long SeedLockKey = 6_387_541_209;
 
     /// <summary>Health check tag that /health/ready selects.</summary>

@@ -2,7 +2,7 @@
 // Imported by app.scss after Bootstrap's functions and before its variables, so every !default is overridden here.
 @import "../../../assets/brand/scss/brand-tokens";
 
-// Semantic colours. TechStrap's primary is the Admin accent; statuses reuse the Bootstrap semantic names.
+// Semantic colors. TechStrap's primary is the Admin accent; statuses reuse the Bootstrap semantic names.
 $primary: ts-color("accent");
 $secondary: ts-color("st-closed");
 $success: ts-color("st-open");
@@ -35,7 +35,7 @@ $link-color-dark: ts-color("accent", "dark");
 $form-invalid-color-dark: ts-color("st-spam", "dark");
 $form-valid-color-dark: ts-color("st-open", "dark");
 
-// Surfaces that must follow the theme at runtime point at the brand custom properties instead of a compiled colour.
+// Surfaces that must follow the theme at runtime point at the brand custom properties instead of a compiled color.
 $card-bg: var(--sheet);
 $card-cap-bg: var(--head);
 $card-border-color: var(--rule-strong);

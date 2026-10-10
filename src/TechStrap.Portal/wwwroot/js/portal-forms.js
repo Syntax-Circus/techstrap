@@ -19,7 +19,7 @@
 // page's attributes, such as the field a counter belongs to or the suggest path of another product.)
 //
 // The words come from the server as data attributes (the *Copy constants), so the page owns its copy. Everything the module touches is passed in (the document, the window, the navigator, the timers), so the
-// behaviour is tested with `node --test` and no browser. Text is put on the page with textContent only; this file never parses text as markup, and a test fails if it starts to.
+// behavior is tested with `node --test` and no browser. Text is put on the page with textContent only; this file never parses text as markup, and a test fails if it starts to.
 
 export const SENDING_RESET_MS = 60000;
 export const NEAR_RATIO = 0.8;
@@ -132,7 +132,7 @@ export function createSendingState({ setTimer = (fn, ms) => setTimeout(fn, ms), 
     }
 
     return {
-        /** True when the form is now (or already was) in the sending state; a second submit of a form that is sending is cancelled. */
+        /** True when the form is now (or already was) in the sending state; a second submit of a form that is sending is canceled. */
         onSubmit(event) {
             const form = event.target;
             if (!form || typeof form.getAttribute !== 'function') {
@@ -144,7 +144,7 @@ export function createSendingState({ setTimer = (fn, ms) => setTimeout(fn, ms), 
                 return false;
             }
 
-            // A submit that something else already cancelled sends nothing, so the button must not be left disabled.
+            // A submit that something else already canceled sends nothing, so the button must not be left disabled.
             if (event.defaultPrevented) {
                 return false;
             }

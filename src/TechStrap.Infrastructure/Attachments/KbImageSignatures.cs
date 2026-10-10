@@ -4,7 +4,7 @@ using TechStrap.Application.Knowledge;
 namespace TechStrap.Infrastructure.Attachments;
 
 /// <summary>
-/// What counts as a KB image (D-044): png, jpeg, gif or webp, recognised by the leading bytes and a plausible first structure, never by the file name or the
+/// What counts as a KB image (D-044): png, jpeg, gif or webp, recognized by the leading bytes and a plausible first structure, never by the file name or the
 /// declared type. SVG has no entry, so it is refused. A file that also carries markup a browser could run (a gif that is really a script) is refused too.
 /// </summary>
 internal static class KbImageSignatures
@@ -59,7 +59,7 @@ internal static class KbImageSignatures
     private static bool CarriesMarkup(ReadOnlySpan<byte> content)
     {
         // Only the leading window is scanned: it is what a browser content-sniffs. Compressed image data is near-random, so a whole-file scan refuses real
-        // images by chance (about 1.25% of 5 MB bodies hit "<svg"). The real defences are the sniffed image/* type, nosniff, the sandbox CSP and the Api origin.
+        // images by chance (about 1.25% of 5 MB bodies hit "<svg"). The real defenses are the sniffed image/* type, nosniff, the sandbox CSP and the Api origin.
         var window = content.Length > MarkupScanWindow ? content[..MarkupScanWindow] : content;
         foreach (var marker in _markup)
         {

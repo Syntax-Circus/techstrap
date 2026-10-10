@@ -1,7 +1,7 @@
 namespace TechStrap.Portal.Components;
 
 /// <summary>
-/// The words of the shell pages. Plain copy, no humour (BRAND.md): TechStrap's name appears nowhere here, because the Portal is the product's, and the only TechStrap line is the
+/// The words of the shell pages. Plain copy, no humor (BRAND.md): TechStrap's name appears nowhere here, because the Portal is the product's, and the only TechStrap line is the
 /// "Powered by TechStrap" footer. A page references these; it never writes a sentence of its own.
 /// </summary>
 public static class ShellCopy

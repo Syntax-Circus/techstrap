@@ -38,7 +38,7 @@ public sealed class PublicKbController : ControllerBase
     public async Task<IActionResult> Categories(string productKey, [FromServices] IListPublicKbCategoriesRequestHandler handler, CancellationToken cancellationToken) =>
         CachedFor(HitMaxAgeSeconds, await handler.HandleAsync(productKey, cancellationToken));
 
-    /// <summary>One Published article as sanitised HTML. A draft, an archived article, another product's article, a wrong category and an unknown key are the same 404.</summary>
+    /// <summary>One Published article as sanitized HTML. A draft, an archived article, another product's article, a wrong category and an unknown key are the same 404.</summary>
     [HttpGet("articles/{categorySlug}/{slug}")]
     public async Task<IActionResult> Article(
         string productKey, string categorySlug, string slug, [FromServices] IGetPublishedKbArticleRequestHandler handler, CancellationToken cancellationToken) =>

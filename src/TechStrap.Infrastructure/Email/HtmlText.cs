@@ -6,7 +6,7 @@ using AngleSharp.Html.Parser;
 
 namespace TechStrap.Infrastructure.Email;
 
-/// <summary>Converts stored, already-sanitised message HTML to the plain-text alternative of an email.</summary>
+/// <summary>Converts stored, already-sanitized message HTML to the plain-text alternative of an email.</summary>
 internal static partial class HtmlText
 {
     private static readonly HashSet<string> _blockTags = new(StringComparer.OrdinalIgnoreCase)

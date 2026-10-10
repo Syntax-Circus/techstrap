@@ -13,7 +13,7 @@ using TechStrap.Contracts.Kb;
 namespace TechStrap.Admin.Tests.Components;
 
 /// <summary>
-/// The Markdown editor: a textarea, a toolbar and a live preview that asks the API. A burst of typing is one call 300 ms after the last keystroke; a call that a newer change replaced is cancelled and its answer
+/// The Markdown editor: a textarea, a toolbar and a live preview that asks the API. A burst of typing is one call 300 ms after the last keystroke; a call that a newer change replaced is canceled and its answer
 /// is never drawn; a failed preview keeps the text; nothing is previewed for an empty text; and the timer and the call go when the component does (PHASE-08 T16).
 /// </summary>
 public sealed class MarkdownEditorTests : AdminComponentTest

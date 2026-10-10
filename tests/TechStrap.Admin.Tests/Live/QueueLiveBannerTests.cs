@@ -15,7 +15,7 @@ using static TechStrap.Admin.Tests.Live.LiveTestData;
 namespace TechStrap.Admin.Tests.Live;
 
 /// <summary>
-/// The queue's live behaviour (T13): a change by another agent, or a resync, raises ONE banner after a one-second window; the agent's own changes raise none; nothing reloads or reorders until the banner is
+/// The queue's live behavior (T13): a change by another agent, or a resync, raises ONE banner after a one-second window; the agent's own changes raise none; nothing reloads or reorders until the banner is
 /// clicked, and the click is the ordinary load with the current filters. The page never starts the connection (the indicator does) and releases its timer and its subscription when it goes.
 /// </summary>
 public sealed class QueueLiveBannerTests : AdminComponentTest
@@ -206,7 +206,7 @@ public sealed class QueueLiveBannerTests : AdminComponentTest
         cut.FindAll("button").Single(b => b.TextContent.Trim() == QueueCopy.Refresh).Click();
         await cut.WaitForAssertionAsync(() => ListCalls().ShouldBe(2)).WaitAsync(Xunit.TestContext.Current.CancellationToken);
 
-        // The reload showed everything up to now, so the pending banner is cancelled with its timer.
+        // The reload showed everything up to now, so the pending banner is canceled with its timer.
         _timers.LiveTimers.ShouldBe(0);
         Time.Advance(TimeSpan.FromSeconds(5));
         cut.FindAll(".ts-live-banner").ShouldBeEmpty();

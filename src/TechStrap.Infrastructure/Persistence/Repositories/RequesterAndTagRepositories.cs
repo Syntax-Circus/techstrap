@@ -15,7 +15,7 @@ internal sealed class RequesterRepository(TechStrapDbContext context) : IRequest
     public async Task<Requester?> GetByEmailAsync(string email, CancellationToken cancellationToken)
     {
         // The column is citext, so the comparison is case-insensitive in the database; lower-casing here keeps the
-        // parameter in the same normalised form the domain stores.
+        // parameter in the same normalized form the domain stores.
         var normalised = email.Trim().ToLowerInvariant();
         return (await context.Set<RequesterRecord>().FirstOrDefaultAsync(r => r.Email == normalised, cancellationToken))?.ToDomain();
     }

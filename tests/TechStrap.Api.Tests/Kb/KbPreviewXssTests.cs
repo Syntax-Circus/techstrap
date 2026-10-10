@@ -5,7 +5,7 @@ using TechStrap.Tests.Shared;
 
 namespace TechStrap.Api.Tests.Kb;
 
-/// <summary>P12-T05: the shared XSS corpus through the agent preview endpoint (Markdown in, sanitised HTML out).</summary>
+/// <summary>P12-T05: the shared XSS corpus through the agent preview endpoint (Markdown in, sanitized HTML out).</summary>
 public sealed class KbPreviewXssTests(TestPostgres postgres)
 {
     [Fact(Timeout = 120_000)]

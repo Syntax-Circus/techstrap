@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace TechStrap.Contracts.Skins;
 
 /// <summary>
-/// A product's skin: every field optional, null meaning inherit from the pack. Colours are <c>#RRGGBB</c>, fonts are <see cref="SkinFonts"/> keys,
+/// A product's skin: every field optional, null meaning inherit from the pack. Colors are <c>#RRGGBB</c>, fonts are <see cref="SkinFonts"/> keys,
 /// the presets are the <see cref="SkinValues"/> constants. The server validates it against the same grammar (<see cref="SkinRules"/>) on save and on render.
 /// </summary>
 /// <param name="Pack">A key from <see cref="SkinPacks"/>.</param>
@@ -12,9 +12,9 @@ namespace TechStrap.Contracts.Skins;
 /// <param name="Ink">Body text.</param>
 /// <param name="Muted">Secondary text.</param>
 /// <param name="Border">Rules and borders.</param>
-/// <param name="Brand">Brand colour; when unset the product's accent colour applies.</param>
+/// <param name="Brand">Brand color; when unset the product's accent color applies.</param>
 /// <param name="Chrome">Header and footer fill.</param>
-/// <param name="Focus">Focus ring colour.</param>
+/// <param name="Focus">Focus ring color.</param>
 /// <param name="HeadingFont">A <see cref="SkinFonts"/> key for headings.</param>
 /// <param name="BodyFont">A <see cref="SkinFonts"/> key for body text.</param>
 /// <param name="Radius">One of <see cref="SkinValues.RadiusSquare"/>, <see cref="SkinValues.RadiusSoft"/>, <see cref="SkinValues.RadiusRound"/>.</param>

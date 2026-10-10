@@ -14,7 +14,7 @@ public interface IAddInternalNoteRequestHandler
     Task<Result<AgentMessageResponse>> HandleAsync(Guid ticketId, AddInternalNoteRequest request, CancellationToken cancellationToken);
 }
 
-/// <summary>An agent-only note: Markdown rendered then sanitised, never emailed, never changes status or first-response time.</summary>
+/// <summary>An agent-only note: Markdown rendered then sanitized, never emailed, never changes status or first-response time.</summary>
 public sealed class AddInternalNoteRequestHandler(
     ICurrentAgentClaims currentAgent,
     IAgentRepository agents,

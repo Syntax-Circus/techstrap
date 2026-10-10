@@ -165,7 +165,7 @@ public sealed class KbRepositoryTests(PostgresFixture postgres) : PostgresIntegr
             return [.. result.Value.Items.Select(item => item.Slug).Order()];
         }
 
-        // Without text the list reads the table; with text it reads the search index: both paths honour every filter.
+        // Without text the list reads the table; with text it reads the search index: both paths honor every filter.
         (await ListAsync(sharedOnly: true)).ShouldBe(["shared-draft", "shared-published"]);
         (await ListAsync(sharedOnly: true, text: "printer")).ShouldBe(["shared-draft"]);
         (await ListAsync(scenario.Acme.Id, sharedOnly: true)).ShouldBe(["shared-draft", "shared-published"]);

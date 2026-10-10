@@ -1,6 +1,6 @@
 namespace TechStrap.Admin.Features.Settings.Tags;
 
-/// <summary>The copy of the tags page: create, rename and recolour, and the two delete confirmations (an unused tag, and a tag in use with its count and a typed name).</summary>
+/// <summary>The copy of the tags page: create, rename and recolor, and the two delete confirmations (an unused tag, and a tag in use with its count and a typed name).</summary>
 public static class TagsCopy
 {
     public const string DefaultColour = "#4B5563";
@@ -15,7 +15,7 @@ public static class TagsCopy
     public const string NameLabel = "Name";
     public const string SlugLabel = "Slug";
     public const string SlugHelp = "Letters, numbers and hyphens. It can't be changed once the tag exists.";
-    public const string ColourLabel = "Colour";
+    public const string ColourLabel = "Color";
     public const string ColourHelp = "A # and six hex digits, such as #1D4ED8.";
     public const string Create = "Create tag";
     public const string Creating = "Creating\u2026";
@@ -35,7 +35,7 @@ public static class TagsCopy
     public const string SlugRequired = "Enter a slug.";
     public const string SlugInvalid = "Use lower-case letters, numbers and single hyphens, up to 40 characters.";
     public const string SlugTaken = "Another tag already uses this slug.";
-    public const string ColourInvalid = "Use a colour like #1D4ED8: a # and six hex digits.";
+    public const string ColourInvalid = "Use a color like #1D4ED8: a # and six hex digits.";
 
     public const string DeleteConfirm = "Delete tag";
     public const string DeleteUnusedBody = "No tickets use this tag. This can't be undone.";

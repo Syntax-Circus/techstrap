@@ -9,7 +9,7 @@ using TechStrap.Contracts.Tags;
 
 namespace TechStrap.Admin.Tests.Components;
 
-/// <summary>The tag list with its ticket counts, create, and inline rename and recolour. Delete has its own class (Review Focus 5).</summary>
+/// <summary>The tag list with its ticket counts, create, and inline rename and recolor. Delete has its own class (Review Focus 5).</summary>
 public sealed class TagsPageTests : AdminPageTest
 {
     private readonly ITagsClient _tags = Substitute.For<ITagsClient>();
@@ -140,7 +140,7 @@ public sealed class TagsPageTests : AdminPageTest
 
         cut.Find("form.ts-tag-create").Submit();
 
-        cut.Find("#ts-tag-colour-error").TextContent.ShouldBe("Use a colour like #1D4ED8: a # and six hex digits.");
+        cut.Find("#ts-tag-colour-error").TextContent.ShouldBe("Use a color like #1D4ED8: a # and six hex digits.");
         Creates().ShouldBeEmpty();
     }
 
@@ -265,7 +265,7 @@ public sealed class TagsPageTests : AdminPageTest
         Row(cut, "urgent").QuerySelector("button.ts-edit")!.Click();
         cut.Find("#ts-edit-colour").Input("nope");
         cut.Find("button.ts-save").Click();
-        cut.Find("#ts-edit-colour-error").TextContent.ShouldBe("Use a colour like #1D4ED8: a # and six hex digits.");
+        cut.Find("#ts-edit-colour-error").TextContent.ShouldBe("Use a color like #1D4ED8: a # and six hex digits.");
         Updates().ShouldBeEmpty();
 
         _tags.UpdateAsync(Arg.Any<Guid>(), Arg.Any<UpdateTagRequest>(), Arg.Any<CancellationToken>())

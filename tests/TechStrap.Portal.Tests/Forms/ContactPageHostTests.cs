@@ -5,7 +5,7 @@ using TechStrap.Portal.Tests.Api;
 namespace TechStrap.Portal.Tests.Forms;
 
 /// <summary>
-/// P09-T06 and T21 at the host: the contact page as a visitor first sees it. A themed product page with a labelled, antiforgery-protected multipart form, the limits of the API on its inputs, an honeypot a person
+/// P09-T06 and T21 at the host: the contact page as a visitor first sees it. A themed product page with a labeled, antiforgery-protected multipart form, the limits of the API on its inputs, an honeypot a person
 /// cannot reach, the attachment rule stated before a file is picked, and the prefill (<c>?subject&amp;name&amp;email</c>) in visible, editable inputs: validated like typed text, never hidden, never echoed from any
 /// other parameter and never submitted for the visitor.
 /// </summary>

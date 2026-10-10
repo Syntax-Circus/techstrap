@@ -6,7 +6,7 @@ namespace TechStrap.Contracts.Kb;
 /// </summary>
 /// <param name="Id">The article's id.</param>
 /// <param name="ProductId">The owning product, or null for a shared article.</param>
-/// <param name="CategoryId">The category, or null if uncategorised.</param>
+/// <param name="CategoryId">The category, or null if uncategorized.</param>
 /// <param name="Slug">The permanent URL slug.</param>
 /// <param name="Title">The article title.</param>
 /// <param name="Summary">The author's summary; may be null.</param>
@@ -35,7 +35,7 @@ public sealed record KbArticleDto(
 /// <summary>One row of the agent article list. A null product means the article is shared by every product.</summary>
 /// <param name="Id">The article's id.</param>
 /// <param name="ProductId">The owning product, or null for a shared article.</param>
-/// <param name="CategoryId">The category, or null if uncategorised.</param>
+/// <param name="CategoryId">The category, or null if uncategorized.</param>
 /// <param name="Slug">The permanent URL slug.</param>
 /// <param name="Title">The article title.</param>
 /// <param name="Status">One of <see cref="KbArticleStatuses"/>.</param>
@@ -95,8 +95,8 @@ public sealed record ListKbArticlesRequest(
 /// <param name="BodyMarkdown">The Markdown to render, at most <see cref="KbLimits.MaxPreviewChars"/> characters.</param>
 public sealed record KbPreviewRequest(string? BodyMarkdown);
 
-/// <summary>Sanitised HTML, produced by the same pipeline the public article page uses.</summary>
-/// <param name="Html">The sanitised HTML.</param>
+/// <summary>Sanitized HTML, produced by the same pipeline the public article page uses.</summary>
+/// <param name="Html">The sanitized HTML.</param>
 public sealed record KbPreviewResponse(string Html);
 
 /// <summary>The stored key (<c>kb-images/{guid}.{ext}</c>) and the absolute public URL to put in the Markdown.</summary>

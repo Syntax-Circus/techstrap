@@ -13,7 +13,7 @@ public interface IUpdateTagRequestHandler
     Task<Result<TagDto>> HandleAsync(Guid tagId, UpdateTagRequest request, CancellationToken cancellationToken);
 }
 
-/// <summary>PUT /api/tags/{id} (Admin, D-022). Changes the name and colour; the slug is permanent. An unchanged update is not audited.</summary>
+/// <summary>PUT /api/tags/{id} (Admin, D-022). Changes the name and color; the slug is permanent. An unchanged update is not audited.</summary>
 public sealed class UpdateTagRequestHandler(
     ICurrentAgentClaims currentAgent,
     IAgentRepository agents,

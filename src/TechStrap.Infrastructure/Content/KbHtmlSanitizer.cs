@@ -4,7 +4,7 @@ using GanssHtmlSanitizer = Ganss.Xss.HtmlSanitizer;
 namespace TechStrap.Infrastructure.Content;
 
 /// <summary>
-/// The KB allow-list sanitiser (D-044): the message profile plus tables and <c>img</c>. It is the second line of defence behind Markdig's
+/// The KB allow-list sanitizer (D-044): the message profile plus tables and <c>img</c>. It is the second line of defense behind Markdig's
 /// disabled raw HTML, and it is tested on its own. An image keeps only an absolute http or https <c>src</c> and its <c>alt</c>; an image
 /// with any other source (relative, protocol-relative, <c>data:</c>, <c>javascript:</c>, <c>mailto:</c>) is removed.
 /// </summary>
@@ -68,7 +68,7 @@ internal sealed class KbHtmlSanitizer
 
     public string Sanitize(string html) => _sanitizer.Sanitize(html);
 
-    // The sanitiser has already dropped any scheme that is not allowed; a mailto: or a relative path is still a valid link target, but never an image source.
+    // The sanitizer has already dropped any scheme that is not allowed; a mailto: or a relative path is still a valid link target, but never an image source.
     private static bool IsAbsoluteWebUrl(string? value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 }

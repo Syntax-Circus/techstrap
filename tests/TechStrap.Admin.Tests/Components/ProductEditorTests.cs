@@ -428,7 +428,7 @@ public sealed class ProductEditorTests : AdminPageTest
 
         Type(cut, "ts-product-accent", accent);
         cut.Find("#ts-product-accent").Blur();
-        FieldError(cut, "ts-product-accent").ShouldBe("Use a colour like #1D4ED8: a # and six hex digits.");
+        FieldError(cut, "ts-product-accent").ShouldBe("Use a color like #1D4ED8: a # and six hex digits.");
         Save(cut);
 
         Updates.ShouldBeEmpty();

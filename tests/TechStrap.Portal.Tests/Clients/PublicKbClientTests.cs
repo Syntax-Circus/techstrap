@@ -134,7 +134,7 @@ public sealed class PublicKbClientTests
         var result = await api.Get<IPublicKbClient>().GetArticleAsync("paperplane", "accounts", "reset-password", Ct);
 
         result.Value.ShouldBe(article);
-        result.Value.Html.ShouldBe(article.Html, "the Portal never rewrites what the API sanitised");
+        result.Value.Html.ShouldBe(article.Html, "the Portal never rewrites what the API sanitized");
         api.Stub.Requests.ShouldHaveSingleItem().Client.ShouldBe(ApiClientNames.Read);
         api.Stub.AssertEveryCallBore(ApiHarness.DefaultClientIp);
     }

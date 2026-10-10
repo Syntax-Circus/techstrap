@@ -12,7 +12,7 @@ Describe 'files that are restored or generated at build are never committed' {
         $script:Tracked | Where-Object { $_ -match '/wwwroot/css/' } | Should -BeNullOrEmpty
     }
 
-    It 'tracks no font binaries or restored font licences' {
+    It 'tracks no font binaries or restored font licenses' {
         $script:Tracked | Where-Object { $_ -match '/wwwroot/fonts/' -or $_ -match '\.(woff2?|ttf|otf)$' } | Should -BeNullOrEmpty
     }
 

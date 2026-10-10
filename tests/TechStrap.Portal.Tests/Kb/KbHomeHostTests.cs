@@ -7,7 +7,7 @@ using TechStrap.Portal.Tests.Tickets;
 namespace TechStrap.Portal.Tests.Kb;
 
 /// <summary>
-/// P09-T12 (the help-centre home) at the host, with a stub API behind the Portal: the categories with their counts and descriptions, the empty state, the head, the neutral 404 for an unknown product (no KB call is made)
+/// P09-T12 (the help-center home) at the host, with a stub API behind the Portal: the categories with their counts and descriptions, the empty state, the head, the neutral 404 for an unknown product (no KB call is made)
 /// and the calm failure states. Review Focus 1 (names and descriptions are plain text and encoded) and 2 (an unknown product tells nothing).
 /// </summary>
 public sealed class KbHomeHostTests
@@ -30,14 +30,14 @@ public sealed class KbHomeHostTests
         var (response, _, dom) = await KbTestKit.GetAsync(client, "/p/paperplane/kb", Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        KbTestKit.Texts(dom, "h1").ShouldBe(["Help centre"]);
+        KbTestKit.Texts(dom, "h1").ShouldBe(["Help center"]);
         KbTestKit.Texts(dom, ".ts-kb-list h2").ShouldBe(["Accounts", "Billing"]);
         KbTestKit.Links(dom, ".ts-kb-list h2 a").ShouldBe(["/p/paperplane/kb/accounts", "/p/paperplane/kb/billing"]);
         KbTestKit.Texts(dom, ".ts-kb-list .ts-kb-summary").ShouldBe(["Sign-in, passwords and security"]);
         KbTestKit.Texts(dom, ".ts-kb-list .ts-kb-meta").ShouldBe(["4 articles", "1 article"]);
-        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help centre"]);
+        KbTestKit.Texts(dom, "nav.ts-breadcrumbs li").ShouldBe(["Paperplane", "Help center"]);
         KbTestKit.Links(dom, "nav.ts-breadcrumbs a").ShouldBe(["/p/paperplane"]);
-        dom.QuerySelector("nav.ts-breadcrumbs li[aria-current=page]")!.TextContent.ShouldBe("Help centre");
+        dom.QuerySelector("nav.ts-breadcrumbs li[aria-current=page]")!.TextContent.ShouldBe("Help center");
         var form = dom.QuerySelector("form[role=search]")!;
         form.GetAttribute("method").ShouldBe("get");
         form.GetAttribute("action").ShouldBe("/p/paperplane/kb/search");
@@ -91,11 +91,11 @@ public sealed class KbHomeHostTests
 
         var (_, _, dom) = await KbTestKit.GetAsync(client, "/p/paperplane/kb?utm_source=mail", Ct);
 
-        dom.Title.ShouldBe("Paperplane Help Centre");
+        dom.Title.ShouldBe("Paperplane Help Center");
         KbTestKit.Meta(dom, "meta[name=description]").ShouldBe("Help articles and answers for Paperplane.");
         dom.QuerySelector("link[rel=canonical]")!.GetAttribute("href").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb", "the canonical address has no query and comes from the public URL, never the Host header");
         KbTestKit.Meta(dom, "meta[name=robots]").ShouldStartWith("index, follow");
-        KbTestKit.Meta(dom, "meta[property='og:title']").ShouldBe("Paperplane Help Centre");
+        KbTestKit.Meta(dom, "meta[property='og:title']").ShouldBe("Paperplane Help Center");
         KbTestKit.Meta(dom, "meta[property='og:url']").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb");
         KbTestKit.Meta(dom, "meta[property='og:image']").ShouldBe(PortalFactory.PublicUrl + "/icon-512.png", "a product with no logo uses the Portal's own image, never the bare site address");
         KbTestKit.Meta(dom, "meta[property='og:image:alt']").ShouldBe("Paperplane");

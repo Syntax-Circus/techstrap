@@ -7,7 +7,7 @@ namespace TechStrap.Admin.Tests;
 
 /// <summary>
 /// Admin is Blazor Server, so a lost circuit is a normal event. The SyntaxCircus.Blazor.Components reconnect dialog is mounted once in
-/// App.razor, styled with brand tokens, with plain copy (no humour on a blocking error: BRAND.md section 3).
+/// App.razor, styled with brand tokens, with plain copy (no humor on a blocking error: BRAND.md section 3).
 /// </summary>
 public sealed class ReconnectAndErrorTests
 {

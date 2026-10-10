@@ -21,7 +21,7 @@ public sealed record AttachmentDto(Guid Id, string FileName, string ContentType,
 /// <summary>A knowledge article linked from a message.</summary>
 public sealed record LinkedArticleDto(Guid Id, string Title, string Slug);
 
-/// <summary>A timeline message. BodyHtml is sanitised HTML. AuthorName is the agent's own name (agent views only) or the requester's name or email.</summary>
+/// <summary>A timeline message. BodyHtml is sanitized HTML. AuthorName is the agent's own name (agent views only) or the requester's name or email.</summary>
 public sealed record MessageDto(
     Guid Id, string AuthorType, Guid? AuthorId, string? AuthorName, string Visibility, string BodyHtml,
     DateTimeOffset CreatedAt, IReadOnlyList<AttachmentDto> Attachments, IReadOnlyList<LinkedArticleDto> LinkedArticles);

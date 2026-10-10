@@ -3,7 +3,7 @@ using System.Globalization;
 namespace TechStrap.Portal.Kb;
 
 /// <summary>
-/// The page number of a paged help-centre list, read from text. The page is bound as text and parsed here, because the framework's own binding to a number answers 500 for <c>?page=abc</c> or a number that
+/// The page number of a paged help-center list, read from text. The page is bound as text and parsed here, because the framework's own binding to a number answers 500 for <c>?page=abc</c> or a number that
 /// does not fit (the spike). Anything that is not a whole number of one or more is page one, so a link someone mangled still shows the first page and nothing throws.
 /// </summary>
 public static class KbPaging

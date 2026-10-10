@@ -12,7 +12,7 @@ namespace TechStrap.Infrastructure.Persistence;
 /// <summary>
 /// Per-product ticket numbers from a counter row in <c>product_ticket_sequences</c> (D-009). One statement takes the number:
 /// <c>INSERT ... ON CONFLICT DO UPDATE ... RETURNING</c> creates the counter on the product's first ticket (two creators racing
-/// on that first ticket are serialised by the unique key) and otherwise advances it under the row lock, so concurrent creators
+/// on that first ticket are serialized by the unique key) and otherwise advances it under the row lock, so concurrent creators
 /// for the same product queue behind each other until the first transaction ends. A rollback undoes the increment, so there are
 /// no gaps and no duplicates. The counter is a separate row, so the product row is never rewritten: its <c>xmin</c> concurrency
 /// token does not change when a ticket is created and a product edit in flight is not disturbed. It must run in the

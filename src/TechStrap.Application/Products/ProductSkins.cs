@@ -30,7 +30,7 @@ internal static class ProductSkins
     /// a validation error whose target is the token or pair it names.
     /// </summary>
     /// <param name="requested">The skin the caller sent; null is treated as empty.</param>
-    /// <param name="accent">The product's accent colour (the brand colour when the skin sets none).</param>
+    /// <param name="accent">The product's accent color (the brand color when the skin sets none).</param>
     /// <param name="defaultPack">The deployment's default pack key.</param>
     public static Result<PreparedSkin> Prepare(ProductSkin? requested, string? accent, string defaultPack)
     {
@@ -64,6 +64,6 @@ internal static class ProductSkins
         Result<PreparedSkin>.Failure(new ResultError(problem.Code, Message(problem), ResultErrorKind.Validation, problem.Target));
 
     private static string Message(SkinProblem problem) => problem.Code == SkinRules.ContrastInvalidCode
-        ? $"The {problem.Target.Replace("/", " and ", StringComparison.Ordinal)} colours are too close to read together. Choose colours with more contrast."
-        : $"The skin value for {problem.Target} is not valid. Choose one of the listed options or a colour such as #1D4ED8.";
+        ? $"The {problem.Target.Replace("/", " and ", StringComparison.Ordinal)} colors are too close to read together. Choose colors with more contrast."
+        : $"The skin value for {problem.Target} is not valid. Choose one of the listed options or a color such as #1D4ED8.";
 }

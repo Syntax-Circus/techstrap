@@ -102,7 +102,7 @@ public sealed partial class TicketDetailPage : IDisposable
     /// <summary>The refresh after a write or a conflict: the model on screen stays until the new one arrives.</summary>
     internal async Task RefreshAsync() => await RefreshCoreAsync();
 
-    /// <returns>True when the refresh was applied; false when it was cancelled or superseded by a newer one.</returns>
+    /// <returns>True when the refresh was applied; false when it was canceled or superseded by a newer one.</returns>
     private async Task<bool> RefreshCoreAsync()
     {
         var applied = await LoadCoreAsync(silent: true);
@@ -114,7 +114,7 @@ public sealed partial class TicketDetailPage : IDisposable
         return applied;
     }
 
-    /// <returns>False when the load was cancelled or superseded and nothing was applied.</returns>
+    /// <returns>False when the load was canceled or superseded and nothing was applied.</returns>
     private async Task<bool> LoadCoreAsync(bool silent)
     {
         if (_disposed)

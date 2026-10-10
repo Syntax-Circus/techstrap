@@ -7,7 +7,7 @@ using TechStrap.Contracts.Tags;
 namespace TechStrap.Admin.Features.Settings.Tags;
 
 /// <summary>
-/// The tag list with its ticket counts (Admin only), create, rename and recolour, and delete. Deleting an unused tag is a medium-tier confirmation and sends no force flag. Deleting a tag that is in use is
+/// The tag list with its ticket counts (Admin only), create, rename and recolor, and delete. Deleting an unused tag is a medium-tier confirmation and sends no force flag. Deleting a tag that is in use is
 /// irreversible: the dialog shows the count ("12 tickets"), asks for the tag's name to be typed, and only then sends <c>force=true</c>. A 409 <c>tag-in-use</c> (someone tagged a ticket after the list was read) refreshes
 /// the counts and keeps the dialog open, so the next confirmation is the typed one. Writes use <see cref="CancellationToken.None"/> and never retry; an unknown outcome says so and offers a reload.
 /// </summary>
@@ -207,7 +207,7 @@ public sealed partial class TagsContent : IDisposable
 
         foreach (var error in errors)
         {
-            // The edit form shows only the name and the colour: an error for any other field goes above the list, never into a field error that would block Save.
+            // The edit form shows only the name and the color: an error for any other field goes above the list, never into a field error that would block Save.
             if (error.Target is ApiFields.Name or ApiFields.Colour || (create && error.Target is ApiFields.Slug))
             {
                 fieldErrors.TryAdd(error.Target, error.Message);

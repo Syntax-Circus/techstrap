@@ -14,7 +14,7 @@ public static class SkinRules
     /// <summary>The problem code for a malformed or unknown value.</summary>
     public const string InvalidCode = "skin-invalid";
 
-    /// <summary>The problem code for a colour pair below its contrast minimum.</summary>
+    /// <summary>The problem code for a color pair below its contrast minimum.</summary>
     public const string ContrastInvalidCode = "skin-contrast-invalid";
 
     private const int MinBorderWidth = 1;

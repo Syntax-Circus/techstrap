@@ -8,7 +8,7 @@ using TechStrap.Portal.Tests.Tickets;
 namespace TechStrap.Portal.Tests.Kb;
 
 /// <summary>
-/// P09-T13 (the help-centre search) at the host: a GET form that works without script, an empty-query prompt, a contact link when nothing matches, plain-text snippets, noindex for a query, paging links that keep the text,
+/// P09-T13 (the help-center search) at the host: a GET form that works without script, an empty-query prompt, a contact link when nothing matches, plain-text snippets, noindex for a query, paging links that keep the text,
 /// and that nothing about the page is ever kept. Review Focus 1 (XSS): the text, every title and every snippet are plain text and encoded, in the results and in the box.
 /// </summary>
 public sealed class KbSearchHostTests
@@ -71,7 +71,7 @@ public sealed class KbSearchHostTests
         KbTestKit.Texts(dom, "p.ts-kb-meta").ShouldContain("2 results");
         dom.QuerySelector("form[role=search] input[name=q]")!.GetAttribute("value").ShouldBe("reset password");
         KbTestKit.Meta(dom, "meta[name=robots]").ShouldBe("noindex, nofollow");
-        dom.Title.ShouldBe("Search - Paperplane Help Centre");
+        dom.Title.ShouldBe("Search - Paperplane Help Center");
         dom.QuerySelector("link[rel=canonical]")!.GetAttribute("href").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb/search", "the canonical address has no text");
         var sent = factory.Api.Requests.Single(request => request.Path == KbTestKit.SearchPath);
         sent.Query.ShouldBe("?q=reset%20password&page=1&pageSize=10");

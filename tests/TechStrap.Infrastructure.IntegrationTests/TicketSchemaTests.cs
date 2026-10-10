@@ -5,7 +5,7 @@ using TechStrap.Infrastructure.Persistence.Records;
 
 namespace TechStrap.Infrastructure.IntegrationTests;
 
-/// <summary>Database-level behaviour of the ticket tables: uniqueness, cascade, append-only events and erase feasibility.</summary>
+/// <summary>Database-level behavior of the ticket tables: uniqueness, cascade, append-only events and erase feasibility.</summary>
 public sealed class TicketSchemaTests(PostgresFixture postgres) : PostgresIntegrationTestBase(postgres)
 {
     [Theory]

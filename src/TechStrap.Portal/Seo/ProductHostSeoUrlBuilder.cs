@@ -8,7 +8,7 @@ namespace TechStrap.Portal.Seo;
 
 /// <summary>
 /// The package's <see cref="ISeoUrlBuilder"/> made host-aware (D-050 amendment): robots.txt's <c>Sitemap:</c> line, the canonical fallback and the Open Graph image follow the product host the request arrived on. The host
-/// is read only from <see cref="ProductHostContext"/> (the stored, lower-case host the middleware resolved), never from the request's Host header; the default host and an unknown host keep the package's behaviour.
+/// is read only from <see cref="ProductHostContext"/> (the stored, lower-case host the middleware resolved), never from the request's Host header; the default host and an unknown host keep the package's behavior.
 /// </summary>
 internal sealed class ProductHostSeoUrlBuilder(SeoUrlBuilder inner, ProductHostContext host, IOptions<PortalOptions> portal, IHttpContextAccessor accessor) : ISeoUrlBuilder
 {

@@ -3,8 +3,8 @@ using TechStrap.Tests.Shared;
 namespace TechStrap.Admin.Tests;
 
 /// <summary>
-/// The Admin turns API HTML into markup in exactly two places, and each shows HTML the server sanitised: the message bubble (a ticket message body, PHASE-07 T10) and the knowledge base preview pane
-/// (the answer of <c>POST /api/kb/preview</c>, which runs the same renderer and sanitiser as the portal, PHASE-08 T16). A third place must be argued for in the same commit that adds it.
+/// The Admin turns API HTML into markup in exactly two places, and each shows HTML the server sanitized: the message bubble (a ticket message body, PHASE-07 T10) and the knowledge base preview pane
+/// (the answer of <c>POST /api/kb/preview</c>, which runs the same renderer and sanitizer as the portal, PHASE-08 T16). A third place must be argued for in the same commit that adds it.
 /// </summary>
 public sealed class MarkupStringSiteTests
 {

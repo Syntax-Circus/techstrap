@@ -12,7 +12,7 @@ public static class TechStrapCsp
     /// <summary>
     /// The policy for a Blazor Server host that serves HTML (Admin, Portal). Scripts are strict: only files of this origin, so no inline script, no <c>eval</c>, no other
     /// host. Styles are strict too (<c>style-src 'self'</c>), with one deliberate relaxation: <c>style-src-attr 'unsafe-inline'</c>. Blazor writes <c>style="..."</c> attributes, and the
-    /// product colours (<c>TagChip</c>, <c>AccentPreview</c>, the Portal's accent scope) are arbitrary validated hex values that classes cannot cover, so inline style
+    /// product colors (<c>TagChip</c>, <c>AccentPreview</c>, the Portal's accent scope) are arbitrary validated hex values that classes cannot cover, so inline style
     /// attributes are allowed while style elements and stylesheets stay same-origin. Attribute styles cannot run script.
     /// </summary>
     /// <param name="formActionOrigins">
