@@ -1362,8 +1362,8 @@ Add to the 11g `Describe`:
     It 'ticks every 11g task and marks 11g complete pending merge' {
         foreach ($n in 1..9) { $script:Spec | Should -Match ('- \[x\] \*\*P11g-T' + $n.ToString('00') + '\*\*') -Because "P11g-T$($n.ToString('00')) is ticked" }
         $script:Spec | Should -Not -Match '- \[ \] \*\*P11g-T'
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11g \|.*\| D-053 recorded; 11g complete \(pending merge\): T01 to T08'
-        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11g \|.*\| D-053 recorded; 11g complete \(pending merge\): T01 to T08'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11g \|.*\| D-053 recorded; 11g complete \(pending merge\): T01 to T09'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11g \|.*\| D-053 recorded; 11g complete \(pending merge\): T01 to T09'
     }
 
     It 'documents the packs, the default setting and the skin grammar' {
