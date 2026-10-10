@@ -41,7 +41,12 @@ public sealed class PortalLayoutTests : BunitContext
         Services.AddSingleton<PortalSkinFactory>();
     }
 
-    private IRenderedComponent<PortalLayout> RenderLayout() => Render<PortalLayout>(p => p.Add(l => l.Body, "<p id=\"page\">the page</p>"));
+    private IRenderedComponent<PortalLayout> RenderLayout()
+    {
+        // Read the default pack first, so the layout takes the provider's synchronous snapshot path and no test depends on the real clock or the thread pool.
+        Services.GetRequiredService<DefaultPackProvider>().GetAsync(Xunit.TestContext.Current.CancellationToken).AsTask().GetAwaiter().GetResult();
+        return Render<PortalLayout>(p => p.Add(l => l.Body, "<p id=\"page\">the page</p>"));
+    }
 
     [Fact]
     public void Without_a_product_the_layout_is_neutral_no_header_no_product_footer_no_accent_and_the_powered_by_line()
@@ -137,13 +142,13 @@ public sealed class PortalLayoutTests : BunitContext
     }
 
     [Fact]
-    public void The_default_pack_of_the_site_setting_themes_a_neutral_page_once_it_is_read()
+    public void The_default_pack_of_the_site_setting_themes_a_neutral_page()
     {
         SitePack = "slate";
 
         var cut = RenderLayout();
 
-        cut.WaitForAssertion(() => cut.Find("div.ts-accent-scope").GetAttribute("style")!.ShouldContain("--p-bg:#F8FAFC"));
+        cut.Find("div.ts-accent-scope").GetAttribute("style")!.ShouldContain("--p-bg:#F8FAFC");
     }
 
     [Fact]

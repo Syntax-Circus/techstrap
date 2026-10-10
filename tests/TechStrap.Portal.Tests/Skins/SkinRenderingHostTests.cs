@@ -3,6 +3,8 @@ using System.Text.RegularExpressions;
 using TechStrap.Contracts.Products;
 using TechStrap.Contracts.Settings;
 using TechStrap.Contracts.Skins;
+using Microsoft.Extensions.DependencyInjection;
+using TechStrap.Portal.Products;
 using TechStrap.Portal.Settings;
 
 namespace TechStrap.Portal.Tests.Skins;
@@ -20,6 +22,10 @@ public sealed class SkinRenderingHostTests
     // The asset fingerprints (css/app.<hash>.css, blazor.web.<hash>.js, ...) change with every build: the golden holds them without the hash.
     private static string Normalise(string html) =>
         Regex.Replace(html.Replace("\r\n", "\n", StringComparison.Ordinal), @"\.[a-z0-9]{10}\.(css|js)\b", ".$1");
+
+    // The provider's first read has a real two-second bound; a test that needs the pack on its very first request reads it before the request, so a loaded machine cannot turn it into Classic.
+    private static async Task WarmAsync(PortalFactory factory) =>
+        await factory.Services.GetRequiredService<DefaultPackProvider>().GetAsync(Ct);
 
     private static Dictionary<string, string?> Products() => new() { [PortalOptions.LandingKey] = "Products" };
 
@@ -42,6 +48,7 @@ public sealed class SkinRenderingHostTests
         await using var factory = new PortalFactory();
         factory.Api.OnJson(HttpMethod.Get, "/api/public/site", new PublicSiteDto("midnight"));
         factory.Api.OnJson(HttpMethod.Get, "/api/public/products/paperplane", Paperplane());
+        await WarmAsync(factory);
         using var client = factory.CreateClient();
 
         var product = await client.GetStringAsync("/p/paperplane", Ct);
@@ -103,6 +110,7 @@ public sealed class SkinRenderingHostTests
     {
         await using var factory = new PortalFactory();
         factory.Api.OnJson(HttpMethod.Get, "/api/public/site", new PublicSiteDto("slate"));
+        await WarmAsync(factory);
         using var client = factory.CreateClient();
 
         client.DefaultRequestHeaders.Host = "portal.test";

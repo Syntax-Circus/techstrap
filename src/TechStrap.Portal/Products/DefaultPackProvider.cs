@@ -88,8 +88,6 @@ public sealed class DefaultPackProvider(IServiceScopeFactory scopes, TimeProvide
     // Called with the lock held. The request's HttpContext lives in an AsyncLocal that the new task would inherit and the read must not touch, so the flow is suppressed for the start only.
     private Task Start()
     {
-        Volatile.Write(ref _lastAttemptTicks, clock.GetUtcNow().UtcTicks);
-
         // The API call carries the address of the visitor whose request started it (as the product host map does): taken here, handed to the read as a context of its own.
         var visitor = accessor?.HttpContext?.Connection.RemoteIpAddress;
         using (ExecutionContext.SuppressFlow())
@@ -97,6 +95,8 @@ public sealed class DefaultPackProvider(IServiceScopeFactory scopes, TimeProvide
             _flight = Task.Run(() => LoadAsync(visitor));
         }
 
+        // After the flight is in place: a caller that sees the new attempt time then also sees the running read, never the old completed one.
+        Volatile.Write(ref _lastAttemptTicks, clock.GetUtcNow().UtcTicks);
         return _flight;
     }
 

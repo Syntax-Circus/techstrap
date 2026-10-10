@@ -17,6 +17,9 @@ public sealed class DefaultPackProviderTests
     {
         public int Reads;
 
+        /// <summary>Completed when a read has reached the client, which is after the provider built the read's deadline: the point from which the fake clock may be advanced.</summary>
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         public Func<Result<PublicSiteDto>> Answer { get; set; } = () => Result<PublicSiteDto>.Success(new PublicSiteDto("slate"));
 
         /// <summary>When set, a read never answers by itself: it ends only when the caller's token is cancelled (a hung API).</summary>
@@ -25,6 +28,7 @@ public sealed class DefaultPackProviderTests
         public async Task<Result<PublicSiteDto>> GetAsync(CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref Reads);
+            Entered.TrySetResult();
             if (Hang)
             {
                 await Task.Delay(Timeout.Infinite, cancellationToken);
@@ -93,30 +97,35 @@ public sealed class DefaultPackProviderTests
         (await provider.GetAsync(Ct)).ShouldBe("classic");
     }
 
-    [Fact]
+    private static readonly TimeSpan Bound = TimeSpan.FromSeconds(30);
+
+    [Fact(Timeout = 60_000)]
     public async Task A_hung_cold_read_costs_the_first_caller_two_seconds_at_most_and_the_next_none()
     {
         var (provider, client, clock) = Build();
         client.Hang = true;
 
-        var first = provider.GetAsync(Ct).AsTask();
-        clock.Advance(DefaultPackProvider.ColdWait + TimeSpan.FromMilliseconds(1));
-        (await first).ShouldBe("classic", "the first caller stopped waiting at the bound");
+        var first = provider.GetAsync(TestContext.Current.CancellationToken).AsTask();
 
-        var second = provider.GetAsync(Ct);
+        // The read runs as a task of its own: it has built its deadline once it is inside the client. Advancing before that would leave the deadline unelapsed forever.
+        await client.Entered.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+        clock.Advance(DefaultPackProvider.ColdWait + TimeSpan.FromMilliseconds(1));
+        (await first.WaitAsync(Bound, TestContext.Current.CancellationToken)).ShouldBe("classic", "the first caller stopped waiting at the bound");
+
+        var second = provider.GetAsync(TestContext.Current.CancellationToken);
         second.IsCompletedSuccessfully.ShouldBeTrue("a second request does not wait for the hung read");
         (await second).ShouldBe("classic");
         client.Reads.ShouldBe(1, "and does not start another read while one is running");
 
         // The hung read is cut off by its own deadline; the next read (after the retry interval) succeeds and replaces Classic.
         clock.Advance(TimeSpan.FromSeconds(31));
-        await provider.PendingRefresh;
+        await provider.PendingRefresh.WaitAsync(Bound, TestContext.Current.CancellationToken);
         client.Hang = false;
         clock.Advance(TimeSpan.FromSeconds(11));
-        (await provider.GetAsync(Ct)).ShouldBe("classic", "the stale Classic is answered at once while the refresh runs");
-        await provider.PendingRefresh;
+        (await provider.GetAsync(TestContext.Current.CancellationToken)).ShouldBe("classic", "the stale Classic is answered at once while the refresh runs");
+        await provider.PendingRefresh.WaitAsync(Bound, TestContext.Current.CancellationToken);
 
-        (await provider.GetAsync(Ct)).ShouldBe("slate");
+        (await provider.GetAsync(TestContext.Current.CancellationToken)).ShouldBe("slate");
     }
 
     [Fact]
