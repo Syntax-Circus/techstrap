@@ -10,6 +10,7 @@ using TechStrap.Application.Persistence;
 using TechStrap.Contracts.Intake;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
+using TechStrap.Infrastructure.Attachments;
 using TechStrap.Infrastructure.Email;
 using TechStrap.Infrastructure.Intake;
 using TechStrap.Infrastructure.IntegrationTests.Support;
@@ -46,6 +47,7 @@ public sealed class EmailDrainIntegrationTests(PostgresFixture postgres, Mailpit
         {
             services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Trace).AddProvider(_logs));
             services.AddTechStrapEmail(configuration);
+            services.AddTechStrapProductLogoUrls(configuration);
             configureServices?.Invoke(services, configuration);
         });
     }

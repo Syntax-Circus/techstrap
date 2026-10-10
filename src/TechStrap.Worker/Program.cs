@@ -6,6 +6,7 @@ using SyntaxCircus.Observability;
 using TechStrap.Hosting.Logging;
 using TechStrap.Hosting.Sentry;
 using TechStrap.Hosting.Wiring;
+using TechStrap.Infrastructure.Attachments;
 using TechStrap.Infrastructure.AutoClose;
 using TechStrap.Infrastructure.Email;
 using TechStrap.Infrastructure.Live;
@@ -50,6 +51,8 @@ builder.Services.AddTechStrapPersistence();
 builder.Services.AddTechStrapNotifyBroadcaster();
 builder.Services.AddTechStrapMetrics();
 builder.Services.AddTechStrapEmail(builder.Configuration);
+// Uploaded product logos in emails (D-052): optional; blank keeps the linked logo.
+builder.Services.AddTechStrapProductLogoUrls(builder.Configuration);
 builder.Services.AddHostedService<EmailOutboxWorker>();
 builder.Services.AddTechStrapAutoClose(builder.Configuration);
 builder.Services.AddHostedService<AutoCloseWorker>();

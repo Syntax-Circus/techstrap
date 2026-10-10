@@ -8,6 +8,7 @@ using SyntaxCircus.Common;
 using TechStrap.Application.Email;
 using TechStrap.Application.Knowledge;
 using TechStrap.Application.Persistence;
+using TechStrap.Application.Products;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
 using TechStrap.Domain.Tickets;
@@ -26,6 +27,7 @@ public sealed class DrainEmailOutboxHandlerTests
     private readonly ITicketRepository _tickets = Substitute.For<ITicketRepository>();
     private readonly IKbRepository _kb = Substitute.For<IKbRepository>();
     private readonly IOutboundEmailSender _sender = Substitute.For<IOutboundEmailSender>();
+    private readonly IProductLogoUrls _logoUrls = Substitute.For<IProductLogoUrls>();
     private readonly Product _product;
     private readonly DrainEmailOutboxHandler _handler;
 
@@ -38,7 +40,7 @@ public sealed class DrainEmailOutboxHandlerTests
         _store.MarkFailedAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
         _renderer.RenderTicketConfirmation(Arg.Any<TicketConfirmationEmail>(), Arg.Any<EmailBranding>()).Returns(Rendered);
         _sender.SendAsync(Arg.Any<OutboundEmail>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
-        _handler = new DrainEmailOutboxHandler(_store, _products, _tickets, _kb, _renderer, _sender, Options.Create(new EmailOutboxWorkerOptions()), NullLogger<DrainEmailOutboxHandler>.Instance);
+        _handler = new DrainEmailOutboxHandler(_store, _products, _tickets, _kb, _renderer, _sender, _logoUrls, Options.Create(new EmailOutboxWorkerOptions()), NullLogger<DrainEmailOutboxHandler>.Instance);
     }
 
     private EmailOutboxItem Item(string kind = EmailTemplates.TicketConfirmation, string? payload = null, Guid? productId = null) =>
@@ -427,5 +429,29 @@ public sealed class DrainEmailOutboxHandlerTests
         await _store.Received(1).MarkFailedAsync(item.Id, "w1", category, Arg.Any<CancellationToken>());
         await _sender.DidNotReceive().SendAsync(Arg.Any<OutboundEmail>(), Arg.Any<CancellationToken>());
         result.Value.ShouldBe(new DrainResult(1, 0, 1));
+    }
+
+    [Fact]
+    public async Task With_an_uploaded_logo_and_a_known_api_address_the_email_shows_the_uploaded_logo()
+    {
+        _product.SetUploadedLogo("0123456789abcdef0123456789abcdef.png");
+        _logoUrls.UrlFor("0123456789abcdef0123456789abcdef.png").Returns("https://api.test/product-logos/0123456789abcdef0123456789abcdef.png");
+        Claims(Item());
+
+        await _handler.HandleAsync("w1", TestContext.Current.CancellationToken);
+
+        _renderer.Received(1).RenderTicketConfirmation(Arg.Any<TicketConfirmationEmail>(), Arg.Is<EmailBranding>(b => b.LogoPath == "https://api.test/product-logos/0123456789abcdef0123456789abcdef.png"));
+    }
+
+    [Fact]
+    public async Task Without_an_api_address_the_email_keeps_the_linked_logo()
+    {
+        _product.SetUploadedLogo("0123456789abcdef0123456789abcdef.png");
+        _logoUrls.UrlFor(Arg.Any<string>()).Returns((string?)null);
+        Claims(Item());
+
+        await _handler.HandleAsync("w1", TestContext.Current.CancellationToken);
+
+        _renderer.Received(1).RenderTicketConfirmation(Arg.Any<TicketConfirmationEmail>(), Arg.Is<EmailBranding>(b => b.LogoPath == "https://cdn.orbitly.test/l.png"));
     }
 }
