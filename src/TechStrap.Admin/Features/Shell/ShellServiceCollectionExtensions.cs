@@ -4,7 +4,7 @@ namespace TechStrap.Admin.Features.Shell;
 
 public static class ShellServiceCollectionExtensions
 {
-    /// <summary>Registers the per-circuit shell services. Scoped, so each circuit has its own message slot, key listener, browser preferences, time zone and failed-email badge.</summary>
+    /// <summary>Registers the per-circuit shell services and the build version (one per process). Scoped, so each circuit has its own message slot, key listener, browser preferences, time zone and failed-email badge.</summary>
     public static IServiceCollection AddShell(this IServiceCollection services)
     {
         services.TryAddSingleton(TimeProvider.System);
@@ -14,6 +14,7 @@ public static class ShellServiceCollectionExtensions
         services.AddScoped<LocalTimeService>();
         services.AddScoped<CommandRegistry>();
         services.AddScoped<FailedEmailCounter>();
+        services.TryAddSingleton(_ => BuildVersion.FromAssembly());
         return services;
     }
 }

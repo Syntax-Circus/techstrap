@@ -22,4 +22,13 @@ public sealed class RailStyleTests
     {
         Css.Declarations(".ts-rail-group")["border-top"].ShouldBe("1px dashed var(--rule-strong)");
     }
+
+    [Fact]
+    public void The_build_version_is_small_muted_text_with_the_tertiary_ink_token_the_contrast_test_checks_on_the_rail()
+    {
+        var version = Css.Declarations(".ts-rail-version");
+
+        version["color"].ShouldBe("var(--ink-3)");
+        version["font"].ShouldContain(".75rem");
+    }
 }
