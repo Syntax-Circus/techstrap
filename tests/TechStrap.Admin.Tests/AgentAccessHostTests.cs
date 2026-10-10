@@ -67,7 +67,8 @@ public sealed class AgentAccessHostTests
         html.ShouldContain("TechStrap could not check your access.");
         html.ShouldContain("TechStrap could not reach the API. Try again in a moment.");
         html.ShouldNotContain("10.1.2.3");
-        html.ShouldNotContain("5432");
+        // The page carries random tokens (antiforgery, nonces) that can contain the digits by chance; a leaked port always follows a colon.
+        html.ShouldNotContain(":5432");
         html.ShouldNotContain("actively refused");
         html.ShouldNotContain("class=\"ts-queue\"");
         factory.Api.Requests.ShouldAllBe(r => r.Authorization == "Bearer " + AdminTestPrincipal.Agent.AccessToken);
