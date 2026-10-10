@@ -8,7 +8,7 @@ public sealed class HostileUploadCorpusTests
     [
         "oversize", "double-extension", "png-named-pdf", "traversal-passwd", "traversal-text", "backslash-traversal",
         "rtl-override", "zero-byte", "svg-as-png", "html-as-txt", "long-name", "nul-in-name",
-        "exe-with-png-bytes", "bat-with-text", "pdf-bytes-named-exe",
+        "exe-with-png-bytes", "bat-with-text", "pdf-bytes-named-exe", "logo-just-over",
     ];
 
     [Fact]

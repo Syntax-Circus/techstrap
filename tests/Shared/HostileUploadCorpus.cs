@@ -43,7 +43,7 @@ public sealed record Expectation(bool Stored, string? ErrorCode, string? StoredN
 }
 
 /// <summary>One hostile upload: the file name and declared type a client sends, the bytes, and the outcome each consumer must give.</summary>
-public sealed record HostileUpload(string Id, string FileName, string? DeclaredContentType, byte[] Content, Expectation Attachment, Expectation KbImage);
+public sealed record HostileUpload(string Id, string FileName, string? DeclaredContentType, byte[] Content, Expectation Attachment, Expectation KbImage, Expectation ProductLogo);
 
 /// <summary>
 /// The hostile-upload corpus (Fixtures/hostile-uploads/manifest.json, copied beside the test assembly), shared by the attachment store, the KB image store and the
@@ -73,7 +73,8 @@ public static class HostileUploadCorpus
         entry.TryGetProperty("declaredContentType", out var declared) ? declared.GetString() : null,
         Content(entry.GetProperty("content")),
         Expect(entry.GetProperty("attachment")),
-        Expect(entry.GetProperty("kbImage")));
+        Expect(entry.GetProperty("kbImage")),
+        Expect(entry.GetProperty("productLogo")));
 
     private static byte[] Content(JsonElement content)
     {

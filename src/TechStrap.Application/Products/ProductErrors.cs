@@ -19,6 +19,9 @@ internal static class ProductErrors
     public static ResultError KeyTaken() =>
         new("product-key-taken", "Another product already uses this key or ticket number prefix. Choose different ones.", ResultErrorKind.Conflict);
 
+    public static ResultError LogoFileRequired() =>
+        new("file-required", "Choose an image to upload.", ResultErrorKind.Validation, "file");
+
     public static ResultError Stale() =>
         new(PersistenceErrorCodes.ConcurrencyConflict, "This product changed since you opened it. Reload it and apply your change again.", ResultErrorKind.Conflict);
 }

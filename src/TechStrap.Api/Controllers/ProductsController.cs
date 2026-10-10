@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SyntaxCircus.AspNetCore.Common;
 using TechStrap.Api.Security;
+using TechStrap.Api.Startup;
 using TechStrap.Application.ApiKeys;
 using TechStrap.Application.Products;
 using TechStrap.Contracts.ApiKeys;
@@ -52,4 +53,33 @@ public sealed class ProductsController : ControllerBase
     [Authorize(Policy = AuthorizationPolicies.Admin)]
     public async Task<IActionResult> RevokeApiKey(Guid id, Guid keyId, [FromServices] IRevokeProductApiKeyRequestHandler revokeApiKey, CancellationToken cancellationToken) =>
         (await revokeApiKey.HandleAsync(id, keyId, cancellationToken)).ToActionResult(this, NoContent);
+
+    /// <summary>One png, jpeg or webp up to 1 MiB, by its leading bytes (D-052). It supersedes the linked logo address; a second upload replaces the first.</summary>
+    [HttpPost("{id:guid}/logo")]
+    [Authorize(Policy = AuthorizationPolicies.Admin)]
+    [ReadFormBeforeBinding]
+    [RequestSizeLimit(ProductLogoRequestLimits.FormBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = ProductLogoRequestLimits.FormBytes * 2)]
+    public async Task<IActionResult> UploadLogo(Guid id, [FromForm] ProductLogoForm form, [FromServices] IUploadProductLogoRequestHandler uploadLogo, CancellationToken cancellationToken)
+    {
+        if (form.File is not { } file)
+        {
+            return (await uploadLogo.HandleAsync(id, null, cancellationToken)).ToActionResult(this, Ok);
+        }
+
+        await using var stream = file.OpenReadStream();
+        return (await uploadLogo.HandleAsync(id, new IncomingProductLogo(file.Length, stream), cancellationToken)).ToActionResult(this, Ok);
+    }
+
+    /// <summary>Removes the uploaded logo; the linked logo address, if any, shows again. Idempotent.</summary>
+    [HttpDelete("{id:guid}/logo")]
+    [Authorize(Policy = AuthorizationPolicies.Admin)]
+    public async Task<IActionResult> RemoveLogo(Guid id, [FromServices] IRemoveProductLogoRequestHandler removeLogo, CancellationToken cancellationToken) =>
+        (await removeLogo.HandleAsync(id, cancellationToken)).ToActionResult(this, Ok);
+}
+
+/// <summary>Multipart form posted to upload one product logo: the file in the field named <c>file</c>.</summary>
+public sealed class ProductLogoForm
+{
+    public IFormFile? File { get; set; }
 }

@@ -1,4 +1,3 @@
-using System.Buffers;
 using SyntaxCircus.Common;
 using SyntaxCircus.Storage;
 using TechStrap.Application.Knowledge;
@@ -12,41 +11,14 @@ internal sealed class KbImageStore(IStorageProvider storage) : IKbImageStore
 
     public async Task<Result<StoredKbImage>> SaveAsync(IncomingKbImage image, CancellationToken cancellationToken)
     {
-        if (image.Length > KbLimits.MaxImageBytes)
+        var capped = await CappedImageIntake.ReadAsync(image.Content, image.Length, KbLimits.MaxImageBytes, cancellationToken);
+        if (capped is null)
         {
             return TooLarge();
         }
 
-        // Read at most MaxImageBytes + 1 bytes so a declared length that lies cannot exhaust memory.
-        await using var content = new MemoryStream((int)Math.Clamp(image.Length, 0, KbLimits.MaxImageBytes));
-        var buffer = ArrayPool<byte>.Shared.Rent(81_920);
-        try
-        {
-            long total = 0;
-            while (total <= KbLimits.MaxImageBytes)
-            {
-                var want = (int)Math.Min(buffer.Length, KbLimits.MaxImageBytes + 1 - total);
-                var read = await image.Content.ReadAsync(buffer.AsMemory(0, want), cancellationToken);
-                if (read == 0)
-                {
-                    break;
-                }
-
-                content.Write(buffer, 0, read);
-                total += read;
-            }
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
-
-        if (content.Length > KbLimits.MaxImageBytes)
-        {
-            return TooLarge();
-        }
-
-        var extension = KbImageSignatures.Identify(content.GetBuffer().AsSpan(0, (int)content.Length));
+        await using var content = capped.Content;
+        var extension = capped.Extension;
         if (extension is null)
         {
             return Failure("kb-image-type-not-allowed", "Only PNG, JPEG, GIF and WebP images can be uploaded.");

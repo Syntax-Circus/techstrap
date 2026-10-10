@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using SyntaxCircus.Storage;
 using TechStrap.Application.Attachments;
 using TechStrap.Application.Knowledge;
+using TechStrap.Application.Products;
 
 namespace TechStrap.Infrastructure.Attachments;
 
@@ -20,6 +21,7 @@ public static class AttachmentServiceCollectionExtensions
             .ValidateOnStart();
         services.TryAddScoped<IAttachmentStore, AttachmentStore>();
         services.TryAddScoped<IKbImageStore, KbImageStore>();
+        services.TryAddScoped<IProductLogoStore, ProductLogoStore>();
         return services;
     }
 }

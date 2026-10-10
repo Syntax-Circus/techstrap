@@ -187,6 +187,7 @@ app.MapOpenApi().AllowAnonymous().RequireRateLimiting(PublicRateLimitOptions.Pol
 
 app.MapControllers();
 app.MapKbImages();
+app.MapProductLogos();
 app.MapTechStrapLiveHub();
 
 app.Run();
