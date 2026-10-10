@@ -149,8 +149,9 @@ All tables snake_case, UTC `timestamptz`, `uuid` primary keys unless noted (**As
 
 | Entity (table) | Key columns | Indexes and constraints |
 | --- | --- | --- |
-| `products` | `id`, `key` (unique slug), `name`, `number_prefix` (unique), branding (`display_name`, `logo`, `accent_colour`, `from_address`, `reply_to`), `portal_host`, `tagline`, `uploaded_logo`, `listed_on_landing`, `is_active`, `xmin` (concurrency token) | unique `key`, unique `number_prefix` |
+| `products` | `id`, `key` (unique slug), `name`, `number_prefix` (unique), branding (`display_name`, `logo`, `accent_colour`, `from_address`, `reply_to`), `portal_host`, `tagline`, `uploaded_logo`, `listed_on_landing`, `skin`, `is_active`, `xmin` (concurrency token) | unique `key`, unique `number_prefix` |
 | `product_ticket_sequences` | `product_id` (PK, FK to `products`), `next_number` | the per-product ticket counter, separate from `products` so taking a number never changes the product row's `xmin` (D-009) |
+| `site_settings` | `id` (smallint PK, always 1), `default_pack` (the Portal theme pack key, seeded `classic`), `xmin` (concurrency token) | the single deployment-wide settings row (D-053) |
 | `product_api_keys` | `id`, `product_id`, `kind` (`Trusted`/`Public`), `key_hash`, `key_prefix`, `label`, `created_at`, `revoked_at`, `last_used_at` | unique `key_hash`; index `product_id` |
 | `agents` | `id`, `oidc_subject` (unique), `name`, `email`, `role` (`Agent`/`Admin`), `is_active`, `last_seen_at`, `public_display_name` (nullable, max 60; customer-facing name override, D-024) | unique `oidc_subject`; index `email` |
 | `agent_notification_preferences` | `agent_id`, `product_id`, `notify_new_ticket` | PK (`agent_id`, `product_id`) |

@@ -25,6 +25,7 @@ internal sealed class ProductRecordConfiguration : IEntityTypeConfiguration<Prod
         builder.Property(p => p.UploadedLogo).HasMaxLength(DomainLimits.UploadedLogoNameMaxLength);
         // Existing rows become listed when the column is added (D-052).
         builder.Property(p => p.ListedOnLanding).HasDefaultValue(true);
+        builder.Property(p => p.Skin).HasMaxLength(DomainLimits.SkinJsonMaxLength);
         builder.HasXminConcurrencyToken(p => p.Version);
         builder.HasIndex(p => p.Key).IsUnique();
         builder.HasIndex(p => p.NumberPrefix).IsUnique();
