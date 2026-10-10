@@ -79,18 +79,15 @@ public static class SkinResolver
             Header = Pick("header", skin.Header) ?? baseTokens.Header,
         };
 
-        tokens = Enforce(tokens, baseTokens, overrides, "ink", "background", InkContrast, problems);
-        tokens = Enforce(tokens, baseTokens, overrides, "ink", "surface", InkContrast, problems);
-        tokens = Enforce(tokens, baseTokens, overrides, "muted", "background", InkContrast, problems);
-        tokens = Enforce(tokens, baseTokens, overrides, "focus", "background", FocusContrast, problems);
+        tokens = EnforceContrast(tokens, baseTokens, overrides, problems);
 
         var brandOverride = Colour("brand", skin.Brand);
         var accent = productAccent is not null && SkinRules.IsHex(productAccent) ? productAccent.ToUpperInvariant() : null;
         var brand = brandOverride ?? accent;
         tokens = tokens with { Brand = brand ?? baseTokens.Brand };
 
-        ProductAccent.TryDerive(tokens.Brand, out var brandColours);
-        ProductAccent.TryDerive(tokens.Chrome, out var chromeColours);
+        var brandColours = Derive(tokens.Brand, baseTokens.Brand);
+        var chromeColours = Derive(tokens.Chrome, baseTokens.Chrome);
         var resolved = new ResolvedSkin(
             pack.Key,
             pack.Scheme,
@@ -102,24 +99,74 @@ public static class SkinResolver
         return new SkinResolution(resolved, problems);
     }
 
-    private static SkinTokens Enforce(SkinTokens tokens, SkinTokens pack, Overrides overrides, string a, string b, double minimum, List<SkinProblem> problems)
+    private static readonly (string A, string B, double Minimum)[] Pairs =
+    [
+        ("ink", "background", InkContrast),
+        ("ink", "surface", InkContrast),
+        ("muted", "background", InkContrast),
+        ("focus", "background", FocusContrast),
+    ];
+
+    private static readonly string[] ColourGroup = ["background", "surface", "ink", "muted", "focus"];
+
+    // Every pair is evaluated on the candidate in one pass; every overridden member of every failing pair reverts together,
+    // then all pairs are re-checked. A pair still failing can only involve pack values (a test proves packs pass), so the
+    // whole colour group goes back to the pack as a last resort. Each failing pair is reported once.
+    private static SkinTokens EnforceContrast(SkinTokens tokens, SkinTokens pack, Overrides overrides, List<SkinProblem> problems)
     {
-        if (ProductAccent.ContrastRatio(Get(tokens, a), Get(tokens, b)) >= minimum)
+        var reported = new HashSet<string>(StringComparer.Ordinal);
+        var failing = FailingPairs(tokens);
+        if (failing.Count == 0)
         {
             return tokens;
         }
 
-        problems.Add(new SkinProblem(SkinRules.ContrastInvalidCode, a + "/" + b));
-        foreach (var member in new[] { a, b })
+        foreach (var (a, b, _) in failing)
         {
-            if (overrides.Has(member))
+            Report(a, b);
+            foreach (var member in new[] { a, b })
             {
-                tokens = Set(tokens, member, Get(pack, member));
+                if (overrides.Has(member))
+                {
+                    tokens = Set(tokens, member, Get(pack, member));
+                }
             }
         }
 
+        failing = FailingPairs(tokens);
+        if (failing.Count == 0)
+        {
+            return tokens;
+        }
+
+        foreach (var (a, b, _) in failing)
+        {
+            Report(a, b);
+        }
+
+        foreach (var member in ColourGroup)
+        {
+            tokens = Set(tokens, member, Get(pack, member));
+        }
+
         return tokens;
+
+        void Report(string a, string b)
+        {
+            if (reported.Add(a + "/" + b))
+            {
+                problems.Add(new SkinProblem(SkinRules.ContrastInvalidCode, a + "/" + b));
+            }
+        }
     }
+
+    private static List<(string A, string B, double Minimum)> FailingPairs(SkinTokens tokens) =>
+        Pairs.Where(p => ProductAccent.ContrastRatio(Get(tokens, p.A), Get(tokens, p.B)) < p.Minimum).ToList();
+
+    private static ProductAccentColors Derive(string value, string fallback) =>
+        ProductAccent.TryDerive(value, out var colours) ? colours
+        : ProductAccent.TryDerive(fallback, out var fallbackColours) ? fallbackColours
+        : new ProductAccentColors(fallback, "#000000", "#000000");
 
     private static string Get(SkinTokens t, string name) => name switch
     {

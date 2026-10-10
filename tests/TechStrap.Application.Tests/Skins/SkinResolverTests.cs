@@ -83,4 +83,72 @@ public sealed class SkinResolverTests
         classic.OnBrand.ShouldBe(accent.OnAccent);
         classic.BrandInk.ShouldBe(accent.AccentInk);
     }
+
+    [Fact]
+    public void A_revert_never_leaves_an_earlier_pair_broken_and_unreported()
+    {
+        var skin = new ProductSkin(Background: "#000000", Ink: "#FFFFFF", Muted: "#CCCCCC", Focus: "#FFFFFF");
+
+        var result = SkinResolver.Resolve("classic", skin, null);
+
+        var t = result.Skin.Tokens;
+        ProductAccent.ContrastRatio(t.Ink, t.Background).ShouldBeGreaterThanOrEqualTo(4.5);
+        ProductAccent.ContrastRatio(t.Ink, t.Surface).ShouldBeGreaterThanOrEqualTo(4.5);
+        ProductAccent.ContrastRatio(t.Muted, t.Background).ShouldBeGreaterThanOrEqualTo(4.5);
+        ProductAccent.ContrastRatio(t.Focus, t.Background).ShouldBeGreaterThanOrEqualTo(3.0);
+        result.Problems.ShouldContain(new SkinProblem("skin-contrast-invalid", "ink/surface"));
+        result.Problems.ShouldContain(new SkinProblem("skin-contrast-invalid", "ink/background"));
+    }
+
+    [Fact]
+    public void Two_failing_pairs_are_both_reported_and_the_ink_reverts()
+    {
+        var result = SkinResolver.Resolve("classic", new ProductSkin(Ink: "#EEEEEE"), null);
+
+        result.Problems.ShouldContain(new SkinProblem("skin-contrast-invalid", "ink/background"));
+        result.Problems.ShouldContain(new SkinProblem("skin-contrast-invalid", "ink/surface"));
+        result.Skin.Tokens.Ink.ShouldBe("#1B1B22");
+    }
+
+    [Fact]
+    public void A_passing_background_override_survives_a_reverted_surface()
+    {
+        var result = SkinResolver.Resolve("classic", new ProductSkin(Background: "#FFF8E4", Surface: "#222222"), null);
+
+        result.Problems.ShouldBe([new SkinProblem("skin-contrast-invalid", "ink/surface")]);
+        result.Skin.Tokens.Background.ShouldBe("#FFF8E4");
+        result.Skin.Tokens.Surface.ShouldBe("#FFFFFF");
+        ProductAccent.ContrastRatio(result.Skin.Tokens.Ink, result.Skin.Tokens.Background).ShouldBeGreaterThanOrEqualTo(4.5);
+    }
+
+    [Fact]
+    public void A_malformed_accent_is_ignored_and_an_invalid_brand_falls_back_to_the_accent()
+    {
+        var ignored = SkinResolver.Resolve("slate", null, "not-a-colour").Skin;
+        ignored.Tokens.Brand.ShouldBe(SkinPacks.Find("slate")!.Tokens.Brand);
+        ignored.BrandIsExplicit.ShouldBeFalse();
+
+        var fallback = SkinResolver.Resolve("slate", new ProductSkin(Brand: "blue"), "#F59E0B");
+        fallback.Skin.Tokens.Brand.ShouldBe("#F59E0B");
+        fallback.Skin.BrandIsExplicit.ShouldBeTrue();
+        fallback.Problems.ShouldContain(new SkinProblem("skin-invalid", "brand"));
+    }
+
+    [Fact]
+    public void An_unknown_product_pack_is_reported_and_the_default_pack_is_used()
+    {
+        var result = SkinResolver.Resolve("slate", new ProductSkin(Pack: "nope"), null);
+
+        result.Problems.ShouldBe([new SkinProblem("skin-invalid", "pack")]);
+        result.Skin.Pack.ShouldBe("slate");
+    }
+
+    [Fact]
+    public void The_border_has_no_contrast_rule()
+    {
+        var result = SkinResolver.Resolve("classic", new ProductSkin(Border: "#FFFFFF"), null);
+
+        result.Problems.ShouldBeEmpty();
+        result.Skin.Tokens.Border.ShouldBe("#FFFFFF");
+    }
 }

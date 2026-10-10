@@ -68,17 +68,17 @@ public static class SkinCss
 
         var t = skin.Tokens;
         var list = new List<KeyValuePair<string, string>>();
-        if (t.Shadow != SkinValues.ShadowNone)
+        if (SkinValues.IsShadow(t.Shadow) && t.Shadow != SkinValues.ShadowNone)
         {
             list.Add(new("data-ts-shadow", t.Shadow));
         }
 
-        if (t.Button != SkinValues.ButtonFlat)
+        if (SkinValues.IsButton(t.Button) && t.Button != SkinValues.ButtonFlat)
         {
             list.Add(new("data-ts-button", t.Button));
         }
 
-        if (t.Header != SkinValues.HeaderPlain)
+        if (SkinValues.IsHeader(t.Header) && t.Header != SkinValues.HeaderPlain)
         {
             list.Add(new("data-ts-header", t.Header));
         }

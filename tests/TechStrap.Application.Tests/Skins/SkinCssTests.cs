@@ -52,4 +52,13 @@ public sealed class SkinCssTests
         properties["--ts-radius"].ShouldBe("0");
         properties["--ts-font-heading"].ShouldBe(SkinFonts.Stack("source-serif"));
     }
+
+    [Fact]
+    public void A_hand_built_skin_with_a_raw_preset_emits_no_attribute()
+    {
+        var tokens = SkinPacks.Classic.Tokens with { Shadow = "0 0 9px red", Button = "javascript:x", Header = "none" };
+        var skin = new ResolvedSkin("classic", SkinValues.Light, tokens, false, "#FFFFFF", "#1D4FA8", "#FFFFFF");
+
+        SkinCss.Attributes(skin).ShouldBeEmpty();
+    }
 }
