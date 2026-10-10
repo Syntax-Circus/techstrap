@@ -1152,4 +1152,15 @@ Describe 'PHASE-11g theme packs and skins (D-053)' {
         (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11g \|.*\| D-053 recorded; 11g'
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11g-T09 \|'
     }
+
+    It 'ships the dragon-poop sample skin and the README that explains it' {
+        $names = (Get-RepoText 'docs/skins/dragon-poop.skin.json' | ConvertFrom-Json).PSObject.Properties.Name
+        $expected = 'background', 'surface', 'ink', 'muted', 'border', 'brand', 'chrome', 'focus', 'headingFont', 'bodyFont', 'radius', 'borderWidth', 'shadow', 'button', 'header'
+        $names.Count | Should -Be 15
+        ($names | Sort-Object) | Should -Be ($expected | Sort-Object)
+        $readme = Get-RepoText 'docs/skins/README.md'
+        foreach ($phrase in 'dragon-poop', 'PUT api/products', 'api/settings/site') {
+            $readme | Should -Match ([regex]::Escape($phrase)) -Because $phrase
+        }
+    }
 }

@@ -73,6 +73,21 @@
                 @Field("ts-product-reply", ProductsCopy.ReplyToLabel, ApiFields.ReplyTo, _model.ReplyTo, v => _model.ReplyTo = v, null, "email")
                 @Field("ts-product-host", ProductsCopy.PortalHostLabel, ApiFields.PortalHost, _model.PortalHost, v => _model.PortalHost = v, ProductsCopy.PortalHostHelp)
 
+                <details class="ts-product-skin" open="@(_errors.ContainsKey(ApiFields.Skin) || _model.SkinJson.Length > 0)">
+                    <summary>@ProductsCopy.SkinHeading</summary>
+                    <div class="ts-field">
+                        <label for="ts-product-skin" class="form-label">@ProductsCopy.SkinLabel</label>
+                        <textarea id="ts-product-skin" class="form-control font-monospace @(_errors.ContainsKey(ApiFields.Skin) ? "is-invalid" : null)" rows="12" spellcheck="false" autocomplete="off"
+                                  aria-invalid="@(_errors.ContainsKey(ApiFields.Skin) ? "true" : null)" aria-describedby="@(_errors.ContainsKey(ApiFields.Skin) ? "ts-product-skin-error" : "ts-product-skin-help")"
+                                  value="@_model.SkinJson" @oninput="e => OnInput(v => _model.SkinJson = v, e)" @onblur="() => CheckField(ApiFields.Skin)"></textarea>
+                        <p id="ts-product-skin-help" class="ts-field-help">@ProductsCopy.SkinHelp</p>
+                        @if (_errors.TryGetValue(ApiFields.Skin, out var skinError))
+                        {
+                            <p id="ts-product-skin-error" class="ts-field-error" role="alert">@skinError</p>
+                        }
+                    </div>
+                </details>
+
                 <div class="form-check ts-product-listed">
                     <input id="ts-product-listed" class="form-check-input" type="checkbox" checked="@_model.ListedOnLanding" @onchange="OnListedChanged" />
                     <label class="form-check-label" for="ts-product-listed">@ProductsCopy.ListedLabel</label>

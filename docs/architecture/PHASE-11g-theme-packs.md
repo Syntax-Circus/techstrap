@@ -35,6 +35,8 @@ Delivery is two pull requests. **11g (this phase)**: the token model, the five p
 
 Out of reach for tokens by design: pixel-art imagery and composition, hero and marketing sections, copy and voice, multi-layer ornament (stepped text shadow, stripe patterns, rotated scraps), a product's own display face unless it is in the built-in list, WIP-label provenance, background images, third-party chrome. PHASE-11h records the gaps found by building the skin through the Admin.
 
+Measured against dragon-poop's own site (the sample is `docs/skins/dragon-poop.skin.json`, documented in `docs/skins/README.md`): the gold focus ring (`#FFCF4A`) fails the 3:1 rule against the parchment background, so the sample uses the wood-dark `#26140C` (dragon-poop uses gold only on dark chrome); text on the brand colour is derived white or black, not dragon-poop's cream `#FFF5D6`; the accent text colour `#B04A17` used for taglines and step titles has no token (links use the derived brand ink); the stepped two-layer heading shadow, the hero sky image, the pixel-art logo and mascot, the parchment "scrap" rotation and the ground and stone-band marketing strips are out of reach; copy and voice ("Off the map", "A rough landing") are not skin data.
+
 ## Application Boundaries
 
 | Entry point/use case | Named handler | Allowed abstractions | Infrastructure implementation | Outcome/transport mapping | Decision |

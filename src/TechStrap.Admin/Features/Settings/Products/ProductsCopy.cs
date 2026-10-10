@@ -45,6 +45,13 @@ public static class ProductsCopy
     public const string PortalHostHelp = "Optional. The product's own support hostname, e.g. support.example.com. Set up DNS and the proxy site first; saving the host switches links and redirects at once.";
     public const string PortalHostInvalid = "Use a hostname such as support.example.com: letters, digits and hyphens, no scheme, port or path.";
     public const string PortalHostTaken = "Another product already uses this hostname.";
+    public const string SkinHeading = "Appearance (advanced)";
+    public const string SkinLabel = "Skin (JSON)";
+    public const string SkinHelp = "Optional. A JSON object of colours, fonts and presets that restyles this product's portal; empty it to remove the skin. See docs/skins/README.md for a worked example and the list of tokens.";
+    public const string SkinInvalid = "This is not a valid skin: use a JSON object of known members, up to 2000 characters.";
+
+    public static string SkinTokenInvalid(string token) => $"The skin value \"{token}\" is not valid. Colours are #RRGGBB; see docs/skins/README.md for the allowed values.";
+
     public const string ActiveLabel = "Active";
     public const string ActiveHelp = "Inactive products are hidden from the agents' product lists.";
     public const string PreviewHeading = "Preview";
