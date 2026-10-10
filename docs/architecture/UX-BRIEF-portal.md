@@ -643,7 +643,7 @@ How it applies to the Portal:
   alignment and neutral surfaces, not by the Admin carbon tint code. 404 and
   error pages are plain too.
 - **Light-only in v1:** one light theme; no dark theme, no
-  `prefers-color-scheme` switching, no dark logo variants for the web.
+  `prefers-color-scheme` switching, no dark logo variants for the web. **Amended by D-053 (2026-10-10):** dark packs and per-product skins are allowed; nothing follows prefers-color-scheme.
 - **Fonts:** the mockup loads fonts from a CDN for convenience only; the
   portal must self-host its fonts (no third-party font hosts, a stated
   constraint).
@@ -663,7 +663,7 @@ How it applies to the Portal:
   BRAND.md. Product theming is **runtime CSS custom properties** set from
   branding (`--ts-accent`, `--ts-on-accent`, `--ts-accent-ink`), consumed by a
   small set of themed utilities; do not generate per-product stylesheets. The
-  same derived values drive the email templates' inline styles.
+  same derived values drive the email templates' inline styles. **Amended by D-053 (2026-10-10):** a per-product skin is validated tokens on the page wrapper plus compiled pack CSS; there are still no per-product stylesheets.
 - **Custom SCSS justified only for:** the product theming layer, the ticket
   conversation treatment (you vs support), the ticket-number treatment, the
   suggestions region, the honeypot hiding rule, the footer line, and KB

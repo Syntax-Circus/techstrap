@@ -996,6 +996,8 @@ PHASE-04 asked for a 400 on a "low-contrast" product accent. The PHASE-02 `Produ
 - The PHASE-04 "400 low-contrast accent" test is dropped.
 - The PHASE-07 branding form shows a live preview built from the derived colours.
 
+- **Amended by D-053 (2026-10-10):** a product that sets skin tokens (PHASE-11g) must satisfy the skin contrast rules; a product that sets none keeps format-only accent validation.
+
 ### Approval
 - **Approved by:** Jon Seeley (owner, 2026-10-03 PHASE-04 planning)
 - **Approved on:** 2026-10-03
@@ -1664,6 +1666,7 @@ PHASE-02, PHASE-06 and PHASE-08 are merged, so PHASE-09 can start. Reading the c
 - **Delivery.** Three pull requests, each with its own branch, plan and review: 09a the foundation, 09b the customer flows, 09c the knowledge base, SEO and polish.
 - **KB suggestions are vanilla JS, not an InteractiveServer island.** There is no framework, no Blazor interactivity and no build step. The server renders a `<ts-kb-suggestions>` custom element with fallback markup inside it (a help-centre search link). A module in `wwwroot/js` defines the element: `connectedCallback` attaches a debounced listener to the subject field and fetches suggestions, and `disconnectedCallback` removes it and aborts any request in flight. It fetches from a Portal-hosted `GET /p/{key}/suggest?q=` adapter (moved from `/p/{key}/kb/suggest` by the 2026-10-06 addendum below), which forwards the real client IP to the API's public search. The adapter is exempt like D-017 (no workflow) and returns plain-text JSON that the module renders with `textContent`. There is no SignalR, no WebAssembly and no CSP change.
 - **Two small public API additions** (anonymous, the Public rate limit, the same cache headers as D-044), made in 09c: a paged list of a category's articles (published only, the product's plus shared, newest updated first), and `GET api/public/products` returning the active products (key and display name only), for the sitemap.
+- **Amended by D-053 (2026-10-10):** the Portal may be themed beyond the accent trio by a deployment default pack and a per-product skin of validated tokens; neutral pages use only the default pack, so their body is still identical for every address.
 - **`/` redirects to `TECHSTRAP_PORTAL_DEFAULT_PRODUCT` when it is set.** Otherwise it shows a neutral page with no product list, so nothing can be enumerated.
 - **Amended by D-052 (2026-10-09):** `TECHSTRAP_PORTAL_LANDING=Products` lists the active, listed products on the root; `Neutral` (the default) keeps this behaviour.
 - **Ticket theming.** `CustomerTicketDto` gains `ProductKey` (additive), in 09b. `/t/{token}` loads that product's branding. `CustomerDtoShapeTests` is updated.
@@ -2302,3 +2305,46 @@ D-045 made the Portal root a neutral page unless `TECHSTRAP_PORTAL_DEFAULT_PRODU
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-11f planning)
 - **Approved on:** 2026-10-09
+
+## D-053: PHASE-11g/11h: Portal theme packs and per-product skins (structured tokens, five packs, Admin-editable default, SkinResolver; amends D-031, D-045 and the BRAND.md portal rules)
+
+- **Status:** Approved (owner 2026-10-10, plan approval)
+- **Date:** 2026-10-10
+- **Owner:** Jon Seeley
+- **Related artifacts:** D-025, D-031, D-041, D-045, D-050, D-052, PHASE-11g, PHASE-11h, `docs/BRAND.md`, `docs/architecture/UX-BRIEF-portal.md`, the sibling repository `dragon-poop` (validation skin)
+
+### Context
+After the first UAT deploy the owner found the Portal bland even as a default and asked for built-in theme packs (with a per-product override) and per-product skins that match a product's marketing look. The current rules allow a product to set only three accent variables, keep the Portal light only, and forbid per-product stylesheets.
+
+### Decision
+**Owner decisions (2026-10-10)**
+1. Skins are **structured tokens**, not raw CSS, validated against dragon-poop's skin to find holes early.
+2. The **deployment default pack** is an Admin-editable setting, not an environment variable.
+3. **Five packs** ship first: Classic, Slate, Paper, Contrast, Midnight (a dark pack).
+4. **Emails take colours only**; no background images in v1.
+5. **Two pull requests**: 11g the engine and Portal rendering, 11h the Admin editor and the dragon-poop skin.
+
+**Technical rulings**
+- **Token grammar and resolver.** `ProductSkin` (pack key, eight colours, two fonts from `SkinFonts`, radius, border width, shadow, button and header presets) with every field optional. `SkinResolver` in Contracts merges Classic < deployment default < product pack < product tokens and derives the on-colours and inks; it is the only implementation, and `ProductAccent.TryDerive` remains its light-background case.
+- **Contrast.** `Ink` on `Background` and `Surface`, and `Muted` on `Background`, at least 4.5:1; derived `OnBrand` on `Brand` at least 4.5:1; `Border` and `Focus` at least 3:1. A failing save is 400 `skin-contrast-invalid` naming the pair; a failing stored value is never rendered. Amends D-031 only for products that set skin tokens.
+- **Delivery.** Resolved variables travel in the existing single `style=` carrier (`AccentScope`, class `ts-accent-scope`); presets travel as `data-ts-*` attributes; packs and presets are compiled SCSS keyed on those attributes. No `<style>`, no new inline-style element, no CSP change.
+- **Neutral pages** use the deployment default pack only, so their body stays identical for every address (D-045 unchanged in that respect).
+- **Storage and Api.** `Product.Skin` as one validated `skin` column; singleton `SiteSettings` (`site_settings`, seeded `classic`); `GET/PUT api/settings/site` (Admin), `GET api/public/site` (anonymous, cached 300 s); product DTOs gain `Skin` as trailing optionals (null means unchanged on update). Contracts 0.4.0.
+- **Amended text.** BRAND.md "Portal tokens (light only in v1)", the mascot-palette prohibition's portal-theme sentence, and the "Product-accent override rule"; UX-BRIEF-portal "light-only in v1" and "do not generate per-product stylesheets"; the 2026-10-02 light-only decision. Each carries an "Amended by D-053" line. Still forbidden: TechStrap colours, mascot or name on a customer page beyond the footer, raw CSS, background images (deferred), a theme that follows the OS.
+- **Known limits.** Pixel art and composition, hero and marketing sections, copy and voice, multi-layer ornament, a product's own display face outside the built-in list, WIP-label provenance, background images, third-party chrome.
+- **Tests.** `scripts/tests/RepositoryDocs.Tests.ps1` pins this decision, the amended lines and the roadmap rows.
+
+### Alternatives Considered
+- **Raw per-product CSS.** Rejected: needs a CSS sanitiser, a new XSS corpus and a review row, and can break layout and accessibility; the CSP only permits a same-origin stylesheet, which would make skin changes a file-serving feature.
+- **A per-product stylesheet route with hashed URLs.** Rejected for v1: legal under the CSP, but tokens already express what dragon-poop's shared chrome needs, and a closed grammar keeps contrast enforceable.
+- **Environment variable for the default pack.** Rejected by the owner: an Admin should change it without a restart.
+- **Only the accent trio as today.** Rejected: it cannot change neutrals, type, radius or depth, which is the reported problem.
+
+### Consequences
+- **Spec and docs.** `PHASE-11g-theme-packs.md`; amended BRAND.md and UX-BRIEF lines; SELF-HOSTING and PORTAL-APP in T08; `05-SCHEMA.md`, the architecture routes and the roadmap.
+- **Operations.** The default pack is set in the Admin after 11h ships; until then `PUT api/settings/site` is the way.
+- **Known limits.** See above; 11h records the gaps found by building the dragon-poop skin.
+
+### Approval
+- **Approved by:** Jon Seeley (owner, PHASE-11g planning)
+- **Approved on:** 2026-10-10

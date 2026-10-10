@@ -1123,3 +1123,33 @@ Describe 'PHASE-11f landing page and product logos (D-052)' {
         (Get-RepoText 'docs/architecture/02-ARCHITECTURE.md') | Should -Match 'TECHSTRAP_PORTAL_LANDING=Products'
     }
 }
+
+Describe 'PHASE-11g theme packs and skins (D-053)' {
+    BeforeAll {
+        $script:Log = Get-RepoText 'docs/architecture/04-DECISION-LOG.md'
+        $script:Spec = Get-RepoText 'docs/architecture/PHASE-11g-theme-packs.md'
+    }
+
+    It 'records D-053 with the owner decisions, rulings and alternatives' {
+        $script:Log | Should -Match '(?m)^## D-053: PHASE-11g/11h: Portal theme packs and per-product skins'
+        $entry = ($script:Log -split '(?m)^## D-053: ')[1]
+        foreach ($phrase in 'structured tokens', 'SkinResolver', 'skin-contrast-invalid', 'Classic, Slate, Paper, Contrast, Midnight', 'GET/PUT api/settings/site', 'Contracts 0.4.0', 'Alternatives Considered', 'Approved on:** 2026-10-10') {
+            $entry | Should -Match ([regex]::Escape($phrase)) -Because $phrase
+        }
+    }
+
+    It 'amends D-031, D-045, BRAND.md and the UX brief with Amended by D-053 lines' {
+        ([regex]::Matches($script:Log, 'Amended by D-053')).Count | Should -BeGreaterOrEqual 3
+        (Get-RepoText 'docs/BRAND.md') | Should -Match 'Amended by D-053'
+        (Get-RepoText 'docs/architecture/UX-BRIEF-portal.md') | Should -Match 'Amended by D-053'
+    }
+
+    It 'has the 11g spec with eight tasks and its roadmap and discovery rows' {
+        foreach ($n in 1..8) {
+            $script:Spec | Should -Match ('- \[[ x]\] \*\*P11g-T' + $n.ToString('00') + '\*\*') -Because "P11g-T$($n.ToString('00')) exists"
+        }
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11g \|.*D-053.*\| D-053 recorded; 11g'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11g \|.*\| D-053 recorded; 11g'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11g-T08 \|'
+    }
+}

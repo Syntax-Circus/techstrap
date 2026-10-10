@@ -466,7 +466,7 @@ Tone: one wink per window, in the heading or one line; the explanatory sentence 
 
 - Product name, logo and accent lead. TechStrap appears only as "Powered by TechStrap" (a link to https://github.com/Syntax-Circus/techstrap), optionally with the 16px head mark; an installation setting can hide it (D-024).
 - **No** carbon tints, stamps, ledger rules, margin line, retro window, mascot, Mono labels, keyboard layer, status bar or hard shadows in the portal. Exception only if a portal screen needs one for its own clarity and the owner approves. Ticket status shown to customers is a plain text label.
-- Light only in v1 (`--p-*` tokens). Inputs 16px, 44px minimum touch target, focus ring 3px `--p-ink` plus a 5px accent halo.
+- Light only in v1 (`--p-*` tokens). Inputs 16px, 44px minimum touch target, focus ring 3px `--p-ink` plus a 5px accent halo. **Amended by D-053 (2026-10-10):** the Portal may offer built-in dark and light theme packs and per-product skins of validated tokens; the Portal is no longer light only, but nothing follows the visitor OS setting.
 - Customer emails follow the portal: product branding, the same accent rule, the same footer line, no mascot.
 
 # 19. Characteristic Motifs
@@ -486,7 +486,7 @@ In addition to the defaults in `DESIGN.md` §7 (generic centered hero, three-car
 - Use pixel, terminal or "retro" display fonts for working text or customer-facing text.
 - Trade density for personality: no large decorative illustrations, hero blocks or oversized padding in queues and ticket detail.
 - Rely on colour alone to tell public replies from internal notes, or statuses from each other; shape and label carry meaning too.
-- Use the mascot's palette as a portal theme. Portal accents come from the product, with a derived on-accent colour to keep contrast.
+- Use the mascot's palette as a portal theme. Portal accents come from the product, with a derived on-accent colour to keep contrast. **Amended by D-053 (2026-10-10):** the mascot palette and TechStrap colours remain forbidden on customer pages; a product skin or a deployment pack of validated tokens is allowed.
 - Write product-marketing copy ("powerful", "modern", "AI-powered", "seamless") anywhere, including the README.
 - Add brand moments without an owner decision; the list in section 3 is closed.
 
@@ -515,7 +515,7 @@ Implementation target (P02-T05): the `--*` tokens in section 12 become CSS custo
 
 ## Product-accent override rule (Portal, and product-branded emails)
 
-A product (PHASE-04) stores one accent colour as `#RRGGBB`. From it exactly three properties are derived and set at runtime on the portal root. SCSS is never recompiled.
+A product (PHASE-04) stores one accent colour as `#RRGGBB`. From it exactly three properties are derived and set at runtime on the portal root. SCSS is never recompiled. **Amended by D-053 (2026-10-10):** a skin of validated tokens (pack, colours, fonts from a built-in list, radius, border width, shadow, button and header presets) may also be set per product and as a deployment default, resolved by the one shared SkinResolver; the accent trio is derived from the same rules.
 
 | Property | Meaning | Rule |
 | --- | --- | --- |
