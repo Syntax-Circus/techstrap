@@ -36,6 +36,10 @@
                 <RailLink Href="/account/notifications">@ShellCopy.MySettingsLink</RailLink>
                 <SignOutForm />
             </div>
+            @if (Build.Semver is { } semver)
+            {
+                <p class="ts-rail-version">@ShellCopy.BuildVersionLine(semver)</p>
+            }
         </div>
     }
 </nav>

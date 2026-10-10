@@ -28,6 +28,9 @@ public sealed partial class NavMenu : IDisposable, IAsyncDisposable
     private AgentSession Session { get; set; } = default!;
 
     [Inject]
+    private BuildVersion Build { get; set; } = default!;
+
+    [Inject]
     private ILogger<NavMenu> Logger { get; set; } = default!;
 
     [Inject]

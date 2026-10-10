@@ -92,6 +92,14 @@
   gap: 2px;
 }
 
+// The running build's semver at the very bottom of the rail, below the signed-in user (which pushes itself down with margin-top: auto). Plain muted text: not a link, not focusable.
+.ts-rail-version {
+  margin: 0;
+  padding: 0 14px 4px;
+  font: 400 .75rem var(--ts-font-mono);
+  color: var(--ink-3);
+}
+
 .ts-rail-toggle {
   display: none;
 }

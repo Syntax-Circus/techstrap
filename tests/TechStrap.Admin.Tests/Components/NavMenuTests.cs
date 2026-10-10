@@ -175,6 +175,54 @@ public sealed class NavMenuTests : AdminComponentTest
         cut.FindAll("a.ts-rail-link").Count.ShouldBe(8);
     }
 
+    [Theory]
+    [InlineData(AgentRoles.Agent)]
+    [InlineData(AgentRoles.Admin)]
+    public async Task The_foot_of_the_rail_shows_the_builds_semver_after_the_user_block(string role)
+    {
+        Setup(role);
+        Services.AddSingleton(new BuildVersion("0.4.1+Branch.main.Sha.abc123"));
+        await Session.EnsureLoadedAsync(Ct);
+
+        var cut = RenderRail();
+
+        var version = cut.Find(".ts-rail-version");
+        version.TextContent.ShouldBe("v0.4.1");
+        version.TagName.ShouldBe("P");
+        version.GetAttribute("tabindex").ShouldBeNull();
+        version.ParentElement!.ClassList.ShouldContain("ts-rail-panel");
+        version.PreviousElementSibling!.ClassList.ShouldContain("ts-rail-user");
+        version.NextElementSibling.ShouldBeNull();
+        cut.FindAll("nav").Count.ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("1.0.0.0")]
+    public async Task A_build_without_a_semver_shows_no_version_line(string? informational)
+    {
+        Setup(AgentRoles.Agent);
+        Services.AddSingleton(new BuildVersion(informational));
+        await Session.EnsureLoadedAsync(Ct);
+
+        var cut = RenderRail();
+
+        cut.FindAll(".ts-rail-version").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_session_that_is_not_admitted_yet_shows_no_version()
+    {
+        Setup(AgentRoles.Agent);
+        Services.AddSingleton(new BuildVersion("0.4.1"));
+
+        var cut = RenderRail();
+
+        cut.FindAll(".ts-rail-version").ShouldBeEmpty();
+        cut.Markup.ShouldNotContain("0.4.1");
+    }
+
     [Fact]
     public void Until_the_session_is_ready_the_rail_has_the_brand_alone_and_makes_no_call()
     {

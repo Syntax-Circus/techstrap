@@ -23,6 +23,9 @@ public static class ShellCopy
     public const string FailedEmailsLink = "Failed emails";
     public const string NavigationLabel = "Admin navigation";
 
+    /// <summary>The line at the foot of the rail: "v" and the build's semver, for example v0.4.1.</summary>
+    public static string BuildVersionLine(string semver) => $"v{semver}";
+
     /// <summary>The button that opens and closes the rail below 992 px.</summary>
     public const string MenuToggle = "Menu";
     public const string ShortcutHelpTitle = "Keyboard shortcuts";
