@@ -16,7 +16,7 @@ Delivered as three PRs (D-035, D-037): **06a** agent operations (T01–T09, the 
 
 - Every operation is a named handler (catalog for this phase) behind a controller action with `[FromServices]` injection; handlers accept `TechStrap.Contracts` request records directly, with transport-only details (multipart files, `X-Ticket-Token`) mapped at the controller (D-016); identity via `ICurrentAgentClaims` plus `CurrentAgent.RequireActiveAsync` (PHASE-04); outcomes as `Result`/`Result<T>`; mapping through `SyntaxCircus.AspNetCore.Common`. Worker loops resolve their scoped handler from a fresh DI scope per iteration (as `EmailOutboxWorker`).
 - Endpoint shape (fixed in `02-ARCHITECTURE.md` section 7.3, the source of truth): `GET /api/tickets`, `GET /api/tickets/counts`, `GET /api/tickets/{reference}` (id or number), `POST /api/tickets/{id}/replies`, `POST /api/tickets/{id}/notes`, `PUT /api/tickets/{id}/status`, `PUT /api/tickets/{id}/assignee`, `PUT /api/tickets/{id}/priority`, `PUT /api/tickets/{id}/product`, `POST /api/tickets/{id}/tags`, `DELETE /api/tickets/{id}/tags/{tagId}`, `PUT /api/tickets/{id}/spam`, `DELETE /api/tickets/{id}`, `POST /api/requesters/{id}/erase`, `GET /api/attachments/{id}`, customer routes `GET /api/customer/ticket`, `POST /api/customer/ticket/replies`, `POST /api/customer/access-link`, `GET /api/customer/attachments/{id}`, and dead letters under `/api/dead-letters`. Customer routes carry the access token in the `X-Ticket-Token` header, never in the path, so it stays out of API access logs (A-16).
-- Authorization (D-022): agent endpoints require `AuthorizationPolicies.Agent`, including `MarkTicketSpamRequestHandler`; `DeleteTicketRequestHandler`, `EraseRequesterRequestHandler`, and the dead-letter handlers require `AuthorizationPolicies.Admin`. Customer endpoints use the explicit `Public` policy plus rate limits (D-034) and are authorised by the token inside the handler.
+- Authorization (D-022): agent endpoints require `AuthorizationPolicies.Agent`, including `MarkTicketSpamRequestHandler`; `DeleteTicketRequestHandler`, `EraseRequesterRequestHandler`, and the dead-letter handlers require `AuthorizationPolicies.Admin`. Customer endpoints use the explicit `Public` policy plus rate limits (D-034) and are authorized by the token inside the handler.
 - Queue views: Unassigned, Mine, Open, Pending, All and Spam (D-024) with filters (product, status, priority, assignee, tag, requester, spam; date range dropped, D-036) and paging; default sort `last_activity_at` desc; page size is a named constant with a hard maximum. Full-text search uses the PHASE-03 vectors through `ITicketRepository`. Spam tickets (`is_spam = true`) are excluded from the five normal views and listed only by the Spam view (or the spam filter). **Assumption.**
 - `GetTicketRequestHandler` returns detail plus timeline composed from `TicketEvent` and messages (internal notes only for agents). Attachment metadata included; bytes through `GetAttachmentRequestHandler`.
 - Status and workflow rules live in Domain (PHASE-03). Public agent reply: adds message and event, sets `Pending`, sets `first_response_at` if first, queues the requester email with the access link. Internal note: no email. Optional `linkedKbArticleIds` on a reply records `TicketArticle` rows; PHASE-08 supplies the KB UI and validates articles exist (until then the handler accepts ids that resolve through `IKbRepository`).
@@ -29,7 +29,7 @@ Delivered as three PRs (D-035, D-037): **06a** agent operations (T01–T09, the 
 - Dead letters: list outbox rows in `DeadLettered` state; retry resets attempts and schedules now; discard marks them discarded; each writes an `AdminEvent`.
 - Concurrency: State-changing requests carry `RowVersion` in the body; replies and notes accept it optionally; every write returns `TicketStateDto` with the new `RowVersion` (D-036). Stale writes return 409.
 - Live updates are not a handler concern: the PHASE-10 post-commit interceptor publishes changes (D-018), so none of the handlers here reference `ITicketChangeBroadcaster`.
-- Abstractions added beyond the catalog: none beyond `ITicketNotificationPlanner` (already catalogued) and the options type `AutoCloseOptions`; attachment download uses an application-owned `AttachmentContent` result type, not `FileStreamResult`.
+- Abstractions added beyond the catalog: none beyond `ITicketNotificationPlanner` (already cataloged) and the options type `AutoCloseOptions`; attachment download uses an application-owned `AttachmentContent` result type, not `FileStreamResult`.
 
 ## Application Boundaries
 
@@ -87,7 +87,7 @@ Follow _template `RAZOR_COMPONENT_ARCHITECTURE.md`. ViewModels are Razor-only an
 | `SyntaxCircus.Email` | Outbound SMTP (via PHASE-05 Worker) | Planned alerts reach the outbox and Worker | `NotificationDeliveryIntegrationTests` against SMTP capture |
 | `SyntaxCircus.AspNetCore.Serilog` | Logging with PII redaction | Redact requester email and names in logs | `LogRedactionTests` assert fixture email never appears in captured logs |
 
-Markdig (via the map) renders agent reply Markdown, rendered and sanitised through `IMarkdownRenderer` (Resolved, D-035). Versions are in `03-PACKAGE-MAP.md`.
+Markdig (via the map) renders agent reply Markdown, rendered and sanitized through `IMarkdownRenderer` (Resolved, D-035). Versions are in `03-PACKAGE-MAP.md`.
 
 Record the exact package version in the linked package map. In the foundation phase, lock every selected version in `Directory.Packages.props`.
 
@@ -109,7 +109,7 @@ Write the named handler test class first for every handler task (substitutes for
 
 - [x] **P06-T01** Add Contracts DTOs and request types; extend `ContractNamingTests`
   - **Depends on:** none (inside this phase)
-  - **Validation:** `ContractNamingTests` pass; DTO round-trip serialisation tests pass; no internal-only field (note bodies, hashes) in `Customer*` DTOs (`CustomerDtoShapeTests`)
+  - **Validation:** `ContractNamingTests` pass; DTO round-trip serialization tests pass; no internal-only field (note bodies, hashes) in `Customer*` DTOs (`CustomerDtoShapeTests`)
   - **06a part done:** TicketDtoSerializationTests, ContractNamingTests (ticket DTOs and requests); **06b done:** customer DTOs (CustomerDtoShapeTests); **06c done:** dead-letter DTOs (DeadLetterDto, DeadLetterDtoShapeTests; plan: `docs/superpowers/plans/2026-10-03-phase-06c-delete-erase-dead-letters.md`)
 - [x] **P06-T02** Implement `ITicketNotificationPlanner` with `TicketNotificationPlannerTests` (recipient rules per case, opt-in preferences, no email to the acting agent, no internal notes sent, branding of the ticket's current product) and `TicketNotificationPlanner` over `IEmailOutbox`, staging template data only (D-033); add the new templates
   - **Depends on:** P06-T01
@@ -124,7 +124,7 @@ Write the named handler test class first for every handler task (substitutes for
   - **Depends on:** P06-T01
   - **Validation:** tests assert chronological timeline, event types rendered, internal notes present for agents; 404 for unknown id
   - **06a evidence:** GetTicketRequestHandlerTests, TicketDetailEndpointTests (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
-- [x] **P06-T05** `AddAgentReplyRequestHandlerTests` and handler: message, event, `Pending`, `first_response_at` once, linked KB ids, requester email via planner, attachments, sanitised Markdown, Closed rejected
+- [x] **P06-T05** `AddAgentReplyRequestHandlerTests` and handler: message, event, `Pending`, `first_response_at` once, linked KB ids, requester email via planner, attachments, sanitized Markdown, Closed rejected
   - **Depends on:** P06-T02
   - **Validation:** handler tests cover all branches; `AgentReplyIntegrationTests` assert message, event, status, `TicketArticle` rows and outbox row commit together
   - **06a evidence:** AddAgentReplyRequestHandlerTests, AgentReplyEndpointTests (plan: `docs/superpowers/plans/2026-10-03-phase-06a-agent-ticket-operations.md`)
@@ -239,7 +239,7 @@ Write the named handler test class first for every handler task (substitutes for
       right scope, not bare magic values (page sizes, auto-close days, token slide days, marker text for erased content, status names).
 - [ ] Duplicated-looking logic across flows was evaluated for genuine
       divergence before extracting (or intentionally not extracting) a shared
-      abstraction (agent reply versus customer reply, and the two attachment routes: shared handler only for attachments; replies stay separate since rules, notifications and follow-up behaviour diverge).
+      abstraction (agent reply versus customer reply, and the two attachment routes: shared handler only for attachments; replies stay separate since rules, notifications and follow-up behavior diverge).
 
 ## Risks and Open Questions
 
@@ -261,7 +261,7 @@ Write the named handler test class first for every handler task (substitutes for
 - [x] Carried forward from the PHASE-06b final review: an `email_outbox` index on (`kind`, `to_address`, `created_at`) and outbox retention (06c, D-039; done: the Task 2 schema test and PurgeEmailOutboxIntegrationTests).
 - [ ] Carried forward from the PHASE-06b final review: the Portal Sentry header scrub (`X-Ticket-Token` and the like), as the Api already has. (PHASE-09, D-039)
 - [x] Carried forward from the PHASE-06b final review: a truncated multipart body on the customer reply route (an `IOException`) answers 500 instead of 400; walk the exception chain as `IntakeHosting` does. (06c, done: ReadFormBeforeBindingTests)
-- [x] Carried forward from the PHASE-06b final review: follow-up dedupe compares incoming file names with stored (sanitised) names, so a name the store rewrites never replays and a double submit creates two follow-ups; compare sanitised names. (06c, done: AddCustomerReplyRequestHandlerTests)
+- [x] Carried forward from the PHASE-06b final review: follow-up dedupe compares incoming file names with stored (sanitized) names, so a name the store rewrites never replays and a double submit creates two follow-ups; compare sanitized names. (06c, done: AddCustomerReplyRequestHandlerTests)
 - [x] Carried forward from the PHASE-06b final review: a non-multipart body on the customer reply route answers the fallback policy's 401, not 415 (`[Consumes]` mismatch has no endpoint metadata). Cosmetic. (06c, done: MultipartRouteContractTests)
 - [ ] Carried forward from the PHASE-03 final review: Ticket search: confirm the plan and shape of the GIN-backed search query on realistic data (with PHASE-12). (PHASE-12)
 

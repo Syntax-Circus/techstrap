@@ -2,10 +2,10 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Finish PHASE-09 on top of the 09a foundation, the 09b customer flows and the 09c help centre.
+**Goal:** Finish PHASE-09 on top of the 09a foundation, the 09b customer flows and the 09c help center.
 - **Double send:** a one-time id per rendered form and a process-local guard make a double click on the contact, reply or lost-link form send once.
 - **Form helpers:** one small module for the "Sending" state, a copy button for the ticket number and a character counter, loaded once from the document shell.
-- **T16:** the layout, the accessibility pass (skip link, landmarks, one `h1`, targets, forced colours, reduced motion) and the fix for the `<base href="/">` bug in the error summary, with the tests that pin them.
+- **T16:** the layout, the accessibility pass (skip link, landmarks, one `h1`, targets, forced colors, reduced motion) and the fix for the `<base href="/">` bug in the error summary, with the tests that pin them.
 - **Test hardening:** one shared start-failure helper for the Admin, Api and Portal tests, a `Seen` that compares every header, and the corrected D-045 wording.
 - **Close-out:** the developer guide, the PHASE-09 ticks, the roadmap rows, the D-045 as-built notes and the owner's manual checklist.
 
@@ -22,7 +22,7 @@
 ### Owner rulings (2026-10-06), recorded as the D-045 09d addendum
 1. **Double-send guard (T09).** A fresh 128-bit `SubmitId` per render in a hidden input (the `FormGuard` component); the handler claims it only after validation and before the API call with `SubmitGuard`: its own `MemoryCache` with a size cap, an atomic claim under a lock, 2 minutes. A duplicate waits for the running first request or reads its stored redirect target (memory only, never logged; for a follow-up the target holds the new ticket's token, which is accepted). The claimed write runs on its own token with a timeout, not on `RequestAborted`. If the first answer is unknown the duplicate goes to the fallback (a reply: the same ticket page; contact: the received page with no reference; lost link: the sent page) and never sends again. A 429, 409 or 503 releases the claim. A missing or malformed id means unguarded. Per instance, lost on restart (documented).
 2. **`portal-forms.js`.** Custom elements and delegated listeners, loaded once from the layout; the "Sending..." state, the copy button and the character counter; every word from a `*Copy` constant through a data attribute, `textContent` only, ASCII only; node tests through `PortalScripts.Tests.ps1`; `kb-suggestions` fixed if the spike shows enhanced navigation breaks it.
-3. **T16.** One reading-width token and a wide container; a rule for every class used in the markup; the error, success and warning colours from brand tokens; targets of at least 44px; reduced motion and forced colours keeping the 3px focus outline; a skip link, a `nav` landmark and one `h1` per page with a distinct search `h1`; the `<base href>` fragment fix, also for the skip link; the duplicate `ProductHome` search box merged into `KbSearchBox`; `ResponsiveStyleTests`, `CspStyleTests`, contrast tests and a `HeadingHostTests` in the Admin's pattern; the axe run, Lighthouse of at least 90, the JavaScript-off walk and screenshots at three widths are the owner's manual checklist.
+3. **T16.** One reading-width token and a wide container; a rule for every class used in the markup; the error, success and warning colors from brand tokens; targets of at least 44px; reduced motion and forced colors keeping the 3px focus outline; a skip link, a `nav` landmark and one `h1` per page with a distinct search `h1`; the `<base href>` fragment fix, also for the skip link; the duplicate `ProductHome` search box merged into `KbSearchBox`; `ResponsiveStyleTests`, `CspStyleTests`, contrast tests and a `HeadingHostTests` in the Admin's pattern; the axe run, Lighthouse of at least 90, the JavaScript-off walk and screenshots at three widths are the owner's manual checklist.
 4. **Test hardening.** `StartupFailure` generic over `WebApplicationFactory<T>` in `tests/Shared`, taking a log-events function; the Admin factory gains a `CollectingSink`; the Api tests link the shared file; the twelve start-failure sites (three Admin, seven Api, two Portal) use it; `Seen` compares every header except the per-request ones.
 5. **Docs.** The D-045 "re-executes the post" wording is corrected; PORTAL-APP.md, the PHASE-09 ticks (T09; T16 only when the owner's evidence is in; T18 the owner's; T20 deferred), the roadmap and discovery rows ("PHASE-09 complete (pending merge)"), the success criteria and the as-built notes.
 
@@ -30,7 +30,7 @@
 - **Task split.** The five tasks of the brief, each a RED step, a GREEN step, a recorded mutation run and a commit. Task 1 has no `src/` change at all (the helpers are test code); Task 2 is the only one that adds a service; Task 3 adds the module; Task 4 is the biggest (the styles, the links and the landmarks, with the tests that pin them).
 - **The spike, proved in a scratch clone (a test host, and Edge headless over the DevTools protocol against the real Portal with a stand-in API) before Tasks 2 to 4 were written.** Each finding is now a durable test or a recorded manual check.
   - **(a) Concurrency.** Eight concurrent posts with one id make exactly one API call and all go to the same place; two concurrent posts of each form through the host do too (`SubmitGuardTests`, `DoubleSendHostTests`).
-  - **(b) An aborted first post.** A client that cancels its call gets no answer from the in-memory test server until the server's handler has finished, so the first request has to keep waiting for its write (a precaution, not reproduced: it also keeps valid what the request is still reading, the uploaded files). The write's own token is not cancelled when the browser goes away (`CancelledWhenAnswered` is false), it completes, and the duplicate gets the same redirect, whether it arrived while the write ran or after. A write that times out is unknown: the claim is kept, the duplicate goes to the fallback and the first request shows the calm notice with a 503.
+  - **(b) An aborted first post.** A client that cancels its call gets no answer from the in-memory test server until the server's handler has finished, so the first request has to keep waiting for its write (a precaution, not reproduced: it also keeps valid what the request is still reading, the uploaded files). The write's own token is not canceled when the browser goes away (`CancelledWhenAnswered` is false), it completes, and the duplicate gets the same redirect, whether it arrived while the write ran or after. A write that times out is unknown: the claim is kept, the duplicate goes to the fallback and the first request shows the calm notice with a 503.
   - **(c) Enhanced navigation.** In Edge, after an enhanced click from the product home to the contact page, `customElements.get('ts-kb-suggestions')` was **undefined**: a `<script type="module">` that arrives in swapped content is not run, so the 09b suggestions never worked for a visitor who arrived by a click. A module loaded once from `App.razor` ran once, and the browser called `connectedCallback` for the elements the swap inserted (the connect count rose on each navigation, and the suggestions then appeared). The swap also rewrote an attribute that a script had set on an element it kept, so the module keeps its state in a `WeakMap`. A listener on the document survived every navigation. Both modules therefore load from the shell, and the contact page no longer carries a script.
   - **(d) The `<base href="/">` fragment bug.** In Edge a click on an error-summary link went to `/#name` and Blazor then showed the home page ("Support"). Removing the base tag is not safe (the stylesheet, the favicon and `blazor.web.js` are relative to it and Blazor reads it for navigation), so the links become the current root-relative path plus the fragment (`PageLinks.ToFragment`): the document stays the same. Blazor still took the click (`defaultPrevented` true), scrolled and left the focus on the link; with `data-enhance-nav="false"` the browser moved the focus to the field (`INPUT#email`), with a real mouse click and with Enter. The skip link (also with the prefill kept, `?subject=Printer jam`) and the "jump to your reply" link work the same way.
   - **(e) The start-failure helper.** The Admin factory had no sink. With a `CollectingSink` registered as an `ILogEventSink`, the Admin, Api, Worker and Portal factories each put a failed start on the sink as a "Hosting failed to start" event that carries the `OptionsValidationException`, so the fallback has something to read (`StartFailureLogTests`); and `Serilog` reaches the Admin tests transitively. A failure thrown eagerly while the host is built (the Portal's sitemap mapping reads `IOptions<PortalOptions>` in `Program.cs`) throws the validation exception directly and logs nothing, so it never races.
@@ -38,13 +38,13 @@
   - **`Seen` also ignores `Pragma` and `Set-Cookie`.** Widening it to every header failed two tests on `Pragma: no-cache`, which the antiforgery step adds to a response that rendered a form (a post to a product that vanished after its form was served). The visitor holding that form already knew the product; nothing leaks. The brief listed `Set-Cookie`; `Pragma` is the one found by the run.
   - **The skip link is on product pages only.** It is built from the address, and the neutral 404 must stay byte for byte the same whatever the address was (the first run of the new layout failed 50 tests on exactly that). A neutral page has no header to skip anyway.
   - **The skip link keeps only the query parameters the page reads.** Keeping all of them echoed a visitor's unknown parameters into the contact page (a 09b test, "never echoed") and would have stored the first visitor's parameters in the output cache's copy for the next. `PageLinks.KnownParameters` lists them per page.
-  - **An `h1` in an author's body is shown as an `h2`.** The sanitiser allows `h1` in articles and messages, so "one `h1` per page" is only true if the Portal demotes it (`BodyHeadings`, the one change it makes to those bodies; the 09c "byte for byte" pin is unchanged for a body without an `h1`).
+  - **An `h1` in an author's body is shown as an `h2`.** The sanitizer allows `h1` in articles and messages, so "one `h1` per page" is only true if the Portal demotes it (`BodyHeadings`, the one change it makes to those bodies; the 09c "byte for byte" pin is unchanged for a body without an `h1`).
   - **`kb-suggestions.js` is fixed**, because the spike showed it is broken; the brief said "only if".
   - **The first request waits for its own write without its abort token**, not "waits unless aborted", for the reason in (b).
   - **Required is said in one sentence above each form**, not in each label, so the pinned label markup (`LostLinkHostTests`) does not change.
   - **Six semantic tokens are added to BRAND.md** (the same red, green and amber as the Admin's `--st-spam`, `--st-open` and `--st-pending`, and three grounds), because the old `var(--p-error, #b3261e)` pointed at a token that did not exist; the Admin's style-guide palette and its token-count test follow.
   - **A control's edge is `--p-ink2`**, because `--p-line` is 1.5:1 against the page and a control's edge must be 3:1 (WCAG 1.4.11).
-  - **T16 stays unticked in PHASE-09** ("Owner evidence pending"); T09 is ticked; T18 stays the owner's; T20 stays deferred. The product home still has no category list (the header's help-centre link is the way in); the category page still has no description.
+  - **T16 stays unticked in PHASE-09** ("Owner evidence pending"); T09 is ticked; T18 stays the owner's; T20 stays deferred. The product home still has no category list (the header's help-center link is the way in); the category page still has no description.
   - **Not converted to `StartupFailure`** (the brief asked for the twelve): the four `ConfigHostSupport` hosts, `ApiPublicUrlTests`, `TrustedProxyStartupTests` (their failures do not come from `ValidateOnStart`, or do not race) and the Infrastructure tests (they resolve `IOptions<T>` and start no host).
 - **Honest limits.** The re-execution claim of D-045 is pinned by a test that counts the dependency scopes of the post (it passes before the doc fix, because the claim was only ever wrong in the text). Nothing proves the guard across two Portal replicas (it is per instance, documented). The Blazor DOM diff can rewrite a child that a script added to an element the swap keeps; the elements rebuild in `connectedCallback`, and item 7 of the owner's checklist is the browser check.
 - **A mutation-run hazard.** A guard mutation (the write on the request's token, no timeout) makes a test wait for a gate that never opens. Every test of `SubmitGuardTests` and `DoubleSendHostTests` that waits therefore carries `Timeout = 10000` and reads `TestContext.Current.CancellationToken` in its own body (analyzer xUnit1069), so a mutant fails in seconds instead of hanging a run. `mut.py` reports a mutation that does not compile as "NOT A MUTATION" (exit code 4).
@@ -97,7 +97,7 @@
    - Pinned in Task 2 (`SubmitGuardTests`: the key, the cap, the constructor; `DoubleSendHostTests`: the log scan at every level, the cross-form, cross-product and cross-ticket tests).
 3. **XSS and CSP in the new JavaScript and markup.** Only `textContent` and data-attribute copy; no inline script, no `on*` attribute, the policy unchanged; a hostile `h1` in an author's body is an `h2`, nothing else is touched.
    - Pinned in Task 3 (`portal-forms.test.mjs` "the source", `PortalFormsHostTests`) and Task 4 (`CspStyleTests`, `BodyHeadingsTests`, `HeadingHostTests`).
-4. **Accessibility correctness.** The error summary's links and the skip link work under every path (resolved against the base the way a browser does) and move the focus; one `h1` per page; focus stays visible in forced colours; a state is never colour alone; every link a visitor has to hit is 44px.
+4. **Accessibility correctness.** The error summary's links and the skip link work under every path (resolved against the base the way a browser does) and move the focus; one `h1` per page; focus stays visible in forced colors; a state is never color alone; every link a visitor has to hit is 44px.
    - Pinned in Task 4 (`ErrorSummaryLinkHostTests`, `LayoutLandmarkHostTests`, `HeadingHostTests`, `ResponsiveStyleTests`, `TokenContrastTests`, `PageLinksTests`), and the browser checks in Task 5's owner checklist.
 5. **Test hardening stays strict.** The shared helper still fails when startup does not fail on validation; no test is weakened by the conversions or by the `Seen` widening; the neutral 404 stays byte for byte the same.
    - Pinned in Task 1 (`StartupFailureTests`, `StartFailureLogTests`, `SeenTests`) and Task 4 (`LayoutLandmarkHostTests`: a neutral page has no skip link).
@@ -148,7 +148,7 @@ Every mutation step of this plan uses two small tools: `mut.py` applies one or m
 usage: python mut.py <file> --replace <old> <new> [--replace <old> <new> ...] -- <command ...>
 
 Applies each replacement to <file> (each <old> must match exactly once; "\\n" in an argument means a newline), runs the command in the current
-directory, prints the lines that summarise the run, and ALWAYS puts the file back. The mutation is KILLED when the command fails (exit code 0), a SURVIVOR
+directory, prints the lines that summarize the run, and ALWAYS puts the file back. The mutation is KILLED when the command fails (exit code 0), a SURVIVOR
 (exit code 3) when it passes and NOT A MUTATION (exit code 4) when the mutated code does not compile: pick another mutation. Run it from the repository root, after `git add`-ing the task's files, so a failed run can also be undone with
 `git checkout -- <file>`.
 """
@@ -1295,7 +1295,7 @@ Then write the addendum and fix the sentence (the addendum is the record of the 
 +- **T16 styling, accessibility and the no-JS pass.**
 +  - **Widths.** One token for the reading column (`--ts-reading-width`, 40rem) and one for the wide container (`--ts-wide-width`, 64rem; the header, the footer, search, the categories and the product home); one column below 768px, category cards two across from 768px and three from 1200px.
 +  - **Tokens.** BRAND.md gains six Portal tokens: `--p-error`, `--p-success` and `--p-warn` (the same red, green and amber as the Admin's `--st-spam`, `--st-open` and `--st-pending`) and their grounds `--p-error-bg`, `--p-success-bg` and `--p-warn-bg`. The old `var(--p-error, #b3261e)` pointed at a token that did not exist. A control's edge is `--p-ink2` (3:1), never the decorative `--p-line`.
-+  - **Landmarks and headings.** A skip link and `main id="main" tabindex="-1"`; a named `nav` in the product header (the help centre and contact) and one in the footer, and one contentinfo (the "Powered by" footer); one `h1` per page, the search page's being "Search the help centre"; an `h1` inside an article or a message body is shown as an `h2` (`BodyHeadings`, the only change the Portal makes to those bodies).
++  - **Landmarks and headings.** A skip link and `main id="main" tabindex="-1"`; a named `nav` in the product header (the help centre and contact) and one in the footer, and one contentinfo (the "Powered by" footer); one `h1` per page, the search page's being "Search the help center"; an `h1` inside an article or a message body is shown as an `h2` (`BodyHeadings`, the only change the Portal makes to those bodies).
 +  - **Targets and states.** Every link a visitor has to hit is at least 44px tall; required is said in words above each form; forced colours keep the 3px focus outline (the accent halo is dropped) and what colour alone would say; reduced motion switches every animation and transition off, and smooth scrolling is off in the build.
 +  - **The `<base href="/">` bug.** A bare `#field` link in the error summary resolved to `/#field`, the home page. The links are written as the current root-relative path plus the fragment by `PageLinks.ToFragment`, and carry `data-enhance-nav="false"` (see the spike). The skip link and the "jump to your reply" link use the same helper.
 +  - **Search box.** The product home's duplicate search box is replaced by `KbSearchBox`.
@@ -1306,7 +1306,7 @@ Then write the addendum and fix the sentence (the addendum is the record of the 
 +
 +**Spike findings (proven in a scratch copy, in Edge headless and in the test host, before the plan was written)**
 +- **Two concurrent posts with one id make one API call and both redirect to the same place.** Eight concurrent posts did too (`SubmitGuardTests`, `DoubleSendHostTests`).
-+- **An aborted first post.** A client that cancels its call does not get an answer from the test server until the server's handler has finished, so the first request must not stop waiting for its write. The write's own token is not cancelled when the browser goes away (`CancelledWhenAnswered` is false), it completes, and a repeat that arrives meanwhile, or after, gets the same redirect. A write that times out is unknown, and the repeat goes to the fallback.
++- **An aborted first post.** A client that cancels its call does not get an answer from the test server until the server's handler has finished, so the first request must not stop waiting for its write. The write's own token is not canceled when the browser goes away (`CancelledWhenAnswered` is false), it completes, and a repeat that arrives meanwhile, or after, gets the same redirect. A write that times out is unknown, and the repeat goes to the fallback.
 +- **Enhanced navigation does not run a script that arrives with swapped content.** `kb-suggestions.js` was loaded by the contact page's own body (09b), so for a visitor who reached the contact page by clicking a link (enhanced navigation) `customElements.get('ts-kb-suggestions')` was undefined and the suggestions never worked. A module in the document shell (`App.razor`) runs once, and the browser then calls `connectedCallback` for every element the swap inserts (the count rose on each navigation), so both modules are loaded there and the contact page no longer carries a script. The swap also rewrites the attributes of an element it keeps, which wiped an attribute set from script, so the module keeps its state in a `WeakMap`. A listener on the document survives navigations.
 +- **The `<base href="/">` bug is real, and removing the tag is not safe.** In Edge a click on a summary link went to the home page (the page then showed "Support"). The stylesheet, the favicon and `blazor.web.js` are written relative to the base, and Blazor reads the base for navigation, so the tag stays. A root-relative path plus the fragment is a jump within the page. Blazor still takes the click (`defaultPrevented` is true), scrolls and leaves the focus on the link; with `data-enhance-nav="false"` the browser moves the focus to the field (`INPUT#email`, with a real mouse click and with Enter). The skip link works the same way and keeps the prefill.
 +- **`StartupFailure` works through every factory.** The Admin factory gains a `CollectingSink`, the Api, Worker and Portal factories had one, and each puts its failed start on the sink as a "Hosting failed to start" event that carries the `OptionsValidationException` (`StartFailureLogTests`). A failure thrown eagerly while the host is built (the Portal's sitemap mapping reads an option) throws the validation exception directly and logs nothing, so it never races.
@@ -1318,7 +1318,7 @@ Then write the addendum and fix the sentence (the addendum is the record of the 
 +- An `h1` in an article or a message body becomes an `h2` (`BodyHeadings`), so "the Portal does not change a byte of the API's HTML" is now "except that".
 +- `kb-suggestions.js` is fixed (the brief said only if it breaks): the spike showed it does.
 +- Required is said in one sentence above each form, not in each label, so the pinned label markup does not change.
-+- The product home still has no category list (the header's help-centre link is the way in).
++- The product home still has no category list (the header's help-center link is the way in).
 +
  ### Approval
  - **Approved by:** Jon Seeley (owner, PHASE-09 planning)
@@ -1578,7 +1578,7 @@ public sealed class DoubleSendHostTests
 
         public Task Arrived => _arrived.Task;
 
-        /// <summary>Whether the Portal's call had been cancelled at the moment the answer was given.</summary>
+        /// <summary>Whether the Portal's call had been canceled at the moment the answer was given.</summary>
         public bool CancelledWhenAnswered { get; private set; }
 
         public void Release() => _release.TrySetResult();
@@ -2675,7 +2675,7 @@ public sealed record SubmitOutcome(SubmitStatus Status, SubmitTarget Target, IRe
 /// files it is reading (a precaution, not reproduced). So the first request waits for its own write without its abort token (bounded by the timeout), and the write cannot be cut short by the browser.</item>
 /// <item>A failure releases the claim, so a retry writes. A repeat that was already waiting gets the same failure, never a second write. A timeout or a fault keeps the claim as "unknown".</item>
 /// <item>The cache is this class's own <see cref="MemoryCache"/> with a size cap, never the shared one (the sitemap cache lives there and has no size). A claim lives <see cref="Lifetime"/>, shorter than the
-/// reference it may hold (<see cref="ReceivedReference.Lifetime"/>). When the cap is reached a new post is simply not guarded (the old behaviour), never refused.</item>
+/// reference it may hold (<see cref="ReceivedReference.Lifetime"/>). When the cap is reached a new post is simply not guarded (the old behavior), never refused.</item>
 /// <item>The stored target can hold another ticket's access token (a follow-up). It lives in memory only, for <see cref="Lifetime"/>, and this class never logs and never takes a logger.</item>
 /// </list>
 /// Per instance: a restart or a second Portal replica forgets the claims (documented in PORTAL-APP.md, like the sitemap cache).
@@ -2706,7 +2706,7 @@ public sealed class SubmitGuard : IDisposable
     }
 
     /// <summary>
-    /// Runs <paramref name="write"/> at most once for <paramref name="key"/>. With no key (a missing or malformed id) it is the old behaviour: the write runs on <paramref name="requestAborted"/>, unguarded.
+    /// Runs <paramref name="write"/> at most once for <paramref name="key"/>. With no key (a missing or malformed id) it is the old behavior: the write runs on <paramref name="requestAborted"/>, unguarded.
     /// <paramref name="fallback"/> is where a repeat goes when the first answer is unknown.
     /// </summary>
     public async Task<SubmitOutcome> RunAsync(SubmitKey? key, SubmitTarget fallback, Func<CancellationToken, Task<Result<SubmitTarget>>> write, CancellationToken requestAborted)
@@ -3265,7 +3265,7 @@ Run them (in three foreground batches, `1`..`6`, `7`..`18` and `19`..`26`, about
 | 25 | the form shows the same id on every render | `FormGuard.razor` | KILLED (2 failing) |
 | 26 | the lost-link sent page depends on the answer | `LostLink.razor.cs` | KILLED (2 failing) |
 
-Every mutation is killed; there are no survivors in this task. One mutant is not listed because it is equivalent: making a claim that the full cache did not store look stored (`mine = claim`) changes nothing observable, since an unstored claim is found by nobody and a repeat then makes a claim of its own, which is the unguarded behaviour the cap test already pins.
+Every mutation is killed; there are no survivors in this task. One mutant is not listed because it is equivalent: making a claim that the full cache did not store look stored (`mine = claim`) changes nothing observable, since an unstored claim is found by nobody and a repeat then makes a claim of its own, which is the unguarded behavior the cap test already pins.
 
 - [ ] **Step 6: Run the full suite and commit**
 
@@ -4223,7 +4223,7 @@ The module defines two custom elements and two document-level listeners. It keep
 // the swap inserts; a listener on the document sees the forms of every later page.
 //
 // The words come from the server as data attributes (the *Copy constants), so the page owns its copy. Everything the module touches is passed in (the document, the window, the navigator, the timers), so the
-// behaviour is tested with `node --test` and no browser. Text is put on the page with textContent only; this file never parses text as markup, and a test fails if it starts to.
+// behavior is tested with `node --test` and no browser. Text is put on the page with textContent only; this file never parses text as markup, and a test fails if it starts to.
 
 export const SENDING_RESET_MS = 60000;
 export const NEAR_RATIO = 0.8;
@@ -4300,7 +4300,7 @@ export function createSendingState({ setTimer = (fn, ms) => setTimeout(fn, ms), 
     }
 
     return {
-        /** True when the form is now (or already was) in the sending state; a second submit of a form that is sending is cancelled. */
+        /** True when the form is now (or already was) in the sending state; a second submit of a form that is sending is canceled. */
         onSubmit(event) {
             const form = event.target;
             if (!form || typeof form.getAttribute !== 'function') {
@@ -4705,7 +4705,7 @@ MUTATIONS = [
     ("1 a line break counts as one character", JS, [("    return text.length + breaks;", "    return text.length;")], NODE),
     ("2 the counter shows from 90 percent", JS, [("export const NEAR_RATIO = 0.8;", "export const NEAR_RATIO = 0.9;")], NODE),
     ("3 the stopped-post reset is ten minutes", JS, [("export const SENDING_RESET_MS = 60000;", "export const SENDING_RESET_MS = 600000;")], NODE),
-    ("4 a second submit is not cancelled", JS, [("            if (sending.has(form)) {\n                event.preventDefault();\n                return true;\n            }", "            if (sending.has(form)) {\n                return true;\n            }")], NODE),
+    ("4 a second submit is not canceled", JS, [("            if (sending.has(form)) {\n                event.preventDefault();\n                return true;\n            }", "            if (sending.has(form)) {\n                return true;\n            }")], NODE),
     ("5 pageshow resets even without the back button", JS, [("if (event && event.persisted) {", "if (event) {")], NODE),
     ("6 a refused clipboard does not select the number", JS, [("                    if (!copied) {\n                        selectContents(target, env.document);\n                    }", "                    if (copied) {\n                        selectContents(target, env.document);\n                    }")], NODE),
     ("7 the counter counts the textarea's own length", JS, [("used: serverLength(field.value),", "used: String(field.value).length,")], NODE),
@@ -4732,7 +4732,7 @@ Run them (in two foreground batches, `1`..`10` and `11`..`20`) and record the re
 | 1 | a line break counts as one character | `portal-forms.js` | KILLED |
 | 2 | the counter shows from 90 percent | `portal-forms.js` | KILLED |
 | 3 | the stopped-post reset is ten minutes | `portal-forms.js` | KILLED |
-| 4 | a second submit is not cancelled | `portal-forms.js` | KILLED |
+| 4 | a second submit is not canceled | `portal-forms.js` | KILLED |
 | 5 | pageshow resets even without the back button | `portal-forms.js` | KILLED |
 | 6 | a refused clipboard does not select the number | `portal-forms.js` | KILLED |
 | 7 | the counter counts the textarea's own length | `portal-forms.js` | KILLED |
@@ -4771,7 +4771,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 
 ### Task 4: T16: the styling, the accessibility pass, the `<base>` fix and the tests that pin them
 
-**Review Focus pin:** 4 (the error summary's links and the skip link work under every path, resolved against the base the way a browser does, and move the focus; one `h1` per page; focus visible in forced colours; a state never colour alone; every link a visitor has to hit is 44px) and 3 (the new stylesheet adds nothing the policy blocks; the only change to an author's body is an `h1` shown as an `h2`) and 5 (the neutral 404 stays byte for byte the same).
+**Review Focus pin:** 4 (the error summary's links and the skip link work under every path, resolved against the base the way a browser does, and move the focus; one `h1` per page; focus visible in forced colors; a state never color alone; every link a visitor has to hit is 44px) and 3 (the new stylesheet adds nothing the policy blocks; the only change to an author's body is an `h1` shown as an `h2`) and 5 (the neutral 404 stays byte for byte the same).
 
 **Files:**
 
@@ -4794,14 +4794,14 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 - Produces:
   - `PageLinks.ToFragment(string currentUri, string fragment, bool keepQuery) : string` (the current root-relative path, plus, with `keepQuery`, only the query parameters the page reads, plus `#fragment`) and `internal PageLinks.KnownParameters(string path)`; `PortalRoutes.PrefillParameters`.
   - `BodyHeadings.DemoteTitle(string html) : string` (`<h1>` and `</h1>` become `<h2>` and `</h2>`; nothing else changes), used by `KbArticleBody` and `CustomerMessageBody`.
-  - Copy: `ShellCopy.SkipToMain`, `NavLabel`, `NavHelp`, `NavContact`, `FooterNavLabel`; `ContactCopy.RequiredNote`; `LostLinkCopy.RequiredNote`; `TicketCopy.JumpToReply`, `ReplyNote`; `KbCopy.SearchPageHeading` ("Search the help centre").
-  - Markup: `a.ts-skip-link` (product pages only, `data-enhance-nav="false"`), `main#main[tabindex=-1]`, `header.ts-product-header > nav[aria-label=Main]` (the product, the help centre and contact), `nav.ts-product-footer[aria-label]`, `.ts-reading` around reading pages, `.ts-form-note`, `a.ts-jump-reply` and `h2#reply[tabindex=-1]` on the ticket page, `.ts-kb-list--cards`; the error summary's links are `PageLinks.ToFragment(Navigation.Uri, field, keepQuery: false)` and the summary has `data-enhance-nav="false"`.
+  - Copy: `ShellCopy.SkipToMain`, `NavLabel`, `NavHelp`, `NavContact`, `FooterNavLabel`; `ContactCopy.RequiredNote`; `LostLinkCopy.RequiredNote`; `TicketCopy.JumpToReply`, `ReplyNote`; `KbCopy.SearchPageHeading` ("Search the help center").
+  - Markup: `a.ts-skip-link` (product pages only, `data-enhance-nav="false"`), `main#main[tabindex=-1]`, `header.ts-product-header > nav[aria-label=Main]` (the product, the help center and contact), `nav.ts-product-footer[aria-label]`, `.ts-reading` around reading pages, `.ts-form-note`, `a.ts-jump-reply` and `h2#reply[tabindex=-1]` on the ticket page, `.ts-kb-list--cards`; the error summary's links are `PageLinks.ToFragment(Navigation.Uri, field, keepQuery: false)` and the summary has `data-enhance-nav="false"`.
   - Styles: `--ts-reading-width` (40rem), `--ts-wide-width` (64rem); BRAND.md tokens `--p-error`, `--p-error-bg`, `--p-success`, `--p-success-bg`, `--p-warn`, `--p-warn-bg`; `$enable-smooth-scroll: false`.
   - Tests: `PageLinksTests`, `LayoutLandmarkHostTests`, `ErrorSummaryLinkHostTests`, `HeadingHostTests`, `ResponsiveStyleTests`, `TokenContrastTests`, `CspStyleTests`, `BodyHeadingsTests` and the helper `PageKit` (`Resolve`, `IsJumpWithin`, `FirstFocusable`).
 
 - [ ] **Step 1: Write the failing tests**
 
-The tests read what a browser would: `PageKit.Resolve` resolves a link against the document's `base` element and the page's own address, so a bare `#email` comes out as the home page (and a control test proves it, so the tests would have caught the old markup). `ErrorSummaryLinkHostTests` posts the three forms invalid and checks every summary link jumps within the page to an element that exists; `LayoutLandmarkHostTests` checks the skip link is the first thing Tab reaches, that it works with the prefill, that `main` can take focus, that the navigation regions are named, that a neutral page has none of it, and that a kept KB page never carries another visitor's parameters; `HeadingHostTests` checks one `h1` on every kind of page (states included) and that an `h1` in a body is an `h2`. The style tests read the compiled CSS: the widths as tokens, the breakpoints, the 44px targets, the skip link, the error colours, forced colours, reduced motion and no smooth scrolling, a rule for every `ts-*` class the markup uses, and the contrast of every token pair. Existing tests change where the markup does (the summary's links and attribute, the footer's tag, the six-token count, the four places a ticket's token appears, and the received page's "no number" check, which now reads the page's text because the skip link keeps the query string).
+The tests read what a browser would: `PageKit.Resolve` resolves a link against the document's `base` element and the page's own address, so a bare `#email` comes out as the home page (and a control test proves it, so the tests would have caught the old markup). `ErrorSummaryLinkHostTests` posts the three forms invalid and checks every summary link jumps within the page to an element that exists; `LayoutLandmarkHostTests` checks the skip link is the first thing Tab reaches, that it works with the prefill, that `main` can take focus, that the navigation regions are named, that a neutral page has none of it, and that a kept KB page never carries another visitor's parameters; `HeadingHostTests` checks one `h1` on every kind of page (states included) and that an `h1` in a body is an `h2`. The style tests read the compiled CSS: the widths as tokens, the breakpoints, the 44px targets, the skip link, the error colors, forced colors, reduced motion and no smooth scrolling, a rule for every `ts-*` class the markup uses, and the contrast of every token pair. Existing tests change where the markup does (the summary's links and attribute, the footer's tag, the six-token count, the four places a ticket's token appears, and the received page's "no number" check, which now reads the page's text because the skip link keeps the query string).
 
 `tests/TechStrap.Portal.Tests/Components/BodyHeadingsTests.cs` (new)
 
@@ -5254,7 +5254,7 @@ using TechStrap.Portal.Tests.Tickets;
 namespace TechStrap.Portal.Tests;
 
 /// <summary>
-/// Every Portal page has exactly one <c>h1</c> (PHASE-09 T16, UX brief, Review Focus 4), and the help-centre search page's is not the home's. The Admin has the same test for its two odd pages; the Portal's check
+/// Every Portal page has exactly one <c>h1</c> (PHASE-09 T16, UX brief, Review Focus 4), and the help-center search page's is not the home's. The Admin has the same test for its two odd pages; the Portal's check
 /// covers every kind of page, including the states (an API failure, an empty result, a ticket that cannot be loaded) and the pages whose body is HTML an author wrote.
 /// </summary>
 public sealed class HeadingHostTests
@@ -5294,10 +5294,10 @@ public sealed class HeadingHostTests
         { "/p/paperplane/contact/received", "We have received your request." },
         { "/p/paperplane/lost-link", "Lost your ticket link?" },
         { "/p/paperplane/lost-link?sent=1", "Lost your ticket link?" },
-        { "/p/paperplane/kb", "Help centre" },
+        { "/p/paperplane/kb", "Help center" },
         { "/p/paperplane/kb/accounts", "Accounts" },
-        { "/p/paperplane/kb/search", "Search the help centre" },
-        { "/p/paperplane/kb/search?q=reset", "Search the help centre" },
+        { "/p/paperplane/kb/search", "Search the help center" },
+        { "/p/paperplane/kb/search?q=reset", "Search the help center" },
         { "/p/paperplane/kb/accounts/reset-password", "Reset your password" },
     };
 
@@ -5441,7 +5441,7 @@ namespace TechStrap.Portal.Tests;
 /// <summary>
 /// The Portal's layout and accessibility rules (PHASE-09 T16, UX-BRIEF-portal, BRAND.md sections 14, 17 and 24), read from the compiled CSS so a rule that is renamed, moved to the wrong breakpoint or deleted fails
 /// here: one token for the reading width and one for the wide container, one column on a phone and cards from a tablet up, a 44px target for every link a visitor has to hit, a skip link that appears on focus,
-/// forced colours that keep the 3px focus outline, and no motion at all for a visitor who asked for none. Every class the markup uses has a rule. How it looks is the owner's checklist in PORTAL-APP.md.
+/// forced colors that keep the 3px focus outline, and no motion at all for a visitor who asked for none. Every class the markup uses has a rule. How it looks is the owner's checklist in PORTAL-APP.md.
 /// </summary>
 public sealed partial class ResponsiveStyleTests
 {
@@ -5585,7 +5585,7 @@ public sealed partial class ResponsiveStyleTests
         Css.Declarations(".ts-portal-main:focus")["outline"].ShouldBe("none", "main takes focus for the skip link but shows no ring around the whole page");
     }
 
-    // ---- states are never colour alone ----
+    // ---- states are never color alone ----
 
     [Fact]
     public void Errors_use_the_error_tokens_and_a_field_in_error_gets_a_heavier_border_and_text()
@@ -5612,7 +5612,7 @@ public sealed partial class ResponsiveStyleTests
         Css.Declarations(".ts-char-count[hidden]")["display"].ShouldBe("none");
     }
 
-    // ---- forced colours ----
+    // ---- forced colors ----
 
     [Fact]
     public void Forced_colours_keep_the_3px_focus_outline_and_drop_the_halo()
@@ -5798,7 +5798,7 @@ namespace TechStrap.Portal.Tests;
 
 /// <summary>
 /// BRAND.md section 24: the Portal meets WCAG 2.2 AA. Every text and background pair of the Portal's own tokens (the neutral ones and the error, success and warning ones of 09d) is checked against the compiled CSS, so a
-/// token edit that breaks a pair fails the build; the edge of a form control is held to the 3:1 of a non-text component (1.4.11); and the colours that carry a state sit on the grounds they are used on. (The product's
+/// token edit that breaks a pair fails the build; the edge of a form control is held to the 3:1 of a non-text component (1.4.11); and the colors that carry a state sit on the grounds they are used on. (The product's
 /// accent is checked per product, including hostile ones, in <c>ProductAccentContrastTests</c>.)
 /// </summary>
 public sealed class TokenContrastTests
@@ -6078,7 +6078,7 @@ Work in this order, building and running the Portal tests as you go (the layout 
 1. **Tokens and docs.** The six tokens in `_brand-tokens.scss` and in BRAND.md (the `StyleBuildTests` count and the Admin's palette follow), and the width sentence of BRAND.md section 14.
 2. **`PageLinks`, `BodyHeadings`, the copy.** The helper and the two copy additions.
 3. **Markup.** The layout (skip link, `main`, header and footer navigation), the error summary, the reading wrapper on the reading pages, the one-sentence required notes, the ticket page's jump link and `h2#reply`, the search page's `h1`, the merged `KbSearchBox`, the category cards' class and the two body components.
-4. **Styles.** Two new partials (`_layout.scss`: the widths, the header navigation, the phone and tablet rules; `_a11y.scss`: the semantic colours, the control edge, the form helpers' styles, the 44px targets, forced colours and reduced motion), the missing rules in `_components.scss`, and `$enable-smooth-scroll: false`.
+4. **Styles.** Two new partials (`_layout.scss`: the widths, the header navigation, the phone and tablet rules; `_a11y.scss`: the semantic colors, the control edge, the form helpers' styles, the 44px targets, forced colors and reduced motion), the missing rules in `_components.scss`, and `$enable-smooth-scroll: false`.
 
 `src/TechStrap.Portal/Components/BodyHeadings.cs` (new)
 
@@ -6086,8 +6086,8 @@ Work in this order, building and running the Portal tests as you go (the layout 
 namespace TechStrap.Portal.Components;
 
 /// <summary>
-/// One <c>h1</c> per page (PHASE-09 T16, UX brief): the page's own title is the <c>h1</c>, so a body the API sanitised and sent (an article, a message) that carries an <c>h1</c> of its own (a Markdown line that
-/// starts with a single <c>#</c>) is shown as an <c>h2</c>. This is the only change the Portal makes to such a body. The sanitiser allows no attribute on a heading and writes its tags in lower case, so the two
+/// One <c>h1</c> per page (PHASE-09 T16, UX brief): the page's own title is the <c>h1</c>, so a body the API sanitized and sent (an article, a message) that carries an <c>h1</c> of its own (a Markdown line that
+/// starts with a single <c>#</c>) is shown as an <c>h2</c>. This is the only change the Portal makes to such a body. The sanitizer allows no attribute on a heading and writes its tags in lower case, so the two
 /// tag spellings below are the only forms there are, and nothing but the tag name changes: no text, no attribute and no other tag is touched.
 /// </summary>
 public static class BodyHeadings
@@ -6168,7 +6168,7 @@ public static class PageLinks
 ```scss
 // Portal accessibility styling (PHASE-09d, T16; BRAND.md sections 17, 18 and 24; UX-BRIEF-portal). Imported last. WCAG 2.2 AA.
 //
-// The semantic colours are the --p-error, --p-success and --p-warn tokens of BRAND.md (never a product accent). A state is never colour alone: the error summary has a heading and a list, a success has its sentence,
+// The semantic colors are the --p-error, --p-success and --p-warn tokens of BRAND.md (never a product accent). A state is never color alone: the error summary has a heading and a list, a success has its sentence,
 // a field in error has text and a heavier border, the counter over its limit is bold and underlined.
 
 // ---- skip link and the focus target of main ----
@@ -6246,7 +6246,7 @@ public static class PageLinks
   border-radius: $border-radius;
 }
 
-// A control's edge must be seen by everyone (WCAG 1.4.11): the neutral border is the secondary ink, not the decorative line colour.
+// A control's edge must be seen by everyone (WCAG 1.4.11): the neutral border is the secondary ink, not the decorative line color.
 .form-control,
 .form-select {
   border-color: var(--p-ink2);
@@ -6350,7 +6350,7 @@ public static class PageLinks
   margin-bottom: 8px;
 }
 
-// ---- forced colours (Windows high contrast): keep what colour alone would say, and keep the 3px focus outline (the accent halo is dropped) ----
+// ---- forced colors (Windows high contrast): keep what color alone would say, and keep the 3px focus outline (the accent halo is dropped) ----
 
 @media (forced-colors: active) {
   :focus-visible,
@@ -6490,7 +6490,7 @@ public static class PageLinks
   }
 }
 
-// The help centre home lists its categories as cards, two across from a tablet up.
+// The help center home lists its categories as cards, two across from a tablet up.
 @media (min-width: 768px) {
   .ts-kb-list--cards {
     display: grid;
@@ -6559,7 +6559,7 @@ public static class PageLinks
 @@ -378,7 +384,7 @@ This code **never changes meaning and is never reused** for decoration, status,
  - **Density:** dense and plain. No hero blocks, no oversized padding. Message line length capped at 68ch.
  - **Status bar:** Admin only. Sticky bottom strip with keycap hints and a transient message; hints hide under 900px.
- - **Brand-moment screens:** one centred retro window, 400px max, on the plain page background. Nothing competes with it.
+ - **Brand-moment screens:** one centered retro window, 400px max, on the plain page background. Nothing competes with it.
 -- **Portal:** 640px single column, product bar with a 6px accent top border, product name and logo top left, plain forms, "Powered by TechStrap" footer.
 +- **Portal:** a 640px reading column (one token, `--ts-reading-width`) for forms, the conversation, an article and the confirmation, and a 1024px wide container (`--ts-wide-width`) for search, the categories and the product home; one column below 768px. Product bar with a 6px accent top border, product name and logo top left, plain forms, "Powered by TechStrap" footer.
  
@@ -6594,9 +6594,9 @@ public static class PageLinks
  
  @code {
      /// <summary>
--    /// The article body exactly as the API sent it. The API renders the agent's Markdown and sanitises the HTML (D-044); the Portal does not sanitise again and does not change a byte, so what a visitor reads is what the API
+-    /// The article body exactly as the API sent it. The API renders the agent's Markdown and sanitizes the HTML (D-044); the Portal does not sanitize again and does not change a byte, so what a visitor reads is what the API
 -    /// decided is safe. This and <c>CustomerMessageBody</c> are the only two places the Portal turns text into elements (PortalRules.MarkupStringSites); every other string it shows is encoded.
-+    /// The article body as the API sent it. The API renders the agent's Markdown and sanitises the HTML (D-044); the Portal does not sanitise again and changes one thing only: an <c>h1</c> in the body becomes an <c>h2</c>
++    /// The article body as the API sent it. The API renders the agent's Markdown and sanitizes the HTML (D-044); the Portal does not sanitize again and changes one thing only: an <c>h1</c> in the body becomes an <c>h2</c>
 +    /// (<see cref="BodyHeadings"/>), because the page's own title is its one <c>h1</c>. So what a visitor reads is what the API decided is safe. This and <c>CustomerMessageBody</c> are the only two places the Portal turns text into elements (PortalRules.MarkupStringSites); every other string it shows is encoded.
      /// </summary>
      [Parameter, EditorRequired]
@@ -6612,8 +6612,8 @@ public static class PageLinks
      public const string StillNeedHelpText = "If this did not answer your question, contact support and we will help you.";
  
      // Search.
-+    /// <summary>The h1 of the search page: different from the help centre's, so two tabs of the two pages are told apart.</summary>
-+    public const string SearchPageHeading = "Search the help centre";
++    /// <summary>The h1 of the search page: different from the help center's, so two tabs of the two pages are told apart.</summary>
++    public const string SearchPageHeading = "Search the help center";
 +
      public const string SearchHeading = "Search results";
      public const string SearchPromptHeading = "What are you looking for?";
@@ -6934,9 +6934,9 @@ public static class PageLinks
  
  @code {
      /// <summary>
-     /// The body of one public message, rendered as the markup it is. This is the Portal's single place that turns text into markup (PortalRules.MarkupStringSites; D-045 addendum): the API sanitises every message body
--    /// before it sends it (the single source of truth, so the Portal never sanitises again), and every other string on the ticket page (subject, author, file names) is encoded by Razor.
-+    /// before it sends it (the single source of truth, so the Portal never sanitises again; it only shows an <c>h1</c> in a body as an <c>h2</c>, <see cref="BodyHeadings"/>), and every other string on the ticket page (subject, author, file names) is encoded by Razor.
+     /// The body of one public message, rendered as the markup it is. This is the Portal's single place that turns text into markup (PortalRules.MarkupStringSites; D-045 addendum): the API sanitizes every message body
+-    /// before it sends it (the single source of truth, so the Portal never sanitizes again), and every other string on the ticket page (subject, author, file names) is encoded by Razor.
++    /// before it sends it (the single source of truth, so the Portal never sanitizes again; it only shows an <c>h1</c> in a body as an <c>h2</c>, <see cref="BodyHeadings"/>), and every other string on the ticket page (subject, author, file names) is encoded by Razor.
      /// </summary>
      [Parameter, EditorRequired]
      public string Html { get; set; } = string.Empty;
@@ -7041,7 +7041,7 @@ public static class PageLinks
    padding: 24px 16px 32px;
  }
 @@ -85,7 +85,7 @@
- // A product's header and footer (PHASE-09a): the logo and name are one link to the product home; the colours are the product's through --ts-accent*.
+ // A product's header and footer (PHASE-09a): the logo and name are one link to the product home; the colors are the product's through --ts-accent*.
  .ts-product-header {
    width: 100%;
 -  max-width: 640px;
@@ -7092,8 +7092,8 @@ public static class PageLinks
    padding-left: 20px;
  }
  
--// The help centre (PHASE-09c): structure only (lists, the breadcrumb trail, the pager); the visual polish pass is PHASE-09d.
-+// The help centre: lists of articles and categories (a card each), the breadcrumb trail and the pager. The card grid of the categories is in _layout.scss.
+-// The help center (PHASE-09c): structure only (lists, the breadcrumb trail, the pager); the visual polish pass is PHASE-09d.
++// The help center: lists of articles and categories (a card each), the breadcrumb trail and the pager. The card grid of the categories is in _layout.scss.
  .ts-kb-list {
    margin: 24px 0;
    padding: 0;
@@ -7155,13 +7155,13 @@ public static class PageLinks
 +  }
  }
  
--// An article's body is the API's sanitised HTML: a wide table, a code block or an image scrolls or shrinks inside its own box instead of widening the page.
+-// An article's body is the API's sanitized HTML: a wide table, a code block or an image scrolls or shrinks inside its own box instead of widening the page.
 +// The article (the reading column is the page's own wrapper): the title, the date and the body.
 +.ts-kb-article {
 +  margin-bottom: 8px;
 +}
 +
-+// An article's body is the API's sanitised HTML: a wide table, a code block or an image scrolls or shrinks inside its own box instead of widening the page. Its prose keeps a readable measure and rhythm.
++// An article's body is the API's sanitized HTML: a wide table, a code block or an image scrolls or shrinks inside its own box instead of widening the page. Its prose keeps a readable measure and rhythm.
  .ts-kb-article-body {
    overflow-wrap: anywhere;
 +  line-height: 1.6;
@@ -7302,7 +7302,7 @@ Expected: 1,805 Portal tests and 1,962 Admin tests pass:
   succeeded: 1962
 ```
 
-Then check it in a browser (the spike's checks, kept as `$T/browser_t4.mjs` in the appendix): with the Portal and the stand-in API running, the script posts the empty contact form and click the first summary link with a real mouse click and with Enter: the address becomes `/p/paperplane/contact#email`, the document is the same (a marker set on `window` survives) and `document.activeElement` is `INPUT#email`; on `/p/paperplane/contact?subject=Printer%20jam` press Tab (the skip link has the focus), press Enter (`MAIN#main` has the focus, the address ends `#main`, the subject box still holds "Printer jam"); at 360, 768 and 1280 pixels `document.documentElement.scrollWidth <= window.innerWidth` on the product home, the contact form and the contact form with errors; with forced colours emulated the focused control has a `3px` outline. Stop everything you started.
+Then check it in a browser (the spike's checks, kept as `$T/browser_t4.mjs` in the appendix): with the Portal and the stand-in API running, the script posts the empty contact form and click the first summary link with a real mouse click and with Enter: the address becomes `/p/paperplane/contact#email`, the document is the same (a marker set on `window` survives) and `document.activeElement` is `INPUT#email`; on `/p/paperplane/contact?subject=Printer%20jam` press Tab (the skip link has the focus), press Enter (`MAIN#main` has the focus, the address ends `#main`, the subject box still holds "Printer jam"); at 360, 768 and 1280 pixels `document.documentElement.scrollWidth <= window.innerWidth` on the product home, the contact form and the contact form with errors; with forced colors emulated the focused control has a `3px` outline. Stop everything you started.
 
 - [ ] **Step 5: Prove each pin with a recorded mutation**
 
@@ -7353,7 +7353,7 @@ MUTATIONS = [
   margin: 0 auto;
   padding: 16px 16px 0;""")], RESP),
     ("22 smooth scrolling comes back", S + "_tokens.scss", [("$enable-smooth-scroll: false;", "$enable-smooth-scroll: true;")], RESP),
-    ("23 forced colours drop the 3px outline", S + "_a11y.scss", [("    outline: 3px solid Highlight !important;", "    outline: none !important;")], RESP),
+    ("23 forced colors drop the 3px outline", S + "_a11y.scss", [("    outline: 3px solid Highlight !important;", "    outline: none !important;")], RESP),
     ("24 reduced motion leaves transitions on", S + "_a11y.scss", [("    transition: none !important;\n  }\n}\n", "  }\n}\n")], RESP),
     ("25 the category cards stay one column", S + "_layout.scss", [("    grid-template-columns: repeat(2, minmax(0, 1fr));\n    gap: 16px;", "    gap: 16px;")], RESP),
     ("26 the phone search box stays on one row", S + "_layout.scss", [("    flex-direction: column;\n", "")], RESP),
@@ -7395,7 +7395,7 @@ Run them (in three foreground batches, `1`..`12`, `13`..`26` and `27`..`35`, abo
 | 20 | the reading width changes | `_layout.scss` | KILLED (1 failing) |
 | 21 | the header goes back to 640px | `_components.scss` | KILLED (1 failing) |
 | 22 | smooth scrolling comes back | `_tokens.scss` | KILLED (1 failing) |
-| 23 | forced colours drop the 3px outline | `_a11y.scss` | KILLED (1 failing) |
+| 23 | forced colors drop the 3px outline | `_a11y.scss` | KILLED (1 failing) |
 | 24 | reduced motion leaves transitions on | `_a11y.scss` | KILLED (1 failing) |
 | 25 | the category cards stay one column | `_layout.scss` | KILLED (1 failing) |
 | 26 | the phone search box stays on one row | `_layout.scss` | KILLED (1 failing) |
@@ -7509,7 +7509,7 @@ Tests Passed: 41, Failed: 6, Skipped: 0, Inconclusive: 0, NotRun: 0
  
 @@ -1809,6 +1809,16 @@ The owner's rulings for PHASE-09d, and what the plan's spike proved. They extend
  - Required is said in one sentence above each form, not in each label, so the pinned label markup does not change.
- - The product home still has no category list (the header's help-centre link is the way in).
+ - The product home still has no category list (the header's help-center link is the way in).
  
 +**Consequences of the addendum (as built in 09d)**
 +- **As built in 09d: the double-send guard.** `SubmitIds` (the id), `SubmitKey` (the hash of the form, the subject and the id), `SubmitGuard` (the cache, the lock, the claims) and `FormGuard` (the hidden input) are in `Forms/` and `Components/Ui/`; the three pages call `Guard.RunAsync(key, fallback, write, requestAborted)`, where `write` is the API call mapped to a redirect target (`Result<SubmitTarget>`). The guard's lifetime (2 minutes) is a constant pinned below `ReceivedReference.Lifetime`; `SubmitGuardTests` pins every rule above with a gate that holds the write, and `DoubleSendHostTests` pins the three forms, including the aborted first post, the unknown answer, the failure that releases the claim, the id that cannot cross forms, products or tickets, and a log scan at every level.
@@ -7604,7 +7604,7 @@ Tests Passed: 41, Failed: 6, Skipped: 0, Inconclusive: 0, NotRun: 0
  
  PHASE-09 is delivered in four pull requests. **09a** is the foundation: the settings, the API client, the per-product theme and shell, the product home, the root page, the ticket-page headers, robots.txt, log
  redaction and the architecture rules. **09b** adds the customer flows: the contact form with its suggestions and received page, the ticket page with replies and the Closed follow-up, the attachment pass-through
- and the lost-link page. **09c** (this page describes all three) adds the help centre: the knowledge base home, category, search and article pages, the SEO head and structured data, output caching and the sitemap.
+ and the lost-link page. **09c** (this page describes all three) adds the help center: the knowledge base home, category, search and article pages, the SEO head and structured data, output caching and the sitemap.
 -**09d** is the polish pass (styling, accessibility, the no-JS check, the double-send guard and the copy button, counter and sending state). The routes of all of them are in `PortalRoutes`.
 +**09d** is the polish pass: the double-send guard, the form helpers (the sending state, the copy button and the counter), the styling, the accessibility and the no-JS pass, and the hardening of the start-failure and
 +uniform-404 tests. PHASE-09 is complete pending merge: what is still the owner's (the axe run, Lighthouse, the JavaScript-off walk, the screenshots and the compose smoke) is the checklist under
@@ -7656,7 +7656,7 @@ Tests Passed: 41, Failed: 6, Skipped: 0, Inconclusive: 0, NotRun: 0
 +Blazor's enhanced navigation swaps in (a listener on the document survives; the browser calls `connectedCallback` for an inserted element; a module in a page body would not run). It keeps its state in a `WeakMap`,
 +never in an attribute of the markup, because the swap rewrites the attributes of an element it keeps.
 +
-+- **The sending state.** A form with `data-sending-label` (`FormCopy.Sending`, "Sending" and an ellipsis written as `\u2026`) gets its submit button disabled and relabelled when it is submitted, so a double click cannot post twice
++- **The sending state.** A form with `data-sending-label` (`FormCopy.Sending`, "Sending" and an ellipsis written as `\u2026`) gets its submit button disabled and relabeled when it is submitted, so a double click cannot post twice
 +  (the server's one-time id is the real guard); a second submit of a form that is sending is cancelled; the button comes back on `pageshow` after the back button and after a minute (a post the visitor stopped).
 +- **`<ts-copy-text target="ticket-number" data-label data-copied data-failed>`** on the received page renders a button that copies the number to the clipboard; when the browser refuses it selects the number, so Ctrl+C
 +  works, and says so. Without script the number is still there to select (`.ts-ticket-number` is `user-select: all`).
@@ -7675,23 +7675,23 @@ Tests Passed: 41, Failed: 6, Skipped: 0, Inconclusive: 0, NotRun: 0
 +  stays and the halo is dropped; reduced motion switches every animation and transition off, and smooth scrolling is off in the build (`$enable-smooth-scroll: false`).
 +- **Landmarks and headings.** A product page starts with a skip link (`.ts-skip-link`, off the screen until it has focus, in ink on the page so no accent can hide it) and `main` is `id="main" tabindex="-1"`. The header holds a
 +  named `nav` (the product, the help centre and contact) and the footer a named `nav`; the "Powered by" footer is the one contentinfo. A neutral page (the root, not-found, error) has none of the product frame, so every
-+  neutral 404 is still the same bytes. Every page has exactly one `h1` (`HeadingHostTests`); the search page's is "Search the help centre"; an `h1` inside an article or a message body, which the API's sanitiser allows, is
++  neutral 404 is still the same bytes. Every page has exactly one `h1` (`HeadingHostTests`); the search page's is "Search the help center"; an `h1` inside an article or a message body, which the API's sanitiser allows, is
 +  shown as an `h2` (`BodyHeadings`, the only change the Portal makes to those bodies).
 +- **The `<base href="/">` rule.** The document's `base` is `/` (the stylesheet, the favicon and `blazor.web.js` are relative to it, and Blazor reads it), so a bare `href="#email"` is the home page. A link to a place on the
 +  current page is written by `PageLinks.ToFragment` as the root-relative path plus the fragment (the error summary's field links, the skip link and the "jump to your reply" link on the ticket page), which the browser
 +  treats as a jump, and carries `data-enhance-nav="false"`: Blazor takes a click on an in-page link, scrolls and leaves the focus on the link, while the browser moves the focus to the field. The query string is kept only for
 +  the parameters the page itself reads (the contact prefill, `ref`, `sent`, `q` and `page`), so a jump is not a reload that loses what the page shows, and an extra parameter is neither echoed nor kept in a copy the output
 +  cache stores. `ErrorSummaryLinkHostTests` and `LayoutLandmarkHostTests` resolve each link against the base the way a browser does.
-+- **Styles** are three partials after `_components`: `_layout.scss` (the widths and the breakpoints) and `_a11y.scss` (the semantic colours, the targets of at least 44px, forced colours, reduced motion). Every `ts-*` class the
++- **Styles** are three partials after `_components`: `_layout.scss` (the widths and the breakpoints) and `_a11y.scss` (the semantic colors, the targets of at least 44px, forced colors, reduced motion). Every `ts-*` class the
 +  markup uses has a rule (`ResponsiveStyleTests` scans the markup); `TokenContrastTests` checks every text pair of the Portal's tokens against WCAG AA in the compiled CSS.
 +
- ### The help centre
+ ### The help center
  
  Four pages, each on `ProductPageBase`, each static SSR with plain links and a GET form, so everything works without script:
 @@ -97,7 +156,7 @@ Four pages, each on `ProductPageBase`, each static SSR with plain links and a GE
    characters; a page with a text is `noindex`; paging links keep the escaped text.
  - `/p/{key}/kb/{category}/{slug}` (`KbArticle`) shows the article: breadcrumbs, the title, the day it changed, the body and a "Still need help?" link. **`KbArticleBody` is the second and last place the Portal turns
-   text into markup** (`PortalRules.MarkupStringSites` lists exactly it and `CustomerMessageBody`): the API renders the Markdown and sanitises the HTML (D-044), and the Portal passes it on byte for byte
+   text into markup** (`PortalRules.MarkupStringSites` lists exactly it and `CustomerMessageBody`): the API renders the Markdown and sanitizes the HTML (D-044), and the Portal passes it on byte for byte
 -  (`KbArticleHostTests` compares it with the API's string). A plain-http image in an article is blocked by the CSP's `img-src 'self' https: data:` in Production; that is the intended posture.
 +  (`KbArticleHostTests` compares it with the API's string), except that an `h1` in the body is shown as an `h2` (`BodyHeadings`), because the page's own title is its one `h1`. A plain-http image in an article is blocked by the CSP's `img-src 'self' https: data:` in Production; that is the intended posture.
  
@@ -7704,12 +7704,12 @@ Tests Passed: 41, Failed: 6, Skipped: 0, Inconclusive: 0, NotRun: 0
 -    Ui/           AccentScope, PoweredByFooter, ProductUnavailable, DevelopmentOnly, ErrorSummary, FieldError, FormField, AttachmentInput, HoneypotField, Pager, StateMessage
 +    Ui/           AccentScope, PoweredByFooter, ProductUnavailable, DevelopmentOnly, ErrorSummary, FieldError, FormField, FormGuard, AttachmentInput, HoneypotField, Pager, StateMessage
 +    BodyHeadings.cs  an h1 in an author's body is shown as an h2
-     KbCopy.cs     the words of the help centre (beside ShellCopy)
+     KbCopy.cs     the words of the help center (beside ShellCopy)
 -  Forms/          FormError and FormFields, FormCopy, FormFailure, AttachmentRules, EmailRules, ContactFormViewModel and its validator, ReplyForm, LostLinkForm, ContactCopy, ReceivedReference
 +  Forms/          FormError and FormFields, FormCopy, FormFailure, AttachmentRules, EmailRules, ContactFormViewModel and its validator, ReplyForm, LostLinkForm, ContactCopy, ReceivedReference,
 +                  SubmitIds, SubmitKey and SubmitGuard (the double-send guard)
    Kb/             KbPaging, KbSearchText (plain helpers the pages and the suggest adapter share)
-   Headers/        PortalHeaderRules (the /t rules, the attachment sandbox, the form pages and the help centre)
+   Headers/        PortalHeaderRules (the /t rules, the attachment sandbox, the form pages and the help center)
    Products/       ProductThemeViewModel, ProductScope, ProductPageBase
 -  Routing/        PortalRoutes, ProductKeyShape, KbSlugShape
 +  Routing/        PortalRoutes, PageLinks (a link to a place on the current page), ProductKeyShape, KbSlugShape
@@ -7727,7 +7727,7 @@ Tests Passed: 41, Failed: 6, Skipped: 0, Inconclusive: 0, NotRun: 0
  Rules the code follows (the architecture tests check them): the Portal references **Contracts and Hosting only**; **components never inject `HttpClient`** (only `Clients/` mentions it); no inline script
 @@ -224,16 +285,43 @@ Portal added. `ProxyHopStartupFilter` puts the host behind a trusted reverse pro
  path no Portal route matches. A test that needs the real server (a request size limit) calls `UseKestrel(0)` and `StartServer()` and reads the address from `IServerAddressesFeature`. bUnit covers the layout and
- the shared help-centre components; the help-centre host tests (`Kb/`) parse the page with AngleSharp (which bUnit brings) and assert on elements, the JSON-LD is parsed as JSON, and `OutputCachePipelineTests` builds a
+ the shared help-center components; the help-center host tests (`Kb/`) parse the page with AngleSharp (which bUnit brings) and assert on elements, the JSON-LD is parsed as JSON, and `OutputCachePipelineTests` builds a
  small host with the real wiring to prove what the cache keeps. The cache and sitemap-cache tests that wait use short real lifetimes, because a `MemoryCache` has no `TimeProvider`.
 -`tests/TechStrap.Portal.Tests/js` holds the node tests of the browser module. The shared rules are in `TechStrap.Architecture.Tests` (`PortalRules`), the Hosting header-rule mechanism in `TechStrap.Api.Tests`
 +`tests/TechStrap.Portal.Tests/js` holds the node tests of the two browser modules. The start-failure tests of all three test projects use the one `tests/Shared/StartupFailure.cs`, which reads a host's refusal to start
@@ -7740,8 +7740,8 @@ Tests Passed: 41, Failed: 6, Skipped: 0, Inconclusive: 0, NotRun: 0
 +The tests read the compiled CSS and the markup and run the host in memory; they cannot see a layout, a screen reader or a real browser. These checks close **P09-T16** and, with the compose run, **P09-T18**, and each result is
 +recorded in the pull request (the checklist there is ticked by the owner). Run the Portal against an API with the Development seed (`orbitly` and `paperplane`), in Chrome with the DevTools Console open.
 +
-+1. No CSP errors on the Portal's pages: `/`, `/p/paperplane`, the contact form, the received page, a ticket page, the help centre, an article. No `Refused to ...` lines; the fonts and the CSS load; both modules load (`js/kb-suggestions.*.js` and `js/portal-forms.*.js`, status 200, `text/javascript`).
-+2. Run the axe browser extension on the product home, the contact form (with the error summary showing), the received page, a ticket page, the help-centre home, a category page, search results and an article: no critical findings. Record the result.
++1. No CSP errors on the Portal's pages: `/`, `/p/paperplane`, the contact form, the received page, a ticket page, the help center, an article. No `Refused to ...` lines; the fonts and the CSS load; both modules load (`js/kb-suggestions.*.js` and `js/portal-forms.*.js`, status 200, `text/javascript`).
++2. Run the axe browser extension on the product home, the contact form (with the error summary showing), the received page, a ticket page, the help-center home, a category page, search results and an article: no critical findings. Record the result.
 +3. Run Lighthouse (accessibility) on the contact form, a ticket page and an article: at least 90 each. Record the scores.
 +4. JavaScript off (DevTools, Disable JavaScript): contact form -> submit -> received page, and a ticket -> reply -> the same page, work end to end; the received page still shows the number (it can be selected); the skip link jumps to the main content; an error summary link moves the focus to its field.
 +5. Screenshots at 360, 768 and 1280 px of the product home, the contact form, the contact form with errors, the received page, the ticket page and an article: one column on a phone, no horizontal scroll, the category cards two across from 768 and three from 1200, nothing clipped. Attach them to the pull request.
@@ -7750,22 +7750,22 @@ Tests Passed: 41, Failed: 6, Skipped: 0, Inconclusive: 0, NotRun: 0
 +8. Double click "Send message" on the contact form, "Send" on a ticket reply and "Send me a new link": one ticket, one reply, one email (check the Mailpit inbox and the Admin queue); the button shows "Sending" until the page changes. Press the back button after a send: the button is usable again.
 +9. On the received page click "Copy ticket number": the number is on the clipboard and "Copied" shows; in a page opened over plain http from another address (no clipboard) the number is selected and the sentence says so.
 +10. Type or paste about 85,000 characters into the message: the counter appears and counts; a long text with many line breaks shows it over the limit before the server would say so.
-+11. Forced-colours emulation (DevTools > Rendering > Emulate CSS media feature forced-colors): a 3px outline on the focused control, the skip link bordered, the error summary and the status banner outlined. Reduced-motion emulation: no animation. The console shows no CSP violations in either.
++11. Forced-colors emulation (DevTools > Rendering > Emulate CSS media feature forced-colors): a 3px outline on the focused control, the skip link bordered, the error summary and the status banner outlined. Reduced-motion emulation: no animation. The console shows no CSP violations in either.
 +12. 400 percent zoom and increased text spacing (a bookmarklet or the Text Spacing extension): nothing is lost or overlaps.
-+13. The hostile accents: set a product's accent to `#F59E0B`, `#0F3D2E`, a red, a grey, a near-black and a blue in the Admin and look at the contact form and the product home: text, buttons, the skip link and focus stay readable.
++13. The hostile accents: set a product's accent to `#F59E0B`, `#0F3D2E`, a red, a gray, a near-black and a blue in the Admin and look at the contact form and the product home: text, buttons, the skip link and focus stay readable.
 +14. A screen reader (NVDA or VoiceOver) on the contact form with errors, and on a ticket page: the landmarks are announced with their names (Main, the footer navigation, "Powered by"); the error summary is announced once; the counter speaks after a pause, not on every key.
 +15. An invalid token, an unknown product and an unpublished article look the same (the neutral 404 page).
 +16. The compose smoke (`pwsh scripts/Test-ComposeSmoke.ps1`) and the contact flow under `docker compose up` (P09-T18): the Portal is healthy, and hitting the contact form repeatedly from one client address trips the API's 429 for that address only.
 +
  ## Known gaps
  
--- `ProductHome` and `KbHome` each carry a search box, so the product home shows a duplicate of the help-centre one; merging them is PHASE-09d.
-+- The product home has the shared search box (`KbSearchBox`, merged in 09d) and the header's link to the help centre, but still no list of categories.
+-- `ProductHome` and `KbHome` each carry a search box, so the product home shows a duplicate of the help-center one; merging them is PHASE-09d.
++- The product home has the shared search box (`KbSearchBox`, merged in 09d) and the header's link to the help center, but still no list of categories.
  - The sitemap build's API calls carry the address of the visitor whose request started it, so each sitemap build makes 1 + N API calls under one forwarded IP, and the API's public limit is 120 per minute per IP:
    with about 120 or more active products the sitemap build is rate-limited and the sitemap goes stale or becomes unavailable. Possible later fixes are a bulk sitemap endpoint, or exempting the Portal's own build traffic from the limit.
--- The help centre has no category description on its category page and the product home has no category list; the visual polish, the accessibility and no-JS pass and the double-send guard are PHASE-09d.
+-- The help center has no category description on its category page and the product home has no category list; the visual polish, the accessibility and no-JS pass and the double-send guard are PHASE-09d.
 -- There is no "copy" button for the ticket number, no live character counter and no "sending" state on the submit button: they need script, and the Portal keeps every flow script-free (09d decides).
-+- The help centre has no category description on its category page and the product home has no category list (the article list does not carry a description, and a second call per page was not worth it).
++- The help center has no category description on its category page and the product home has no category list (the article list does not carry a description, and a second call per page was not worth it).
 +- The form helpers need script (the sending state, the copy button, the counter) and are only extras: every flow works without them, which is the owner's JavaScript-off walk below.
 +- The double-send guard is per instance and is lost on a restart, and two Portal replicas do not share it (like the sitemap cache); the API has no idempotency key for the two public writes.
 +- The Blazor DOM diff of an enhanced navigation rewrites the attributes of an element it keeps, and a child a script added to such an element. The helpers are built for it (a custom element rebuilds in
@@ -7824,8 +7824,8 @@ Tests Passed: 41, Failed: 6, Skipped: 0, Inconclusive: 0, NotRun: 0
  
      It 'has a Portal developer guide, linked from the README, that lists every setting and the known gaps' {
          $guide = Get-RepoText 'docs/development/PORTAL-APP.md'
--        foreach ($heading in '## Run it locally', '### Configuration', '## How a page is served', '### Forms and uploads', '### Suggestions beside the subject', '### The help centre', '### SEO and structured data', '### Caching and the sitemap', '### The ticket page and attachments', '### The lost-link page', '## Where things live', '## Tests', '## Known gaps') {
-+        foreach ($heading in '## Run it locally', '### Configuration', '## How a page is served', '### Forms and uploads', '### The double-send guard', '### Suggestions beside the subject', '### Form helpers (`portal-forms.js`)', '### Accessibility, layout and the base address', '### The help centre', '### SEO and structured data', '### Caching and the sitemap', '### The ticket page and attachments', '### The lost-link page', '## Where things live', '## Tests', '## Known gaps') {
+-        foreach ($heading in '## Run it locally', '### Configuration', '## How a page is served', '### Forms and uploads', '### Suggestions beside the subject', '### The help center', '### SEO and structured data', '### Caching and the sitemap', '### The ticket page and attachments', '### The lost-link page', '## Where things live', '## Tests', '## Known gaps') {
++        foreach ($heading in '## Run it locally', '### Configuration', '## How a page is served', '### Forms and uploads', '### The double-send guard', '### Suggestions beside the subject', '### Form helpers (`portal-forms.js`)', '### Accessibility, layout and the base address', '### The help center', '### SEO and structured data', '### Caching and the sitemap', '### The ticket page and attachments', '### The lost-link page', '## Where things live', '## Tests', '## Known gaps') {
              $guide | Should -Match ('(?m)^' + [regex]::Escape($heading))
          }
          foreach ($key in 'API__BASEURL', 'TECHSTRAP_PORTAL_PUBLIC_URL', 'TECHSTRAP_PORTAL_DEFAULT_PRODUCT', 'TECHSTRAP_PORTAL_SHOW_POWERED_BY', 'CANONICALHOST__CANONICALHOST') {
@@ -8100,7 +8100,7 @@ try {
 console.log(out.join('\n'));
 ```
 
-`browser_t4.mjs` (Task 4: a real click and Enter on a summary link move the focus to the field, the skip link keeps the prefill, no horizontal scroll at 360, 768 and 1280, the forced-colours outline)
+`browser_t4.mjs` (Task 4: a real click and Enter on a summary link move the focus to the field, the skip link keeps the prefill, no horizontal scroll at 360, 768 and 1280, the forced-colors outline)
 
 ```javascript
 import { launch, sleep } from './cdp.mjs';

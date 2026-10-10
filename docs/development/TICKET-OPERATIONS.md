@@ -47,7 +47,7 @@ Spam tickets appear only in the `spam` view.
 
 ## Reply and note
 
-A reply is multipart so files can travel with it. The body is Markdown, rendered and sanitised on the server.
+A reply is multipart so files can travel with it. The body is Markdown, rendered and sanitized on the server.
 `statusAfter` is empty or `Pending` (the default) or `Solved` ("send and solve"). `linkedArticleIds` may repeat (at most 10).
 Each linked article must be Published and either shared or in the ticket's product, and it must have a category; anything else is a 400
 `kb-article-not-linkable` and nothing is stored or emailed (D-044). The customer email lists each one as
@@ -125,7 +125,7 @@ Notes, priority, tags, product moves and spam send nothing. Tickets flagged as s
 
 ## Customer access
 
-The customer view is a separate surface from the agent API. Every `/api/customer` route uses the `Public` policy, authorises by the
+The customer view is a separate surface from the agent API. Every `/api/customer` route uses the `Public` policy, authorizes by the
 ticket token inside the handler, and answers with `Cache-Control: no-store`. The token travels only in the `X-Ticket-Token` header, never
 in the path, so it stays out of access logs.
 
@@ -215,7 +215,7 @@ The Worker deletes `Sent` and `Discarded` outbox rows older than N days, measure
 
 ### Logging and personal data
 
-Every Serilog event in the Api and the Worker passes through `PiiRedactionEnricher` before any sink: email addresses become `[email]`, 43-character access tokens (with or without a `tsk_` or `tsp_` API key prefix, so API keys too) `[token]` and `sha256:` hashes `[hash]`, in every property, including nested ones. It cannot rewrite an attached exception or recognise a name, so application code logs ids and exception type names only, and nothing may enable `EnableSensitiveDataLogging` or `Include Error Detail` (`LoggingSafetyTests` fails the build if one does). The Admin host has joined since PHASE-07a, through the shared `TechStrap.Hosting` project (D-040); the Portal joins in PHASE-09.
+Every Serilog event in the Api and the Worker passes through `PiiRedactionEnricher` before any sink: email addresses become `[email]`, 43-character access tokens (with or without a `tsk_` or `tsp_` API key prefix, so API keys too) `[token]` and `sha256:` hashes `[hash]`, in every property, including nested ones. It cannot rewrite an attached exception or recognize a name, so application code logs ids and exception type names only, and nothing may enable `EnableSensitiveDataLogging` or `Include Error Detail` (`LoggingSafetyTests` fails the build if one does). The Admin host has joined since PHASE-07a, through the shared `TechStrap.Hosting` project (D-040); the Portal joins in PHASE-09.
 
 ## Try it end to end
 

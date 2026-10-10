@@ -81,7 +81,7 @@
 - **Customer-facing copy (BRAND.md).**
   - Product branding leads.
   - TechStrap appears only as the "Powered by TechStrap" line, which links to https://github.com/Syntax-Circus/techstrap in HTML and is the bare URL in text. It is omitted when `TECHSTRAP_PORTAL_SHOW_POWERED_BY=false`.
-  - No mascot, no puns, no TechStrap colours.
+  - No mascot, no puns, no TechStrap colors.
   - The accent comes from `ProductAccent.TryDerive`, and `--accent-ink` is used for text on white.
   - No agent email in From or Reply-To (D-024).
 - **Commits.** Use Conventional Commits. Every commit ends with exactly:
@@ -1058,7 +1058,7 @@ Expose `static bool TryMatch(string extension, ReadOnlySpan<byte> head, out stri
 A declared content type is accepted when it is null or blank, `application/octet-stream`, or equal (ignoring case and any `;` parameters) to the canonical type. For text kinds it may also be any `text/*`. Anything else is rejected.
 
 `AttachmentStore` (`internal sealed`, primary constructor taking `IStorageProvider storage`). `SaveAsync` does the following, in order:
-1. Build a safe display name: `Path.GetFileName` with both `/` and `\` normalised, control and format characters stripped, trimmed, cut to `DomainLimits.FileNameMaxLength`, and `"attachment"` if empty or `.`/`..`.
+1. Build a safe display name: `Path.GetFileName` with both `/` and `\` normalized, control and format characters stripped, trimmed, cut to `DomainLimits.FileNameMaxLength`, and `"attachment"` if empty or `.`/`..`.
 2. Take the extension in lower case, and reject it if it is not in `IntakeLimits.AllowedExtensions`.
 3. If the declared `Length` is more than `IntakeLimits.MaxFileBytes`, return `attachment-too-large`.
 4. Read the stream into a pooled buffer, capped at `MaxFileBytes + 1` bytes:
@@ -1271,10 +1271,10 @@ Create the Application types from **Interfaces**.
   - The ticket number in bold.
   - A button link styled with the accent background and on-accent text.
   - Any other link text in `colors.AccentInk`.
-  - Get the colours with `ProductAccent.TryDerive(branding.AccentColour, out var colors)`, falling back to `ProductBranding.DefaultAccentColour`.
+  - Get the colors with `ProductAccent.TryDerive(branding.AccentColour, out var colors)`, falling back to `ProductBranding.DefaultAccentColour`.
   - HTML-encode every model value with `WebUtility.HtmlEncode`.
   - The footer has `Powered by <a href="{PoweredByUrl}">TechStrap</a>` only when `ShowPoweredBy`.
-  - No mascot, no TechStrap colours.
+  - No mascot, no TechStrap colors.
 - **From:** `$"{DisplayName} <{FromAddress}>"` when `FromAddress` is set, otherwise null. **ReplyTo:** `branding.ReplyTo`.
 
 The "Powered by TechStrap" text is a single constant in the renderer, and the URL is `EmailBrandingOptions.PoweredByUrl`.
@@ -1306,7 +1306,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 ```csharp
 namespace TechStrap.Application.Persistence;
 
-/// <summary>A stored intake response for one API key and Idempotency-Key (D-020). <see cref="ResponseJson"/> is the serialised SubmitTicketResponse.</summary>
+/// <summary>A stored intake response for one API key and Idempotency-Key (D-020). <see cref="ResponseJson"/> is the serialized SubmitTicketResponse.</summary>
 public sealed record IntakeIdempotencyEntry(Guid Id, Guid ApiKeyId, Guid TicketId, string ResponseJson, DateTimeOffset CreatedAt);
 
 /// <summary>
@@ -1443,14 +1443,14 @@ public interface ISubmitTicketRequestHandler
 3. **Honeypot.** If `HoneypotTripped`, return `Success(new SubmitTicketResponse($"{product.NumberPrefix}-{Random.Shared.Next(1000, 100000)}", null, []))`. Write nothing.
 4. **Warnings.** If the submission is not `Trusted` and `ExternalUserRef` is not blank, add `IntakeWarnings.ExternalUserRefIgnored` and ignore the reference.
 5. **Body.** Compute `CustomerText.ToHtml(request.Body ?? "")` and pass the result through `sanitizer.Sanitize`. An empty result stays empty, so the Domain reports `body-required`.
-6. **Metadata JSON.** `null` when the metadata is null or empty. Otherwise serialise it with `System.Text.Json` (Web defaults).
+6. **Metadata JSON.** `null` when the metadata is null or empty. Otherwise serialize it with `System.Text.Json` (Web defaults).
 7. **Attempt loop.** Allow at most 2 attempts; a second attempt happens only when the commit fails with `PersistenceErrorCodes.Duplicate`. Keep a `List<string> stored` of storage keys saved in the current attempt. Each attempt:
    1. `await using var scope = await unitOfWork.BeginAsync(ct)`.
    2. **Idempotency (Api channel with a key).** Call `entry = await idempotency.FindAsync(apiKeyId, key, ct)`.
       - If the entry is newer than `now - Retention`, this is a replay. The stored response never holds a link (step 10), so issue a fresh one for the original ticket:
         - `ticket = await tickets.GetByIdAsync(entry.TicketId, ct)`; if it is null (deleted), treat the entry as expired (next bullet).
         - `issued = tokens.Issue(ticket.Id, ticket.RequesterId)`, then `tickets.AddAccessToken(issued.Value.Token)`.
-        - Commit. On success, return the deserialised stored response `with { ViewUrl = portal.Value.TicketLink(issued.Value.PlaintextToken) }`. On failure, return the failure.
+        - Commit. On success, return the deserialized stored response `with { ViewUrl = portal.Value.TicketLink(issued.Value.PlaintextToken) }`. On failure, return the failure.
         - No ticket, requester, outbox row or key-use update is created on a replay.
       - If an entry exists but is older, call `idempotency.Remove(entry)`.
    3. **Requester.** Call `requesters.GetByEmailAsync(email)`.
@@ -1502,7 +1502,7 @@ Application can see `IOptions` and `ILogger` through `SyntaxCircus.Common`'s fra
 - Portal options use `PublicUrl = "https://help.test/"`.
 - Build the handler in a `Handler()` method.
 
-Write one test for each case below. Each name states the behaviour it asserts.
+Write one test for each case below. Each name states the behavior it asserts.
 
 ```csharp
     [Fact] public async Task A_web_submission_creates_requester_ticket_message_token_and_queues_the_confirmation()
@@ -2004,7 +2004,7 @@ Both registrations come after `AddAgentAuthentication`, and the default scheme s
 Run: `dotnet test --project tests/TechStrap.Api.Tests -c Release` and `dotnet test --project tests/TechStrap.Architecture.Tests -c Release`.
 Expected: PASS. The Rate-limit coverage fact is skipped.
 
-`ResultMappingTests` and `CancellationPropagationTests` cover `IntakeController.Submit` automatically. `ControllerActions.InvokeAsync` passes `null` for the `string?` header and an uninitialised `SubmitTicketRequest`. `User` is an empty principal, so the context has null ids, and the proxy handler never looks at it.
+`ResultMappingTests` and `CancellationPropagationTests` cover `IntakeController.Submit` automatically. `ControllerActions.InvokeAsync` passes `null` for the `string?` header and an uninitialized `SubmitTicketRequest`. `User` is an empty principal, so the context has null ids, and the proxy handler never looks at it.
 
 - [ ] **Step 5: Build and commit**
 
@@ -2252,7 +2252,7 @@ options.AddPolicy(IntakeRateLimitOptions.KeyPolicyName, context =>
 
 The tests may post invalid bodies: the limiter counts requests before validation, so a 400 still uses a permit. Use a minimal valid body anyway, so a failure shows clearly. Assert only the status codes, plus the 429 problem `type` of `rate-limited`.
 
-`IntakeRateLimitOptionsTests`, modelled on `PublicRateLimitOptionsTests`, has one theory row per property, each with the value `0`:
+`IntakeRateLimitOptionsTests`, modeled on `PublicRateLimitOptionsTests`, has one theory row per property, each with the value `0`:
 
 ```csharp
     [Theory]
@@ -2458,7 +2458,7 @@ namespace TechStrap.Application.Email;
 
 public sealed record OutboundEmail(string To, string Subject, string Text, string Html, string? From, string? ReplyTo, string MessageId);
 
-/// <summary>Sends one rendered email (D-033). Failures are sanitised categories from <see cref="EmailSendFailures"/>, never server text.</summary>
+/// <summary>Sends one rendered email (D-033). Failures are sanitized categories from <see cref="EmailSendFailures"/>, never server text.</summary>
 public interface IOutboundEmailSender
 {
     Task<Result> SendAsync(OutboundEmail email, CancellationToken cancellationToken);
@@ -2473,7 +2473,7 @@ public static class EmailSendFailures
     public const string Unknown = "smtp-unknown";
 }
 
-/// <summary>The outbox id goes in Message-ID so duplicate sends are recognisable (D-010).</summary>
+/// <summary>The outbox id goes in Message-ID so duplicate sends are recognizable (D-010).</summary>
 public static class OutboundMessageIds
 {
     public const string Domain = "techstrap.local";
@@ -2567,7 +2567,7 @@ The failure codes `unknown-kind`, `payload-invalid`, `product-missing` and `rend
     [Fact] public async Task A_timeout_is_a_timeout_category()                     // throws TimeoutException → "smtp-timeout"
 
     [Fact] public async Task Caller_cancellation_is_rethrown_not_categorised()
-    // cancelled token and the sender throws OperationCanceledException(token) → ThrowsAsync<OperationCanceledException>.
+    // canceled token and the sender throws OperationCanceledException(token) → ThrowsAsync<OperationCanceledException>.
 ```
 
 `SmtpDeliveryException` has an internal constructor, so the unit tests cannot build one. Its `Kind` mapping is covered against a real dead server in Task 16.
@@ -2635,7 +2635,7 @@ public async Task<Result<DrainResult>> HandleAsync(string workerId, Cancellation
 
 `SendOneAsync` returns `null` on success or a failure category, and never throws except for cancellation:
 - An unknown `item.Kind` returns `DrainFailures.UnknownKind`.
-- It deserialises the payload with `JsonSerializerDefaults.Web`. A `JsonException`, a null result, or a blank `TicketNumber` or `PortalLink` returns `PayloadInvalid`.
+- It deserializes the payload with `JsonSerializerDefaults.Web`. A `JsonException`, a null result, or a blank `TicketNumber` or `PortalLink` returns `PayloadInvalid`.
 - A null `item.ProductId`, or a product that is not found, returns `ProductMissing`. Fetch the product once per id per batch, using the dictionary.
 - It renders inside `try`/`catch (Exception ex) when (ex is not OperationCanceledException)`. On an exception it logs `ex.GetType().Name` only and returns `RenderFailed`.
 - It sends `new OutboundEmail(item.ToAddress, rendered.Subject, rendered.Text, rendered.Html, rendered.From, rendered.ReplyTo, OutboundMessageIds.For(item.Id))`. On failure it returns `result.Errors[0].Code`.
@@ -2735,7 +2735,7 @@ Expected: PASS, with 0 warnings. `HandlerConstructorDependencyTests` accepts the
 
 ```bash
 git add src tests
-git commit -m "feat(email): outbox drain handler with sanitised SMTP adapter" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+git commit -m "feat(email): outbox drain handler with sanitized SMTP adapter" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 ```
 
@@ -3024,7 +3024,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
     // a 400 (invalid email) with a valid key: the body does not contain the key.
 ```
 
-Quote the identifiers from `information_schema` with `"` in the dynamic SQL; the test builds the SQL only from catalogue names, never from user input.
+Quote the identifiers from `information_schema` with `"` in the dynamic SQL; the test builds the SQL only from catalog names, never from user input.
 
 In `scripts/tests/ComposeFiles.Tests.ps1`:
 - Add `mailpit` to the expected local service set.
@@ -3157,7 +3157,7 @@ The default key must equal `DevelopmentApiKeys.OrbitlyTrusted`. Add a C# test, `
 
 **`docs/development/INTAKE.md`** covers:
 - the three submission routes, with their auth, rate limits and a `curl` example each (use the dev keys from DEV-DATA.md);
-- the honeypot behaviour (D-032);
+- the honeypot behavior (D-032);
 - idempotency, including the fresh link on a replay;
 - the attachment rules;
 - Mailpit at http://localhost:8025;

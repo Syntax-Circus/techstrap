@@ -12,7 +12,7 @@
 Agents are alerted about new tickets and customer replies. The Worker closes Solved tickets after N days.
 
 **Architecture:**
-- Every customer route uses the explicit `Public` policy with a rate limit (D-034), and authorises by the `X-Ticket-Token` header inside the handler. All handlers share one resolver, `CustomerAccess`, which turns a token into a ticket and requester or returns one uniform 404, whatever the reason.
+- Every customer route uses the explicit `Public` policy with a rate limit (D-034), and authorizes by the `X-Ticket-Token` header inside the handler. All handlers share one resolver, `CustomerAccess`, which turns a token into a ticket and requester or returns one uniform 404, whatever the reason.
 - Customer DTOs are separate from the agent DTOs and carry only public data, with agent names resolved through `AgentPublicIdentity` (D-024).
 - The PHASE-06a notification planner gains new-ticket, customer-reply, follow-up and lost-link cases. Like the existing cases, these stage template data only (D-033).
 - Auto-close follows the `EmailOutboxWorker` shape: a Worker loop resolves a scoped handler per iteration.
@@ -285,7 +285,7 @@ public sealed record CustomerTicketDto(
 
 /// <summary>
 /// One public message. AuthorType is a MessageAuthorTypes name; AuthorDisplayName is the resolved public agent name for agent
-/// messages (AgentPublicIdentity) and null for the customer's own and system messages. BodyHtml is sanitised HTML.
+/// messages (AgentPublicIdentity) and null for the customer's own and system messages. BodyHtml is sanitized HTML.
 /// </summary>
 public sealed record CustomerMessageDto(
     Guid Id, string AuthorType, string? AuthorDisplayName, string BodyHtml, DateTimeOffset CreatedAt, IReadOnlyList<AttachmentDto> Attachments);
@@ -368,7 +368,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 
 ```csharp
 namespace TechStrap.Application.Tickets;
-/// <summary>A follow-up created from a parent, with its first public message body (sanitised HTML) for the dedupe check.</summary>
+/// <summary>A follow-up created from a parent, with its first public message body (sanitized HTML) for the dedupe check.</summary>
 public sealed record FollowUpCandidate(Guid TicketId, string Number, Guid FirstMessageId, string FirstMessageBody, DateTimeOffset CreatedAt);
 /// <summary>A requester's ticket for the lost-link email.</summary>
 public sealed record RequesterTicketLink(Guid TicketId, Guid ProductId, string Number, string Subject, DateTimeOffset LastActivityAt);
@@ -944,7 +944,7 @@ internal static class CustomerTestData
 [Fact] public async Task Every_failure_mode_returns_the_same_404_bytes()
 // GET /api/customer/ticket with: no header, "", "garbage", 200 'x', unknown well-formed token, revoked, expired, erased requester.
 // All 404; bodies byte-identical after removing per-request fields the ProblemDetails writer adds (inspect one body: if it has
-// "traceId"/"instance", normalise those keys exactly as ApiKeyAuthTests.All_401_responses_are_identical does; if not, compare raw).
+// "traceId"/"instance", normalize those keys exactly as ApiKeyAuthTests.All_401_responses_are_identical does; if not, compare raw).
 // Headers identical apart from Date and correlation/request ids.
 
 // CustomerRateLimitTests
@@ -1089,7 +1089,7 @@ public async Task A_reply_on_new_or_open_keeps_the_status_and_alerts_with_reopen
 // planner.PlanFollowUpConfirmationAsync and PlanNewTicketAsync(followUp, requester, true) received; tickets.Add(followUp);
 // parent Update; parent unchanged except the FollowUpCreated event; response FollowUpCreated true, link https://help.test/t/...
 [Fact] public async Task The_same_text_within_two_minutes_replays_the_existing_follow_up()
-// ListRecentFollowUpsAsync returns a candidate with the same sanitised body -> no allocator, no Add, no planner;
+// ListRecentFollowUpsAsync returns a candidate with the same sanitized body -> no allocator, no Add, no planner;
 // a fresh token is added for the candidate; response carries its number.
 [Fact] public async Task Different_text_or_an_older_follow_up_creates_a_new_one()
 [Fact] public async Task A_failed_commit_deletes_stored_files_and_a_conflict_retries_once()
@@ -1146,7 +1146,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 **Files:**
 - Create: `src/TechStrap.Application/Tickets/Customer/GetCustomerAttachmentRequestHandler.cs`
 - Modify: `CustomerTicketsController`. Add `GetAttachment`.
-- Create: `src/TechStrap.Api/Startup/AttachmentSandbox.cs`. Move the CSP middleware out of `Program.cs` into `app.UseAttachmentSandbox()`, matching both `/api/attachments` and `/api/customer/attachments`. Keep the "append to the existing policy" behaviour.
+- Create: `src/TechStrap.Api/Startup/AttachmentSandbox.cs`. Move the CSP middleware out of `Program.cs` into `app.UseAttachmentSandbox()`, matching both `/api/attachments` and `/api/customer/attachments`. Keep the "append to the existing policy" behavior.
 - Modify: `src/TechStrap.Api/Program.cs`. Call the extension in the same position, before `UseSecurityHeaders`.
 - Modify: `ControllerActions.ExpectedSuccess`. Add `["CustomerTicketsController.GetAttachment"] = 200`.
 - Create: `tests/TechStrap.Application.Tests/Tickets/Customer/GetCustomerAttachmentRequestHandlerTests.cs`
@@ -1201,7 +1201,7 @@ For 404s, set `no-store` before the call. `AttachmentDownloadResult` sets it on 
 // 200, bytes equal, Content-Disposition attachment, nosniff, private no-store, CSP contains sandbox and frame-ancestors 'none'.
 [Fact] public async Task Other_ticket_and_internal_note_attachments_look_like_missing_ones()
 // internal-note attachment id, other ticket's attachment id and a random id with a valid token, plus a valid id with a bad token:
-// all 404 with byte-identical bodies (same normalisation as Task 8).
+// all 404 with byte-identical bodies (same normalization as Task 8).
 [Fact] public async Task The_agent_download_still_has_sandbox_after_the_middleware_move()
 ```
 

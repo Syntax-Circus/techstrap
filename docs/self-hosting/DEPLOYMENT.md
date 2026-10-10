@@ -136,7 +136,7 @@ grep -E '^TECHSTRAP_.*_IMAGE=' deploy/.env.uat.local | sed 's/.*://' | sort -u |
 ## First deploy: verify the client IP path
 
 The Api and the Worker sit on the project default network with `gw_priority: 1`, and also on the external db network. Docker chooses the default gateway by network name, and the db network can sort first;
-`gw_priority: 1` makes the project network the gateway, so a published-port request reaches the Api from the trusted subnet's gateway and the client IP survives the proxy (the Api honours `X-Forwarded-For` only from a trusted peer).
+`gw_priority: 1` makes the project network the gateway, so a published-port request reaches the Api from the trusted subnet's gateway and the client IP survives the proxy (the Api honors `X-Forwarded-For` only from a trusted peer).
 The compose file and the tests pin this, but only a real Linux host proves it. At the first UAT deploy:
 
 ```bash
@@ -198,7 +198,7 @@ Things to check:
 
 - **`ALLOWEDHOSTS`.** The compose file does not set it. Each `deploy/.env.<app>.example` ships `ALLOWEDHOSTS=*`, which accepts any host behind the proxy, so product hosts need no change. If you narrowed `ALLOWEDHOSTS` in `.env.portal` to the real host names, add every product host to it (keep `localhost` for the health probe).
 - **HSTS `includeSubDomains`.** A product host under a parent domain whose site sends `Strict-Transport-Security` with `includeSubDomains` is forced to https by browsers that saw that header. That is usually what you want, but a product host must have a working TLS site before a visitor reaches it.
-- **Changing or removing a host.** Emailed ticket links are `https://{oldHost}/t/{token}`: they work only while the old host's DNS and Caddy site remain, and nothing sends a customer to the default host. Keeping the old DNS record and proxy site preserves `/t/` links only. The old host is then an unknown host, so old help-centre links on it (emailed, or a 301 a browser cached; the canonical redirects carry `Cache-Control: public, max-age=3600`, so a changed host reaches visitors in about an hour, except a redirect from a form page or `/kb/search`, which keeps `no-store`) are not rewritten and answer 404, and `/` shows the default root. There is no redirect table.
+- **Changing or removing a host.** Emailed ticket links are `https://{oldHost}/t/{token}`: they work only while the old host's DNS and Caddy site remain, and nothing sends a customer to the default host. Keeping the old DNS record and proxy site preserves `/t/` links only. The old host is then an unknown host, so old help-center links on it (emailed, or a 301 a browser cached; the canonical redirects carry `Cache-Control: public, max-age=3600`, so a changed host reaches visitors in about an hour, except a redirect from a form page or `/kb/search`, which keeps `no-store`) are not rewritten and answer 404, and `/` shows the default root. There is no redirect table.
 - **The Api is down when the Portal starts.** Until the Portal's first successful read of the product list, every product host behaves as the default host (clean paths 404). A failed read is retried at most once per 10 seconds, a read that does not answer is cut off after 30 seconds, and an existing map is kept when a read fails.
 - **The default host.** A product cannot be given the host of `TECHSTRAP_PORTAL_PUBLIC_URL`; the Api answers `product-host-reserved`.
 - **`robots.txt`.** On a product host it names that host's own sitemap (an unknown host names the default host's); the host's own `/sitemap.xml` lists only that product.

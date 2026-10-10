@@ -4,7 +4,7 @@ Thanks for helping. This file is the short version of how work lands in this rep
 
 ## Before you start
 
-- Read the [architecture set](docs/architecture/00-DISCOVERY-INDEX.md). Work is organised in phases
+- Read the [architecture set](docs/architecture/00-DISCOVERY-INDEX.md). Work is organized in phases
   ([roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md)); pick a task that belongs to the phase being built.
 - Open an issue before a large change so the approach can be agreed first.
 
@@ -29,7 +29,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:
 ### Test first
 
 Write the failing test, watch it fail for the right reason, then write the code that makes it pass.
-Handler unit tests use substitutes and no database; infrastructure behaviour is tested against real
+Handler unit tests use substitutes and no database; infrastructure behavior is tested against real
 Postgres through `PostgresFixture` in `TechStrap.Infrastructure.IntegrationTests`.
 
 ### Migrations come from the EF tool only

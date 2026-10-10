@@ -60,9 +60,9 @@
   - Hub path, method and group names come from the Contracts constants (`TicketHubRoutes.Path`, `TicketHubMethods`, `TicketHubMessages`); no string literal repeats them.
 - **Secrets and PII.** The token travels in the `Authorization` header only: never in a URL, a log or a message. Every live failure is logged by exception type only, never a message (it could carry a token, a name or an address); the Api's `AdminLeakTests` scan every log level. A presence name is `Agent.Name`, shown to other agents only.
 - **Isolation.** Any live-client failure, whether start, token, invoke or disposal, is logged and degrades to the "Reconnecting" or "Offline" indicator. It never throws into a page, a composer or a circuit.
-- **Encoding.** Write non-ASCII in C# copy as `\u` escapes (the en dash of the banners is `\u2013`); `SourceEncodingTests` reads every source file as strict UTF-8. New files are written with LF; the working tree of this repository has CRLF in existing files, so an edit to an existing file is made with a tool that matches `\n` and keeps the file's endings (`edit.py` below, or the editor's own replace); git normalises either way.
+- **Encoding.** Write non-ASCII in C# copy as `\u` escapes (the en dash of the banners is `\u2013`); `SourceEncodingTests` reads every source file as strict UTF-8. New files are written with LF; the working tree of this repository has CRLF in existing files, so an edit to an existing file is made with a tool that matches `\n` and keeps the file's endings (`edit.py` below, or the editor's own replace); git normalizes either way.
 - **Tests.**
-  - Failing test first, with RED and GREEN recorded. A task whose tests cover behaviour that already exists (Task 4) records RED as the failure of a mutation that breaks the chain.
+  - Failing test first, with RED and GREEN recorded. A task whose tests cover behavior that already exists (Task 4) records RED as the failure of a mutation that breaks the chain.
   - Prove each pin with a recorded mutation; every mutation must keep the Release build compiling (avoid `if (false)`: CS0162; do not leave a variable unused: CS0219 or IDE0059 is an error). A mutation that does not compile is reported by `mut.py` as "NOT A MUTATION" (exit code 4).
   - Every test that waits carries `Timeout = ...` (xUnit1069 then wants `Xunit.TestContext.Current.CancellationToken` in the body, and xUnit1051 wants it passed to every call that takes a token; inside a bUnit class write `Xunit.TestContext`, because `Bunit.TestContext` is ambiguous). No tight wall-clock assertion: time is a `FakeTimeProvider`, a timer is counted with `CountingTimeProvider`, and a real wait is a bounded poll (a ceiling, not a measurement).
   - **A negative on a SignalR connection is proved with a barrier message**, never a sleep: a later message on the same connection arrives after every earlier one. In 10a we learned that the .NET client dispatches handlers apart from invocation completions, so an answered invoke does not prove an earlier push has been handled; the T17 test uses a second NOTIFY as the barrier.
@@ -93,7 +93,7 @@ Every mutation step uses two small tools, the 09d and 10a tools unchanged: `mut.
 usage: python mut.py <file> --replace <old> <new> [--replace <old> <new> ...] -- <command ...>
 
 Applies each replacement to <file> (each <old> must match exactly once; "\\n" in an argument means a newline), runs the command in the current
-directory, prints the lines that summarise the run, and ALWAYS puts the file back. The mutation is KILLED when the command fails (exit code 0), a SURVIVOR
+directory, prints the lines that summarize the run, and ALWAYS puts the file back. The mutation is KILLED when the command fails (exit code 0), a SURVIVOR
 (exit code 3) when it passes and NOT A MUTATION (exit code 4) when the mutated code does not compile: pick another mutation. Run it from the repository root, after `git add`-ing the task's files, so a failed run can also be undone with
 `git checkout -- <file>`.
 """
@@ -208,7 +208,7 @@ python $T/run_muts.py $T/specs/m1.py $T/res_m1.txt 1 2 3
    - Pinned in Task 1 (the token is asked for on every attempt and never cached; a null token stops for good; a throwing provider is retried and its text never logged; the retry policy ends for a lapsed session or a missing token) and Task 4 (against the real hub: a missing token ends in "Offline" after one request; a token that expires closes the connection and the reconnect uses the second token and raises a `Resync`).
 3. **Conflict semantics.** The detail banner never silently updates the row version or the draft; a send before the click still gets the 409; own changes are ignored.
    - Pinned in Task 3 (`TicketDetailLiveTests`: a change loads nothing, a send before the click carries the old row version and gets the conflict banner with the draft kept, the click takes the new version, a change that arrives during the reload keeps the banner, own changes, another ticket's changes and a `Resync`) and Task 1 (`LiveChangeRulesTests`).
-4. **UI behaviour.** A burst gives one queue banner; nothing reorders without the click; presence excludes self; composing is throttled and resets on blur, submit and dispose; announcements are accessible.
+4. **UI behavior.** A burst gives one queue banner; nothing reorders without the click; presence excludes self; composing is throttled and resets on blur, submit and dispose; announcements are accessible.
    - Pinned in Task 2 (`QueueLiveBannerTests`: one banner and one timer for a burst, nothing reloaded or reordered, the click is the ordinary load with the same filters, `aria-live="polite"` on the indicator and a polite announcement of the banner) and Task 3 (`PresenceViewModelFactoryTests`, `ReplyComposerLiveTests`: at most one hint per four seconds, false on blur, send, empty text, another ticket and disposal; `TicketDetailLiveTests`: the presence bar is a polite status region and lapses after the lease).
 5. **Kill switch and isolation.** When off, the Admin behaves exactly as before (no connection attempt, nothing drawn); a live failure never breaks a page; `AdminRules` and the architecture tests stay green.
    - Pinned in Task 1 (`LiveRegistrationTests`: the null client when off, the default on, a non-boolean stops the start; the Pester pin that both env templates say `true` and no compose sets it; `AdminRuleTests`) and Tasks 2 and 3 (every live component has a "switched off" test and a "failing client" test that checks only the exception type is logged).
@@ -538,7 +538,7 @@ using static TechStrap.Admin.Tests.Live.LiveTestData;
 namespace TechStrap.Admin.Tests.Live;
 
 /// <summary>
-/// The client's own behaviour over a scripted connection: one start, the state it reports, the token it hands the hub, the reconnect it asks for, what it re-joins and re-announces afterwards, the
+/// The client's own behavior over a scripted connection: one start, the state it reports, the token it hands the hub, the reconnect it asks for, what it re-joins and re-announces afterwards, the
 /// duplicates it drops, and a disposal that stops everything. A failure of the hub never reaches a caller.
 /// </summary>
 public sealed class SignalRTicketLiveClientTests
@@ -2519,7 +2519,7 @@ using static TechStrap.Admin.Tests.Live.LiveTestData;
 namespace TechStrap.Admin.Tests.Live;
 
 /// <summary>
-/// The queue's live behaviour (T13): a change by another agent, or a resync, raises ONE banner after a one-second window; the agent's own changes raise none; nothing reloads or reorders until the banner is
+/// The queue's live behavior (T13): a change by another agent, or a resync, raises ONE banner after a one-second window; the agent's own changes raise none; nothing reloads or reorders until the banner is
 /// clicked, and the click is the ordinary load with the current filters. The page never starts the connection (the indicator does) and releases its timer and its subscription when it goes.
 /// </summary>
 public sealed class QueueLiveBannerTests : AdminComponentTest
@@ -2692,7 +2692,7 @@ public sealed class QueueLiveBannerTests : AdminComponentTest
         cut.FindAll("button").Single(b => b.TextContent.Trim() == QueueCopy.Refresh).Click();
         cut.WaitForAssertion(() => ListCalls().ShouldBe(2));
 
-        // The reload showed everything up to now, so the pending banner is cancelled with its timer.
+        // The reload showed everything up to now, so the pending banner is canceled with its timer.
         _timers.LiveTimers.ShouldBe(0);
         Time.Advance(TimeSpan.FromSeconds(5));
         cut.FindAll(".ts-live-banner").ShouldBeEmpty();
@@ -2793,7 +2793,7 @@ Expected: FAIL to compile (the real run): `8 CS0103: The name 'LiveCopy' does no
 
 - [ ] **Step 4: Write the copy, the indicator, the banner, the styles and the layout slot**
 
-`LiveCopy` holds the words and the two constants; the indicator is the only starter (read its `OnAfterRender`: the start is guarded by its own flag and by the client's guard, is not awaited, and its failure is logged by type); the banner is a button; `_live.scss` has no animation and never relies on colour alone.
+`LiveCopy` holds the words and the two constants; the indicator is the only starter (read its `OnAfterRender`: the start is guarded by its own flag and by the client's guard, is not awaited, and its failure is logged by type); the banner is a button; `_live.scss` has no animation and never relies on color alone.
 
 `src/TechStrap.Admin/Features/Live/LiveCopy.cs` (new)
 
@@ -2950,7 +2950,7 @@ public sealed partial class LiveConnectionIndicator : IDisposable
 `src/TechStrap.Admin/Styles/_live.scss` (new)
 
 ```scss
-// PHASE-10b: the live-connection indicator and the "refresh" banners. Nothing here moves the page: the banners only offer a reload, and the indicator never uses colour alone (its text always says the state).
+// PHASE-10b: the live-connection indicator and the "refresh" banners. Nothing here moves the page: the banners only offer a reload, and the indicator never uses color alone (its text always says the state).
 
 .ts-live {
   display: flex;
@@ -3057,7 +3057,7 @@ diff --git a/src/TechStrap.Admin/Features/_Imports.razor b/src/TechStrap.Admin/F
 
 
 
-- [ ] **Step 5: Write the queue's live behaviour**
+- [ ] **Step 5: Write the queue's live behavior**
 
 The page asks for the client, the session and the clock. The handler hops to the renderer, ignores the agent's own change, and opens one window; the timer's callback shows the banner; every load clears both; disposal releases them. The click is the existing `RefreshAsync`, so the filters in the URL apply.
 
@@ -3239,7 +3239,7 @@ MUTATIONS = [
     ("4 the region is not polite", S + "LiveConnectionIndicator.razor", [(' aria-live="polite"', "")], LIVE),
     ("5 disposal leaves the state handler hooked", S + "LiveConnectionIndicator.razor.cs", [("        LiveClient.StateChanged -= OnStateChanged;\n", "")], LIVE),
     ("6 a start failure is not caught", S + "LiveConnectionIndicator.razor.cs", [("catch (Exception exception)", "catch (ArgumentException exception)")], LIVE),
-    ("7 the start moves into the initialisation (prerender)", S + "LiveConnectionIndicator.razor.cs", [("        Session.Changed += OnSessionChanged;\n    }", "        Session.Changed += OnSessionChanged;\n        _ = StartAsync();\n    }")], LIVE),
+    ("7 the start moves into the initialization (prerender)", S + "LiveConnectionIndicator.razor.cs", [("        Session.Changed += OnSessionChanged;\n    }", "        Session.Changed += OnSessionChanged;\n        _ = StartAsync();\n    }")], LIVE),
     ("8 the window is two seconds", S + "LiveCopy.cs", [("TimeSpan.FromSeconds(1);\n\n    /// <summary>The composer", "TimeSpan.FromSeconds(2);\n\n    /// <summary>The composer")], LIVE),
     ("9 the agent's own change raises the banner", Q, [("LiveChangeRules.IsOwn(change, Session.Agent?.Id)", "LiveChangeRules.IsOwn(change, null)")], LIVE),
     ("10 every change starts a timer", Q, [(" || _liveTimer is not null", "")], LIVE),
@@ -3272,7 +3272,7 @@ Every mutation must be KILLED. The real results (the first draft of the burst te
 | 4 | the region is not polite | `Features/Live/LiveConnectionIndicator.razor` | KILLED (5 failing) |
 | 5 | disposal leaves the state handler hooked | `Features/Live/LiveConnectionIndicator.razor.cs` | KILLED (1 failing) |
 | 6 | a start failure is not caught | `Features/Live/LiveConnectionIndicator.razor.cs` | KILLED (1 failing) |
-| 7 | the start moves into the initialisation (prerender) | `Features/Live/LiveConnectionIndicator.razor.cs` | KILLED (9 failing) |
+| 7 | the start moves into the initialization (prerender) | `Features/Live/LiveConnectionIndicator.razor.cs` | KILLED (9 failing) |
 | 8 | the window is two seconds | `Features/Live/LiveCopy.cs` | KILLED (7 failing) |
 | 9 | the agent's own change raises the banner | `Features/Queue/TicketQueuePage.razor.cs` | KILLED (1 failing) |
 | 10 | every change starts a timer | `Features/Queue/TicketQueuePage.razor.cs` | KILLED (1 failing) |
@@ -3447,7 +3447,7 @@ using static TechStrap.Admin.Tests.Live.LiveTestData;
 namespace TechStrap.Admin.Tests.Live;
 
 /// <summary>
-/// The detail page's live behaviour (T14, T15). The rule that matters: a change by someone else only raises a banner. The page keeps its model, its row version and the agent's draft until the banner is clicked, so a send
+/// The detail page's live behavior (T14, T15). The rule that matters: a change by someone else only raises a banner. The page keeps its model, its row version and the agent's draft until the banner is clicked, so a send
 /// before that still meets the existing 409 and an agent never acts on a version they have not seen. Own changes are ignored; the page joins the ticket on load, leaves it on navigation and disposal, and shows who else is here.
 /// </summary>
 public sealed class TicketDetailLiveTests : AdminComponentTest
@@ -4095,7 +4095,7 @@ diff --git a/src/TechStrap.Admin/Styles/_live.scss b/src/TechStrap.Admin/Styles/
 
 
 
-- [ ] **Step 5: Write the detail page's live behaviour and the composer's hint**
+- [ ] **Step 5: Write the detail page's live behavior and the composer's hint**
 
 Read these as the conflict semantics. `OnLiveChange` only sets `_liveChanged` and counts the change (`_liveChanges`); it never touches `_model`, the row version or the draft. `LoadCoreAsync` clears the banner only when `changesSeen == _liveChanges`. `SyncLiveGroup` runs after every load, so a route change leaves one group and joins the other, and a ticket that is gone is left. In the composer, `NoteTyping` compares `TimeProvider.GetUtcNow()` with the last send; `StopComposing` sends the one `false`; `Dispose` calls it first.
 
@@ -4872,7 +4872,7 @@ public sealed class AdminLiveClientHostTests(TestPostgres postgres)
 
 - [ ] **Step 3: See it fail when the chain is broken (RED by mutation)**
 
-These tests cover behaviour that Tasks 1 to 3 and 10a already built, so they pass at once; their RED is the failure of a mutation that cuts the chain. From the repository root, with Docker running:
+These tests cover behavior that Tasks 1 to 3 and 10a already built, so they pass at once; their RED is the failure of a mutation that cuts the chain. From the repository root, with Docker running:
 
 ```bash
 python $T/mut.py src/TechStrap.Infrastructure/Live/PgNotifyTicketChangeBroadcaster.cs --replace "        await command.ExecuteNonQueryAsync(cancellationToken);" "        await Task.CompletedTask;" -- dotnet test --project tests/TechStrap.Api.Tests -c Release --filter-class "*AdminLiveClientHostTests"
@@ -4964,7 +4964,7 @@ MSG
 
 **Interfaces:**
 - Consumes: everything built in Tasks 1 to 4 (the names, the numbers, the test names the docs quote), the 03-PACKAGE-MAP rows of Task 1, the D-046 text and pins of 10a (header bullet, index row, phrases), the log's addendum pattern (D-045's 09c and 09d addenda).
-- Produces: the **D-046 addendum (2026-10-07, PHASE-10b live updates in the Admin)** (no D-047: see "Decisions made while drafting"), the ADMIN-APP.md sections "Live updates (10b)" (behaviour, kill switch, the manual real-identity-provider checklist) and "Known gaps in 10b", the configuration row and the `Live/` row of the code tree, the corrected stale PHASE-10 sentences, the DEPLOYMENT.md sentence about the one Admin switch (it keeps the pinned phrase "No new settings", now "No new settings for the Api or the Worker"), P10-T11 to T17 and every deliverable and success criterion ticked with as-built notes, the roadmap and discovery rows ("10a merged (PR #18); 10b complete (pending merge); PHASE-10 complete (pending merge)"), and the Pester pins that hold all of it.
+- Produces: the **D-046 addendum (2026-10-07, PHASE-10b live updates in the Admin)** (no D-047: see "Decisions made while drafting"), the ADMIN-APP.md sections "Live updates (10b)" (behavior, kill switch, the manual real-identity-provider checklist) and "Known gaps in 10b", the configuration row and the `Live/` row of the code tree, the corrected stale PHASE-10 sentences, the DEPLOYMENT.md sentence about the one Admin switch (it keeps the pinned phrase "No new settings", now "No new settings for the Api or the Worker"), P10-T11 to T17 and every deliverable and success criterion ticked with as-built notes, the roadmap and discovery rows ("10a merged (PR #18); 10b complete (pending merge); PHASE-10 complete (pending merge)"), and the Pester pins that hold all of it.
 
 - [ ] **Step 1: Check the branch**
 
@@ -5146,7 +5146,7 @@ diff --git a/docs/development/ADMIN-APP.md b/docs/development/ADMIN-APP.md
  - **Queue**: six views (Unassigned is the default, then Mine, Open, Pending, All and the separate Spam view), counts per view (Spam muted), filters (product, status, priority, tag), search, 25 per page. Every filter is in
 -  the URL, so views can be bookmarked. The queue refreshes when you press Refresh; live updates arrive with PHASE-10.
 +  the URL, so views can be bookmarked. The queue refreshes when you press Refresh, and a banner offers the same refresh when something changes (Live updates (10b), below).
- - **Ticket**: one timeline of messages and changes (customer white, public reply canary, internal note pink with a dashed edge), the requester, metadata labelled **Untrusted** unless it came from a trusted key,
+ - **Ticket**: one timeline of messages and changes (customer white, public reply canary, internal note pink with a dashed edge), the requester, metadata labeled **Untrusted** unless it came from a trusted key,
    attachments as downloads (served through the Admin, never inline), and a link to the parent of a follow-up.
  - **Reply or note**: separate drafts per mode, files (up to 5, 10 MB each), Pending by default or "Send and solve". A failed send, or a conflict, never loses the text or the files.
 @@ -364,7 +366,7 @@ render, so read it before the action; services cannot be added after the first r
@@ -5176,7 +5176,7 @@ diff --git a/docs/development/ADMIN-APP.md b/docs/development/ADMIN-APP.md
 +
 +What an agent sees (PHASE-10, D-046). Nothing here moves a page by itself: a change only raises a banner, and the agent decides when to take it.
 +
-+- **Indicator.** A small status line above the status bar says "Live", "Connecting", "Reconnecting" or "Offline". It is a polite live region, so a screen reader hears a change without being interrupted, and the state is always written, never colour alone. It is drawn once the agent is admitted, and it is the only place the connection starts.
++- **Indicator.** A small status line above the status bar says "Live", "Connecting", "Reconnecting" or "Offline". It is a polite live region, so a screen reader hears a change without being interrupted, and the state is always written, never color alone. It is drawn once the agent is admitted, and it is the only place the connection starts.
 +- **Queue.** When another agent, the customer or the Worker (auto-close) changes any ticket, or the connection comes back after a gap, one banner "Queue updated – refresh" appears after a one-second window, however many changes there were. Nothing reloads or reorders until the banner is clicked; the click is the ordinary Refresh with the current filters. Your own changes raise nothing.
 +- **Ticket.** A change to the open ticket by someone else raises "New activity – refresh". Until the click the page keeps what it shows, including the row version, so a send in between still gets "This ticket changed since you opened it" and the draft is kept. The click reloads the timeline, the status and the row version. Your own changes (this tab or another) raise nothing; a send from another tab of yours still meets the 409.
 +- **Presence.** "Ada Admin is viewing" or "is replying" above the timeline: the other agents on the ticket, by their agent name (the email when there is none), never the customer-facing name and never yourself. "Replying" is sent while you type (at most every 4 seconds); it ends when you leave the box, send, empty the box, open another ticket or close the tab, and it lapses on its own after 10 seconds.

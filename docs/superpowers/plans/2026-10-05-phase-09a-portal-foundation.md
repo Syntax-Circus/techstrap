@@ -27,13 +27,13 @@
 - **T20 (Playwright) is deferred.**
 
 ### Technical decisions this plan makes (D-045; the owner confirms at plan review)
-- **API client.** The Portal has its own `ApiConnection` and `ProblemMapping`, modelled on the Admin's, with no code shared (Hosting stays a leaf; the Portal references exactly Contracts and Hosting).
-  - A read client retries transport errors, 408 and 502 to 504 twice, honouring `Retry-After` up to 2 seconds, with no circuit breaker. A write client never retries.
+- **API client.** The Portal has its own `ApiConnection` and `ProblemMapping`, modeled on the Admin's, with no code shared (Hosting stays a leaf; the Portal references exactly Contracts and Hosting).
+  - A read client retries transport errors, 408 and 502 to 504 twice, honoring `Retry-After` up to 2 seconds, with no circuit breaker. A write client never retries.
   - `ProblemMapping` maps 400 to field errors, 404 to one not-found whatever the API called it, 413 and 415 to the attachment errors, 429 to rate limited, and any 5xx or transport failure to `api-unavailable`, each with a fixed sentence.
   - A customer call takes a `TicketToken` (43 base64url characters, prints as `[token]`) and sets `X-Ticket-Token` on that request only.
   - The ticket and KB clients arrive with their pages (YAGNI): 09a ships `IPublicProductClient` and the token capability.
 - **Blazor.Seo, with its real API.** `AddSyntaxCircusSeo` and `UseSyntaxCircusSeo`; `MapSeoRobotsTxt(extraDirectives: ["Disallow: /t/"])`. `Seo:BaseUrl` is derived from `TECHSTRAP_PORTAL_PUBLIC_URL` in code (one key for one value). The `CanonicalHost__*` keys are optional. The sitemap is not mapped in 09a.
-- **Per-path headers.** `PathHeaderRule.Set` and `PathHeaderRule.Sandbox`, and `UseTechStrapWebHost(rules, downloadPathPrefixes)`. `/t/*` gets `Referrer-Policy: no-referrer`, `Cache-Control: no-store` and `X-Robots-Tag: noindex`; only `/t/{token}/attachments/{id}` is sandboxed. The Admin's download prefix becomes one such rule with unchanged behaviour.
+- **Per-path headers.** `PathHeaderRule.Set` and `PathHeaderRule.Sandbox`, and `UseTechStrapWebHost(rules, downloadPathPrefixes)`. `/t/*` gets `Referrer-Policy: no-referrer`, `Cache-Control: no-store` and `X-Robots-Tag: noindex`; only `/t/{token}/attachments/{id}` is sandboxed. The Admin's download prefix becomes one such rule with unchanged behavior.
 - **Theming.** No `BrandingThemeFactory`: a thin `ProductThemeViewModel` keeps the accent only if `ProductAccent.TryDerive` accepts it and the logo only if it is https (or loopback http in Development).
 - **No-enumeration.** An unknown, inactive or malformed product key calls `NavigationManager.NotFound()` and renders the same neutral 404 page as an unknown route; a malformed key is never sent to the API.
 - **Redaction.** The shared PII redactor masks the value of a `name` or `email` query parameter; the Sentry processors mask the same and a 43-character token directly under `/t/`.
@@ -98,7 +98,7 @@
 2. **Wrong headers on `/t/*`.** The shared middleware overwriting the overrides, or the sandbox reaching the ticket page. Pinned in Task 3 (`PathHeaderRuleHostTests`, `TicketHeaderHostTests`, `PortalHeaderRulesTests`), asserting the final response, including the re-executed 404.
 3. **Product enumeration.** Unknown, inactive and malformed keys must be indistinguishable from each other and answer the page an unknown route gets, and NotFound and Error must stay unbranded. Pinned in Task 4 (`NeutralPagesGuardTests`, `ProductHomeHostTests`).
 4. **Real client IP.** It must reach the API through the Portal on every call, and a write must never be retried. Pinned in Task 2 (`ApiConnectionTests`, `ForwardedClientIpHostTests`) and Task 4 (`ProductHomeHostTests`, through a real page).
-5. **Untrusted branding.** The logo address scheme, and colour values used only when derived. Pinned in Task 4 (`ProductThemeViewModelTests`, `ProductHomeHostTests`).
+5. **Untrusted branding.** The logo address scheme, and color values used only when derived. Pinned in Task 4 (`ProductThemeViewModelTests`, `ProductHomeHostTests`).
 
 ---
 ### Task 1: Foundations: D-045 and the spec corrections, the Portal's validated settings, route constants, the D-043 keys and compose, and the test host's settings
@@ -168,7 +168,7 @@ The mutation steps of every task use this small tool. Save it as `mut.py` in a f
 usage: python mut.py <file> --replace <old> <new> [--replace <old> <new> ...] -- <command ...>
 
 Applies each replacement to <file> (each <old> must match exactly once; "\\n" in an argument means a newline), runs the command in the current
-directory, prints the lines that summarise the run, and ALWAYS puts the file back. The mutation is KILLED when the command fails and a SURVIVOR
+directory, prints the lines that summarize the run, and ALWAYS puts the file back. The mutation is KILLED when the command fails and a SURVIVOR
 (exit code 3) when it passes. Run it from the repository root, after `git add`-ing the task's files, so a failed run can also be undone with
 `git checkout -- <file>`.
 """
@@ -1402,7 +1402,7 @@ PHASE-02, PHASE-06 and PHASE-08 are merged, so PHASE-09 can start. Reading the c
 - **The shared security-header middleware overwrites a per-page header.** It sets `Referrer-Policy` and the CSP when the response starts, so an endpoint cannot set them itself.
 - **The lost-link timing test conflicts with D-038.** D-038 accepts a residual timing difference of tens of milliseconds between a known and an unknown address.
 - **There is no way to carry the ticket number to the "received" page** without a cookie or an access token.
-- **`BrandingThemeFactory` would duplicate logic.** `PublicProductDto` already carries the derived accent colours and the Portal already has `AccentScope`.
+- **`BrandingThemeFactory` would duplicate logic.** `PublicProductDto` already carries the derived accent colors and the Portal already has `AccentScope`.
 
 ### Decision
 **Owner decisions (2026-10-05)**
@@ -1418,11 +1418,11 @@ PHASE-02, PHASE-06 and PHASE-08 are merged, so PHASE-09 can start. Reading the c
 - **The ticket and KB clients arrive with their pages.** 09a ships `IPublicProductClient` and the token capability of `ApiConnection`; `IPublicTicketClient` and `ICustomerTicketClient` come with 09b and `IPublicKbClient` with 09c (YAGNI).
 - **`SyntaxCircus.Blazor.Seo` 0.1.4, with its real API.** `AddSyntaxCircusSeo(config)` and `UseSyntaxCircusSeo()`; `MapSeoRobotsTxt(extraDirectives: ["Disallow: /t/"])`; in 09c `MapSeoSitemap(static, provider)`, where the provider is backed by the Portal's own 15-minute cache. The article JSON-LD is a local POCO. 03-PACKAGE-MAP and the PHASE-09 spec use the real names.
 - **One key for the public address.** `Seo:BaseUrl` is derived in code from `TECHSTRAP_PORTAL_PUBLIC_URL` (a post-configure step), so there is one setting, required outside Development. `CanonicalHost__*` stay their own optional keys (blank means no redirect), because the package's redirect is an allow-list of legacy hosts and a Portal with one address needs none. The sitemap is not mapped in 09a: it needs the 09c products endpoint.
-- **Per-path headers.** `UseTechStrapWebHost` accepts per-path rules (a path predicate and header overrides) that run after the shared security headers, so they win. `/t/*` gets `Referrer-Policy: no-referrer`, `Cache-Control: no-store` and `X-Robots-Tag: noindex`; the sandbox CSP applies only to `/t/{token}/attachments/{id}`, so the ticket page keeps the normal CSP. The Admin's download prefix is expressed as one such rule, with unchanged behaviour.
+- **Per-path headers.** `UseTechStrapWebHost` accepts per-path rules (a path predicate and header overrides) that run after the shared security headers, so they win. `/t/*` gets `Referrer-Policy: no-referrer`, `Cache-Control: no-store` and `X-Robots-Tag: noindex`; the sandbox CSP applies only to `/t/{token}/attachments/{id}`, so the ticket page keeps the normal CSP. The Admin's download prefix is expressed as one such rule, with unchanged behavior.
 - **Lost link.** The Portal's responses are byte-identical whatever the address. Timing is out of scope: D-038 accepts the residual difference, and the spec's timing test is relaxed to the byte comparison.
 - **The "received" page.** The ticket number travels in a data-protection-protected `?ref=` value that expires after 10 minutes. There is no cookie and no access token. An expired or tampered value shows the generic confirmation.
-- **Theming.** There is no `BrandingThemeFactory`. A thin `ProductThemeViewModel` reuses `AccentScope` and the DTO's derived colours, and re-checks the logo address (https only, or loopback http in Development, matching `TechStrapCsp.ForBlazorApp`); an unacceptable logo is omitted. NotFound and Error stay neutral (no enumeration, and the PHASE-04 no-brand guard): an unknown, inactive or malformed product key is answered exactly like an unknown route.
-- **Shared KB articles.** The canonical URL is the product path the visitor is on, because each product's help centre is its own site. The sitemap lists a shared article under each product.
+- **Theming.** There is no `BrandingThemeFactory`. A thin `ProductThemeViewModel` reuses `AccentScope` and the DTO's derived colors, and re-checks the logo address (https only, or loopback http in Development, matching `TechStrapCsp.ForBlazorApp`); an unacceptable logo is omitted. NotFound and Error stay neutral (no enumeration, and the PHASE-04 no-brand guard): an unknown, inactive or malformed product key is answered exactly like an unknown route.
+- **Shared KB articles.** The canonical URL is the product path the visitor is on, because each product's help center is its own site. The sitemap lists a shared article under each product.
 - **Forms.** Static-SSR forms use `[SupplyParameterFromForm]` and antiforgery. Attachments use a plain `<input type="file" multiple>`, which works without script, and are streamed into the multipart request. The Portal enforces the request size limit with Contracts `IntakeLimits`.
 ### Alternatives Considered
 - **Keep the InteractiveServer island.** Rejected by the owner: it adds a public SignalR circuit, loses the visitor's IP and needs a custom handler to work around it.
@@ -1503,7 +1503,7 @@ Where this page and D-045 differ, D-045 wins.
 - **KB suggestions.** A vanilla-JS custom element `<ts-kb-suggestions>` and a Portal-hosted `GET /p/{key}/kb/suggest` adapter replace the `KbDeflectionSuggestions` InteractiveServer island. No page has a circuit.
 - **API additions.** 09c adds a paged list of a category's articles and `GET api/public/products`; 09b adds `ProductKey` to `CustomerTicketDto`. `/` redirects to `TECHSTRAP_PORTAL_DEFAULT_PRODUCT`, or shows a neutral page.
 - **Blazor.Seo.** The real names are `AddSyntaxCircusSeo`, `UseSyntaxCircusSeo`, `MapSeoRobotsTxt(extraDirectives)` and `MapSeoSitemap(staticEntries, provider)`; `UseCanonicalHost`, `MapRobotsTxt`, `MapSitemap` and `ISitemapEntryProvider` do not exist. `Seo:BaseUrl` is derived from `TECHSTRAP_PORTAL_PUBLIC_URL`.
-- **Theming.** `BrandingThemeFactory` is replaced by a thin `ProductThemeViewModel` over `AccentScope` and the DTO's derived colours; the logo address is re-checked.
+- **Theming.** `BrandingThemeFactory` is replaced by a thin `ProductThemeViewModel` over `AccentScope` and the DTO's derived colors; the logo address is re-checked.
 - **Clients.** A hand-written `ApiConnection` and `ProblemMapping` (reads retried, writes never), not `ApiClientBase`; each client arrives with its page.
 - **Lost link.** The Portal's responses are byte-identical whatever the address; the timing assertion in P09-T10 is dropped (D-038 accepts the residual difference).
 - **Received page.** The ticket number travels in a data-protection-protected `?ref=` value that expires after 10 minutes.
@@ -1737,7 +1737,7 @@ public sealed class StubApiHandler : HttpMessageHandler
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        // A real handler gives up on a cancelled token before it sends anything.
+        // A real handler gives up on a canceled token before it sends anything.
         cancellationToken.ThrowIfCancellationRequested();
         var body = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
         var seen = new StubApiRequest(
@@ -2722,7 +2722,7 @@ using TechStrap.Portal.Tests.Api;
 namespace TechStrap.Portal.Tests.Clients;
 
 /// <summary>
-/// The read client honours <c>Retry-After</c> but never waits more than <see cref="ApiClientRegistration.ReadRetryAfterCap"/> for it: an overloaded API that says "120" must not freeze
+/// The read client honors <c>Retry-After</c> but never waits more than <see cref="ApiClientRegistration.ReadRetryAfterCap"/> for it: an overloaded API that says "120" must not freeze
 /// a visitor's page on "loading" until the client timeout.
 /// </summary>
 public sealed class ReadRetryAfterTests
@@ -2785,7 +2785,7 @@ public sealed class ReadRetryAfterTests
         finishedInTime.ShouldBeTrue("the retries must not wait for the 120 seconds the API asked for");
         (await call).Errors[0].Code.ShouldBe(ApiErrorCodes.ApiUnavailable);
         api.Stub.Count(HttpMethod.Get, "/api/thing").ShouldBe(1 + ApiClientRegistration.ReadRetryCount);
-        stepped.ShouldBeGreaterThanOrEqualTo(ApiClientRegistration.ReadRetryAfterCap, "the header is still honoured, not ignored");
+        stepped.ShouldBeGreaterThanOrEqualTo(ApiClientRegistration.ReadRetryAfterCap, "the header is still honored, not ignored");
         stepped.ShouldBeLessThanOrEqualTo(TimeSpan.FromSeconds(2 * ApiClientRegistration.ReadRetryCount + 1));
     }
 }
@@ -3336,8 +3336,8 @@ public static class ApiClientRegistration
     public const int WriteTimeoutSeconds = 300;
 
     /// <summary>
-    /// The longest a read waits before a retry, whatever the API's <c>Retry-After</c> asks for. The resilience default honours the header with no limit, so an overloaded API that says "120"
-    /// would freeze a page on "loading" until the client timeout. The header is still honoured below this cap.
+    /// The longest a read waits before a retry, whatever the API's <c>Retry-After</c> asks for. The resilience default honors the header with no limit, so an overloaded API that says "120"
+    /// would freeze a page on "loading" until the client timeout. The header is still honored below this cap.
     /// </summary>
     public static readonly TimeSpan ReadRetryAfterCap = TimeSpan.FromSeconds(2);
 
@@ -3380,7 +3380,7 @@ public static class ApiClientRegistration
         BackoffType = DelayBackoffType.Exponential,
         UseJitter = true,
 
-        // The default honours Retry-After without a limit; this one honours it up to ReadRetryAfterCap and otherwise falls back to the backoff above.
+        // The default honors Retry-After without a limit; this one honors it up to ReadRetryAfterCap and otherwise falls back to the backoff above.
         ShouldRetryAfterHeader = false,
         DelayGenerator = args => ValueTask.FromResult(RetryAfterDelay(args.Outcome.Result, TimeProvider.System.GetUtcNow())),
         ShouldHandle = args => ValueTask.FromResult(args.Outcome switch
@@ -3508,7 +3508,7 @@ Run `git add -A` first, and run each row from the repository root with `python $
 | 11b | `Clients/ProblemMapping.cs` | `case 413:\n                return [new ResultError(ApiErrorCodes.PayloadTooLarge, ProblemCopy.PayloadTooLarge, ResultErrorKind.Failure)];` | `case 413:\n                return [Unavailable()];` | `ApiConnectionTests` | KILLED, 1 failed of 33 (a 413 is the attachment error, through the pipeline) |
 | 12 | `src/TechStrap.Hosting/Wiring/BrowserHostExtensions.cs` | `        app.UseForwardedHeaders();\n        app.UseCorrelationId();` | `        app.UseCorrelationId();` | `ForwardedClientIpHostTests` | KILLED, 2 failed of 3 (the proxy's address would be forwarded) |
 
-Honest survivor, kept on purpose: removing `.RemoveAllLoggers()` from the read client (row 4) is killed only by the chain test. `TicketTokenLeakTests` still passes, because Hosting's host-wide `AddTechStrapHttpClientDefaults` also strips the logging handlers (defence in depth, pinned by `HostWiringTests.The_Portal_drops_the_default_HttpClient_logging`).
+Honest survivor, kept on purpose: removing `.RemoveAllLoggers()` from the read client (row 4) is killed only by the chain test. `TicketTokenLeakTests` still passes, because Hosting's host-wide `AddTechStrapHttpClientDefaults` also strips the logging handlers (defense in depth, pinned by `HostWiringTests.The_Portal_drops_the_default_HttpClient_logging`).
 
 - [ ] **Step 6: Verify and commit**
 
@@ -4689,7 +4689,7 @@ namespace TechStrap.Portal.Tests.Products;
 
 /// <summary>
 /// Review Focus 5 (untrusted branding): a stored product is data an agent typed, and a logo stored before the Admin validated it was never checked. The view model keeps only what is safe to
-/// render: an accent that the one derivation rule accepts (the three colours are derived from it by <c>AccentScope</c>, never taken from the DTO's own strings), and a logo address that is https,
+/// render: an accent that the one derivation rule accepts (the three colors are derived from it by <c>AccentScope</c>, never taken from the DTO's own strings), and a logo address that is https,
 /// or http to loopback in Development only (the same rule as the Content-Security-Policy's <c>img-src</c>).
 /// </summary>
 public sealed class ProductThemeViewModelTests
@@ -5470,7 +5470,7 @@ Expected: FAIL to compile, 6 distinct errors, the first of them `error CS0234: T
 
 - [ ] **Step 3: Implement the product theme, scope and page base**
 
-`ProductThemeViewModel` is the only place a stored product is trusted, and it trusts as little as possible: `ProductAccent.TryDerive` is the one derivation rule (nothing else may recompute the three colours), and the logo rule is stricter than Contracts' `IsAcceptableLogoUrl` by exactly the Development switch, the same as `TechStrapCsp.ForBlazorApp(allowLoopbackImages)`. The scope is per request, which is what keeps the not-found and error pages neutral.
+`ProductThemeViewModel` is the only place a stored product is trusted, and it trusts as little as possible: `ProductAccent.TryDerive` is the one derivation rule (nothing else may recompute the three colors), and the logo rule is stricter than Contracts' `IsAcceptableLogoUrl` by exactly the Development switch, the same as `TechStrapCsp.ForBlazorApp(allowLoopbackImages)`. The scope is per request, which is what keeps the not-found and error pages neutral.
 
 `src/TechStrap.Portal/Products/ProductThemeViewModel.cs`
 
@@ -5484,8 +5484,8 @@ namespace TechStrap.Portal.Products;
 /// What a page needs to look like one product's own, and nothing it does not (D-045; there is no <c>BrandingThemeFactory</c>). A stored product is data an agent typed, and a logo stored before the
 /// Admin validated it was never checked, so it is re-checked here, once, for every page:
 /// <list type="bullet">
-/// <item>The accent is kept only when <see cref="ProductAccent.TryDerive"/> accepts it, in that rule's own spelling. <c>AccentScope</c> derives the on-accent and ink colours from it with the same
-/// single implementation, so none of the DTO's three colour strings is ever written to a style attribute as it arrived.</item>
+/// <item>The accent is kept only when <see cref="ProductAccent.TryDerive"/> accepts it, in that rule's own spelling. <c>AccentScope</c> derives the on-accent and ink colors from it with the same
+/// single implementation, so none of the DTO's three color strings is ever written to a style attribute as it arrived.</item>
 /// <item>The logo is kept only when <see cref="BrandingRules.IsAcceptableLogoUrl"/> accepts it and it is https, or http to <c>localhost</c> or <c>127.0.0.1</c> when
 /// <paramref name="allowLoopbackImages"/> is set (Development), which is exactly what the Content-Security-Policy's <c>img-src</c> allows (<c>TechStrapCsp.ForBlazorApp</c>).</item>
 /// </list>
@@ -5627,7 +5627,7 @@ public abstract class ProductPageBase : ComponentBase
 
 - [ ] **Step 4: Implement the copy, the layout and the pages**
 
-`NavigationManager.NotFound()` renders the router's not-found page with a 404 in the same response; the bodies match an unknown route's byte for byte (the tests pin it). `PortalLayout` reads the scope on every render and listens to `Changed`, because a page sets its product while it initialises, after the layout first rendered, and the static renderer writes the final tree. The header is the logo (decorative, `alt=""`) and the name as one link, on one line so no whitespace separates them.
+`NavigationManager.NotFound()` renders the router's not-found page with a 404 in the same response; the bodies match an unknown route's byte for byte (the tests pin it). `PortalLayout` reads the scope on every render and listens to `Changed`, because a page sets its product while it initializes, after the layout first rendered, and the static renderer writes the final tree. The header is the logo (decorative, `alt=""`) and the name as one link, on one line so no whitespace separates them.
 
 `src/TechStrap.Portal/Components/ShellCopy.cs`
 
@@ -5635,7 +5635,7 @@ public abstract class ProductPageBase : ComponentBase
 namespace TechStrap.Portal.Components;
 
 /// <summary>
-/// The words of the shell pages. Plain copy, no humour (BRAND.md): TechStrap's name appears nowhere here, because the Portal is the product's, and the only TechStrap line is the
+/// The words of the shell pages. Plain copy, no humor (BRAND.md): TechStrap's name appears nowhere here, because the Portal is the product's, and the only TechStrap line is the
 /// "Powered by TechStrap" footer. A page references these; it never writes a sentence of its own.
 /// </summary>
 public static class ShellCopy
@@ -5691,7 +5691,7 @@ public partial class PortalLayout : LayoutComponentBase, IDisposable
 
     public void Dispose() => Scope.Changed -= OnScopeChanged;
 
-    // The page sets the product while it initialises, after this layout first rendered.
+    // The page sets the product while it initializes, after this layout first rendered.
     private void OnScopeChanged() => _ = InvokeAsync(StateHasChanged);
 }
 ```
@@ -5937,7 +5937,7 @@ public partial class Home
    border-top: 6px solid var(--ts-accent);
  }
 +
-+// A product's header and footer (PHASE-09a): the logo and name are one link to the product home; the colours are the product's through --ts-accent*.
++// A product's header and footer (PHASE-09a): the logo and name are one link to the product home; the colors are the product's through --ts-accent*.
 +.ts-product-header {
 +  width: 100%;
 +  max-width: 640px;
@@ -6085,7 +6085,7 @@ using TechStrap.Hosting.Logging;
 namespace TechStrap.Api.Tests.Redaction;
 
 /// <summary>
-/// P09-T17 / T21: the contact page may be opened with <c>?name=...&amp;email=...</c> (a prefill from the product's own app). A name cannot be recognised by pattern, so the value of these two query
+/// P09-T17 / T21: the contact page may be opened with <c>?name=...&amp;email=...</c> (a prefill from the product's own app). A name cannot be recognized by pattern, so the value of these two query
 /// parameters is masked wherever a logged text carries a query string, in addition to the email and token patterns the redactor already has. The match is on the parameter's decoded name, so
 /// <c>%6Eame=</c> and <c>NAME=</c> are caught, and on nothing else: a text that merely says "name=" is left alone.
 /// </summary>
@@ -6313,7 +6313,7 @@ using System.Text.RegularExpressions;
 namespace TechStrap.Architecture.Tests;
 
 /// <summary>
-/// Rules for the Portal (PHASE-09 T19, D-045), modelled on <see cref="AdminRules"/>. The Portal is a static-server-rendered, anonymous front of the API: no data access, HTTP only in
+/// Rules for the Portal (PHASE-09 T19, D-045), modeled on <see cref="AdminRules"/>. The Portal is a static-server-rendered, anonymous front of the API: no data access, HTTP only in
 /// <c>Clients/</c>, no inline script or style (the CSP allows none), no interactive render mode, and a short, argued list of places that turn text into markup. Every rule is a pure function over
 /// text or a parsed project so the tests can feed it a deliberately bad sample and prove it fails. Paths are relative to the repository root, with forward slashes.
 /// </summary>
@@ -6338,8 +6338,8 @@ public static partial class PortalRules
     };
 
     /// <summary>
-    /// The files (relative to src/TechStrap.Portal) that may turn API text into markup, which is where a stored-XSS bug would live. The API sanitises the HTML before it sends it, and the Portal does not
-    /// sanitise again, so each site is argued for in the commit that adds it: 09b adds <c>CustomerMessageBody</c> (a ticket message body) and 09c adds <c>KbArticleBody</c> (a published article). In 09a the
+    /// The files (relative to src/TechStrap.Portal) that may turn API text into markup, which is where a stored-XSS bug would live. The API sanitizes the HTML before it sends it, and the Portal does not
+    /// sanitize again, so each site is argued for in the commit that adds it: 09b adds <c>CustomerMessageBody</c> (a ticket message body) and 09c adds <c>KbArticleBody</c> (a published article). In 09a the
     /// list is empty: every other string the Portal shows is plain text, and Razor encodes it.
     /// </summary>
     public static IReadOnlyList<string> MarkupStringSites { get; } = [];
@@ -6838,7 +6838,7 @@ Run: `dotnet test --project tests/TechStrap.Architecture.Tests -c Release --filt
 Expected: FAIL: `total: 36, failed: 1`: `No_Portal_file_has_an_inline_script_a_style_element_the_import_map_or_an_event_handler_attribute`, because `StyleGuide.razor` has `<form class="ts-sg-form" onsubmit="return false">` (a real finding: the CSP blocks an inline handler).
 
 Run: `dotnet test --project tests/TechStrap.Portal.Tests -c Release --filter-query "/*/*/PoweredByHostTests/*"`
-Expected: PASS: `total: 28, failed: 0` (test-only task: the behaviour exists).
+Expected: PASS: `total: 28, failed: 0` (test-only task: the behavior exists).
 
 Run: `pwsh -NoProfile -File scripts/Invoke-ScriptTests.ps1 -Path scripts/tests/RepositoryDocs.Tests.ps1 -Output Minimal`
 Expected: FAIL: `Tests Passed: 23, Failed: 2` (the ticks test and the developer-guide test).
@@ -6856,9 +6856,9 @@ The redactor masks the value of a `name` or `email` query parameter before the e
  
  /// <summary>
  /// Rewrites PII-shaped text in every property value before any sink sees the event (D-039): email addresses (also URL-encoded), 43-character access tokens, JWT-shaped bearer tokens and
--/// "sha256:" hashes. It cannot touch LogEvent.Exception or the template, and it cannot recognise a name; application code never logs either
+-/// "sha256:" hashes. It cannot touch LogEvent.Exception or the template, and it cannot recognize a name; application code never logs either
 +/// "sha256:" hashes, and (D-045) the value of a <c>name</c> or <c>email</c> query parameter, which is how the Portal's contact page is prefilled and which a request log would otherwise carry.
-+/// It cannot touch LogEvent.Exception or the template, and it cannot recognise a name by shape; application code never logs either
++/// It cannot touch LogEvent.Exception or the template, and it cannot recognize a name by shape; application code never logs either
  /// (exceptions are logged by type name, requesters by id).
  /// Residual risk, accepted: names cannot be pattern-redacted, and an attached Exception is not rewritten. The worker loops that attach an
  /// exception (EmailOutboxWorker, AutoCloseWorker, OutboxRetentionWorker) get Npgsql's default, which hides PostgresException.Detail unless the error-detail connection option is enabled;
@@ -7048,7 +7048,7 @@ Every page is static server-side rendering: there is no render mode, no circuit 
 
 ### Talking to the API
 
-`ApiConnection` (internal, `Clients/`) is the only place the Portal uses HTTP. It sends reads through a client that retries transport errors, 408 and 502 to 504 (twice, honouring `Retry-After` up to
+`ApiConnection` (internal, `Clients/`) is the only place the Portal uses HTTP. It sends reads through a client that retries transport errors, 408 and 502 to 504 (twice, honoring `Retry-After` up to
 2 seconds, no circuit breaker) and writes through a client that never retries. Both forward the visitor's address in `X-Forwarded-For` (`AddForwardedClientIp`; the API trusts it only from the compose subnet,
 D-019) and have no logging handlers. `ProblemMapping` turns every answer into a `Result`: 400 keeps the API's field codes, 404 is one not-found whatever the API called it, 413 and 415 are the attachment
 errors, 429 is rate limited, any 5xx or transport error is `api-unavailable`, with fixed sentences from `ProblemCopy`. A call made as a ticket's customer takes a `TicketToken` (43 base64url characters; it

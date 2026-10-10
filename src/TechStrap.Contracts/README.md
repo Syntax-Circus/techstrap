@@ -26,7 +26,7 @@ Trailing optional parameters were added to the positional records `ProductBrandi
 
 ### 0.2.0
 
-The positional records `ProductDto`, `CreateProductRequest`, `UpdateProductRequest`, `PublicProductDto` and `PublicProductSummaryDto` gained a trailing `string? PortalHost = null` parameter since 0.1.0. This is source-compatible but changes their constructor and `Deconstruct` signatures: recompile consumers built against 0.1.0. `UpdateProductRequest.PortalHost` is new in 0.2.0: null leaves the stored host unchanged, an empty or whitespace string clears it, and any other value is normalised, validated and set. A 0.1.0 client that saves a product therefore leaves its host as it is. `TechStrap.Client` and `TechStrap.Client.Maui` move with it.
+The positional records `ProductDto`, `CreateProductRequest`, `UpdateProductRequest`, `PublicProductDto` and `PublicProductSummaryDto` gained a trailing `string? PortalHost = null` parameter since 0.1.0. This is source-compatible but changes their constructor and `Deconstruct` signatures: recompile consumers built against 0.1.0. `UpdateProductRequest.PortalHost` is new in 0.2.0: null leaves the stored host unchanged, an empty or whitespace string clears it, and any other value is normalized, validated and set. A 0.1.0 client that saves a product therefore leaves its host as it is. `TechStrap.Client` and `TechStrap.Client.Maui` move with it.
 
 ## Using it
 

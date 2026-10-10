@@ -36,22 +36,22 @@
   [UX-BRIEF-admin.md](UX-BRIEF-admin.md).
 - **Design constraints:**
   - **Brand layering (amended 2026-10-02: product branding leads):** one portal
-    domain, many products. The **product's name, logo and accent colour lead**
+    domain, many products. The **product's name, logo and accent color lead**
     on every `/p/{key}` page and in every customer email, supplied by an admin
     through `GetPublicProductRequestHandler` branding. TechStrap is **not** the
     visible brand: it supplies only the neutral structure underneath
-    (typography, layout, components, neutrals, semantic colours) and appears
+    (typography, layout, components, neutrals, semantic colors) and appears
     only as a small "Powered by TechStrap" footer line (exact rule under
     Interaction and Content Rules). The portal has **no mascot, no jokes, no
     carbon tints, no Beige Box windows** and no TechStrap-led headings; those
     are Admin-only. The portal is **light-only in v1**. The design must work
-    with **arbitrary admin-chosen accent colours** (see Contrast rules); it must
+    with **arbitrary admin-chosen accent colors** (see Contrast rules); it must
     also work with no logo (name only) and with a very long product name.
   - Blazor **static server-side rendering**: pages are fast, indexable and work
-    without JavaScript by default. Interactive behaviour (live deflection) is a
+    without JavaScript by default. Interactive behavior (live deflection) is a
     progressive enhancement and must degrade gracefully (Handoff Notes, question 3).
   - The portal never touches the database; it calls the API's public and
-    token-authorised endpoints through typed clients over `TechStrap.Contracts`.
+    token-authorized endpoints through typed clients over `TechStrap.Contracts`.
   - No customer accounts, passwords or sessions. Identity is possession of the
     emailed link (`/t/{token}`).
   - Mobile-first: most customers arrive from a phone or from inside an app's
@@ -204,7 +204,7 @@
 - **Steps:**
   1. [ ] Browse categories (single level) for a product (and shared articles), or
      search (full-text; results show title, summary, category).
-  2. [ ] Read an article (server-rendered Markdown, sanitised); see related
+  2. [ ] Read an article (server-rendered Markdown, sanitized); see related
      category and a path to "Still need help? Contact support" (themed for the
      product).
 - **Success state:** reader finds the article; the escalation path is always
@@ -252,7 +252,7 @@ team should keep them stable for SEO.
   - **Authorization:** Anonymous with a valid short-lived reference.
 - **Screen/route:** Customer ticket `/t/{token}`
   - **Purpose:** read the public conversation and reply.
-  - **Primary actions:** read, download attachments (authorised by the token),
+  - **Primary actions:** read, download attachments (authorized by the token),
     reply, start follow-up (Closed).
   - **Data/state:** `GetCustomerTicketRequestHandler` (public messages only),
     status, product theme (from the ticket's current product), reply form.
@@ -282,7 +282,7 @@ team should keep them stable for SEO.
 - **Screen/route:** KB article `/p/{key}/kb/{categorySlug}/{articleSlug}`
   - **Purpose:** read an article.
   - **Primary actions:** read, search, contact support, share/copy link.
-  - **Data/state:** `GetPublishedKbArticleRequestHandler` (rendered, sanitised
+  - **Data/state:** `GetPublishedKbArticleRequestHandler` (rendered, sanitized
     HTML; shared articles reachable under any product they apply to, canonical
     URL decision in Handoff Notes, question 7).
   - **Authorization:** Anonymous.
@@ -311,13 +311,13 @@ recorded in [02-ARCHITECTURE.md](02-ARCHITECTURE.md).
 
 | Feature/route | Component pair (`.razor` / `.razor.cs`) | ViewModel or direct model | Factory decision | State behavior |
 | :------------ | :-------------------------------------- | :----------------------- | :--------------- | :------------- |
-| Product theming (layout) | `ProductLayout` pair (PHASE-09 names it `PortalLayout`); `ProductHeader` and `ProductFooter` inline; custom properties emitted on the page wrapper (no injected `<style>`) | `ProductThemeViewModel` (name, logo URL, accent, derived on-accent and accent-ink) | **Yes: `BrandingThemeFactory`** (PHASE-09's name), justified by non-trivial colour/contrast derivation shared across pages and email | Layout loads branding once per request; failure to load branding falls back to the neutral TechStrap theme, never a broken page |
+| Product theming (layout) | `ProductLayout` pair (PHASE-09 names it `PortalLayout`); `ProductHeader` and `ProductFooter` inline; custom properties emitted on the page wrapper (no injected `<style>`) | `ProductThemeViewModel` (name, logo URL, accent, derived on-accent and accent-ink) | **Yes: `BrandingThemeFactory`** (PHASE-09's name), justified by non-trivial color/contrast derivation shared across pages and email | Layout loads branding once per request; failure to load branding falls back to the neutral TechStrap theme, never a broken page |
 | Product home | `ProductHome` pair; `CategoryList` inline | `ProductHomeViewModel` | None | Static SSR; loading not visible; error page on API failure |
 | Contact form | `ContactForm` pair; `SubjectSuggestions` pair (enhanced); `FileInput` pair; `HoneypotField` inline | `ContactFormModel` (direct form model with validation attributes mirroring server rules) | None; attachment-rule display strings come from shared constants | Form model owned by the page; enhanced form post preserves values on error; suggestions are an optional interactive island (Handoff Notes, question 3) |
 | Confirmation | `ContactReceived` pair | `ContactReceivedViewModel` | None | Stateless; handles missing/expired reference with the uniform not-found page |
-| Customer ticket | `CustomerTicket` pair; `PublicMessageList` pair; `ReplyForm` pair; `ClosedNotice` inline | `CustomerTicketViewModel` (friendly status text, public messages) | **Maybe: `CustomerTicketViewModelFactory`** if status wording and attachment link shaping stay non-trivial; otherwise code-behind | Page owns token, reply form state and Closed behaviour; uniform error on any token failure |
+| Customer ticket | `CustomerTicket` pair; `PublicMessageList` pair; `ReplyForm` pair; `ClosedNotice` inline | `CustomerTicketViewModel` (friendly status text, public messages) | **Maybe: `CustomerTicketViewModelFactory`** if status wording and attachment link shaping stay non-trivial; otherwise code-behind | Page owns token, reply form state and Closed behavior; uniform error on any token failure |
 | Lost link | `LostLinkForm` pair | `LostLinkModel` | None | Always renders the same result state after post |
-| KB category and article | `KbCategoryPage` pair; `KbArticlePage` pair; `KbArticleBody` inline (renders trusted-sanitised HTML) | `KbArticleViewModel` | None | Static SSR; SEO meta set per page through `SyntaxCircus.Blazor.Seo` |
+| KB category and article | `KbCategoryPage` pair; `KbArticlePage` pair; `KbArticleBody` inline (renders trusted-sanitized HTML) | `KbArticleViewModel` | None | Static SSR; SEO meta set per page through `SyntaxCircus.Blazor.Seo` |
 | KB search | `KbSearchPage` pair; `SearchBox` pair | `KbSearchResultViewModel` | None | Query in URL; empty/no-results states owned by the page |
 | System pages | `NotFound`, `RateLimited`, `ErrorPage` inline | None | None | Uniform copy; no technical detail |
 
@@ -348,7 +348,7 @@ recorded in [02-ARCHITECTURE.md](02-ARCHITECTURE.md).
        viewport and never competes with the "Can't find your ticket link?" link.
     5. **Decided (owner 2026-10-02, D-024):** the text is a link to
        https://github.com/Syntax-Circus/techstrap (neutral secondary ink,
-       underlined, same colour on hover; never the accent). It is shown by
+       underlined, same color on hover; never the accent). It is shown by
        default. An installation-level setting hides it everywhere on the
        portal and in emails: `TECHSTRAP_PORTAL_SHOW_POWERED_BY=false`
        (default `true`; not per product). When hidden, the whole line and the
@@ -366,10 +366,10 @@ recorded in [02-ARCHITECTURE.md](02-ARCHITECTURE.md).
     categories come first on the product home; the contact page leads with the
     form and keeps suggestions adjacent to the subject.
   - Product accent shows in: header rule and name/logo tile, primary button
-    fill (label in the derived on-accent colour), links and accent text (in the
-    derived accent-ink colour), and decorative highlights. The neutral
+    fill (label in the derived on-accent color), links and accent text (in the
+    derived accent-ink color), and decorative highlights. The neutral
     structure supplies layout, typography, spacing, neutrals and semantic
-    colours (error/success/warning), which are **never** replaced by the
+    colors (error/success/warning), which are **never** replaced by the
     product accent. The focus ring is a high-contrast neutral, not the accent.
   - The **ticket number** is always shown in a distinct, copyable treatment.
 - **Forms and validation:**
@@ -381,7 +381,7 @@ recorded in [02-ARCHITECTURE.md](02-ARCHITECTURE.md).
   - Keep the form short; do not ask for product (it is the page's context) or
     information the in-app link already supplies.
   - **Prefill (decided, D-024):** `/p/{key}/contact?subject=...&name=...&email=...`
-    may prefill exactly these three fields. They stay visible, labelled and
+    may prefill exactly these three fields. They stay visible, labeled and
     editable; there are no hidden fields and nothing is auto-submitted. App
     context such as version and device goes through the SDK/API, not the URL.
     Prefilled values are validated and length-limited exactly like typed input
@@ -401,10 +401,10 @@ recorded in [02-ARCHITECTURE.md](02-ARCHITECTURE.md).
     documents up to 10 MB each, 25 MB total"). Selected files are listed with
     name, size and remove button; violations are reported per file at selection
     (where script allows) and again on submit (server authority). Filenames shown
-    are sanitised; attachments open as downloads, not inline execution. Maximum
+    are sanitized; attachments open as downloads, not inline execution. Maximum
     file count: Handoff Notes, question 11.
   - Reply form on the ticket page follows the same attachment rules and error
-    behaviour.
+    behavior.
   - Do not autofocus the first field on mobile in ways that pop the keyboard and
     hide context.
 - **Notifications and errors:**
@@ -437,7 +437,7 @@ recorded in [02-ARCHITECTURE.md](02-ARCHITECTURE.md).
 ### Outbound email templates (part of the customer experience)
 
 Rendered by `IEmailTemplateRenderer` as **text and HTML** parts, branded per
-product (product name, logo if hosted by the portal, accent colour, from
+product (product name, logo if hosted by the portal, accent color, from
 display name, reply-to), English only (an i18n seam is kept). Email is the
 customer's door back into the portal, so the link is the most important element.
 Common rules:
@@ -463,14 +463,14 @@ Common rules:
   Outlook, Gmail and dark-mode inversion; images have alt text; the message is
   fully legible with images blocked and in plain text; width about 600 px, a
   single column; touch-sized CTA button; minimum font size ~16 px for body.
-- **Accent colour in email:** the product accent only, using the same
+- **Accent color in email:** the product accent only, using the same
   derivation as the web, computed by `BrandingThemeFactory` and written as
   **inline literal values** (email cannot use CSS custom properties): accent as
   the CTA button background and a thin header rule, with the **on-accent**
-  colour as the label (at least 4.5:1); any accent-coloured text link uses the
-  **accent-ink** colour (at least 4.5:1 on the white email body); the raw accent
+  color as the label (at least 4.5:1); any accent-colored text link uses the
+  **accent-ink** color (at least 4.5:1 on the white email body); the raw accent
   is never used for small text. Set button background both as a `bgcolor`
-  attribute and inline style, and the label colour explicitly, so inversion in
+  attribute and inline style, and the label color explicitly, so inversion in
   dark-mode clients cannot produce unreadable text. Logos: no white-only logos
   (place the logo on a white or neutral backing cell); no logo means the product
   name as text (Handoff Notes, question 8). A very light accent (Pixelforge) and
@@ -486,7 +486,7 @@ Common rules:
      for a follow-up a sentence linking it to the original ticket number.
      Currently the follow-up confirmation reuses the ticket-confirmation template
      without the parent number; the sentence is PHASE-09 copy work.
-  2. **Agent reply**: the agent's public reply text (sanitised), linked KB
+  2. **Agent reply**: the agent's public reply text (sanitized), linked KB
      articles as titled links (when the agent linked any), the agent's resolved name
      (D-024: "Sam from Orbitly Support", or the agent's public display name
      plus the same suffix; never email or surname), the CTA "View and reply", and the ticket number. Long
@@ -544,12 +544,12 @@ Target: **WCAG 2.2 AA** (the audience is the general public).
        header rule, logo tile, highlights.
     2. **`--ts-on-accent`**: white or black (`#FFFFFF` / `#000000`, whichever contrasts more; see BRAND.md; exact value
        in BRAND.md), **whichever contrasts more with the accent**. It is the
-       label colour on accent fills and must reach **at least 4.5:1**. (If
+       label color on accent fills and must reach **at least 4.5:1**. (If
        neither reaches 4.5:1, which can happen for mid-tones, use pure black; if
        that still fails, apply rule 4.)
     3. **`--ts-accent-ink`**: the accent itself if it already gives **at least
        4.5:1 on white**; otherwise the accent **darkened** (same hue, lightness
-       reduced step by step) until it does. Used for every accent-coloured
+       reduced step by step) until it does. Used for every accent-colored
        text, link and meaningful non-text UI (also needs 3:1, which 4.5:1
        satisfies). BRAND.md may require a stricter target; 4.5:1 is the floor.
     4. **Fallback:** if the input is invalid, or no safe pair can be derived, use
@@ -581,7 +581,7 @@ Target: **WCAG 2.2 AA** (the audience is the general public).
     surface with safe padding. The portal is light-only, so no dark logo
     variants are needed on the web; emails use a neutral backing cell
     (Handoff Notes, question 8).
-  - Error and success states combine text, icon and colour.
+  - Error and success states combine text, icon and color.
 - **Responsive layout behavior:**
   - Design at ~360 px first. Single column; comfortable reading measure on
     larger screens (a narrow, article-style column for KB and conversation), with
@@ -593,7 +593,7 @@ Target: **WCAG 2.2 AA** (the audience is the general public).
   - Zoom to 400% and text-spacing overrides must not break layout; no
     horizontal page scroll (tables and code blocks scroll within themselves).
   - Print: KB articles print cleanly (nice-to-have).
-- **Reduced-motion or other preferences:** honour `prefers-reduced-motion`
+- **Reduced-motion or other preferences:** honor `prefers-reduced-motion`
   (no animated suggestion entry or scroll effects), forced-colors mode, and
   user font-size settings. The portal is light-only in v1 and does not switch on
   `prefers-color-scheme`. No autoplay media, no carousels. **Amended by D-053 (2026-10-10):** the Midnight pack is dark, but it is chosen by the deployment or the product, never by the visitor's setting; forced-colors mode drops the header fill and its border image.
@@ -630,7 +630,7 @@ Portal is the product's own front door.
 
 How it applies to the Portal:
 
-- **Product branding leads.** Product name, logo and accent colour are the
+- **Product branding leads.** Product name, logo and accent color are the
   visible brand on every page and email. TechStrap appears only as the small
   "Powered by TechStrap" footer line (and an optional 16 px mark), per the
   footer rule. Branding is data-driven (admin supplies name, logo, accent); the
@@ -659,7 +659,7 @@ How it applies to the Portal:
   for the ticket status, input groups for the search box, `visually-hidden`
   helpers, responsive utilities.
 - **SCSS variable overrides:** neutral-structure tokens (fonts, scale, radius,
-  spacing, neutrals, semantic colours, focus ring) are compile-time SCSS, from
+  spacing, neutrals, semantic colors, focus ring) are compile-time SCSS, from
   BRAND.md. Product theming is **runtime CSS custom properties** set from
   branding (`--ts-accent`, `--ts-on-accent`, `--ts-accent-ink`), consumed by a
   small set of themed utilities; do not generate per-product stylesheets. The
@@ -674,7 +674,7 @@ How it applies to the Portal:
   product logo and article images (alt text required); no decorative stock
   photography. Tone: friendly, plain, concrete and brief; avoid helpdesk
   jargon ("ticket" is acceptable; "case", "SLA", "escalate" are not
-  customer-facing); never blame the user; apologise once, plainly, on errors.
+  customer-facing); never blame the user; apologize once, plainly, on errors.
   Product personality may show through the product's own name, logo and accent;
   the portal copy itself stays neutral so it fits every product.
 
@@ -723,7 +723,7 @@ How it applies to the Portal:
      only if spam appears.
   10. Agent-alert emails and the customer email frame. **Answered:** they do not
       share it. Alerts go to agents, are plain working text and use no
-      mascot or humour; they are not product-led customer mail. **Deferred to
+      mascot or humor; they are not product-led customer mail. **Deferred to
       PHASE-06** (notification templates) for their layout.
   11. Attachment UI limits (file count, thumbnails, virus-scan messaging).
       **Answered in part:** a plain file list with name, size and remove; no
@@ -754,7 +754,7 @@ How it applies to the Portal:
   - [ ] "Powered by TechStrap" appears once, as a small footer line on every
     page and email, with no other TechStrap presence; no mascot, joke, carbon
     tint, stamp or window appears anywhere on the portal or in customer email.
-  - [ ] Each hostile accent colour (very light Pixelforge `#F59E0B`, very dark
+  - [ ] Each hostile accent color (very light Pixelforge `#F59E0B`, very dark
     Acme `#0F3D2E`, saturated red, mid-gray, near-black, blue) produces a
     passing, legible result for buttons (on-accent at least 4.5:1), links and
     accent text (accent-ink at least 4.5:1 on white), headers, status and

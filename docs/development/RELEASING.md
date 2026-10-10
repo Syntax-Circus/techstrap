@@ -94,7 +94,7 @@ The Docker-backed tests start `postgres:17` through Testcontainers. On 2026-10-0
 | `DOCKERHUB_USERNAME` | The Docker Hub username (not the e-mail address). |
 | `DOCKERHUB_TOKEN` | A Docker Hub personal access token with **Public Repo Read-only** permission, created under Account settings, Personal access tokens. |
 
-Rotate the token by generating a new one and updating `DOCKERHUB_TOKEN`; no workflow change is needed. If ECR Public ever throttles the runners too, mirror the image into the organisation's GHCR (`docker tag postgres:17 ghcr.io/syntax-circus/postgres:17 && docker push ...` with a `write:packages` token) and point the variable there.
+Rotate the token by generating a new one and updating `DOCKERHUB_TOKEN`; no workflow change is needed. If ECR Public ever throttles the runners too, mirror the image into the organization's GHCR (`docker tag postgres:17 ghcr.io/syntax-circus/postgres:17 && docker push ...` with a `write:packages` token) and point the variable there.
 
 ## Post-publish check
 

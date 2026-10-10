@@ -78,7 +78,7 @@ nothing. `ITechStrapClient` and `TimeProvider` are added with `TryAddSingleton`,
 
 ## Retry and idempotency
 
-Creating a ticket is not naturally idempotent, so the SDK retries a submit only when the server can recognise the repeat. The server keeps an `Idempotency-Key`
+Creating a ticket is not naturally idempotent, so the SDK retries a submit only when the server can recognize the repeat. The server keeps an `Idempotency-Key`
 per API key and answers a repeat with the original ticket (D-020).
 
 The SDK owns one `HttpRequestResiliencePipeline("techstrap-submit")` and does not use `AddResilientHttpClient`, which would retry every POST. Each send passes a
@@ -100,7 +100,7 @@ with the same key.
 
 - **Retried:** transport errors, timeouts, and the statuses 408, 502, 503 and 504.
 - **Not retried:** 429 and 500. A 500 is the API's own answer. A 429 is returned as `rate-limited`: the server does send `Retry-After`, but `ResultError` has no slot to carry it
-  and the pipeline cannot honour it per response. A caller who wants to wait and retry does so on the `Result` itself.
+  and the pipeline cannot honor it per response. A caller who wants to wait and retry does so on the `Result` itself.
 - **Budget:** `Timeout` is one deadline over all sends and all backoff delays. When it runs out the call ends as `api-unavailable`. A cancellation by the caller always wins and
   propagates as `OperationCanceledException`.
 - **Circuit:** the circuit breaker counts logical calls, not attempts. Its constants are in the internal `ResilienceDefaults`: failure ratio 0.5, minimum throughput 5, sampling

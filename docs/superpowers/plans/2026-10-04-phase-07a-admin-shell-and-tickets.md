@@ -295,7 +295,7 @@ public static class SentryOptionsExtensions
 ```
 
 **Rules:**
-1. **Behaviour does not change.** The two classes move with `git mv` so the history follows, and only the namespace line changes. Their tests keep passing unmodified except for a `using`.
+1. **Behavior does not change.** The two classes move with `git mv` so the history follows, and only the namespace line changes. Their tests keep passing unmodified except for a `using`.
 2. **`TechStrap.Hosting` is a leaf.** It references no TechStrap project and only the two `SyntaxCircus` packages, versionless (`Check-PackageVersions.ps1` forbids inline versions). No `FrameworkReference` is needed (verified: the project builds with the two packages alone).
 3. **Wiring.** Api and Admin call the redactor in `AddStandardSerilog` and `AddSensitiveHeaderScrubbing()` in the `UseSentry` callback. The Worker serves no request that carries credentials, so it keeps the redactor only, as now. The Portal is not wired here (PHASE-09).
 4. **The namespace `TechStrap.Hosting.Sentry` hides nothing.** The files start with `using Sentry;` outside the namespace, which resolves to the package. Do not write `Sentry.` qualified names inside `TechStrap.Hosting.*` namespaces.
@@ -1489,7 +1489,7 @@ internal static class ShellTestServices
 4. **`/signin/start` and `returnUrl`.** Only a local path survives `LocalReturnUrl.Sanitize`; everything else is `/`. The sign-in routes themselves are never a return target.
 5. **`POST /signout`** takes the form (`IFormCollection`), which makes the minimal API validate the antiforgery token (a missing token is 400). It signs out of both the cookie and the provider, and the sign-out form is a plain `POST` form with `<AntiforgeryToken />`.
 6. **The OIDC options** read the validated `AuthOptions` lazily. `RequireHttpsMetadata` is off in Development only. A failed remote sign-in redirects to `/signin?failed=1` and never shows the provider's text.
-7. **`AgentSession`** treats `agent-inactive` as final even if the API answers 200 with `IsActive == false`. A `Forbidden` error is NoAccess, `Unauthenticated` is SessionExpired, anything else (transport failure, unexpected answer) is Unavailable and is asked again on the next call. A cancelled load never pins the session.
+7. **`AgentSession`** treats `agent-inactive` as final even if the API answers 200 with `IsActive == false`. A `Forbidden` error is NoAccess, `Unauthenticated` is SessionExpired, anything else (transport failure, unexpected answer) is Unavailable and is asked again on the next call. A canceled load never pins the session.
 8. **Gate wiring is Task 5.** `AgentGate` exists and is tested here, but `MainLayout` wraps `@Body` in it only in Task 5, once `IAgentsClient` has an implementation (a signed-in host test would otherwise fail to resolve the client).
 
 - [ ] **Step 1: Write the failing tests**
@@ -2440,7 +2440,7 @@ public sealed class AgentSession(IAgentsClient agents)
         }
         finally
         {
-            // A failed or cancelled load must not pin the shared task: the next call asks again unless the state is final.
+            // A failed or canceled load must not pin the shared task: the next call asks again unless the state is final.
             _loading = null;
             source.SetResult();
         }
@@ -2550,7 +2550,7 @@ app.MapRazorComponents<App>()
 </html>
 
 @code {
-    /// <summary>A local path, already sanitised by the endpoint (see LocalReturnUrl).</summary>
+    /// <summary>A local path, already sanitized by the endpoint (see LocalReturnUrl).</summary>
     [Parameter]
     public string ReturnUrl { get; set; } = LocalReturnUrl.Home;
 
@@ -2563,7 +2563,7 @@ app.MapRazorComponents<App>()
 ```csharp
 namespace TechStrap.Admin.Components.Pages;
 
-/// <summary>Copy of the signed-out landing page (a brand moment: humour is allowed, docs/BRAND.md section 3, but the failure line stays plain).</summary>
+/// <summary>Copy of the signed-out landing page (a brand moment: humor is allowed, docs/BRAND.md section 3, but the failure line stays plain).</summary>
 public static class SignInCopy
 {
     public const string WindowTitle = "signin.exe";
@@ -2749,7 +2749,7 @@ public sealed partial class AgentGate : ComponentBase, IDisposable
 ```csharp
 namespace TechStrap.Admin.Components.Layout;
 
-/// <summary>Plain copy for the access states (BRAND.md section 3: no humour on anything that blocks work).</summary>
+/// <summary>Plain copy for the access states (BRAND.md section 3: no humor on anything that blocks work).</summary>
 public static class GateCopy
 {
     public const string Checking = "Checking your access...";
@@ -3401,7 +3401,7 @@ Expected: a build failure (`ApiConnection`, `ApiClientNames`, `AddTechStrapApiCl
 
 - [ ] **Step 3: Implement**
 
-1. `src/TechStrap.Admin/TechStrap.Admin.csproj`: add `<PackageReference Include="SyntaxCircus.Common" />` and `<PackageReference Include="SyntaxCircus.Http.Resilience" />` in alphabetical position. The versions are central (0.1.3 and 0.2.2). `Polly.CircuitBreaker` (used to recognise an open circuit) arrives transitively through `SyntaxCircus.Http.Resilience`.
+1. `src/TechStrap.Admin/TechStrap.Admin.csproj`: add `<PackageReference Include="SyntaxCircus.Common" />` and `<PackageReference Include="SyntaxCircus.Http.Resilience" />` in alphabetical position. The versions are central (0.1.3 and 0.2.2). `Polly.CircuitBreaker` (used to recognize an open circuit) arrives transitively through `SyntaxCircus.Http.Resilience`.
 
 2. `src/TechStrap.Admin/Clients/ApiClientNames.cs`:
 
@@ -4588,7 +4588,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 // TechStrap.Admin.Components.Ui
 public sealed partial class ConfirmDialog : IAsyncDisposable   // Open, Title, ChildContent, ConfirmLabel, CancelLabel, Danger, RequiredText, Busy, Error, Informational, OnConfirm, OnCancel
 public partial class PagerControl                              // Page (1-based), PageSize, TotalCount, OnPageChanged EventCallback<int>
-public partial class TagChip                                   // Name, Colour (#RRGGBB)
+public partial class TagChip                                   // Name, Color (#RRGGBB)
 public partial class RelativeTime                              // When
 internal static class TicketDisplay { Stamp(status, isSpam); Priority(priority); Relative(when, now); Absolute(when); Initials(name); FileSize(bytes) }
 
@@ -4616,7 +4616,7 @@ public static IServiceCollection AddShell(this IServiceCollection services);   /
 2. **Razor components are always generated `public`.** A `[Parameter]` of an `internal` type is CS0053, and a code-behind that declares `internal partial class` conflicts with the generated `public` half (CS0262). Verified by the compiler. So the feature view models in Tasks 8 to 11 are `public sealed record`s in their feature namespace (the brief said `internal`; this is recorded in D-040), and only `TicketDisplay` and the `ResultConversions` helper are `internal`.
 3. **Native `<dialog>` and focus.** `ConfirmDialog` never confirms on Enter: there is no `<form>`, both buttons are `type="button"`, and the first focus goes to the typed-confirmation input or, with none, to the heading (`tabindex="-1"`), never to a button. So pressing Enter on a fresh dialog does nothing. Esc raises `oncancel`, which is routed to `OnCancel` (the native close is prevented, the owner closes through `Open`). While `Busy`, every button, the input and Esc are inert.
 4. **Keyboard layer.** One document `keydown` listener in `shortcuts.js` reports only the keys the layer maps and nothing while the user types (except Ctrl or Cmd plus Enter, which sends from the composer), so typing never costs a circuit round trip. The script ignores every key while a `dialog[open]` exists. `ShortcutService.Map` repeats the typing check in .NET, which is where the tests pin it. Enter and the arrows act on the page only when nothing interactive has focus (`OnBody`). `SingleKeyEnabled` is always on in 07a (the My settings toggle is 07b). The command palette (Ctrl+K) is deferred to 07c.
-5. **Chips never trust a colour.** `TagChip` derives its foreground through `ProductAccent.TryDerive` (the one shared rule, BRAND.md section 22) and renders the plain chip for a malformed value. The inline `style` attribute is the only inline style in the Admin and is isolated in `TagChip`, so the 07c CSP work has one place to change.
+5. **Chips never trust a color.** `TagChip` derives its foreground through `ProductAccent.TryDerive` (the one shared rule, BRAND.md section 22) and renders the plain chip for a malformed value. The inline `style` attribute is the only inline style in the Admin and is isolated in `TagChip`, so the 07c CSP work has one place to change.
 6. **Time.** `RelativeTime` shows "5 min ago" with the machine time in `datetime` and the absolute time in the tooltip, in **UTC**. Converting to the agent's zone needs the browser's zone and a JS call; that is a recorded gap for 07c.
 7. **`TicketDisplay` throws for an unknown status or priority.** Both sets are closed in the Contracts constants; a new value must fail loudly in the error boundary, not render as a guess.
 8. **Layout.** `MainLayout` keeps `AgentGate` around `@Body` and keeps the `GlobalErrorBoundary`. The rail is now `NavMenu` (brand, the Queue link and the signed-in block with `SignOutForm`, shown only when `AgentSession.State` is `Ready`, and re-rendered when the session changes). The status bar and the shortcut help dialog sit under the page. Admin-only links arrive in 07b.
@@ -5532,7 +5532,7 @@ Razor imports do not reach code-behind files, so every `.razor.cs` below carries
 namespace TechStrap.Admin.Components.Ui;
 
 /// <summary>
-/// Copy shared by the shell and the reusable states. Plain, sentence case, no humour (docs/BRAND.md section 3); brand moments live in
+/// Copy shared by the shell and the reusable states. Plain, sentence case, no humor (docs/BRAND.md section 3); brand moments live in
 /// <see cref="BrandMomentCopy"/> and blocking failures in <see cref="UiCopy"/>.
 /// </summary>
 public static class ShellCopy
@@ -5630,15 +5630,15 @@ using TechStrap.Contracts.Branding;
 namespace TechStrap.Admin.Components.Ui;
 
 /// <summary>
-/// A tag as a text chip. Tag colours are arbitrary admin input, so the foreground is always derived from the background through the one
-/// shared rule (<see cref="ProductAccent"/>, BRAND.md section 22), and a malformed colour renders the plain chip. The word is the meaning; the colour only decorates.
+/// A tag as a text chip. Tag colors are arbitrary admin input, so the foreground is always derived from the background through the one
+/// shared rule (<see cref="ProductAccent"/>, BRAND.md section 22), and a malformed color renders the plain chip. The word is the meaning; the color only decorates.
 /// </summary>
 public partial class TagChip
 {
     [Parameter, EditorRequired]
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>A <c>#RRGGBB</c> colour, as stored on the tag.</summary>
+    /// <summary>A <c>#RRGGBB</c> color, as stored on the tag.</summary>
     [Parameter]
     public string? Colour { get; set; }
 
@@ -5772,11 +5772,11 @@ public partial class ConfirmDialog : IAsyncDisposable
     [Parameter]
     public string CancelLabel { get; set; } = ShellCopy.Cancel;
 
-    /// <summary>An information dialog (the shortcut list): no confirm button, and the one remaining button, labelled by <see cref="CancelLabel"/>, closes it.</summary>
+    /// <summary>An information dialog (the shortcut list): no confirm button, and the one remaining button, labeled by <see cref="CancelLabel"/>, closes it.</summary>
     [Parameter]
     public bool Informational { get; set; }
 
-    /// <summary>Styles the confirm button as destructive (a danger style plus the word in the label, never colour alone).</summary>
+    /// <summary>Styles the confirm button as destructive (a danger style plus the word in the label, never color alone).</summary>
     [Parameter]
     public bool Danger { get; set; }
 
@@ -5936,7 +5936,7 @@ internal static class TicketDisplay
             : when.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     }
 
-    /// <summary>The absolute time for a tooltip. Always UTC and labelled so: converting to the agent's zone needs the browser's zone (recorded gap, PHASE-07c).</summary>
+    /// <summary>The absolute time for a tooltip. Always UTC and labeled so: converting to the agent's zone needs the browser's zone (recorded gap, PHASE-07c).</summary>
     public static string Absolute(DateTimeOffset when) => when.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture);
 
     /// <summary>Up to two initials for an avatar: "Sam Ortiz" is "SO", "sam" is "S", nothing is "?".</summary>
@@ -6055,7 +6055,7 @@ public sealed class ShortcutService(IJSRuntime js) : IAsyncDisposable
     private IJSObjectReference? _module;
     private DotNetObjectReference<ShortcutService>? _self;
 
-    /// <summary>Raised once per recognised shortcut; every handler is awaited in subscription order.</summary>
+    /// <summary>Raised once per recognized shortcut; every handler is awaited in subscription order.</summary>
     public event Func<ShortcutAction, Task>? Pressed;
 
     /// <summary>The My settings toggle arrives in PHASE-07b; until then the layer is always on.</summary>
@@ -6528,7 +6528,7 @@ export function unregister() {
 }
 ```
 
-6. The styles. Plain CSS over the brand custom properties only (no new colour, no Bootstrap mixin), so they compile on their own. Add the three imports to `src/TechStrap.Admin/Styles/app.scss` after `@import "feedback";`:
+6. The styles. Plain CSS over the brand custom properties only (no new color, no Bootstrap mixin), so they compile on their own. Add the three imports to `src/TechStrap.Admin/Styles/app.scss` after `@import "feedback";`:
 
 ```scss
 @import "states";
@@ -6601,7 +6601,7 @@ export function unregister() {
   }
 }
 
-// Chips: a text label always carries the meaning, the colour only decorates.
+// Chips: a text label always carries the meaning, the color only decorates.
 .ts-tag,
 .ts-product {
   display: inline-block;
@@ -6659,7 +6659,7 @@ export function unregister() {
   }
 }
 
-// A destructive dialog gets a heavier edge and the danger colour on its heading, plus the word in its buttons.
+// A destructive dialog gets a heavier edge and the danger color on its heading, plus the word in its buttons.
 .ts-dialog--danger {
   border-color: var(--st-spam);
 
@@ -6857,7 +6857,7 @@ public sealed partial class TicketQueuePage                                     
 5. **Failure handling.** A failed list shows `ErrorState` with the API's message and Retry. A failed **refresh** keeps the rows already on screen and shows the alert above them (UX). A failed counts call only hides the numbers; a failed products or tags call only leaves that filter with no options.
 6. **Empty states.** Truly empty Unassigned, Mine or Open with no filters and no search: the "All caught up" brand window (title `queue.exe — 0 items`, the em dash the existing brand tests already use), with "View open tickets" (on Open itself, "View all tickets"). Filtered-empty: "No tickets match" and a Clear filters button, never the window. Pending, All and Spam: plain text ("No pending tickets", "No tickets yet", "No spam").
 7. **Keyboard.** `j`/`k`/arrows move a selection that never reorders rows (`aria-current="true"`, scrolled into view by `queue.js`); Enter opens it; `/` focuses the search box. The handlers are removed on dispose. `u` arrives in Task 12.
-8. **Every client call gets a cancellable token** from a page-lifetime source (lookups) or a per-load source linked to it (list and counts); a newer load cancels the older one, and a cancelled load never touches state.
+8. **Every client call gets a cancellable token** from a page-lifetime source (lookups) or a per-load source linked to it (list and counts); a newer load cancels the older one, and a canceled load never touches state.
 9. **No bulk actions, no live updates** (queue is manual-refresh until PHASE-10: the Refresh button). The product filter stays a plain select; the "searchable combobox above N products" decision needs a realistic product list and is left to the rendered review of 07c.
 10. **Authorization.** The page carries `@attribute [Authorize]` (as the old `Home.razor` did) on top of the fallback policy; `AgentGate` holds the page back until `GET /api/agents/me` has succeeded, so no queue call precedes it (Review Focus 1).
 
@@ -8166,7 +8166,7 @@ export function scrollSelectedIntoView() {
 
 ```scss
 // The queue (PHASE-07a): view tabs, filter bar and the ruled ledger. Compact density; the selection marker and the status stamp
-// carry the state in text and shape, not colour alone.
+// carry the state in text and shape, not color alone.
 
 .ts-queue {
   padding: 12px 16px;
@@ -8395,9 +8395,9 @@ public static IServiceCollection AddTicketFeatures(this IServiceCollection servi
 1. **The presenter exists for assembly, not mapping** (PHASE-07 allows exactly `TicketDetailPresenter`, `TimelineEntryFactory` and, later, `AdminEventSummaryFactory`). It loads the ticket and the three lookups in parallel, then, for a follow-up, makes **one** extra read of the parent to show "Follow-up to ORB-7" (the API returns only `ParentTicketId`). A parent that is gone shows no link and never fails the load. The ticket's own failure wins over a lookup failure, so a missing ticket is reported as missing; any failed lookup fails the load with that error (the sidebar needs the lists).
 2. **Events carry ids only**, so product, agent and tag names come from the lookups, with plain fallbacks ("another agent", "a deleted tag") for an id the lookups lack (agents see only active agents and active products). A guid never reaches the screen.
 3. **One chronological stream.** `MessageAdded` events are folded into their message by `messageId`; an event whose message is not in the list stays as a generic line. Order is oldest first; at the same instant `Created` comes first, then messages, then changes. All ten `TicketEventTypes` constants have a sentence, an unknown type becomes `Event: {type}`, and a payload that is not valid JSON never throws. The coverage test reflects over the constants, so a new type without a sample fails the build of the tests.
-4. **The only HTML the Admin renders from the API is `MessageBubble`'s `MarkupString`** of `MessageDto.BodyHtml` (sanitised on the server). Every other string is encoded (subject, names, filenames, metadata). `MarkupStringSiteTests` fails if a second file uses the type.
+4. **The only HTML the Admin renders from the API is `MessageBubble`'s `MarkupString`** of `MessageDto.BodyHtml` (sanitized on the server). Every other string is encoded (subject, names, filenames, metadata). `MarkupStringSiteTests` fails if a second file uses the type.
 5. **Attachments are downloads**, not pages: links to `/attachments/{id}` (Task 6's pass-through) carry `download` and `data-enhance-nav="false"` so Blazor's link interception does not route them. UNVERIFIED in a browser (bUnit cannot): click one and confirm the browser downloads the file and the app does not show Not found.
-6. **Metadata** is labelled **Untrusted** (the word, a dashed border, a help sentence) unless `MetadataTrusted`; unreadable JSON says so instead of vanishing.
+6. **Metadata** is labeled **Untrusted** (the word, a dashed border, a help sentence) unless `MetadataTrusted`; unreadable JSON says so instead of vanishing.
 7. **Closed is read-only.** A Closed ticket shows the UX sentence "Closed tickets are read-only; a customer reply starts a follow-up", no composer and no controls (the read-only `TicketFacts` shows status, assignee, priority, product and tags instead). Closed hides the controls rather than disabling them (the spec's T12 wording), and still says why.
 8. **State flow.** The page owns the model and `RowVersion`. A write replaces the status fields from the returned `TicketStateDto` through `WithState`, then refreshes silently: the model on screen stays while the refresh runs, a failed refresh keeps it with an inline alert, and a 404 turns into "This ticket no longer exists" with a link back (first-load 404 says "Ticket not found").
 9. **Not in 07a (recorded in D-040):** the follow-up child list (no API field), the requester's ticket count and first-seen date (no API), the local-zone times, the presence hint and live updates (PHASE-10).
@@ -9199,7 +9199,7 @@ using TechStrap.Tests.Shared;
 
 namespace TechStrap.Admin.Tests;
 
-/// <summary>The one place the Admin turns API HTML into markup is the message bubble; the server sanitises that body (PHASE-07 T10).</summary>
+/// <summary>The one place the Admin turns API HTML into markup is the message bubble; the server sanitizes that body (PHASE-07 T10).</summary>
 public sealed class MarkupStringSiteTests
 {
     [Fact]
@@ -9237,7 +9237,7 @@ namespace TechStrap.Admin.Features.Tickets;
 
 /// <summary>
 /// The ticket screen's copy, defined once. The strings from UX-BRIEF-admin are used word for word; the rest follows the voice rules
-/// (plain cause plus next step, sentence case, no humour, no exclamation marks).
+/// (plain cause plus next step, sentence case, no humor, no exclamation marks).
 /// </summary>
 public static class TicketCopy
 {
@@ -9314,7 +9314,7 @@ public sealed record MessageViewModel(
 
 public sealed record MetadataItem(string Key, string Value);
 
-/// <param name="Trusted">True only when the ticket came in on a trusted API key (<c>MetadataTrusted</c>). Everything else is labelled untrusted.</param>
+/// <param name="Trusted">True only when the ticket came in on a trusted API key (<c>MetadataTrusted</c>). Everything else is labeled untrusted.</param>
 /// <param name="Readable">False when the stored JSON could not be read; the panel then says so instead of showing nothing.</param>
 public sealed record MetadataViewModel(bool Trusted, bool Readable, IReadOnlyList<MetadataItem> Items);
 
@@ -9864,7 +9864,7 @@ public sealed partial class MessageBubble
 {
     <section class="@(Metadata.Trusted ? "ts-metadata" : "ts-metadata ts-metadata--untrusted")" aria-label="@TicketCopy.MetadataHeading">
         <h2>@TicketCopy.MetadataHeading</h2>
-        @* Two cues besides colour: the word and the dashed border. *@
+        @* Two cues besides color: the word and the dashed border. *@
         <p class="ts-metadata-trust">
             <strong>@(Metadata.Trusted ? TicketCopy.Trusted : TicketCopy.Untrusted)</strong>
             @if (!Metadata.Trusted)
@@ -10293,7 +10293,7 @@ public sealed partial class TicketDetailPage : IDisposable
   list-style: none;
 }
 
-// Untrusted metadata: the word "Untrusted" and a dashed edge, never colour alone.
+// Untrusted metadata: the word "Untrusted" and a dashed edge, never color alone.
 .ts-metadata {
   padding: 6px 8px;
   border: 1px solid var(--rule-strong);
@@ -11587,7 +11587,7 @@ public sealed partial class ReplyComposer : IDisposable
 ```scss
 // The reply composer wears the carbon tint code (BRAND.md section 12, UX-BRIEF-admin "Composer distinction"): canary with a solid edge for a public reply,
 // pink with a dashed edge and a notched corner for an internal note. This file is allowed to paint with the tint tokens (TintStyleTests lists it), and
-// the same rule applies as in _tinted-entry.scss: a tint never decorates anything else, and colour is never the only cue (the label, the warning text
+// the same rule applies as in _tinted-entry.scss: a tint never decorates anything else, and color is never the only cue (the label, the warning text
 // and the dashed edge say it too).
 
 .ts-composer {
@@ -14472,7 +14472,7 @@ Rules the code follows (and the reviewers check):
 - Every client call takes the component's `CancellationToken`.
 - Razor components are always public classes, so a type used as a component parameter is public (a view model cannot be `internal`).
 - A component beyond a few plain parameters and one forwarder has a `.razor.cs`; a factory or presenter exists only for non-trivial assembly (`TicketDetailPresenter`, `TimelineEntryFactory`).
-- The single `MarkupString` is the message body in `MessageBubble` (the API sanitises it). Everything else is encoded.
+- The single `MarkupString` is the message body in `MessageBubble` (the API sanitizes it). Everything else is encoded.
 - Repeated or meaningful literals are named constants (`QueueDefaults.PageSize`, `QueueDefaults.SearchDebounce`, the Contracts constants for views and event types).
 
 ### Add a screen that calls the API
@@ -14505,7 +14505,7 @@ The command palette (Ctrl+K) arrives in 07c.
 
 - **Queue**: six views (Unassigned is the default, then Mine, Open, Pending, All and the separate Spam view), counts per view (Spam muted), filters (product, status, priority, tag), search, 25 per page. Every filter is in
   the URL, so views can be bookmarked. The queue refreshes when you press Refresh; live updates arrive with PHASE-10.
-- **Ticket**: one timeline of messages and changes (customer white, public reply canary, internal note pink with a dashed edge), the requester, metadata labelled **Untrusted** unless it came from a trusted key,
+- **Ticket**: one timeline of messages and changes (customer white, public reply canary, internal note pink with a dashed edge), the requester, metadata labeled **Untrusted** unless it came from a trusted key,
   attachments as downloads (served through the Admin, never inline), and a link to the parent of a follow-up.
 - **Reply or note**: separate drafts per mode, files (up to 5, 10 MB each), Pending by default or "Send and solve". A failed send, or a conflict, never loses the text or the files.
 - **Change a ticket**: status, assignee, priority, product, tags. Each change shows "Saving...", then the screen shows what the API accepted. If someone else changed the ticket first you see

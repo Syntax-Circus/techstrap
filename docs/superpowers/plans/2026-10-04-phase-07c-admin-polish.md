@@ -26,7 +26,7 @@
 - The owner decisions of 2026-10-04, recorded as D-042 in Task 10.
 
 ### Owner decisions (2026-10-04), recorded as D-042 in Task 10
-- **CSP.** `script-src 'self'` stays strict. Styles use `style-src 'self'` plus `style-src-attr 'unsafe-inline'`, so the tag and accent colours work without JS and on the first server render.
+- **CSP.** `script-src 'self'` stays strict. Styles use `style-src 'self'` plus `style-src-attr 'unsafe-inline'`, so the tag and accent colors work without JS and on the first server render.
 - **Theme flash.** It is fixed by an external blocking `wwwroot/js/theme-init.js` in `<head>`.
 - **Time zone.** It comes from the browser (`Intl`), per circuit. The first server render shows UTC. There is no API change.
 - **Host wiring.**
@@ -36,7 +36,7 @@
 
 ### Technical decisions this plan makes (D-042; the owner confirms at plan review)
 - **Queue search** stays in the URL. It is scrubbed from the Sentry QueryString, Url and breadcrumbs.
-- **`Retry-After`** is honoured, capped at 2 s.
+- **`Retry-After`** is honored, capped at 2 s.
 - **OpenAPI** documents Bearer (agents), ApiKey (products) and TicketToken (customers).
 - **A 401 mid-session** sets `AgentSession` to SessionExpired. A banner offers "Sign in again", and the page stays mounted so drafts survive. A 401 on the first load still shows the full session-expired page.
   - Every 401 goes through one choke point: `ApiConnection` calls `SessionExpiry.Report()`.
@@ -121,7 +121,7 @@
 
 ## Review Focus
 
-1. **A CSP that breaks the app or sign-in in a real browser, or that is weaker than decided.** Watch the Blazor websocket, `blazor.web.js`, the import map, the OIDC `form-action` redirect and the colour styles. Pinned in Task 4 by the host header tests, plus the owner's Chrome console check.
+1. **A CSP that breaks the app or sign-in in a real browser, or that is weaker than decided.** Watch the Blazor websocket, `blazor.web.js`, the import map, the OIDC `form-action` redirect and the color styles. Pinned in Task 4 by the host header tests, plus the owner's Chrome console check.
 2. **A 401 mid-session that loses an agent's draft, or leaves the app showing data as if signed in.** Pinned in Task 2.
 3. **The command palette exposing admin commands to a plain agent, or firing a command twice.** Pinned in Task 7.
 4. **A secret leaking through `HttpClient` logging in any host, or search text through Sentry.** Pinned in Tasks 3 and 9.
@@ -472,7 +472,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
 
 **Review Focus pin:**
 - **(2)** A 401 that arrives while an agent is working must not lose their draft and must not leave the app showing data as if signed in. Pinned by `SessionExpiryTests` (every API call that answers 401 moves `AgentSession` to SessionExpired and keeps the agent) and `AgentGateSessionExpiryTests.A_session_that_expires_while_working_shows_the_banner_and_keeps_the_same_page_mounted` (the page component is created once and never disposed).
-- Also the 07a behaviour made explicit: a 401 on the first `GET /api/agents/me` is still the full session-expired page with no content. Pinned by `AgentGateSessionExpiryTests.A_401_on_the_first_load_is_the_full_page_with_no_content_and_no_banner`.
+- Also the 07a behavior made explicit: a 401 on the first `GET /api/agents/me` is still the full session-expired page with no content. Pinned by `AgentGateSessionExpiryTests.A_401_on_the_first_load_is_the_full_page_with_no_content_and_no_banner`.
 
 **Files:**
 - Create: `src/TechStrap.Admin/Auth/SessionExpiry.cs`
@@ -531,7 +531,7 @@ public static class ApiClientRegistration
 4. **The rail and admin pages follow `IsAdmitted`,** not `State == Ready`, so the rail does not vanish and an admin page does not blank when the session lapses. The API still refuses every call with 401; nothing new is allowed.
 5. **The banner link is a plain `<a>`,** not a form: it needs no circuit, and the CSP `form-action` (Task 4) does not apply to a link navigation. It carries the current local path and query; `LocalReturnUrl.Sanitize` checks it again on the server.
 6. **A reload that answers 401 also keeps the agent.** The one existing test that expected `Agent` to be null after a 401 reload (`AgentSessionTests.A_reload_that_the_api_refuses_wins_over_the_ready_session`) loses its 401 row; `SessionExpiryTests.A_reload_that_answers_401_keeps_the_agent_and_expires_the_session` replaces it. A 403 still ends in NoAccess with no agent.
-7. **Retry-After is honoured and capped.** The Http.Resilience default (`ShouldRetryAfterHeader = true`) honours the header without a limit, so a 503 with `Retry-After: 120` would hold a read for up to the 30 s client timeout. The retry options now set `ShouldRetryAfterHeader = false` and a `DelayGenerator` that returns the header's wait, capped at `ReadRetryAfterCap` (2 s), or null so the 250 ms exponential backoff applies. The write client has no retry and is unchanged.
+7. **Retry-After is honored and capped.** The Http.Resilience default (`ShouldRetryAfterHeader = true`) honors the header without a limit, so a 503 with `Retry-After: 120` would hold a read for up to the 30 s client timeout. The retry options now set `ShouldRetryAfterHeader = false` and a `DelayGenerator` that returns the header's wait, capped at `ReadRetryAfterCap` (2 s), or null so the 250 ms exponential backoff applies. The write client has no retry and is unchanged.
 8. **The dead catch goes.** The read client has no circuit breaker (D-040, `ReadClientIsolationTests`), so `BrokenCircuitException` can never reach `AttachmentPassThrough`. The clause and the `Polly` reference in that file are deleted.
 9. **No exception text in logs.** The three hardened places log the exception type name only (`ex.GetType().Name`), never the exception or its message, which can carry an address or a name. Each is a `LogWarning`, and each degrades: the badge keeps its last value, the keyboard layer stays off, the gate shows Unavailable with Retry.
 10. **Encoding.** All new strings are ASCII. After writing the files run `grep -nP "[^\x00-\x7F]"` over them; it must find nothing.
@@ -1007,7 +1007,7 @@ using TechStrap.Contracts.Tickets;
 namespace TechStrap.Admin.Tests.Clients;
 
 /// <summary>
-/// The read client honours <c>Retry-After</c> but never waits more than <see cref="ApiClientRegistration.ReadRetryAfterCap"/> for it: an overloaded API that
+/// The read client honors <c>Retry-After</c> but never waits more than <see cref="ApiClientRegistration.ReadRetryAfterCap"/> for it: an overloaded API that
 /// asks for two minutes must not freeze a page on "Loading" until the client timeout.
 /// </summary>
 public sealed class ReadRetryAfterTests
@@ -1071,7 +1071,7 @@ public sealed class ReadRetryAfterTests
         finishedInTime.ShouldBeTrue("the retries must not wait for the 120 seconds the API asked for");
         (await call).Errors[0].Code.ShouldBe(ApiErrorCodes.ApiUnavailable);
         api.Stub.Count(HttpMethod.Get, "/api/thing").ShouldBe(1 + ApiClientRegistration.ReadRetryCount);
-        stepped.ShouldBeGreaterThanOrEqualTo(ApiClientRegistration.ReadRetryAfterCap, "the header is still honoured, not ignored");
+        stepped.ShouldBeGreaterThanOrEqualTo(ApiClientRegistration.ReadRetryAfterCap, "the header is still honored, not ignored");
         stepped.ShouldBeLessThanOrEqualTo(TimeSpan.FromSeconds(2 * ApiClientRegistration.ReadRetryCount + 1));
     }
 }
@@ -1668,8 +1668,8 @@ public sealed partial class SessionExpiredBanner : ComponentBase, IDisposable
      public const int WriteTimeoutFloorSeconds = 300;
 +
 +    /// <summary>
-+    /// The longest a read waits before a retry, whatever the API's <c>Retry-After</c> asks for. The resilience default honours the header with no limit, so an
-+    /// overloaded API that says "120" would freeze a page on "Loading" until the client timeout (30 s). The header is still honoured below this cap.
++    /// The longest a read waits before a retry, whatever the API's <c>Retry-After</c> asks for. The resilience default honors the header with no limit, so an
++    /// overloaded API that says "120" would freeze a page on "Loading" until the client timeout (30 s). The header is still honored below this cap.
 +    /// </summary>
 +    public static readonly TimeSpan ReadRetryAfterCap = TimeSpan.FromSeconds(2);
  
@@ -1688,7 +1688,7 @@ public sealed partial class SessionExpiredBanner : ComponentBase, IDisposable
          BackoffType = DelayBackoffType.Exponential,
          UseJitter = true,
 +
-+        // The default honours Retry-After without a limit; this one honours it up to ReadRetryAfterCap and otherwise falls back to the backoff above.
++        // The default honors Retry-After without a limit; this one honors it up to ReadRetryAfterCap and otherwise falls back to the backoff above.
 +        ShouldRetryAfterHeader = false,
 +        DelayGenerator = args => ValueTask.FromResult(RetryAfterDelay(args.Outcome.Result, TimeProvider.System.GetUtcNow())),
          ShouldHandle = args => ValueTask.FromResult(args.Outcome switch
@@ -1835,7 +1835,7 @@ Expected: PASS. The host and leak tests in `TechStrap.Api.Tests` run in Task 3's
 ```bash
 git add src/TechStrap.Admin tests/TechStrap.Admin.Tests tests/TechStrap.Api.Tests/AdminLeakTests.cs
 git diff --cached --stat
-git commit -m "feat(admin): mid-session 401 banner, Retry-After cap and hardened shell (P07c)" -m "ApiConnection reports every 401 to a scoped SessionExpiry, so AgentSession moves to SessionExpired in one place and keeps the agent: the gate shows a banner over the same mounted page and an unsent reply survives. A 401 on the first load stays the full page. The read client honours Retry-After up to 2 s. The dead BrokenCircuitException catch is removed. NavMenu, MainLayout and AgentGate log the exception type only and degrade instead of ending the circuit." -m "$(printf '%s\n%s' 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' 'Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi')"
+git commit -m "feat(admin): mid-session 401 banner, Retry-After cap and hardened shell (P07c)" -m "ApiConnection reports every 401 to a scoped SessionExpiry, so AgentSession moves to SessionExpired in one place and keeps the agent: the gate shows a banner over the same mounted page and an unsent reply survives. A 401 on the first load stays the full page. The read client honors Retry-After up to 2 s. The dead BrokenCircuitException catch is removed. NavMenu, MainLayout and AgentGate log the exception type only and degrade instead of ending the circuit." -m "$(printf '%s\n%s' 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' 'Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi')"
 ```
 
 The commit message ends with exactly these two lines, and nothing else is staged:
@@ -2670,7 +2670,7 @@ namespace TechStrap.Hosting.Wiring;
 /// <summary>
 /// The wiring the two browser hosts (Admin and Portal) share. Each host calls <see cref="AddTechStrapWebHost"/> with its services, <see cref="UseTechStrapWebHost"/> first
 /// in its pipeline and <see cref="UseTechStrapErrorPages"/> right after it, so a change to forwarded headers, correlation, security headers or the error pages is made once.
-/// Admin-only behaviour (token forwarding, sign-in) stays in the Admin.
+/// Admin-only behavior (token forwarding, sign-in) stays in the Admin.
 /// </summary>
 public static class BrowserHostExtensions
 {
@@ -2749,7 +2749,7 @@ public static class BrowserHostExtensions
 
     /// <summary>
     /// The plain error page for an unhandled exception (outside Development; BRAND.md section 3), the branded not-found page for a 404 (re-executed, so the 404 status
-    /// is kept), and nothing else: humour never covers an error that blocks work, so every other status code keeps its own response.
+    /// is kept), and nothing else: humor never covers an error that blocks work, so every other status code keeps its own response.
     /// </summary>
     public static WebApplication UseTechStrapErrorPages(this WebApplication app)
     {
@@ -2911,7 +2911,7 @@ public static class ObservabilityExtensions
 -
 -// An address that matches no page gets the branded 404 (re-executed, so the 404 status code is kept).
 -app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
--// BRAND.md section 3: humour never covers an error that blocks work, so only 404 is re-executed to the not-found page.
+-// BRAND.md section 3: humor never covers an error that blocks work, so only 404 is re-executed to the not-found page.
 -app.Use(async (context, next) =>
 -{
 -    await next();
@@ -3007,7 +3007,7 @@ public static class ObservabilityExtensions
 -
 -// An address that matches no page gets the not-found page (re-executed, so the 404 status code is kept).
 -app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
--// BRAND.md section 3: humour never covers an error that blocks work, so only 404 is re-executed to the not-found page.
+-// BRAND.md section 3: humor never covers an error that blocks work, so only 404 is re-executed to the not-found page.
 -app.Use(async (context, next) =>
 -{
 -    await next();
@@ -3119,7 +3119,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
 ### Task 4: Security headers and the Content-Security-Policy (Opus reviews this task)
 
 **Review Focus pin:**
-- **(1)** A CSP that breaks the app or sign-in in a real browser, or is weaker than decided. The policy is pinned directive by directive on the responses of the Admin (static `/signin` and `/error`, the signed-in page, the re-executed 404), the Portal and the Api by `ContentSecurityPolicyHostTests`; the stylesheet half (every `url()` in the compiled CSS is covered) by `CspStyleTests`; the inline-markup half (no page renders an inline `<script>`, a `<style>` element or an `on*=` attribute, which also catches a returning `<ImportMap />`) by the two `..._renders_no_inline_script...` tests. What only a browser can show (the Blazor WebSocket under `connect-src 'self'`, the OIDC redirect under `form-action`, the colours under `style-src-attr`) is the owner's Chrome console check, in Step 7.
+- **(1)** A CSP that breaks the app or sign-in in a real browser, or is weaker than decided. The policy is pinned directive by directive on the responses of the Admin (static `/signin` and `/error`, the signed-in page, the re-executed 404), the Portal and the Api by `ContentSecurityPolicyHostTests`; the stylesheet half (every `url()` in the compiled CSS is covered) by `CspStyleTests`; the inline-markup half (no page renders an inline `<script>`, a `<style>` element or an `on*=` attribute, which also catches a returning `<ImportMap />`) by the two `..._renders_no_inline_script...` tests. What only a browser can show (the Blazor WebSocket under `connect-src 'self'`, the OIDC redirect under `form-action`, the colors under `style-src-attr`) is the owner's Chrome console check, in Step 7.
 - **D-042 (owner decisions, 2026-10-04):** `script-src 'self'` stays strict; `style-src 'self'` plus `style-src-attr 'unsafe-inline'`.
 
 **Files:**
@@ -3163,7 +3163,7 @@ with, for the Admin, the identity provider's origin appended to `form-action`, a
 
 **Rules:**
 1. **Script is strict and nothing weakens it.** No `'unsafe-inline'`, no `'unsafe-eval'`, no host and no `*` in `script-src`; `'unsafe-inline'` appears in exactly one directive, `style-src-attr`. The test asserts that across the whole policy, so a later "just this once" edit fails.
-2. **Why `style-src-attr 'unsafe-inline'`.** Blazor writes `style="..."` attributes, and the product colours (`TagChip`, `AccentPreview`, the Portal's accent scope) are arbitrary validated hex values that classes cannot cover. A nonce or hash does not help an attribute, and a CSSOM approach would leave the prerendered HTML unstyled. Style elements and stylesheets stay same-origin, and an attribute style cannot run script.
+2. **Why `style-src-attr 'unsafe-inline'`.** Blazor writes `style="..."` attributes, and the product colors (`TagChip`, `AccentPreview`, the Portal's accent scope) are arbitrary validated hex values that classes cannot cover. A nonce or hash does not help an attribute, and a CSSOM approach would leave the prerendered HTML unstyled. Style elements and stylesheets stay same-origin, and an attribute style cannot run script.
 3. **Why `img-src ... https: data:`.** `https:` because a product logo is an https URL on any host (D-041). `data:` because the compiled Bootstrap CSS draws the form-select arrow, the checkbox tick and the close icon as `data:` SVG backgrounds; `CspStyleTests` fails if the stylesheet ever references a kind of URL the policy does not cover, and fails if `data:` is dropped while a `data:` image is still used. Loopback `http` logos (the D-041 Development form) are allowed only in Development.
 4. **`connect-src 'self'` and the circuit.** CSP 3 says `'self'` matches `ws:` and `wss:` for the same host and port. Chromium and Firefox implement that; old Safari (before 15.4) did not. No explicit `ws:` or `wss:` is added, because that would allow a socket to any host. The Step 7 check proves it in the owner's browser; if a target browser needs it, add the page's own `wss://host` per request, never a wildcard.
 5. **`form-action` carries the identity provider.** The sign-in link (`/signin/start`), the gate's re-sign-in and the sign-out form (`POST /signout`) all answer with a redirect to the provider, and Chromium applies `form-action` to the redirects that follow a form submission. The origin comes from `Auth:Authority` through `TechStrapCsp.OriginOf`, which keeps only `scheme://host[:port]` and refuses a non-http(s) value, a relative path and user info. `CspBuilder` refuses any source with a semicolon, a comma, whitespace or a control character, so configuration can never add a directive.
@@ -3526,7 +3526,7 @@ namespace TechStrap.Admin.Tests;
 
 /// <summary>
 /// Review Focus 1, the style half: the policy lets the stylesheet draw everything it draws. The compiled CSS may reference only same-origin files (fonts, images) and
-/// <c>data:</c> images, and the policy must allow exactly those, or a colour, a font or an icon silently disappears in a browser while every other test is green.
+/// <c>data:</c> images, and the policy must allow exactly those, or a color, a font or an icon silently disappears in a browser while every other test is green.
 /// </summary>
 public sealed partial class CspStyleTests
 {
@@ -3697,7 +3697,7 @@ public static class TechStrapCsp
     /// <summary>
     /// The policy for a Blazor Server host that serves HTML (Admin, Portal). Scripts are strict: only files of this origin, so no inline script, no <c>eval</c>, no other
     /// host. Styles are strict too (<c>style-src 'self'</c>), with one deliberate relaxation: <c>style-src-attr 'unsafe-inline'</c>. Blazor writes <c>style="..."</c> attributes, and the
-    /// product colours (<c>TagChip</c>, <c>AccentPreview</c>, the Portal's accent scope) are arbitrary validated hex values that classes cannot cover, so inline style
+    /// product colors (<c>TagChip</c>, <c>AccentPreview</c>, the Portal's accent scope) are arbitrary validated hex values that classes cannot cover, so inline style
     /// attributes are allowed while style elements and stylesheets stay same-origin. Attribute styles cannot run script.
     /// </summary>
     /// <param name="formActionOrigins">
@@ -3949,7 +3949,7 @@ Run: `dotnet test --project tests/TechStrap.Api.Tests -c Release --filter "CspBu
 Expected: PASS (`ContentSecurityPolicyHostTests` runs in `ProcessEnvironmentCollection`: two tests set environment variables). To see the pins guard (do not commit these edits), make each change below, rerun the Api command (the Admin command for the CSS ones, the Architecture command for the rule), expect the failures named, and restore the file with `git checkout -- <file>`. These were run in the scratch copy:
 
 - `TechStrapCsp.ForBlazorApp`: add `'unsafe-inline'` to `script-src` (or `'unsafe-eval'`). Fails `CspBuilderTests.The_blazor_policy_is_exactly_the_decided_one` and the Admin and Portal policy tests of `ContentSecurityPolicyHostTests`.
-- `TechStrapCsp.ForBlazorApp`: delete the `style-src-attr` directive. Fails the same four tests (the colours would be blocked in a browser).
+- `TechStrapCsp.ForBlazorApp`: delete the `style-src-attr` directive. Fails the same four tests (the colors would be blocked in a browser).
 - `src/TechStrap.Admin/Program.cs`: call `TechStrapCsp.ForBlazorApp([])` instead of passing the authority origin. Fails `ContentSecurityPolicyHostTests.The_Admin_pages_carry_the_decided_policy_with_the_identity_provider_in_form_action`, `The_form_action_origin_follows_the_configured_authority` and `In_Production_the_Admin_does_not_allow_loopback_logos` (sign-in would break in Chromium).
 - `TechStrapCsp.ForBlazorApp`: drop `"data:"` from the image list. Fails the four policy tests and, in `TechStrap.Admin.Tests`, `CspStyleTests.The_policy_allows_every_kind_of_url_the_stylesheet_uses` (the compiled CSS draws Bootstrap icons as `data:` images).
 - `src/TechStrap.Admin/Styles/_shell.scss`: add a rule with `background: url(https://cdn.example.test/a.png)`. Fails `CspStyleTests.The_stylesheet_loads_nothing_from_another_host_and_imports_nothing` and `The_policy_allows_every_kind_of_url_the_stylesheet_uses`.
@@ -3969,7 +3969,7 @@ Expected: PASS.
 
 Run the Admin in Development (`dotnet run --project src/TechStrap.Admin`, with the local compose Authentik placeholders) and open the browser console (Chrome) on each page, expecting no line that starts with `Refused to ...` or `Content-Security-Policy`:
 - `/signin` and `/not-found`: the page, the fonts and the favicon load.
-- `/_styleguide` (Development only): every swatch and tag chip shows its colour (this is the `style-src-attr` check), and the icons drawn from `data:` images show.
+- `/_styleguide` (Development only): every swatch and tag chip shows its color (this is the `style-src-attr` check), and the icons drawn from `data:` images show.
 - After Authentik exists (owner action 7): sign in, confirm the redirect to the provider and back works (this is the `form-action` check), open `/queue`, confirm the circuit connects (no WebSocket refusal under `connect-src 'self'`), reply to a ticket, open the shortcut help dialog, and sign out.
 
 Scratch-copy evidence: the Admin was run in Development and loaded in headless Edge (`msedge --headless=new --enable-logging=stderr --dump-dom`); `/signin` and `/_styleguide` produced no console line about a refused script, style, font or image. That run cannot show the circuit, the redirect or an interactive page (no identity provider exists), so the last line stays the owner's.
@@ -3982,7 +3982,7 @@ If a refusal appears, note the directive and the blocked URL in the PR. Do not l
 git add src/TechStrap.Hosting src/TechStrap.Admin src/TechStrap.Portal src/TechStrap.Api \
   tests/TechStrap.Api.Tests tests/TechStrap.Admin.Tests/CspStyleTests.cs tests/TechStrap.Architecture.Tests
 git diff --cached --stat
-git commit -m "feat(security): Content-Security-Policy for Admin, Portal and Api (P07-T20)" -m "A validated CspBuilder and one policy per host kind. Blazor hosts: script-src and style-src 'self', style-src-attr 'unsafe-inline' for the product colours, img-src https: and data:, form-action 'self' plus the identity provider, frame-ancestors none. The Api allows nothing. The inline import map component is removed because the policy would block it; every module loads from its plain path. Host tests read the header back directive by directive and check the rendered pages for inline script, style elements and event-handler attributes." -m "$(printf '%s\n%s' 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' 'Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi')"
+git commit -m "feat(security): Content-Security-Policy for Admin, Portal and Api (P07-T20)" -m "A validated CspBuilder and one policy per host kind. Blazor hosts: script-src and style-src 'self', style-src-attr 'unsafe-inline' for the product colors, img-src https: and data:, form-action 'self' plus the identity provider, frame-ancestors none. The Api allows nothing. The inline import map component is removed because the policy would block it; every module loads from its plain path. Host tests read the header back directive by directive and check the rendered pages for inline script, style elements and event-handler attributes." -m "$(printf '%s\n%s' 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' 'Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi')"
 ```
 
 The commit message ends with exactly these two lines, and nothing else is staged:
@@ -3994,7 +3994,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
 
 ### Task 5: Theme init: apply the stored theme before the first paint (D-041)
 
-**Review Focus pin:** none of the five. This closes the D-041 deferral (the theme flashed until the circuit connected) without an inline script, so it fits the Task 4 policy (`script-src 'self'`). The behaviours are pinned by `theme-init.test.mjs` (including the "never throws" cases and the parity test with `preferences.js`) and by `ThemeInitHostTests` (the script is served, first in `<head>`, blocking and classic).
+**Review Focus pin:** none of the five. This closes the D-041 deferral (the theme flashed until the circuit connected) without an inline script, so it fits the Task 4 policy (`script-src 'self'`). The behaviors are pinned by `theme-init.test.mjs` (including the "never throws" cases and the parity test with `preferences.js`) and by `ThemeInitHostTests` (the script is served, first in `<head>`, blocking and classic).
 
 **Files:**
 - Create: `src/TechStrap.Admin/wwwroot/js/theme-init.js`
@@ -4228,7 +4228,7 @@ Expected: FAIL (`/js/theme-init.js` answers 404, and the page has no theme scrip
 1. `src/TechStrap.Admin/wwwroot/js/theme-init.js`:
 
 ```javascript
-// Applies the stored colour theme before the first paint (D-041, D-042). It is a classic, blocking script in <head>, loaded before the stylesheets, so a light or
+// Applies the stored color theme before the first paint (D-041, D-042). It is a classic, blocking script in <head>, loaded before the stylesheets, so a light or
 // dark choice does not flash the other theme while the circuit connects. A module would be deferred and would run after the page had painted.
 //
 // It reads the same localStorage key as preferences.js ('techstrap.admin.theme') and sets or removes data-bs-theme on <html> exactly as applyTheme() there does:
@@ -4995,7 +4995,7 @@ Replace
             : when.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     }
 
-    /// <summary>The absolute time for a tooltip. Always UTC and labelled so: converting to the agent's zone needs the browser's zone (recorded gap, PHASE-07c).</summary>
+    /// <summary>The absolute time for a tooltip. Always UTC and labeled so: converting to the agent's zone needs the browser's zone (recorded gap, PHASE-07c).</summary>
     public static string Absolute(DateTimeOffset when) => when.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture);
 
     /// <summary>Up to two initials for an avatar: "Sam Ortiz" is "SO", "sam" is "S", nothing is "?".</summary>
@@ -5440,9 +5440,9 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
 2. **Commands.** A scoped `CommandRegistry` holds the built-in commands: "Queue: Unassigned", "Mine", "Open", "Pending", "All", "Spam" and "My settings" (group "Go to"), and Products, Agents, Tags, Audit and Failed emails (group "Admin", `AdminOnly`). A screen adds its own with `Register(commands)` while it is mounted and disposes the registration when it goes. `TicketDetailPage` registers, for a ticket that is not Closed: "Reply to requester", "Add internal note", "Assign to me" (only when the ticket is not already the agent's) and "Not spam" (only on a flagged ticket), and registers again whenever the model changes, so the list never offers what the ticket no longer allows. Each ticket command raises the shortcut action that does the same thing, so the composer, the sidebar and the actions menu run their own code once.
 3. **Who sees what.** `Available(isAdmin)` is the one place that decides: an `AdminOnly` command is never in the list for an agent who is not an Admin, whoever registered it. The palette asks the registry with the current `Session.IsAdmin` on every render, and checks `AdminOnly` again when a command is chosen, because the session can change while the palette is open and a line that is still on screen may be stale.
 4. **Filtering and keys.** Typing keeps the commands whose label or group contains every word (case-insensitive) and puts the selection on the first line. ArrowDown and ArrowUp move it and wrap; Home and End jump; Enter runs it; a click runs a line; Esc closes it and the browser returns focus to where it was. `palette.js` takes exactly those five keys from the browser (a script is the only way to stop ArrowUp moving the caret of the input), never a chord and never a key during IME composition.
-5. **ARIA.** The input is `role="combobox"` with `aria-controls`, `aria-expanded`, `aria-autocomplete="list"` and `aria-activedescendant`; the list is `role="listbox"`, each line `role="option"` with `aria-selected`; a visually hidden `role="status"` announces "3 commands". The selected line is also marked by a fill, a bar and weight, and by an outline in forced colours.
+5. **ARIA.** The input is `role="combobox"` with `aria-controls`, `aria-expanded`, `aria-autocomplete="list"` and `aria-activedescendant`; the list is `role="listbox"`, each line `role="option"` with `aria-selected`; a visually hidden `role="status"` announces "3 commands". The selected line is also marked by a fill, a bar and weight, and by an outline in forced colors.
 6. **A command fires once.** The palette closes first and the command runs after the dialog has closed in the browser (a command that moves focus, like Reply, would otherwise find an inert page). The chosen command is cleared before it runs, a second choice while one is pending or running does nothing, and a render after the command finished does not run it again (`OnAfterRenderAsync` runs on every render). A command that throws is logged by exception type only and the status bar says "Couldn't run that command."; a script failure leaves the palette shut. Nothing here may end the circuit.
-7. **The actions menu** follows the menu button pattern. The list is `role="menu"` labelled by its button, each entry `role="menuitem"` with `tabindex="-1"`. Opening puts focus on the first item; ArrowDown, ArrowUp, Home and End move between items; ArrowDown on the closed button opens it; Escape closes it, returns focus to the button, and is taken so the page's own Esc ("back to the queue") does not also fire; Tab closes it and lets focus move on. `menu.js` does the keys and tells the component through `OpenMenu` and `CloseMenu`.
+7. **The actions menu** follows the menu button pattern. The list is `role="menu"` labeled by its button, each entry `role="menuitem"` with `tabindex="-1"`. Opening puts focus on the first item; ArrowDown, ArrowUp, Home and End move between items; ArrowDown on the closed button opens it; Escape closes it, returns focus to the button, and is taken so the page's own Esc ("back to the queue") does not also fire; Tab closes it and lets focus move on. `menu.js` does the keys and tells the component through `OpenMenu` and `CloseMenu`.
 8. **The rail** says which page is current with `aria-current="page"` (the framework's `NavLink` only adds a class, which a screen reader never hears, although `_shell.scss` already styled `[aria-current="page"]`). The link is current on its address and below it, compared on whole segments (`/queue/mine` is under `/queue`, `/queued` is not).
 9. **Headings.** `BrandWindow.HeadingLevel` (default 2). The 404 page and the sign-in landing page, where the window is the whole page, pass 1, so every screen has one `h1`.
 10. **Docs of the keys.** The help list and the status bar list Ctrl+K.
@@ -6563,7 +6563,7 @@ using TechStrap.Tests.Shared;
 
 namespace TechStrap.Admin.Tests;
 
-/// <summary>The palette's selected line is set apart by a fill, a bar and weight, and by an outline when forced colours drop the fill. Colour is never the only cue.</summary>
+/// <summary>The palette's selected line is set apart by a fill, a bar and weight, and by an outline when forced colors drop the fill. Color is never the only cue.</summary>
 public sealed class PaletteStyleTests
 {
     private static readonly CompiledCss Css = CompiledCss.Load("TechStrap.Admin");
@@ -8065,7 +8065,7 @@ Replace
 
 ```csharp
 /// the ticket. Delete and erase are Admin-only, irreversible, and need the ticket number or the requester's email typed: for an Agent they are not hidden but not rendered at all (no menu
-/// entry, no dialog, nothing to trigger), and the API enforces the same rule. A failure leaves the dialog open and everything unchanged; only success navigates. A write is never cancelled
+/// entry, no dialog, nothing to trigger), and the API enforces the same rule. A failure leaves the dialog open and everything unchanged; only success navigates. A write is never canceled
 /// when the component goes away, and a failure that leaves the outcome unknown says so and offers a reload instead of a retry.
 /// </summary>
 public sealed partial class TicketActions : IDisposable
@@ -8080,7 +8080,7 @@ with
 
 ```csharp
 /// the ticket. Delete and erase are Admin-only, irreversible, and need the ticket number or the requester's email typed: for an Agent they are not hidden but not rendered at all (no menu
-/// entry, no dialog, nothing to trigger), and the API enforces the same rule. A failure leaves the dialog open and everything unchanged; only success navigates. A write is never cancelled
+/// entry, no dialog, nothing to trigger), and the API enforces the same rule. A failure leaves the dialog open and everything unchanged; only success navigates. A write is never canceled
 /// when the component goes away, and a failure that leaves the outcome unknown says so and offers a reload instead of a retry.
 /// The menu follows the WAI-ARIA menu button pattern: the list has <c>role="menu"</c> and its buttons <c>role="menuitem"</c>; opening it puts focus on the first item; ArrowDown, ArrowUp, Home and
 /// End move between items; Escape closes it and returns focus to the button; Tab closes it. The keys are handled in <c>menu.js</c>, which tells this component when to open or close.
@@ -8598,7 +8598,7 @@ with
     background: var(--hover);
   }
 
-  // The selected line is set apart by a fill, a bar and weight, never by colour alone (forced-colors drops the fill, so it gets an outline below).
+  // The selected line is set apart by a fill, a bar and weight, never by color alone (forced-colors drops the fill, so it gets an outline below).
   &[aria-selected="true"] {
     font-weight: 700;
     background: var(--sel);
@@ -9098,7 +9098,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
 ```
 
-### Task 8: The responsive and brand pass: a collapsible rail, queue cards, scroll regions, forced colours (P07-T19)
+### Task 8: The responsive and brand pass: a collapsible rail, queue cards, scroll regions, forced colors (P07-T19)
 
 **Review Focus pins:** none of the five is about layout; this task is the rendered half of T19. Its tests read the compiled CSS and the markup (`ResponsiveStyleTests`, `RailToggleTests`, `ScrollRegionSiteTests`), and what they cannot see is the owner's checklist (Task 10).
 
@@ -9136,7 +9136,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
   - A Menu button (`ts-rail-toggle`, `aria-expanded`, `aria-controls`) and a `ts-rail-panel` (`data-open`) in `NavMenu`; `ShellCopy.MenuToggle`.
   - `ScrollRegion` (a `role="region"`, named, `tabindex="0"` scroll box) around all seven ledger tables; `QueueCopy.TableLabel`.
   - `ts-ledger--stack` on the queue table and `data-label` on the detail cells of `TicketRow`.
-  - `_responsive.scss` (the scroll shadows and the forced-colours rules), changes to `_shell.scss`, `_queue.scss` and `_ticket.scss`.
+  - `_responsive.scss` (the scroll shadows and the forced-colors rules), changes to `_shell.scss`, `_queue.scss` and `_ticket.scss`.
   - `CompiledCss.InMedia(condition)` and `OutsideMedia()` for tests that care which breakpoint a rule is in.
 
 **Rules:**
@@ -9145,8 +9145,8 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
 3. **The queue.** From 768 to 992 px it drops Product, Requester and Priority (the order UX-BRIEF-admin proposes), in the queue only: the old rule selected `.ts-ledger th:nth-child(4)` and so also removed the 4th, 5th and 7th header cells of every settings table, leaving their data cells without headers. Below 768 px each ticket is a card: number, status and last activity on the first line, the subject across the full width, then Product, Requester, Priority and Assignee, each with its name beside it (the cell's `data-label`, printed by `::before`). The header row is clipped, not removed, so a screen reader still has the column names; the selected row keeps its bar on the left (the arrow in the first cell is dropped).
 4. **The composer stays reachable.** At 1100 px the side panel moved above the conversation, which put the controls between the ticket and the reply box. Below 768 px the controls come after the conversation, so the reply box follows the last message at once.
 5. **Tables scroll in their own region.** `ScrollRegion` wraps every ledger table: `table-responsive` (so it scrolls sideways, never the page), `role="region"`, an accessible name (`Tickets`, `Agents`, `Audit events`, ...) and `tabindex="0"`, because a scroll area that only a mouse can use fails WCAG 2.1.1 and axe's "scrollable-region-focusable". A shadow on the edge that has more is the cue (CSS "local" and "scroll" backgrounds). `ScrollRegionSiteTests` fails if a ledger table is ever put anywhere else.
-6. **Reduced motion and forced colours.** The `prefers-reduced-motion` rule exists (`_motion.scss`); `ResponsiveStyleTests` now pins it and fails if any stylesheet sets `scroll-behavior`. In forced colours (Windows high contrast) every colour becomes a system colour, so what a fill or an edge colour said alone is said again by shape: the current rail link, tab and queue row get a 2 px `Highlight` outline, the transparent edges of links and tabs become `Canvas` so they do not turn into visible bars, and a focused scroll region gets a ring.
-7. **The manual checklist** (1280, 768 and 390 px, a keyboard walk, an axe run, dark and forced-colours emulation, a CSP console check) is written into `docs/development/ADMIN-APP.md` in Task 10, with the rest of the 07c documentation. It needs a signed-in session, so it is the owner's.
+6. **Reduced motion and forced colors.** The `prefers-reduced-motion` rule exists (`_motion.scss`); `ResponsiveStyleTests` now pins it and fails if any stylesheet sets `scroll-behavior`. In forced colors (Windows high contrast) every color becomes a system color, so what a fill or an edge color said alone is said again by shape: the current rail link, tab and queue row get a 2 px `Highlight` outline, the transparent edges of links and tabs become `Canvas` so they do not turn into visible bars, and a focused scroll region gets a ring.
+7. **The manual checklist** (1280, 768 and 390 px, a keyboard walk, an axe run, dark and forced-colors emulation, a CSP console check) is written into `docs/development/ADMIN-APP.md` in Task 10, with the rest of the 07c documentation. It needs a signed-in session, so it is the owner's.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -9379,7 +9379,7 @@ namespace TechStrap.Admin.Tests;
 
 /// <summary>
 /// The responsive and accessibility rules (UX-BRIEF-admin, "Responsive and accessibility"): the rail folds away below 992px, the queue stacks below 768px, a wide table scrolls in its own region,
-/// the composer follows the conversation on a phone, and forced colours keep what colour alone would say. Reads the compiled CSS, so a rule that is renamed, moved to the wrong breakpoint or
+/// the composer follows the conversation on a phone, and forced colors keep what color alone would say. Reads the compiled CSS, so a rule that is renamed, moved to the wrong breakpoint or
 /// deleted fails here. How it looks is the owner's checklist in ADMIN-APP.md.
 /// </summary>
 public sealed class ResponsiveStyleTests
@@ -10373,8 +10373,8 @@ with
     linear-gradient(to left, var(--shadow), transparent) right center / 10px 100% no-repeat scroll;
 }
 
-// Forced colours (Windows high contrast) replaces every colour with a system colour, so anything that is said by colour or fill alone is said again by shape.
-// The current rail link, tab and row had only a fill and a coloured edge: they get an outline, and the edges that are transparent on purpose stay invisible.
+// Forced colors (Windows high contrast) replaces every color with a system color, so anything that is said by color or fill alone is said again by shape.
+// The current rail link, tab and row had only a fill and a colored edge: they get an outline, and the edges that are transparent on purpose stay invisible.
 @media (forced-colors: active) {
   .ts-rail-link,
   .ts-tab,
@@ -10745,7 +10745,7 @@ git add src/TechStrap.Admin/Components/Layout/NavMenu.razor \
   tests/TechStrap.Admin.Tests/ResponsiveStyleTests.cs \
   tests/TechStrap.Admin.Tests/ScrollRegionSiteTests.cs
 git diff --cached --stat
-git commit -m "feat(admin): collapsible rail, queue cards and keyboard-reachable scroll regions" -m "Below 992 px the rail folds behind a Menu button; below 768 px the queue is a card per ticket and the composer follows the conversation. Every table scrolls in a named, focusable region, and forced colours keep the current link, tab and row by an outline." -m "$(printf '%s\n%s' 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' 'Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi')"
+git commit -m "feat(admin): collapsible rail, queue cards and keyboard-reachable scroll regions" -m "Below 992 px the rail folds behind a Menu button; below 768 px the queue is a card per ticket and the composer follows the conversation. Every table scrolls in a named, focusable region, and forced colors keep the current link, tab and row by an outline." -m "$(printf '%s\n%s' 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' 'Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi')"
 ```
 
 The commit message ends with exactly these two lines, and nothing else is staged:
@@ -10790,7 +10790,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
 
 **Interfaces:**
 - Consumes:
-  - Sentry: `SensitiveHeaderSentryProcessor` and `SentryOptionsExtensions.AddSensitiveHeaderScrubbing()` (called from the `UseSentry` callback of the Api and the Admin today; Task 3 gives the Portal the same call), `SentryEvent.Request`, `SentryTransaction.Request` and `.Spans`, `Breadcrumb`, `SentryOptions.SetBeforeBreadcrumb`; the Sentry SDK is 6.7.0 (`Sentry`, `Sentry.AspNetCore`). `ProcessEnvironmentCollection` (non-parallel tests) for the one test that initialises the SDK, which is process-wide state.
+  - Sentry: `SensitiveHeaderSentryProcessor` and `SentryOptionsExtensions.AddSensitiveHeaderScrubbing()` (called from the `UseSentry` callback of the Api and the Admin today; Task 3 gives the Portal the same call), `SentryEvent.Request`, `SentryTransaction.Request` and `.Spans`, `Breadcrumb`, `SentryOptions.SetBeforeBreadcrumb`; the Sentry SDK is 6.7.0 (`Sentry`, `Sentry.AspNetCore`). `ProcessEnvironmentCollection` (non-parallel tests) for the one test that initializes the SDK, which is process-wide state.
   - OpenAPI: `builder.Services.AddOpenApi()` in the Api `Program.cs`, `Microsoft.AspNetCore.OpenApi` 10.0 over `Microsoft.OpenApi` 2.x (the 2.x scheme and reference types), `AuthorizationPolicies` (`Agent`, `Admin`, `ApiKey`, `Public`), `HeaderNames` (`ApiKey`, `TicketToken`), `OpenApiSurfaceTests` (the document lists exactly the routed controller operations), `ApiFactory`.
   - The 07b pages with held writes: `AgentsContent`, `DeadLettersContent`, `ApiKeysPanel`, `TagsContent` (each has a `_loadId` stale-load guard and a set of rows whose write ended with an unknown outcome), `AdminEventsContent` (the audit page), `PublicDisplayNameField`, `NotificationPreferencesPage` (the `_version` key), `ProductEditorViewModel`, `UpdateProductRequestHandler`, Domain `ProductBranding.Create` and `Guard.OptionalImageUrl`.
   - Assumed from Tasks 1 to 5: Task 3 may move where `AddSensitiveHeaderScrubbing()` is called (a shared host helper). The new processor is registered inside `AddSensitiveHeaderScrubbing()` itself, so wherever a host calls that, it gets both; if Task 3 renames the method, register the new processor in the renamed one. Task 3 also changes Api `Program.cs` (the `HttpClient` default); this task changes only the `AddOpenApi()` line.
@@ -10806,7 +10806,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
 1. **What is masked.** The value of the query parameters `search` (the queue and the ticket list) and `q` (a free-text query), matched by name, case-insensitively, at the start of a query string or after `?` or `&`, up to the next `&`, `#`, space or quote. The value becomes `[redacted]`; the rest of the address stays, so an event still says which page failed. `research`, `faq`, `query` and `/queue/search` are left alone.
 2. **Where.** The request query string and URL of every event and transaction; the description and string data of every span of a transaction; the message and data of every breadcrumb, through `BeforeBreadcrumb` (a breadcrumb is immutable, so a masked copy replaces it; one that carries no search is passed on unchanged, the same object).
 3. **Registered with the header scrubber**, so every host that scrubs headers scrubs searches too. `BeforeBreadcrumb` has one slot: a host that wants its own must call the registration first and wrap what it needs around it (the doc comment says so).
-4. **Proof that it reaches the wire.** One test sends an event and a breadcrumb through the SDK with the host's registration and a capturing transport, and reads the serialised envelope; a control run without the registration must show the secret in at least four places, so the harness cannot pass because it sees nothing.
+4. **Proof that it reaches the wire.** One test sends an event and a breadcrumb through the SDK with the host's registration and a capturing transport, and reads the serialized envelope; a control run without the registration must show the secret in at least four places, so the harness cannot pass because it sees nothing.
 
 *OpenAPI*
 5. **Three schemes**: `Bearer` (HTTP, `bearer`, JWT) for agents, `ApiKey` (header `X-Api-Key`) for intake, `TicketToken` (header `X-Ticket-Token`) for the customer routes. A document transformer declares them; an operation transformer adds one requirement per operation from its authorization metadata: the Agent or Admin policy is `Bearer`, the ApiKey policy is `ApiKey`, a public operation that reads the `X-Ticket-Token` header is `TicketToken`, any other public operation names none, and `[AllowAnonymous]` wins over everything. It is documentation: the policies on the controllers still decide, and nothing about what the API accepts changes.
@@ -11374,7 +11374,7 @@ namespace TechStrap.Api.Tests;
 /// Review Focus 4, Sentry: the text an agent searched for (a requester's email address, a subject line) never reaches Sentry in a request's query string or URL, in a breadcrumb, or in a span. The
 /// last test sends an event through the SDK with the host's registration and reads what the transport receives, with a control that proves the harness would see a leak.
 /// </summary>
-/// <remarks>The last test initialises the SDK, which is process-wide state, so the class runs in the non-parallel <see cref="ProcessEnvironmentCollection"/> with the other tests that must run alone.</remarks>
+/// <remarks>The last test initializes the SDK, which is process-wide state, so the class runs in the non-parallel <see cref="ProcessEnvironmentCollection"/> with the other tests that must run alone.</remarks>
 [Collection(ProcessEnvironmentCollection.Name)]
 public sealed class SensitiveQuerySentryProcessorTests
 {
@@ -12834,7 +12834,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi
   - From Tasks 1 to 5 (final), as the docs state them: the Admin architecture rules and their failing samples (Task 1); `SessionExpiry`, `AgentSession.ExpiredWhileWorking` and `IsAdmitted`, the `SessionExpiredBanner`, `ReadRetryAfterCap` of 2 s (Task 2); `TechStrap.Hosting.Wiring` (`AddTechStrapHttpClientDefaults` in all four hosts, `AddTechStrapWebHost`, `UseTechStrapWebHost`, `UseTechStrapErrorPages`, `AddTechStrapObservability` for the Portal), the Portal's reference to Contracts and Hosting, `FactoryClientLeakTests`, and the finding that the OTLP exporter going through the factory was not reproduced (Task 3); `TechStrapCsp.ForBlazorApp` and `ForApi`, `<ImportMap />` removed, the websocket under `connect-src 'self'` left as an owner browser check (Task 4); `theme-init.js` loaded by `App.razor` and `SignInLanding.razor` (Task 5). The docs script names these types because they are now fixed.
 - Produces:
   - `scripts/Test-ComposeSmoke.ps1`, `scripts/tests/ComposeSmoke.Tests.ps1`, a manually started `compose-smoke` job in `ci.yml`, and Pester checks that the Admin has a health check on `/health/live`, waits for a healthy Api and keeps its key ring on a volume in all three compose files.
-  - D-042 in the decision log (with its index row and header line), the 07c sections of `ADMIN-APP.md` (the CSP, the theme script, local time, the palette, the responsive behaviour, the session-expired banner, the owner's manual checklist, the compose smoke, the 07c known gaps), the ticks and evidence in `PHASE-07-admin-app.md` (T19, T20, T05, T06, the two carry-forwards; T02 stays open), and the phase row in the roadmap and the index.
+  - D-042 in the decision log (with its index row and header line), the 07c sections of `ADMIN-APP.md` (the CSP, the theme script, local time, the palette, the responsive behavior, the session-expired banner, the owner's manual checklist, the compose smoke, the 07c known gaps), the ticks and evidence in `PHASE-07-admin-app.md` (T19, T20, T05, T06, the two carry-forwards; T02 stays open), and the phase row in the roadmap and the index.
 
 **Rules:**
 1. **The smoke** (`docker compose up -d --wait`, the Api and the Admin answer `/health/ready` with 200, the Admin container is healthy, then `down`). It builds the four images one after another and not with `up --build`: compose builds them in parallel and four restores into the one shared NuGet cache mount (`--mount=type=cache,id=techstrap-nuget`) corrupted each other in the first real run ("Could not find file .../markdig/...").
@@ -13349,9 +13349,9 @@ first paint, so a stored choice no longer flashes the other theme while the circ
 (the origin comes from the configured authority), so the sign-in and sign-out redirects are allowed. `data:` is there because Bootstrap's compiled CSS draws its icons with data: SVG. In Development `img-src` also allows loopback http (a logo on localhost). There is no `upgrade-insecure-requests`, and `connect-src` has no explicit `ws:` or `wss:`: whether `'self'` covers the circuit's websocket is checked in the owner's browser (the checklist below). Scripts stay strict: there is no inline script, and `<ImportMap />` was removed from both apps (an architecture rule flags it coming back). The Api sends `default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`, and attachment downloads additionally get `sandbox`. The one relaxation is `style-src-attr`, because the product accent and tag colours are admin data set as `style` attributes (`AccentPreview`, `TagChip`).
 If a page loses its styles, a font or sign-in after a change, open the browser console: a blocked resource is named there with the directive. Header tests assert the headers on the Admin pages (including `/signin` and `/error`), the Portal and the Api.
 
-**Responsive behaviour.** From 992 px the rail is a column at the left. Below 992 px it becomes a bar with a Menu button (`aria-expanded`) that opens the links, and choosing a link closes it again. Below 768 px each ticket in the queue is a card (number, status
+**Responsive behavior.** From 992 px the rail is a column at the left. Below 992 px it becomes a bar with a Menu button (`aria-expanded`) that opens the links, and choosing a link closes it again. Below 768 px each ticket in the queue is a card (number, status
 and time, then the subject, then Product, Requester, Priority and Assignee with their names); between 768 and 992 px the queue drops Product, Requester and Priority. On a phone the reply box follows the conversation and the ticket controls come after it. A wide table
-scrolls inside its own region, which is a named, focusable box, never the page. `prefers-reduced-motion` switches animation off, and forced colours keep the current link, tab and row by an outline.
+scrolls inside its own region, which is a named, focusable box, never the page. `prefers-reduced-motion` switches animation off, and forced colors keep the current link, tab and row by an outline.
 
 **Manual checklist (owner, before merging 07c).** The tests read the compiled CSS and the markup; they cannot see a layout. With the app signed in (this needs the identity provider, owner action 7) and the browser's developer tools:
 
@@ -13371,7 +13371,7 @@ Admin answer `/health/ready` with 200 and that the Admin container is healthy, a
 - **Pages render twice.**''')
 
 edit(ADMIN_DOC, '''A read is tried up to three times in all (250 ms base backoff with jitter) on transport errors, timeouts, 408, 502, 503 and 504. There is no circuit breaker: one named read client is shared by every agent, and a breaker opened by one failing endpoint would lock everyone out. Under a real outage every call waits out its retries (roughly a second) before it fails.''',
-     '''A read is tried up to three times in all (250 ms base backoff with jitter) on transport errors, timeouts, 408, 502, 503 and 504, and a `Retry-After` header is honoured but capped at 2 seconds a try. There is no circuit breaker: one named read client is shared by every agent, and a breaker opened by one failing endpoint would lock everyone out. Under a real outage every call waits out its retries (a few seconds at most) before it fails.''')
+     '''A read is tried up to three times in all (250 ms base backoff with jitter) on transport errors, timeouts, 408, 502, 503 and 504, and a `Retry-After` header is honored but capped at 2 seconds a try. There is no circuit breaker: one named read client is shared by every agent, and a breaker opened by one failing endpoint would lock everyone out. Under a real outage every call waits out its retries (a few seconds at most) before it fails.''')
 
 edit(ADMIN_DOC, '''| The theme does not change | The choice is kept in this browser: private windows and cleared site data forget it, and Auto follows the device. |
 ''', '''| The theme does not change | The choice is kept in this browser: private windows and cleared site data forget it, and Auto follows the device. |
@@ -13469,7 +13469,7 @@ d042 = '''
 ### Context
 PHASE-07a and 07b are merged. 07c is the polish pass (T19), the compose and architecture checks (T20) and the items D-040 and D-041 moved to it: the CSP, the shared host wiring, the OpenAPI security scheme, the command palette, local time and the theme flash.
 Reading the code for the plan found these facts:
-- **Headers.** Only the Api sends security headers, and only the package defaults, whose CSP has no `default-src`, `script-src` or `style-src`. The Admin and the Portal send none. The Admin uses `style` attributes for the product accent and tag colours (`AccentPreview`, `TagChip`), and `<ImportMap />` renders an inline script (it is removed in 07c).
+- **Headers.** Only the Api sends security headers, and only the package defaults, whose CSP has no `default-src`, `script-src` or `style-src`. The Admin and the Portal send none. The Admin uses `style` attributes for the product accent and tag colors (`AccentPreview`, `TagChip`), and `<ImportMap />` renders an inline script (it is removed in 07c).
 - **The sign-in redirects.** Chrome applies `form-action` to the redirect that follows a form submission, so the sign-in and sign-out forms, which answer with a 302 to the identity provider, need the provider's origin in `form-action`. Firefox does not enforce it, so a Firefox-only check would miss it.
 - **Sessions.** Only the first `GET /api/agents/me` could move the app to "session expired". A 401 on any later call showed a generic error string and left the shell looking signed in.
 - **Logging.** Only the Admin removed the `HttpClient` factory's logging handlers, which write each request header (`Authorization`, an OTLP `x-api-key`) at Trace. The Api, Worker and Portal use the same factory. The 07b claim that the OTLP exporter goes through it was not reproduced in 07c; what was found is that the factory's own logging default leaks header values in its structured state, and the OTLP leak tests remain as an end-to-end guard with a positive control (a TCP listener that sees the export attempt).
@@ -13478,7 +13478,7 @@ Reading the code for the plan found these facts:
 
 ### Decision
 **Owner decisions (2026-10-04)**
-- **CSP.** `script-src 'self'` stays strict. `style-src 'self'` plus `style-src-attr 'unsafe-inline'`: the colours are admin data, so classes cannot carry them, and a nonce does not cover attributes.
+- **CSP.** `script-src 'self'` stays strict. `style-src 'self'` plus `style-src-attr 'unsafe-inline'`: the colors are admin data, so classes cannot carry them, and a nonce does not cover attributes.
 - **Theme flash.** An external blocking script, `wwwroot/js/theme-init.js`, in the page head, loaded before the stylesheets.
 - **Time zone.** From the browser (`Intl`) through a JS module, per circuit. The prerender shows UTC. No API change.
 - **Host wiring.** A shared helper in `TechStrap.Hosting` is adopted by the Admin and the Portal, and the Portal gains a reference to Hosting. The `ConfigureHttpClientDefaults(b => b.RemoveAllLoggers())` default goes into all four hosts.
@@ -13486,7 +13486,7 @@ Reading the code for the plan found these facts:
 
 **Defaults (proposed in the plan, approved with it)**
 - **Queue search stays in the URL** and is masked in Sentry: a `SensitiveQuerySentryProcessor` in `TechStrap.Hosting` replaces the value of `search` and `q` with `[redacted]` in the request query string and URL of events and transactions, in span descriptions and data, and in breadcrumbs (through the `BeforeBreadcrumb` hook). It is registered with the header scrubber, so every host that has one gets it.
-- **`Retry-After` is honoured but capped at 2 seconds** on the read client.
+- **`Retry-After` is honored but capped at 2 seconds** on the read client.
 - **OpenAPI documents three schemes**: `Bearer` (HTTP bearer, JWT) for the Agent and Admin policies, `ApiKey` (header `X-Api-Key`) for intake, and `TicketToken` (header `X-Ticket-Token`) for the customer routes. A document and an operation transformer add them; public operations name none. It is documentation only.
 - **A 401 in the middle of a session** moves `AgentSession` to "session expired" from one place (`ApiConnection`). First load: the full page. Mid-session: a banner with "Sign in again" (a link to `/signin/start` for the current page), and the page stays mounted so an unsent draft survives.
 
@@ -13501,18 +13501,18 @@ Reading the code for the plan found these facts:
 - **07b minors.** An uncertain write is held until a read that started after it finishes (`UncertainMarks`, a load id stored with each mark); the audit page draws its events without waiting for the agent list; retyping the committed display name after an uncertain save says to reload; a product saved with a relative logo before the logo rule can be edited when the logo is left alone (`ProductBranding.CreateForUpdate` skips the logo rule for an unchanged stored value; the Admin editor mirrors it).
 
 ### Alternatives Considered
-- **A strict `style-src 'self'` with the colours set from script** (CSSOM). Rejected: the prerender and a page without script would have no colours, and it is more code for the same protection of a validated hex value.
+- **A strict `style-src 'self'` with the colors set from script** (CSSOM). Rejected: the prerender and a page without script would have no colors, and it is more code for the same protection of a validated hex value.
 - **A per-request nonce or hash for inline script.** Rejected: there is no inline script to cover once `theme-init.js` is external, and a nonce does not cover style attributes.
 - **A theme cookie rendered on `<html>`.** Rejected: a second source of truth and a cookie on every request.
 - **Taking the time zone from the API or a stored preference.** Rejected: it needs an API change and a migration (the Admin adds no entry points, D-040), and a stored zone goes stale when an agent travels.
 - **Taking the queue search out of the address.** Rejected: it loses bookmarks and back and forward for searches and reverses a recorded assumption; the masking in Sentry covers the exposure that mattered.
-- **Ignoring `Retry-After`.** Rejected: a polite client waits a little when the API asks it to. Honouring it uncapped could stall a page for the whole client timeout.
+- **Ignoring `Retry-After`.** Rejected: a polite client waits a little when the API asks it to. Honoring it uncapped could stall a page for the whole client timeout.
 - **Tearing the page down on a mid-session 401.** Rejected: it loses unsent replies and notes.
 - **Per-page 401 handling.** Rejected: every page would need it, and one would be forgotten.
 
 ### Consequences
 - **Superseded wording.** The D-040 and D-041 lines that moved the palette, local time, the theme flash, the CSP and the OpenAPI scheme to 07c are now done. ADMIN-APP.md describes them. The PHASE-07 package-table lines about "401 flips the session" and "CSP asserted in a host test" are now true.
-- **The CSP relaxes one thing**, `style-src-attr 'unsafe-inline'`, so an injected `style` attribute would run. It cannot run script, and every value the Admin writes into a `style` attribute is a validated hex colour.
+- **The CSP relaxes one thing**, `style-src-attr 'unsafe-inline'`, so an injected `style` attribute would run. It cannot run script, and every value the Admin writes into a `style` attribute is a validated hex color.
 - **The Portal depends on Hosting** (the architecture tests allow it) and gets the PII enricher, the Sentry scrubbers and the headers early, before PHASE-09 builds on it.
 - **The compose smoke is opt-in**, because it builds four images.
 - **Still open:** the manual sign-in against a real identity provider (P07-T02, owner action 7), and with it the keyboard walk, the axe run and the CSP check of the redirects. The queue search is still in the browser history and in the proxy's access log.

@@ -55,7 +55,7 @@ It also clears the hardening items carried forward from the 06b review.
   - A truncated multipart body answers 400 instead of 500.
   - A non-multipart body answers 415 instead of the fallback 401. The `[Consumes]` check moves into the shared `ReadFormBeforeBinding` filter, so each route's own policy runs first.
   - OpenAPI keeps documenting the multipart bodies.
-- **Follow-up dedupe** compares sanitised incoming file names, through a Domain `AttachmentFileName.Sanitize` that `AttachmentStore` also uses.
+- **Follow-up dedupe** compares sanitized incoming file names, through a Domain `AttachmentFileName.Sanitize` that `AttachmentStore` also uses.
 - **The Portal Sentry header scrub is deferred to PHASE-09.** The Portal proxies no tokens yet, and it has no shared home for the scrubber without a new project.
 
 ## Global Constraints
@@ -185,7 +185,7 @@ D-006 said what erase and delete are for, but left the detail open. Reading the 
 - **Retention clock.** Retention counts from `created_at` for both Sent and Discarded rows (one index, one rule).
 - **Serilog redaction.** A `PiiRedactionEnricher` in Infrastructure, applied by the Api and the Worker, rewrites every log property value (including nested ones): email addresses become `[email]`, 43-character base64url tokens `[token]`, and `sha256:` plus 64 hex characters `[hash]`. Exceptions rely on Npgsql's default (no `Detail` unless "Include Error Detail" is set) and on EF sensitive logging staying off; an architecture test guards both. Admin and Portal handle no requester data yet, so wiring them is a PHASE-07/PHASE-09 follow-up.
 - **Multipart hardening.** A truncated body that is not a 413 answers `400 request-malformed`, not 500. A non-multipart body on the three multipart routes answers 415 from the shared filter, after the route's own policy ran (so the customer route answers 415, not the fallback 401).
-- **Follow-up dedupe** compares sanitised file names, through a Domain `AttachmentFileName.Sanitize` shared with the attachment store.
+- **Follow-up dedupe** compares sanitized file names, through a Domain `AttachmentFileName.Sanitize` shared with the attachment store.
 - **Portal Sentry scrub** is deferred to PHASE-09: the Portal makes no API calls yet and there is no shared project to hold the processor.
 
 ### Alternatives Considered
@@ -641,7 +641,7 @@ Route: `DELETE /api/tickets/{id}` on `TicketsController`, action `Delete`, with 
 7. `var committed = await scope.CommitAsync(ct)`. If it failed, return it: nothing was deleted, so no file is touched.
 8. After a successful commit, `await StoredFileCleanup.DeleteAllAsync(attachments, keys, logger)`, then `Result.Success()`. A failed file delete never changes the result.
 
-`StoredFileCleanup` loops over the keys and calls `store.DeleteAsync(key, CancellationToken.None)` in a `try`. On `Exception ex` it logs `logger.LogWarning("Attachment cleanup failed for {StorageKey} ({ExceptionType}).", key, ex.GetType().Name)`. This is the message `StoredAttachmentBatch` uses today. **Do not leave two copies of this loop:** change `StoredAttachmentBatch.DeleteAllAsync` to call `StoredFileCleanup.DeleteAllAsync(store, keys, logger)`, keeping its behaviour. The existing intake, agent-reply and customer-reply tests must pass unchanged.
+`StoredFileCleanup` loops over the keys and calls `store.DeleteAsync(key, CancellationToken.None)` in a `try`. On `Exception ex` it logs `logger.LogWarning("Attachment cleanup failed for {StorageKey} ({ExceptionType}).", key, ex.GetType().Name)`. This is the message `StoredAttachmentBatch` uses today. **Do not leave two copies of this loop:** change `StoredAttachmentBatch.DeleteAllAsync` to call `StoredFileCleanup.DeleteAllAsync(store, keys, logger)`, keeping its behavior. The existing intake, agent-reply and customer-reply tests must pass unchanged.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -871,7 +871,7 @@ Write `RequesterErrors`, the handler, and the controller:
 [Authorize(Policy = AuthorizationPolicies.Admin)]
 public sealed class RequestersController : ControllerBase
 {
-    /// <summary>Anonymises the requester and their data; ticket numbers and events remain. Safe to repeat.</summary>
+    /// <summary>Anonymizes the requester and their data; ticket numbers and events remain. Safe to repeat.</summary>
     [HttpPost("{id:guid}/erase")]
     public async Task<IActionResult> Erase(Guid id, [FromServices] IEraseRequesterRequestHandler handler, CancellationToken cancellationToken) =>
         (await handler.HandleAsync(id, cancellationToken)).ToActionResult(this, NoContent);
@@ -920,7 +920,7 @@ namespace TechStrap.Contracts.DeadLetters;
 
 /// <summary>
 /// A dead-lettered email as an admin sees it. Recipient is masked (first character of the local part, then ***@ and the domain); the
-/// payload, which holds a portal link, is never exposed (D-039). LastError is a sanitised category code, never server text.
+/// payload, which holds a portal link, is never exposed (D-039). LastError is a sanitized category code, never server text.
 /// </summary>
 public sealed record DeadLetterDto(
     Guid Id, string Kind, string Recipient, Guid? TicketId, Guid? ProductId, int Attempts, string? LastError, DateTimeOffset CreatedAt);
@@ -1652,7 +1652,7 @@ namespace TechStrap.Infrastructure.Logging;
 
 /// <summary>
 /// Rewrites PII-shaped text in every property value before any sink sees the event (D-039): email addresses, 43-character access tokens and
-/// "sha256:" hashes. It cannot touch LogEvent.Exception or the template, and it cannot recognise a name; application code never logs either
+/// "sha256:" hashes. It cannot touch LogEvent.Exception or the template, and it cannot recognize a name; application code never logs either
 /// (exceptions are logged by type name, requesters by id).
 /// </summary>
 public sealed partial class PiiRedactionEnricher : ILogEventEnricher
@@ -1758,7 +1758,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 **Findings that drive the design (checked by building a scratch copy of the repo):**
 - Removing `[Consumes]` alone makes `/openapi/v1.json` document the three routes as `application/x-www-form-urlencoded` (it was `multipart/form-data`). The `OpenApiSurfaceTests` that exists only compares route lists, so it would not notice.
 - A custom `IApiRequestMetadataProvider` on the filter restores `multipart/form-data` in the document and adds no endpoint-matching constraint. `[Consumes]` is what made the endpoint carry no authorization metadata on a content-type mismatch (so the fallback policy answered 401); the metadata provider does not.
-- A body cut short by the client cannot be seen end to end: Kestrel treats the half-closed connection as an abort and the request is cancelled, so no response can be read. The `IOException` rule is therefore tested by invoking the filter directly with a throwing body stream (this also pins the 413 pass-through).
+- A body cut short by the client cannot be seen end to end: Kestrel treats the half-closed connection as an abort and the request is canceled, so no response can be read. The `IOException` rule is therefore tested by invoking the filter directly with a throwing body stream (this also pins the 413 pass-through).
 - `AgentAccessCoverageTests.IsMultipart` reads `IAcceptsMetadata`, which disappears with `[Consumes]`. It must detect the routes by the filter attribute instead (`ReadFormBeforeBindingAttribute` is visible to `TechStrap.Api.Tests` through `InternalsVisibleTo`). Authorization runs before resource filters, so the 401, 403 and `agent-inactive` probes are unaffected.
 
 **Rules for the filter:**
@@ -2010,7 +2010,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 
 ---
 
-### Task 10: Sanitised-name dedupe
+### Task 10: Sanitized-name dedupe
 
 **Files:**
 - Create: `src/TechStrap.Domain/Tickets/AttachmentFileName.cs`
@@ -2026,7 +2026,7 @@ Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 namespace TechStrap.Domain.Tickets;
 
 /// <summary>The one rule for the display name stored with an attachment (D-039). The store saves this form, so anything that compares a
-/// customer-supplied name with a stored one must sanitise the customer's first.</summary>
+/// customer-supplied name with a stored one must sanitize the customer's first.</summary>
 public static class AttachmentFileName
 {
     public const string Fallback = "attachment";
@@ -2035,7 +2035,7 @@ public static class AttachmentFileName
 ```
 
 **Rules:**
-- `Sanitize` is `AttachmentStore.SafeDisplayName` moved verbatim: take the last path segment after turning `\` into `/`; drop control and Unicode Format characters; trim; `""`, `"."` and `".."` become `Fallback`; a name longer than `DomainLimits.FileNameMaxLength` is cut, keeping the extension when it is shorter than half the limit, and never in the middle of a surrogate pair. Behaviour must not change, so the existing `AttachmentStoreTests` pass untouched.
+- `Sanitize` is `AttachmentStore.SafeDisplayName` moved verbatim: take the last path segment after turning `\` into `/`; drop control and Unicode Format characters; trim; `""`, `"."` and `".."` become `Fallback`; a name longer than `DomainLimits.FileNameMaxLength` is cut, keeping the extension when it is shorter than half the limit, and never in the middle of a surrogate pair. Behavior must not change, so the existing `AttachmentStoreTests` pass untouched.
 - `AddCustomerReplyRequestHandler.SameFiles` compares the stored names with `incoming.Select(file => AttachmentFileName.Sanitize(file.FileName))`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -2118,7 +2118,7 @@ Expected: PASS.
 ```bash
 git add src tests
 git diff --cached --stat
-git commit -m "fix(tickets): compare sanitised attachment names when deduplicating follow-ups" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+git commit -m "fix(tickets): compare sanitized attachment names when deduplicating follow-ups" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01ReiWu2p7mSuArnHAMeBiMi"
 ```
 
@@ -2343,7 +2343,7 @@ Add the usings `TechStrap.Contracts.AdminEvents` and `TechStrap.Contracts.DeadLe
     }
 ```
 
-If the real route or DTO names differ from Tasks 4 to 6, fix the test to match the contract. Do not change the contract. If a test fails on product behaviour, fix the product code and say so in the commit body.
+If the real route or DTO names differ from Tasks 4 to 6, fix the test to match the contract. Do not change the contract. If a test fails on product behavior, fix the product code and say so in the commit body.
 
 - [ ] **Step 2: Run the tests**
 

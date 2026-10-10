@@ -105,7 +105,7 @@ feature-local; ViewModels are `internal` records in the same folder.
 | `ConfirmDialog` | Paired (modal state, focus handling, JS-free) | None | Local open/closed | None |
 | `LoadingState`, `ErrorState`, `EmptyState` | Inline (parameters + one retry `EventCallback`) | None | Stateless | None |
 | `ProductsPage` | Paired | `ProductRowViewModel` | Loading/Error/Empty/Content | `ProductDto` |
-| `ProductEditorPage` (details + branding: name, logo URL, accent colour, from/reply-to) | Paired (form state, validation, async save) | `ProductEditorViewModel` (form model; accent colour validated with `BrandingRules.ColourPattern`, logo URL with `BrandingRules.IsAcceptableLogoUrl` (D-041)) | Dirty tracking; server validation errors mapped to fields | `CreateProductRequest`/`UpdateProductRequest` |
+| `ProductEditorPage` (details + branding: name, logo URL, accent color, from/reply-to) | Paired (form state, validation, async save) | `ProductEditorViewModel` (form model; accent color validated with `BrandingRules.ColourPattern`, logo URL with `BrandingRules.IsAcceptableLogoUrl` (D-041)) | Dirty tracking; server validation errors mapped to fields | `CreateProductRequest`/`UpdateProductRequest` |
 | `ApiKeysPanel` + `NewApiKeyDialog` | Paired | `ApiKeyRowViewModel`; secret held only in dialog field | Show-once secret, cleared on close | `ProductApiKeyDto`, `CreateProductApiKeyRequest/Response` |
 | `AgentsPage` | Paired | `AgentRowViewModel` | Read-only role badge with the IdP note; activate and deactivate inline (deactivate confirms); Admin-only (D-041) | `AgentListItemDto`, `UpdateAgentRequest` |
 | `TagsPage` | Paired | `TagRowViewModel` | Inline edit; delete confirm (the tag name typed when the tag is in use, with its ticket count) | `TagSummaryDto`, `CreateTagRequest`/`UpdateTagRequest` |
@@ -196,7 +196,7 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
   - **Depends on:** P07-T12, P07-T03
   - **Validation:** bUnit: confirm button disabled until the email matches; success navigates to the queue; cancel makes no call; delete and erase are absent for an Agent principal and present for an Admin, spam is present for both.
   - **07a evidence:** `DestructiveActionTests`
-- [x] **P07-T14** [07b] Build `ProductsPage` and `ProductEditorPage` including branding fields and accent-colour validation
+- [x] **P07-T14** [07b] Build `ProductsPage` and `ProductEditorPage` including branding fields and accent-color validation
   - **Depends on:** P07-T05, P07-T03
   - **Validation:** bUnit: an invalid accent is rejected client-side with `BrandingRules.ColourPattern` (the server pattern, pinned by a parity test); a logo URL that is not https (or http for localhost) is rejected client-side and by the API; server 400 errors map to fields by their kebab-case target; the page sits inside `AdminOnly`, so a plain agent sees the no-access page.
   - **07b evidence:** `ProductEditorTests`, `ProductEditorRealApiTests`, `AccentPreviewTests`, `ProductsPageTests`, `AdminSettingsHostTests`
@@ -208,7 +208,7 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
   - **Depends on:** P07-T05, P07-T03
   - **Validation:** bUnit: the agents page shows the role as a read-only badge with the note "Roles come from your identity provider's groups." and has no role control; activate calls `SetActiveAsync(id, true)` without a confirm, deactivate calls `SetActiveAsync(id, false)` after a confirm, and a 409 `last-active-admin` shows inline; a plain agent sees the no-access page; the preferences save posts the full toggle set.
   - **07b evidence:** `AgentsPageTests`, `NotificationPreferencesPageTests`, `AdminOnlyTests`, `AdminSettingsHostTests`
-- [x] **P07-T17** [07b] Build `TagsPage` (CRUD with colour) and `AdminEventsPage` + `AdminEventSummaryFactory`
+- [x] **P07-T17** [07b] Build `TagsPage` (CRUD with color) and `AdminEventsPage` + `AdminEventSummaryFactory`
   - **Depends on:** P07-T05, P07-T03
   - **Validation:** bUnit: duplicate-slug 409 shows a field error; factory theory covers every admin-event type constant.
   - **07b evidence:** `TagsPageTests`, `DeleteTagTests`, `AdminEventSummaryFactoryTests`, `AdminEventsPageTests`
@@ -220,7 +220,7 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
   - **Depends on:** P07-T07, P07-T08, P07-T14
   - **Validation:** Manual checklist from UX-BRIEF-admin completed; keyboard-only run through queue -> reply -> solve; axe (browser extension) run has no critical findings (record in PR).
   - **Validation (PHASE-02 carry-over):** Admin must not use semantic `.text-{color}` or `.link-{color}` utilities in dark mode (they fail contrast there); use brand tokens or `.text-*-emphasis`. Add a `BrandWindow` heading-level parameter so standalone brand pages (404, sign-in) render an `h1`. The keyboard walk-through deferred from PHASE-02 happens here.
-  - **07c evidence:** `ResponsiveStyleTests` (rail fold at 992 px, queue cards at 768 px, scroll regions, composer order, forced colours, reduced motion), `RailToggleTests`, `RailLinkTests` (`aria-current`), `ScrollRegionSiteTests`, `CommandPaletteTests`, `TicketActionsMenuTests`, `HeadingHostTests` (one `h1` on the 404 and the sign-in page), `TicketPaletteCommandsTests`, the node tests `shortcuts`, `palette` and `menu`, and a headless-browser render of the queue and the rail at 1280, 800 and 390 px during development. **Still the owner's:** the checklist in docs/development/ADMIN-APP.md, the keyboard-only run through queue, reply and solve, and the axe run with its result in the PR; all need a signed-in session, so they wait for owner action 7. The `.text-{color}` carry-over: a search of the Admin markup and SCSS finds no use of them (nothing guards it).
+  - **07c evidence:** `ResponsiveStyleTests` (rail fold at 992 px, queue cards at 768 px, scroll regions, composer order, forced colors, reduced motion), `RailToggleTests`, `RailLinkTests` (`aria-current`), `ScrollRegionSiteTests`, `CommandPaletteTests`, `TicketActionsMenuTests`, `HeadingHostTests` (one `h1` on the 404 and the sign-in page), `TicketPaletteCommandsTests`, the node tests `shortcuts`, `palette` and `menu`, and a headless-browser render of the queue and the rail at 1280, 800 and 390 px during development. **Still the owner's:** the checklist in docs/development/ADMIN-APP.md, the keyboard-only run through queue, reply and solve, and the axe run with its result in the PR; all need a signed-in session, so they wait for owner action 7. The `.text-{color}` carry-over: a search of the Admin markup and SCSS finds no use of them (nothing guards it).
 - [x] **P07-T20** [07c] Add Admin to compose and verify Dockerfile run; add admin architecture rules (no reference to Application/Infrastructure/EF; no `HttpClient` use in `.razor` files)
   - **Depends on:** P07-T02
   - **Validation:** `docker compose up` -> `/health/ready` 200; Architecture.Tests fail when a forbidden reference or `[Inject] HttpClient` in a component is introduced (verified by a deliberate failing sample).
@@ -256,7 +256,7 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 - [ ] Framework-owned operational or static exemptions execute no application workflow.
 - [ ] Handler constructor dependencies contain only approved abstractions. (N/A here: no handlers added; verified unchanged in P04–P06.)
 - [ ] Persistence and integration entities do not cross infrastructure boundaries. (Admin has no Infrastructure/Domain reference.)
-- [ ] Cancellation reaches asynchronous handler dependencies. (Components pass the circuit/component `CancellationToken` into every read; writes deliberately pass `CancellationToken.None` so a write already sent is never cancelled by leaving the screen.)
+- [ ] Cancellation reaches asynchronous handler dependencies. (Components pass the circuit/component `CancellationToken` into every read; writes deliberately pass `CancellationToken.None` so a write already sent is never canceled by leaving the screen.)
 - [ ] Expected outcomes and transport mapping have focused tests. (Client `Result` mapping tests in P07-T05/T06.)
 - [ ] Infrastructure implementations have integration coverage where applicable. (N/A: typed clients covered by stub-handler tests.)
 - [ ] Inline Razor components contain only simple parameters and, at most, one trivial synchronous `EventCallback`-forwarding callback.
@@ -264,7 +264,7 @@ Not used here: `Blazor.Seo` (no public pages), `Blazor.Tracking` (Not applicable
 - [ ] Each Razor ViewModel is feature-local and presentation-only; the recorded direct-model decision (`TagPicker` uses `TagDto`) does not expose an API ViewModel.
 - [ ] A factory or presentation service is used only for non-trivial mapping, asynchronous assembly, or multiple dependencies (`TicketDetailPresenter`, `TimelineEntryFactory`, `AdminEventSummaryFactory` only).
 - [ ] API request and response contracts use DTO names and contracts, never Razor ViewModels.
-- [ ] Repeated or business-meaningful literals are named constants at the right scope (view names, status/event-type strings from Contracts; accent-colour pattern; debounce interval; page size).
+- [ ] Repeated or business-meaningful literals are named constants at the right scope (view names, status/event-type strings from Contracts; accent-color pattern; debounce interval; page size).
 - [ ] Duplicated-looking logic across flows was evaluated for genuine divergence before extracting (e.g. reply composer vs. note composer share one component by design; tag admin vs. ticket tag picker intentionally separate).
 
 ## Risks and Open Questions

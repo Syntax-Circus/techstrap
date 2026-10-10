@@ -57,7 +57,7 @@ The mascot and its voice are a **frame** around the product, not a layer over it
 4. **Cheeky, in its place** — the jockstrap pun is a confident wink at the edge of the product.
 5. **Open** — honest about being small, open source and self-hosted. No marketing gloss.
 
-## Where humour is allowed (brand moments)
+## Where humor is allowed (brand moments)
 
 Mascot and wink-y copy may appear **only** in the closed list below. The retro window and full-figure mascot are further limited to three Admin screens (section 18).
 
@@ -68,7 +68,7 @@ Mascot and wink-y copy may appear **only** in the closed list below. The retro w
 - README and GitHub repository (including social preview)
 - Style guide
 
-## Where humour is banned
+## Where humor is banned
 
 - **Everything customers see:** portal pages, emails, confirmation and error text, ticket links. No mascot, no puns.
 - **Error messages that block work** (failed save, lost connection, permission denied, validation failure). Plain cause plus next step.
@@ -80,7 +80,7 @@ If in doubt, it is not a brand moment. Do not add to the allowed list without an
 
 ## The jockstrap pun
 
-The name and mascot (a retro beige CRT in a jockstrap, thumbs up, tube socks) are the joke. It is **affectionate, never crude**: a supportive-gear gag ("strapped in", "we've got your back"), not innuendo. No anatomy, no sexual wordplay, no body humour, no jokes at a user's expense. One wink per brand moment, then stop. The mascot is cheerful and competent, never leering. The pun explains itself in the README once; it is not repeated in the product.
+The name and mascot (a retro beige CRT in a jockstrap, thumbs up, tube socks) are the joke. It is **affectionate, never crude**: a supportive-gear gag ("strapped in", "we've got your back"), not innuendo. No anatomy, no sexual wordplay, no body humor, no jokes at a user's expense. One wink per brand moment, then stop. The mascot is cheerful and competent, never leering. The pun explains itself in the README once; it is not repeated in the product.
 
 ## Copy examples
 
@@ -102,7 +102,7 @@ Style rules: sentence case, active voice, short sentences, no exclamation marks 
 
 # 4. Desired Response
 
-We want an agent to think: *"Fast and clear. Oh, and it has a sense of humour."*
+We want an agent to think: *"Fast and clear. Oh, and it has a sense of humor."*
 
 We want people to feel: in control of a busy queue; that the tool respects their time; a small smile at the door, not in the work.
 
@@ -143,7 +143,7 @@ Why it belongs: the product revives a college-era WinForms call-logging tool, an
 Vocabulary as narrowed by the direction (Carbon Copy v2). Working screens take the ledger feel and a navy-ink palette; beige and CRT blue are the frame:
 
 - warm beige plates and chunky navy outlines (brand-moment windows only)
-- CRT blue as the brand-moment button colour; Admin working screens use navy ink and a blue link accent
+- CRT blue as the brand-moment button color; Admin working screens use navy ink and a blue link accent
 - a little LED-style indicator (presence dot; the title-bar LED in brand moments)
 - a call-log ledger feel: ruled rows, ticket numbers as the primary identifier
 
@@ -154,12 +154,12 @@ Mascot palette sampled from the logo: beige `#EFDDBB`, CRT blue `#3B95E0`, navy 
 What we borrow:
 
 - a list-first layout: the log of calls is the product, with number, who, what, status, when
-- plain, labelled controls; state you can read at a glance
+- plain, labeled controls; state you can read at a glance
 - keyboard-first speed
 
 What we explicitly do NOT borrow:
 
-- WinForms grey-gradient chrome and default control styling
+- WinForms gray-gradient chrome and default control styling
 - modal-heavy workflows
 
 ## Retro-90s computing
@@ -210,9 +210,9 @@ Three directions were rendered as interactive mockups (queue, ticket, portal, li
 
 | Direction | Idea | Strength | Risk | Outcome |
 | --- | --- | --- | --- | --- |
-| **Beige Box** (`direction-beige-box.html`) | Late-90s office workstation: beige plates, 2px navy outlines, CRT-blue accent, window title bars, bevels. | Closest to the mascot and the product heritage; very recognisable. | Heavy outlines raise weight and feel boxy at density; bevels and title bars tip into Win95 parody. | **Rejected** as a working-screen look. Its window frame and palette survive, **only** for Admin brand moments. |
+| **Beige Box** (`direction-beige-box.html`) | Late-90s office workstation: beige plates, 2px navy outlines, CRT-blue accent, window title bars, bevels. | Closest to the mascot and the product heritage; very recognizable. | Heavy outlines raise weight and feel boxy at density; bevels and title bars tip into Win95 parody. | **Rejected** as a working-screen look. Its window frame and palette survive, **only** for Admin brand moments. |
 | **Night Shift Console** (`direction-night-shift.html`) | Keyboard-first dark ops console: mono data, bracketed badges, hairline grid, status bar. | Best keyboard model and density. | Cold and intimidating; mono everywhere is slow to read; hatching is noisy; the mascot is the only warmth. | **Rejected** as a look. Its keyboard layer (kbd, j/k, palette, status bar) survives, re-skinned. |
-| **Carbon Copy** (`direction-carbon-copy.html`) | Triplicate call-log form: ledger rows, rubber stamps, white/canary/pink colour code. | Ownable look; the tint code carries real meaning; matches the call-log heritage. | Tilted stamps misalign dense rows; no keyboard model; tints gimmicky if overused. | **Owner-picked base**, revised into v2. Original superseded. |
+| **Carbon Copy** (`direction-carbon-copy.html`) | Triplicate call-log form: ledger rows, rubber stamps, white/canary/pink color code. | Ownable look; the tint code carries real meaning; matches the call-log heritage. | Tilted stamps misalign dense rows; no keyboard model; tints gimmicky if overused. | **Owner-picked base**, revised into v2. Original superseded. |
 | **Carbon Copy v2** (`direction-carbon-copy-v2.html`) | Carbon Copy plus the Night Shift keyboard layer, calmer stamps, and Beige Box windows on brand moments only. | One system with a calm queue, a characterful ticket and a contained joke. | Tints and mono labels need discipline; two visual registers (ledger vs retro window) must stay separated. | **Selected** (D-023, owner, 2026-10-02). |
 
 Published artifacts (all **private**: only the owner's account can open them, so the repo mockups are the durable copies):
@@ -238,7 +238,7 @@ Personality fit: the working screens are the "serious tools" (dense, ruled, calm
 
 # 11. Typography
 
-Fonts are **self-hosted** woff2 files served from each app (`wwwroot/fonts`, `font-display: swap`, Latin subset). **No Google Fonts or other CDN at runtime**: the portal is privacy-sensitive and Admin must work offline. All three families are SIL OFL; ship the licence text with the files. The mockup's Google Fonts `<link>` is a mockup shortcut only.
+Fonts are **self-hosted** woff2 files served from each app (`wwwroot/fonts`, `font-display: swap`, Latin subset). **No Google Fonts or other CDN at runtime**: the portal is privacy-sensitive and Admin must work offline. All three families are SIL OFL; ship the license text with the files. The mockup's Google Fonts `<link>` is a mockup shortcut only.
 
 | Face | Weights | Where it is allowed |
 | --- | --- | --- |
@@ -289,7 +289,7 @@ Source of truth: the `:root` block of the v2 mockup. Dark values apply under `pr
 | `--hover` | Row and nav hover | `#EAF0FB` | `#163670` | `$table-hover-bg` |
 | `--sel` | Selected row, nav item, palette item | `#DDE8FA` | `#1C4286` | `$table-active-bg` |
 | `--overlay` | Spam-row hatch | `rgba(20,33,61,.06)` | `rgba(255,255,255,.04)` | custom |
-| `--shadow` | Hard offset shadow colour | `rgba(20,33,61,.14)` | `rgba(0,0,0,.4)` | `$box-shadow` colour |
+| `--shadow` | Hard offset shadow color | `rgba(20,33,61,.14)` | `rgba(0,0,0,.4)` | `$box-shadow` color |
 | `--scrim` | Palette backdrop | `rgba(20,33,61,.45)` | `rgba(0,0,0,.6)` | `$modal-backdrop-bg` |
 | `--accent` | Links, TechStrap primary (Admin) | `#1D4FA8` | `#8FC0FF` | `$primary`, `$link-color` |
 | `--on-accent` | Text on accent | `#FFFFFF` | `#0B1E40` | `color-contrast($primary)` |
@@ -320,13 +320,13 @@ Mapping column is **Assumption**-level (the mockup is plain CSS; P02-T05 confirm
 | `--st-closed` | Closed: archived, inert | `#5B6475` | `#AAB6D0` | `$secondary` |
 | `--st-spam` | Spam, Urgent priority, destructive | `#B3141C` | `#FF9AA0` | `$danger` |
 
-Rules: status is **label plus stamp shape plus colour**, never colour alone. Priority is a square marker plus a word: Urgent = `--st-spam`, High = `--st-pending`, Normal and Low = `--ink-2`; Low has a dashed marker. Spam rows also get a hatched ground and a double-border "Spam?" stamp. Red-family tokens (`--margin`, `--focus` in light, `--st-spam`) carry different roles; never use one for another's job.
+Rules: status is **label plus stamp shape plus color**, never color alone. Priority is a square marker plus a word: Urgent = `--st-spam`, High = `--st-pending`, Normal and Low = `--ink-2`; Low has a dashed marker. Spam rows also get a hatched ground and a double-border "Spam?" stamp. Red-family tokens (`--margin`, `--focus` in light, `--st-spam`) carry different roles; never use one for another's job.
 
 ## The carbon tint code (hard rule)
 
-| Tint | Meaning | Non-colour cues |
+| Tint | Meaning | Non-color cues |
 | --- | --- | --- |
-| **White** (`--sheet`) | Customer message | "customer" label, grey left bar (`--ink-3`) |
+| **White** (`--sheet`) | Customer message | "customer" label, gray left bar (`--ink-3`) |
 | **Canary** (`--canary`) | Public reply: the customer sees it | "agent reply" label, canary left bar |
 | **Pink** (`--pink`) + **dashed edge** + **notched corner** | Internal note: the customer never sees it | "INTERNAL NOTE" label, dashed border, clipped top-right corner, composer warning "the customer will NOT see this note" |
 
@@ -386,7 +386,7 @@ Every pack passes the skin contrast rules (ink on background and on surface 4.5:
 | `--p-bg`, `--p-ink`, `--p-ink2`, `--p-line` | Page, text, secondary text, decorative lines | pack or skin `background`, `ink`, `muted`, `border` |
 | `--ts-surface` | Fill of cards and fields | `surface` |
 | `--ts-chrome`, `--ts-on-chrome` | Header fill and its derived text | `chrome` |
-| `--ts-focus` | Focus ring colour | `focus` |
+| `--ts-focus` | Focus ring color | `focus` |
 | `--ts-radius`, `--ts-border-w` | Corner radius (`square` 0, `soft` .25rem, `round` .75rem) and border width (1 to 4px) | `radius`, `borderWidth` |
 | `--ts-font-heading`, `--ts-font-body` | Font stacks from the closed list `plex-sans`, `nunito`, `atkinson`, `source-serif`, `pixelify` | `headingFont`, `bodyFont` |
 | `data-ts-shadow`, `data-ts-button`, `data-ts-header`, `data-ts-scheme` | Presets on the scope: `soft` or `hard`; `bevel` or `outline`; `solid` or `band`; `dark` | `shadow`, `button`, `header`, and the resolved background |
@@ -398,7 +398,7 @@ In a dark scheme the soft and semantic surfaces are redefined: `--p-soft` `#1A22
 - **Square corners** in Admin: `border-radius: 0` on sheets, inputs, `kbd` and buttons. The only exceptions are the irregular stamp corners (`3px 6px 3px 5px / 5px 3px 6px 3px`), the note label, and the round presence dot and LED. The portal uses small radii (4 to 6px) as a neutral product UI.
 - **Ledger rules:** 1px `--rule` between rows, 42px minimum row height, 2px `--rule-strong` under the header.
 - **Red margin line:** 2px `--margin` at 70% opacity, 30px from the left edge of the queue ledger. Hidden under 820px.
-- **Borders:** 1px `--rule-strong` on sheets; 2px on the segmented control, palette and retro window; 6px coloured left bar on messages.
+- **Borders:** 1px `--rule-strong` on sheets; 2px on the segmented control, palette and retro window; 6px colored left bar on messages.
 - **Hard offset shadow:** `3px 3px 0 var(--shadow)` on sheets and the ledger, `2px 2px 0` on cards and messages, `4px 4px 0` on the palette. Never blurred. Internal notes carry no shadow (they read as a cut-out).
 - **Dashed edges** mean "off the record": dashed rail dividers, dashed internal-note border, dashed unassigned avatar. Do not use dashes for anything else.
 - **Focus:** 3px solid `--focus`, 1px offset, on every interactive element.
@@ -406,17 +406,17 @@ In a dark scheme the soft and semantic surfaces are redefined: `--p-soft` `#1A22
 # 14. Composition & Layout
 
 - **Admin shell:** 208px left rail (brand, views with counts, manage, signed-in agent) plus main. Under 820px the rail becomes a horizontal strip and the ledger collapses to two-line rows. Under 1100px the product column is hidden and the properties card stacks under the thread.
-- **Queue:** filter bar (labelled Mono selects plus search), title row with keyboard hint, then the ledger: marker, No., Subject with tags, Product, Requester, Status stamp, Priority, Assignee initials, Last activity.
+- **Queue:** filter bar (labeled Mono selects plus search), title row with keyboard hint, then the ledger: marker, No., Subject with tags, Product, Requester, Status stamp, Priority, Assignee initials, Last activity.
 - **Ticket view:** breadcrumb, numbered form header (fields 1 to 5), presence line with the status stamp, timeline (customer, system events, replies, notes), legend, composer; a 300px sticky properties column (Properties, Requester, Linked KB article).
 - **Density:** dense and plain. No hero blocks, no oversized padding. Message line length capped at 68ch.
 - **Status bar:** Admin only. Sticky bottom strip with keycap hints and a transient message; hints hide under 900px.
-- **Brand-moment screens:** one centred retro window, 400px max, on the plain page background. Nothing competes with it.
+- **Brand-moment screens:** one centered retro window, 400px max, on the plain page background. Nothing competes with it.
 - **Portal:** a 640px reading column (one token, `--ts-reading-width`) for forms, the conversation, an article and the confirmation, and a 1024px wide container (`--ts-wide-width`) for search, the categories and the product home; one column below 768px. Product bar with a 6px accent top border, product name and logo top left, plain forms, "Powered by TechStrap" footer.
 
 # 15. Imagery
 
 - **Mascot:** a retro beige CRT in a jockstrap with tube socks, thumbs up. Two forms: the **head mark** (`assets/brand/mark*.png`: Admin rail at 36px, favicon, avatars, 16px portal footer, 96px inside the retro window) and the **full figure** (`assets/brand/logo*.png`: README, style guide and sign-in only; unreadable below about 64px). The 404 uses the head mark.
-- **Formats.** The product uses the SVGs `assets/brand/mark.svg` (head mark) and `assets/brand/logo.svg` (full figure), auto-traced by `scripts/brand/generate-brand-assets.py` with vtracer, and `assets/brand/wordmark.svg` (the text `TechStrap` in IBM Plex Mono SemiBold, outlined, `currentColor`). **All three SVGs are provisional** (P02-T08): the traces approximate the PNG source and quantise colours, and the owner may supply hand-drawn vectors later. PNGs remain for favicons, app icons, README and social images. Never redraw or recolour the mascot by hand.
+- **Formats.** The product uses the SVGs `assets/brand/mark.svg` (head mark) and `assets/brand/logo.svg` (full figure), auto-traced by `scripts/brand/generate-brand-assets.py` with vtracer, and `assets/brand/wordmark.svg` (the text `TechStrap` in IBM Plex Mono SemiBold, outlined, `currentColor`). **All three SVGs are provisional** (P02-T08): the traces approximate the PNG source and quantize colors, and the owner may supply hand-drawn vectors later. PNGs remain for favicons, app icons, README and social images. Never redraw or recolor the mascot by hand.
 - The mascot never appears on working screens (queue, ticket, composer, forms, settings), in the portal body, in emails, or beside an error. Product logos in the portal are the product's own.
 - No stock photography or stock illustration, no decorative blobs or hero art. Screenshots (README, docs) show the real app.
 
@@ -464,13 +464,13 @@ Single-key shortcuts, shown in `kbd` keycaps beside the control they trigger.
 - **Command palette:** form-sheet dialog (`--sheet`, 2px `--ink` border, 4px hard shadow, Mono "COMMAND PALETTE" header), 520px max. Mono filter input with word-AND matching; ledger-ruled list, margin marker on the active item, shortcut in a `kbd`; footer hints `↑↓ select`, `↵ run`, `Esc close`. `role="dialog"`, `aria-modal`, combobox and listbox with `aria-activedescendant`; focus is trapped and restored. Every shortcut has a palette command, so the palette is the discoverability layer.
 - **Status bar:** persistent in Admin, with keycap hints and a transient message area (canary chip, `role="status"`, cleared after about 3.5s) for confirmations such as "Assigned ACME-142 to Sam". Errors that block work are never left to the status bar alone.
 - **`kbd` styling:** Mono 11px 500, square, 1px `--rule-strong` border with a 2px bottom edge, `--sheet` fill. Inside buttons: transparent fill, `currentColor` border. Keys in a chord sit 2px apart.
-- The portal has no keyboard layer beyond standard browser behaviour and visible focus.
+- The portal has no keyboard layer beyond standard browser behavior and visible focus.
 
 ## Core components
 
-- **Stamps (status):** Mono uppercase badge in the status colour. **Queue:** straight, 10px, single 1.5px border, no inner ring. **Ticket view:** 11px, 2px border plus an inner hairline ring, tilted -2deg, stamp-down on change. **Spam:** double 3px border, "Spam?" in the queue (straight), tilted +2deg on the ticket.
+- **Stamps (status):** Mono uppercase badge in the status color. **Queue:** straight, 10px, single 1.5px border, no inner ring. **Ticket view:** 11px, 2px border plus an inner hairline ring, tilted -2deg, stamp-down on change. **Spam:** double 3px border, "Spam?" in the queue (straight), tilted +2deg on the ticket.
 - **Buttons (Admin):** Mono 12px 600 uppercase, 2px `--ink` border, ink fill; the alternate button has a sheet fill. Minimum height 34px.
-- **Segmented control:** public reply / internal note, 2px ink border, pressed = ink fill. Switching to note recolours the composer pink and dashed, relabels send as "Add internal note" and shows the warning that the customer will not see it.
+- **Segmented control:** public reply / internal note, 2px ink border, pressed = ink fill. Switching to note recolors the composer pink and dashed, relabels send as "Add internal note" and shows the warning that the customer will not see it.
 - **Cards:** sheet, 1px border, 2px hard shadow, header bar with a Mono uppercase label.
 - **Messages:** the tint code (section 12); Serif body; Mono uppercase header with the time on the right.
 - **System events:** Mono 12px, dotted left rule, inline `code` for tag names.
@@ -479,7 +479,7 @@ Single-key shortcuts, shown in `kbd` keycaps beside the control they trigger.
 
 Allowed **only** on Admin all-caught-up, agent sign-in, Admin 404 and the style guide. README and GitHub use the mascot and palette as images, not the window component. The queue, the ticket and the portal never use it.
 
-**Window anatomy:** beige plate (`--bm-plate`), 2px `--bm-edge` outline, hard 3px `--bm-shadow`, square corners. Title bar: `--bm-bar`, Mono 12px 600 in `--bm-on-bar`, a 9px green LED (`--bm-led`) and a short title. No close, minimise or maximise buttons, no bevels, no other fake OS chrome. Body: centred 96px head mark, Mono 19px heading, Serif 15px copy (max 34ch), optional Mono 12px fine print, then one `bm-btn` (CRT blue, 2px edge, 2px hard shadow) or one underlined link.
+**Window anatomy:** beige plate (`--bm-plate`), 2px `--bm-edge` outline, hard 3px `--bm-shadow`, square corners. Title bar: `--bm-bar`, Mono 12px 600 in `--bm-on-bar`, a 9px green LED (`--bm-led`) and a short title. No close, minimize or maximize buttons, no bevels, no other fake OS chrome. Body: centered 96px head mark, Mono 19px heading, Serif 15px copy (max 34ch), optional Mono 12px fine print, then one `bm-btn` (CRT blue, 2px edge, 2px hard shadow) or one underlined link.
 
 | Screen | Title bar | Heading and copy (tone examples) | Action |
 | --- | --- | --- | --- |
@@ -498,7 +498,7 @@ Tone: one wink per window, in the heading or one line; the explanatory sentence 
 
 # 19. Characteristic Motifs
 
-Together these make Admin recognisable: (1) ruled ledger rows with a red margin line; (2) the numbered form header (fields 1 to 5), **ticket view only**; (3) rubber-stamp status badges, straight in lists and tilted with stamp-down on the ticket view only; (4) the white / canary / pink timeline with a perforated, notched pink note; (5) square corners with a hard offset shadow; (6) ledger-ruled keycaps and the status bar; (7) dashed "off the record" edges. The beige retro window with the mascot is the **frame motif**, confined to brand moments.
+Together these make Admin recognizable: (1) ruled ledger rows with a red margin line; (2) the numbered form header (fields 1 to 5), **ticket view only**; (3) rubber-stamp status badges, straight in lists and tilted with stamp-down on the ticket view only; (4) the white / canary / pink timeline with a perforated, notched pink note; (5) square corners with a hard offset shadow; (6) ledger-ruled keycaps and the status bar; (7) dashed "off the record" edges. The beige retro window with the mascot is the **frame motif**, confined to brand moments.
 
 ---
 
@@ -506,21 +506,21 @@ Together these make Admin recognisable: (1) ruled ledger rows with a red margin 
 
 In addition to the defaults in `DESIGN.md` §7 (generic centered hero, three-card feature rows, glassmorphism, gradient blobs, pill-everything, bento grids and similar), TechStrap does not:
 
-- Put the mascot, a pun or TechStrap colours on any customer-facing page or email. The customer's relationship is with the product, not with us.
-- Use humour in working screens, blocking errors, destructive confirmations, or legal and security copy.
+- Put the mascot, a pun or TechStrap colors on any customer-facing page or email. The customer's relationship is with the product, not with us.
+- Use humor in working screens, blocking errors, destructive confirmations, or legal and security copy.
 - Make crude, sexual or body-based jokes. The pun is affectionate or it is cut.
 - Imitate a real operating system (Windows 95 chrome, system sounds) or use CRT effects over working surfaces. The brand-moment window title bar is the single, contained exception.
 - Use pixel, terminal or "retro" display fonts for working text or customer-facing text.
 - Trade density for personality: no large decorative illustrations, hero blocks or oversized padding in queues and ticket detail.
-- Rely on colour alone to tell public replies from internal notes, or statuses from each other; shape and label carry meaning too.
-- Use the mascot's palette as a portal theme. Portal accents come from the product, with a derived on-accent colour to keep contrast. **Amended by D-053 (2026-10-10):** the mascot palette and TechStrap colours remain forbidden on customer pages; a product skin or a deployment pack of validated tokens is allowed.
+- Rely on color alone to tell public replies from internal notes, or statuses from each other; shape and label carry meaning too.
+- Use the mascot's palette as a portal theme. Portal accents come from the product, with a derived on-accent color to keep contrast. **Amended by D-053 (2026-10-10):** the mascot palette and TechStrap colors remain forbidden on customer pages; a product skin or a deployment pack of validated tokens is allowed.
 - Write product-marketing copy ("powerful", "modern", "AI-powered", "seamless") anywhere, including the README.
 - Add brand moments without an owner decision; the list in section 3 is closed.
 
 - Tilt stamps in dense lists, or use a double border except for spam. Queue stamps are straight and single-border.
 - Reuse a carbon tint (white, canary, pink, dashed edge, notched corner) for any meaning other than customer, public reply and internal note.
 - Show the numbered form header anywhere except the ticket view.
-- Put the mascot, retro window or `--bm-*` tokens on working screens, the portal or emails. No Win95 parody chrome (bevels, minimise/maximise buttons, taskbars) on working screens; the window title bar exists only inside brand moments.
+- Put the mascot, retro window or `--bm-*` tokens on working screens, the portal or emails. No Win95 parody chrome (bevels, minimize/maximize buttons, taskbars) on working screens; the window title bar exists only inside brand moments.
 - Add a brand moment, including a retro window on another empty or error state, without an owner decision.
 - Fire a single-key shortcut while the user is typing, or add a shortcut without a palette entry.
 - Load fonts, icons or scripts from a CDN at runtime.
@@ -542,20 +542,20 @@ Implementation target (P02-T05): the `--*` tokens in section 12 become CSS custo
 
 ## Product-accent override rule (Portal, and product-branded emails)
 
-A product (PHASE-04) stores one accent colour as `#RRGGBB`. From it exactly three properties are derived and set at runtime on the portal root. SCSS is never recompiled. **Amended by D-053 (2026-10-10):** a skin of validated tokens (pack, colours, fonts from a built-in list, radius, border width, shadow, button and header presets) may also be set per product and as a deployment default, resolved by the one shared SkinResolver; the accent trio is derived from the same rules.
+A product (PHASE-04) stores one accent color as `#RRGGBB`. From it exactly three properties are derived and set at runtime on the portal root. SCSS is never recompiled. **Amended by D-053 (2026-10-10):** a skin of validated tokens (pack, colors, fonts from a built-in list, radius, border width, shadow, button and header presets) may also be set per product and as a deployment default, resolved by the one shared SkinResolver; the accent trio is derived from the same rules.
 
 | Property | Meaning | Rule |
 | --- | --- | --- |
-| `--accent` | Fills and borders: top bar, primary button, logo tile, suggestion edge | The product's colour, as entered |
-| `--on-accent` | Text on an accent fill | Whichever of `#FFFFFF` or `#000000` has the higher WCAG contrast against the accent. Pure black (not the `#1B1B22` body ink) is deliberate: with white/black the better of the two is always at least 4.58:1 for any colour, so every valid accent is usable |
+| `--accent` | Fills and borders: top bar, primary button, logo tile, suggestion edge | The product's color, as entered |
+| `--on-accent` | Text on an accent fill | Whichever of `#FFFFFF` or `#000000` has the higher WCAG contrast against the accent. Pure black (not the `#1B1B22` body ink) is deliberate: with white/black the better of the two is always at least 4.58:1 for any color, so every valid accent is usable |
 | `--accent-ink` | Accent used as **text** or an outline on white: links, ghost buttons, nav hover | If the accent already has at least 4.5:1 against `#FFFFFF`, use it unchanged. Otherwise darken it until it does: repeatedly scale R, G and B by (1 - 0.04 k), k = 1, 2, 3 and so on, until contrast is at least 4.5:1 |
 
 Naming: this table uses the unprefixed mockup names; the implementation prefixes them with `--ts-` (`--ts-accent`, `--ts-on-accent`, `--ts-accent-ink`).
 
-An accent may set **only** these three. It may not change `--p-*` neutrals, typography, radii, shadows, focus colour, or any Admin token. Focus stays `--p-ink` with an accent halo. Nothing may use `--accent` as text on white; use `--accent-ink`.
+An accent may set **only** these three. It may not change `--p-*` neutrals, typography, radii, shadows, focus color, or any Admin token. Focus stays `--p-ink` with an accent halo. Nothing may use `--accent` as text on white; use `--accent-ink`.
 
-- **Validation at save:** reject only values that are not valid `#RRGGBB`. No contrast rejection is needed: the white-or-black on-accent always reaches at least 4.58:1 (worst case around `#4B7D87`), and `--accent-ink` is darkened to 4.5:1 on white. A test asserts both properties across a colour sweep.
-- **Single implementation:** one pure function, living in a layer both the product handler and the email renderer can reach (name and location in PHASE-04), takes the accent and returns the three values or a failure. It is **enforced at product save time (PHASE-04)** and **reused by email rendering (PHASE-05)**. The portal reads the derived values; it never recomputes them a second way. The JavaScript in the mockup is a reference for the maths only.
+- **Validation at save:** reject only values that are not valid `#RRGGBB`. No contrast rejection is needed: the white-or-black on-accent always reaches at least 4.58:1 (worst case around `#4B7D87`), and `--accent-ink` is darkened to 4.5:1 on white. A test asserts both properties across a color sweep.
+- **Single implementation:** one pure function, living in a layer both the product handler and the email renderer can reach (name and location in PHASE-04), takes the accent and returns the three values or a failure. It is **enforced at product save time (PHASE-04)** and **reused by email rendering (PHASE-05)**. The portal reads the derived values; it never recomputes them a second way. The JavaScript in the mockup is a reference for the math only.
 - **Test vectors** (computed from the rule above, not from the mockup's hand-picked values): `#7C3AED` gives on-accent `#FFFFFF`, ink `#7C3AED`; `#F59E0B` gives `#000000`, ink `#9D6507`; `#0F3D2E` gives `#FFFFFF`, ink `#0F3D2E`; `#2E9AFF` gives `#000000`, ink `#2375C2`; `#4B7D87` (worst case) gives `#FFFFFF` at 4.58:1.
 - **Assumption:** the mockup darkens until 7:1; this file uses the owner-stated 4.5:1 (AA, normal text). The mockup's inline Orbitly `--accent-ink` (`#5B21B6`) is a hand-picked value and is superseded.
 - **Assumption:** the 6px top bar and logo tile are decorative; the accent need not reach 3:1 against white for them, but a product name and nav text must be present so the page never relies on the accent to identify the product.
@@ -564,7 +564,7 @@ An accent may set **only** these three. It may not change `--p-*` neutrals, typo
 
 - Admin: designed desktop-first, usable on a tablet and a phone for triage (rail becomes a strip, ledger becomes two-line rows, hints hide under 900px).
 - Portal: mobile-first, single column, 16px inputs, 44px targets, no horizontal scroll.
-- Brand-moment windows stay centred and shrink to the viewport (full width under 400px) and the three-up preview in the style guide stacks under 760px.
+- Brand-moment windows stay centered and shrink to the viewport (full width under 400px) and the three-up preview in the style guide stacks under 760px.
 - Identity that survives small screens: Mono labels, stamps and tint code. Identity that is dropped: margin line, numbered header columns collapse to two per row.
 
 # 24. Accessibility
@@ -575,20 +575,20 @@ Target: **WCAG 2.2 AA** (decided).
 - Visible focus: 3px `--focus` ring on every interactive element; never remove it.
 - Reduced motion: respected (section 17).
 - **Keyboard:** all shortcuts are additive; every action is also reachable by tab and enter. Single-key shortcuts never fire while typing, which also satisfies WCAG 2.1.4 (a way to avoid accidental activation).
-- **Meaning is never colour alone:** status = label + stamp; priority = marker + word; the tint code adds labels, dashes and a notch.
+- **Meaning is never color alone:** status = label + stamp; priority = marker + word; the tint code adds labels, dashes and a notch.
 - Live regions: the status bar message and the composer warning use `role="status"`. The palette is a modal dialog with focus trap and restore.
 - Touch targets: 44px in the portal; Admin controls at least 30px.
 
 # 25. Logo-Removal Test
 
-**Result: pass.** With the mascot and name removed, Admin is still recognisable by: ruled ledger rows with a red margin line; tilted rectangular rubber-stamp badges on the ticket view; the white / canary / pink timeline with a perforated, notched pink internal note; ledger-ruled keycaps and the form-sheet palette. No other helpdesk looks like a stack of carbon forms. Confidence: high in Admin. The **portal fails the test by design**: it is the product's, and not ours to make recognisable.
+**Result: pass.** With the mascot and name removed, Admin is still recognizable by: ruled ledger rows with a red margin line; tilted rectangular rubber-stamp badges on the ticket view; the white / canary / pink timeline with a perforated, notched pink internal note; ledger-ruled keycaps and the form-sheet palette. No other helpdesk looks like a stack of carbon forms. Confidence: high in Admin. The **portal fails the test by design**: it is the product's, and not ours to make recognizable.
 
 **Implementation check (P02-T08, Admin style guide and shell, mascot and wordmark hidden): pass.** The Admin style guide was loaded in headless Edge with every image request blocked (mascot, mark and wordmark SVG/PNG all fail to load; screenshots `admin-1440-light-noimages.png` and `admin-1440-dark-noimages.png` in `docs/design/phase-02-review/`). Without any image the page is still unmistakably the TechStrap Admin: ruled ledger tables with the red margin line, straight queue stamps and tilted ticket stamps, the white / canary / pink timeline with the dashed, notched pink internal note, ledger-ruled keycaps, Mono uppercase labels, and the paper / carbon tints in both themes. The Portal fails by design (the product's identity, not ours). The SVG logo and wordmark are provisional (auto-traced); this result does not depend on them. One finding from the run: the rail's brand link had no accessible name once its text collapsed at narrow widths; it now carries `aria-label="TechStrap Admin home"`.
 
 **Phase-close validation (2026-10-02, local Development hosts, headless Edge, Lighthouse 12):**
 
 - Controller visual review (desktop Chrome): Admin style guide in light and dark, 7 font faces loaded, stamps (queue straight, ticket tilted), tints, keycaps and brand windows match the v2 mockup; Portal style guide is product-led, every sample accent is readable including `#F59E0B` (black text) and `#4B7D87` (white text), and the only mark of ours is the Powered-by footer.
-- Screenshots (full page, optimised PNG) in `docs/design/phase-02-review/`: Admin `/_styleguide` at 1440 and 400 pixels wide in light and dark (`admin-1440-light`, `admin-1440-dark`, `admin-400-light`, `admin-400-dark`), Portal `/_styleguide` at 1440 and 400 (`portal-1440`, `portal-400`), and the two images-blocked Admin shots above. Dark was produced with the browser's `prefers-color-scheme: dark`.
+- Screenshots (full page, optimized PNG) in `docs/design/phase-02-review/`: Admin `/_styleguide` at 1440 and 400 pixels wide in light and dark (`admin-1440-light`, `admin-1440-dark`, `admin-400-light`, `admin-400-dark`), Portal `/_styleguide` at 1440 and 400 (`portal-1440`, `portal-400`), and the two images-blocked Admin shots above. Dark was produced with the browser's `prefers-color-scheme: dark`.
 - Phone width: `document.documentElement.scrollWidth <= innerWidth` at 400 pixels for every page measured (Admin 400 of 400, Portal 400 of 400, light and dark): no horizontal page scroll.
 - Lighthouse accessibility: Admin `/_styleguide` 100, Portal `/_styleguide` 100 (target at least 95). The first Admin run scored 96 on the `link-name` audit (the collapsed brand link, fixed as above).
 - Reduced motion: verified at CSS level by `StampStyleTests` (the `prefers-reduced-motion: reduce` block switches off every animation and transition); not emulated in a browser.
@@ -607,14 +607,14 @@ Before merging UI work, confirm:
 - [ ] Portal and emails: product-led, light only, no TechStrap element other than the footer line.
 - [ ] Shortcuts do not fire while typing; every shortcut is in the palette and status bar.
 - [ ] Contrast, focus, reduced motion and 320px width checked in both themes.
-- [ ] Copy follows the voice rules; no humour outside brand moments.
+- [ ] Copy follows the voice rules; no humor outside brand moments.
 - [ ] Logo-removal test (section 25) still passes.
 
 # 27. Rules for AI Agents
 
 Before significant visual work: read `DESIGN.md` and this file, and respect the surface boundaries (section 8) and voice rules (section 3). Then:
 
-1. Use the tokens in section 12. Never invent a colour, shadow or radius, and never copy hex values out of a mockup.
+1. Use the tokens in section 12. Never invent a color, shadow or radius, and never copy hex values out of a mockup.
 2. The tint code is fixed: white customer, canary public reply, pink dashed notched internal note. Never reuse a tint for anything else.
 3. Stamps: straight and single-border in lists; tilt and stamp-down only on the ticket view.
 4. The mascot, the retro window and `--bm-*` appear only on Admin all-caught-up, sign-in, 404, the style guide, and README/GitHub. Nowhere else, including empty states other than all-caught-up, errors and the portal.

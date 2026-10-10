@@ -40,7 +40,7 @@ Runner: `pwsh scripts/Invoke-LoadTest.ps1 -Target local|uat -Scenario sustained|
   Api and Portal rate-limit per client IP (public submit 5 per 10 minutes per IP, Portal form likewise); one runner address would be throttled long before the budgets mean anything.
   Thresholds: p95 under 500 ms overall and per call type, `server_errors` rate 0, checks above 99%. `http_req_failed` is not asserted because a 429 is the correct answer under the rate limits.
   Unexpected throttling is bounded to zero: `http_reqs{name:intake-trusted,status:429}`, `http_reqs{name:kb-search,status:429}` and `http_reqs{name:customer-view,status:429}` must each have `count==0`. With the
-  forwarded-address rotation trusted none of these calls reaches a limit, so a 429 there means the rotation is not honoured (every request shares one address) and the run proves nothing; without these
+  forwarded-address rotation trusted none of these calls reaches a limit, so a 429 there means the rotation is not honored (every request shares one address) and the run proves nothing; without these
   thresholds such a run would report green. Public intake and the Portal form are excluded because they answer 429 by design (see below).
 - `scenarios/spike.js`: ramps to `TS_SPIKE_PEAK` requests per second for 60 seconds against the trusted intake from ONE address (`<prefix>250`), crossing the 120 per 60 s limit.
   A 429 is the correct answer there; a 5xx never is. The thresholds assert at least one 429 during the spike and zero server errors. A recovery phase starts at 75 s with
@@ -67,7 +67,7 @@ Warning: a trusted proxy can set any client IP, which defeats per-IP limits and 
   set it to the gateway as a /32 and recreate the portal: get the gateway with
   `docker network inspect techstrap_default --format "{{(index .IPAM.Config 0).Gateway}}"` and set `REVERSE_PROXY_CIDR=<gateway>/32` in the shell or the root `.env` before `docker compose up -d portal`.
 - UAT: do not try to trust a remote runner. The deploy compose sets `TRUSTEDPROXY__TRUSTEDNETWORKS__0` and `__1` itself from `TECHSTRAP_SUBNET` and `REVERSE_PROXY_CIDR` (values in the
-  `TECHSTRAP_ENV_DIR` files are overridden), and the Api honours only the rightmost forwarded address. The recipe is to run k6 ON the UAT host against the loopback-published ports
+  `TECHSTRAP_ENV_DIR` files are overridden), and the Api honors only the rightmost forwarded address. The recipe is to run k6 ON the UAT host against the loopback-published ports
   (`-BaseUrl http://127.0.0.1:<TECHSTRAP_API_PORT> -PortalUrl http://127.0.0.1:<TECHSTRAP_PORTAL_PORT>`): those requests reach the containers from the compose gateway, which is already
   `REVERSE_PROXY_CIDR`, so the rotated `X-Forwarded-For` is trusted with no configuration change. Use the local k6 binary on the UAT host; `-UseDocker` is not supported
   for this recipe (the runner rewrites 127.0.0.1 to host.docker.internal, which cannot reach loopback-published ports). This path does not measure TLS through Caddy or any real network latency.
@@ -124,7 +124,7 @@ Verified 2026-10-09 against the local dev stack (compose project `techstrap`, se
 - `pwsh -File scripts/Invoke-LoadTest.ps1 -Target local -Scenario spike`: 6925 requests, 6534 answered 429 during the spike (`throttled_429{phase:spike}`), `server_errors` 0.00%, recovery-phase p95 12.38 ms, thresholds green; outbox afterwards 8 Pending, 951 Sent, 0 dead-lettered.
 - `-UseDocker` with grafana/k6:2.1.0 (20 s, rate 2): exit 0, `server_errors` 0.00%, p95 19.18 ms.
 - Proxy trust: no change to the dev stack was needed for the Api. Six public submissions from one forwarded address `10.99.0.231` returned 201 five times and then 429 (the 5 per 600 s per-IP limit),
-  while a first request from `10.99.0.232` still returned 201, proving the forwarded address is honoured as the rate-limit key. The Portal's `REVERSE_PROXY_CIDR` was left at its placeholder, so the Portal form
+  while a first request from `10.99.0.232` still returned 201, proving the forwarded address is honored as the rate-limit key. The Portal's `REVERSE_PROXY_CIDR` was left at its placeholder, so the Portal form
   was only exercised at one request per run window; use the `REVERSE_PROXY_CIDR=<gateway>/32` step above for longer Portal runs (not exercised here).
 - Sustained at the default profile (`pwsh -File scripts/Invoke-LoadTest.ps1 -Target local -Scenario sustained -Duration 2m`, rate 20, 60 IPs): exit 0, 2406 iterations, 2413 requests, p95 12.92 ms, `server_errors` 0 of 2409, checks 100%, `throttled_429` 10 (the dev IPs had little public-submit history left from earlier runs, so the steady-state 429 share described above was not reached in two minutes); outbox afterwards 108 Pending, 3777 Sent, 0 dead-lettered.
 - Environment note: the Api container's `/app/storage/attachments` was created root-owned because the Task 1 backup rehearsal planted a test file into the dev storage volume as root, while the Api runs as uid 10001 (`techstrap`). Attachment uploads then failed with 403 (an UnauthorizedAccessException mapped to a problem response). It was corrected with `chown` inside the container, and the backup/restore runbook warns against writing into the volume as root. A failure like this shows up as a `status is 201` check failure in `intake-public.js`.

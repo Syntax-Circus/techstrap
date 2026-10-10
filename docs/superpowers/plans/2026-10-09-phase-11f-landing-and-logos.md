@@ -16,7 +16,7 @@
 - `dotnet build TechStrap.slnx -c Release` must report 0 warnings after every task. Tests: `dotnet test --solution TechStrap.CI.slnf -c Release --no-build` needs Docker (Testcontainers Postgres); per-project runs with `dotnet test tests/<Project> -c Release --no-build --filter "FullyQualifiedName~<Class>"` are fine while iterating.
 - Architecture rules (tests in `tests/TechStrap.Architecture.Tests`): route literals only in `src/TechStrap.Portal/Routing/PortalRoutes.cs`; Portal components build links only through `PortalLinks` (never `PortalRoutes.<builder>(` in `.razor`/`.razor.cs`; the `*Template`/`*Segment`/`*Prefix` constants are allowed); exactly one `[FromServices] I...Handler` per controller action; handler constructors take only Application interfaces, `TimeProvider`, `ILogger<T>` and `IOptions<T>`; the Worker never references the Api project; every documented HTTP entry point in `docs/architecture/02-ARCHITECTURE.md` sections 7.1-7.5 exists with the named handler and vice versa.
 - Contracts carries no enums (naming rule); DTO changes are trailing optional parameters only.
-- C# style: file-scoped namespaces, `_camelCase` private fields, `sealed` by default, non-ASCII characters only as `\u` escapes; docs ASCII only; new files LF (`.gitattributes` normalises `*.cs`? No: only the listed types, so write new files with LF explicitly); edit existing files with the Edit tool, never `sed -i`.
+- C# style: file-scoped namespaces, `_camelCase` private fields, `sealed` by default, non-ASCII characters only as `\u` escapes; docs ASCII only; new files LF (`.gitattributes` normalizes `*.cs`? No: only the listed types, so write new files with LF explicitly); edit existing files with the Edit tool, never `sed -i`.
 - Tests: every awaiting test has `[Fact(Timeout = ...)]` or passes `TestContext.Current.CancellationToken` as the project does; record the RED run output in the report before implementing; one mutation per task (named in the task) must make a test fail.
 - Secrets: none in code, tests or logs. Test fixtures use the existing `TestJwt` tokens.
 - Commits: Conventional Commits, stage by explicit path (never `git add -A`, never `-f`), never commit `.superpowers/`, trailers:
@@ -175,7 +175,7 @@ Expected: compile errors (`ProductLogoName`, `ProductLogoLimits`, `IsAcceptableT
 `src/TechStrap.Contracts/Products/ProductDtos.cs`: add the parameters with `<param>` docs:
 
 ```csharp
-/// <summary>Branding as stored, plus the colours derived from the accent (D-025, D-031) for previews. <paramref name="UploadedLogoUrl"/> is the absolute address of an uploaded logo (D-052), read-only: it is set through the logo upload route, not through this DTO's request.</summary>
+/// <summary>Branding as stored, plus the colors derived from the accent (D-025, D-031) for previews. <paramref name="UploadedLogoUrl"/> is the absolute address of an uploaded logo (D-052), read-only: it is set through the logo upload route, not through this DTO's request.</summary>
 /// <param name="Tagline">One line of plain text shown on the product's landing card, or null.</param>
 /// <param name="UploadedLogoUrl">The absolute https address of the uploaded logo, or null when none is uploaded (or the host cannot build it). It supersedes <paramref name="LogoPath"/> wherever a logo is shown.</param>
 public sealed record ProductBrandingDto(
@@ -219,7 +219,7 @@ Keep the existing `<summary>` and `<param>` lines of each record and add:
 /// <param name="PortalHost">The product's own public hostname (lower-case, e.g. support.example.com), or null when it is served only on the default portal host.</param>
 /// <param name="Tagline">One line of plain text about the product, or null.</param>
 /// <param name="LogoUrl">The logo address to show: the uploaded logo when there is one, else the linked logo address, else null.</param>
-/// <param name="AccentColour">The accent colour as #RRGGBB, or null for the default.</param>
+/// <param name="AccentColour">The accent color as #RRGGBB, or null for the default.</param>
 /// <param name="ListedOnLanding">Whether the product appears on the landing page.</param>
 public sealed record PublicProductSummaryDto(string Key, string DisplayName, string? PortalHost = null, string? Tagline = null, string? LogoUrl = null, string? AccentColour = null, bool ListedOnLanding = true);
 ```
@@ -936,7 +936,7 @@ git commit -m "feat(api): effective logo, tagline and listed flag on the product
 
 **Files:**
 - Create: `src/TechStrap.Infrastructure/Attachments/CappedImageIntake.cs`
-- Modify: `src/TechStrap.Infrastructure/Attachments/KbImageStore.cs` (use the shared intake; behaviour unchanged)
+- Modify: `src/TechStrap.Infrastructure/Attachments/KbImageStore.cs` (use the shared intake; behavior unchanged)
 - Create: `src/TechStrap.Application/Products/IProductLogoStore.cs`
 - Create: `src/TechStrap.Infrastructure/Attachments/ProductLogoStore.cs`
 - Modify: `src/TechStrap.Infrastructure/Attachments/AttachmentServiceCollectionExtensions.cs` (`TryAddScoped<IProductLogoStore, ProductLogoStore>()`)
@@ -1273,7 +1273,7 @@ internal static class CappedImageIntake
 
 `KbImageStore.SaveAsync` becomes: `var image = await CappedImageIntake.ReadAsync(incoming.Content, incoming.Length, KbLimits.MaxImageBytes, ct); if (image is null) return TooLarge(); await using var content = image.Content; if (image.Extension is null) return Failure("kb-image-type-not-allowed", ...);` then the existing name/store/delete-on-failure code with `content`. Every `KbImageStoreTests` test must stay green unchanged.
 
-`IProductLogoStore.cs` (Application): the three records and the interface from the Interfaces block, with summaries modelled on `IKbImageStore.cs` (public-read `product-logos/` prefix, no database row for the file itself, the product row holds the name).
+`IProductLogoStore.cs` (Application): the three records and the interface from the Interfaces block, with summaries modeled on `IKbImageStore.cs` (public-read `product-logos/` prefix, no database row for the file itself, the product row holds the name).
 
 `ProductLogoStore.cs` (Infrastructure, `internal sealed class ProductLogoStore(IStorageProvider storage) : IProductLogoStore`):
 - `SaveAsync`: `CappedImageIntake.ReadAsync(logo.Content, logo.Length, ProductLogoLimits.MaxBytes, ct)`; null -> `product-logo-too-large` ("This image is too large. Logos can be up to 1 MB."); extension null or `KbImageName.Gif` -> `product-logo-type-not-allowed` ("Only PNG, JPEG and WebP images can be uploaded."); name `$"{Guid.CreateVersion7():N}.{extension}"`, key `ProductLogoName.StorageKey`, content type `ProductLogoName.ContentTypeOf`; `storage.StoreAsync(new StoreObjectRequest(key, content, contentType), ct)` with the same delete-quietly-and-rethrow guard as the KB store.
@@ -1310,7 +1310,7 @@ internal static class CappedImageIntake
         return Result<ProductDto>.Success(ProductMapping.ToDto(saved, logoUrls));
 ```
 
-(Check how `AdminAudit.Record` serialises `new { changed }` in the update handler and produce exactly `{"changed":["uploadedLogo"]}`: pass `new { changed = new List<string> { "uploadedLogo" } }` if the existing payload uses a `List<string>`.)
+(Check how `AdminAudit.Record` serializes `new { changed }` in the update handler and produce exactly `{"changed":["uploadedLogo"]}`: pass `new { changed = new List<string> { "uploadedLogo" } }` if the existing payload uses a `List<string>`.)
 
 `RemoveProductLogoRequestHandler`: same preamble; `if (product.Branding.UploadedLogo is not { } previous) return Success(ToDto(product))`; `product.SetUploadedLogo(null); products.Update(product); audit; commit (failure -> return); await store.DeleteAsync(previous, CancellationToken.None); re-read; ToDto`.
 
@@ -1926,11 +1926,11 @@ else
 `PortalHeaderRules`: change the property to
 
 ```csharp
-    /// <summary>The rules for <c>UseTechStrapWebHost</c>: the ticket headers, the attachment sandbox, the form pages' headers, the help centre's cache headers and, in Products mode (D-052), the landing page's.</summary>
+    /// <summary>The rules for <c>UseTechStrapWebHost</c>: the ticket headers, the attachment sandbox, the form pages' headers, the help center's cache headers and, in Products mode (D-052), the landing page's.</summary>
     public static IReadOnlyList<PathHeaderRule> Rules(PortalOptions options) =>
     [
         ... the four existing rules ...,
-        // The landing page is the same for every visitor and is kept for a minute like a help-centre page; the Neutral root never gets a public header.
+        // The landing page is the same for every visitor and is kept for a minute like a help-center page; the Neutral root never gets a public header.
         PathHeaderRule.SetOnSuccess(path => options.ListsProducts && PortalCachePaths.IsRoot(path), ("Cache-Control", PortalCachePaths.BrowserCacheControl)),
     ];
 ```
@@ -2082,7 +2082,7 @@ git commit -m "feat(portal): TECHSTRAP_PORTAL_LANDING=Products lists the product
 
 `ProductLogoUploadButtonTests.cs`: copy the KB upload button test class and adapt: picking `logo.gif` shows `ProductsCopy.LogoTypeNotAllowed` and calls nothing; a file over 1 MiB shows `ProductsCopy.LogoTooLarge` and calls nothing; a valid PNG calls `UploadLogoAsync(productId, file with FileName "logo.png", ...)` once and raises `OnChanged` with the returned `ProductDto`; a `product-logo-type-not-allowed` result shows that copy; `OnUploadingChanged` fires true then false.
 
-`ProductsClientTests.cs`: `UploadLogoAsync_posts_multipart_with_the_file_part_named_file` (the request to `api/products/{id}/logo` is multipart, the part's name is `file`, the file name is the cleaned name) and `RemoveLogoAsync_sends_delete_and_returns_the_product` (DELETE to `api/products/{id}/logo`, 200 body deserialised). Mirror the existing `KbClientTests` upload test.
+`ProductsClientTests.cs`: `UploadLogoAsync_posts_multipart_with_the_file_part_named_file` (the request to `api/products/{id}/logo` is multipart, the part's name is `file`, the file name is the cleaned name) and `RemoveLogoAsync_sends_delete_and_returns_the_product` (DELETE to `api/products/{id}/logo`, 200 body deserialized). Mirror the existing `KbClientTests` upload test.
 
 `ProductsPageTests.cs`: `The_list_shows_whether_a_product_is_listed_on_the_landing_page` (a row with `listed: false` shows the `ProductsCopy.Hidden` pill in a `Landing` column, a listed one `ProductsCopy.Listed`).
 
@@ -2237,7 +2237,7 @@ git commit -m "docs(11f): self-hosting, runbook, security review, app docs and p
 - **Spec coverage:** A (landing mode, fail-soft, SEO, cache) -> Task 8; B (flag, list semantics) -> Tasks 3, 5, 8; C (tagline) -> Tasks 2, 3, 5, 9; D (uploaded logo, store, routes, serving, effective logo, emails, security) -> Tasks 5, 6, 7; E (Contracts 0.3.0) -> Task 2; F (Admin) -> Task 9; G (persistence, docs, pins) -> Tasks 4, 10. Spec Success Criteria map to Tasks 6, 8, 9, 10.
 - **Type consistency:** `IProductLogoUrls.UrlFor(string) : string?` (Tasks 5, 6, 7); `ProductLogos.EffectiveLogoUrl(ProductBranding, IProductLogoUrls)` (5, 7); `ProductMapping.ToDto(Product, IProductLogoUrls)` (5, 6); `IncomingProductLogo(long, Stream)` (6); `ProductLogoFile(string, string, Func<Stream>)` (9); `PortalOptions.ListsProducts` (8); `ProductBranding.Restore(displayName, logoPath, accentColour, fromAddress, replyTo, tagline, uploadedLogo)` and `Product.Restore(..., portalHost, listedOnLanding)` (3, 4, 5, 6).
 - **Review Focus pins:** 1 -> Task 3 and Task 5 tests named in the list; 2 -> Task 5 handler test and the raw-JSON PUT in `ProductLandingFieldsEndpointTests`; 3 -> Task 6 store, corpus and serving tests; 4 -> Task 8 `A_product_host_root_is_its_product_home_never_the_landing` and the `https://support.paperplane.test/` assertion; 5 -> Task 8 `Products_with_a_default_product_stops_the_host_at_start`.
-- **Known deviations the implementer may meet:** the test fixture method names in Tasks 4, 5, 6, 8 and 9 are taken from neighbouring tests and must be checked against the real helpers before use; `AccentPreview`'s logo selector; whether `factory.Api.Count` exists; where handler interfaces are registered. None of these change the design.
+- **Known deviations the implementer may meet:** the test fixture method names in Tasks 4, 5, 6, 8 and 9 are taken from neighboring tests and must be checked against the real helpers before use; `AccentPreview`'s logo selector; whether `factory.Api.Count` exists; where handler interfaces are registered. None of these change the design.
 
 ## As built
 

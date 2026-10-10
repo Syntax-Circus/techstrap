@@ -157,7 +157,7 @@ The mutation steps of every task use this small tool (the same as 09a's; keep it
 usage: python mut.py <file> --replace <old> <new> [--replace <old> <new> ...] -- <command ...>
 
 Applies each replacement to <file> (each <old> must match exactly once; "\\n" in an argument means a newline), runs the command in the current
-directory, prints the lines that summarise the run, and ALWAYS puts the file back. The mutation is KILLED when the command fails and a SURVIVOR
+directory, prints the lines that summarize the run, and ALWAYS puts the file back. The mutation is KILLED when the command fails and a SURVIVOR
 (exit code 3) when it passes. Run it from the repository root, after `git add`-ing the task's files, so a failed run can also be undone with
 `git checkout -- <file>`.
 """
@@ -2412,7 +2412,7 @@ The form pages keep the shared referrer policy (a visitor's own address is no se
 -/// "sha256:" hashes, and (D-045) the value of a <c>name</c> or <c>email</c> query parameter, which is how the Portal's contact page is prefilled and which a request log would otherwise carry.
 +/// "sha256:" hashes, and (D-045) the value of a <c>name</c>, <c>email</c>, <c>subject</c>, <c>ref</c> or <c>q</c> query parameter: the Portal's contact page is prefilled with the first three, its "received" page carries the
 +/// protected ticket reference in <c>ref</c> and its suggest adapter the visitor's search text in <c>q</c>, which a request log would otherwise carry.
- /// It cannot touch LogEvent.Exception or the template, and it cannot recognise a name by shape; application code never logs either
+ /// It cannot touch LogEvent.Exception or the template, and it cannot recognize a name by shape; application code never logs either
  /// (exceptions are logged by type name, requesters by id).
  /// Residual risk, accepted: names cannot be pattern-redacted, and an attached Exception is not rewritten. The worker loops that attach an
 @@ -96,7 +97,8 @@ public sealed partial class PiiRedactionEnricher : ILogEventEnricher
@@ -2476,7 +2476,7 @@ The form pages keep the shared referrer policy (a visitor's own address is no se
  
 +    /// <summary>
 +    /// The four form pages of a product (D-045 addendum): <c>/p/{key}/contact</c>, <c>/p/{key}/contact/received</c>, <c>/p/{key}/lost-link</c> and <c>/p/{key}/suggest</c>, without regard to case or a trailing slash (routing
-+    /// matches without regard to case, so the rule must too). Nothing deeper and nothing else, so the product home and the help centre stay cacheable.
++    /// matches without regard to case, so the rule must too). Nothing deeper and nothing else, so the product home and the help center stay cacheable.
 +    /// </summary>
 +    public static bool IsFormPagePath(PathString path) =>
 +        path.StartsWithSegments(PortalRoutes.ProductPrefix, out var rest)
@@ -2939,7 +2939,7 @@ using TechStrap.Portal.Tests.Api;
 namespace TechStrap.Portal.Tests.Forms;
 
 /// <summary>
-/// P09-T06 and T21 at the host: the contact page as a visitor first sees it. A themed product page with a labelled, antiforgery-protected multipart form, the limits of the API on its inputs, an honeypot a person
+/// P09-T06 and T21 at the host: the contact page as a visitor first sees it. A themed product page with a labeled, antiforgery-protected multipart form, the limits of the API on its inputs, an honeypot a person
 /// cannot reach, the attachment rule stated before a file is picked, and the prefill (<c>?subject&amp;name&amp;email</c>) in visible, editable inputs: validated like typed text, never hidden, never echoed from any
 /// other parameter and never submitted for the visitor.
 /// </summary>
@@ -6460,7 +6460,7 @@ All of the module's dependencies are arguments (`fetch`, the timers, `AbortContr
 //   <ts-kb-suggestions field="subject" src="/p/paperplane/suggest" aria-live="polite"><a href="...">Search help articles</a></ts-kb-suggestions>
 //
 // The module lists suggestions only: the form works without it and is never blocked by it. Everything it needs from the browser is passed in (fetch, the timers, AbortController, the document), so the
-// behaviour is tested with `node --test` and no browser. Text from the server is plain text and is only ever put on the page with textContent; a link is only ever built from a root-relative path
+// behavior is tested with `node --test` and no browser. Text from the server is plain text and is only ever put on the page with textContent; a link is only ever built from a root-relative path
 // (isSafeHref). This file never parses text as markup, and a test fails if it starts to.
 
 export const DEBOUNCE_MS = 300;
@@ -6960,7 +6960,7 @@ EOF
 
 - [ ] **Step 1: Write the failing tests**
 
-The unit tests pin the presenter (the five statuses, the authors, the attachment links from the real token, sizes), the follow-up link (only the last segment of an http(s) link, only if it is a token) and the reply and email rules. The host tests drive the real pages: the ticket (theme from `ProductKey`, the neutral theme for an inactive product, the statuses, raw sanitised bodies and encoded everything else, the token only in the form action and the attachment links, the headers, calm failures), the uniform 404 (malformed, unknown, expired, revoked and every attachment variant, byte for byte), the reply (open and Closed, the redirect on this site whatever host the API's link names, an unreadable link, antiforgery, the real-server size limit, validation, 409, 413, 415, 429, outages, logs), the pass-through (streaming, the disposition and the headers, the statuses) and the lost-link page (identical responses, malformed address, 429, logs). The 09a header test's attachment case moves to the real route, the architecture rule pins the one markup site, and two earlier tests are adjusted.
+The unit tests pin the presenter (the five statuses, the authors, the attachment links from the real token, sizes), the follow-up link (only the last segment of an http(s) link, only if it is a token) and the reply and email rules. The host tests drive the real pages: the ticket (theme from `ProductKey`, the neutral theme for an inactive product, the statuses, raw sanitized bodies and encoded everything else, the token only in the form action and the attachment links, the headers, calm failures), the uniform 404 (malformed, unknown, expired, revoked and every attachment variant, byte for byte), the reply (open and Closed, the redirect on this site whatever host the API's link names, an unreadable link, antiforgery, the real-server size limit, validation, 409, 413, 415, 429, outages, logs), the pass-through (streaming, the disposition and the headers, the statuses) and the lost-link page (identical responses, malformed address, 429, logs). The 09a header test's attachment case moves to the real route, the architecture rule pins the one markup site, and two earlier tests are adjusted.
 
 `tests/TechStrap.Architecture.Tests/PortalRuleTests.cs`
 
@@ -6976,7 +6976,7 @@ The unit tests pin the presenter (the five statuses, the authors, the attachment
  
          files.Count.ShouldBeGreaterThan(20, "the scan must see the Portal sources");
 -        PortalRules.MarkupStringSites.ShouldBeEmpty("09b adds CustomerMessageBody and 09c adds KbArticleBody, each in the commit that argues for it");
-+        PortalRules.MarkupStringSites.ShouldBe(["Components/Tickets/CustomerMessageBody.razor"], "09b adds CustomerMessageBody (the API sanitises the message body); 09c adds KbArticleBody in its own commit");
++        PortalRules.MarkupStringSites.ShouldBe(["Components/Tickets/CustomerMessageBody.razor"], "09b adds CustomerMessageBody (the API sanitizes the message body); 09c adds KbArticleBody in its own commit");
          PortalRules.MarkupStringViolations(files).ShouldBeEmpty();
      }
  
@@ -7016,10 +7016,10 @@ The unit tests pin the presenter (the five statuses, the authors, the attachment
 @@ -29,10 +29,10 @@ public static partial class PortalRules
  
      /// <summary>
-     /// The files (relative to src/TechStrap.Portal) that may turn API text into markup, which is where a stored-XSS bug would live. The API sanitises the HTML before it sends it, and the Portal does not
--    /// sanitise again, so each site is argued for in the commit that adds it: 09b adds <c>CustomerMessageBody</c> (a ticket message body) and 09c adds <c>KbArticleBody</c> (a published article). In 09a the
+     /// The files (relative to src/TechStrap.Portal) that may turn API text into markup, which is where a stored-XSS bug would live. The API sanitizes the HTML before it sends it, and the Portal does not
+-    /// sanitize again, so each site is argued for in the commit that adds it: 09b adds <c>CustomerMessageBody</c> (a ticket message body) and 09c adds <c>KbArticleBody</c> (a published article). In 09a the
 -    /// list is empty: every other string the Portal shows is plain text, and Razor encodes it.
-+    /// sanitise again, so each site is argued for in the commit that adds it: 09b adds <c>CustomerMessageBody</c> (a ticket message body: the API's sanitised HTML, D-045 addendum) and 09c adds
++    /// sanitize again, so each site is argued for in the commit that adds it: 09b adds <c>CustomerMessageBody</c> (a ticket message body: the API's sanitized HTML, D-045 addendum) and 09c adds
 +    /// <c>KbArticleBody</c> (a published article). Every other string the Portal shows is plain text, and Razor encodes it.
      /// </summary>
 -    public static IReadOnlyList<string> MarkupStringSites { get; } = [];
@@ -7987,7 +7987,7 @@ namespace TechStrap.Portal.Tests.Tickets;
 /// <summary>
 /// P09-T08 and T23 at the host: the ticket page. A valid token shows the public conversation, themed with the ticket's own product (loaded from the ticket's <c>ProductKey</c>) or, when that product is inactive
 /// or unknown, in the neutral theme: never a 404. The status is in the customer's words, a Closed ticket carries the follow-up notice, an agent shows as the API named them and the customer as "You", the message
-/// bodies are the API's sanitised HTML rendered as it came and every other string is encoded. Review Focus 1: the token is a header on the API call and in the page's own links and nowhere else.
+/// bodies are the API's sanitized HTML rendered as it came and every other string is encoded. Review Focus 1: the token is a header on the API call and in the page's own links and nowhere else.
 /// </summary>
 public sealed class TicketPageHostTests
 {
@@ -8873,7 +8873,7 @@ public sealed record CustomerAttachmentViewModel(Guid Id, string FileName, strin
 
 /// <summary>
 /// One message of the public conversation. <see cref="Author"/> is a plain-text label: "You" for the customer's own, the name the API resolved for an agent (shown as it came: no email, no id, no avatar) and a
-/// neutral word for a system message. <see cref="BodyHtml"/> is the API's sanitised HTML and the only thing on the page that is not encoded; <c>CustomerMessageBody</c> is the single place it is rendered.
+/// neutral word for a system message. <see cref="BodyHtml"/> is the API's sanitized HTML and the only thing on the page that is not encoded; <c>CustomerMessageBody</c> is the single place it is rendered.
 /// </summary>
 public sealed record CustomerMessageViewModel(Guid Id, string Author, bool IsCustomer, string BodyHtml, DateTimeOffset CreatedAt, IReadOnlyList<CustomerAttachmentViewModel> Attachments);
 
@@ -8902,7 +8902,7 @@ namespace TechStrap.Portal.Tickets;
 /// <summary>
 /// Builds what the ticket page shows from the API's <see cref="CustomerTicketDto"/> (P09-T08, T23). The status becomes the customer's words (UX brief); a message's author becomes "You" for the customer, the name
 /// the API resolved for an agent exactly as it came (no email, id or avatar exists in the DTO or here) and a neutral word for a system message; an attachment becomes the Portal's own link
-/// (<see cref="PortalRoutes.TicketAttachment(TicketToken, Guid)"/>, built from the real token, never from its printed form). Every text field stays plain text: the page encodes them, and only the sanitised message
+/// (<see cref="PortalRoutes.TicketAttachment(TicketToken, Guid)"/>, built from the real token, never from its printed form). Every text field stays plain text: the page encodes them, and only the sanitized message
 /// body is ever rendered as markup. The messages keep the order the API gave (chronological).
 /// </summary>
 public static class CustomerTicketPresenter
@@ -9236,8 +9236,8 @@ public static class LostLinkCopy
 
 @code {
     /// <summary>
-    /// The body of one public message, rendered as the markup it is. This is the Portal's single place that turns text into markup (PortalRules.MarkupStringSites; D-045 addendum): the API sanitises every message body
-    /// before it sends it (the single source of truth, so the Portal never sanitises again), and every other string on the ticket page (subject, author, file names) is encoded by Razor.
+    /// The body of one public message, rendered as the markup it is. This is the Portal's single place that turns text into markup (PortalRules.MarkupStringSites; D-045 addendum): the API sanitizes every message body
+    /// before it sends it (the single source of truth, so the Portal never sanitizes again), and every other string on the ticket page (subject, author, file names) is encoded by Razor.
     /// </summary>
     [Parameter, EditorRequired]
     public string Html { get; set; } = string.Empty;
@@ -10239,7 +10239,7 @@ The module is tested with `node --test` (`tests/TechStrap.Portal.Tests/js/kb-sug
 `/t/{token}` (`Ticket.razor`) parses the token first (`TicketToken.TryParse`; a malformed one is the uniform 404 and the API is never asked), loads the ticket through `ICustomerTicketClient`, then the ticket's
 product theme (an inactive or unknown product is the neutral theme, never a 404). `CustomerTicketPresenter` builds the view model: the status in the customer's words (New "Received", Open "In progress",
 Pending "Waiting for your reply", Solved "Solved" with a note that a reply reopens it, Closed "Closed" with the note that a reply starts a follow-up), "You" for the customer's messages, the API's resolved name
-for an agent exactly as it came, a neutral label for the system. **`CustomerMessageBody` is the single place the Portal turns text into markup** (`PortalRules.MarkupStringSites`): the API sanitises the message HTML.
+for an agent exactly as it came, a neutral label for the system. **`CustomerMessageBody` is the single place the Portal turns text into markup** (`PortalRules.MarkupStringSites`): the API sanitizes the message HTML.
 Every other string, the subject, the names and the file names included, is encoded by Razor.
 
 A reply is a multipart post through the write client (never retried) with the token as the `X-Ticket-Token` header. On success the page redirects to itself; when the API started a follow-up (a reply to a Closed
@@ -10258,7 +10258,7 @@ asked; a 429 is a calm notice.
 
 ### Talking to the API
 
-`ApiConnection` (internal, `Clients/`) is the only place the Portal uses HTTP. It sends reads through a client that retries transport errors, 408 and 502 to 504 (twice, honouring `Retry-After` up to
+`ApiConnection` (internal, `Clients/`) is the only place the Portal uses HTTP. It sends reads through a client that retries transport errors, 408 and 502 to 504 (twice, honoring `Retry-After` up to
 2 seconds, no circuit breaker) and writes through a client that never retries. Both forward the visitor's address in `X-Forwarded-For` (`AddForwardedClientIp`; the API trusts it only from the compose subnet,
 D-019) and have no logging handlers. `ProblemMapping` turns every answer into a `Result`: 400 keeps the API's field codes, 404 is one not-found whatever the API called it, 409 is `reply-conflict`, 413 and 415 are the
 attachment errors, 429 is rate limited, any 5xx or transport error is `api-unavailable`, with fixed sentences from `ProblemCopy`. A call made as a ticket's customer takes a `TicketToken` (43 base64url characters;

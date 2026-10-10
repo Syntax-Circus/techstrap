@@ -73,7 +73,7 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P02-T01 | Audit identity inputs and write the identity sections of `BRAND.md` |
 | P02-T02 | Produce 2 to 3 candidate visual directions with rendered mockups |
 | P02-T03 | Record the chosen direction and finish `BRAND.md` |
-| P02-T04 | Finalise `UX-BRIEF-admin.md` and `UX-BRIEF-portal.md` |
+| P02-T04 | Finalize `UX-BRIEF-admin.md` and `UX-BRIEF-portal.md` |
 | P02-T05 | Add `libman.json` and `sasscompiler.json` to Admin and Portal |
 | P02-T06 | Implement `_tokens.scss` and `app.scss` in each app |
 | P02-T07 | Build the Development-only style-guide page in each app |
@@ -336,7 +336,7 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P11g-T04 | Persistence: skin column, site_settings table, migration AddSkinAndSiteSettings |
 | P11g-T05 | Application and Api: skin on product DTOs, site settings routes, D-022 list |
 | P11g-T06 | Portal: client, theme view model, AccentScope extension, packs and presets, fonts |
-| P11g-T07 | Emails: chrome colour |
+| P11g-T07 | Emails: chrome color |
 | P11g-T08 | Admin: interim Skin (JSON) field on the product editor and the dragon-poop sample skin |
 | P11g-T09 | Docs and close-out: SELF-HOSTING, PORTAL-APP, BRAND, UX-BRIEF, security review, pins |
 
@@ -454,7 +454,7 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 | 12 | Confirm the flagged Assumptions that need an owner answer (for example honeypot fake success, dropping a Public key's external user ref, Solved notice email) | PHASE-05, PHASE-06 |
 | 13 | Review the discovery set and select the first phase (expected: PHASE-01) | Now |
 | 14 | For each product host (D-050): add a DNS record and one Caddy site that proxies to the Portal, then set the host on the product in the Admin. UAT needs DNS and one Caddy site per product host (`docs/self-hosting/DEPLOYMENT.md`, "Product hosts") | P12-T14 |
-| 15 | Done 2026-10-08: tag v0.2.0 after this PR merges (`publish-nuget.yml`) and paste the Contracts README `## Version notes` entry into the GitHub Release - `v0.2.0` was published by run 37845739172 and Release 0.2.0 carries the Version notes; the owner decision was to publish 0.2.0 with the binary and behavioural break named (D-050 amendment) | D-050 |
+| 15 | Done 2026-10-08: tag v0.2.0 after this PR merges (`publish-nuget.yml`) and paste the Contracts README `## Version notes` entry into the GitHub Release - `v0.2.0` was published by run 37845739172 and Release 0.2.0 carries the Version notes; the owner decision was to publish 0.2.0 with the binary and behavioral break named (D-050 amendment) | D-050 |
 | 16 | Done 2026-10-08: SyntaxCircus.Blazor.Seo 0.1.5 published and pinned (its `TryAddScoped` registration keeps the Portal's host-aware builder in charge; the Portal also worked on 0.1.4 by last registration) | D-050 |
 | 17 | After 11f merges: set `TECHSTRAP_PORTAL_LANDING=Products` on the UAT Portal, `TECHSTRAP_API_PUBLIC_URL` on the UAT Worker, proxy `/product-logos/` on the Caddy Api site, upload the product logos and taglines in the Admin, then start 12c (`docs/self-hosting/SELF-HOSTING.md`) | D-052, P12-T14 |
 
@@ -470,7 +470,7 @@ Items found during PHASE-01 reviews that later phases own. Fold each into the na
 | --- | --- |
 | Replace the `PlaceholderTests` in `TechStrap.Domain.Tests` and `TechStrap.Application.Tests` with real tests | PHASE-03 / PHASE-04 (done in PHASE-03: both placeholders replaced) |
 | Add a `HandlerConstructorDependencyTests` rule forbidding persistence entity types | PHASE-03 (done: `*Record` rule, D-026) |
-| `PostgresIntegrationTestBase.DisposeAsync` null-deref when initialisation threw | PHASE-03 (done) |
+| `PostgresIntegrationTestBase.DisposeAsync` null-deref when initialization threw | PHASE-03 (done) |
 | Handler rules: inspect abstract/base controllers and inherited actions; narrow `IsHandlerType` to Application types | PHASE-04 |
 | Replace `UnauthenticatedScheme` with JWT bearer and an explicit problem-details challenge | PHASE-04 |
 | Admin/Portal security headers with a Blazor-aware CSP; extract the shared Admin/Portal host wiring | PHASE-07 / PHASE-09 (done in PHASE-07c, D-042) |

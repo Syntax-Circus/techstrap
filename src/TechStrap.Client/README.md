@@ -72,7 +72,7 @@ Use a Trusted key only from server-side code you control. A Public key is meant 
 
 ## Retries and idempotency
 
-A submit is retried only when the server can recognise the repeat: the SDK sends the same `Idempotency-Key` on every attempt (transport errors, timeouts and the statuses 408, 502, 503 and 504 are retried, up to `MaxAttempts`). The server keeps a key for 24 hours.
+A submit is retried only when the server can recognize the repeat: the SDK sends the same `Idempotency-Key` on every attempt (transport errors, timeouts and the statuses 408, 502, 503 and 504 are retried, up to `MaxAttempts`). The server keeps a key for 24 hours.
 
 - If you retry a failed submit yourself, supply your own stable key and reuse it. The overload without a key generates one and does not return it, so a second call can create a duplicate ticket.
 - `api-unavailable` means the ticket may or may not have been created (the response can be lost after the server stored it). Retry with the same key and the server returns the first ticket.

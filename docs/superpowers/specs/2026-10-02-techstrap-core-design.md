@@ -79,7 +79,7 @@ Public endpoints sit behind the reverse proxy and follow the client-IP rate-limi
 - **Message:** ticket, author type (`Requester`, `Agent`, `System`) and author id, visibility (`Public` or `Internal`), body (stored sanitized), attachments, and reserved nullable columns for email `Message_Id` and `In_Reply_To` so inbound email needs no migration later.
 - **Attachment:** metadata row; bytes stored through `SyntaxCircus.Storage` on a local volume. Size limit and file-type allowlist enforced at intake.
 - **TicketEvent** (append-only): ticket, type (`Created`, `MessageAdded`, `StatusChanged`, `Assigned`, `ProductChanged`, `PriorityChanged`, `TagAdded`, `TagRemoved`), actor, jsonb payload, `occurred_at`. Every ticket mutation writes its event in the same transaction. The timeline reads from it, later reports aggregate it, and the future Workflows engine subscribes to it. This is the designed-in hook for Workflows.
-- **Tag / TicketTag:** global tags with a unique slug and optional colour. Agent-only; customers never see them. Changes emit events.
+- **Tag / TicketTag:** global tags with a unique slug and optional color. Agent-only; customers never see them. Changes emit events.
 - **KbCategory:** single level (name, slug, sort order), belongs to a product or is shared.
 - **KbArticle:** product (nullable means shared), category, slug (unique within product), title, summary, Markdown body (rendered and sanitized on output), status (`Draft`, `Published`, `Archived`), author, created/updated/published timestamps, full-text search vector.
 - **TicketArticle:** link recording which article an agent referenced in a ticket reply.
