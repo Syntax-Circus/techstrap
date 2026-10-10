@@ -49,7 +49,8 @@ public sealed class RemoveProductLogoRequestHandler(
         products.Update(product);
         AdminAudit.Record(adminEvents, AdminEventType.ProductUpdated, actor.Value, AdminSubjectType.Product, product.Id, new { changed = new List<string> { "uploadedLogo" } }, clock);
 
-        var committed = await scope.CommitAsync(cancellationToken);
+        // Same as the upload: an aborted request must not leave the commit half decided.
+        var committed = await scope.CommitAsync(CancellationToken.None);
         if (committed.IsFailure)
         {
             return Result<ProductDto>.Failure(committed.Errors[0]);

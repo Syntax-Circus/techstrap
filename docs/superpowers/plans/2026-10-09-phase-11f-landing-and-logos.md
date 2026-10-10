@@ -2241,7 +2241,7 @@ git commit -m "docs(11f): self-hosting, runbook, security review, app docs and p
 
 ## As built
 
-Branch `feat/phase-11f-landing-and-logos`, Tasks 2 to 10 (commits 739fc49 to the Task 10 commit). The per-task differences are recorded in the spec (`docs/architecture/PHASE-11f-landing-and-logos.md`, the **As built** line under each task). Summary of where the build departs from this plan:
+Branch `feat/phase-11f-landing-and-logos`, Tasks 2 to 10 (commits 739fc49 to 71b6bb5). The per-task differences are recorded in the spec (`docs/architecture/PHASE-11f-landing-and-logos.md`, the **As built** line under each task). Summary of where the build departs from this plan:
 
 - Task 2: XML-doc gate forced extra `<param>` and `<summary>` tags; the summary DTO property pin changed to seven properties.
 - Task 5: a PUT that omits the tagline clears it (branding is replaced whole, as `LogoPath` is); the raw-JSON PUT test repeats the tagline. `errorCodes.tagline` is an array.

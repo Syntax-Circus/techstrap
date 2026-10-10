@@ -20,12 +20,12 @@ internal sealed class ProductLogoStore(IStorageProvider storage) : IProductLogoS
 
         await using var content = capped.Content;
         var extension = capped.Extension;
-        if (extension is null or KbImageName.Gif)
+        var fileName = extension is null ? null : $"{Guid.CreateVersion7():N}.{extension}";
+        if (fileName is null || !ProductLogoName.IsValid(fileName))
         {
             return Failure("product-logo-type-not-allowed", "Only PNG, JPEG and WebP images can be uploaded.");
         }
 
-        var fileName = $"{Guid.CreateVersion7():N}.{extension}";
         var key = ProductLogoName.StorageKey(fileName);
         var contentType = ProductLogoName.ContentTypeOf(fileName);
         try

@@ -145,6 +145,9 @@ public sealed class ProductLogoServingTests : IDisposable
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         response.Content.Headers.ContentType!.MediaType.ShouldBe("image/png");
         response.Headers.GetValues("X-Content-Type-Options").ShouldBe(["nosniff"]);
+        response.Headers.GetValues("Cache-Control").Single().ShouldBe("public, max-age=31536000, immutable");
+        response.Headers.GetValues("Cross-Origin-Resource-Policy").ShouldBe(["cross-origin"]);
+        response.Headers.GetValues("Content-Security-Policy").Single().ShouldContain("sandbox");
         (await response.Content.ReadAsByteArrayAsync(Ct)).ShouldBeEmpty();
     }
 

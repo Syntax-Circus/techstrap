@@ -57,7 +57,8 @@ public sealed class UploadProductLogoRequestHandler(
         products.Update(product);
         AdminAudit.Record(adminEvents, AdminEventType.ProductUpdated, actor.Value, AdminSubjectType.Product, product.Id, new { changed = new List<string> { "uploadedLogo" } }, clock);
 
-        var committed = await scope.CommitAsync(cancellationToken);
+        // The file is already stored, so an aborted request must not stop the commit and strand it.
+        var committed = await scope.CommitAsync(CancellationToken.None);
         if (committed.IsFailure)
         {
             // The row did not change, so the new file is the orphan: remove it. The request token may be gone; the delete is best effort on its own token.
