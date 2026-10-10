@@ -73,7 +73,7 @@
                 @Field("ts-product-reply", ProductsCopy.ReplyToLabel, ApiFields.ReplyTo, _model.ReplyTo, v => _model.ReplyTo = v, null, "email")
                 @Field("ts-product-host", ProductsCopy.PortalHostLabel, ApiFields.PortalHost, _model.PortalHost, v => _model.PortalHost = v, ProductsCopy.PortalHostHelp)
 
-                <details class="ts-product-skin" open="@(_errors.ContainsKey(ApiFields.Skin) || _model.SkinJson.Length > 0)">
+                <details class="ts-product-skin" open="@(_errors.ContainsKey(ApiFields.Skin) || _model.OriginalSkinJson.Length > 0)">
                     <summary>@ProductsCopy.SkinHeading</summary>
                     <div class="ts-field">
                         <label for="ts-product-skin" class="form-label">@ProductsCopy.SkinLabel</label>

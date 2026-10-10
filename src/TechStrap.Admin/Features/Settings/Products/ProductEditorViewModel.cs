@@ -125,7 +125,8 @@ internal sealed partial class ProductEditorViewModel
 
     private string? CheckSkin()
     {
-        if (string.IsNullOrWhiteSpace(SkinJson))
+        // Unchanged text is never checked here (the Api reads leniently and an untouched field sends no skin), so a stored skin that a stricter rule now refuses cannot block an unrelated save.
+        if (string.IsNullOrWhiteSpace(SkinJson) || string.Equals(SkinJson, OriginalSkinJson, StringComparison.Ordinal))
         {
             return null;
         }

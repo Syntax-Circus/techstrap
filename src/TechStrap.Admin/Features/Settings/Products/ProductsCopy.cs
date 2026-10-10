@@ -50,7 +50,11 @@ public static class ProductsCopy
     public const string SkinHelp = "Optional. A JSON object of colours, fonts and presets that restyles this product's portal; empty it to remove the skin. See docs/skins/README.md for a worked example and the list of tokens.";
     public const string SkinInvalid = "This is not a valid skin: use a JSON object of known members, up to 2000 characters.";
 
-    public static string SkinTokenInvalid(string token) => $"The skin value \"{token}\" is not valid. Colours are #RRGGBB; see docs/skins/README.md for the allowed values.";
+    private static readonly string[] SkinColourTokens = ["background", "surface", "ink", "muted", "border", "brand", "chrome", "focus"];
+
+    public static string SkinTokenInvalid(string token) => SkinColourTokens.Contains(token)
+        ? $"The skin value \"{token}\" is not valid. A colour is # and six hex digits, such as #1D4ED8."
+        : $"The skin value \"{token}\" is not valid. See docs/skins/README.md for the values it accepts.";
 
     public const string ActiveLabel = "Active";
     public const string ActiveHelp = "Inactive products are hidden from the agents' product lists.";

@@ -150,4 +150,49 @@ public sealed class ProductEditorSkinTests : AdminPageTest
         FieldError(cut, "ts-product-skin")!.ShouldContain("ink on background");
         cut.Find("#ts-product-skin").GetAttribute("aria-describedby").ShouldBe("ts-product-skin-error");
     }
+
+    [Fact]
+    public void Blanking_the_field_does_not_collapse_the_section()
+    {
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(skin: new ProductSkin(Pack: "slate"))));
+        var cut = RenderEdit();
+        cut.Find("details.ts-product-skin").HasAttribute("open").ShouldBeTrue();
+
+        Type(cut, "ts-product-skin", "");
+
+        cut.Find("details.ts-product-skin").HasAttribute("open").ShouldBeTrue();
+    }
+
+    [Fact]
+    public void A_stored_skin_that_fails_the_rules_does_not_block_an_unrelated_save()
+    {
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(skin: new ProductSkin(Brand: "red"))));
+        var cut = RenderEdit();
+        Type(cut, "ts-product-name", "Orbitly Cloud");
+        Save(cut);
+
+        Updates.ShouldHaveSingleItem().Skin.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Whitespace_on_a_product_without_a_skin_sends_no_skin()
+    {
+        var cut = RenderEdit();
+        Type(cut, "ts-product-skin", "   ");
+        Save(cut);
+
+        Updates.ShouldHaveSingleItem().Skin.ShouldBeNull();
+    }
+
+    [Fact]
+    public void An_api_skin_too_long_error_is_shown_at_the_skin_field()
+    {
+        _products.UpdateAsync(TestData.OrbitlyId, Arg.Any<UpdateProductRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Result<ProductDto>.Failure(new ResultError("skin-too-long", "The skin is too long.", ResultErrorKind.Validation, "skin")));
+        var cut = RenderEdit();
+        Type(cut, "ts-product-skin", "{ \"pack\": \"paper\" }");
+        Save(cut);
+
+        FieldError(cut, "ts-product-skin")!.ShouldContain("too long");
+    }
 }
