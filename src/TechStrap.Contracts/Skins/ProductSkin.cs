@@ -22,6 +22,7 @@ namespace TechStrap.Contracts.Skins;
 /// <param name="Shadow">One of <see cref="SkinValues.ShadowNone"/>, <see cref="SkinValues.ShadowSoft"/>, <see cref="SkinValues.ShadowHard"/>.</param>
 /// <param name="Button">One of <see cref="SkinValues.ButtonFlat"/>, <see cref="SkinValues.ButtonBevel"/>, <see cref="SkinValues.ButtonOutline"/>.</param>
 /// <param name="Header">One of <see cref="SkinValues.HeaderPlain"/>, <see cref="SkinValues.HeaderSolid"/>, <see cref="SkinValues.HeaderBand"/>.</param>
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ProductSkin(
     string? Pack = null,
     string? Background = null,

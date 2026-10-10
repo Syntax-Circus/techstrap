@@ -36,7 +36,7 @@ public sealed class CreateProductRequestHandlerTests
     }
 
     private CreateProductRequestHandler Handler(params Result[] commits) =>
-        new(_claims, _agents, _products, _events, UnitOfWorkSubstitute.Create(commits), Options.Create(_portal), _logoUrls, _clock);
+        new(_claims, _agents, _products, _events, UnitOfWorkSubstitute.Create(commits), Options.Create(_portal), _logoUrls, Substitute.For<ISiteSettingsRepository>(), _clock);
 
     [Fact]
     public async Task A_product_is_created_with_branding_and_audited_without_personal_data()

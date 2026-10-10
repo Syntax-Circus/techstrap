@@ -1,3 +1,5 @@
+using TechStrap.Contracts.Skins;
+
 namespace TechStrap.Contracts.Products;
 
 /// <summary>
@@ -12,7 +14,9 @@ namespace TechStrap.Contracts.Products;
 /// <param name="LogoUrl">The logo address to show: the uploaded logo when there is one, else the linked logo address, else null.</param>
 /// <param name="AccentColour">The accent colour as #RRGGBB, or null for the default.</param>
 /// <param name="ListedOnLanding">Whether the product appears on the landing page.</param>
-public sealed record PublicProductSummaryDto(string Key, string DisplayName, string? PortalHost = null, string? Tagline = null, string? LogoUrl = null, string? AccentColour = null, bool ListedOnLanding = true);
+/// <param name="Skin">The product's skin (D-053), or null when it sets none; the landing card is drawn with it.</param>
+public sealed record PublicProductSummaryDto(
+    string Key, string DisplayName, string? PortalHost = null, string? Tagline = null, string? LogoUrl = null, string? AccentColour = null, bool ListedOnLanding = true, ProductSkin? Skin = null);
 
 /// <summary>Limits of the public product list.</summary>
 public static class PublicProductLimits

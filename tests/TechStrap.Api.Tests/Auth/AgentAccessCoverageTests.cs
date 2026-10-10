@@ -55,6 +55,7 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
         "GET api/admin-events",
         "GET api/dead-letters",
         "GET api/products/{id:guid}/api-keys",
+        "GET api/settings/site",
         "GET api/tags/summary",
         "POST api/dead-letters/{id:guid}/retry",
         "POST api/products",
@@ -64,6 +65,7 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
         "POST api/tags",
         "PUT api/agents/{id:guid}",
         "PUT api/products/{id:guid}",
+        "PUT api/settings/site",
         "PUT api/tags/{id:guid}",
     };
 

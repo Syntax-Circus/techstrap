@@ -17,6 +17,7 @@ public enum AdminEventType
     TicketDeleted,
     DeadLetterRetried,
     DeadLetterDiscarded,
+    SiteSettingsUpdated,
 }
 
 public enum AdminSubjectType
@@ -28,6 +29,7 @@ public enum AdminSubjectType
     Requester,
     Ticket,
     EmailOutbox,
+    SiteSettings,
 }
 
 /// <summary>

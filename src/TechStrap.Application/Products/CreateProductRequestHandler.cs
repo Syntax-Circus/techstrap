@@ -26,6 +26,7 @@ public sealed class CreateProductRequestHandler(
     IUnitOfWork unitOfWork,
     IOptions<PortalLinkOptions> portal,
     IProductLogoUrls logoUrls,
+    ISiteSettingsRepository siteSettings,
     TimeProvider clock) : ICreateProductRequestHandler
 {
     public async Task<Result<ProductDto>> HandleAsync(CreateProductRequest request, CancellationToken cancellationToken)
@@ -71,7 +72,15 @@ public sealed class CreateProductRequestHandler(
             return Result<ProductDto>.Failure(ProductErrors.HostTaken());
         }
 
+        // The skin is judged against the deployment's current default pack; the settings are read only when a skin was sent.
+        var skin = await ProductSkins.PrepareAsync(siteSettings, request.Skin, created.Value.Branding.AccentColour, cancellationToken);
+        if (skin.IsFailure)
+        {
+            return Result<ProductDto>.Failure(skin.Errors[0]);
+        }
+
         var product = created.Value;
+        product.SetSkinJson(skin.Value.Json);
         product.SetPortalHost(host);
         product.SetListedOnLanding(request.ListedOnLanding ?? true);
         products.Add(product);

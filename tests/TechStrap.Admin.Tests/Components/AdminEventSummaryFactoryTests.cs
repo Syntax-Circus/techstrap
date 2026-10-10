@@ -24,6 +24,7 @@ public sealed class AdminEventSummaryFactoryTests
         [AdminEventTypes.TicketDeleted] = ("{\"number\":\"ORB-42\",\"messageCount\":1,\"attachmentCount\":0}", "Deleted ticket ORB-42 (1 message, 0 attachments)"),
         [AdminEventTypes.DeadLetterRetried] = ("{\"kind\":\"agent-reply\",\"attempts\":5}", "Retried a failed agent reply email after 5 attempts"),
         [AdminEventTypes.DeadLetterDiscarded] = ("{\"kind\":\"new-ticket-alert\",\"attempts\":1}", "Discarded a failed new ticket alert email after 1 attempt"),
+        [AdminEventTypes.SiteSettingsUpdated] = ("{\"defaultPack\":\"slate\"}", "Changed the default theme pack to slate"),
     };
 
     private static IEnumerable<string> Constants(Type type) =>
@@ -44,7 +45,7 @@ public sealed class AdminEventSummaryFactoryTests
     public void There_is_a_sample_for_every_event_type_constant_so_a_new_type_fails_here_until_it_has_a_sentence()
     {
         Constants(typeof(AdminEventTypes)).OrderBy(t => t).ShouldBe(Samples.Keys.OrderBy(t => t));
-        Constants(typeof(AdminEventTypes)).Count().ShouldBe(12);
+        Constants(typeof(AdminEventTypes)).Count().ShouldBe(13);
     }
 
     [Theory]
@@ -130,8 +131,8 @@ public sealed class AdminEventSummaryFactoryTests
     {
         var labels = Constants(typeof(AdminSubjectTypes)).Select(AdminEventSummaryFactory.SubjectLabel).ToList();
 
-        labels.Count.ShouldBe(7);
-        labels.Distinct().Count().ShouldBe(7);
+        labels.Count.ShouldBe(8);
+        labels.Distinct().Count().ShouldBe(8);
         labels.ShouldAllBe(l => !string.IsNullOrWhiteSpace(l));
         AdminEventSummaryFactory.SubjectLabel(AdminSubjectTypes.EmailOutbox).ShouldBe("Email");
         AdminEventSummaryFactory.SubjectLabel("Webhook").ShouldBe("Webhook");

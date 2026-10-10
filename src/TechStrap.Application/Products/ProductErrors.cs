@@ -22,6 +22,9 @@ internal static class ProductErrors
     public static ResultError LogoFileRequired() =>
         new("file-required", "Choose an image to upload.", ResultErrorKind.Validation, "file");
 
+    public static ResultError SkinTooLong() =>
+        new("skin-too-long", "The skin is too long to store. Remove some of its overrides.", ResultErrorKind.Validation, "skin");
+
     public static ResultError Stale() =>
         new(PersistenceErrorCodes.ConcurrencyConflict, "This product changed since you opened it. Reload it and apply your change again.", ResultErrorKind.Conflict);
 }

@@ -81,7 +81,7 @@ public sealed class ListPublicProductsRequestHandlerTests
     [Fact]
     public void The_summary_dto_carries_only_what_a_landing_card_shows()
     {
-        typeof(PublicProductSummaryDto).GetProperties().Select(property => property.Name).Order().ShouldBe(["AccentColour", "DisplayName", "Key", "ListedOnLanding", "LogoUrl", "PortalHost", "Tagline"]);
+        typeof(PublicProductSummaryDto).GetProperties().Select(property => property.Name).Order().ShouldBe(["AccentColour", "DisplayName", "Key", "ListedOnLanding", "LogoUrl", "PortalHost", "Skin", "Tagline"]);
         PublicProductLimits.MaxListed.ShouldBe(1_000);
     }
 

@@ -59,7 +59,7 @@ public sealed class PublicProductEndpointTests(TestPostgres postgres) : IAsyncLi
         list.ShouldBe([new PublicProductSummaryDto("orbitly", "Orbitly", AccentColour: "#1F6FEB"), new PublicProductSummaryDto("paperplane", "Paperplane", AccentColour: "#1F6FEB")]);
         raw.ShouldNotContain("dormant");
         raw.ShouldNotContain("logoPath");
-        System.Text.Json.JsonDocument.Parse(raw).RootElement[0].EnumerateObject().Select(property => property.Name).ShouldBe(["key", "displayName", "portalHost", "tagline", "logoUrl", "accentColour", "listedOnLanding"]);
+        System.Text.Json.JsonDocument.Parse(raw).RootElement[0].EnumerateObject().Select(property => property.Name).ShouldBe(["key", "displayName", "portalHost", "tagline", "logoUrl", "accentColour", "listedOnLanding", "skin"]);
     }
 
     [Theory]

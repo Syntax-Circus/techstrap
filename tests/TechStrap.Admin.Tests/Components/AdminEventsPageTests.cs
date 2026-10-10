@@ -141,7 +141,7 @@ public sealed class AdminEventsPageTests : AdminPageTest
         var cut = RenderPage();
 
         cut.Find("#ts-audit-subject").QuerySelectorAll("option").Select(o => o.TextContent).ShouldBe(
-            ["Everything", "Product", "API key", "Agent", "Tag", "Requester", "Ticket", "Email"]);
+            ["Everything", "Product", "API key", "Agent", "Tag", "Requester", "Ticket", "Email", "Site settings"]);
         cut.Find("#ts-audit-actor").QuerySelectorAll("option").Select(o => o.TextContent).ShouldBe(["Anyone", "Ada Admin", "Sam Ortiz"]);
     }
 

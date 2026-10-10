@@ -259,6 +259,8 @@ Conventions:
 | `PUT /api/tags/{id}` (Admin) | `UpdateTagRequestHandler` | `ITagRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 200 `TagDto`; 404; 409 | H, C | none |
 | `DELETE /api/tags/{id}` (Admin) | `DeleteTagRequestHandler` | `ITagRepository`, `ITicketRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos, UoW | 204; 404; 409 in use | H, C, I | none |
 | `GET /api/admin-events` (Admin) | `ListAdminEventsRequestHandler` | `IAdminEventRepository`, `IAgentRepository` | EF repos | 200 paged `AdminEventDto` | H, C, I | none |
+| `GET /api/settings/site` (Admin) | `GetSiteSettingsRequestHandler` | `ISiteSettingsRepository`, `IAgentRepository`, `ICurrentAgentClaims` | EF repos | 200 `SiteSettingsDto` (default pack key and version) | H, C, I | D-053 |
+| `PUT /api/settings/site` (Admin) | `UpdateSiteSettingsRequestHandler` | `ISiteSettingsRepository`, `IAdminEventRepository`, `IAgentRepository`, `ICurrentAgentClaims`, `IUnitOfWork`, `TimeProvider` | EF repos, UoW | 200 `SiteSettingsDto`; 400 `skin-pack-unknown` on `default-pack`; 409 stale version; audits `SiteSettingsUpdated` | H, C, I | D-053 |
 
 ### 7.2 Intake, email and worker (PHASE-05)
 
@@ -269,6 +271,7 @@ Conventions:
 | Worker outbox loop (`EmailOutboxWorker` hosted service, resolves the scoped handler from a fresh DI scope per iteration via `IServiceScopeFactory`) | `DrainEmailOutboxHandler` (plain `Task` or `Result`; no caller branching other than loop delay) | `IEmailOutboxStore`, `IEmailTemplateRenderer`, `IProductRepository`, `IOutboundEmailSender`, `IOptions<EmailOutboxWorkerOptions>`, `ILogger` | Outbox store (`SKIP LOCKED`), SMTP sender | Loop: batch processed means poll again; empty or failure means delay; unexpected exception logged and loop continues | H, I, W | D-010, D-012 |
 | `GET /api/public/products/{productKey}` (anonymous, `public` limit, Cache-Control) | `GetPublicProductRequestHandler` | `IProductRepository` | EF repos | 200 `PublicProductDto` (name, logo, accent; no secrets) with `Cache-Control: public, max-age`; 404 `no-store` | H, C, I | D-002 |
 | `GET /api/public/products` (anonymous, `public` limit; for the Portal sitemap) | `ListPublicProductsRequestHandler` | `IProductRepository` | EF repos | 200 `PublicProductSummaryDto[]` (key and display name of the active products, by key, at most 1,000) with `Cache-Control: public, max-age=300` | H, C, I | D-045 |
+| `GET /api/public/site` (anonymous, `public` limit; the default theme pack for the Portal) | `GetPublicSiteRequestHandler` | `ISiteSettingsRepository` | EF repos | 200 `PublicSiteDto` (the default pack key only) with `Cache-Control: public, max-age=300` | H, C, I | D-053 |
 
 ### 7.3 Ticket operations (PHASE-06)
 
@@ -424,7 +427,7 @@ Per _template pattern CLIENT_IP_RATE_LIMITING.md (reverse proxy in front of Dock
 
 | Policy | Applies to | Partition | Default |
 | --- | --- | --- | --- |
-| `public` | `GET /api/public/products`, `GET /api/public/products/{key}`, public KB endpoints, sitemap | client IP | 120 / min |
+| `public` | `GET /api/public/products`, `GET /api/public/products/{key}`, `GET /api/public/site`, public KB endpoints, sitemap | client IP | 120 / min |
 | `public-submit` | `POST /api/public/products/{productKey}/tickets` | client IP | 5 / 10 min |
 | `intake-key` (Public key) | `POST /api/intake/tickets` with a Public key | key prefix + client IP | 10 / min |
 | `intake-key` (Trusted key) | `POST /api/intake/tickets` with a Trusted key | key prefix + client IP (a key id is impossible before authentication; the limiter reads the raw `X-Api-Key` prefix, so a spoofer who knows a prefix exhausts only their own IP's partition) | 120 / min |

@@ -10,14 +10,14 @@ public sealed class AdminNamesParityTests
     public void Event_type_names_match_the_domain_enum()
     {
         Names(typeof(AdminEventTypes)).ShouldBe(Enum.GetNames<AdminEventType>(), ignoreOrder: true);
-        Names(typeof(AdminEventTypes)).Length.ShouldBe(12);
+        Names(typeof(AdminEventTypes)).Length.ShouldBe(13);
     }
 
     [Fact]
     public void Subject_type_names_match_the_domain_enum()
     {
         Names(typeof(AdminSubjectTypes)).ShouldBe(Enum.GetNames<AdminSubjectType>(), ignoreOrder: true);
-        Names(typeof(AdminSubjectTypes)).Length.ShouldBe(7);
+        Names(typeof(AdminSubjectTypes)).Length.ShouldBe(8);
     }
 
     [Fact]

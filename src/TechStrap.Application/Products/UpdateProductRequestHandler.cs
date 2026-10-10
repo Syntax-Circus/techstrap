@@ -29,6 +29,7 @@ public sealed class UpdateProductRequestHandler(
     IUnitOfWork unitOfWork,
     IOptions<PortalLinkOptions> portal,
     IProductLogoUrls logoUrls,
+    ISiteSettingsRepository siteSettings,
     TimeProvider clock) : IUpdateProductRequestHandler
 {
     public async Task<Result<ProductDto>> HandleAsync(Guid productId, UpdateProductRequest request, CancellationToken cancellationToken)
@@ -87,6 +88,20 @@ public sealed class UpdateProductRequestHandler(
             }
         }
 
+        // null = the caller did not send the field: the stored skin stays and no skin check runs. An empty skin clears it; anything else is validated
+        // against the grammar and the contrast rules of the deployment's current default pack, and replaces the stored skin as a whole (D-053).
+        var skinJson = product.SkinJson;
+        if (request.Skin is not null)
+        {
+            var prepared = await ProductSkins.PrepareAsync(siteSettings, request.Skin, branding.Value.AccentColour, cancellationToken);
+            if (prepared.IsFailure)
+            {
+                return Result<ProductDto>.Failure(prepared.Errors[0]);
+            }
+
+            skinJson = prepared.Value.Json;
+        }
+
         var changed = new List<string>();
         if (!string.Equals(product.Name, request.Name?.Trim(), StringComparison.Ordinal))
         {
@@ -115,6 +130,11 @@ public sealed class UpdateProductRequestHandler(
             changed.Add("listedOnLanding");
         }
 
+        if (!string.Equals(product.SkinJson, skinJson, StringComparison.Ordinal))
+        {
+            changed.Add("skin");
+        }
+
         var updated = product.UpdateDetails(request.Name, branding.Value);
         if (updated.IsFailure)
         {
@@ -133,6 +153,7 @@ public sealed class UpdateProductRequestHandler(
 
         product.SetActive(request.IsActive);
         product.SetListedOnLanding(listed);
+        product.SetSkinJson(skinJson);
         products.Update(product);
         AdminAudit.Record(adminEvents, AdminEventType.ProductUpdated, actor.Value, AdminSubjectType.Product, product.Id, new { changed }, clock);
 

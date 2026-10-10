@@ -12,6 +12,15 @@ public static class ContractNamingRules
     private static readonly HashSet<string> Exempt = new(StringComparer.Ordinal)
     {
         "TechStrap.Contracts.Branding.ProductAccentColors",
+
+        // The skin engine's value types (D-053): ProductSkin is the nested value of the product DTOs and requests, the rest are the resolver's
+        // inputs and outputs and the pack data. None is a top-level API shape.
+        "TechStrap.Contracts.Skins.ProductSkin",
+        "TechStrap.Contracts.Skins.ResolvedSkin",
+        "TechStrap.Contracts.Skins.SkinResolution",
+        "TechStrap.Contracts.Skins.SkinProblem",
+        "TechStrap.Contracts.Skins.SkinTokens",
+        "TechStrap.Contracts.Skins.SkinPack",
     };
 
     public static IReadOnlyList<string> FindViolations(IEnumerable<Type> types) =>
