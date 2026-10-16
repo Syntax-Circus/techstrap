@@ -58,8 +58,9 @@ jobs:
             exit 1
           fi
 
+      # Each host runs GitVersion against the same repository. One MSBuild node avoids the Linux named-mutex race seen in parallel builds.
       - name: Build
-        run: dotnet build TechStrap.CI.slnf -c Release --no-restore
+        run: dotnet build TechStrap.CI.slnf -c Release --no-restore -m:1
 
       # Testcontainers uses the runner's Docker daemon.
       - name: Test

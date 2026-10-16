@@ -625,7 +625,7 @@ Describe 'D-047 (client SDK)' {
             $text | Should -Match '(?m)^\| 10 \|.*\| 10a merged \(PR #18\); 10b merged \(PR #19\); PHASE-10 complete: the owner'
             $text | Should -Not -Match '10b complete \(pending merge\)'
             $text | Should -Match '(?m)^\| 11 \|.*11a merged \(PR #20\); 11b merged \(PR #21\); 11c merged \(PR #22\); v0\.1\.0 published 2026-10-08 \(PHASE-11 complete\)'
-            $text | Should -Match 'T05 \(attachments\) deferred to 11d, which first needs multipart intake'
+            $text | Should -Match 'T05 \(attachments\) deferred to 11d, which first needs API-key multipart intake'
         }
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11-T05 \|.*\(deferred, D-047\)'
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Not -Match 'excluded by the solution filter until 11b'
@@ -1105,11 +1105,11 @@ Describe 'PHASE-11f landing page and product logos (D-052)' {
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11f-T10 \|'
     }
 
-    It 'ticks every 11f task and marks 11f complete pending merge' {
+    It 'ticks every 11f task and marks 11f merged' {
         foreach ($n in 1..10) { $script:Spec | Should -Match ('- \[x\] \*\*P11f-T' + $n.ToString('00') + '\*\*') -Because "P11f-T$($n.ToString('00')) is ticked" }
         $script:Spec | Should -Not -Match '- \[ \] \*\*P11f-T'
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11f \|.*\| D-052 recorded; 11f complete \(pending merge\): T01 to T10'
-        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11f \|.*\| D-052 recorded; 11f complete \(pending merge\): T01 to T10'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11f \|.*\| D-052 recorded; 11f merged \(PR #32\): T01 to T10'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11f \|.*\| D-052 recorded; 11f merged \(PR #32\): T01 to T10'
     }
 
     It 'documents the landing setting, the logo proxy path, the runbook prefix and the security tests' {
@@ -1153,11 +1153,11 @@ Describe 'PHASE-11g theme packs and skins (D-053)' {
         (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| P11g-T09 \|'
     }
 
-    It 'ticks every 11g task and marks 11g complete pending merge' {
+    It 'ticks every 11g task and marks 11g merged' {
         foreach ($n in 1..9) { $script:Spec | Should -Match ('- \[x\] \*\*P11g-T' + $n.ToString('00') + '\*\*') -Because "P11g-T$($n.ToString('00')) is ticked" }
         $script:Spec | Should -Not -Match '- \[ \] \*\*P11g-T'
-        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11g \|.*\| D-053 recorded; 11g complete \(pending merge\): T01 to T09'
-        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11g \|.*\| D-053 recorded; 11g complete \(pending merge\): T01 to T09'
+        (Get-RepoText 'docs/architecture/99-IMPLEMENTATION-ROADMAP.md') | Should -Match '(?m)^\| 11g \|.*\| D-053 recorded; 11g merged \(PR #33\): T01 to T09'
+        (Get-RepoText 'docs/architecture/00-DISCOVERY-INDEX.md') | Should -Match '(?m)^\| 11g \|.*\| D-053 recorded; 11g merged \(PR #33\): T01 to T09'
     }
 
     It 'documents the packs, the default setting and the skin grammar' {

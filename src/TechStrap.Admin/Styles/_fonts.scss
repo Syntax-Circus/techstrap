@@ -8,3 +8,12 @@
 @include ts-font-face("IBM Plex Mono", "ibm-plex-mono", "ibm-plex-mono-latin-600-normal", 600);
 // One variable file covers weights 400 and 600 and the optical-size axis (opsz 8 to 60).
 @include ts-font-face("Source Serif 4", "source-serif-4", "source-serif-4-latin-opsz-normal", 200 900);
+
+// Additional Portal preview faces, loaded only when a selected skin uses them.
+@include ts-font-face("Nunito", "nunito", "nunito-latin-400-normal", 400);
+@include ts-font-face("Nunito", "nunito", "nunito-latin-600-normal", 600);
+@include ts-font-face("Nunito", "nunito", "nunito-latin-700-normal", 700);
+@include ts-font-face("Atkinson Hyperlegible", "atkinson-hyperlegible", "atkinson-hyperlegible-latin-400-normal", 400);
+@include ts-font-face("Atkinson Hyperlegible", "atkinson-hyperlegible", "atkinson-hyperlegible-latin-700-normal", 700);
+@include ts-font-face("Pixelify Sans", "pixelify-sans", "pixelify-sans-latin-400-normal", 400);
+@include ts-font-face("Pixelify Sans", "pixelify-sans", "pixelify-sans-latin-700-normal", 700);

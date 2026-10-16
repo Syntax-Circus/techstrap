@@ -1,0 +1,206 @@
+// A miniature Portal, deliberately independent of Admin's Bootstrap component classes.
+// Classic must be explicit here: SkinCss emits deviations, while the surrounding Admin has different defaults.
+.ts-appearance-example {
+  margin: 0;
+  min-width: 0;
+
+  > figcaption {
+    margin-bottom: .5rem;
+    font-weight: 600;
+  }
+}
+
+.ts-appearance-preview {
+  --p-bg: #ffffff;
+  --ts-surface: #ffffff;
+  --p-ink: #1b1b22;
+  --p-ink2: #4a4a57;
+  --p-line: #d4d4dc;
+  --ts-accent: #1d4fa8;
+  --ts-on-accent: #ffffff;
+  --ts-accent-ink: #1d4fa8;
+  --ts-chrome: #1b1b22;
+  --ts-on-chrome: #ffffff;
+  --ts-focus: #1b1b22;
+  --ts-radius: .25rem;
+  --ts-border-w: 1px;
+  --ts-font-heading: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --ts-font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light;
+  isolation: isolate;
+  min-width: 0;
+  border: 1px solid var(--p-line);
+  background: var(--p-bg);
+  color: var(--p-ink);
+  font-family: var(--ts-font-body);
+  font-size: .9375rem;
+  line-height: 1.5;
+  font-variant-numeric: normal;
+  overflow-wrap: anywhere;
+
+  &[data-ts-scheme="dark"] {
+    color-scheme: dark;
+  }
+
+  h2,
+  h3 {
+    margin: 0 0 .5rem;
+    color: var(--p-ink);
+    font-family: var(--ts-font-heading);
+    font-weight: 600;
+    line-height: 1.2;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.125rem; }
+  p { margin: 0 0 1rem; }
+
+  .ts-appearance-preview__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem 1rem;
+    padding: 1rem;
+    border-bottom: var(--ts-border-w) solid var(--p-line);
+  }
+
+  .ts-appearance-preview__name {
+    font-family: var(--ts-font-heading);
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+
+  .ts-appearance-preview__navigation { font-size: .875rem; }
+  .ts-appearance-preview__body { padding: 1rem; }
+  .ts-appearance-preview__muted { color: var(--p-ink2); }
+
+  .ts-appearance-preview__field {
+    display: block;
+    margin-bottom: 1rem;
+    font-weight: 500;
+    color: var(--p-ink);
+    font-family: var(--ts-font-body);
+    font-size: .9375rem;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  input {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    margin-top: .375rem;
+    padding: .375rem .75rem;
+    border: var(--ts-border-w) solid var(--p-line);
+    border-radius: var(--ts-radius);
+    background: var(--ts-surface);
+    color: var(--p-ink);
+    font: 400 1rem/1.5 var(--ts-font-body);
+    opacity: 1;
+    box-shadow: none;
+  }
+
+  .ts-appearance-preview__card {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border: var(--ts-border-w) solid var(--p-line);
+    border-top: 4px solid var(--ts-accent);
+    border-radius: var(--ts-radius);
+    background: var(--ts-surface);
+  }
+
+  .ts-appearance-preview__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+  }
+
+  button {
+    min-height: 44px;
+    max-width: 100%;
+    padding: .6875rem 1.25rem;
+    border: var(--ts-border-w) solid var(--ts-accent);
+    border-radius: var(--ts-radius);
+    font: 600 1rem/1.5 var(--ts-font-body);
+    text-transform: none;
+    letter-spacing: normal;
+    box-shadow: none;
+    cursor: default;
+  }
+
+  .ts-appearance-preview__primary {
+    background: var(--ts-accent);
+    color: var(--ts-on-accent);
+  }
+
+  .ts-appearance-preview__secondary {
+    background: transparent;
+    color: var(--ts-accent-ink);
+    border-color: var(--ts-accent-ink);
+
+    &:hover {
+      background: var(--ts-accent-ink);
+      color: var(--p-bg);
+    }
+  }
+
+  .ts-appearance-preview__link {
+    min-height: 44px;
+    padding: .25rem 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--ts-accent-ink);
+    font: inherit;
+    text-decoration: underline;
+  }
+
+  :is(button, input):focus-visible {
+    outline: 3px solid var(--ts-focus) !important;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 5px var(--ts-accent) !important;
+  }
+
+  &[data-ts-shadow="soft"] .ts-appearance-preview__card {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+  }
+
+  &[data-ts-shadow="hard"] .ts-appearance-preview__card {
+    box-shadow: 4px 4px 0 var(--p-ink);
+  }
+
+  &[data-ts-button="bevel"] .ts-appearance-preview__primary {
+    box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .25), inset 0 3px 0 rgba(255, 255, 255, .25);
+
+    &:active {
+      transform: translateY(2px);
+      box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .25), inset 0 2px 0 rgba(255, 255, 255, .25);
+    }
+  }
+
+  &[data-ts-button="outline"] .ts-appearance-preview__primary {
+    border-width: max(2px, var(--ts-border-w));
+    border-color: var(--ts-accent-ink);
+    background: transparent;
+    color: var(--ts-accent-ink);
+
+    &:is(:hover, :active) {
+      border-color: var(--ts-accent);
+      background: var(--ts-accent);
+      color: var(--ts-on-accent);
+    }
+  }
+
+  &[data-ts-header="solid"] .ts-appearance-preview__header {
+    background: var(--ts-chrome);
+    color: var(--ts-on-chrome);
+  }
+
+  &[data-ts-header="band"] .ts-appearance-preview__header {
+    border-bottom: 4px solid var(--ts-chrome);
+  }
+}

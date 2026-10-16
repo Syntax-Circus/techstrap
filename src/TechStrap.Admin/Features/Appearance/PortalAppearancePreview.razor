@@ -1,0 +1,41 @@
+@namespace TechStrap.Admin.Features.Appearance
+
+<figure class="ts-appearance-example">
+    <figcaption>Example portal — preview only</figcaption>
+    <div class="ts-appearance-preview" style="@_style" @attributes="_attributes">
+        <header class="ts-appearance-preview__header">
+            <strong class="ts-appearance-preview__name">@DisplayName</strong>
+            <span class="ts-appearance-preview__navigation">Help center · Contact support</span>
+        </header>
+        <div class="ts-appearance-preview__body">
+            <h2>How can we help?</h2>
+            <p>Find answers and get support from our team.</p>
+            <p class="ts-appearance-preview__muted">Browse helpful articles or send us a question.</p>
+            <label class="ts-appearance-preview__field">
+                Example search field
+                <input type="text" value="Getting started" readonly disabled aria-label="Example search field (preview only)" />
+            </label>
+            <article class="ts-appearance-preview__card">
+                <h3>Getting started</h3>
+                <p>Everything you need to get up and running.</p>
+                <button type="button" class="ts-appearance-preview__link">Read the example article</button>
+            </article>
+            <div class="ts-appearance-preview__actions">
+                <button type="button" class="ts-appearance-preview__primary">Contact support</button>
+                <button type="button" class="ts-appearance-preview__secondary">Browse articles</button>
+            </div>
+        </div>
+    </div>
+    @if (_problems.Count > 0)
+    {
+        <div class="ts-appearance-example__problems" role="status" aria-live="polite">
+            <p>Some overrides could not be previewed. Safe fallback values are shown:</p>
+            <ul>
+                @foreach (var problem in _problems)
+                {
+                    <li>@problem.Target: @problem.Code</li>
+                }
+            </ul>
+        </div>
+    }
+</figure>

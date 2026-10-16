@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Routing;
+using TechStrap.Contracts.Skins;
 using SyntaxCircus.Common;
 using TechStrap.Admin.Clients;
 using TechStrap.Admin.Features.Shell;
@@ -34,6 +36,14 @@ public sealed partial class ProductEditorContent : IDisposable
     private bool _disposed;
     private int _loadId;
     private int _idEpoch;
+    private string? _defaultPack;
+    private int _defaultLoadId;
+    private string? _leaveTarget;
+    private bool _allowLeave;
+
+    [Inject]
+    private IAppearanceSettingsClient AppearanceSettings { get; set; } = default!;
+
 
     [Inject]
     private IProductsClient Products { get; set; } = default!;
@@ -53,7 +63,7 @@ public sealed partial class ProductEditorContent : IDisposable
     // Save is offered for a new product, and for an edit once something changed. After a create whose outcome is unknown the product may exist: no second create (it would meet a 409 product-key-taken
     // that says the wrong thing) until the agent has left for the products list.
     // A logo upload or removal that is on its way holds the save, so the Version it returns is the one the save sends.
-    private bool CanSave => (_creating ? !_uncertain : _dirty) && !_logoBusy;
+    private bool CanSave => (_creating ? !_uncertain : _dirty) && !_logoBusy && _model.Check(ApiFields.Skin, _creating) is null;
 
     // An uploaded logo wins, as it does wherever the logo is shown. The preview never loads a typed address that failed the rule.
     private string? PreviewLogo => _model.UploadedLogoUrl
@@ -67,6 +77,8 @@ public sealed partial class ProductEditorContent : IDisposable
         }
 
         _loadedFor = Id ?? string.Empty;
+        _allowLeave = false;
+        _leaveTarget = null;
 
         // A load or a save that is still running belongs to the previous product (or to the new-product form): it must change nothing here.
         _idEpoch++;
@@ -81,10 +93,12 @@ public sealed partial class ProductEditorContent : IDisposable
         _gone = false;
         _notFound = false;
         _dirty = false;
+        _defaultPack = null;
         _errors.Clear();
         if (_creating)
         {
             _model = new ProductEditorViewModel();
+            await LoadDefaultPackAsync();
             return;
         }
 
@@ -97,6 +111,7 @@ public sealed partial class ProductEditorContent : IDisposable
         }
 
         await LoadAsync();
+        await LoadDefaultPackAsync();
     }
 
     private async Task LoadAsync()
@@ -117,6 +132,7 @@ public sealed partial class ProductEditorContent : IDisposable
             if (result.IsSuccess)
             {
                 _model = ProductEditorViewModel.From(result.Value);
+                _model.Appearance.DefaultPack = _defaultPack;
                 _errors.Clear();
                 _dirty = false;
             }
@@ -141,6 +157,42 @@ public sealed partial class ProductEditorContent : IDisposable
         _uncertain = false;
         _formError = null;
         await LoadAsync();
+    }
+
+    private async Task LoadDefaultPackAsync()
+    {
+        var epoch = _idEpoch;
+        var loadId = ++_defaultLoadId;
+        var result = await AppearanceSettings.GetAsync(_lifetime.Token);
+        if (_disposed || epoch != _idEpoch || loadId != _defaultLoadId) return;
+        _defaultPack = result.IsSuccess && SkinPacks.IsKnown(result.Value.DefaultPack) ? result.Value.DefaultPack : null;
+        _model.Appearance.DefaultPack = _defaultPack;
+        _errors.Remove(ApiFields.Skin);
+    }
+
+    private void OnAppearanceChanged()
+    {
+        _dirty = true;
+        _errors.Remove(ApiFields.Skin);
+        CheckField(ApiFields.Skin);
+    }
+
+    private Task OnBeforeNavigationAsync(LocationChangingContext context)
+    {
+        if (!_allowLeave && _dirty)
+        {
+            context.PreventNavigation();
+            _leaveTarget = context.TargetLocation;
+        }
+        return Task.CompletedTask;
+    }
+
+    private void Leave()
+    {
+        var target = _leaveTarget;
+        _leaveTarget = null;
+        _allowLeave = true;
+        if (target is not null) Navigation.NavigateTo(target);
     }
 
     private void OnInput(Action<string> set, ChangeEventArgs e)
@@ -242,11 +294,13 @@ public sealed partial class ProductEditorContent : IDisposable
             if (_creating)
             {
                 StatusMessages.Show(ProductsCopy.Created(saved.Name));
+                _dirty = false;
                 Navigation.NavigateTo($"/settings/products/{saved.Id}/keys");
                 return;
             }
 
             _model = ProductEditorViewModel.From(saved);
+            _model.Appearance.DefaultPack = _defaultPack;
             _dirty = false;
             StatusMessages.Show(ProductsCopy.Saved(saved.Name));
         }

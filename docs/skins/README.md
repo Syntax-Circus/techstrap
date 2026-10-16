@@ -8,18 +8,22 @@ The `dragon-poop` sample: a parchment page, wood-dark ink and chrome, a square p
 
 ## Apply it
 
-- Admin: open the product (Settings, Products), expand "Appearance (advanced)", paste the file into the "Skin (JSON)" field and save. A color pair that fails the contrast rule is refused at the field with the pair named.
+- Admin (PHASE-11h, in progress): open the product (Settings, Products), use the structured **Appearance** controls, or paste this existing sample into **Skin (JSON)** and choose **Apply JSON** before saving. The isolated live preview uses the unsaved draft and does not save it. A color pair that fails the contrast rule is refused at the field with the pair named.
 - API: `PUT api/products/{id}` with `"skin": { ... }` (the file's content) and the product's current `version`.
 
 The product's own accent color applies as the brand unless the skin sets `brand`; the sample sets `#63371F`.
 
 ## Clear it
 
-Empty the "Skin (JSON)" field and save, or send `"skin": {}` in the `PUT api/products/{id}` body. Leaving `skin` out of the request leaves the stored skin unchanged.
+In the PHASE-11h editor, reset a field to inherit or remove the entire skin and save. With advanced JSON, apply an empty object and save; alternatively send `"skin": {}` in the `PUT api/products/{id}` body. Leaving `skin` out of the request leaves the stored skin unchanged.
 
 ## Switch the deployment default pack
 
-Until the PHASE-11h page exists, change the pack every product without its own `pack` uses with `PUT api/settings/site` (an Admin call; `GET api/settings/site` shows the current value). The packs are Classic, Slate, Paper, Contrast and Midnight.
+PHASE-11h (in progress) adds the Admin-only **Settings, Appearance** page at `/settings/appearance`. The existing API can also change the pack every product without its own `pack` uses with `PUT api/settings/site` (an Admin call; `GET api/settings/site` shows the current value). The packs are Classic, Slate, Paper, Contrast and Midnight.
+
+## Structured fields and grammar
+
+Every field is optional: `pack`; colors `background`, `surface`, `ink`, `muted`, `border`, `brand`, `chrome`, `focus` (`#RRGGBB`); `headingFont` and `bodyFont` (`plex-sans`, `nunito`, `atkinson`, `source-serif`, `pixelify`); `radius` (`square`, `soft`, `round`); `borderWidth` (1 to 4); `shadow` (`none`, `soft`, `hard`); `button` (`flat`, `bevel`, `outline`); `header` (`plain`, `solid`, `band`). Omitted/null fields inherit. Unknown members and raw CSS are rejected. The preview uses the same `SkinResolver`, fonts, grammar and contrast checks as the Portal; it does not change the Admin shell.
 
 ## Tips
 

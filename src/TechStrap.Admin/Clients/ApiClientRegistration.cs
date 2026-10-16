@@ -65,6 +65,7 @@ public static class ApiClientRegistration
         services.AddScoped<IDeadLettersClient, DeadLettersClient>();
         services.AddScoped<IKbClient, KbClient>();
         services.AddScoped<IFeaturesClient, FeaturesClient>();
+        services.AddScoped<IAppearanceSettingsClient, AppearanceSettingsClient>();
         services.AddScoped<AgentSession>();
         return services;
     }

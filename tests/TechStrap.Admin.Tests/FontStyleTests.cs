@@ -8,9 +8,9 @@ public sealed class FontStyleTests
     private static readonly CompiledCss Css = CompiledCss.Load("TechStrap.Admin");
 
     [Fact]
-    public void Admin_ships_Plex_Sans_Plex_Mono_and_Source_Serif_4_from_its_own_wwwroot()
+    public void Admin_ships_shell_and_all_portal_preview_fonts_from_its_own_wwwroot()
     {
-        FontStyleRules.EveryFontFaceIsSelfHostedAndSwaps(Css, "TechStrap.Admin", "IBM Plex Mono", "IBM Plex Sans", "Source Serif 4");
+        FontStyleRules.EveryFontFaceIsSelfHostedAndSwaps(Css, "TechStrap.Admin", "Atkinson Hyperlegible", "IBM Plex Mono", "IBM Plex Sans", "Nunito", "Pixelify Sans", "Source Serif 4");
     }
 
     [Fact]
@@ -36,6 +36,6 @@ public sealed class FontStyleTests
     [Fact]
     public void The_OFL_licence_text_ships_beside_every_family()
     {
-        FontStyleRules.LicencesShipBesideTheFonts("TechStrap.Admin", "ibm-plex-sans", "ibm-plex-mono", "source-serif-4");
+        FontStyleRules.LicencesShipBesideTheFonts("TechStrap.Admin", "ibm-plex-sans", "ibm-plex-mono", "source-serif-4", "nunito", "atkinson-hyperlegible", "pixelify-sans");
     }
 }

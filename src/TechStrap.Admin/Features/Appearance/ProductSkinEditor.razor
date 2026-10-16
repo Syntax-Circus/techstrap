@@ -1,0 +1,62 @@
+@using TechStrap.Contracts.Skins
+@using TechStrap.Admin.Components.Ui
+<div class="ts-product-skin-editor">
+    <h2>Portal appearance</h2>
+    <p class="ts-field-help">Blank fields inherit from the effective pack. Brand inherits the product accent when present.</p>
+    <fieldset disabled="@Draft.HasUnappliedJson">
+        <div class="ts-field">
+            <label for="ts-skin-pack" class="form-label">Pack</label>
+            <select id="ts-skin-pack" class="form-select" value='@Value("pack")' @onchange='e => Set("pack", e)'>
+                <option value="">Inherit deployment default</option>
+                @foreach (var pack in SkinPacks.All) { <option value="@pack.Key">@pack.Name</option> }
+            </select>
+            <button type="button" class="btn btn-link" @onclick='() => Reset("pack")'>Reset pack</button>
+        </div>
+        @foreach (var field in Colours)
+        {
+            <div class="ts-field">
+                <label for="@($"ts-skin-{field}")" class="form-label">@Label(field)</label>
+                <input id="@($"ts-skin-{field}")" class="form-control" value="@Value(field)" placeholder="Inherit (#RRGGBB override)" maxlength="7" @oninput="e => Set(field, e)" />
+                <button type="button" class="btn btn-link" @onclick="() => Reset(field)">Reset @Label(field)</button>
+            </div>
+        }
+        @foreach (var field in Fonts)
+        {
+            <div class="ts-field">
+                <label for="@($"ts-skin-{field}")" class="form-label">@Label(field)</label>
+                <select id="@($"ts-skin-{field}")" class="form-select" value="@Value(field)" @onchange="e => Set(field, e)">
+                    <option value="">Inherit</option>
+                    @foreach (var font in SkinFonts.All) { <option value="@font">@font</option> }
+                </select>
+                <button type="button" class="btn btn-link" @onclick="() => Reset(field)">Reset @Label(field)</button>
+            </div>
+        }
+        @foreach (var preset in Presets)
+        {
+            <div class="ts-field">
+                <label for="@($"ts-skin-{preset.Field}")" class="form-label">@Label(preset.Field)</label>
+                <select id="@($"ts-skin-{preset.Field}")" class="form-select" value="@Value(preset.Field)" @onchange="e => Set(preset.Field, e)">
+                    <option value="">Inherit</option>
+                    @foreach (var value in preset.Values) { <option value="@value">@value</option> }
+                </select>
+                <button type="button" class="btn btn-link" @onclick="() => Reset(preset.Field)">Reset @Label(preset.Field)</button>
+            </div>
+        }
+    </fieldset>
+    <button type="button" class="btn btn-outline-danger" @onclick="() => _removeOpen = true">Remove product skin</button>
+    <details class="ts-product-skin" open="@(Problem is not null || Draft.Skin is not null)">
+        <summary>Advanced JSON</summary>
+        <div class="ts-field">
+            <label for="ts-product-skin" class="form-label">Skin JSON</label>
+            <textarea id="ts-product-skin" class="form-control font-monospace" rows="12" spellcheck="false" autocomplete="off" value="@Draft.RawJson"
+                      aria-invalid="@(Problem is not null ? "true" : null)" aria-describedby="@(Problem is not null ? "ts-product-skin-error" : "ts-product-skin-help")" @oninput="EditJson"></textarea>
+            <p id="ts-product-skin-help" class="ts-field-help">Apply JSON to update the controls and preview. Unapplied JSON blocks saving.</p>
+            <button id="ts-skin-apply" type="button" class="btn btn-outline-primary" disabled="@(!Draft.HasUnappliedJson)" @onclick="ApplyJson">Apply JSON</button>
+            <button id="ts-skin-discard" type="button" class="btn btn-outline-secondary" disabled="@(!Draft.HasUnappliedJson)" @onclick="DiscardJson">Discard JSON changes</button>
+        </div>
+    </details>
+    @if (Problem is not null) { <p id="ts-product-skin-error" class="ts-field-error" role="alert">@Problem</p> }
+</div>
+<ConfirmDialog Open="@_removeOpen" Title="Remove product skin?" ConfirmLabel="Remove skin" Danger="true" OnConfirm="Remove" OnCancel="() => _removeOpen = false">
+    <p>This clears all product skin overrides and any unapplied JSON. Save the product to keep this change.</p>
+</ConfirmDialog>

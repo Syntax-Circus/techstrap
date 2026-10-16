@@ -27,15 +27,18 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 | 08 | [Knowledge base](PHASE-08-knowledge-base.md) | 06 (07 for the editor UI) | 09 | API tasks T01 to T12 alongside 07; editor tasks wait for 07 | D-011, D-014, D-021, D-044 | PHASE-08 merged (PR #13): the API (Tasks 1-8) and the Admin (editor, categories, article picker); the owner's manual checks are open |
 | 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 | 10 and 11 alongside | D-002, D-017, D-019, D-045 | 09a merged (PR #14); 09b merged (PR #15); 09c merged (PR #16); 09d merged (PR #17); PHASE-09 complete: the owner evidence for P09-T16 (axe, Lighthouse, the JavaScript-off walk, screenshots) and the compose run of P09-T18 are open, P09-T20 is deferred |
 | 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | 08, 09, 11 alongside | D-007, D-018, D-046 | 10a merged (PR #18); 10b merged (PR #19); PHASE-10 complete: the owner's manual checks with a real identity provider (two browsers, a worker auto-close, the kill switch) are open |
-| 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | Alongside 06 to 10 | D-005, D-020, D-047, D-048, D-049 | 11a merged (PR #20); 11b merged (PR #21); 11c merged (PR #22); v0.1.0 published 2026-10-08 (PHASE-11 complete); T05 (attachments) deferred to 11d, which first needs multipart intake |
+| 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | Alongside 06 to 10 | D-005, D-020, D-047, D-048, D-049 | 11a merged (PR #20); 11b merged (PR #21); 11c merged (PR #22); v0.1.0 published 2026-10-08 (PHASE-11 complete); T05 (attachments) deferred to 11d, which first needs API-key multipart intake |
 | 11e | [Product hosts](PHASE-11e-product-hosts.md) | 09, 05, 04, 07 | 12 | After 11 | D-050 | 11e merged (PR #25): T01 to T07 |
-| 11f | [Landing page and product logos](PHASE-11f-landing-and-logos.md) | 09, 11e, 08, 04, 07 | 12c | After 12b, before 12c | D-052 | D-052 recorded; 11f complete (pending merge): T01 to T10 |
-| 11g | [Theme packs and skins](PHASE-11g-theme-packs.md) | 09, 11e, 11f, 04, 07 | 11h, 12c | After 11f | D-053 | D-053 recorded; 11g complete (pending merge): T01 to T09 (engine, packs, Contracts 0.4.0, interim Admin skin field); 11h is the Admin editor |
-| 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 (v0.3.0 per D-051; 1.0.0 is a later API-lock decision) | Last; security, load, restore and UAT tasks can overlap once their inputs exist | D-003, D-022, D-051 | D-051 recorded; 12a merged (PR #28); 12b merged (PR #29); v0.2.1 (PR #30 Admin token refresh, PR #31 amd64-only images and CI without Docker Hub); 12c waits for 11f |
+| 11f | [Landing page and product logos](PHASE-11f-landing-and-logos.md) | 09, 11e, 08, 04, 07 | 12c | After 12b, before 12c | D-052 | D-052 recorded; 11f merged (PR #32): T01 to T10 |
+| 11g | [Theme packs and skins](PHASE-11g-theme-packs.md) | 09, 11e, 11f, 04, 07 | 11h | After 11f | D-053 | D-053 recorded; 11g merged (PR #33): T01 to T09 (engine, packs, Contracts 0.4.0, interim Admin skin field); 11h is the Admin editor |
+| 11h | [Appearance editor](PHASE-11h-appearance-editor.md) | 11g, 07 | none | Alongside 12c | D-053 | Complete pending merge: Admin default pack, structured product Appearance controls, isolated live preview and advanced JSON |
+| 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 (v0.3.0 per D-051; 1.0.0 is a later API-lock decision) | Last; security, load, restore and UAT tasks can overlap once their inputs exist | D-003, D-022, D-051 | D-051 recorded; 12a merged (PR #28); 12b merged (PR #29); v0.2.1 (PR #30 Admin token refresh, PR #31 amd64-only images and CI without Docker Hub); 12c UAT and hardening work remains open; 11f is merged and 11h does not block 12c |
 
 Edges: 01 to 02 and 03; 03 to 04 to 05 to 06; 05 to 11; 02 and 06 to 07; 06 and 07 to 08; 02, 06 and 08 to 09; 07 to 10; all to 12.
 
 Suggested order for one implementer: 01, 03, 04, 05, 06, 02 (any time before 07), 07, 08, 09, 10, 11, 12. With two or more implementers: 02 and 11 (after 05) run beside the backend chain, and 08 API, 09, 10 split after 07.
+
+Current follow-up status (2026-10-16): feature requests and curated product feature boards are complete and merged (PR #37; [operator guide](../development/FEATURE-REQUESTS.md)). The latest observed published release remains v0.4.2; PR #37 does not imply a new tag. PHASE-12c UAT, manual checks and release work remain open. SDK attachments stay deferred to 11d and require API-key multipart intake first.
 
 ## 3. Task index
 
@@ -340,6 +343,15 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P11g-T08 | Admin: interim Skin (JSON) field on the product editor and the dragon-poop sample skin |
 | P11g-T09 | Docs and close-out: SELF-HOSTING, PORTAL-APP, BRAND, UX-BRIEF, security review, pins |
 
+### PHASE-11h Appearance editor
+
+| ID | Title |
+| --- | --- |
+| P11h-T01 | Admin-only site Appearance page with versioned default-pack read/save |
+| P11h-T02 | Structured product skin controls, inheritance/reset/removal and explicit Apply JSON |
+| P11h-T03 | Isolated unsaved SkinResolver preview using the existing grammar, fonts and contrast rules |
+| P11h-T04 | Regression checks, existing dragon-poop sample validation and documentation |
+
 ### PHASE-12 Release hardening
 
 | ID | Title |
@@ -440,7 +452,7 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 
 | # | Action | Needed by |
 | --- | --- | --- |
-| 1 | ~~Confirm decisions~~ Done: D-001 to D-022 approved on 2026-10-02 | — |
+| 1 | ~~Confirm decisions~~ Done: D-001 to D-022 approved on 2026-10-02 | â€” |
 | 2 | Verify the installed NCrunch version for the `xunit.v3` pin: if it predates the fix, pin `xunit.v3` 3.2.2 and `xunit.runner.visualstudio` 3.1.5 with a comment in `Directory.Packages.props` (D-013) | P01-T03 |
 | 3 | ~~Create the GitHub repository with GHCR enabled~~ Done: `Syntax-Circus/techstrap` exists; enable GHCR package write permission for `GITHUB_TOKEN` | PHASE-01 |
 | 4 | Open the cross-repo PR registering subnet `172.16.31.0/24` in the `_template` `CLIENT_IP_RATE_LIMITING.md` registry, and confirm it is free on the UAT host (the `TECHSTRAP_SUBNET` input of `deploy/docker-compose.yml`, D-019, D-043) | P01-T16 |
@@ -456,7 +468,7 @@ These need the owner (credentials, accounts, other repositories or decisions). P
 | 14 | For each product host (D-050): add a DNS record and one Caddy site that proxies to the Portal, then set the host on the product in the Admin. UAT needs DNS and one Caddy site per product host (`docs/self-hosting/DEPLOYMENT.md`, "Product hosts") | P12-T14 |
 | 15 | Done 2026-10-08: tag v0.2.0 after this PR merges (`publish-nuget.yml`) and paste the Contracts README `## Version notes` entry into the GitHub Release - `v0.2.0` was published by run 37845739172 and Release 0.2.0 carries the Version notes; the owner decision was to publish 0.2.0 with the binary and behavioral break named (D-050 amendment) | D-050 |
 | 16 | Done 2026-10-08: SyntaxCircus.Blazor.Seo 0.1.5 published and pinned (its `TryAddScoped` registration keeps the Portal's host-aware builder in charge; the Portal also worked on 0.1.4 by last registration) | D-050 |
-| 17 | After 11f merges: set `TECHSTRAP_PORTAL_LANDING=Products` on the UAT Portal, `TECHSTRAP_API_PUBLIC_URL` on the UAT Worker, proxy `/product-logos/` on the Caddy Api site, upload the product logos and taglines in the Admin, then start 12c (`docs/self-hosting/SELF-HOSTING.md`) | D-052, P12-T14 |
+| 17 | 11f merged (PR #32); UAT owner action remains open: set `TECHSTRAP_PORTAL_LANDING=Products` on the UAT Portal, `TECHSTRAP_API_PUBLIC_URL` on the UAT Worker, proxy `/product-logos/` on the Caddy Api site, upload the product logos and taglines in the Admin, then start 12c (`docs/self-hosting/SELF-HOSTING.md`) | D-052, P12-T14 |
 
 ## 8. Decisions still open
 

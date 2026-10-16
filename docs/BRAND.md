@@ -370,6 +370,8 @@ This code **never changes meaning and is never reused** for decoration, status, 
 
 ### Portal theme packs (D-053)
 
+**PHASE-11h editor (in progress, 2026-10-16):** an Admin selects the deployment default at `/settings/appearance` and edits product skins with structured controls. An isolated unsaved preview uses the existing `SkinResolver`, fonts, presets and contrast rules. Advanced JSON requires explicit Apply JSON. This changes no Portal token grammar, Admin theme, CSP or raw-CSS policy.
+
 | Pack | Scheme | Background | Surface | Ink | Muted | Border | Brand | Chrome | Focus | Fonts (heading / body) | Radius | Border | Shadow | Button | Header |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Classic | light | `#FFFFFF` | `#FFFFFF` | `#1B1B22` | `#4A4A57` | `#D4D4DC` | `#1D4FA8` | `#1B1B22` | `#1B1B22` | Plex Sans / Plex Sans | soft | 1px | none | flat | plain |

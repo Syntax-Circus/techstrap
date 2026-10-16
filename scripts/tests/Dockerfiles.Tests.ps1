@@ -77,11 +77,17 @@ Describe 'compiled CSS assertion' {
 
 Describe 'self-hosted font assertion' {
     # Fonts are restored by libman (jsdelivr) during publish and never committed, so an image built without network
-    # access must fail the build instead of shipping without fonts. Admin: Sans 3 + Mono 3 + Serif 1 files, 3 licenses.
-    It 'Dockerfile.<Name> fails the build unless <Fonts> WOFF2 files and <Licenses> OFL licenses are published' -ForEach @(
-        @{ Name = 'admin'; Fonts = 7; Licenses = 3 }
-        @{ Name = 'portal'; Fonts = 15; Licenses = 6 }
+    # access must fail the build instead of shipping without fonts. Derive expected counts from libman so adding a family cannot leave a stale Docker assertion.
+    It 'Dockerfile.<Name> requires every WOFF2 file and OFL license declared in libman' -ForEach @(
+        @{ Name = 'admin'; Project = 'TechStrap.Admin' }
+        @{ Name = 'portal'; Project = 'TechStrap.Portal' }
     ) {
+        $manifest = Get-Content -LiteralPath (Join-Path $script:RepoRoot "src/$Project/libman.json") -Raw | ConvertFrom-Json
+        $files = @($manifest.libraries | Where-Object { $_.destination -like 'wwwroot/fonts/*' } | ForEach-Object { $_.files })
+        $Fonts = @($files | Where-Object { $_ -like '*.woff2' }).Count
+        $Licenses = @($files | Where-Object { $_ -eq 'LICENSE' }).Count
+        $Fonts | Should -BeGreaterThan 0
+        $Licenses | Should -BeGreaterThan 0
         $text = Get-DockerfileText -Name $Name
         $fontCheck = 'test "$(find /app/publish/wwwroot/fonts -name ''*.woff2'' | wc -l)" -eq ' + $Fonts
         $licenceCheck = 'test "$(find /app/publish/wwwroot/fonts -name LICENSE | wc -l)" -eq ' + $Licenses
