@@ -12,6 +12,10 @@ public static class ControllerActions
     /// <summary>The success status each action must return. Adding an action without a row here fails ResultMappingTests.</summary>
     public static readonly IReadOnlyDictionary<string, int> ExpectedSuccess = new Dictionary<string, int>(StringComparer.Ordinal)
     {
+        ["WebhooksController.Get"] = 200,
+        ["WebhooksController.Put"] = 200,
+        ["WebhooksController.Deliveries"] = 200,
+        ["WebhooksController.Action"] = 200,
         ["FeaturesController.List"] = 200,
         ["FeaturesController.Get"] = 200,
         ["FeaturesController.Create"] = 201,

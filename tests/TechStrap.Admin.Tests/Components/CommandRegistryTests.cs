@@ -29,12 +29,12 @@ public sealed class CommandRegistryTests : AdminComponentTest
     }
 
     [Fact]
-    public void An_admin_is_offered_the_six_admin_pages_as_well()
+    public void An_admin_is_offered_the_seven_admin_pages_as_well()
     {
         var admin = Registry.Available(isAdmin: true).Where(c => c.AdminOnly).Select(c => c.Label).ToList();
 
-        admin.ShouldBe(["Products", "Appearance", "Agents", "Tags", "Audit", "Failed emails"]);
-        Registry.Available(isAdmin: true).Count.ShouldBe(Registry.Available(isAdmin: false).Count + 6);
+        admin.ShouldBe(["Products", "Appearance", "Webhooks", "Agents", "Tags", "Audit", "Failed emails"]);
+        Registry.Available(isAdmin: true).Count.ShouldBe(Registry.Available(isAdmin: false).Count + 7);
     }
 
     [Fact]
@@ -57,6 +57,7 @@ public sealed class CommandRegistryTests : AdminComponentTest
         paths["go-my-settings"].ShouldBe("/account/notifications");
         paths["go-products"].ShouldBe("/settings/products");
         paths["go-appearance"].ShouldBe("/settings/appearance");
+        paths["go-webhooks"].ShouldBe("/settings/webhooks");
         paths["go-agents"].ShouldBe("/settings/agents");
         paths["go-tags"].ShouldBe("/settings/tags");
         paths["go-audit"].ShouldBe("/settings/audit");

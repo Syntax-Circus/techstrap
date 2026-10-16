@@ -49,6 +49,12 @@ public static class PersistenceServiceCollectionExtensions
             .AddCheck<DatabaseReadinessHealthCheck>("database", tags: [TechStrapDatabase.ReadyHealthTag]);
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<TechStrap.Infrastructure.Webhooks.WebhookCapture>();
+        services.AddScoped<TechStrap.Application.Webhooks.IWebhookStore, TechStrap.Infrastructure.Webhooks.WebhookStore>();
+        services.AddOptions<TechStrap.Application.Tickets.Notifications.AdminLinkOptions>()
+            .Configure<IConfiguration>((options, configuration) => options.PublicUrl = configuration[TechStrap.Application.Tickets.Notifications.AdminLinkOptions.PublicUrlKey]?.Trim())
+            .Validate(options => TechStrap.Application.Tickets.Notifications.AdminLinkOptions.IsValidBase(options.PublicUrl), "TECHSTRAP_ADMIN_PUBLIC_URL must be an absolute http or https base URL when set.")
+            .ValidateOnStart();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<ISiteSettingsRepository, SiteSettingsRepository>();
         services.AddScoped<IAdminEventRepository, AdminEventRepository>();

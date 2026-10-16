@@ -2348,3 +2348,12 @@ After the first UAT deploy the owner found the Portal bland even as a default an
 ### Approval
 - **Approved by:** Jon Seeley (owner, PHASE-11g planning)
 - **Approved on:** 2026-10-10
+
+## D-054: Outgoing webhooks with global defaults and product replacement
+
+- **Date:** 2026-10-16
+- **Decision:** Administrators configure multiple Discord or generic JSON endpoints globally. A product inherits, disables notifications, or replaces the full list and its filters. Creation of support/feature-request tickets and feature-board drafts is enabled by default; later status transitions are opt-in per endpoint.
+- **Delivery:** A dedicated transactional outbox is staged centrally before unit-of-work commit and drained through `DrainWebhookOutboxHandler`. Its Infrastructure queue owns HTTP and PostgreSQL leasing. Payloads and destinations are snapshotted; event IDs remain stable across retries. Existing email rows and SMTP behavior are unchanged.
+- **Privacy/security:** Summary-only payloads, optional authenticated admin links, public HTTPS destinations with connection-time DNS validation, no redirects or URL-bearing HTTP diagnostics. Configuration reads mask URL secrets. Ticket deletion cascades webhook snapshots and requester erasure deletes them. Status and claim tokens protect delivery state transitions.
+- **Operations:** Five attempts with exponential backoff and server retry delays, dead-letter retry/discard, finished-row retention through existing `OutboxRetention`, admin-only history/test/settings APIs, and auditing without endpoint secrets. No historical backfill or custom payload templates.
+- **Related artifacts:** `docs/development/WEBHOOKS.md`, `docs/superpowers/plans/2026-10-16-webhooks.md`. Approved through the webhook design and implementation request in this session.

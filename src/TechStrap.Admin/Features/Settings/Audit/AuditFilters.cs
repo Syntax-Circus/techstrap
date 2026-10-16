@@ -15,6 +15,7 @@ public static class AuditFilters
         AdminSubjectTypes.Ticket,
         AdminSubjectTypes.EmailOutbox,
         AdminSubjectTypes.SiteSettings,
+        AdminSubjectTypes.Webhook,
     ];
 
     /// <summary>The canonical spelling of a subject type from the query string (case-insensitive), or null when it is blank or unknown: an unknown value is dropped, never sent.</summary>

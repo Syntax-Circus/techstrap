@@ -33,6 +33,8 @@ public static class AdminEventSummaryFactory
 
         return type switch
         {
+            AdminEventTypes.WebhookSettingsUpdated => "Updated webhook settings",
+            AdminEventTypes.WebhookDeliveryAction => "Requested a webhook delivery action",
             AdminEventTypes.FeatureCreated => "Created a feature",
             AdminEventTypes.FeatureUpdated => "Updated a feature",
             AdminEventTypes.FeaturePublished => "Published a feature",
@@ -71,6 +73,7 @@ public static class AdminEventSummaryFactory
         AdminSubjectTypes.Ticket => "Ticket",
         AdminSubjectTypes.EmailOutbox => "Email",
         AdminSubjectTypes.SiteSettings => "Site settings",
+        AdminSubjectTypes.Webhook => "Webhook",
         _ => Clip(subjectType),
     };
 

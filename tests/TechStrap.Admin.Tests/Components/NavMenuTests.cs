@@ -12,7 +12,7 @@ using TechStrap.Contracts.Agents;
 
 namespace TechStrap.Admin.Tests.Components;
 
-/// <summary>Review Focus 1, by nav: a plain agent never sees an admin link and never makes the admin-only badge call; an admin sees the six admin links and the failed-email count.</summary>
+/// <summary>Review Focus 1, by nav: a plain agent never sees an admin link and never makes the admin-only badge call; an admin sees the seven admin links and the failed-email count.</summary>
 public sealed class NavMenuTests : AdminComponentTest
 {
     private static readonly CancellationToken Ct = Xunit.TestContext.Current.CancellationToken;
@@ -59,7 +59,7 @@ public sealed class NavMenuTests : AdminComponentTest
     }
 
     [Fact]
-    public async Task An_admin_sees_the_six_admin_links_in_order_and_my_settings()
+    public async Task An_admin_sees_the_seven_admin_links_in_order_and_my_settings()
     {
         Setup(AgentRoles.Admin);
         await Session.EnsureLoadedAsync(Ct);
@@ -72,6 +72,7 @@ public sealed class NavMenuTests : AdminComponentTest
             ("/kb", "Knowledge base"), ("/queue/featurerequests", "Feature requests"), ("/features", "Features"),
             ("/settings/products", "Products"),
             ("/settings/appearance", "Appearance"),
+            ("/settings/webhooks", "Webhooks"),
             ("/settings/agents", "Agents"),
             ("/settings/tags", "Tags"),
             ("/settings/audit", "Audit"),
@@ -148,7 +149,7 @@ public sealed class NavMenuTests : AdminComponentTest
         var agents = Setup(AgentRoles.Admin);
         await Session.EnsureLoadedAsync(Ct);
         var cut = RenderRail();
-        cut.FindAll("a[href^='/settings']").Count.ShouldBe(5);
+        cut.FindAll("a[href^='/settings']").Count.ShouldBe(6);
         agents.GetMeAsync(Arg.Any<CancellationToken>()).Returns(Result<AgentDto>.Success(new AgentDto(Guid.NewGuid(), "Sam", "sam@orbitly.test", AgentRoles.Agent, true, null, null)));
 
         await cut.InvokeAsync(() => Session.ReloadAsync(Ct));
@@ -170,10 +171,10 @@ public sealed class NavMenuTests : AdminComponentTest
         var reload = cut.InvokeAsync(() => Session.ReloadAsync(Ct));
         cut.Render(); // force a re-render while the answer is pending
 
-        cut.FindAll("a.ts-rail-link").Count.ShouldBe(11);
+        cut.FindAll("a.ts-rail-link").Count.ShouldBe(12);
         gate.SetResult(Result<AgentDto>.Success(new AgentDto(Guid.NewGuid(), "Sam", "sam@orbitly.test", AgentRoles.Admin, true, "Samantha", null)));
         await reload;
-        cut.FindAll("a.ts-rail-link").Count.ShouldBe(11);
+        cut.FindAll("a.ts-rail-link").Count.ShouldBe(12);
     }
 
     [Theory]

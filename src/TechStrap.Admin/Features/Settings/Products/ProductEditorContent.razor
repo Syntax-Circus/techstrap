@@ -120,6 +120,10 @@
                 }
             </div>
         </form>
+        @if (!_creating)
+        {
+            <TechStrap.Admin.Features.Settings.Webhooks.WebhookSettingsEditor ProductId="@_id" @key="_id" />
+        }
     }
 </div>
 

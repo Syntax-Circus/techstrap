@@ -12,6 +12,8 @@ public sealed class AdminEventSummaryFactoryTests
 {
     private static readonly Dictionary<string, (string Payload, string Expected)> Samples = new()
     {
+        [AdminEventTypes.WebhookSettingsUpdated] = ("{}", "Updated webhook settings"),
+        [AdminEventTypes.WebhookDeliveryAction] = ("{}", "Requested a webhook delivery action"),
         [AdminEventTypes.FeatureCreated] = ("{}", "Created a feature"),
         [AdminEventTypes.FeatureUpdated] = ("{}", "Updated a feature"),
         [AdminEventTypes.FeaturePublished] = ("{}", "Published a feature"),
@@ -49,7 +51,7 @@ public sealed class AdminEventSummaryFactoryTests
     public void There_is_a_sample_for_every_event_type_constant_so_a_new_type_fails_here_until_it_has_a_sentence()
     {
         Constants(typeof(AdminEventTypes)).OrderBy(t => t).ShouldBe(Samples.Keys.OrderBy(t => t));
-        Constants(typeof(AdminEventTypes)).Count().ShouldBe(17);
+        Constants(typeof(AdminEventTypes)).Count().ShouldBe(19);
     }
 
     [Theory]
@@ -135,8 +137,8 @@ public sealed class AdminEventSummaryFactoryTests
     {
         var labels = Constants(typeof(AdminSubjectTypes)).Select(AdminEventSummaryFactory.SubjectLabel).ToList();
 
-        labels.Count.ShouldBe(9);
-        labels.Distinct().Count().ShouldBe(9);
+        labels.Count.ShouldBe(10);
+        labels.Distinct().Count().ShouldBe(10);
         labels.ShouldAllBe(l => !string.IsNullOrWhiteSpace(l));
         AdminEventSummaryFactory.SubjectLabel(AdminSubjectTypes.EmailOutbox).ShouldBe("Email");
         AdminEventSummaryFactory.SubjectLabel("Webhook").ShouldBe("Webhook");

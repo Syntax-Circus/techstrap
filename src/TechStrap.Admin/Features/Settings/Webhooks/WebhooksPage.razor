@@ -1,0 +1,10 @@
+@page "/settings/webhooks"
+@attribute [Authorize]
+
+<PageTitle>Webhooks · Settings</PageTitle>
+<AdminOnly>
+    <div class="ts-settings">
+        <h1>Webhooks</h1>
+        <WebhookSettingsEditor />
+    </div>
+</AdminOnly>

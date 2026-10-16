@@ -11,7 +11,7 @@ namespace TechStrap.Infrastructure.Persistence;
 /// EF unit of work over the scoped <see cref="TechStrapDbContext"/>: one explicit transaction per scope, one SaveChanges on
 /// commit, and recoverable database failures translated to Conflict results so handlers never see a raw EF exception.
 /// </summary>
-internal sealed class UnitOfWork(TechStrapDbContext context) : IUnitOfWork
+internal sealed class UnitOfWork(TechStrapDbContext context, Webhooks.WebhookCapture? webhooks = null) : IUnitOfWork
 {
     public async Task<IUnitOfWorkScope> BeginAsync(CancellationToken cancellationToken)
     {
@@ -21,10 +21,10 @@ internal sealed class UnitOfWork(TechStrapDbContext context) : IUnitOfWork
         }
 
         var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-        return new Scope(context, transaction);
+        return new Scope(context, transaction, webhooks);
     }
 
-    private sealed class Scope(TechStrapDbContext context, IDbContextTransaction transaction) : IUnitOfWorkScope
+    private sealed class Scope(TechStrapDbContext context, IDbContextTransaction transaction, Webhooks.WebhookCapture? webhooks) : IUnitOfWorkScope
     {
         private bool _finished;
 
@@ -37,6 +37,7 @@ internal sealed class UnitOfWork(TechStrapDbContext context) : IUnitOfWork
 
             try
             {
+                if (webhooks is not null) await webhooks.StageAsync(cancellationToken);
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
                 _finished = true;
