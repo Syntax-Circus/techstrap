@@ -18,11 +18,9 @@ jobs:
     name: Build and test
     runs-on: ubuntu-latest
     env:
-      # Nothing in this job needs Docker Hub (2026-10-09: GitHub's shared runners exhausted its anonymous pull limit and then its token endpoint
-      # timed out, which failed every Docker-backed test, with and without credentials). Testcontainers pulls the official postgres:17 from its
-      # digest-identical mirror on ECR Public, and ryuk is not needed on an ephemeral runner. The login is best effort: it lifts the anonymous
-      # limit for anything that still reaches Docker Hub, but its failure never fails the job.
-      TECHSTRAP_TEST_POSTGRES_IMAGE: public.ecr.aws/docker/library/postgres:17
+      # Prepare the official Postgres image once, with bounded registry fallback.
+      # Testcontainers uses the local alias; no registry is assumed always available.
+      TECHSTRAP_TEST_POSTGRES_IMAGE: techstrap-test-postgres:17
       TESTCONTAINERS_RYUK_DISABLED: 'true'
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
@@ -39,6 +37,11 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Prepare test Postgres image
+        timeout-minutes: 4
+        shell: bash
+        run: bash scripts/Prepare-TestPostgres.sh
 
       - uses: actions/setup-dotnet@v6
         with:

@@ -191,10 +191,12 @@ Describe 'CI scans (PHASE-12a)' {
         (Get-RepoText 'docs/development/RELEASING.md') | Should -Match '## Image platforms'
     }
 
-    It 'the test jobs pull postgres from the ECR Public mirror, run without ryuk, and only log in to Docker Hub best effort' {
+    It 'the test jobs prepare a local postgres image with registry fallback before tests' {
         foreach ($workflow in $script:Ci, (Get-RepoText '.github/workflows/publish-nuget.yml')) {
             $flat = $workflow -replace '\s+', ' '
-            $flat | Should -Match 'TECHSTRAP_TEST_POSTGRES_IMAGE: public\.ecr\.aws/docker/library/postgres:17'
+            $flat | Should -Match 'TECHSTRAP_TEST_POSTGRES_IMAGE: techstrap-test-postgres:17'
+            $flat | Should -Match 'name: Prepare test Postgres image timeout-minutes: 4 shell: bash run: bash scripts/Prepare-TestPostgres.sh'
+            $workflow.IndexOf('name: Prepare test Postgres image') | Should -BeLessThan $workflow.IndexOf('name: Test')
             $flat | Should -Match "TESTCONTAINERS_RYUK_DISABLED: 'true'"
             $flat | Should -Match "if: env\.DOCKERHUB_USERNAME != '' continue-on-error: true timeout-minutes: \d+ uses: docker/login-action@v\d+ with: username: \$\{\{ secrets\.DOCKERHUB_USERNAME \}\} password: \$\{\{ secrets\.DOCKERHUB_TOKEN \}\}"
         }
@@ -205,7 +207,7 @@ Describe 'CI scans (PHASE-12a)' {
         }
         $releasing = Get-RepoText 'docs/development/RELEASING.md'
         $releasing | Should -Match '## Docker Hub and the tests'
-        foreach ($phrase in 'TECHSTRAP_TEST_POSTGRES_IMAGE=public.ecr.aws/docker/library/postgres:17', 'DOCKERHUB_USERNAME', 'DOCKERHUB_TOKEN', 'Public Repo Read-only', 'continue-on-error') {
+        foreach ($phrase in 'TECHSTRAP_TEST_POSTGRES_IMAGE=techstrap-test-postgres:17', 'DOCKERHUB_USERNAME', 'DOCKERHUB_TOKEN', 'Public Repo Read-only', 'continue-on-error') {
             $releasing | Should -Match ([regex]::Escape($phrase))
         }
     }
