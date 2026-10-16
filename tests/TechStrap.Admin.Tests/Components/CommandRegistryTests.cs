@@ -22,8 +22,8 @@ public sealed class CommandRegistryTests : AdminComponentTest
 
         labels.ShouldBe(
         [
-            "Queue: Unassigned", "Queue: Mine", "Queue: Open", "Queue: Pending", "Queue: All", "Queue: Spam",
-            "Knowledge base", "My settings",
+            "Queue: Unassigned", "Queue: Mine", "Queue: Open", "Queue: Pending", "Queue: All", "Queue: Feature requests", "Queue: Spam",
+            "Knowledge base", "Features", "My settings",
         ]);
         Registry.Available(isAdmin: false).ShouldAllBe(c => !c.AdminOnly);
     }
@@ -52,6 +52,8 @@ public sealed class CommandRegistryTests : AdminComponentTest
         paths["go-queue-unassigned"].ShouldBe("/queue/unassigned");
         paths["go-queue-mine"].ShouldBe("/queue/mine");
         paths["go-queue-spam"].ShouldBe("/queue/spam");
+        paths["go-features"].ShouldBe("/features");
+        paths["go-queue-featurerequests"].ShouldBe("/queue/featurerequests");
         paths["go-my-settings"].ShouldBe("/account/notifications");
         paths["go-products"].ShouldBe("/settings/products");
         paths["go-agents"].ShouldBe("/settings/agents");

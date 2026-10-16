@@ -15,6 +15,8 @@ public sealed class ContactFormViewModel
 
     public string? Subject { get; set; }
 
+    public string? Type { get; set; } = TechStrap.Contracts.Tickets.TicketTypes.Support;
+
     public string? Body { get; set; }
 
     public string? Website { get; set; }

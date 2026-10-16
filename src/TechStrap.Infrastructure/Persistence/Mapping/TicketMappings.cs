@@ -17,7 +17,7 @@ internal static class TicketMappings
         return Ticket.Restore(
             record.Id, number, record.ProductId, record.RequesterId, record.Subject, record.Status, record.Priority, record.AssigneeId, record.Channel,
             record.IsSpam, record.ParentTicketId, record.Metadata, record.MetadataTrusted, record.CustomFields, record.CreatedAt, record.FirstResponseAt,
-            record.SolvedAt, record.ClosedAt, record.LastActivityAt, record.Tags.Select(t => t.TagId), record.Version);
+            record.SolvedAt, record.ClosedAt, record.LastActivityAt, record.Tags.Select(t => t.TagId), record.Version, record.Type, record.FeatureId);
     }
 
     public static TicketRecord ToRecord(this Ticket ticket)
@@ -45,6 +45,8 @@ internal static class TicketMappings
         record.ProductId = ticket.ProductId;
         record.Status = ticket.Status;
         record.Priority = ticket.Priority;
+        record.Type = ticket.Type;
+        record.FeatureId = ticket.FeatureId;
         record.AssigneeId = ticket.AssigneeId;
         record.IsSpam = ticket.IsSpam;
         record.FirstResponseAt = ticket.FirstResponseAt;

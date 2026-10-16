@@ -34,6 +34,7 @@ public static class QueueQueryKeys
 {
     public const string Product = "product";
     public const string Status = "status";
+    public const string Type = "type";
     public const string Priority = "priority";
     public const string Tag = "tag";
     public const string Search = "search";
@@ -41,13 +42,13 @@ public static class QueueQueryKeys
 }
 
 /// <summary>Everything that decides which tickets the queue shows. Record equality is how the page knows a parameter change needs a reload.</summary>
-public sealed record QueueFilter(string View, Guid? ProductId, string? Status, string? Priority, Guid? TagId, string? Search, int Page)
+public sealed record QueueFilter(string View, Guid? ProductId, string? Status, string? Priority, Guid? TagId, string? Search, int Page, string? Type = null)
 {
-    public bool HasFilters => ProductId is not null || Status is not null || Priority is not null || TagId is not null || !string.IsNullOrWhiteSpace(Search);
+    public bool HasFilters => Type is not null || ProductId is not null || Status is not null || Priority is not null || TagId is not null || !string.IsNullOrWhiteSpace(Search);
 
     /// <summary>The API request. Assignee and requester filters are not part of the queue UI (requester history is a later phase).</summary>
     public ListTicketsRequest ToRequest() =>
-        new(View, ProductId, Status, Priority, AssigneeId: null, TagId, RequesterId: null, Search, Page, QueueDefaults.PageSize);
+        new(View, ProductId, Status, Priority, AssigneeId: null, TagId, RequesterId: null, Search, Page, QueueDefaults.PageSize, Type);
 
     /// <summary>The same view with no filters, no search and the first page.</summary>
     public QueueFilter Cleared() => new(View, null, null, null, null, null, 1);
@@ -58,7 +59,7 @@ public static class QueueViews
     /// <summary>The six views, in rail order. Spam is separate by design: the five before it never include it (D-024).</summary>
     public static IReadOnlyList<string> All { get; } =
     [
-        TicketViews.Unassigned, TicketViews.Mine, TicketViews.Open, TicketViews.Pending, TicketViews.All, TicketViews.Spam,
+        TicketViews.Unassigned, TicketViews.Mine, TicketViews.Open, TicketViews.Pending, TicketViews.All, TicketViews.FeatureRequests, TicketViews.Spam,
     ];
 
     /// <summary>The canonical view for a route segment (case-insensitive); the default view for none; null for an unknown segment.</summary>
@@ -76,6 +77,7 @@ public static class QueueViews
         TicketViews.Open => counts.Open,
         TicketViews.Pending => counts.Pending,
         TicketViews.All => counts.All,
+        TicketViews.FeatureRequests => counts.FeatureRequests,
         TicketViews.Spam => counts.Spam,
         _ => throw new ArgumentOutOfRangeException(nameof(view), view, "Unknown queue view."),
     };
@@ -91,6 +93,7 @@ public static class QueueLinks
             [QueueQueryKeys.Product] = filter.ProductId?.ToString(),
             [QueueQueryKeys.Status] = filter.Status,
             [QueueQueryKeys.Priority] = filter.Priority,
+            [QueueQueryKeys.Type] = filter.Type,
             [QueueQueryKeys.Tag] = filter.TagId?.ToString(),
             [QueueQueryKeys.Search] = string.IsNullOrWhiteSpace(filter.Search) ? null : filter.Search,
             [QueueQueryKeys.Page] = filter.Page > 1 ? filter.Page.ToString(System.Globalization.CultureInfo.InvariantCulture) : null,
@@ -112,7 +115,7 @@ public sealed record TicketRowViewModel(
     PriorityLevel Priority,
     string? AssigneeName,
     string AssigneeInitials,
-    DateTimeOffset LastActivity)
+    DateTimeOffset LastActivity, string Type = TicketTypes.Support)
 {
     public static TicketRowViewModel From(TicketSummaryDto ticket) => new(
         ticket.Id,
@@ -126,7 +129,7 @@ public sealed record TicketRowViewModel(
         TicketDisplay.Priority(ticket.Priority),
         ticket.AssigneeName,
         TicketDisplay.Initials(ticket.AssigneeName),
-        ticket.LastActivityAt);
+        ticket.LastActivityAt, ticket.Type);
 }
 
 /// <summary>The queue's copy. Plain text; the one brand moment (All caught up) takes its words from <see cref="CaughtUpCopy"/>.</summary>

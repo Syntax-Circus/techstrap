@@ -8,6 +8,8 @@ internal static class TicketNameParser
 {
     public static bool TryStatus(string? value, out TicketStatus status) => TryName(value, out status);
 
+    public static bool TryType(string? value, out TicketType type) => TryName(value, out type);
+
     public static bool TryPriority(string? value, out TicketPriority priority) => TryName(value, out priority);
 
     /// <summary>A null or blank view is the default view.</summary>

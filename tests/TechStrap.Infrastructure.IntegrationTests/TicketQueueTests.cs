@@ -49,6 +49,34 @@ public sealed class TicketQueueTests(PostgresFixture postgres) : PostgresIntegra
         return [.. page.Items.Select(i => i.Subject[..2])];
     }
 
+
+    [Fact]
+    public async Task Feature_requests_include_closed_requests_exclude_spam_and_preserve_normal_views()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var scenario = await TicketScenario.CreateAsync(host);
+        await scenario.CreateTicketAsync("Support");
+        var feature = await scenario.CreateTicketAsync("Closed feature", change: t =>
+        {
+            t.ChangeType(TicketType.FeatureRequest, scenario.AgentActor, host.Clock);
+            t.ChangeStatus(TicketStatus.Solved, scenario.AgentActor, host.Clock);
+            t.ChangeStatus(TicketStatus.Closed, Actor.System, host.Clock);
+        });
+        await scenario.CreateTicketAsync("Spam feature", change: t =>
+        {
+            t.ChangeType(TicketType.FeatureRequest, scenario.AgentActor, host.Clock);
+            t.MarkSpam(true, scenario.AgentActor, host.Clock);
+        });
+        var page = await host.ReadAsync(sp => sp.GetRequiredService<ITicketRepository>().ListAsync(new TicketQuery(TicketView.FeatureRequests), Ct));
+        page.Items.ShouldHaveSingleItem().Id.ShouldBe(feature.Id);
+        page.Items[0].Type.ShouldBe(TicketType.FeatureRequest);
+        var all = await host.ReadAsync(sp => sp.GetRequiredService<ITicketRepository>().ListAsync(new TicketQuery(TicketView.All), Ct));
+        all.TotalCount.ShouldBe(2);
+        var filtered = await host.ReadAsync(sp => sp.GetRequiredService<ITicketRepository>().ListAsync(new TicketQuery(TicketView.All, Type: TicketType.Support), Ct));
+        filtered.Items.ShouldHaveSingleItem().Subject.ShouldBe("Support");
+        var counts = await host.ReadAsync(sp => sp.GetRequiredService<ITicketRepository>().CountViewsAsync(scenario.Agent.Id, Ct));
+        counts.FeatureRequests.ShouldBe(1);
+    }
     [Theory]
     [InlineData(TicketView.Unassigned, new[] { "T1", "T7", "T8" })]
     [InlineData(TicketView.Mine, new[] { "T2", "T3" })]

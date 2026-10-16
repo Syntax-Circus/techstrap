@@ -26,6 +26,7 @@ public enum TicketView
 
     /// <summary>Every status, spam only.</summary>
     Spam,
+    FeatureRequests,
 }
 
 /// <summary>
@@ -48,7 +49,7 @@ public sealed record TicketQuery(
     Guid? RequesterId = null,
     string? SearchText = null,
     int Page = 1,
-    int PageSize = Paging.DefaultPageSize);
+    int PageSize = Paging.DefaultPageSize, TicketType? Type = null);
 
 /// <summary>
 /// One row of a ticket list. Agent-only: it carries the requester email and <see cref="LastActivityAt"/> (which includes internal
@@ -68,10 +69,10 @@ public sealed record TicketSummary(
     bool IsSpam,
     IReadOnlyList<Guid> TagIds,
     DateTimeOffset CreatedAt,
-    DateTimeOffset LastActivityAt);
+    DateTimeOffset LastActivityAt, TicketType Type = TicketType.Support, Guid? FeatureId = null);
 
 /// <summary>Ticket counts for the queue tabs; each count has exactly the membership of the matching <see cref="TicketView"/> list.</summary>
-public sealed record TicketViewCounts(int Unassigned, int Mine, int Open, int Pending, int All, int Spam);
+public sealed record TicketViewCounts(int Unassigned, int Mine, int Open, int Pending, int All, int Spam, int FeatureRequests = 0);
 
 /// <summary>A fresh, untracked read of the ticket's mutable state and concurrency token, taken after a commit.</summary>
 public sealed record TicketState(
@@ -84,7 +85,7 @@ public sealed record TicketState(
     bool IsSpam,
     IReadOnlyList<Guid> TagIds,
     DateTimeOffset LastActivityAt,
-    uint Version);
+    uint Version, TicketType Type = TicketType.Support, Guid? FeatureId = null);
 
 /// <summary>A follow-up created from a parent, with its first public message body (sanitized HTML) and that message's attachment file names for the dedupe check.</summary>
 public sealed record FollowUpCandidate(

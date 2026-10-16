@@ -3,6 +3,7 @@
     <a class="ts-product-name" href="@Links.ProductHome(Theme.Key)">@if (Theme.LogoUrl is { } logo){<img class="ts-product-logo" src="@logo" alt="" height="32" />}@Theme.DisplayName</a>
     <ul class="ts-site-nav-links">
         <li><a href="@Links.KbHome(Theme.Key)">@ShellCopy.NavHelp</a></li>
+        <li><a href="@Links.Features(Theme.Key)">@ShellCopy.NavFeatures</a></li>
         <li><a href="@Links.Contact(Theme.Key)">@ShellCopy.NavContact</a></li>
     </ul>
   </nav>

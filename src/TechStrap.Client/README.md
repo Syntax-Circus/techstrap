@@ -97,3 +97,5 @@ Targets `net10.0`. The package is AOT-compatible (serialization is source-genera
 More: https://github.com/Syntax-Circus/techstrap/blob/main/docs/development/CLIENT-SDK.md
 
 Source and issues: https://github.com/Syntax-Circus/techstrap
+
+Set `Type: TicketTypes.FeatureRequest` on `SubmitTicketRequest` to submit a feature request (`TechStrap.Contracts.Tickets`). Omit it for Support. Existing callers remain compatible; unknown values are rejected by the server. The MAUI helper accepts the same optional `Type` on `MauiTicketDraft`.

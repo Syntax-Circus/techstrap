@@ -115,6 +115,25 @@ public sealed class PublicIntakeEndpointTests(TestPostgres postgres) : IAsyncLif
         return client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    [Theory]
+    [InlineData(null, "Support")]
+    [InlineData("FeatureRequest", "FeatureRequest")]
+    [InlineData("unsupported", null)]
+    public async Task Ticket_type_is_validated_and_persisted(string? type, string? expected)
+    {
+        var (factory, database, _) = await StartAsync();
+        await using var _f = factory;
+        using var client = factory.CreateClient();
+        using var content = Form();
+        if (type is not null) content.Add(new StringContent(type), "type");
+        using var response = await PostAsync(client, "orbitly", content);
+        response.StatusCode.ShouldBe(expected is null ? HttpStatusCode.BadRequest : HttpStatusCode.Created);
+        if (expected is null)
+            (await database.ScalarAsync<long>("SELECT count(*) FROM tickets")).ShouldBe(0);
+        else
+            (await database.ScalarAsync<string>("SELECT type FROM tickets WHERE number = 'ORB-1'")).ShouldBe(expected);
+    }
+
     [Fact]
     public async Task An_anonymous_form_submission_returns_201_without_a_view_url()
     {

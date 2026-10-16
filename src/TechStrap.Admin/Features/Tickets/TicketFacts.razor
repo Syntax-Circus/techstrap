@@ -4,6 +4,8 @@
         <dd><StatusStamp Status="Ticket.Stamp" Variant="StampVariant.Ticket" /></dd>
         <dt>Assignee</dt>
         <dd>@(Ticket.AssigneeName ?? TicketCopy.Unassigned)</dd>
+        <dt>Type</dt>
+        <dd>@(Ticket.Type == TicketTypes.FeatureRequest ? "Feature request" : "Support")</dd>
         <dt>Priority</dt>
         <dd><PriorityMark Level="TicketDisplay.Priority(Ticket.Priority)" /></dd>
         <dt>Product</dt>

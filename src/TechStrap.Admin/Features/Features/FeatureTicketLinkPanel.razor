@@ -1,0 +1,22 @@
+@implements IDisposable
+@inject IFeaturesClient Features
+
+<section class="ts-field" aria-label="Public feature">
+    <h3>Public feature</h3>
+    @if (_linked is not null) { <p>Linked to <a href="@($"/features/{_linked.Id}")">@_linked.Title</a> (@_linked.PublicationState).</p> }
+    else if (FeatureId is not null) { <p>A feature is linked. Reload to see its details.</p> }
+    else { <p>This request stays private. Link it to a curated feature to track shared progress.</p> }
+    @if (_error is not null) { <p role="alert">@_error</p> }
+    <fieldset disabled="@(_busy || _held || _loading)">
+        <label for="ticket-feature-search">Find a feature</label>
+        <input id="ticket-feature-search" class="form-control" type="search" @bind="_search" />
+        <button class="btn btn-outline-secondary" type="button" @onclick="SearchAsync">Search</button>
+        <label for="ticket-feature-choice">Feature</label>
+        <select id="ticket-feature-choice" class="form-select" @bind="_selected"><option value="">Choose a feature</option>@foreach (var feature in _choices) { <option value="@feature.Id">@feature.Title (@feature.PublicationState)</option> }</select>
+        <button class="btn btn-outline-secondary" type="button" disabled="@(!Guid.TryParse(_selected, out _))" @onclick="LinkAsync">Link feature</button>
+        @if (FeatureId is not null) { <button class="btn btn-outline-secondary" type="button" @onclick="() => ChangeAsync(null)">Unlink feature</button> }
+    </fieldset>
+    @if (_total > 25) { <p>Showing the first 25 matches. Search to narrow the list.</p> }
+    <a href="@($"/features/new?productId={ProductId}")">Create a public feature draft</a>
+    <button class="btn btn-outline-secondary" type="button" disabled="@_busy" @onclick="ReloadAsync">Reload link</button>
+</section>

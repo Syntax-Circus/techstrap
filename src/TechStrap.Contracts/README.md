@@ -16,6 +16,10 @@ The package follows semantic versioning, scoped as follows. `v1.0.0` locks the S
 
 ## Version notes
 
+### Unreleased — feature requests
+
+`SubmitTicketRequest` gains optional trailing `Type`; omitted or null means Support, and FeatureRequest identifies a private feature request. JSON and multipart intake reject unknown types. Ticket summaries, details, and mutation state now include Type and nullable FeatureId, and the list accepts a type filter. Existing queues include both types. The new Features namespace defines curated board management and public projection contracts; public feature data is separate from private ticket data. Recompile positional record consumers after upgrading because constructor and deconstruction signatures change. Wire callers omitting type remain compatible.
+
 ### 0.4.0
 
 Trailing optional `Skin` parameters (type `TechStrap.Contracts.Skins.ProductSkin`, null means no skin) were added to `ProductDto`, `CreateProductRequest`, `UpdateProductRequest`, `PublicProductDto` and `PublicProductSummaryDto`; null on `UpdateProductRequest` leaves the stored skin unchanged, and an all-null `ProductSkin` clears it. This is source-compatible but changes the constructor and `Deconstruct` signatures: recompile consumers built against 0.3.0. New types: the `TechStrap.Contracts.Skins` namespace, `SiteSettingsDto`, `UpdateSiteSettingsRequest`, `PublicSiteDto`. `ProductAccent.ReadableOn` is new. The wire values `AdminEventTypes.SiteSettingsUpdated` and `AdminSubjectTypes.SiteSettings` are new: a consumer that switches on these values will see values it did not know. `TechStrap.Client` and `TechStrap.Client.Maui` move with it.

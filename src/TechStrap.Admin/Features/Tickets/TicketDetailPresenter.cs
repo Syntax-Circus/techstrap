@@ -98,7 +98,7 @@ public sealed class TicketDetailPresenter(ITicketsClient tickets, IProductsClien
         ReadMetadata(ticket.MetadataJson, ticket.MetadataTrusted),
         ticket.RowVersion,
         TimelineEntryFactory.Build(ticket.Messages, ticket.Events, lookups),
-        lookups);
+        lookups, ticket.Type, ticket.FeatureId);
 
     private static string Cap(string value) =>
         value.Length <= MaxMetadataValueLength ? value : value[..MaxMetadataValueLength] + Ellipsis;

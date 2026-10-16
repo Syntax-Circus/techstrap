@@ -18,6 +18,10 @@ internal sealed class TicketRecord
 
     public TicketStatus Status { get; set; }
 
+    public TicketType Type { get; set; }
+
+    public Guid? FeatureId { get; set; }
+
     public TicketPriority Priority { get; set; }
 
     public Guid? AssigneeId { get; set; }

@@ -18,6 +18,10 @@ public enum AdminEventType
     DeadLetterRetried,
     DeadLetterDiscarded,
     SiteSettingsUpdated,
+    FeatureCreated,
+    FeatureUpdated,
+    FeaturePublished,
+    FeatureUnpublished,
 }
 
 public enum AdminSubjectType
@@ -30,6 +34,7 @@ public enum AdminSubjectType
     Ticket,
     EmailOutbox,
     SiteSettings,
+    Feature,
 }
 
 /// <summary>

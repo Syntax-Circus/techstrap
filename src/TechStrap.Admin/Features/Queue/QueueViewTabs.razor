@@ -3,7 +3,7 @@
     {
         var isSpam = view == TicketViews.Spam;
         <a class="@(isSpam ? "ts-tab ts-tab--spam" : "ts-tab")" href="@HrefFor(view)" aria-current="@(view == ActiveView ? "page" : null)">
-            @view
+            @(view == TicketViews.FeatureRequests ? "Feature requests" : view)
             @if (Counts is not null)
             {
                 <span class="@(isSpam ? "ts-count ts-count--muted" : "ts-count")">@QueueViews.CountOf(Counts, view)</span>

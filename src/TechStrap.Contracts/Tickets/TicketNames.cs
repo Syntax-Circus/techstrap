@@ -43,6 +43,8 @@ public static class TicketViews
     public const string All = "All";
     /// <summary>Only tickets marked as spam.</summary>
     public const string Spam = "Spam";
+    /// <summary>Feature requests in every status, excluding spam.</summary>
+    public const string FeatureRequests = "FeatureRequests";
     /// <summary>The view used when none is given: <see cref="All"/>.</summary>
     public const string Default = All;
 }
@@ -62,6 +64,10 @@ public static class TicketEventTypes
     public const string ProductChanged = "ProductChanged";
     /// <summary>The priority changed.</summary>
     public const string PriorityChanged = "PriorityChanged";
+    /// <summary>The ticket type changed.</summary>
+    public const string TypeChanged = "TypeChanged";
+    /// <summary>A private request was linked to or unlinked from a curated feature.</summary>
+    public const string FeatureLinked = "FeatureLinked";
     /// <summary>A tag was added.</summary>
     public const string TagAdded = "TagAdded";
     /// <summary>A tag was removed.</summary>
@@ -97,4 +103,13 @@ public static class TicketOperationLimits
 {
     /// <summary>The most knowledge base articles one public agent reply may link (10). The API refuses more.</summary>
     public const int MaxLinkedArticles = 10;
+}
+
+/// <summary>Ticket classification wire names.</summary>
+public static class TicketTypes
+{
+    /// <summary>A support question or issue.</summary>
+    public const string Support = "Support";
+    /// <summary>A requested product improvement.</summary>
+    public const string FeatureRequest = "FeatureRequest";
 }

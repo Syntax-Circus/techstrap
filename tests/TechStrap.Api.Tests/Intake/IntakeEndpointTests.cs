@@ -55,6 +55,24 @@ public sealed class IntakeEndpointTests(TestPostgres postgres) : IAsyncLifetime
         return (factory, database, seed);
     }
 
+    [Theory]
+    [InlineData(null, "Support")]
+    [InlineData("FeatureRequest", "FeatureRequest")]
+    [InlineData("unsupported", null)]
+    public async Task Ticket_type_is_validated_and_persisted(string? type, string? expected)
+    {
+        var (factory, database, seed) = await StartAsync();
+        await using var _f = factory;
+        using var client = factory.CreateClient();
+        using var content = JsonContent.Create(new SubmitTicketRequest("ada@example.com", "Ada", "Feature", "Please improve this", null, null, type));
+        using var response = await PostAsync(client, seed.OrbitlyTrusted, content);
+        response.StatusCode.ShouldBe(expected is null ? HttpStatusCode.BadRequest : HttpStatusCode.Created);
+        if (expected is null)
+            (await database.ScalarAsync<long>("SELECT count(*) FROM tickets")).ShouldBe(0);
+        else
+            (await database.ScalarAsync<string>("SELECT type FROM tickets WHERE number = 'ORB-1'")).ShouldBe(expected);
+    }
+
     [Fact]
     public async Task A_trusted_key_submission_returns_201_with_the_number_and_view_url_and_no_store()
     {

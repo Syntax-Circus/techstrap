@@ -106,6 +106,6 @@ public sealed class GetTicketRequestHandler(
             [.. ticket.TagIds.Where(tagsById.ContainsKey).Select(tagId => tagsById[tagId])],
             ticket.Channel.ToWire(), ticket.ParentTicketId, ticket.MetadataJson, ticket.MetadataTrusted,
             ticket.CreatedAt, ticket.FirstResponseAt, ticket.SolvedAt, ticket.ClosedAt, ticket.LastActivityAt, ticket.Version,
-            messageDtos, eventDtos));
+            messageDtos, eventDtos, ticket.Type.ToWire(), ticket.FeatureId));
     }
 }

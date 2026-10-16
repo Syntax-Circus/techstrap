@@ -31,8 +31,8 @@ public sealed class TicketsController : ControllerBase
         [FromServices] IListTicketsRequestHandler handler,
         CancellationToken cancellationToken,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = Paging.DefaultPageSize) =>
-        (await handler.HandleAsync(new ListTicketsRequest(view, productId, status, priority, assigneeId, tagId, requesterId, search, page, pageSize), cancellationToken))
+        [FromQuery] int pageSize = Paging.DefaultPageSize, [FromQuery] string? type = null) =>
+        (await handler.HandleAsync(new ListTicketsRequest(view, productId, status, priority, assigneeId, tagId, requesterId, search, page, pageSize, type), cancellationToken))
             .ToActionResult(this, Ok);
 
     /// <summary>One ticket with its full timeline, by id or by number such as ORB-42 (agent-only: internal notes are included).</summary>
@@ -73,6 +73,11 @@ public sealed class TicketsController : ControllerBase
     [HttpPut("{id:guid}/priority")]
     public async Task<IActionResult> ChangePriority(
         Guid id, [FromBody] ChangeTicketPriorityRequest request, [FromServices] IChangeTicketPriorityRequestHandler handler, CancellationToken cancellationToken) =>
+        (await handler.HandleAsync(id, request, cancellationToken)).ToActionResult(this, Ok);
+
+    /// <summary>Changes classification with optimistic concurrency.</summary>
+    [HttpPut("{id:guid}/type")]
+    public async Task<IActionResult> ChangeType(Guid id, [FromBody] ChangeTicketTypeRequest request, [FromServices] IChangeTicketTypeRequestHandler handler, CancellationToken cancellationToken) =>
         (await handler.HandleAsync(id, request, cancellationToken)).ToActionResult(this, Ok);
 
     /// <summary>Moves the ticket to another product; its number never changes. The row version is required.</summary>

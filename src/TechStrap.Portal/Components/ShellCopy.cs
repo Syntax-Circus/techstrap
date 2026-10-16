@@ -25,6 +25,7 @@ public static class ShellCopy
     // The landmarks (the accessible names of the two navigation regions).
     public const string NavLabel = "Main";
     public const string NavHelp = "Help articles";
+    public const string NavFeatures = "Features";
     public const string NavContact = "Contact support";
     public const string FooterNavLabel = "More help";
 

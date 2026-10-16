@@ -73,6 +73,8 @@ public sealed partial class QueueFilterBar : IDisposable
 
     private Task OnStatusChangedAsync(ChangeEventArgs e) => Commit(Filter with { Status = ParseText(e), Page = 1 });
 
+    private Task OnTypeChangedAsync(ChangeEventArgs e) => Commit(Filter with { Type = ParseText(e), Page = 1 });
+
     private Task OnPriorityChangedAsync(ChangeEventArgs e) => Commit(Filter with { Priority = ParseText(e), Page = 1 });
 
     private Task OnTagChangedAsync(ChangeEventArgs e) => Commit(Filter with { TagId = ParseGuid(e), Page = 1 });

@@ -15,7 +15,7 @@ internal sealed class MauiTicketSubmitter(ITechStrapClient client, IDeviceContex
             return Task.FromResult(Result<SubmitTicketResponse>.Failure(merged.Errors[0]));
         }
 
-        var request = new SubmitTicketRequest(draft.RequesterEmail, draft.RequesterName, draft.Subject, draft.Message, null, merged.Value);
+        var request = new SubmitTicketRequest(draft.RequesterEmail, draft.RequesterName, draft.Subject, draft.Message, null, merged.Value, draft.Type);
         return draft.IdempotencyKey is null
             ? client.SubmitTicketAsync(request, cancellationToken)
             : client.SubmitTicketAsync(request, draft.IdempotencyKey, cancellationToken);

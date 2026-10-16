@@ -41,7 +41,7 @@ public sealed class PublicIntakeController : ControllerBase
                 attachments.Add(new IncomingAttachment(file.FileName, file.ContentType, file.Length, stream));
             }
 
-            var request = new SubmitTicketRequest(form.Email, form.Name, form.Subject, form.Body, null, null);
+            var request = new SubmitTicketRequest(form.Email, form.Name, form.Subject, form.Body, null, null, form.Type);
             var context = new SubmitTicketContext(
                 IntakeChannel.Web, productKey, null, null, false, !string.IsNullOrEmpty(form.Website), attachments, null);
             return (await handler.HandleAsync(request, context, cancellationToken))

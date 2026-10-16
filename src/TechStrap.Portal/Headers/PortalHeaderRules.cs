@@ -32,6 +32,7 @@ internal static class PortalHeaderRules
 
         // The landing page is the same for every visitor and is kept for a minute like a help-center page; the Neutral root never gets a public header.
         PathHeaderRule.SetOnSuccess(path => options.ListsProducts && PortalCachePaths.IsRoot(path), ("Cache-Control", PortalCachePaths.BrowserCacheControl)),
+        PathHeaderRule.Set(IsFeaturePagePath, ("Cache-Control", CacheControl)),
     ];
 
     /// <summary><c>/t</c> and everything under it, without regard to case or a trailing slash.</summary>
@@ -53,6 +54,10 @@ internal static class PortalHeaderRules
     private static bool IsFormPage(string page, string[] tail) =>
         Is(page, PortalRoutes.ContactSegment) ? tail.Length == 0 || (tail.Length == 1 && Is(tail[0], PortalRoutes.ReceivedSegment))
             : (Is(page, PortalRoutes.LostLinkSegment) || Is(page, PortalRoutes.SuggestSegment)) && tail.Length == 0;
+
+    private static bool IsFeaturePagePath(PathString path) =>
+        path.StartsWithSegments(PortalRoutes.FeaturesPath)
+        || (PortalRoutes.TryStripProductPrefix(path, out _, out var rest) && rest.StartsWithSegments(PortalRoutes.FeaturesPath));
 
     private static bool Is(string segment, string expected) => segment.Equals(expected, StringComparison.OrdinalIgnoreCase);
 

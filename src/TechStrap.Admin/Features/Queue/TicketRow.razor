@@ -3,6 +3,10 @@
     <td role="cell" class="ts-col-number"><a href="@Row.Href">@Row.Number</a></td>
     <td role="cell" class="ts-col-subject">
         <span class="ts-subject">@Row.Subject</span>
+        @if (Row.Type == TicketTypes.FeatureRequest)
+        {
+            <span class="ts-tag">Feature request</span>
+        }
         @foreach (var tag in Row.Tags)
         {
             <TagChip Name="@tag.Name" Colour="@tag.Colour" />

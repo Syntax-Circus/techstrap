@@ -76,6 +76,8 @@ public static class TimelineEntryFactory
             TicketEventTypes.StatusChanged => $"Status changed from {Text(root, FromKey) ?? "?"} to {Text(root, ToKey) ?? "?"}",
             TicketEventTypes.Assigned => DescribeAssignment(root, lookups),
             TicketEventTypes.ProductChanged => $"Product changed from {lookups.ProductName(Id(root, FromKey))} to {lookups.ProductName(Id(root, ToKey))}",
+            TicketEventTypes.FeatureLinked => "Linked feature changed",
+            TicketEventTypes.TypeChanged => $"Type changed from {Text(root, FromKey) ?? "?"} to {Text(root, ToKey) ?? "?"}",
             TicketEventTypes.PriorityChanged => $"Priority changed from {Text(root, FromKey) ?? "?"} to {Text(root, ToKey) ?? "?"}",
             TicketEventTypes.TagAdded => $"Tag {lookups.TagName(Id(root, TagIdKey))} added",
             TicketEventTypes.TagRemoved => Text(root, ReasonKey) == TagDeletedReason

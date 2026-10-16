@@ -3,6 +3,12 @@ using TechStrap.Domain.Rules;
 
 namespace TechStrap.Domain.Tickets;
 
+public enum TicketType
+{
+    Support,
+    FeatureRequest,
+}
+
 public enum TicketPriority
 {
     Low,
@@ -83,6 +89,8 @@ public sealed class Ticket
 
     public Guid ProductId { get; private set; }
 
+    public Guid? FeatureId { get; private set; }
+
     public Guid RequesterId { get; }
 
     public string Subject { get; }
@@ -90,6 +98,8 @@ public sealed class Ticket
     public TicketStatus Status { get; private set; }
 
     public TicketPriority Priority { get; private set; }
+
+    public TicketType Type { get; private set; }
 
     public Guid? AssigneeId { get; private set; }
 
@@ -139,8 +149,8 @@ public sealed class Ticket
         TicketChannel channel,
         string? metadataJson,
         bool metadataTrusted,
-        TimeProvider clock) =>
-        CreateCore(number, productId, requesterId, subject, channel, metadataJson, metadataTrusted, null, clock);
+        TimeProvider clock, TicketType type = TicketType.Support) =>
+        CreateCore(number, productId, requesterId, subject, channel, metadataJson, metadataTrusted, null, clock, type);
 
     public static Ticket Restore(
         Guid id,
@@ -163,7 +173,7 @@ public sealed class Ticket
         DateTimeOffset? closedAt,
         DateTimeOffset lastActivityAt,
         IEnumerable<Guid> tagIds,
-        uint version)
+        uint version, TicketType type = TicketType.Support, Guid? featureId = null)
     {
         var ticket = new Ticket(
             id, number, productId, requesterId, subject, status, priority, assigneeId, channel, isSpam, parentTicketId, metadataJson, metadataTrusted,
@@ -172,6 +182,8 @@ public sealed class Ticket
         // FollowUpCreated stamps may sit past lastActivityAt (see CreateFollowUp); that is safe because a Closed ticket only ever gains
         // more FollowUpCreated events.
         // New events and messages must sort after everything already stored, even when the clock reads the same instant.
+        ticket.Type = type;
+        ticket.FeatureId = featureId;
         ticket._lastStamp = lastActivityAt;
         return ticket;
     }
@@ -251,6 +263,32 @@ public sealed class Ticket
         return DomainResult.Ok();
     }
 
+    public DomainResult ChangeType(TicketType type, Actor actor, TimeProvider clock)
+    {
+        if (Refusal(actor) is { } refused) return refused;
+        if (!Enum.IsDefined(type)) return DomainErrors.Validation("type-invalid", "Choose Support or FeatureRequest.", "type");
+        if (Type == type) return DomainResult.Ok();
+        if (FeatureId is not null && type != TicketType.FeatureRequest) return DomainErrors.Conflict("feature-unlink-required", "Unlink this request from its feature before changing its type.");
+        var from = Type;
+        Type = type;
+        Raise(TicketEventType.TypeChanged, actor, Payload(("from", from.ToString()), ("to", type.ToString())), clock);
+        Touch(clock);
+        return DomainResult.Ok();
+    }
+
+    /// <summary>Links a private feature request; the application checks the feature's product.</summary>
+    public DomainResult LinkFeature(Guid? featureId, Actor actor, TimeProvider clock)
+    {
+        if (Refusal(actor) is { } refused) return refused;
+        if (featureId is not null && Type != TicketType.FeatureRequest) return DomainErrors.Validation("feature-request-required", "Only feature request tickets can link to a feature.", "featureId");
+        if (FeatureId == featureId) return DomainResult.Ok();
+        var from = FeatureId;
+        FeatureId = featureId;
+        Raise(TicketEventType.FeatureLinked, actor, PayloadWithNulls(("from", from), ("to", featureId)), clock);
+        Touch(clock);
+        return DomainResult.Ok();
+    }
+
     public DomainResult ChangePriority(TicketPriority priority, Actor actor, TimeProvider clock)
     {
         if (Refusal(actor) is { } refused)
@@ -288,6 +326,7 @@ public sealed class Ticket
             return DomainResult.Ok();
         }
 
+        if (FeatureId is not null) return DomainErrors.Conflict("feature-unlink-required", "Unlink this request from its feature before moving it to another product.");
         var from = ProductId;
         ProductId = productId;
         Raise(TicketEventType.ProductChanged, actor, Payload(("from", from), ("to", productId)), clock);
@@ -376,7 +415,7 @@ public sealed class Ticket
             return DomainErrors.Conflict("ticket-not-closed", "Only a Closed ticket can have a follow-up.");
         }
 
-        var followUp = CreateCore(number, ProductId, RequesterId, Subject, Channel, null, false, Id, clock);
+        var followUp = CreateCore(number, ProductId, RequesterId, Subject, Channel, null, false, Id, clock, Type);
         if (followUp.IsFailure)
         {
             return followUp;
@@ -417,8 +456,9 @@ public sealed class Ticket
         string? metadataJson,
         bool metadataTrusted,
         Guid? parentTicketId,
-        TimeProvider clock)
+        TimeProvider clock, TicketType type)
     {
+        if (!Enum.IsDefined(type)) return DomainErrors.Validation("type-invalid", "Choose Support or FeatureRequest.", "type");
         if (requesterId == Guid.Empty)
         {
             return DomainErrors.Validation("requester-id-required", "A ticket needs the requester that raised it.", "requester-id");
@@ -440,6 +480,7 @@ public sealed class Ticket
             EntityId.New(clock), number, productId, requesterId, title.Value, TicketStatus.New, TicketPriority.Normal, null, channel, false,
             parentTicketId, string.IsNullOrWhiteSpace(metadataJson) ? null : metadataJson, metadataTrusted, null, now, null, null, null, now, [], 0);
 
+        ticket.Type = type;
         ticket.Raise(
             TicketEventType.Created,
             Actor.ForRequester(requesterId),

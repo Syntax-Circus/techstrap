@@ -24,6 +24,6 @@ public sealed class CountTicketViewsRequestHandler(ICurrentAgentClaims currentAg
 
         var counts = await tickets.CountViewsAsync(agent.Value.Id, cancellationToken);
         return Result<TicketViewCountsResponse>.Success(
-            new TicketViewCountsResponse(counts.Unassigned, counts.Mine, counts.Open, counts.Pending, counts.All, counts.Spam));
+            new TicketViewCountsResponse(counts.Unassigned, counts.Mine, counts.Open, counts.Pending, counts.All, counts.Spam, counts.FeatureRequests));
     }
 }

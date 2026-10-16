@@ -120,7 +120,10 @@ public sealed class PortalHeaderRulesTests
     public void The_rules_are_the_ticket_headers_the_attachment_sandbox_the_form_page_headers_and_the_two_help_centre_rules_and_nothing_else()
     {
         var rules = PortalHeaderRules.Rules(new TechStrap.Portal.Settings.PortalOptions());
-        rules.Count.ShouldBe(6);
+        rules.Count.ShouldBe(7);
+        rules[6].Matches(new PathString("/p/x/features" )).ShouldBeTrue();
+        rules[6].Matches(new PathString("/features/item" )).ShouldBeTrue();
+        rules[6].Matches(new PathString("/p/x/features-more" )).ShouldBeFalse();
         rules[3].Matches(new PathString("/p/x/kb/accounts")).ShouldBeTrue();
         rules[3].Matches(new PathString("/p/x/kb/search")).ShouldBeFalse();
         rules[3].Matches(new PathString("/p/x/contact")).ShouldBeFalse();

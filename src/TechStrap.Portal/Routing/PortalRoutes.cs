@@ -22,6 +22,8 @@ public static class PortalRoutes
 
     // The help center's own segments and query parameters. The output cache and the header rules match on them (PortalCachePaths), so they are named once.
     public const string KbSegment = "kb";
+    public const string FeaturesSegment = "features";
+    public const string StatusParameter = "status";
     public const string KbSearchSegment = "search";
 
     /// <summary>The page number of a paged KB list (a category page or the search results).</summary>
@@ -49,6 +51,8 @@ public static class PortalRoutes
     public const string ContactReceivedTemplate = "/p/{key}/contact/received";
     public const string LostLinkTemplate = "/p/{key}/lost-link";
     public const string KbHomeTemplate = "/p/{key}/kb";
+    public const string FeaturesTemplate = "/p/{key}/features";
+    public const string FeatureTemplate = "/p/{key}/features/{slug}";
 
     // A literal segment wins over a parameter in endpoint routing: /p/{key}/kb/search is not a category. The API reserves the category slug "search" (KbLimits.ReservedCategorySlug).
     public const string KbCategoryTemplate = "/p/{key}/kb/{category}";
@@ -77,6 +81,7 @@ public static class PortalRoutes
     public static readonly string ContactPath = $"/{ContactSegment}";
     public static readonly string LostLinkPath = $"/{LostLinkSegment}";
     public static readonly string KbPath = $"/{KbSegment}";
+    public static readonly string FeaturesPath = $"/{FeaturesSegment}";
     public static readonly string SuggestPath = $"/{SuggestSegment}";
 
     /// <summary>
@@ -135,6 +140,21 @@ public static class PortalRoutes
         string.IsNullOrWhiteSpace(text)
             ? KbSearch(key)
             : $"{KbSearch(key)}?{QueryParameter}={Escape(text)}{(page <= 1 ? string.Empty : $"&{PageParameter}={page}")}";
+
+    public static string Features(string key) => $"{ProductHome(key)}/{FeaturesSegment}";
+
+    public static string Feature(string key, string slug) => $"{Features(key)}/{Escape(slug)}";
+
+    public static string Features(string key, string? query, string? status, int page)
+    {
+        var parameters = new List<string>();
+        if (!string.IsNullOrWhiteSpace(query)) parameters.Add($"{QueryParameter}={Escape(query)}");
+        if (!string.IsNullOrWhiteSpace(status)) parameters.Add($"{StatusParameter}={Escape(status)}");
+        if (page > 1) parameters.Add($"{PageParameter}={page}");
+        return Features(key) + (parameters.Count == 0 ? string.Empty : "?" + string.Join("&", parameters));
+    }
+
+    public static string RequestFeature(string key) => $"{Contact(key)}?type=FeatureRequest";
 
     public static string Suggest(string key) => $"{ProductHome(key)}/suggest";
 

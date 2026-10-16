@@ -27,6 +27,8 @@ public sealed class TimelineEntryFactoryTests
         [TicketEventTypes.Assigned] = ($$"""{"from":null,"to":"{{TestData.SamAgentId}}"}""", "Assigned to Sam Ortiz"),
         [TicketEventTypes.ProductChanged] = ($$"""{"from":"{{TestData.OrbitlyId}}","to":"{{OtherProductId}}"}""", "Product changed from Orbitly to Nimbus"),
         [TicketEventTypes.PriorityChanged] = ("""{"from":"Normal","to":"Urgent"}""", "Priority changed from Normal to Urgent"),
+        [TicketEventTypes.TypeChanged] = ("""{"from":"Support","to":"FeatureRequest"}""", "Type changed from Support to FeatureRequest"),
+        [TicketEventTypes.FeatureLinked] = ("""{"to":"ffffffff-0000-0000-0000-000000000001"}""", "Linked feature changed"),
         [TicketEventTypes.TagAdded] = ($$"""{"tagId":"{{TestData.BugTagId}}"}""", "Tag bug added"),
         [TicketEventTypes.TagRemoved] = ($$"""{"tagId":"{{TestData.BugTagId}}"}""", "Tag bug removed"),
         [TicketEventTypes.MarkedSpam] = ("""{"isSpam":true}""", "Marked as spam"),

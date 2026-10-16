@@ -72,7 +72,7 @@ public sealed record TicketDetailViewModel(
     MetadataViewModel? Metadata,
     uint RowVersion,
     IReadOnlyList<TimelineEntryViewModel> Timeline,
-    TicketLookups Lookups)
+    TicketLookups Lookups, string Type = TicketTypes.Support, Guid? FeatureId = null)
 {
     /// <summary>Closed tickets are read-only: no composer, no actions (a customer reply starts a follow-up).</summary>
     public bool IsClosed => Status == TicketStatuses.Closed;
@@ -102,6 +102,8 @@ public sealed record TicketDetailViewModel(
         {
             Status = state.Status,
             Priority = state.Priority,
+            Type = state.Type,
+            FeatureId = state.FeatureId,
             IsSpam = state.IsSpam,
             ProductId = state.ProductId,
             ProductName = productName,

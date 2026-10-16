@@ -38,7 +38,7 @@ public sealed class NavMenuTests : AdminComponentTest
         var cut = RenderRail();
 
         cut.FindAll("a.ts-rail-link").Select(a => (a.GetAttribute("href"), a.TextContent.Trim())).ShouldBe(
-            [("/queue", "Queue"), ("/kb", "Knowledge base"), ("/account/notifications", "My settings")]);
+            [("/queue", "Queue"), ("/kb", "Knowledge base"), ("/queue/featurerequests", "Feature requests"), ("/features", "Features"), ("/account/notifications", "My settings")]);
         cut.FindAll("a[href^='/settings']").ShouldBeEmpty();
         cut.FindAll("a[href^='/ops']").ShouldBeEmpty();
         cut.FindAll(".ts-rail-group").ShouldBeEmpty();
@@ -69,7 +69,7 @@ public sealed class NavMenuTests : AdminComponentTest
         cut.FindAll("a.ts-rail-link").Select(a => (a.GetAttribute("href"), a.TextContent.Trim())).ShouldBe(
         [
             ("/queue", "Queue"),
-            ("/kb", "Knowledge base"),
+            ("/kb", "Knowledge base"), ("/queue/featurerequests", "Feature requests"), ("/features", "Features"),
             ("/settings/products", "Products"),
             ("/settings/agents", "Agents"),
             ("/settings/tags", "Tags"),
@@ -169,10 +169,10 @@ public sealed class NavMenuTests : AdminComponentTest
         var reload = cut.InvokeAsync(() => Session.ReloadAsync(Ct));
         cut.Render(); // force a re-render while the answer is pending
 
-        cut.FindAll("a.ts-rail-link").Count.ShouldBe(8);
+        cut.FindAll("a.ts-rail-link").Count.ShouldBe(10);
         gate.SetResult(Result<AgentDto>.Success(new AgentDto(Guid.NewGuid(), "Sam", "sam@orbitly.test", AgentRoles.Admin, true, "Samantha", null)));
         await reload;
-        cut.FindAll("a.ts-rail-link").Count.ShouldBe(8);
+        cut.FindAll("a.ts-rail-link").Count.ShouldBe(10);
     }
 
     [Theory]

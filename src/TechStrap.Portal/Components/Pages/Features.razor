@@ -1,0 +1,49 @@
+@attribute [Route(PortalRoutes.FeaturesTemplate)]
+@inherits ProductPageBase
+@using TechStrap.Portal.Features
+
+@if (UnavailableMessage is not null)
+{
+    <PageTitle>@ShellCopy.UnavailableTitle</PageTitle>
+    <ProductUnavailable Message="@UnavailableMessage" RetryHref="@RetryHref" />
+}
+else if (Theme is { } theme && Results is { } results)
+{
+    <SeoHead Title="@($"Features - {theme.DisplayName}")" Description="@($"Explore features for {theme.DisplayName}.")" RelativeUrl="@Links.Absolute(Links.Features(theme.Key, Text, Status, results.Page))" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" NoIndex="@(Text.Length > 0 || Status is not null)" />
+    <h1>Features</h1>
+    <p>See what we are considering, building, and shipping for @theme.DisplayName.</p>
+    <p><a class="btn btn-primary" href="@Links.RequestFeature(theme.Key)">Request a feature</a></p>
+    <form method="get" action="@Links.Features(theme.Key)" role="search" class="ts-help-search">
+        <label class="form-label" for="feature-query">Search features</label>
+        <input class="form-control" id="feature-query" name="@PortalRoutes.QueryParameter" value="@Text" type="search" maxlength="200" />
+        <label class="form-label" for="feature-status">Progress</label>
+        <select class="form-select" id="feature-status" name="@PortalRoutes.StatusParameter">
+            <option value="">All progress</option>
+            @foreach (var status in FeatureCopy.Statuses)
+            {
+                <option value="@status" selected="@(Status == status)">@FeatureCopy.Progress(status)</option>
+            }
+        </select>
+        <button class="btn btn-secondary" type="submit">Search</button>
+    </form>
+    @if (results.Items.Count == 0)
+    {
+        <StateMessage Heading="No features found">
+            <p>There are no published features matching this view yet. Share your idea using Request a feature.</p>
+        </StateMessage>
+    }
+    else
+    {
+        <ul class="ts-kb-list">
+            @foreach (var feature in results.Items)
+            {
+                <li>
+                    <h2><a href="@Links.Feature(theme.Key, feature.Slug)">@feature.Title</a></h2>
+                    <p class="ts-kb-meta">@FeatureCopy.Progress(feature.ProgressStatus) · @KbCopy.UpdatedOn(feature.UpdatedAt)</p>
+                </li>
+            }
+        </ul>
+        <Pager Page="@results.Page" PageSize="@results.PageSize" TotalCount="@results.TotalCount" HrefFor="@(page => Links.Features(theme.Key, Text, Status, page))" />
+    }
+}
+
