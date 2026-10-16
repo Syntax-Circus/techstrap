@@ -67,6 +67,7 @@ public static class ControllerActions
         ["AttachmentsController.Get"] = 200,
         ["AdminEventsController.List"] = 200,
         ["IntakeController.Submit"] = 201,
+        ["IntakeController.SubmitWithAttachments"] = 201,
         ["PublicIntakeController.Submit"] = 201,
         ["PublicProductsController.Get"] = 200,
         ["PublicProductsController.List"] = 200,

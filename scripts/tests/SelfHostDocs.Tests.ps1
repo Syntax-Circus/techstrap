@@ -178,10 +178,11 @@ Describe 'deploy templates and README after 12b' {
         $text | Should -Match ([regex]::Escape('](../runbooks/backup-restore.md)'))
     }
 
-    It 'README says v0.3.0 next and links the self-hosting guide' {
+    It 'README keeps release validation open and links the self-hosting guide' {
         $text = Get-RepoText 'README.md'
         $text | Should -Not -Match 'then `?v1\.0\.0`?'
-        $text | Should -Match ([regex]::Escape('then v0.3.0 (1.0.0 is a later API-lock decision)'))
+        $text | Should -Match ([regex]::Escape('PHASE-12c remains open'))
+        $text | Should -Match ([regex]::Escape('1.0.0 is a later API-lock decision'))
         $text | Should -Match ([regex]::Escape('(docs/self-hosting/SELF-HOSTING.md)'))
     }
 }

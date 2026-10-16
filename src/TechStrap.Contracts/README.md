@@ -14,6 +14,10 @@ The wire contracts of TechStrap, the self-hosted support desk: the request and r
 
 The package follows semantic versioning, scoped as follows. `v1.0.0` locks the SDK-facing surface of `TechStrap.Contracts`: the `TechStrap.Contracts.Intake` namespace (`SubmitTicketRequest`, `SubmitTicketResponse`, `IntakeLimits`, `IntakeRoutes`, `IntakeWarnings`, `TicketMetadataKeys`) and `TechStrap.Contracts.Http.HeaderNames`. The other namespaces (Admin, Agents, ApiKeys, Kb, Live, AdminEvents, Tickets and so on) are TechStrap's own app wire shapes, shared with its Admin and Portal, and may change in minor versions. Before 1.0.0 (the 0.x versions, starting with 0.1.0), the SDK-facing surface can still change in a minor version; after it, a breaking change there ships only in a new major version. Package validation is enabled; its baseline comparison against the previous release starts after 1.0.0. Changes since 0.1.0 are additive in source; the 0.2.0, 0.3.0 and 0.4.0 notes below name the binary breaks (positional parameters) that a recompile resolves.
 
+## Attachment intake (PHASE-11d)
+
+`IntakeRoutes.TicketsWithAttachments` names the API-key multipart route. Request/response DTOs and JSON wire shapes are unchanged. Stream sources live in TechStrap.Client, and the MAUI adapter lives in TechStrap.Client.Maui; Contracts gains no dependency. Deploy an attachment-capable server before using it. No version is published by this change.
+
 ## Version notes
 
 ### Unreleased — feature requests

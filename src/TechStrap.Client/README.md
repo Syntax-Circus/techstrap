@@ -92,10 +92,27 @@ A submit is retried only when the server can recognize the repeat: the SDK sends
 
 ## Compatibility
 
-Targets `net10.0`. The package is AOT-compatible (serialization is source-generated). It is versioned in lockstep with TechStrap.Contracts. There is no attachment support yet.
+Targets `net10.0`. The package is AOT-compatible (serialization is source-generated). It is versioned in lockstep with TechStrap.Contracts. Attachments require a server containing PHASE-11d (D-055); existing JSON calls work with older servers.
 
 More: https://github.com/Syntax-Circus/techstrap/blob/main/docs/development/CLIENT-SDK.md
 
 Source and issues: https://github.com/Syntax-Circus/techstrap
 
 Set `Type: TicketTypes.FeatureRequest` on `SubmitTicketRequest` to submit a feature request (`TechStrap.Contracts.Tickets`). Omit it for Support. Existing callers remain compatible; unknown values are rejected by the server. The MAUI helper accepts the same optional `Type` on `MauiTicketDraft`.
+
+## Attach files
+
+```csharp
+var attachments = new[] { TicketAttachment.FromFile("trace.log", "text/plain") };
+// Persist this key for this logical ticket, including later caller retries.
+var submissionKey = Guid.NewGuid().ToString("N");
+var uploaded = await client.SubmitTicketAsync(request, attachments, submissionKey, ct);
+```
+
+Attachment overloads also support a generated key and `SubmitTicketOnceAsync`. Empty lists use JSON. Limits: five files, 10 MiB each, 25 MiB combined; the server validates types and signatures. Keep source files unchanged until retries finish.
+
+Custom sources use `TicketAttachment(fileName, contentType, openReadAsync, length: optionalLength)`. Return a **fresh readable stream at its beginning on every attempt**. The SDK disposes it on success, cancellation and failure. Nonseekable streams and unknown lengths work; actual bytes are bounded. Never return a shared stream.
+
+Local errors target `attachments`. Match the constants on `TechStrapClientErrorCodes`: `AttachmentsTooMany`, `AttachmentsTooLarge`, `AttachmentTooLarge`, `AttachmentTypeNotAllowed`, `AttachmentNameInvalid`, `AttachmentContentTypeInvalid` and `AttachmentSizeInvalid`. `AttachmentReadFailed` means a source could not be opened, read or closed; paths are never returned and the SDK does not retry it. Creation can be uncertain after sending begins: reuse the same submission key. Cancellation still throws; the total timeout includes file operations.
+
+Deploy the attachment-capable server first. An older server returns failure; files are never silently dropped.

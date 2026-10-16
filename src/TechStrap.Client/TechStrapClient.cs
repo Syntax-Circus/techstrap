@@ -21,6 +21,25 @@ internal sealed class TechStrapClient(IHttpClientFactory httpClients, IOptions<T
     private readonly Lock _gate = new();
     private HttpRequestResiliencePipeline? _pipeline;
 
+    public Task<Result<SubmitTicketResponse>> SubmitTicketAsync(SubmitTicketRequest request, IReadOnlyList<TicketAttachment> attachments, CancellationToken cancellationToken = default) =>
+        SendAttachmentsAsync(request, attachments, Guid.NewGuid().ToString("N"), HttpRequestReplaySafety.Replayable, cancellationToken);
+
+    public Task<Result<SubmitTicketResponse>> SubmitTicketAsync(SubmitTicketRequest request, IReadOnlyList<TicketAttachment> attachments, string idempotencyKey, CancellationToken cancellationToken = default) =>
+        SendAttachmentsAsync(request, attachments, ValidateKey(idempotencyKey), HttpRequestReplaySafety.Replayable, cancellationToken);
+
+    public Task<Result<SubmitTicketResponse>> SubmitTicketOnceAsync(SubmitTicketRequest request, IReadOnlyList<TicketAttachment> attachments, CancellationToken cancellationToken = default) =>
+        SendAttachmentsAsync(request, attachments, null, HttpRequestReplaySafety.NotReplayable, cancellationToken);
+
+    private Task<Result<SubmitTicketResponse>> SendAttachmentsAsync(SubmitTicketRequest request, IReadOnlyList<TicketAttachment> attachments, string? key, HttpRequestReplaySafety safety, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(attachments);
+        ct.ThrowIfCancellationRequested();
+        var files = attachments.ToArray();
+        if (AttachmentUpload.Validate(files) is { } error) return Task.FromResult(Result<SubmitTicketResponse>.Failure(error));
+        return SendAsync(request, key, safety, ct, files);
+    }
+
     public Task<Result<SubmitTicketResponse>> SubmitTicketAsync(SubmitTicketRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -60,9 +79,13 @@ internal sealed class TechStrapClient(IHttpClientFactory httpClients, IOptions<T
     }
 
     /// <summary>A new message and new content for every attempt: the pipeline disposes both after each send.</summary>
-    private static HttpRequestMessage BuildRequest(SubmitTicketRequest request, string? key)
+    private static HttpRequestMessage BuildRequest(SubmitTicketRequest request, string? key, IReadOnlyList<TicketAttachment>? files)
     {
-        var message = new HttpRequestMessage(HttpMethod.Post, IntakeRoutes.Tickets) { Content = JsonContent.Create(request, TechStrapJsonContext.Default.SubmitTicketRequest) };
+        var multipart = files is { Count: > 0 };
+        var message = new HttpRequestMessage(HttpMethod.Post, multipart ? IntakeRoutes.TicketsWithAttachments : IntakeRoutes.Tickets)
+        {
+            Content = multipart ? AttachmentUpload.Build(request, files!) : JsonContent.Create(request, TechStrapJsonContext.Default.SubmitTicketRequest),
+        };
         if (key is not null)
         {
             message.Headers.TryAddWithoutValidation(HeaderNames.IdempotencyKey, key);
@@ -90,7 +113,7 @@ internal sealed class TechStrapClient(IHttpClientFactory httpClients, IOptions<T
         }
     }
 
-    private async Task<Result<SubmitTicketResponse>> SendAsync(SubmitTicketRequest request, string? key, HttpRequestReplaySafety safety, CancellationToken ct)
+    private async Task<Result<SubmitTicketResponse>> SendAsync(SubmitTicketRequest request, string? key, HttpRequestReplaySafety safety, CancellationToken ct, IReadOnlyList<TicketAttachment>? files = null)
     {
         var pipeline = Pipeline();
         using var client = httpClients.CreateClient(TechStrapClientDefaults.HttpClientName);
@@ -99,11 +122,16 @@ internal sealed class TechStrapClient(IHttpClientFactory httpClients, IOptions<T
         try
         {
             response = await pipeline.SendAsync(
-                (_, _) => ValueTask.FromResult(BuildRequest(request, key)),
+                (_, _) => ValueTask.FromResult(BuildRequest(request, key, files)),
                 (message, completion, token) => client.SendAsync(message, completion, token),
                 HttpCompletionOption.ResponseContentRead,
                 safety,
                 cancellationToken: ct);
+        }
+        catch (AttachmentUploadException ex)
+        {
+            ct.ThrowIfCancellationRequested();
+            return Result<SubmitTicketResponse>.Failure(ex.Error);
         }
         catch (Exception ex) when (IsUnavailable(ex, ct))
         {

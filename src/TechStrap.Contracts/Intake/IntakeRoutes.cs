@@ -5,4 +5,7 @@ public static class IntakeRoutes
 {
     /// <summary>The ticket intake route, <c>api/intake/tickets</c>: <c>POST</c> submits a ticket.</summary>
     public const string Tickets = "api/intake/tickets";
+
+    /// <summary>API-key ticket intake with multipart fields and files.</summary>
+    public const string TicketsWithAttachments = Tickets + "/with-attachments";
 }

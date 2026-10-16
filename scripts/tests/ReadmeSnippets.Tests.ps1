@@ -1,5 +1,7 @@
 BeforeDiscovery {
     $script:Cases = @(
+        @{ Readme = 'src/TechStrap.Client/README.md'; Source = 'tests/TechStrap.Client.Tests/Snippets/AttachmentReadmeSnippets.cs'; Region = 'client-attachments' }
+        @{ Readme = 'src/TechStrap.Client.Maui/README.md'; Source = 'tests/TechStrap.Client.Maui.Tests/Snippets/MauiReadmeSnippets.cs'; Region = 'maui-attachments' }
         @{ Readme = 'src/TechStrap.Client/README.md'; Source = 'samples/TechStrap.Client.Samples.Console/Program.cs'; Region = 'client-register' }
         @{ Readme = 'src/TechStrap.Client/README.md'; Source = 'samples/TechStrap.Client.Samples.Console/Program.cs'; Region = 'client-submit' }
         @{ Readme = 'src/TechStrap.Client/README.md'; Source = 'samples/TechStrap.Client.Samples.Console/Program.cs'; Region = 'client-errors' }
