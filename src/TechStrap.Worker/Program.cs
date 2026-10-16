@@ -54,6 +54,10 @@ builder.Services.AddTechStrapEmail(builder.Configuration);
 // Uploaded product logos in emails (D-052): optional; blank keeps the linked logo.
 builder.Services.AddTechStrapProductLogoUrls(builder.Configuration);
 builder.Services.AddHostedService<EmailOutboxWorker>();
+builder.Services.AddSingleton<TechStrap.Infrastructure.Webhooks.IWebhookSender, TechStrap.Infrastructure.Webhooks.WebhookSender>();
+builder.Services.AddScoped<TechStrap.Application.Webhooks.IWebhookDeliveryQueue, TechStrap.Infrastructure.Webhooks.WebhookDeliveryProcessor>();
+builder.Services.AddScoped<TechStrap.Application.Webhooks.IDrainWebhookOutboxHandler, TechStrap.Application.Webhooks.DrainWebhookOutboxHandler>();
+builder.Services.AddHostedService<WebhookOutboxWorker>();
 builder.Services.AddTechStrapAutoClose(builder.Configuration);
 builder.Services.AddHostedService<AutoCloseWorker>();
 builder.Services.AddTechStrapOutboxRetention(builder.Configuration);

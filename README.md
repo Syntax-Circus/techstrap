@@ -102,6 +102,7 @@ Start at the [discovery index](docs/architecture/00-DISCOVERY-INDEX.md).
 | [Portal app](docs/development/PORTAL-APP.md) | The customer portal: configuration, how a page is served, the API client, headers, known gaps |
 | [Client SDK](docs/development/CLIENT-SDK.md) | Maintainer guide to `TechStrap.Client`: how it is built, how it retries, how to pack and test it |
 | [Ticket intake and email](docs/development/INTAKE.md) | The intake routes, idempotency, attachments and the email outbox |
+| [Webhook notifications](docs/development/WEBHOOKS.md) | Discord and JSON destinations, product overrides, triggers, delivery and retries |
 | [Deployment](docs/self-hosting/DEPLOYMENT.md) | UAT and production: the image-only deploy compose, scoped env files, runbook |
 | [Releasing](docs/development/RELEASING.md) | A `v*` tag: images to GHCR, NuGet packages to nuget.org, the GitHub Release, rollback |
 | [Implementation roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md) | Phases 01–12, task index, validation commands |

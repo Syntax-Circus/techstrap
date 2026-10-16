@@ -58,6 +58,11 @@ internal sealed class RequesterErasure(TechStrapDbContext context) : IRequesterE
             .Where(e => e.ToAddress.ToLower() == address || (e.TicketId != null && ticketIds.Contains(e.TicketId.Value)))
             .ExecuteDeleteAsync(cancellationToken);
 
+        // Webhook summaries snapshot the ticket subject, which may hold personal data too.
+        await context.Set<WebhookDeliveryRecord>()
+            .Where(e => e.TicketId != null && ticketIds.Contains(e.TicketId.Value))
+            .ExecuteDeleteAsync(cancellationToken);
+
         return new RequesterErasureResult(tickets, messages, attachments, tokens, outboxRows, storageKeys);
     }
 }

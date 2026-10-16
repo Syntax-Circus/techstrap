@@ -138,6 +138,7 @@ Notes for reading the tables:
 | `EMAILOUTBOX__LEASESECONDS` | no | `900` | Lease for one batch; at least BATCHSIZE x send timeout seconds + 60 or the Worker fails to boot. |
 | `EMAILOUTBOX__WORKERID` | no | (blank) | Worker identity; blank uses the machine name plus a random suffix. |
 | `TECHSTRAP_API_PUBLIC_URL` | no | (blank) | The Api's public address, the same value as the Api's own. When set, emails show a product's uploaded logo; blank keeps the linked logo address. |
+| `TECHSTRAP_ADMIN_PUBLIC_URL` | no | (blank) | Admin base URL for authenticated links in webhook summaries; use the same value on the Api and Worker. Blank omits links. |
 | `TECHSTRAP_PORTAL_SHOW_POWERED_BY` | no | `true` | Show the "Powered by TechStrap" mark on portal pages and customer email. Installation-wide; same value in .env.worker and .env.portal. |
 | `TECHSTRAP_AUTOCLOSE_DAYS` | no | `7` | Days a Solved ticket stays open to a customer reply (1..365). Keep equal in the Api and the Worker. |
 | `AUTOCLOSE__ENABLED` | no | `true` | Run the auto-close job. |

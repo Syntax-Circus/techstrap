@@ -56,6 +56,14 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
         "GET api/dead-letters",
         "GET api/products/{id:guid}/api-keys",
         "GET api/settings/site",
+        "GET api/settings/webhooks",
+        "PUT api/settings/webhooks",
+        "GET api/settings/webhooks/deliveries",
+        "POST api/settings/webhooks/actions",
+        "GET api/products/{productId:guid}/webhooks",
+        "PUT api/products/{productId:guid}/webhooks",
+        "GET api/products/{productId:guid}/webhooks/deliveries",
+        "POST api/products/{productId:guid}/webhooks/actions",
         "GET api/tags/summary",
         "POST api/dead-letters/{id:guid}/retry",
         "POST api/products",
@@ -107,7 +115,8 @@ public sealed class AgentAccessCoverageTests(TestPostgres postgres)
         await database.ExecuteAsync("UPDATE agents SET is_active = false WHERE oidc_subject = 'off'");
         var routes = Routes(factory);
 
-        routes.Count.ShouldBe(Controllers.ControllerActions.AgentOrAdminActions().Count());
+        routes.Count.ShouldBe(Controllers.ControllerActions.AgentOrAdminActions()
+            .Sum(action => action.DeclaringType!.GetCustomAttributes<Microsoft.AspNetCore.Mvc.RouteAttribute>().Count()));
         foreach (var (method, path, multipart) in routes)
         {
             using var response = await SendAsync(client, method, path, multipart);

@@ -22,6 +22,10 @@ public abstract class AdminComponentTest : BunitContext
         var appearance = NSubstitute.Substitute.For<TechStrap.Admin.Clients.IAppearanceSettingsClient>();
         appearance.GetAsync(NSubstitute.Arg.Any<CancellationToken>()).Returns(SyntaxCircus.Common.Result<TechStrap.Contracts.Settings.SiteSettingsDto>.Success(new("classic", 1)));
         Services.AddSingleton(appearance);
+        var webhooks = Substitute.For<TechStrap.Admin.Clients.IWebhooksClient>();
+        webhooks.GetAsync(Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(SyntaxCircus.Common.Result<TechStrap.Contracts.Webhooks.WebhookSettingsDto>.Success(new("Inherit", 0, [], [])));
+        webhooks.ListAsync(Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(SyntaxCircus.Common.Result<TechStrap.Contracts.Webhooks.WebhookDeliveryPageDto>.Success(new([], 1, false)));
+        Services.AddSingleton(webhooks);
         Services.AddSingleton<TimeProvider>(Time);
 
         // Every component that draws live state asks for the client; this one never touches a hub. A test raises its events and reads what the components called.

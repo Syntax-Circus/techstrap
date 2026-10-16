@@ -18,6 +18,7 @@ public static class ShellCopy
     public const string AdminLinksLabel = "Admin";
     public const string ProductsLink = "Products";
     public const string AppearanceLink = "Appearance";
+    public const string WebhooksLink = "Webhooks";
     public const string AgentsLink = "Agents";
     public const string TagsLink = "Tags";
     public const string AuditLink = "Audit";

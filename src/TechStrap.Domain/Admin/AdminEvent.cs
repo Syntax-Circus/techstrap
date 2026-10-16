@@ -22,6 +22,8 @@ public enum AdminEventType
     FeatureUpdated,
     FeaturePublished,
     FeatureUnpublished,
+    WebhookSettingsUpdated,
+    WebhookDeliveryAction,
 }
 
 public enum AdminSubjectType
@@ -35,6 +37,7 @@ public enum AdminSubjectType
     EmailOutbox,
     SiteSettings,
     Feature,
+    Webhook,
 }
 
 /// <summary>

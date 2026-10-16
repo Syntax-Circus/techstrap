@@ -3,6 +3,10 @@ namespace TechStrap.Contracts.AdminEvents;
 /// <summary>Wire names for the admin event type enum (<c>AdminEventDto.Type</c>). Contracts carries no enums (naming rule).</summary>
 public static class AdminEventTypes
 {
+    /// <summary>Webhook settings were changed.</summary>
+    public const string WebhookSettingsUpdated = "WebhookSettingsUpdated";
+    /// <summary>A webhook test, retry or discard was requested.</summary>
+    public const string WebhookDeliveryAction = "WebhookDeliveryAction";
     /// <summary>A product was created.</summary>
     public const string ProductCreated = "ProductCreated";
     /// <summary>A product's name, branding or active status was changed.</summary>
@@ -42,6 +46,8 @@ public static class AdminEventTypes
 /// <summary>Wire names for the admin subject type enum (<c>AdminEventDto.SubjectType</c> and the <c>subjectType</c> filter). Contracts carries no enums (naming rule).</summary>
 public static class AdminSubjectTypes
 {
+    /// <summary>The event concerns webhook settings or delivery.</summary>
+    public const string Webhook = "Webhook";
     /// <summary>The event concerns a product.</summary>
     public const string Product = "Product";
     /// <summary>The event concerns a product API key.</summary>
