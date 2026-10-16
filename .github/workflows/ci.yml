@@ -18,11 +18,9 @@ jobs:
     name: Build and test
     runs-on: ubuntu-latest
     env:
-      # Nothing in this job needs Docker Hub (2026-10-09: GitHub's shared runners exhausted its anonymous pull limit and then its token endpoint
-      # timed out, which failed every Docker-backed test, with and without credentials). Testcontainers pulls the official postgres:17 from its
-      # digest-identical mirror on ECR Public, and ryuk is not needed on an ephemeral runner. The login is best effort: it lifts the anonymous
-      # limit for anything that still reaches Docker Hub, but its failure never fails the job.
-      TECHSTRAP_TEST_POSTGRES_IMAGE: public.ecr.aws/docker/library/postgres:17
+      # Prepare the official Postgres image once, with bounded registry fallback.
+      # Testcontainers uses the local alias; no registry is assumed always available.
+      TECHSTRAP_TEST_POSTGRES_IMAGE: techstrap-test-postgres:17
       TESTCONTAINERS_RYUK_DISABLED: 'true'
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
@@ -40,9 +38,23 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Prepare test Postgres image
+        timeout-minutes: 4
+        shell: bash
+        run: bash scripts/Prepare-TestPostgres.sh
+
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
+          cache: true
+          # No package lockfiles: invalidate the package cache when restore inputs change.
+          cache-dependency-path: |
+            global.json
+            **/*.props
+            **/*.targets
+            **/*.csproj
+            .config/dotnet-tools.json
+            **/[Nn]u[Gg]et.[Cc]onfig
 
       - name: Restore tools and packages
         run: |
@@ -52,7 +64,7 @@ jobs:
       # Fails on any known-vulnerable direct or transitive package (any severity) and prints the offenders.
       - name: Vulnerable packages (direct and transitive)
         run: |
-          dotnet list TechStrap.slnx package --vulnerable --include-transitive --format json > vulnerable.json
+          dotnet list TechStrap.slnx package --vulnerable --include-transitive --format json --no-restore > vulnerable.json
           if ! jq -e '(.problems // []) == [] and ([.projects[].frameworks[]? | (.topLevelPackages[]?, .transitivePackages[]?)] | length == 0)' vulnerable.json; then
             jq '[.projects[] | {path, frameworks: [.frameworks[]? | {framework, top: [.topLevelPackages[]?.id], transitive: [.transitivePackages[]?.id]}]}], .problems' vulnerable.json
             exit 1
@@ -93,7 +105,7 @@ jobs:
   docker-build:
     name: Docker build (amd64, no push)
     runs-on: ubuntu-latest
-    needs: build-test
+    # Independent validation: overlap image builds/scans with build-test on a separate runner.
     steps:
       - uses: actions/checkout@v7
         with:

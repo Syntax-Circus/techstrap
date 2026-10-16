@@ -17,8 +17,8 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     env:
-      # Same as ci.yml: Testcontainers pulls postgres:17 from its ECR Public mirror, no ryuk on an ephemeral runner, best-effort Docker Hub login.
-      TECHSTRAP_TEST_POSTGRES_IMAGE: public.ecr.aws/docker/library/postgres:17
+      # Same preparation and registry fallback as ci.yml; no ryuk on an ephemeral runner.
+      TECHSTRAP_TEST_POSTGRES_IMAGE: techstrap-test-postgres:17
       TESTCONTAINERS_RYUK_DISABLED: 'true'
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
@@ -35,9 +35,23 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Prepare test Postgres image
+        timeout-minutes: 4
+        shell: bash
+        run: bash scripts/Prepare-TestPostgres.sh
+
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+          cache: true
+          # Same restore inputs/cache as CI; no package lockfiles are required.
+          cache-dependency-path: |
+            global.json
+            **/*.props
+            **/*.targets
+            **/*.csproj
+            .config/dotnet-tools.json
+            **/[Nn]u[Gg]et.[Cc]onfig
 
       - name: Version from the tag
         id: version

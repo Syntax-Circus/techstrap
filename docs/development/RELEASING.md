@@ -68,6 +68,12 @@ If you re-run a failed `publish` job, the push skips packages that are already o
 
 `ci.yml` sets up the SDK with `dotnet-version: 10.0.x`, while `publish-nuget.yml` uses `global.json`. That is intended: the publish workflow pins the SDK that builds the released packages.
 
+## CI performance
+
+CI builds/tests and Docker builds/scans run on separate runners in parallel. Check that both jobs pass before merging; the Docker job does not push images. The manual compose smoke test still waits for build/test success, and NuGet publishing still waits for successful packing and tests.
+
+The CI and NuGet packing jobs cache the NuGet global packages folder through `actions/setup-dotnet`. TechStrap has no package lockfiles, so the cache key hashes `global.json`, project/props/targets files, the tool manifest and any NuGet configuration files. Restore still runs on every build. The vulnerability audit uses `--no-restore` after the explicit restore; it still queries vulnerability data and fails on findings or audit problems.
+
 ## Image platforms
 
 The published images are `linux/amd64` only (owner decision 2026-10-09, recorded under D-051). Until `v0.2.1` the release built arm64 as well, under QEMU; that needed the QEMU and BuildKit images from Docker Hub, pulled anonymously, and GitHub's shared runners exhaust Docker Hub's anonymous pull limit (`v0.2.1` failed three times with `toomanyrequests` before building anything). Both workflows now use the Docker daemon's own BuildKit (`driver: docker`) and pull nothing from Docker Hub; the base images come from `mcr.microsoft.com`. `Build-TechStrapDocker.ps1` can still build arm64 locally (`-Platforms linux/amd64,linux/arm64`). If arm64 images are wanted again, build them on GitHub's native arm64 runners (free for public repositories) and merge the manifests; do not reintroduce QEMU.
@@ -83,18 +89,19 @@ git checkout v<version>
 
 ## Docker Hub and the tests
 
-The Docker-backed tests start `postgres:17` through Testcontainers. On 2026-10-09 GitHub's shared runners first exhausted Docker Hub's anonymous pull limit (`toomanyrequests`) and then could not reach its token endpoint at all, which failed every Docker-backed test, with and without credentials. The test jobs (`build-test` in `ci.yml`, `pack` in `publish-nuget.yml`) therefore no longer depend on Docker Hub:
+The Docker-backed tests start `postgres:17` through Testcontainers. On 2026-10-09 GitHub's shared runners first exhausted Docker Hub's anonymous pull limit (`toomanyrequests`) and then could not reach its token endpoint at all, which failed every Docker-backed test, with and without credentials. On 2026-10-16 ECR Public also rejected the shared runners with `toomanyrequests: Data limit exceeded`, failing Postgres assembly initialization and cascading into 2,528 failed tests. The test jobs (`build-test` in `ci.yml`, `pack` in `publish-nuget.yml`) now prepare the image before starting any test assembly:
 
-- `TECHSTRAP_TEST_POSTGRES_IMAGE=public.ecr.aws/docker/library/postgres:17`: the two Postgres fixtures (`TestPostgres`, `PostgresFixture`) read this variable and default to `postgres:17`. ECR Public carries the official Docker library images under `docker/library/`, same manifest digest as Docker Hub (`docker buildx imagetools inspect` both to compare). A local run leaves the variable unset and pulls from Docker Hub as before.
+- `scripts/Prepare-TestPostgres.sh` tries the official Postgres 17 image on Docker Hub, then Google's [Docker Hub cache](https://docs.cloud.google.com/artifact-registry/docs/pull-cached-dockerhub-images) (`mirror.gcr.io/library/postgres:17`), then ECR Public (`public.ecr.aws/docker/library/postgres:17`). Each pull has a 60-second timeout and five-second kill grace; a rejected or timed-out pull advances to the next registry. A local tagging error fails immediately. All registries failing produces one preparation error, before tests start. The workflow step is capped at four minutes.
+- `TECHSTRAP_TEST_POSTGRES_IMAGE=techstrap-test-postgres:17`: preparation tags the successful pull with this local alias and reports its source and image ID. The two Postgres fixtures (`TestPostgres`, `PostgresFixture`) use the prepared image without pulling independently. An existing local alias is reused. These are floating major-version tags and mirrors can lag, so no cross-registry digest identity is assumed. A normal local run can leave the variable unset and use `postgres:17` as before.
 - `TESTCONTAINERS_RYUK_DISABLED=true`: a runner is discarded after the job, so nothing needs reaping.
-- A best-effort Docker Hub login (`continue-on-error`, two-minute timeout) with the repository secrets below, for anything that still reaches Docker Hub. It is skipped when the secrets are absent (pull requests from forks, Dependabot) and its failure never fails the job.
+- A best-effort Docker Hub login (`continue-on-error`, two-minute timeout) with the repository secrets below, for the primary pull. It is skipped when the secrets are absent (pull requests from forks, Dependabot) and its failure never fails the job.
 
 | Secret | Value |
 | --- | --- |
 | `DOCKERHUB_USERNAME` | The Docker Hub username (not the e-mail address). |
 | `DOCKERHUB_TOKEN` | A Docker Hub personal access token with **Public Repo Read-only** permission, created under Account settings, Personal access tokens. |
 
-Rotate the token by generating a new one and updating `DOCKERHUB_TOKEN`; no workflow change is needed. If ECR Public ever throttles the runners too, mirror the image into the organization's GHCR (`docker tag postgres:17 ghcr.io/syntax-circus/postgres:17 && docker push ...` with a `write:packages` token) and point the variable there.
+Rotate the token by generating a new one and updating `DOCKERHUB_TOKEN`; no workflow change is needed. Fallback works without secrets, including fork and Dependabot builds. Registry failures remain visible in the preparation log; no tests are skipped or converted to successes. The behavioral script tests simulate rate limits, timeouts, every registry failing, local tagging errors and reuse of the local alias.
 
 ## Post-publish check
 

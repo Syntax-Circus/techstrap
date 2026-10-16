@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
@@ -80,15 +82,74 @@ public sealed class RequestTooLargeMiddlewareTests
 
     // ---- the real server ----
 
-    private static (HttpClient Client, PortalFactory Factory) Kestrel()
+    private static (HttpClient Client, PortalFactory Factory) Kestrel(bool delayPost = false)
     {
-        var factory = FormTestKit.Factory();
+        var factory = FormTestKit.Factory(configure: services =>
+        {
+            if (delayPost) services.AddSingleton<IStartupFilter>(new DelayPostStartupFilter());
+        });
         factory.UseKestrel(0);
         factory.StartServer();
         var address = factory.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();
-        var client = new HttpClient { BaseAddress = new Uri(address), Timeout = TimeSpan.FromMinutes(2) };
+        var timeout = TimeSpan.FromMinutes(2);
+        // Wait for the server's header decision for the whole request budget. The
+        // default one-second wait can start a 26 MiB upload into a closing socket
+        // on a loaded runner, hiding the intended 413 behind a broken pipe.
+        var client = new HttpClient(new SocketsHttpHandler { Expect100ContinueTimeout = timeout })
+        {
+            BaseAddress = new Uri(address),
+            Timeout = timeout,
+        };
         client.DefaultRequestHeaders.Add("X-Forwarded-For", FormTestKit.Visitor);
         return (client, factory);
+    }
+
+    private sealed class DelayPostStartupFilter : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use(async (context, following) =>
+            {
+                // Reproduce a loaded runner taking longer than HttpClient's default
+                // one-second Expect: 100-continue wait, without reading the request.
+                if (HttpMethods.IsPost(context.Request.Method))
+                    await Task.Delay(TimeSpan.FromMilliseconds(1500), context.RequestAborted);
+                await following(context);
+            });
+            next(app);
+        };
+    }
+
+    private sealed class HeadersOnlyOversizedContent : HttpContent
+    {
+        public bool Serialized { get; private set; }
+        public HeadersOnlyOversizedContent() => Headers.ContentType = MediaTypeHeaderValue.Parse("multipart/form-data; boundary=test");
+        protected override bool TryComputeLength(out long length) { length = IntakeLimits.FormBodyBytes + 1; return true; }
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+        {
+            Serialized = true;
+            throw new InvalidOperationException("The oversized body must not be sent before the server rejects its headers.");
+        }
+    }
+
+    [Fact(Timeout = 10_000)]
+    public async Task A_delayed_header_rejection_does_not_start_streaming_the_oversized_body()
+    {
+        var (client, factory) = Kestrel(delayPost: true);
+        using var clientLifetime = client;
+        await using var factoryLifetime = factory;
+        await FormTestKit.TokenAsync(client, FormTestKit.Path, TestContext.Current.CancellationToken);
+        var apiCalls = factory.Api.Requests.Count;
+        using var content = new HeadersOnlyOversizedContent();
+        using var request = new HttpRequestMessage(HttpMethod.Post, FormTestKit.Path) { Content = content };
+        request.Headers.ExpectContinue = true;
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
+        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldBe(ProblemCopy.PayloadTooLarge);
+        content.Serialized.ShouldBeFalse();
+        factory.Api.Requests.Count.ShouldBe(apiCalls);
     }
 
     private static HttpRequestMessage Post(string token, int fileBytes, bool expectContinue)
