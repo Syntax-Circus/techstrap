@@ -284,6 +284,11 @@ inventory, not the URLs.
     one-time reveal.
   - **Authorization:** Admin for management; the product list is Agent-readable
     for filters (D-022).
+- **PHASE-11h amendment (2026-10-16, in progress):** product branding includes structured **Appearance** controls for every optional skin token, per-field inherit/reset, remove skin and isolated unsaved live preview through `SkinResolver`. Advanced **Skin (JSON)** remains with explicit **Apply JSON**. Keep validation errors, product drafts, save/concurrency failures and navigation behavior intact; use the existing font/preset grammar and contrast rules.
+- **Screen/route:** Portal appearance `/settings/appearance` (PHASE-11h)
+  - **Purpose:** choose the deployment default pack: Classic, Slate, Paper, Contrast or Midnight.
+  - **Data/state:** existing versioned `GET/PUT api/settings/site`; loading, error, dirty and conflict states preserve the unsaved choice. This is separate from the agent's browser theme preference.
+  - **Authorization:** Admin; no settings request before access is established.
 - **Screen/route:** Agents `/settings/agents`
   - **Purpose:** see who has access and what role they have.
   - **Primary actions:** deactivate/reactivate; the role is a read-only badge with the note "Roles come from your identity provider's groups." (D-029, D-041).

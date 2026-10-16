@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using TechStrap.Admin.Clients;
+using TechStrap.Admin.Features.Appearance;
 using TechStrap.Contracts.Branding;
 using TechStrap.Contracts.Products;
 using TechStrap.Contracts.Skins;
@@ -48,7 +49,9 @@ internal sealed partial class ProductEditorViewModel
     public string Tagline { get; set; } = string.Empty;
 
     /// <summary>The skin as the agent edits it: indented JSON, or empty when the product has none.</summary>
-    public string SkinJson { get; set; } = string.Empty;
+    public ProductSkinDraft Appearance { get; } = new();
+
+    public string SkinJson { get => Appearance.Json; set => Appearance.Load(value); }
 
     /// <summary>The skin text the product was loaded with. Text that still equals it sends no skin (unchanged).</summary>
     public string OriginalSkinJson { get; set; } = string.Empty;
@@ -125,6 +128,8 @@ internal sealed partial class ProductEditorViewModel
 
     private string? CheckSkin()
     {
+        if (Appearance.HasUnappliedJson) return Appearance.Problem();
+
         // Unchanged text is never checked here (the Api reads leniently and an untouched field sends no skin), so a stored skin that a stricter rule now refuses cannot block an unrelated save.
         if (string.IsNullOrWhiteSpace(SkinJson) || string.Equals(SkinJson, OriginalSkinJson, StringComparison.Ordinal))
         {
@@ -137,7 +142,7 @@ internal sealed partial class ProductEditorViewModel
         }
 
         var problem = skin is null ? null : SkinRules.Validate(skin).FirstOrDefault();
-        return problem is null ? null : ProductsCopy.SkinTokenInvalid(problem.Target);
+        return problem is null ? Appearance.Problem() : ProductsCopy.SkinTokenInvalid(problem.Target);
     }
 
     private ProductBrandingRequest ToBranding() =>

@@ -1,0 +1,42 @@
+<PageTitle>Site appearance</PageTitle>
+<div class="ts-settings ts-appearance-settings">
+    <h1>Site appearance</h1>
+    <p>The default theme applies to portals that inherit it. Product appearance overrides stay in place.</p>
+    @if (_loading && _saved is null)
+    {
+        <LoadingState Rows="3" Label="Loading appearance settings" />
+    }
+    @if (_error is not null)
+    {
+        <p class="ts-form-error" role="alert">@_error</p>
+        <button type="button" class="btn btn-outline-secondary" disabled="@(_busy || _loading)" @onclick="RequestReload">Reload saved settings</button>
+    }
+    @if (_saved is not null)
+    {
+        <form class="ts-form" @onsubmit="SaveAsync" @onsubmit:preventDefault>
+            <fieldset disabled="@(_busy || _loading)">
+                <div class="ts-field">
+                    <label for="site-default-pack" class="form-label">Default portal theme</label>
+                    <select id="site-default-pack" class="form-select" value="@_pack" @onchange="OnPackChanged" aria-describedby="site-pack-help">
+                        @foreach (var pack in SkinPacks.All)
+                        {
+                            <option value="@pack.Key">@pack.Name</option>
+                        }
+                    </select>
+                    <p id="site-pack-help" class="ts-field-help">Preview changes before saving. Public portals may take up to five minutes to refresh after a save.</p>
+                </div>
+            </fieldset>
+            <PortalAppearancePreview DefaultPack="@_pack" />
+            <div class="ts-form-actions">
+                <button type="submit" class="btn btn-primary" disabled="@(!CanSave)">@(_busy ? "Saving..." : "Save default theme")</button>
+                @if (Dirty) { <span class="ts-dirty">Unsaved changes</span> }
+                <button type="button" class="btn btn-outline-secondary" disabled="@(_busy || _loading)" @onclick="RequestReload">Reload saved settings</button>
+            </div>
+        </form>
+    }
+    <p role="status">@_notice</p>
+</div>
+<NavigationLock ConfirmExternalNavigation="@Dirty" OnBeforeInternalNavigation="OnBeforeNavigation" />
+<ConfirmDialog Open="@(_reloadConfirm || _leaveConfirm)" Title="Discard unsaved appearance changes?" ConfirmLabel="Discard changes" Danger="true" OnConfirm="ConfirmDiscardAsync" OnCancel="CancelDiscard">
+    <p>Your unsaved theme choice will be discarded.</p>
+</ConfirmDialog>

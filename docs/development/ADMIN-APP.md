@@ -89,7 +89,7 @@ package: it logs the request's `PathAndQuery` on an unauthenticated call, which 
 | Mark as spam, Not spam | yes | yes |
 | Delete a ticket, erase a requester | no (not rendered) | yes, with a typed confirmation |
 | My settings (email alerts, keyboard shortcuts, theme, public display name) | yes | yes |
-| Products, branding, API keys | no (page-level no-access) | yes |
+| Products, branding, Portal appearance, API keys | no (page-level no-access) | yes |
 | Agents: see the list, activate, deactivate | no | yes |
 | Tags: create, rename, recolor, delete | no | yes |
 | Audit log, failed emails (retry, discard) | no | yes |
@@ -443,3 +443,11 @@ The automated end-to-end test (`AdminLiveClientHostTests`) runs the Worker's aut
 - A live change that arrives while the page is reloading is not lost: the banner stays, but a reload that fails keeps the banner too.
 - A change made before the live connection is first established (on either page), or while a ticket's first load runs, raises no banner (on the ticket a send still gets the 409; the queue shows it at the next refresh).
 - When the hub refuses the connection for good (it closes it with no reconnect allowed), the indicator stays "Offline" until the page is reloaded; the client does not restart on its own yet.
+
+## Portal appearance (PHASE-11h, in progress)
+
+The Admin-only `/settings/appearance` page selects Classic, Slate, Paper, Contrast or Midnight through the existing versioned `GET/PUT api/settings/site` API. A stale save reports the conflict and retains the draft; loading and failures must leave a recoverable page. This Portal default is separate from the agent's browser theme preference.
+
+The product editor's structured Appearance controls cover every optional `ProductSkin` field, with inheritance/reset per field and removal of the entire skin. **Skin (JSON)** stays available with explicit **Apply JSON**; unapplied or invalid JSON must not replace the structured draft. A local, isolated preview uses `SkinResolver` with the existing fonts, preset grammar and contrast rules, without saving or styling the Admin shell. Save, validation, concurrency and navigation behavior must preserve product drafts and errors. No new API, migration, raw CSS or CSP change is part of this phase.
+
+Reuse [the existing dragon-poop sample and grammar](../skins/README.md) when checking the editor. Automated verification and owner manual checks are not closed by this documentation update.

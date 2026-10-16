@@ -9,7 +9,7 @@ Give the public Portal a look that is not bland by default and can match each pr
 - Skins are **structured tokens**, never raw CSS. A token model is validated against the sibling repo `dragon-poop`, whose skin is deliberately creative, to find holes early.
 - Emails take colors only (the accent and the chrome color); no web fonts or CSS.
 
-Delivery is two pull requests. **11g (this phase)**: the token model, the five packs, storage, the Api, the Portal rendering, emails, docs. **11h**: the Admin site-settings page, the product Appearance editor with live preview, and the dragon-poop validation skin. D-053 records the decision.
+Delivery is two pull requests. **11g (this phase)**: the token model, the five packs, storage, the Api, the Portal rendering, emails, docs. **11h**: the Admin site-settings page, the product Appearance editor with live preview, and validation of the existing dragon-poop sample through that editor. The sample already shipped in 11g. See [PHASE-11h](PHASE-11h-appearance-editor.md); D-053 records the decision.
 
 ## Dependencies
 

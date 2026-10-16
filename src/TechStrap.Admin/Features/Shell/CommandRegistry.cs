@@ -59,6 +59,7 @@ public sealed class CommandRegistry(NavigationManager navigation)
         yield return new PaletteCommand("go-features", "Features", PaletteCopy.GoToGroup, () => Go("/features"));
         yield return new PaletteCommand("go-my-settings", ShellCopy.MySettingsLink, PaletteCopy.GoToGroup, () => Go("/account/notifications"));
         yield return new PaletteCommand("go-products", ShellCopy.ProductsLink, PaletteCopy.AdminGroup, () => Go("/settings/products"), AdminOnly: true);
+        yield return new PaletteCommand("go-appearance", ShellCopy.AppearanceLink, PaletteCopy.AdminGroup, () => Go("/settings/appearance"), AdminOnly: true);
         yield return new PaletteCommand("go-agents", ShellCopy.AgentsLink, PaletteCopy.AdminGroup, () => Go("/settings/agents"), AdminOnly: true);
         yield return new PaletteCommand("go-tags", ShellCopy.TagsLink, PaletteCopy.AdminGroup, () => Go("/settings/tags"), AdminOnly: true);
         yield return new PaletteCommand("go-audit", ShellCopy.AuditLink, PaletteCopy.AdminGroup, () => Go("/settings/audit"), AdminOnly: true);

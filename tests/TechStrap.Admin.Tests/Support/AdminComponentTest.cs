@@ -1,3 +1,4 @@
+using NSubstitute;
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
@@ -18,6 +19,9 @@ public abstract class AdminComponentTest : BunitContext
         DefaultWaitTimeout = TimeSpan.FromSeconds(10);
         Time = new FakeTimeProvider(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
         Services.AddShell();
+        var appearance = NSubstitute.Substitute.For<TechStrap.Admin.Clients.IAppearanceSettingsClient>();
+        appearance.GetAsync(NSubstitute.Arg.Any<CancellationToken>()).Returns(SyntaxCircus.Common.Result<TechStrap.Contracts.Settings.SiteSettingsDto>.Success(new("classic", 1)));
+        Services.AddSingleton(appearance);
         Services.AddSingleton<TimeProvider>(Time);
 
         // Every component that draws live state asks for the client; this one never touches a hub. A test raises its events and reads what the components called.

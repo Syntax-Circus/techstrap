@@ -126,7 +126,7 @@ public sealed class CommandPaletteTests : AdminComponentTest
 
         Options(cut).ShouldContain("Products");
         Options(cut).ShouldContain("Failed emails");
-        Options(cut).Count.ShouldBe(15);
+        Options(cut).Count.ShouldBe(16);
         cut.FindAll(".ts-palette-group").Select(g => g.TextContent).Distinct().ShouldBe(["Go to", "Admin"]);
     }
 

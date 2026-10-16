@@ -1,3 +1,4 @@
+<NavigationLock ConfirmExternalNavigation="@_dirty" OnBeforeInternalNavigation="OnBeforeNavigationAsync" />
 <PageTitle>@Title &middot; Products</PageTitle>
 <div class="ts-settings ts-product-editor">
     <p class="ts-settings-back"><a href="/settings/products">&larr; @ProductsCopy.BackToProducts</a></p>
@@ -73,20 +74,16 @@
                 @Field("ts-product-reply", ProductsCopy.ReplyToLabel, ApiFields.ReplyTo, _model.ReplyTo, v => _model.ReplyTo = v, null, "email")
                 @Field("ts-product-host", ProductsCopy.PortalHostLabel, ApiFields.PortalHost, _model.PortalHost, v => _model.PortalHost = v, ProductsCopy.PortalHostHelp)
 
-                <details class="ts-product-skin" open="@(_errors.ContainsKey(ApiFields.Skin) || _model.OriginalSkinJson.Length > 0)">
-                    <summary>@ProductsCopy.SkinHeading</summary>
-                    <div class="ts-field">
-                        <label for="ts-product-skin" class="form-label">@ProductsCopy.SkinLabel</label>
-                        <textarea id="ts-product-skin" class="form-control font-monospace @(_errors.ContainsKey(ApiFields.Skin) ? "is-invalid" : null)" rows="12" spellcheck="false" autocomplete="off"
-                                  aria-invalid="@(_errors.ContainsKey(ApiFields.Skin) ? "true" : null)" aria-describedby="@(_errors.ContainsKey(ApiFields.Skin) ? "ts-product-skin-error" : "ts-product-skin-help")"
-                                  value="@_model.SkinJson" @oninput="e => OnInput(v => _model.SkinJson = v, e)" @onblur="() => CheckField(ApiFields.Skin)"></textarea>
-                        <p id="ts-product-skin-help" class="ts-field-help">@ProductsCopy.SkinHelp</p>
-                        @if (_errors.TryGetValue(ApiFields.Skin, out var skinError))
-                        {
-                            <p id="ts-product-skin-error" class="ts-field-error" role="alert">@skinError</p>
-                        }
-                    </div>
-                </details>
+                <TechStrap.Admin.Features.Appearance.ProductSkinEditor Draft="@_model.Appearance" OnChanged="OnAppearanceChanged" Error="@(_errors.GetValueOrDefault(ApiFields.Skin))" />
+                @if (_defaultPack is null)
+                {
+                    <p role="status">The deployment default is unavailable; effective inherited appearance and contrast are unknown.</p>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="LoadDefaultPackAsync">Retry appearance default</button>
+                }
+                @if (_defaultPack is not null || TechStrap.Contracts.Skins.SkinPacks.IsKnown(_model.Appearance.Skin?.Pack))
+                {
+                    <TechStrap.Admin.Features.Appearance.PortalAppearancePreview Skin="@_model.Appearance.Skin" DefaultPack="@(_defaultPack ?? "classic")" AccentColour="@_model.AccentColour" DisplayName="@_model.DisplayName" />
+                }
 
                 <div class="form-check ts-product-listed">
                     <input id="ts-product-listed" class="form-check-input" type="checkbox" checked="@_model.ListedOnLanding" @onchange="OnListedChanged" />
@@ -143,3 +140,7 @@
         }
     </div>;
 }
+
+<ConfirmDialog Open="@(_leaveTarget is not null)" Title="Leave unsaved product changes?" ConfirmLabel="Leave page" OnConfirm="Leave" OnCancel="() => _leaveTarget = null">
+    <p>Your unsaved product and appearance changes will be lost.</p>
+</ConfirmDialog>
