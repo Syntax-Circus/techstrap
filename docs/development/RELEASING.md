@@ -68,6 +68,12 @@ If you re-run a failed `publish` job, the push skips packages that are already o
 
 `ci.yml` sets up the SDK with `dotnet-version: 10.0.x`, while `publish-nuget.yml` uses `global.json`. That is intended: the publish workflow pins the SDK that builds the released packages.
 
+## CI performance
+
+CI builds/tests and Docker builds/scans run on separate runners in parallel. Check that both jobs pass before merging; the Docker job does not push images. The manual compose smoke test still waits for build/test success, and NuGet publishing still waits for successful packing and tests.
+
+The CI and NuGet packing jobs cache the NuGet global packages folder through `actions/setup-dotnet`. TechStrap has no package lockfiles, so the cache key hashes `global.json`, project/props/targets files, the tool manifest and any NuGet configuration files. Restore still runs on every build. The vulnerability audit uses `--no-restore` after the explicit restore; it still queries vulnerability data and fails on findings or audit problems.
+
 ## Image platforms
 
 The published images are `linux/amd64` only (owner decision 2026-10-09, recorded under D-051). Until `v0.2.1` the release built arm64 as well, under QEMU; that needed the QEMU and BuildKit images from Docker Hub, pulled anonymously, and GitHub's shared runners exhaust Docker Hub's anonymous pull limit (`v0.2.1` failed three times with `toomanyrequests` before building anything). Both workflows now use the Docker daemon's own BuildKit (`driver: docker`) and pull nothing from Docker Hub; the base images come from `mcr.microsoft.com`. `Build-TechStrapDocker.ps1` can still build arm64 locally (`-Platforms linux/amd64,linux/arm64`). If arm64 images are wanted again, build them on GitHub's native arm64 runners (free for public repositories) and merge the manifests; do not reintroduce QEMU.

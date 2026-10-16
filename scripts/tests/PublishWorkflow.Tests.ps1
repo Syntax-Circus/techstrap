@@ -153,7 +153,7 @@ Describe 'CI scans (PHASE-12a)' {
     }
 
     It 'ci.yml fails the build on a vulnerable direct or transitive package' {
-        $script:Ci | Should -Match ([regex]::Escape('dotnet list TechStrap.slnx package --vulnerable --include-transitive --format json'))
+        $script:Ci | Should -Match ([regex]::Escape('dotnet list TechStrap.slnx package --vulnerable --include-transitive --format json --no-restore'))
         $script:Ci | Should -Match 'jq -e'
     }
 

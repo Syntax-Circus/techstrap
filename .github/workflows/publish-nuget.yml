@@ -43,6 +43,15 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+          cache: true
+          # Same restore inputs/cache as CI; no package lockfiles are required.
+          cache-dependency-path: |
+            global.json
+            **/*.props
+            **/*.targets
+            **/*.csproj
+            .config/dotnet-tools.json
+            **/[Nn]u[Gg]et.[Cc]onfig
 
       - name: Version from the tag
         id: version
