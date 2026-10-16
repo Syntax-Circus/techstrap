@@ -62,7 +62,7 @@ Describe 'publish-nuget.yml' {
     }
 
     It 'pack: the Build step stamps the assembly versions from the tag' {
-        $script:Pack | Should -Match 'dotnet build TechStrap\.CI\.slnf -c Release --no-restore -p:Version=\$\{\{ steps\.version\.outputs\.version \}\}'
+        $script:Pack | Should -Match 'dotnet build TechStrap\.CI\.slnf -c Release --no-restore -m:1 -p:Version=\$\{\{ steps\.version\.outputs\.version \}\}'
     }
 
     It 'publish: passes the temporary key through env and the release verifies the tag' {
@@ -141,6 +141,15 @@ Describe 'CI scans (PHASE-12a)' {
     BeforeAll {
         $script:Ci = Get-RepoText '.github/workflows/ci.yml'
         $script:Rel = Get-RepoText '.github/workflows/release.yml'
+    }
+
+    It 'serializes solution builds so host GitVersion processes do not contend for the repository mutex' {
+        foreach ($workflow in $script:Ci, (Get-RepoText '.github/workflows/publish-nuget.yml')) {
+            $builds = [regex]::Matches($workflow, '(?m)^\s*run: (dotnet build TechStrap\.CI\.slnf[^\r\n]*)$')
+            $builds.Count | Should -Be 1
+            $builds[0].Groups[1].Value | Should -Match '(?:^| )-m:1(?: |$)'
+            $builds[0].Groups[1].Value | Should -Not -Match 'DisableGitVersionTask'
+        }
     }
 
     It 'ci.yml fails the build on a vulnerable direct or transitive package' {
