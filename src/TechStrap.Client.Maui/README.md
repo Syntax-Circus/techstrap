@@ -92,8 +92,24 @@ To redact a value, set `DeviceContextOptions.Redact`, a `Func<string, string, st
 
 ## Compatibility
 
-Targets plain `net10.0` and depends on `Microsoft.Maui.Essentials`, not on the MAUI workload. Consumers need MAUI >= 10.0.0. The package is AOT-compatible. There is no screenshot and no attachment until a later release.
+Targets plain `net10.0` and depends on `Microsoft.Maui.Essentials`, not on the MAUI workload. Consumers need MAUI >= 10.0.0. The package is AOT-compatible. PHASE-11d adds attachments; the app owns picking and screenshot capture. Actual opening uses the platform implementation in your MAUI app.
 
 More: https://github.com/Syntax-Circus/techstrap/blob/main/docs/development/CLIENT-SDK.md
 
 Source and issues: https://github.com/Syntax-Circus/techstrap
+
+## Selected files
+
+```csharp
+var attachment = selectedFile.ToTicketAttachment("text/plain");
+var draft = new MauiTicketDraft("Sync failed", "See the attached log.", "user@example.com")
+{
+    IdempotencyKey = submissionKey,
+    Attachments = new[] { attachment },
+};
+var result = await submitter.SubmitAsync(draft, ct);
+```
+
+`selectedFile` is your app's `Microsoft.Maui.Storage.FileResult`. Explicit MIME type is optional when the selection provides one. Keep the selection accessible and unchanged during retries; every attempt calls `OpenReadAsync` and the SDK disposes its stream. If access expires, select again and retry with the same key. The app owns permissions, picking and capture; nothing is captured automatically. Files are independent of device-metadata redaction.
+
+Requires an attachment-capable server (PHASE-11d). Limits and errors match TechStrap.Client. `MauiTicketDraft.Attachments` is an optional init property, preserving existing constructor and deconstruction signatures. Portable tests cover adaptation and forwarding; verify actual opening on supported devices.

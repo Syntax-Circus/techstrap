@@ -1,6 +1,6 @@
 # PHASE-11h: Admin appearance editor
 
-**Status:** Complete pending merge (2026-10-16). Builds on D-053 and PHASE-11g, merged in PR #33. This phase does not block PHASE-12c.
+**Status:** Complete, merged in PR #38 (2026-10-16). Builds on D-053 and PHASE-11g, merged in PR #33. This phase does not block PHASE-12c.
 
 ## Objective and boundaries
 
@@ -19,6 +19,6 @@ The advanced JSON editor remains available with an explicit **Apply JSON** actio
 
 ## Validation and remaining work
 
-Verification on 2026-10-16: the Release CI solution build passed with zero warnings/errors; all 8,686 .NET tests and 518 script tests passed. EF reported no pending model changes. Independent code review found no important or critical issues. Coverage includes Admin authorization, versioned/uncertain writes, failed reload and draft preservation, internal navigation confirmation, every product field, explicit JSON application, safe preview fallbacks, CSS isolation and local fonts. The code is complete pending merge; browser UAT remains part of the owner checks below. The existing dragon-poop sample was delivered in 11g; this phase reuses it to validate editing and preview, rather than introducing a new skin. Its documented gaps remain in [the skins guide](../skins/README.md).
+Verification on 2026-10-16: the Release CI solution build passed with zero warnings/errors; all 8,686 .NET tests and 518 script tests passed. EF reported no pending model changes. Independent code review found no important or critical issues. Coverage includes Admin authorization, versioned/uncertain writes, failed reload and draft preservation, internal navigation confirmation, every product field, explicit JSON application, safe preview fallbacks, CSS isolation and local fonts. The code is merged in PR #38; browser UAT remains part of the owner checks below. The existing dragon-poop sample was delivered in 11g; this phase reuses it to validate editing and preview, rather than introducing a new skin. Its documented gaps remain in [the skins guide](../skins/README.md).
 
-PHASE-12c UAT and hardening, owner manual checks, release/tag work and SDK attachment work are separate and remain open. SDK attachments are deferred to 11d, with API-key multipart intake required first.
+PHASE-12c UAT and hardening, owner manual checks, release/tag work and SDK attachment work are separate and remain open. SDK attachments are implemented separately in PHASE-11d (D-055).

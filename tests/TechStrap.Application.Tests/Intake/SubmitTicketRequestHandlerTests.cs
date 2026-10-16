@@ -594,6 +594,37 @@ public sealed class SubmitTicketRequestHandlerTests
     }
 
     [Fact]
+    public async Task A_keyed_duplicate_with_files_replays_the_winner_without_rereading_files()
+    {
+        _unitOfWork = UnitOfWorkSubstitute.Create(UnitOfWorkSubstitute.Conflict("duplicate"), Result.Success());
+        var ticket = ExistingTicket();
+        var stored = JsonSerializer.Serialize(new SubmitTicketResponse("ORB-7", null, []), Json);
+        var winner = new IntakeIdempotencyEntry(Guid.CreateVersion7(), _apiKeyId, ticket.Id, stored, _clock.GetUtcNow());
+        _idempotency.FindAsync(_apiKeyId, "race", Arg.Any<CancellationToken>())
+            .Returns((IntakeIdempotencyEntry?)null, winner);
+        _tickets.GetByIdAsync(ticket.Id, Arg.Any<CancellationToken>()).Returns(ticket);
+
+        var result = await Handler().HandleAsync(Request(), ApiContext(idempotencyKey: "race", files: [File("a.png")]), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.TicketNumber.ShouldBe("ORB-7");
+        await _unitOfWork.Received(2).BeginAsync(Arg.Any<CancellationToken>());
+        await _attachments.Received(1).SaveAsync(Arg.Any<Guid>(), Arg.Any<IncomingAttachment>(), Arg.Any<CancellationToken>());
+        await _attachments.Received(1).DeleteAsync("attachments/x/a.png", Arg.Any<CancellationToken>());
+        await _planner.Received(1).PlanNewTicketAsync(Arg.Any<Ticket>(), Arg.Any<Requester>(), false, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_keyed_file_conflict_without_a_winner_returns_the_conflict_without_reuploading()
+    {
+        _unitOfWork = UnitOfWorkSubstitute.Create(UnitOfWorkSubstitute.Conflict("duplicate"));
+        var result = await Handler().HandleAsync(Request(), ApiContext(idempotencyKey: "race", files: [File("a.png")]), TestContext.Current.CancellationToken);
+        result.Errors[0].Code.ShouldBe("duplicate");
+        await _attachments.Received(1).SaveAsync(Arg.Any<Guid>(), Arg.Any<IncomingAttachment>(), Arg.Any<CancellationToken>());
+        await _attachments.Received(1).DeleteAsync("attachments/x/a.png", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task A_duplicate_conflict_with_attachments_is_not_retried()
     {
         _unitOfWork = UnitOfWorkSubstitute.Create(UnitOfWorkSubstitute.Conflict("duplicate"));

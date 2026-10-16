@@ -11,7 +11,7 @@ namespace TechStrap.Api.Startup;
 /// <summary>Request size limits for the intake endpoints.</summary>
 public static class IntakeRequestLimits
 {
-    public const long JsonBodyBytes = 256 * 1024; // text fields and metadata only (D-034: no API attachments in v1)
+    public const long JsonBodyBytes = 256 * 1024; // text fields and metadata only; files use the separate multipart route (D-055)
 
     // 25 MiB of files plus room for the text fields and multipart framing; the handler enforces the exact file limits. The Portal's forms use the same number.
     public const long FormBodyBytes = IntakeLimits.FormBodyBytes;

@@ -94,6 +94,22 @@ public sealed class SubmitTicketRequestHandler(
                 throw;
             }
 
+            if (context.Channel == IntakeChannel.Api && context.IdempotencyKey is not null && context.Attachments.Count > 0
+                && outcome.Result.IsFailure && outcome.Result.Errors[0].Code == PersistenceErrorCodes.Duplicate)
+            {
+                // The failed scope has rolled back and disposed. Look up the winner in a new
+                // transaction; never try to create again with streams that were already read.
+                await using var replayScope = await unitOfWork.BeginAsync(cancellationToken);
+                var entry = await idempotency.FindAsync(context.ApiKeyId!.Value, context.IdempotencyKey, cancellationToken);
+                if (entry is not null && entry.CreatedAt > clock.GetUtcNow() - IIntakeIdempotencyStore.Retention
+                    && await tickets.GetByIdAsync(entry.TicketId, cancellationToken) is { } original
+                    && JsonSerializer.Deserialize<SubmitTicketResponse>(entry.ResponseJson, JsonOptions) is { } response)
+                {
+                    return (await ReplayAsync(replayScope, original, product, response, cancellationToken)).Result;
+                }
+                return outcome.Result;
+            }
+
             if (outcome.RetryOnDuplicate && attempt < MaxAttempts)
             {
                 continue;

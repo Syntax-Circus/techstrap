@@ -73,6 +73,10 @@ Where this page and D-049 differ, D-049 wins.
 - **Sample and docs:** `samples/TechStrap.Client.Samples.Console` (server-side Trusted-key submit, built in CI); MAUI usage shown as a README snippet plus an optional `samples/TechStrap.Client.Samples.Maui` project built only on the macOS job (**Assumption**). Samples use project references locally and `PackageReference` against the packed artifacts in the release-verification step.
 - **Contract safety:** an integration test runs the SDK against the real API (`WebApplicationFactory` + Testcontainers) and a contract test compares the SDK's request model with the published `/openapi/v1.json` operation `POST /api/intake/tickets`.
 
+### PHASE-11d amendment (D-055, 2026-10-16)
+
+D-055 supersedes the earlier attachment deferrals: JSON intake remains, and API-key multipart intake is available at `api/intake/tickets/with-attachments`. `TicketAttachment` uses reopenable factories, with local-file and MAUI `FileResult` adapters. Apps own picking and capture. Retry statuses, total timeout, and idempotency behavior remain. See [PHASE-11d](PHASE-11d-sdk-attachments.md).
+
 ## Application Boundaries
 
 Follow _template APPLICATION_ARCHITECTURE.md. This phase adds **no server-side
@@ -138,7 +142,8 @@ Third-party: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInject
   - **Depends on:** P11-T03
   - **Validation:** Stub-handler tests: 201 -> response mapped; 400 field errors; 401/403; 413/415; 429 with `Retry-After`; 503 -> `Unavailable`; without a key the call is not retried (handler invoked once), with a key it is retried with the identical `Idempotency-Key` on every attempt; circuit breaker opens after N failures; cancellation aborts the request.
   - **As built (11a):** JSON only, no attachments; `HttpRequestResiliencePipeline` replaces `AddResilientHttpClient`; three methods (`SubmitTicketAsync` with a generated key, `SubmitTicketAsync` with the caller's key, `SubmitTicketOnceAsync`) instead of `SubmitOptions`. Host-wide `ConfigureHttpClientDefaults` handlers are removed from the SDK's named client (they would retry a call that has no key); a handler of your own goes on `TechStrapClientDefaults.HttpClientName` after `AddTechStrapClient`. A 429 maps to `rate-limited` without a retry and without `Retry-After` (no slot in `ResultError`); 500 is not retried; an exhausted 408 or a 5xx is `api-unavailable`. The circuit opens when at least half of the last 5+ calls in a 30 s window failed (the package defaults) and stays open 30 s; there is one circuit per DI container (per `TechStrapClient` singleton).
-- [ ] **P11-T05** (deferred, D-047) Add `TicketAttachment` helpers (stream, file name, content type; guard against disposed streams; pre-check size/type against Contracts limits). The SDK v1 is JSON-only; this waits for multipart intake (11d).
+- [x] **P11-T05** Add `TicketAttachment` helpers (11d, D-055): reopenable streams, filename and content type, local-file helper, count/size/extension prechecks and bounded streaming.
+  - **As built (11d):** Three attachment submission overloads preserve the JSON methods; MAUI drafts accept files and `FileResult.ToTicketAttachment` reopens selections. Signature/type checks stay server-side.
   - **Depends on:** P11-T04
   - **Validation:** Unit tests: oversize/disallowed type fail locally with the same error codes as the server without sending the request.
 - [x] **P11-T06** Create `tests/TechStrap.Client.Tests` with an integration test hosting the API (`WebApplicationFactory` + Testcontainers.PostgreSql) and a contract test against `/openapi/v1.json`

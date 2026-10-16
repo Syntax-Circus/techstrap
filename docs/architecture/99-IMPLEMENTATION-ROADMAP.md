@@ -27,18 +27,19 @@ Cross-cutting conventions every phase follows (fixed during the consistency revi
 | 08 | [Knowledge base](PHASE-08-knowledge-base.md) | 06 (07 for the editor UI) | 09 | API tasks T01 to T12 alongside 07; editor tasks wait for 07 | D-011, D-014, D-021, D-044 | PHASE-08 merged (PR #13): the API (Tasks 1-8) and the Admin (editor, categories, article picker); the owner's manual checks are open |
 | 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 | 10 and 11 alongside | D-002, D-017, D-019, D-045 | 09a merged (PR #14); 09b merged (PR #15); 09c merged (PR #16); 09d merged (PR #17); PHASE-09 complete: the owner evidence for P09-T16 (axe, Lighthouse, the JavaScript-off walk, screenshots) and the compose run of P09-T18 are open, P09-T20 is deferred |
 | 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | 08, 09, 11 alongside | D-007, D-018, D-046 | 10a merged (PR #18); 10b merged (PR #19); PHASE-10 complete: the owner's manual checks with a real identity provider (two browsers, a worker auto-close, the kill switch) are open |
-| 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | Alongside 06 to 10 | D-005, D-020, D-047, D-048, D-049 | 11a merged (PR #20); 11b merged (PR #21); 11c merged (PR #22); v0.1.0 published 2026-10-08 (PHASE-11 complete); T05 (attachments) deferred to 11d, which first needs API-key multipart intake |
+| 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | Alongside 06 to 10 | D-005, D-020, D-047, D-048, D-049 | 11a merged (PR #20); 11b merged (PR #21); 11c merged (PR #22); v0.1.0 published 2026-10-08 (PHASE-11 complete); T05 (attachments) delivered by 11d (D-055); verified locally; pending merge |
+| 11d | [SDK attachments](PHASE-11d-sdk-attachments.md) | 05, 11a, 11b | 12c | After 11c | D-055 | Implemented and verified locally; pending merge; MAUI device smoke test remains |
 | 11e | [Product hosts](PHASE-11e-product-hosts.md) | 09, 05, 04, 07 | 12 | After 11 | D-050 | 11e merged (PR #25): T01 to T07 |
 | 11f | [Landing page and product logos](PHASE-11f-landing-and-logos.md) | 09, 11e, 08, 04, 07 | 12c | After 12b, before 12c | D-052 | D-052 recorded; 11f merged (PR #32): T01 to T10 |
 | 11g | [Theme packs and skins](PHASE-11g-theme-packs.md) | 09, 11e, 11f, 04, 07 | 11h | After 11f | D-053 | D-053 recorded; 11g merged (PR #33): T01 to T09 (engine, packs, Contracts 0.4.0, interim Admin skin field); 11h is the Admin editor |
-| 11h | [Appearance editor](PHASE-11h-appearance-editor.md) | 11g, 07 | none | Alongside 12c | D-053 | Complete pending merge: Admin default pack, structured product Appearance controls, isolated live preview and advanced JSON |
+| 11h | [Appearance editor](PHASE-11h-appearance-editor.md) | 11g, 07 | none | Alongside 12c | D-053 | Complete: merged (PR #38); Admin default pack, structured product Appearance controls, isolated live preview and advanced JSON |
 | 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 (v0.3.0 per D-051; 1.0.0 is a later API-lock decision) | Last; security, load, restore and UAT tasks can overlap once their inputs exist | D-003, D-022, D-051 | D-051 recorded; 12a merged (PR #28); 12b merged (PR #29); v0.2.1 (PR #30 Admin token refresh, PR #31 amd64-only images and CI without Docker Hub); 12c UAT and hardening work remains open; 11f is merged and 11h does not block 12c |
 
 Edges: 01 to 02 and 03; 03 to 04 to 05 to 06; 05 to 11; 02 and 06 to 07; 06 and 07 to 08; 02, 06 and 08 to 09; 07 to 10; all to 12.
 
 Suggested order for one implementer: 01, 03, 04, 05, 06, 02 (any time before 07), 07, 08, 09, 10, 11, 12. With two or more implementers: 02 and 11 (after 05) run beside the backend chain, and 08 API, 09, 10 split after 07.
 
-Current follow-up status (2026-10-16): feature requests and curated product feature boards are complete and merged (PR #37; [operator guide](../development/FEATURE-REQUESTS.md)). The latest observed published release remains v0.4.2; PR #37 does not imply a new tag. PHASE-12c UAT, manual checks and release work remain open. SDK attachments stay deferred to 11d and require API-key multipart intake first.
+Current follow-up status (2026-10-16): feature requests and curated product feature boards are complete and merged (PR #37; [operator guide](../development/FEATURE-REQUESTS.md)). The latest observed published release remains v0.4.2; PR #37 does not imply a new tag. PHASE-12c UAT, manual checks and release work remain open. Appearance is merged (PR #38), and outgoing webhooks are merged (PR #39). SDK attachments are implemented in PHASE-11d (D-055), verified locally and pending merge; no tag or deployment is implied.
 
 ## 3. Task index
 
@@ -288,7 +289,7 @@ Task IDs and one-line titles from each PHASE document. Each task's dependencies 
 | P11-T02 | `TechStrap.Client` project with pack metadata |
 | P11-T03 | `TechStrapClientOptions` and `ApiKeyHandler` |
 | P11-T04 | `ITechStrapClient.SubmitTicketAsync` and DI extension with resilience |
-| P11-T05 | `TicketAttachment` helpers (deferred, D-047) |
+| P11-T05 | `TicketAttachment` helpers (11d, D-055) |
 | P11-T06 | `TechStrap.Client.Tests` with real-API integration and OpenAPI contract test |
 | P11-T07 | `TechStrap.Client.Maui` project |
 | P11-T08 | `MauiDeviceContextCollector` |

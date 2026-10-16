@@ -18,4 +18,8 @@ public sealed record MauiTicketDraft(
     string RequesterEmail,
     string? RequesterName = null,
     IReadOnlyDictionary<string, string>? Metadata = null,
-    string? IdempotencyKey = null, string? Type = null);
+    string? IdempotencyKey = null, string? Type = null)
+{
+    /// <summary>Optional files supplied by the app. Sources must reopen unchanged bytes for each retry; the SDK disposes their streams.</summary>
+    public IReadOnlyList<TicketAttachment>? Attachments { get; init; }
+}

@@ -39,6 +39,16 @@ public sealed class OpenApiContractTests
     private static JsonElement PostOperation(JsonElement root) => root.GetProperty("paths").GetProperty("/" + IntakeRoutes.Tickets).GetProperty("post");
 
     [Fact(Timeout = 60_000)]
+    public async Task Attachment_intake_documents_multipart_and_the_same_authentication_and_idempotency()
+    {
+        using var document = await GetDocumentAsync(Xunit.TestContext.Current.CancellationToken);
+        var operation = document.RootElement.GetProperty("paths").GetProperty("/" + IntakeRoutes.TicketsWithAttachments).GetProperty("post");
+        operation.GetProperty("requestBody").GetProperty("content").EnumerateObject().Select(p => p.Name).ShouldBe(["multipart/form-data"]);
+        operation.GetProperty("security").EnumerateArray().SelectMany(r => r.EnumerateObject().Select(s => s.Name)).ShouldBe(["ApiKey"]);
+        operation.GetProperty("parameters").EnumerateArray().ShouldContain(p => p.GetProperty("name").GetString() == HeaderNames.IdempotencyKey && p.GetProperty("in").GetString() == "header");
+    }
+
+    [Fact(Timeout = 60_000)]
     public async Task The_intake_post_is_secured_by_the_api_key_header()
     {
         using var document = await GetDocumentAsync(Xunit.TestContext.Current.CancellationToken);

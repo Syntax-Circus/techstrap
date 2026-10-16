@@ -3,6 +3,24 @@ namespace TechStrap.Client;
 /// <summary>Stable, machine-readable codes the client reports for a failed call. Match on these, not on message text.</summary>
 public static class TechStrapClientErrorCodes
 {
+    /// <summary>An attachment could not be opened or read locally. Its path and exception details are never returned.</summary>
+    public const string AttachmentReadFailed = "attachment-read-failed";
+
+    /// <summary>More than five attachments were supplied.</summary>
+    public const string AttachmentsTooMany = "attachments-too-many";
+    /// <summary>Attachments together exceed 25 MiB.</summary>
+    public const string AttachmentsTooLarge = "attachments-too-large";
+    /// <summary>One attachment exceeds 10 MiB.</summary>
+    public const string AttachmentTooLarge = "attachment-too-large";
+    /// <summary>An attachment type is not allowed.</summary>
+    public const string AttachmentTypeNotAllowed = "attachment-type-not-allowed";
+    /// <summary>An attachment filename is invalid.</summary>
+    public const string AttachmentNameInvalid = "attachment-name-invalid";
+    /// <summary>An attachment MIME type cannot be parsed.</summary>
+    public const string AttachmentContentTypeInvalid = "attachment-content-type-invalid";
+    /// <summary>An attachment declares a negative size.</summary>
+    public const string AttachmentSizeInvalid = "attachment-size-invalid";
+
     /// <summary>The API rejected the key (missing, unknown, revoked or not allowed for this product).</summary>
     public const string InvalidApiKey = "invalid-api-key";
 

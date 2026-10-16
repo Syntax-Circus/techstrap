@@ -9,6 +9,15 @@ namespace TechStrap.Client;
 /// </summary>
 public interface ITechStrapClient
 {
+    /// <summary>Submits attachments with a generated idempotency key and the standard retries. Use the explicit-key overload for caller retries.</summary>
+    Task<Result<SubmitTicketResponse>> SubmitTicketAsync(SubmitTicketRequest request, IReadOnlyList<TicketAttachment> attachments, CancellationToken cancellationToken = default);
+
+    /// <summary>Submits attachments with a stable caller key. Each retry reopens every source; keep their contents unchanged.</summary>
+    Task<Result<SubmitTicketResponse>> SubmitTicketAsync(SubmitTicketRequest request, IReadOnlyList<TicketAttachment> attachments, string idempotencyKey, CancellationToken cancellationToken = default);
+
+    /// <summary>Submits attachments once, without an idempotency key or retries.</summary>
+    Task<Result<SubmitTicketResponse>> SubmitTicketOnceAsync(SubmitTicketRequest request, IReadOnlyList<TicketAttachment> attachments, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Submits a ticket with a key the SDK generates for this call, and retries a transient failure (timeouts, 408, 502, 503, 504, a dropped connection), making up to <c>MaxAttempts</c> attempts in total and sending the same
     /// <c>Idempotency-Key</c> on every attempt so the API creates the ticket once. The generated key is not returned: a caller that may retry a failed submit itself must use the overload that takes its own stable key,

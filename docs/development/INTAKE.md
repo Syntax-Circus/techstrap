@@ -4,11 +4,12 @@ How a ticket gets in, and how the confirmation email gets out. Run the local sta
 `TECHSTRAP_SEED_DEV_DATA=true` in your shell so the dev product and keys exist (see [DEV-DATA.md](DEV-DATA.md)). The
 keys below are the fake dev keys, safe to paste.
 
-## The three submission routes
+## Submission routes
 
 | Route | Auth | Rate limit (defaults) | Used by |
 | --- | --- | --- | --- |
 | `POST /api/intake/tickets` (JSON) | `X-Api-Key`, trusted or public key | Trusted key: 120 per minute per key prefix and client IP. Public key: 10 per minute per key prefix and client IP | Product backends and the SDK |
+| `POST /api/intake/tickets/with-attachments` (multipart) | `X-Api-Key`, trusted or public key | Same shared key/IP allowance as JSON intake | SDK and apps with files |
 | `POST /api/public/products/{productKey}/tickets` (multipart) | None | 5 per 10 minutes per client IP | The portal contact form |
 | `GET /api/public/products/{productKey}` | None | 120 per minute per client IP | The portal, for product branding |
 
@@ -54,16 +55,28 @@ plausible ticket number, creates no ticket and sends no email (D-032). Do not fi
 
 ## Idempotency
 
-`POST /api/intake/tickets` accepts an optional `Idempotency-Key` header (up to 200 characters), scoped per API key and
+Both API-key intake routes accept an optional `Idempotency-Key` header (up to 200 characters), scoped per API key and
 kept for 24 hours. Sending the same key again returns the same ticket number with a fresh customer link, and creates no
 second ticket, message or email. The stored response never holds a link, so each reply issues a new one. The same key on a
 different API key is a separate ticket. An over-long key is a `400`.
 
 ## Attachments
 
-Web form only (API-key intake is JSON-only in v1, D-034). At most 5 files, 10 MiB per file, 25 MiB per message. Allowed:
+Web forms and API-key multipart intake (D-055). At most 5 files, 10 MiB per file, 25 MiB per message. Allowed:
 PNG, JPEG, GIF, WebP, PDF, plain text, `.log`, CSV and ZIP. Each file must match both its declared type and its leading
 bytes; the stored content type is the canonical one for the matched kind. A disallowed file is a `400`, an oversize body a `413`.
+
+API-key multipart uses the same text fields as `SubmitTicketRequest`: `email`, `name`, `subject`, `body`, `externalUserRef`, `type`, plus `metadata` as a JSON object with string values. Omit absent optional fields; malformed metadata returns `400 metadata-invalid`. Attach files under repeated `attachments` parts. Responses include the private customer link, just like JSON intake.
+
+```bash
+curl -s -X POST http://localhost:8080/api/intake/tickets/with-attachments \
+  -H "X-Api-Key: tsk_devOrbitlyServerKeyNotASecret00000000000000" \
+  -H "Idempotency-Key: upload-example-1" \
+  -F email=ann@example.com -F subject=Help -F body='Please see the log' \
+  -F 'metadata={"screen":"checkout"}' -F attachments=@trace.log
+```
+
+Both API-key routes share one idempotency namespace. Reusing a key returns the first ticket even if the format or files differ; it never appends files. Keep files unchanged during retries. Concurrent duplicate uploads clean up the losing attempt and replay the winner without rereading consumed streams. Authentication precedes multipart validation. Requests above 26 MiB receive 413; file limits are checked separately.
 
 ## Mailpit and the smoke script
 

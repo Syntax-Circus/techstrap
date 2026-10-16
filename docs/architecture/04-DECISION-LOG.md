@@ -2357,3 +2357,14 @@ After the first UAT deploy the owner found the Portal bland even as a default an
 - **Privacy/security:** Summary-only payloads, optional authenticated admin links, public HTTPS destinations with connection-time DNS validation, no redirects or URL-bearing HTTP diagnostics. Configuration reads mask URL secrets. Ticket deletion cascades webhook snapshots and requester erasure deletes them. Status and claim tokens protect delivery state transitions.
 - **Operations:** Five attempts with exponential backoff and server retry delays, dead-letter retry/discard, finished-row retention through existing `OutboxRetention`, admin-only history/test/settings APIs, and auditing without endpoint secrets. No historical backfill or custom payload templates.
 - **Related artifacts:** `docs/development/WEBHOOKS.md`, `docs/superpowers/plans/2026-10-16-webhooks.md`. Approved through the webhook design and implementation request in this session.
+
+## D-055: PHASE-11d API-key and SDK attachments
+
+- **Date:** 2026-10-16
+- **Decision:** Add `POST api/intake/tickets/with-attachments` for API-key multipart submissions, preserving JSON intake and its size limit. This supersedes D-034/D-047's attachment deferral. Reuse the existing handler, storage, permissions, rate-limit partition and API-key idempotency namespace; no migration.
+- **Wire format:** Text fields match `SubmitTicketRequest`; `metadata` is a JSON object with string values; files repeat the `attachments` part. Existing response, file limits and authoritative signature validation apply.
+- **SDK:** `TicketAttachment` belongs in Client, with a factory returning a fresh stream at the beginning on each attempt, optional known length and a local-file helper. The SDK owns streams, bounds actual bytes and preserves its timeout/retry/cancellation rules. Local source failures return fixed errors without paths or automatic retries.
+- **Replay:** Concurrent duplicate uploads clean up the losing files and replay a committed winner in a fresh transaction, never recreating from consumed streams. The same idempotency key across formats identifies one submission, even if its payload changes.
+- **MAUI:** Add an optional init property on the existing draft and a `FileResult` adapter. Apps own picking, screenshot capture and permissions; retain plain net10.0 and existing dependencies.
+- **Compatibility:** Existing JSON methods and draft positional signatures remain. Deploy the new server before attachment calls; no silent file-dropping fallback. Adding interface methods requires custom `ITechStrapClient` implementations to implement them. No release tag, deployment or 1.0 API lock is implied.
+- **Approval:** Owner selected SDK attachments, file support plus MAUI adapter, and a separate multipart route, then requested implementation of the proposed plan in this conversation.

@@ -23,7 +23,7 @@ inherits no `Microsoft.AspNetCore.App` framework reference. The set of dependenc
 
 Stability: `v1.0.0` locks the SDK-facing surface of `TechStrap.Contracts`: the `TechStrap.Contracts.Intake` namespace (`SubmitTicketRequest`, `SubmitTicketResponse`, `IntakeLimits`, `IntakeRoutes`, `IntakeWarnings`, `TicketMetadataKeys`) and `TechStrap.Contracts.Http.HeaderNames`. The other namespaces (Admin, Agents, ApiKeys, Kb, Live, AdminEvents, Tickets and so on) are TechStrap's own app wire shapes, shared with its Admin and Portal, and may change in minor versions.
 
-The submit takes JSON only. There is no attachment type: the intake endpoint is JSON-only (D-034), and attachments wait for multipart intake (11d).
+Attachment-free submissions use JSON. PHASE-11d (D-055) adds `TicketAttachment` and attachment overloads using separate API-key multipart intake; existing JSON methods remain unchanged. See the Client README for examples and stream ownership.
 
 ## Local pack
 
@@ -298,7 +298,15 @@ dotnet test --project tests/TechStrap.Client.Maui.Tests -c Release
 - A field that fails to read is skipped silently (the package does no logging).
 - A caller who retries a failed submit must supply a stable `IdempotencyKey`, or a retry can create a second ticket.
 - On iOS, display values may be missing when `SubmitAsync` runs off the UI thread (the UIKit thread check). `IncludeDisplay` is opt-in and a failure never crashes.
-- No screenshot and no attachments until 11d, which first needs multipart intake.
+- Apps own screenshot capture and file picking. Adapt a selected `FileResult` with `ToTicketAttachment`; actual platform opening needs a MAUI app/device smoke test because portable Essentials has no implementation.
 - No platform target frameworks. Platform-specific code would need them later; adding them is non-breaking.
 - `MainDisplayInfo` is read per field, so a rotation between reads can mix values.
 - Metadata from a Public key is untrusted on the server (D-001).
+
+## Attachment transport (PHASE-11d, D-055)
+
+`TicketAttachment` is in Client, not Contracts: filename, MIME type, optional length and a cancellation-aware factory returning a fresh stream per attempt. `FromFile` reopens a local file; the SDK owns each returned stream. Never return a shared stream; keep bytes unchanged across retries. Nonseekable streams and unknown lengths work; bytes are bounded during upload. Counts, extensions and known sizes are checked before opening files. Signature checks stay authoritative on the server.
+
+The three attachment overloads mirror generated-key, caller-key and send-once behavior. Empty lists use JSON; files use `IntakeRoutes.TicketsWithAttachments`, multipart text fields and JSON-encoded metadata. Every attempt has fresh content and a fresh byte budget. Local source open/read/close failures return `attachment-read-failed`, with no paths and no automatic retry. Network failures retain existing retries; caller cancellation propagates. The existing total timeout covers opening, reading, sending and delays. Failed creation can be uncertain: retry with the same idempotency key.
+
+Deploy a server containing PHASE-11d before enabling attachments. An older server can return 404/405 or a fallback authorization response; the SDK returns failure and never drops files as a fallback. Packages remain 0.x and use the existing tag workflow; this change publishes no tag.
