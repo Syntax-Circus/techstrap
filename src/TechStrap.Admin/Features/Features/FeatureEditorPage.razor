@@ -1,0 +1,59 @@
+@page "/features/new"
+@page "/features/{Id:guid}"
+@attribute [Authorize]
+@implements IDisposable
+@inject IFeaturesClient Features
+@inject IProductsClient Products
+@inject NavigationManager Navigation
+
+<PageTitle>@(_feature?.Title ?? "New feature")</PageTitle>
+<div class="ts-settings">
+    <div class="ts-settings-head"><h1>@(_feature is null ? "New feature" : "Edit feature")</h1><a href="/features">All features</a></div>
+    <p>Only the title, description, and progress below are public when published. Linked tickets and conversations stay private.</p>
+    @if (_loading) { <LoadingState Rows="5" Label="Loading feature" /> }
+    else
+    {
+        @if (_error is not null) { <p role="alert">@_error</p> }
+        @if (_notice is not null) { <p role="status">@_notice</p> }
+        <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="LoadAsync">Reload saved feature</button>
+        @if (Id is null || _feature is not null)
+        {
+            <form class="ts-form ts-kb-form" @onsubmit="SaveAsync" @onsubmit:preventDefault>
+                <fieldset disabled="@(_busy || _held)">
+                    @if (Id is null)
+                    {
+                        <div class="ts-field"><label for="feature-product">Product</label><select id="feature-product" class="form-select" required @bind="_product"><option value="">Choose a product</option>@foreach (var product in _products) { <option value="@product.Id">@product.Name</option> }</select></div>
+                        <div class="ts-field"><label for="feature-slug">Permanent URL slug</label><input id="feature-slug" class="form-control" required maxlength="120" pattern="[a-z0-9]+(-[a-z0-9]+)*" @bind="_slug" /></div>
+                    }
+                    else
+                    {
+                        <dl class="ts-readonly"><dt>Product</dt><dd>@(_products.FirstOrDefault(p => p.Id == _feature!.ProductId)?.Name ?? "Product unavailable")</dd><dt>Slug</dt><dd>@_feature!.Slug</dd><dt>Publication</dt><dd>@_feature!.PublicationState</dd></dl>
+                    }
+                    <div class="ts-field"><label for="feature-title">Public title</label><input id="feature-title" class="form-control" required maxlength="200" @bind="_title" /></div>
+                    <MarkdownEditor Id="feature-description" Value="_description" ValueChanged="SetDescription" Disabled="@(_busy || _held)" OnTooComplex="SetTooComplex" OnUploadingChanged="SetUploading" UploadScope="_epoch" />
+                    @if (_feature is not null)
+                    {
+                        <div class="ts-field"><label for="feature-progress">Public progress</label><select id="feature-progress" class="form-select" @bind="_progress">@foreach (var status in FeatureProgressStatuses.All) { <option value="@status">@FeatureCopy.Progress(status)</option> }</select></div>
+                    }
+                </fieldset>
+                <div class="ts-form-actions">
+                    <button type="submit" class="btn btn-primary" disabled="@(_busy || _held || _tooComplex || _uploading || (Id is not null && !Dirty))">@(Id is null ? "Save draft" : "Save changes")</button>
+                    @if (_feature is not null)
+                    {
+                        <button type="button" data-action="publication" class="btn btn-outline-secondary" disabled="@(_busy || _held || Dirty || _tooComplex || _uploading)" @onclick="ChangePublicationAsync">@(_feature.PublicationState == FeaturePublicationStates.Published ? "Unpublish" : "Publish")</button>
+                        @if (Dirty) { <span>Save changes before changing publication.</span> }
+                    }
+                </div>
+            </form>
+            @if (_feature is not null)
+            {
+                <section aria-label="Linked requests"><h2>Linked private requests</h2>
+                    @if (_linksError is not null) { <p role="alert">@_linksError</p> }
+                    @if (_tickets.Count == 0 && _linksError is null) { <p>No linked requests. Link a request from its ticket page.</p> }
+                    <p>Closed requests are read-only; their links stay attached.</p>
+                    <ul>@foreach (var ticket in _tickets) { <li @key="ticket.Id"><a href="@($"/tickets/{Uri.EscapeDataString(ticket.Number)}")">@ticket.Number — @ticket.Subject</a> <span>@ticket.Status</span> <button type="button" class="btn btn-outline-secondary" disabled="@(_busy || _held || ticket.Status == TicketStatuses.Closed)" @onclick="() => UnlinkAsync(ticket)">Unlink</button></li> }</ul>
+                </section>
+            }
+        }
+    }
+</div>

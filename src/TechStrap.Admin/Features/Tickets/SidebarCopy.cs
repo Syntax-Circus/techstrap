@@ -32,6 +32,7 @@ public enum ConflictState
 /// <summary>The sidebar's fields, used as keys for its pending, error and re-render state.</summary>
 public enum SidebarField
 {
+    Type,
     Status,
     Assignee,
     Priority,

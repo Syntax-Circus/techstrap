@@ -99,14 +99,14 @@ public sealed class TicketQueuePageTests : AdminComponentTest
     }
 
     [Fact]
-    public void The_six_tabs_link_to_their_views_and_show_counts_with_Spam_muted()
+    public void The_queue_tabs_link_to_their_views_and_show_counts_with_Spam_muted()
     {
         var cut = RenderQueue("open");
 
         var tabs = cut.FindAll("nav.ts-tabs a");
         tabs.Select(t => t.GetAttribute("href")).ShouldBe(
-            ["/queue/unassigned", "/queue/mine", "/queue/open", "/queue/pending", "/queue/all", "/queue/spam"]);
-        tabs.Select(t => t.QuerySelector(".ts-count")!.TextContent).ShouldBe(["3", "2", "5", "1", "11", "4"]);
+            ["/queue/unassigned", "/queue/mine", "/queue/open", "/queue/pending", "/queue/all", "/queue/featurerequests", "/queue/spam"]);
+        tabs.Select(t => t.QuerySelector(".ts-count")!.TextContent).ShouldBe(["3", "2", "5", "1", "11", "0", "4"]);
         cut.FindAll(".ts-count--muted").Count.ShouldBe(1);
         cut.Find(".ts-tab--spam .ts-count").ClassList.ShouldContain("ts-count--muted");
         cut.Find("a[aria-current=page]").TextContent.ShouldContain("Open");

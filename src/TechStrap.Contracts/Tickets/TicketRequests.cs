@@ -3,7 +3,7 @@ namespace TechStrap.Contracts.Tickets;
 /// <summary>List tickets with optional filtering and pagination.</summary>
 public sealed record ListTicketsRequest(
     string? View, Guid? ProductId, string? Status, string? Priority, Guid? AssigneeId,
-    Guid? TagId, Guid? RequesterId, string? Search, int Page, int PageSize);
+    Guid? TagId, Guid? RequesterId, string? Search, int Page, int PageSize, string? Type = null);
 
 /// <summary>StatusAfter: null or "Pending" (default Domain behavior) or "Solved" ("Send and solve"). Files travel beside this record (D-016).</summary>
 public sealed record AddAgentReplyRequest(string? Body, IReadOnlyList<Guid>? LinkedArticleIds, string? StatusAfter, uint? RowVersion);
@@ -28,3 +28,6 @@ public sealed record AddTicketTagRequest(Guid? TagId, uint? RowVersion);
 
 /// <summary>Mark or unmark a ticket as spam.</summary>
 public sealed record MarkTicketSpamRequest(bool? IsSpam, uint? RowVersion);
+
+/// <summary>Change ticket classification.</summary>
+public sealed record ChangeTicketTypeRequest(string? Type, uint? RowVersion);

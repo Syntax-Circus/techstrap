@@ -12,6 +12,7 @@ public static class ContactFormValidator
     public static IReadOnlyList<FormError> Validate(ContactFormViewModel form)
     {
         var errors = new List<FormError>();
+        if (form.Type is not null && form.Type != "Support" && form.Type != "FeatureRequest") errors.Add(new FormError("type", "type-invalid", "Choose Support or Feature request."));
 
         var name = form.Name?.Trim() ?? string.Empty;
         if (name.Length == 0)

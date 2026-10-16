@@ -25,6 +25,8 @@ public enum TicketEventType
     Assigned,
     ProductChanged,
     PriorityChanged,
+    TypeChanged,
+    FeatureLinked,
     TagAdded,
     TagRemoved,
     MarkedSpam,

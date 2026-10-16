@@ -25,7 +25,7 @@ public sealed class ListTicketsRequestHandler(
     {
         if (!TicketNameParser.TryView(request.View, out var view))
         {
-            return Fail(TicketErrors.Invalid("view", "view-invalid", "Use Unassigned, Mine, Open, Pending, All or Spam."));
+            return Fail(TicketErrors.Invalid("view", "view-invalid", "Use Unassigned, Mine, Open, Pending, All, FeatureRequests or Spam."));
         }
 
         TicketStatus? status = null;
@@ -37,6 +37,13 @@ public sealed class ListTicketsRequestHandler(
             }
 
             status = parsedStatus;
+        }
+
+        TicketType? type = null;
+        if (request.Type is not null)
+        {
+            if (!TicketNameParser.TryType(request.Type, out var parsedType)) return Fail(TicketErrors.Invalid("type", "type-invalid", "Choose Support or FeatureRequest."));
+            type = parsedType;
         }
 
         TicketPriority? priority = null;
@@ -69,7 +76,7 @@ public sealed class ListTicketsRequestHandler(
         var pageSize = request.PageSize == 0 ? Paging.DefaultPageSize : request.PageSize;
         var search = request.Search is { Length: > DomainLimits.SearchTextMaxLength } text ? text[..DomainLimits.SearchTextMaxLength] : request.Search;
         var query = new TicketQuery(
-            view, agent.Value.Id, request.ProductId, status, priority, request.AssigneeId, request.TagId, request.RequesterId, search, request.Page, pageSize);
+            view, agent.Value.Id, request.ProductId, status, priority, request.AssigneeId, request.TagId, request.RequesterId, search, request.Page, pageSize, type);
 
         var found = await tickets.ListAsync(query, cancellationToken);
 
@@ -85,7 +92,7 @@ public sealed class ListTicketsRequestHandler(
             row.AssigneeId, row.AssigneeId is { } assigneeId ? assigneeNames.GetValueOrDefault(assigneeId, string.Empty) : null,
             row.IsSpam,
             [.. row.TagIds.Where(tagsById.ContainsKey).Select(id => tagsById[id])],
-            row.CreatedAt, row.LastActivityAt)).ToList();
+            row.CreatedAt, row.LastActivityAt, row.Type.ToWire(), row.FeatureId)).ToList();
 
         return Result<PagedResponse<TicketSummaryDto>>.Success(new PagedResponse<TicketSummaryDto>(items, found.Page, found.PageSize, found.TotalCount));
     }

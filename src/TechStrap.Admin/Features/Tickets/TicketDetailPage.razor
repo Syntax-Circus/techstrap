@@ -56,6 +56,10 @@ else
             {
                 <TicketSidePanel Ticket="_model">
                     <Controls>
+                        @if (_model.Type == TicketTypes.FeatureRequest)
+                        {
+                            <TechStrap.Admin.Features.Features.FeatureTicketLinkPanel TicketId="_model.Id" ProductId="_model.ProductId" FeatureId="_model.FeatureId" RowVersion="_model.RowVersion" OnChanged="OnStateChangedAsync" OnReload="ReloadAfterConflictAsync" />
+                        }
                         <TicketSidebar Ticket="_model" OnState="OnStateChangedAsync" OnConflict="OnConflictAsync" OnClosed="RefreshAsync" OnReload="ReloadAfterConflictAsync" OnGone="RefreshAsync" />
                     </Controls>
                 </TicketSidePanel>

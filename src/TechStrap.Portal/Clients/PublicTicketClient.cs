@@ -20,6 +20,7 @@ internal sealed class PublicTicketClient(ApiConnection api) : IPublicTicketClien
                 new("Name", request.Name),
                 new("Subject", request.Subject),
                 new("Body", request.Body),
+                new("Type", request.Type),
                 new("Website", request.Website),
             ],
             request.Attachments);

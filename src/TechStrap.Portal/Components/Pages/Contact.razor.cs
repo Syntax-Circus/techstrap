@@ -33,6 +33,9 @@ public partial class Contact : ProductPageBase
     [SupplyParameterFromQuery(Name = "email")]
     private string? PrefillEmail { get; set; }
 
+    [SupplyParameterFromQuery(Name = "type")]
+    private string? PrefillType { get; set; }
+
     [Inject]
     private IPublicTicketClient Tickets { get; set; } = default!;
 
@@ -58,7 +61,11 @@ public partial class Contact : ProductPageBase
         if (Theme is not null)
         {
             // A post binds Form; a first visit has none, so it opens with the prefill (empty when the query has none).
-            Form ??= ContactFormViewModel.FromPrefill(PrefillSubject, PrefillName, PrefillEmail);
+            if (Form is null)
+            {
+                Form = ContactFormViewModel.FromPrefill(PrefillSubject, PrefillName, PrefillEmail);
+                Form.Type = string.Equals(PrefillType, TechStrap.Contracts.Tickets.TicketTypes.FeatureRequest, StringComparison.OrdinalIgnoreCase) ? TechStrap.Contracts.Tickets.TicketTypes.FeatureRequest : TechStrap.Contracts.Tickets.TicketTypes.Support;
+            }
         }
     }
 
@@ -79,11 +86,11 @@ public partial class Contact : ProductPageBase
         }
 
         var request = new NewTicketRequest(
-            form.Email!.Trim(), form.Name!.Trim(), form.Subject!.Trim(), form.Body!.Trim(), form.Website, AttachmentRules.ToUploads(form.Files));
+            form.Email!.Trim(), form.Name!.Trim(), form.Subject!.Trim(), form.Body!.Trim(), form.Website, AttachmentRules.ToUploads(form.Files), form.Type);
 
         // A double click sends once: the id this form carried claims the write (D-045 09d addendum). A repeat is sent where the first went, or to the received page without a reference when the first's answer is unknown.
         var outcome = await Guard.RunAsync(
-            SubmitKey.TryCreate(FormHandler, Key, form.SubmitId, SubmitContent.Digest([form.Name, form.Email, form.Subject, form.Body], form.Files)),
+            SubmitKey.TryCreate(FormHandler, Key, form.SubmitId, SubmitContent.Digest([form.Name, form.Email, form.Subject, form.Body, form.Type], form.Files)),
             new SubmitTarget(Links.ContactReceived(Key)),
             async cancellation =>
             {

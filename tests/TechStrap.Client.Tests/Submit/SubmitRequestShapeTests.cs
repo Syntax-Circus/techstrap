@@ -51,7 +51,7 @@ public sealed class SubmitRequestShapeTests
     {
         using var fixture = new ClientFixture();
         fixture.Stub.Created();
-        var request = new SubmitTicketRequest("ada@example.com", "Ada", "Subject", "Body", "user-7", new Dictionary<string, string> { ["plan"] = "pro" });
+        var request = new SubmitTicketRequest("ada@example.com", "Ada", "Subject", "Body", "user-7", new Dictionary<string, string> { ["plan"] = "pro" }, "FeatureRequest");
 
         await fixture.Client.SubmitTicketAsync(request, "abc123", Xunit.TestContext.Current.CancellationToken);
 
@@ -61,6 +61,7 @@ public sealed class SubmitRequestShapeTests
         sent.Body!.ShouldContain("\"email\"", Case.Sensitive);
         var round = JsonSerializer.Deserialize<SubmitTicketRequest>(sent.Body!, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         round.ShouldNotBeNull();
+        round.Type.ShouldBe("FeatureRequest");
         round.Email.ShouldBe("ada@example.com");
         round.ExternalUserRef.ShouldBe("user-7");
         round.Metadata!["plan"].ShouldBe("pro");

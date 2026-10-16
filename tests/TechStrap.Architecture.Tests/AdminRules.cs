@@ -17,6 +17,8 @@ public static partial class AdminRules
         "AspNetCore.SassCompiler",
         "GitVersion.MsBuild",
         "Microsoft.AspNetCore.Authentication.OpenIdConnect",
+        // Already used through Blazor.Auth; the direct reference pins the patched provider/XML dependency.
+        "Microsoft.AspNetCore.DataProtection.StackExchangeRedis",
         "Microsoft.AspNetCore.SignalR.Client",
         "Microsoft.Web.LibraryManager.Build",
         "SyntaxCircus.AspNetCore.Common",

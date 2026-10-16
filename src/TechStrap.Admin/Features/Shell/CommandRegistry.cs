@@ -52,10 +52,11 @@ public sealed class CommandRegistry(NavigationManager navigation)
         foreach (var view in QueueViews.All)
         {
             var path = $"/queue/{QueueViews.Slug(view)}";
-            yield return new PaletteCommand($"go-queue-{QueueViews.Slug(view)}", $"{ShellCopy.QueueLink}: {view}", PaletteCopy.GoToGroup, () => Go(path));
+            yield return new PaletteCommand($"go-queue-{QueueViews.Slug(view)}", $"{ShellCopy.QueueLink}: {(view == TechStrap.Contracts.Tickets.TicketViews.FeatureRequests ? "Feature requests" : view)}", PaletteCopy.GoToGroup, () => Go(path));
         }
 
         yield return new PaletteCommand("go-kb", ShellCopy.KbLink, PaletteCopy.GoToGroup, () => Go("/kb"));
+        yield return new PaletteCommand("go-features", "Features", PaletteCopy.GoToGroup, () => Go("/features"));
         yield return new PaletteCommand("go-my-settings", ShellCopy.MySettingsLink, PaletteCopy.GoToGroup, () => Go("/account/notifications"));
         yield return new PaletteCommand("go-products", ShellCopy.ProductsLink, PaletteCopy.AdminGroup, () => Go("/settings/products"), AdminOnly: true);
         yield return new PaletteCommand("go-agents", ShellCopy.AgentsLink, PaletteCopy.AdminGroup, () => Go("/settings/agents"), AdminOnly: true);

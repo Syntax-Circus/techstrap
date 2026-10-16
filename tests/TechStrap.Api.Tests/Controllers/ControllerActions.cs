@@ -12,6 +12,17 @@ public static class ControllerActions
     /// <summary>The success status each action must return. Adding an action without a row here fails ResultMappingTests.</summary>
     public static readonly IReadOnlyDictionary<string, int> ExpectedSuccess = new Dictionary<string, int>(StringComparer.Ordinal)
     {
+        ["FeaturesController.List"] = 200,
+        ["FeaturesController.Get"] = 200,
+        ["FeaturesController.Create"] = 201,
+        ["FeaturesController.Update"] = 200,
+        ["FeaturesController.Publish"] = 200,
+        ["FeaturesController.Unpublish"] = 200,
+        ["FeaturesController.Tickets"] = 200,
+        ["PublicFeaturesController.List"] = 200,
+        ["PublicFeaturesController.Get"] = 200,
+        ["TicketFeaturesController.Link"] = 200,
+        ["TicketsController.ChangeType"] = 200,
         ["AgentsController.GetMe"] = 200,
         ["AgentsController.List"] = 200,
         ["AgentsController.Update"] = 200,

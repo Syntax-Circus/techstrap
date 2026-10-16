@@ -26,6 +26,14 @@
         </select>
     </div>
     <div class="ts-filter">
+        <label for="queue-type">Type</label>
+        <select id="queue-type" class="form-select" @onchange="OnTypeChangedAsync">
+            <option value="" selected="@(Filter.Type is null)">Any type</option>
+            <option value="Support" selected="@(Filter.Type == TicketTypes.Support)">Support</option>
+            <option value="FeatureRequest" selected="@(Filter.Type == TicketTypes.FeatureRequest)">Feature request</option>
+        </select>
+    </div>
+    <div class="ts-filter">
         <label for="queue-priority">Priority</label>
         <select id="queue-priority" class="form-select" @onchange="OnPriorityChangedAsync">
             <option value="" selected="@(Filter.Priority is null)">@QueueCopy.AllPriorities</option>

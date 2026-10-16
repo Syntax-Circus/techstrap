@@ -93,6 +93,8 @@ internal sealed class TicketRepository(TechStrapDbContext context) : ITicketRepo
             tickets = tickets.Where(t => t.Status == status);
         }
 
+        if (query.Type is { } type) tickets = tickets.Where(t => t.Type == type);
+
         if (query.Priority is { } priority)
         {
             tickets = tickets.Where(t => t.Priority == priority);
@@ -125,7 +127,7 @@ internal sealed class TicketRepository(TechStrapDbContext context) : ITicketRepo
                 .Skip(offset).Take(pageSize)
                 .Select(x => new TicketSummary(
                     x.Ticket.Id, x.Ticket.Number, x.Ticket.Subject, x.Ticket.Status, x.Ticket.Priority, x.Ticket.ProductId, x.Ticket.RequesterId, x.Email,
-                    x.Name, x.Ticket.AssigneeId, x.Ticket.IsSpam, Array.Empty<Guid>(), x.Ticket.CreatedAt, x.Ticket.LastActivityAt))
+                    x.Name, x.Ticket.AssigneeId, x.Ticket.IsSpam, Array.Empty<Guid>(), x.Ticket.CreatedAt, x.Ticket.LastActivityAt, x.Ticket.Type, x.Ticket.FeatureId))
                 .ToListAsync(cancellationToken);
         }
         else
@@ -138,7 +140,7 @@ internal sealed class TicketRepository(TechStrapDbContext context) : ITicketRepo
                 .Skip(offset).Take(pageSize)
                 .Select(x => new TicketSummary(
                     x.Ticket.Id, x.Ticket.Number, x.Ticket.Subject, x.Ticket.Status, x.Ticket.Priority, x.Ticket.ProductId, x.Ticket.RequesterId, x.Email,
-                    x.Name, x.Ticket.AssigneeId, x.Ticket.IsSpam, Array.Empty<Guid>(), x.Ticket.CreatedAt, x.Ticket.LastActivityAt))
+                    x.Name, x.Ticket.AssigneeId, x.Ticket.IsSpam, Array.Empty<Guid>(), x.Ticket.CreatedAt, x.Ticket.LastActivityAt, x.Ticket.Type, x.Ticket.FeatureId))
                 .ToListAsync(cancellationToken);
         }
 
@@ -174,7 +176,7 @@ internal sealed class TicketRepository(TechStrapDbContext context) : ITicketRepo
             await Count(TicketView.Open),
             await Count(TicketView.Pending),
             await Count(TicketView.All),
-            await Count(TicketView.Spam));
+            await Count(TicketView.Spam), await Count(TicketView.FeatureRequests));
     }
 
     public async Task<Attachment?> GetAttachmentByIdAsync(Guid attachmentId, CancellationToken cancellationToken) =>
@@ -190,7 +192,7 @@ internal sealed class TicketRepository(TechStrapDbContext context) : ITicketRepo
             ? null
             : new TicketState(
                 record.Id, record.Number, record.Status, record.Priority, record.ProductId, record.AssigneeId, record.IsSpam,
-                [.. record.Tags.Select(t => t.TagId).Order()], record.LastActivityAt, record.Version);
+                [.. record.Tags.Select(t => t.TagId).Order()], record.LastActivityAt, record.Version, record.Type, record.FeatureId);
     }
 
     /// <summary>
@@ -331,6 +333,7 @@ internal sealed class TicketRepository(TechStrapDbContext context) : ITicketRepo
         TicketView.Open => tickets.Where(t => !t.IsSpam && OpenViewStatuses.Contains(t.Status)),
         TicketView.Pending => tickets.Where(t => !t.IsSpam && t.Status == TicketStatus.Pending),
         TicketView.All => tickets.Where(t => !t.IsSpam),
+        TicketView.FeatureRequests => tickets.Where(t => !t.IsSpam && t.Type == TicketType.FeatureRequest),
         TicketView.Spam => tickets.Where(t => t.IsSpam),
         _ => throw new ArgumentOutOfRangeException(nameof(query), query.View, "Unknown ticket view."),
     };

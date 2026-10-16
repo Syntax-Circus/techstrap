@@ -49,6 +49,14 @@ public sealed class PortalLinks(ProductHostContext context, ProductHostMap map, 
 
     public string KbSearch(string key, string text, int page) => Localize(key, PortalRoutes.KbSearch(key, text, page));
 
+    public string Features(string key) => Localize(key, PortalRoutes.Features(key));
+
+    public string Features(string key, string? query, string? status, int page) => Localize(key, PortalRoutes.Features(key, query, status, page));
+
+    public string Feature(string key, string slug) => Localize(key, PortalRoutes.Feature(key, slug));
+
+    public string RequestFeature(string key) => Localize(key, PortalRoutes.RequestFeature(key));
+
     public string Suggest(string key) => Localize(key, PortalRoutes.Suggest(key));
 
     /// <summary>A ticket page is served on every host, so its link is relative and the same everywhere.</summary>

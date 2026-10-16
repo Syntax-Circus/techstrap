@@ -27,6 +27,17 @@
     </div>
 
     <div class="ts-control">
+        <label for="@IdOf(SidebarField.Type)">Type</label>
+        <select id="@IdOf(SidebarField.Type)" class="form-select" disabled="@_busy" @key="KeyOf(SidebarField.Type)" data-revision="@KeyOf(SidebarField.Type)" @onchange="OnTypeChangedAsync">
+            @foreach (var type in new[] { TicketTypes.Support, TicketTypes.FeatureRequest })
+            {
+                <option value="@type" selected="@(type == Ticket.Type)">@type</option>
+            }
+        </select>
+        <ControlFeedback Saving="@IsSaving(SidebarField.Type)" Error="@ErrorOf(SidebarField.Type)" CanReload="@OffersReload(SidebarField.Type)" OnReload="ReloadAsync" />
+    </div>
+
+    <div class="ts-control">
         <label for="@IdOf(SidebarField.Priority)">Priority</label>
         <select id="@IdOf(SidebarField.Priority)" class="form-select" disabled="@_busy" @key="KeyOf(SidebarField.Priority)" data-revision="@KeyOf(SidebarField.Priority)" @onchange="OnPriorityChangedAsync">
             @foreach (var priority in PriorityOptions)

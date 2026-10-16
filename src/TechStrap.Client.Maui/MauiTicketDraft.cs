@@ -11,10 +11,11 @@ namespace TechStrap.Client.Maui;
 /// The collected device-context keys (up to 19) count toward the server's limit of 50 keys, so an app can rely on 31 of its own.
 /// </param>
 /// <param name="IdempotencyKey">A stable key for this ticket, or <see langword="null"/> to send without one. Supply the same key on every retry of the same ticket. A blank, non-ASCII or over-200-character key makes <c>SubmitAsync</c> throw <see cref="ArgumentException"/>.</param>
+/// <param name="Type">Optional ticket classification: Support or FeatureRequest. Omit for Support.</param>
 public sealed record MauiTicketDraft(
     string Subject,
     string Message,
     string RequesterEmail,
     string? RequesterName = null,
     IReadOnlyDictionary<string, string>? Metadata = null,
-    string? IdempotencyKey = null);
+    string? IdempotencyKey = null, string? Type = null);

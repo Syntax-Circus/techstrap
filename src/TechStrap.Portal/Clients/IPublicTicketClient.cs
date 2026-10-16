@@ -7,7 +7,7 @@ namespace TechStrap.Portal.Clients;
 /// A new ticket from the contact form. The text is what the visitor typed (already validated by the page, and validated again by the API, which is the authority); <paramref name="Website"/> is the honeypot field,
 /// sent on as it arrived so the API can answer a bot with the same 201 a person gets (D-045 addendum).
 /// </summary>
-public sealed record NewTicketRequest(string Email, string Name, string Subject, string Body, string? Website, IReadOnlyList<AttachmentUpload> Attachments);
+public sealed record NewTicketRequest(string Email, string Name, string Subject, string Body, string? Website, IReadOnlyList<AttachmentUpload> Attachments, string? Type = null);
 
 /// <summary>The anonymous intake call of a product's contact form (P09-T02, T06).</summary>
 public interface IPublicTicketClient

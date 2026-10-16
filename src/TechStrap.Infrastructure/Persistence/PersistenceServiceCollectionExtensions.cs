@@ -58,6 +58,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<ITicketNumberAllocator, TicketNumberAllocator>();
         services.AddScoped<ITicketRepository, TicketRepository>();
         services.AddScoped<IKbRepository, KbRepository>();
+        services.AddScoped<IFeatureRepository, FeatureRepository>();
         services.AddScoped<IEmailOutbox, EmailOutbox>();
         services.AddScoped<IEmailOutboxStore, EmailOutboxStore>();
         services.AddScoped<IIntakeIdempotencyStore, IntakeIdempotencyStore>();

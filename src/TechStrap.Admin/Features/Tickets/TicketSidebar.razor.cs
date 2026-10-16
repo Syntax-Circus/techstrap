@@ -114,6 +114,11 @@ public sealed partial class TicketSidebar : IDisposable
             ? ApplyAsync(SidebarField.Assignee, ct => Tickets.AssignAsync(Ticket.Id, new AssignTicketRequest(me.Id, Ticket.RowVersion), ct))
             : Task.CompletedTask;
 
+    private Task OnTypeChangedAsync(ChangeEventArgs e) =>
+        Text(e) is { Length: > 0 } type && type != Ticket.Type
+            ? ApplyAsync(SidebarField.Type, ct => Tickets.ChangeTypeAsync(Ticket.Id, new ChangeTicketTypeRequest(type, Ticket.RowVersion), ct))
+            : Revert(SidebarField.Type);
+
     private Task OnPriorityChangedAsync(ChangeEventArgs e) =>
         Text(e) is { Length: > 0 } priority && priority != Ticket.Priority
             ? ApplyAsync(SidebarField.Priority, ct => Tickets.ChangePriorityAsync(Ticket.Id, new ChangeTicketPriorityRequest(priority, Ticket.RowVersion), ct))

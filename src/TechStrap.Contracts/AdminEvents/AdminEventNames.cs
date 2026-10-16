@@ -29,6 +29,14 @@ public static class AdminEventTypes
     public const string DeadLetterDiscarded = "DeadLetterDiscarded";
     /// <summary>The deployment's default theme pack was changed (D-053).</summary>
     public const string SiteSettingsUpdated = "SiteSettingsUpdated";
+    /// <summary>A feature was created.</summary>
+    public const string FeatureCreated = "FeatureCreated";
+    /// <summary>A feature was updated.</summary>
+    public const string FeatureUpdated = "FeatureUpdated";
+    /// <summary>A feature was published.</summary>
+    public const string FeaturePublished = "FeaturePublished";
+    /// <summary>A feature was unpublished.</summary>
+    public const string FeatureUnpublished = "FeatureUnpublished";
 }
 
 /// <summary>Wire names for the admin subject type enum (<c>AdminEventDto.SubjectType</c> and the <c>subjectType</c> filter). Contracts carries no enums (naming rule).</summary>
@@ -50,4 +58,6 @@ public static class AdminSubjectTypes
     public const string EmailOutbox = "EmailOutbox";
     /// <summary>The event concerns the deployment-wide site settings (D-053).</summary>
     public const string SiteSettings = "SiteSettings";
+    /// <summary>The event concerns a curated feature.</summary>
+    public const string Feature = "Feature";
 }

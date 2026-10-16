@@ -8,7 +8,7 @@ internal static class TicketDtoMapper
     public static TicketStateDto ToDto(this TicketState state) =>
         new(
             state.Id, state.Number, state.Status.ToWire(), state.Priority.ToWire(), state.ProductId, state.AssigneeId,
-            state.IsSpam, state.TagIds, state.LastActivityAt, state.Version);
+            state.IsSpam, state.TagIds, state.LastActivityAt, state.Version, state.Type.ToWire(), state.FeatureId);
 
     /// <summary>The enum name, which is the wire name for status, priority, event type, author type, visibility and channel.</summary>
     public static string ToWire(this TicketStatus status) => status.ToString();

@@ -77,8 +77,8 @@ public sealed class LayoutLandmarkHostTests
 
         var headerNav = dom.QuerySelector("header.ts-product-header nav").ShouldNotBeNull();
         headerNav.GetAttribute("aria-label").ShouldBe(ShellCopy.NavLabel);
-        headerNav.QuerySelectorAll("a").Select(a => a.GetAttribute("href")).ShouldBe(["/p/paperplane", "/p/paperplane/kb", "/p/paperplane/contact"]);
-        headerNav.QuerySelectorAll("li a").Select(a => a.TextContent).ShouldBe([ShellCopy.NavHelp, ShellCopy.NavContact]);
+        headerNav.QuerySelectorAll("a").Select(a => a.GetAttribute("href")).ShouldBe(["/p/paperplane", "/p/paperplane/kb", "/p/paperplane/features", "/p/paperplane/contact"]);
+        headerNav.QuerySelectorAll("li a").Select(a => a.TextContent).ShouldBe([ShellCopy.NavHelp, ShellCopy.NavFeatures, ShellCopy.NavContact]);
         var footerNav = dom.QuerySelector("nav.ts-product-footer").ShouldNotBeNull();
         footerNav.GetAttribute("aria-label").ShouldBe(ShellCopy.FooterNavLabel);
         footerNav.QuerySelector("a")!.GetAttribute("href").ShouldBe("/p/paperplane/lost-link");

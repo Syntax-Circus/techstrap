@@ -12,6 +12,10 @@ public sealed class AdminEventSummaryFactoryTests
 {
     private static readonly Dictionary<string, (string Payload, string Expected)> Samples = new()
     {
+        [AdminEventTypes.FeatureCreated] = ("{}", "Created a feature"),
+        [AdminEventTypes.FeatureUpdated] = ("{}", "Updated a feature"),
+        [AdminEventTypes.FeaturePublished] = ("{}", "Published a feature"),
+        [AdminEventTypes.FeatureUnpublished] = ("{}", "Unpublished a feature"),
         [AdminEventTypes.ProductCreated] = ("{\"productKey\":\"orbitly\",\"numberPrefix\":\"ORB\"}", "Created product orbitly (ticket prefix ORB)"),
         [AdminEventTypes.ProductUpdated] = ("{\"changed\":[\"name\",\"branding\",\"isActive\"]}", "Updated a product: name, branding, active status"),
         [AdminEventTypes.ApiKeyCreated] = ("{\"productId\":\"11111111-1111-1111-1111-111111111111\",\"kind\":\"Trusted\",\"keyPrefix\":\"tsk_ab12\"}", "Created a Trusted API key (tsk_ab12)"),
@@ -45,7 +49,7 @@ public sealed class AdminEventSummaryFactoryTests
     public void There_is_a_sample_for_every_event_type_constant_so_a_new_type_fails_here_until_it_has_a_sentence()
     {
         Constants(typeof(AdminEventTypes)).OrderBy(t => t).ShouldBe(Samples.Keys.OrderBy(t => t));
-        Constants(typeof(AdminEventTypes)).Count().ShouldBe(13);
+        Constants(typeof(AdminEventTypes)).Count().ShouldBe(17);
     }
 
     [Theory]
@@ -131,8 +135,8 @@ public sealed class AdminEventSummaryFactoryTests
     {
         var labels = Constants(typeof(AdminSubjectTypes)).Select(AdminEventSummaryFactory.SubjectLabel).ToList();
 
-        labels.Count.ShouldBe(8);
-        labels.Distinct().Count().ShouldBe(8);
+        labels.Count.ShouldBe(9);
+        labels.Distinct().Count().ShouldBe(9);
         labels.ShouldAllBe(l => !string.IsNullOrWhiteSpace(l));
         AdminEventSummaryFactory.SubjectLabel(AdminSubjectTypes.EmailOutbox).ShouldBe("Email");
         AdminEventSummaryFactory.SubjectLabel("Webhook").ShouldBe("Webhook");

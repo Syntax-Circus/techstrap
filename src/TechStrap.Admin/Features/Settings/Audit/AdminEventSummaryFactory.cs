@@ -33,6 +33,10 @@ public static class AdminEventSummaryFactory
 
         return type switch
         {
+            AdminEventTypes.FeatureCreated => "Created a feature",
+            AdminEventTypes.FeatureUpdated => "Updated a feature",
+            AdminEventTypes.FeaturePublished => "Published a feature",
+            AdminEventTypes.FeatureUnpublished => "Unpublished a feature",
             AdminEventTypes.ProductCreated => Join("Created product", Text(root, "productKey"), Wrap("ticket prefix", Text(root, "numberPrefix")), "Created a product"),
             AdminEventTypes.ProductUpdated => Changed("Updated a product", root, ProductChange),
             AdminEventTypes.ApiKeyCreated => ApiKeyCreated(root),
@@ -58,6 +62,7 @@ public static class AdminEventSummaryFactory
     /// <summary>The words for what an event is about. A subject type this app does not know is shown as it came, shortened.</summary>
     public static string SubjectLabel(string? subjectType) => subjectType switch
     {
+        AdminSubjectTypes.Feature => "Feature",
         AdminSubjectTypes.Product => "Product",
         AdminSubjectTypes.ApiKey => "API key",
         AdminSubjectTypes.Agent => "Agent",

@@ -36,6 +36,8 @@ public interface ITicketsClient
 
     Task<Result<TicketStateDto>> AssignAsync(Guid ticketId, AssignTicketRequest request, CancellationToken cancellationToken);
 
+    Task<Result<TicketStateDto>> ChangeTypeAsync(Guid ticketId, ChangeTicketTypeRequest request, CancellationToken cancellationToken);
+
     Task<Result<TicketStateDto>> ChangePriorityAsync(Guid ticketId, ChangeTicketPriorityRequest request, CancellationToken cancellationToken);
 
     Task<Result<TicketStateDto>> MoveProductAsync(Guid ticketId, MoveTicketProductRequest request, CancellationToken cancellationToken);
@@ -72,6 +74,7 @@ internal sealed class TicketsClient(ApiConnection connection) : ITicketsClient
                 ("productId", request.ProductId),
                 ("status", request.Status),
                 ("priority", request.Priority),
+                ("type", request.Type),
                 ("assigneeId", request.AssigneeId),
                 ("tagId", request.TagId),
                 ("requesterId", request.RequesterId),
@@ -136,6 +139,9 @@ internal sealed class TicketsClient(ApiConnection connection) : ITicketsClient
 
     public Task<Result<TicketStateDto>> AssignAsync(Guid ticketId, AssignTicketRequest request, CancellationToken cancellationToken) =>
         connection.SendAsync<TicketStateDto>(HttpMethod.Put, $"{Ticket(ticketId)}/assignee", request, cancellationToken);
+
+    public Task<Result<TicketStateDto>> ChangeTypeAsync(Guid ticketId, ChangeTicketTypeRequest request, CancellationToken cancellationToken) =>
+        connection.SendAsync<TicketStateDto>(HttpMethod.Put, $"{Ticket(ticketId)}/type", request, cancellationToken);
 
     public Task<Result<TicketStateDto>> ChangePriorityAsync(Guid ticketId, ChangeTicketPriorityRequest request, CancellationToken cancellationToken) =>
         connection.SendAsync<TicketStateDto>(HttpMethod.Put, $"{Ticket(ticketId)}/priority", request, cancellationToken);

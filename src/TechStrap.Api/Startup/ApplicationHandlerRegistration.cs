@@ -1,4 +1,5 @@
 using TechStrap.Application;
+using TechStrap.Application.Features;
 using TechStrap.Application.Email;
 using TechStrap.Application.Tickets.AutoClose;
 
@@ -9,6 +10,7 @@ public static class ApplicationHandlerRegistration
 {
     public static IServiceCollection AddApplicationHandlers(this IServiceCollection services)
     {
+        services.AddScoped<IFeatureService, FeatureService>();
         foreach (var (contract, implementation) in Handlers())
         {
             services.AddScoped(contract, implementation);

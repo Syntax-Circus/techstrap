@@ -86,6 +86,9 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
     [SupplyParameterFromQuery(Name = QueueQueryKeys.Status)]
     public string? Status { get; set; }
 
+    [SupplyParameterFromQuery(Name = QueueQueryKeys.Type)]
+    public string? Type { get; set; }
+
     [SupplyParameterFromQuery(Name = QueueQueryKeys.Priority)]
     public string? Priority { get; set; }
 
@@ -138,7 +141,7 @@ public sealed partial class TicketQueuePage : IAsyncDisposable
             QueueDefaults.Canonical(QueueDefaults.Priorities, Priority),
             Guid.TryParse(Tag, out var tagId) ? tagId : null,
             Blank(Search),
-            int.TryParse(PageNumber, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var page) && page > 1 ? page : 1);
+            int.TryParse(PageNumber, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var page) && page > 1 ? page : 1, QueueDefaults.Canonical([TicketTypes.Support, TicketTypes.FeatureRequest], Type));
         _filter = filter;
         if (!_lookupsLoaded)
         {

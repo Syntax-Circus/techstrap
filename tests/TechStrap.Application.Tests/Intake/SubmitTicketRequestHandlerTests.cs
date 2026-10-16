@@ -114,6 +114,27 @@ public sealed class SubmitTicketRequestHandlerTests
         return key;
     }
 
+
+    [Theory]
+    [InlineData(null, TicketType.Support)]
+    [InlineData("FeatureRequest", TicketType.FeatureRequest)]
+    [InlineData(" support ", TicketType.Support)]
+    public async Task Intake_preserves_valid_type_or_defaults_omission(string? type, TicketType expected)
+    {
+        var result = await Handler().HandleAsync(Request() with { Type = type }, WebContext(), TestContext.Current.CancellationToken);
+        result.IsSuccess.ShouldBeTrue();
+        _tickets.Received(1).Add(Arg.Is<Ticket>(t => t.Type == expected));
+    }
+    [Theory]
+    [InlineData("unknown")]
+    [InlineData("1")]
+    [InlineData("")]
+    public async Task Unknown_type_fails_before_creating_a_ticket(string type)
+    {
+        var result = await Handler().HandleAsync(Request() with { Type = type }, WebContext(), TestContext.Current.CancellationToken);
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("type-invalid");
+        _tickets.DidNotReceiveWithAnyArgs().Add(default!);
+    }
     [Fact]
     public async Task A_web_submission_creates_requester_ticket_message_token_and_queues_the_confirmation()
     {

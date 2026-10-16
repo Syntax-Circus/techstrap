@@ -11,10 +11,14 @@ internal sealed class TicketRecordConfiguration : IEntityTypeConfiguration<Ticke
     {
         builder.ToTable("tickets");
         builder.HasKey(t => t.Id);
+        builder.HasOne<FeatureRecord>().WithMany().HasForeignKey(t => t.FeatureId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(t => t.FeatureId);
         builder.Property(t => t.Id).ValueGeneratedNever();
         builder.Property(t => t.Number).HasMaxLength(DomainLimits.TicketNumberMaxLength).IsRequired();
         builder.Property(t => t.Subject).HasMaxLength(DomainLimits.SubjectMaxLength).IsRequired();
         builder.Property(t => t.Status).HasEnumAsString().IsRequired();
+        builder.Property(t => t.Type).HasEnumAsString().HasDefaultValue(TechStrap.Domain.Tickets.TicketType.Support).IsRequired();
+        builder.HasIndex(t => new { t.Type, t.LastActivityAt });
         builder.Property(t => t.Priority).HasEnumAsString().IsRequired();
         builder.Property(t => t.Channel).HasEnumAsString().IsRequired();
         builder.Property(t => t.Metadata).HasColumnType("jsonb");

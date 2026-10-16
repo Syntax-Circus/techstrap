@@ -303,6 +303,22 @@ Conventions:
 | Worker scheduled loop (`AutoCloseWorker` hosted service) | `AutoCloseSolvedTicketsHandler` | `ITicketRepository`, `IUnitOfWork`, `TimeProvider`, `IOptions<AutoCloseOptions>`, `ILogger` | EF repos, UoW; the Worker's `PgNotifyTicketChangeBroadcaster` runs from the post-commit interceptor (D-018) | Loop: closed count logged; failure logged, next tick retries | H, I, W | D-008, D-012, D-007 |
 | Alerts (new ticket, assignment, customer reply) | no entry point: queued by the handlers above through `ITicketNotificationPlanner` | n/a | n/a | n/a | covered by calling handlers' H tests plus planner unit tests | D-010 |
 
+#### Curated product feature boards
+
+| Entry point/use case | Named handler | Application dependencies | Infrastructure implementations | Outcome mapping | Tests | Decision |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/features` (Agent) | `ListFeaturesRequestHandler` | `IFeatureService`, `IFeatureRepository` | EF feature repository | 200 paged `FeatureSummaryDto`; 400 invalid progress | H, C, I | none |
+| `GET /api/features/{id}` (Agent) | `GetFeatureRequestHandler` | `IFeatureService`, `IFeatureRepository` | EF feature repository | 200 `FeatureDto`; 404 | H, C, I | none |
+| `POST /api/features` (Agent) | `CreateFeatureRequestHandler` | `IFeatureService`, product and feature repos, content renderer, audit and UoW | EF repos, Markdown renderer | 201 private Draft; 400 validation; 409 slug conflict | H, C, I | none |
+| `PUT /api/features/{id}` (Agent) | `UpdateFeatureRequestHandler` | `IFeatureService`, feature repo, renderer, audit and UoW | EF repos, Markdown renderer | 200 `FeatureDto`; 400; 404; 409 version conflict | H, C, I | none |
+| `POST /api/features/{id}/publish` (Agent) | `PublishFeatureRequestHandler` | `IFeatureService`, feature repo, audit and UoW | EF repos | 200 `FeatureDto`; 404; 409 version conflict | H, C, I | none |
+| `POST /api/features/{id}/unpublish` (Agent) | `UnpublishFeatureRequestHandler` | `IFeatureService`, feature repo, audit and UoW | EF repos | 200 `FeatureDto`; public reads immediately omit it; 404; 409 | H, C, I | none |
+| `GET /api/features/{id}/tickets` (Agent) | `ListFeatureTicketsRequestHandler` | `IFeatureService`, feature repo | EF repos | 200 private linked requests; 404 | H, C, I | none |
+| `GET /api/public/products/{key}/features` (Public, rate limited) | `ListPublicFeaturesRequestHandler` | `IFeatureService`, product and feature repos | EF repos | 200 published public summaries only; 400; 404 inactive product | H, C, I | none |
+| `GET /api/public/products/{key}/features/{slug}` (Public, rate limited) | `GetPublicFeatureRequestHandler` | `IFeatureService`, product and feature repos, content renderer | EF repos, sanitized Markdown renderer | 200 curated public detail; 404 draft, inactive or wrong product | H, C, I | none |
+| `POST /api/tickets/{id}/feature` (Agent) | `LinkTicketFeatureRequestHandler` | ticket and feature repos, current agent, UoW | EF repos | 200 fresh `TicketStateDto`; 400 invalid request; 404; 409 version, closed or product conflict | H, C, I | none |
+| `PUT /api/tickets/{id}/type` (Agent) | `ChangeTicketTypeRequestHandler` | ticket repo, current agent, UoW | EF repos | 200 fresh `TicketStateDto`; 400 invalid type; 404; 409 version, closed or unlink required | H, C, I | none |
+
 ### 7.4 Knowledge base (PHASE-08)
 
 | Entry point/use case | Named handler | Application dependencies | Infrastructure implementations | Outcome mapping | Tests | Decision |

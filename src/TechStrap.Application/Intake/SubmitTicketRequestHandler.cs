@@ -9,6 +9,7 @@ using TechStrap.Application.Persistence;
 using TechStrap.Application.Results;
 using TechStrap.Application.Security;
 using TechStrap.Application.Tickets.Notifications;
+using TechStrap.Application.Tickets;
 using TechStrap.Contracts.Intake;
 using TechStrap.Domain.Outbox;
 using TechStrap.Domain.Products;
@@ -110,6 +111,9 @@ public sealed class SubmitTicketRequestHandler(
 
     private static ResultError? Validate(SubmitTicketRequest request, SubmitTicketContext context)
     {
+        if (request.Type is not null && !TicketNameParser.TryType(request.Type, out _))
+            return TicketErrors.Invalid("type", "type-invalid", "Choose Support or FeatureRequest.");
+
         // Before CustomerText and the sanitizer expand the body, so a huge body never reaches them.
         if (request.Body is { } rawBody && rawBody.Length > DomainLimits.MessageBodyMaxLength)
         {
@@ -212,7 +216,7 @@ public sealed class SubmitTicketRequestHandler(
 
         var number = allocated.Value;
         var channel = isApi ? TicketChannel.Api : TicketChannel.Web;
-        var ticket = Ticket.Create(number, product.Id, requester.Value.Id, request.Subject, channel, metadataJson, context.Trusted, clock);
+        var ticket = Ticket.Create(number, product.Id, requester.Value.Id, request.Subject, channel, metadataJson, context.Trusted, clock, request.Type is null ? TicketType.Support : Enum.Parse<TicketType>(request.Type.Trim(), true));
         if (ticket.IsFailure)
         {
             return Fail(ticket.Error!.ToError());

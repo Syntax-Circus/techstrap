@@ -17,7 +17,7 @@ public sealed class PortalRoutesTests
     {
         var templates = Templates().ToList();
 
-        templates.Count.ShouldBe(15, "a route was added or removed: update the spec's route list and this count together");
+        templates.Count.ShouldBe(17, "a route was added or removed: update the spec's route list and this count together");
         templates.ShouldAllBe(t => t.Value.StartsWith('/'));
         templates.Select(t => t.Value).Distinct(StringComparer.OrdinalIgnoreCase).Count().ShouldBe(templates.Count);
     }

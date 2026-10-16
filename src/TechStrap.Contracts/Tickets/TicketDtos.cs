@@ -10,10 +10,10 @@ public sealed record TicketSummaryDto(
     Guid RequesterId, string RequesterEmail, string? RequesterName,
     Guid? AssigneeId, string? AssigneeName,
     bool IsSpam, IReadOnlyList<TicketTagDto> Tags,
-    DateTimeOffset CreatedAt, DateTimeOffset LastActivityAt);
+    DateTimeOffset CreatedAt, DateTimeOffset LastActivityAt, string Type = TicketTypes.Support, Guid? FeatureId = null);
 
 /// <summary>Counts of tickets by view.</summary>
-public sealed record TicketViewCountsResponse(int Unassigned, int Mine, int Open, int Pending, int All, int Spam);
+public sealed record TicketViewCountsResponse(int Unassigned, int Mine, int Open, int Pending, int All, int Spam, int FeatureRequests = 0);
 
 /// <summary>A file attached to a message.</summary>
 public sealed record AttachmentDto(Guid Id, string FileName, string ContentType, long Size);
@@ -41,12 +41,12 @@ public sealed record TicketDetailDto(
     string Channel, Guid? ParentTicketId, string? MetadataJson, bool MetadataTrusted,
     DateTimeOffset CreatedAt, DateTimeOffset? FirstResponseAt, DateTimeOffset? SolvedAt, DateTimeOffset? ClosedAt,
     DateTimeOffset LastActivityAt, uint RowVersion,
-    IReadOnlyList<MessageDto> Messages, IReadOnlyList<TicketEventDto> Events);
+    IReadOnlyList<MessageDto> Messages, IReadOnlyList<TicketEventDto> Events, string Type = TicketTypes.Support, Guid? FeatureId = null);
 
 /// <summary>Returned by every ticket write (D-036): the fresh state and the RowVersion for the next write.</summary>
 public sealed record TicketStateDto(
     Guid Id, string Number, string Status, string Priority, Guid ProductId, Guid? AssigneeId,
-    bool IsSpam, IReadOnlyList<Guid> TagIds, DateTimeOffset LastActivityAt, uint RowVersion);
+    bool IsSpam, IReadOnlyList<Guid> TagIds, DateTimeOffset LastActivityAt, uint RowVersion, string Type = TicketTypes.Support, Guid? FeatureId = null);
 
 /// <summary>The response to a ticket message operation, containing the new message and the updated ticket state.</summary>
 public sealed record AgentMessageResponse(MessageDto Message, TicketStateDto Ticket);

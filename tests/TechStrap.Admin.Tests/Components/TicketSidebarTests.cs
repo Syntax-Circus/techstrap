@@ -52,7 +52,17 @@ public sealed class TicketSidebarTests : AdminComponentTest
         Selected(cut, "select[id^='ts-sidebar-priority-']").ShouldBe("High");
         Selected(cut, "select[id^='ts-sidebar-product-']").ShouldBe("Orbitly");
         cut.Find(".ts-tagpicker-list .ts-tag").TextContent.ShouldBe("bug");
-        cut.FindAll("label").Select(l => l.TextContent).ShouldBe(["Status", "Assignee", "Priority", "Product", SidebarCopy.AddTagPlaceholder]);
+        cut.FindAll("label").Select(l => l.TextContent).ShouldBe(["Status", "Assignee", "Type", "Priority", "Product", SidebarCopy.AddTagPlaceholder]);
+    }
+
+    [Fact]
+    public void Type_change_sends_the_current_version_and_accepts_the_server_state()
+    {
+        _tickets.ChangeTypeAsync(Arg.Any<Guid>(), Arg.Any<ChangeTicketTypeRequest>(), Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.State() with { Type = TicketTypes.FeatureRequest }));
+        var cut = RenderSidebar(TestData.Model(rowVersion: 7));
+        cut.Find("select[id^='ts-sidebar-type-']").Change(TicketTypes.FeatureRequest);
+        _tickets.Received(1).ChangeTypeAsync(TestData.TicketId, Arg.Is<ChangeTicketTypeRequest>(r => r.Type == TicketTypes.FeatureRequest && r.RowVersion == 7u), Arg.Any<CancellationToken>());
+        _states.ShouldHaveSingleItem().Type.ShouldBe(TicketTypes.FeatureRequest);
     }
 
     [Fact]

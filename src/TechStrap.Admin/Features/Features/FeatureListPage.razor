@@ -1,0 +1,33 @@
+@page "/features"
+@attribute [Authorize]
+@implements IDisposable
+@inject IFeaturesClient Features
+@inject IProductsClient Products
+@inject NavigationManager Navigation
+
+<PageTitle>Features</PageTitle>
+<div class="ts-settings">
+    <div class="ts-settings-head"><h1>Features</h1><a class="btn btn-primary" href="/features/new">New feature</a></div>
+    <p>Curate public features and link private customer requests. Drafts stay private until published.</p>
+    <form class="ts-filterbar" @onsubmit="SearchAsync" @onsubmit:preventDefault>
+        <div class="ts-filter"><label for="features-search">Search</label><input id="features-search" class="form-control" type="search" @bind="_search" /></div>
+        <div class="ts-filter"><label for="features-product">Product</label><select id="features-product" class="form-select" @bind="_product"><option value="">All products</option>@foreach (var product in _products) { <option value="@product.Id">@product.Name</option> }</select></div>
+        <div class="ts-filter"><label for="features-status">Progress</label><select id="features-status" class="form-select" @bind="_status"><option value="">All statuses</option>@foreach (var status in FeatureProgressStatuses.All) { <option value="@status">@FeatureCopy.Progress(status)</option> }</select></div>
+        <button class="btn btn-outline-secondary" type="submit">Search</button>
+        <button class="btn btn-outline-secondary" type="button" @onclick="LoadAsync">Refresh</button>
+    </form>
+    @if (_loading) { <LoadingState Rows="4" Label="Loading features" /> }
+    else if (_error is not null) { <p role="alert">@_error</p> }
+    else if (_result is { Items.Count: > 0 })
+    {
+        <ScrollRegion Label="Features">
+            <table role="table" class="table ts-ledger"><thead><tr><th scope="col">Title</th><th scope="col">Product</th><th scope="col">Publication</th><th scope="col">Progress</th><th scope="col">Updated</th></tr></thead><tbody>
+        @foreach (var feature in _result.Items)
+        {
+            <tr @key="feature.Id"><td><a href="@($"/features/{feature.Id}")">@feature.Title</a></td><td>@(_products.FirstOrDefault(p => p.Id == feature.ProductId)?.Name ?? "Product unavailable")</td><td>@feature.PublicationState</td><td>@FeatureCopy.Progress(feature.ProgressStatus)</td><td><RelativeTime When="feature.UpdatedAt" /></td></tr>
+        }
+        </tbody></table></ScrollRegion>
+        <PagerControl Page="_page" PageSize="25" TotalCount="_result.TotalCount" OnPageChanged="ChangePageAsync" />
+    }
+    else { <EmptyState Heading="No features yet"><p>Create a draft to start curating this board, or adjust your filters.</p></EmptyState> }
+</div>

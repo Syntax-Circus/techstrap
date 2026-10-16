@@ -296,6 +296,72 @@ namespace TechStrap.Infrastructure.Migrations
                     b.ToTable("email_outbox", (string)null);
                 });
 
+            modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.FeatureRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DescriptionMarkdown")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description_markdown");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<string>("ProgressStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("progress_status");
+
+                    b.Property<string>("PublicationState")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("publication_state");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("slug");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_features");
+
+                    b.HasIndex("ProductId", "Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ix_features_product_id_slug");
+
+                    b.HasIndex("ProductId", "PublicationState", "UpdatedAt")
+                        .HasDatabaseName("ix_features_product_id_publication_state_updated_at");
+
+                    b.ToTable("features", (string)null);
+                });
+
             modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.IntakeIdempotencyKeyRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -994,6 +1060,10 @@ namespace TechStrap.Infrastructure.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("custom_fields");
 
+                    b.Property<Guid?>("FeatureId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("feature_id");
+
                     b.Property<DateTimeOffset?>("FirstResponseAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("first_response_at");
@@ -1061,6 +1131,14 @@ namespace TechStrap.Infrastructure.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("subject");
 
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("Support")
+                        .HasColumnName("type");
+
                     b.Property<uint>("Version")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -1069,6 +1147,9 @@ namespace TechStrap.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_tickets");
+
+                    b.HasIndex("FeatureId")
+                        .HasDatabaseName("ix_tickets_feature_id");
 
                     b.HasIndex("LastActivityAt")
                         .HasDatabaseName("ix_tickets_last_activity_at_when_spam")
@@ -1095,6 +1176,9 @@ namespace TechStrap.Infrastructure.Migrations
 
                     b.HasIndex("AssigneeId", "Status")
                         .HasDatabaseName("ix_tickets_assignee_id_status");
+
+                    b.HasIndex("Type", "LastActivityAt")
+                        .HasDatabaseName("ix_tickets_type_last_activity_at");
 
                     b.HasIndex("ProductId", "Status", "LastActivityAt")
                         .HasDatabaseName("ix_tickets_product_id_status_last_activity_at");
@@ -1153,6 +1237,16 @@ namespace TechStrap.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_attachments_tickets_ticket_id");
+                });
+
+            modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.FeatureRecord", b =>
+                {
+                    b.HasOne("TechStrap.Infrastructure.Persistence.Records.ProductRecord", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_features_products_product_id");
                 });
 
             modelBuilder.Entity("TechStrap.Infrastructure.Persistence.Records.IntakeIdempotencyKeyRecord", b =>
@@ -1291,6 +1385,12 @@ namespace TechStrap.Infrastructure.Migrations
                         .HasForeignKey("AssigneeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_tickets_agents_assignee_id");
+
+                    b.HasOne("TechStrap.Infrastructure.Persistence.Records.FeatureRecord", null)
+                        .WithMany()
+                        .HasForeignKey("FeatureId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_tickets_features_feature_id");
 
                     b.HasOne("TechStrap.Infrastructure.Persistence.Records.TicketRecord", null)
                         .WithMany()

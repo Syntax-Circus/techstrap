@@ -40,6 +40,7 @@ public sealed class ProductHostMiddleware(RequestDelegate next)
         PortalRoutes.ContactPath,
         PortalRoutes.LostLinkPath,
         PortalRoutes.KbPath,
+        PortalRoutes.FeaturesPath,
         PortalRoutes.SuggestPath,
     ];
 
