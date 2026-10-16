@@ -19,6 +19,8 @@
     <PackageReference Include="Npgsql" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="SyntaxCircus.Email" />
+    <!-- Raise MimeKit's transitive PKCS dependency to the patched security floor. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
     <PackageReference Include="SyntaxCircus.EntityFrameworkCore.Postgres" />
     <PackageReference Include="SyntaxCircus.Storage" />
   </ItemGroup>
