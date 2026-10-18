@@ -68,7 +68,11 @@ public sealed class HealthEndpointTests(TestPostgres postgres)
     [Fact]
     public async Task The_request_log_line_carries_the_correlation_id()
     {
-        await using var factory = new ApiFactory();
+        // Request diagnostics are opt-in; exercise correlation enrichment with logging enabled.
+        await using var factory = new ApiFactory(settings: new Dictionary<string, string?>
+        {
+            ["Serilog:MinimumLevel:Override:Serilog.AspNetCore.RequestLoggingMiddleware"] = "Information",
+        });
         using var client = factory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, "/health/live");
         request.Headers.Add("X-Correlation-Id", "corr-in-log");
