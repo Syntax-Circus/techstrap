@@ -39,6 +39,23 @@ Do not list those keys in an env file.
 
 Keep a filled env file out of the repository. A new setting is added to `appsettings.json`, the `.env.example` and the deploy template together; `scripts/tests/ConfigContract.Tests.ps1` fails until they agree.
 
+### Logging defaults and diagnostics
+
+All four hosts suppress routine HTTP request logs by default, including successful health checks. The Api and Worker also suppress routine EF Core and Npgsql database logs,
+including SQL commands and background polling. These categories default to `Warning`; warnings, errors and application information logs remain visible.
+
+To enable diagnostics temporarily, override the specific category in the host's Serilog configuration. For example, use these entries in its per-service env file:
+
+```text
+Serilog__MinimumLevel__Override__Serilog.AspNetCore.RequestLoggingMiddleware=Information
+Serilog__MinimumLevel__Override__Microsoft.EntityFrameworkCore=Information
+Serilog__MinimumLevel__Override__Npgsql=Debug
+```
+
+Environment-variable keys containing dots are supported by the container env file; they cannot be assigned as ordinary shell variable names.
+Recreate the affected container to apply changes, then remove the overrides and recreate it again to restore the quiet defaults.
+The existing outbound `HttpClient` logging handlers remain disabled to protect credential headers; changing log levels does not re-enable them.
+
 ## One-time host setup
 
 1. **Postgres.** Run Postgres 17 as its own instance. As a Postgres superuser on that instance, create the role and the database (generate the password first, see step 2):

@@ -30,6 +30,8 @@ internal sealed class PortalFactory(
         ["Serilog:MinimumLevel:Override:Microsoft"] = "Verbose",
         ["Serilog:MinimumLevel:Override:Microsoft.AspNetCore"] = "Verbose",
         ["Serilog:MinimumLevel:Override:System"] = "Verbose",
+        ["Serilog:MinimumLevel:Override:System.Net.Http.HttpClient"] = "Verbose",
+        ["Serilog:MinimumLevel:Override:Serilog.AspNetCore.RequestLoggingMiddleware"] = "Verbose",
     };
 
     static PortalFactory()

@@ -23,6 +23,10 @@ public sealed class OtlpLeakTests
         ["Serilog:MinimumLevel:Override:Microsoft"] = "Verbose",
         ["Serilog:MinimumLevel:Override:Microsoft.AspNetCore"] = "Verbose",
         ["Serilog:MinimumLevel:Override:System"] = "Verbose",
+        ["Serilog:MinimumLevel:Override:System.Net.Http.HttpClient"] = "Verbose",
+        ["Serilog:MinimumLevel:Override:Serilog.AspNetCore.RequestLoggingMiddleware"] = "Verbose",
+        ["Serilog:MinimumLevel:Override:Microsoft.EntityFrameworkCore"] = "Verbose",
+        ["Serilog:MinimumLevel:Override:Npgsql"] = "Verbose",
     };
 
     private static string Everything(LogEvent e) => string.Join('\n', [e.RenderMessage(), e.Exception?.ToString() ?? string.Empty, .. e.Properties.Values.Select(v => v.ToString())]);
