@@ -248,7 +248,13 @@ public sealed class LogRedactionTests(TestPostgres postgres) : IDisposable
     public async Task The_intake_customer_and_lost_link_flow_logs_no_email_name_or_token()
     {
         var database = await ApiTestDatabase.CreateAsync(postgres);
-        var settings = new Dictionary<string, string?>(database.Settings) { ["TECHSTRAP_PORTAL_PUBLIC_URL"] = "https://help.test", ["Storage:Local:RootPath"] = _storage };
+        var settings = new Dictionary<string, string?>(database.Settings)
+        {
+            ["TECHSTRAP_PORTAL_PUBLIC_URL"] = "https://help.test",
+            ["Storage:Local:RootPath"] = _storage,
+            // Scan actual request events even though routine request logging is off by default.
+            ["Serilog:MinimumLevel:Override:Serilog.AspNetCore.RequestLoggingMiddleware"] = "Information",
+        };
         await using var factory = new ApiFactory(settings: settings);
         var seed = await IntakeTestData.SeedAsync(factory.Services, Ct);
         using var client = factory.CreateClient();
