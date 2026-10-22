@@ -46,11 +46,11 @@ Describe 'README.md' {
         $text | Should -Match 'docs/architecture/00-DISCOVERY-INDEX\.md'
     }
 
-    It 'states that SDK attachments are pending merge and release validation remains open' {
+    It 'states that SDK attachments are merged and release validation remains open' {
         $text = Get-RepoText 'README.md'
         $status = ($text -split '\r?\n' | Where-Object { $_ -like '> **Status:**' + '*' }) -join ' '
         $status | Should -Match 'PHASE-11d'
-        $status | Should -Match 'pending merge'
+        $status | Should -Match 'merged in PR #40'
         $status | Should -Match 'PHASE-12c remains open'
         $status | Should -Match '1\.0\.0 is a later API-lock decision'
         $text | Should -Match '0\.2\.0'

@@ -6,7 +6,7 @@
 
 **Support for Technical Support.** A lightweight, open-source, self-hosted helpdesk for one company that supports many products.
 
-> **Status:** pre-1.0. Core helpdesk features and the client SDK are implemented, along with product hosts, appearance editing, feature boards and webhooks. PHASE-11d adds API-key multipart intake, SDK attachments and a MAUI file adapter (implemented and verified locally; pending merge). PHASE-12c remains open: UAT/manual checks, load testing, a restore drill and a 48-hour soak before release sign-off. Version 1.0.0 is a later API-lock decision. See the [roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md).
+> **Status:** pre-1.0. Core helpdesk features and the client SDK are implemented, along with product hosts, appearance editing, feature boards and webhooks. PHASE-11d adds API-key multipart intake, SDK attachments and a MAUI file adapter (merged in PR #40). PHASE-12c remains open: UAT/manual checks, load testing, a restore drill and a 48-hour soak before release sign-off. Version 1.0.0 is a later API-lock decision. See the [roadmap](docs/architecture/99-IMPLEMENTATION-ROADMAP.md).
 
 ## What it is
 

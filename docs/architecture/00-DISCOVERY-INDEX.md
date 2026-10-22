@@ -32,15 +32,18 @@
 | 08 | [Knowledge base](PHASE-08-knowledge-base.md) | 06 (07 for the editor UI) | 09 | PHASE-08 merged (PR #13): the API (Tasks 1-8) and the Admin (editor, categories, article picker); the owner's manual checks are open |
 | 09 | [Public portal](PHASE-09-public-portal.md) | 02, 06, 08 | 12 | 09a merged (PR #14); 09b merged (PR #15); 09c merged (PR #16); 09d merged (PR #17); PHASE-09 complete: the owner evidence for P09-T16 (axe, Lighthouse, the JavaScript-off walk, screenshots) and the compose run of P09-T18 are open, P09-T20 is deferred |
 | 10 | [Live updates](PHASE-10-live-updates.md) | 07 | 12 | 10a merged (PR #18); 10b merged (PR #19); PHASE-10 complete: the owner's manual checks with a real identity provider (two browsers, a worker auto-close, the kill switch) are open |
-| 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | 11a merged (PR #20); 11b merged (PR #21); 11c merged (PR #22); v0.1.0 published 2026-10-08 (PHASE-11 complete); T05 (attachments) delivered by 11d (D-055); verified locally; pending merge |
-| 11d | [SDK attachments](PHASE-11d-sdk-attachments.md) | 05, 11a, 11b | 12c | Implemented and verified locally; pending merge; MAUI device smoke test remains |
+| 11 | [Client SDK](PHASE-11-client-sdk.md) | 05 | 12 | 11a merged (PR #20); 11b merged (PR #21); 11c merged (PR #22); v0.1.0 published 2026-10-08 (PHASE-11 complete); T05 (attachments) delivered by 11d (D-055); merged (PR #40) |
+| 11d | [SDK attachments](PHASE-11d-sdk-attachments.md) | 05, 11a, 11b | 12c | Merged (PR #40); MAUI device smoke test remains |
 | 11e | [Product hosts](PHASE-11e-product-hosts.md) | 09, 05, 04, 07 | 12 | 11e merged (PR #25): T01 to T07 |
 | 11f | [Landing page and product logos](PHASE-11f-landing-and-logos.md) | 09, 11e, 08, 04, 07 | 12c | D-052 recorded; 11f merged (PR #32): T01 to T10 |
 | 11g | [Theme packs and skins](PHASE-11g-theme-packs.md) | 09, 11e, 11f, 04, 07 | 11h | D-053 recorded; 11g merged (PR #33): T01 to T09 (engine, packs, Contracts 0.4.0, interim Admin skin field); 11h is the Admin editor |
 | 11h | [Appearance editor](PHASE-11h-appearance-editor.md) | 11g, 07 | none | Complete: merged (PR #38); Admin default pack, structured product Appearance controls, isolated live preview and advanced JSON |
+| 11i | [Feature requests and boards](../development/FEATURE-REQUESTS.md) | 09, 07, 06 | 12c | Complete: merged (PR #37) |
+| 11j | [Outgoing webhooks](../development/WEBHOOKS.md) | 05, 06, 07 | 12c | Complete: merged (PR #39, D-054) |
 | 12 | [Release hardening](PHASE-12-release-hardening.md) | all | v1.0.0 (v0.3.0 per D-051; 1.0.0 is a later API-lock decision) | 12a merged (PR #28); 12b merged (PR #29); v0.2.1 (PR #30, PR #31); 12c UAT and hardening work remains open; 11f is merged and 11h does not block 12c |
+| 12c | [UAT and release](PHASE-12c-uat-and-release.md) | 12a, 12b | v0.x release | Planned (2026-10-22, D-056) |
 
-Current follow-up status (2026-10-16): feature requests and curated product feature boards are complete and merged (PR #37; [operator guide](../development/FEATURE-REQUESTS.md)). The latest observed published release remains v0.4.2; PR #37 does not imply a new tag. PHASE-12c UAT, manual checks and release work remain open. Appearance is merged (PR #38), and outgoing webhooks are merged (PR #39). SDK attachments are implemented in PHASE-11d (D-055), verified locally and pending merge; no tag or deployment is implied.
+Current follow-up status (2026-10-22): feature requests and curated product feature boards are complete and merged (PR #37; [operator guide](../development/FEATURE-REQUESTS.md)). The latest published release is v0.4.6. Appearance is merged (PR #38), outgoing webhooks are merged (PR #39, D-054), SDK attachments are merged in PHASE-11d (PR #40, D-055), and the default HTTP and database logging is quieter (PR #42). PHASE-12c remains open: UAT does not exist yet; the plan is [PHASE-12c](PHASE-12c-uat-and-release.md) (D-056): build UAT, restore production into it, then the load run, browser UAT, soak and release.
 
 Phases that can run in parallel: 02 alongside 03–06; 11 alongside 07–10.
 
