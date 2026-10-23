@@ -1,5 +1,7 @@
 # PHASE-12: Release Hardening
 
+> **12c plan (2026-10-22, D-056):** the open tasks T12, T14, T15, T18, T20 and T21 are sequenced in [PHASE-12c-uat-and-release.md](PHASE-12c-uat-and-release.md). Their checkboxes here stay unticked until 12c completes them.
+
 ## Objective
 
 Make TechStrap safe and repeatable to run for others and tag `v1.0.0`:

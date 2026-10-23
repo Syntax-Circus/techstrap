@@ -2368,3 +2368,14 @@ After the first UAT deploy the owner found the Portal bland even as a default an
 - **MAUI:** Add an optional init property on the existing draft and a `FileResult` adapter. Apps own picking, screenshot capture and permissions; retain plain net10.0 and existing dependencies.
 - **Compatibility:** Existing JSON methods and draft positional signatures remain. Deploy the new server before attachment calls; no silent file-dropping fallback. Adding interface methods requires custom `ITechStrapClient` implementations to implement them. No release tag, deployment or 1.0 API lock is implied.
 - **Approval:** Owner selected SDK attachments, file support plus MAUI adapter, and a separate multipart route, then requested implementation of the proposed plan in this conversation.
+
+## D-056: PHASE-12c: UAT built by restoring production, shared outbound services, browser UAT, next-tag release
+
+- **Date:** 2026-10-22
+- **Decision:** UAT does not exist yet and is built in 12c. It runs the latest published tag (v0.4.6 at the time), pinned by tag in the env files. It is filled by backing up the owner's running production deployment and restoring it into UAT, which is also the P12-T15 restore drill. The load run, a browser UAT pass and the 48-hour soak run against that copy.
+- **Outbound services:** UAT shares production's SMTP path and Discord webhooks, and production holds no sensitive data (one test ticket), so there is no scrub or sanitisation step. The load run alone switches UAT SMTP to a capture sink (or uses a sink domain) so load mail cannot reach real inboxes.
+- **Browser UAT:** Claude in Chrome may drive the UAT UI and may create and work tickets. The owner signs in to the identity provider; credentials are never handled by Claude. Axe, Lighthouse, the JavaScript-off walk and the MAUI device smoke test stay with the owner.
+- **Release:** D-051's `v0.3.0` end state is superseded: releases have already reached v0.4.6. 12c ends with the next 0.x tag, chosen by the owner. `v1.0.0` stays a later API-lock decision.
+- **CI:** No new job or gate. Load, backup and soak are on demand only.
+- **Related artifacts:** D-043, D-051, D-053, D-054, D-055, `PHASE-12c-uat-and-release.md`, `docs/runbooks/backup-restore.md`, `docs/load-test-results.md`.
+- **Approval:** Owner chose the 12c document, the production-to-UAT restore, shared SMTP and Discord, the latest tag, and ticket creation by the browser pass in this conversation (2026-10-22).

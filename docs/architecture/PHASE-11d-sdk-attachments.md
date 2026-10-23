@@ -1,6 +1,6 @@
 # PHASE-11d: SDK attachments
 
-Status: Implemented and verified locally; pending merge (2026-10-16). Decision: D-055.
+Status: Merged (PR #40; implemented and verified 2026-10-16). Decision: D-055.
 
 ## Outcome
 
