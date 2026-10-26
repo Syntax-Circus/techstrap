@@ -103,7 +103,8 @@ public partial class Contact : ProductPageBase
         if (outcome.Status == SubmitStatus.Done)
         {
             // Straight after the redirect: nothing else may run or render.
-            Redirects.NavigateTo(outcome.Target.Path!);
+            // A plain response redirect, not NavigateTo: after an await NavigateTo's NavigationException faults a task nobody observes, reported later as an UnobservedTaskException.
+            Http.HttpContext!.Response.Redirect(Redirects.ToAbsoluteUri(outcome.Target.Path!).AbsoluteUri);
             return;
         }
 

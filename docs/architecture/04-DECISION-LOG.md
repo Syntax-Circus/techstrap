@@ -2379,3 +2379,11 @@ After the first UAT deploy the owner found the Portal bland even as a default an
 - **CI:** No new job or gate. Load, backup and soak are on demand only.
 - **Related artifacts:** D-043, D-051, D-053, D-054, D-055, `PHASE-12c-uat-and-release.md`, `docs/runbooks/backup-restore.md`, `docs/load-test-results.md`.
 - **Approval:** Owner chose the 12c document, the production-to-UAT restore, shared SMTP and Discord, the latest tag, and ticket creation by the browser pass in this conversation (2026-10-22).
+
+## D-057: Portal form posts redirect with the response, not NavigateTo
+
+- **Date:** 2026-10-26
+- **Decision:** After an await in a static SSR post handler, the Portal redirects with `Response.Redirect` (absolute URI from `NavigationManager.ToAbsoluteUri`), not `NavigationManager.NavigateTo`. Contact and lost-link did this.
+- **Why:** In production, `NavigateTo`'s `NavigationException` left a faulted task nobody observed, reported by GlitchTip as `UnobservedTaskException` (issues 119, 120) after each successful submit. The redirect itself worked. It did not reproduce in the in-memory test host, so the regression test guards the redirect and the absence of unobserved exceptions but could not fail before the change.
+- **Not chosen:** A `NavigationException` noise filter in `SyntaxCircus.Observability` (like the JSDisconnected one); it would hide the report but leave the task.
+- **Approval:** Owner chose the source fix in this conversation (2026-10-26).
