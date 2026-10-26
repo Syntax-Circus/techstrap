@@ -77,7 +77,8 @@ public partial class LostLink : ProductPageBase
             RequestAborted);
         if (outcome.Status == SubmitStatus.Done)
         {
-            Redirects.NavigateTo(outcome.Target.Path!);
+            // A plain response redirect, not NavigateTo: after an await NavigateTo's NavigationException faults a task nobody observes, reported later as an UnobservedTaskException.
+            Http.HttpContext!.Response.Redirect(Redirects.ToAbsoluteUri(outcome.Target.Path!).AbsoluteUri);
             return;
         }
 

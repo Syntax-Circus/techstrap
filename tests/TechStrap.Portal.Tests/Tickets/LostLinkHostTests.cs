@@ -87,6 +87,42 @@ public sealed class LostLinkHostTests
     }
 
     [Fact]
+    public async Task A_redirecting_post_leaves_no_unobserved_task_exception()
+    {
+        var unobserved = new List<Exception>();
+        void Record(object? sender, UnobservedTaskExceptionEventArgs args) { lock (unobserved) { unobserved.AddRange(args.Exception.InnerExceptions); } }
+        TaskScheduler.UnobservedTaskException += Record;
+        try
+        {
+            await using var factory = Host();
+            factory.Api.OnStatus(HttpMethod.Post, LinkApi, HttpStatusCode.Accepted);
+            var (client, token) = await OpenAsync(factory);
+            using var _ = client;
+            for (var i = 0; i < 5; i++)
+            {
+                using var response = await client.PostAsync(Path, Form(token), Ct);
+                response.StatusCode.ShouldBe(HttpStatusCode.Found);
+            }
+
+            await Task.Delay(200, Ct);
+            for (var i = 0; i < 3; i++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+
+            lock (unobserved)
+            {
+                unobserved.ShouldBeEmpty();
+            }
+        }
+        finally
+        {
+            TaskScheduler.UnobservedTaskException -= Record;
+        }
+    }
+
+    [Fact]
     public async Task The_response_to_a_known_and_an_unknown_address_is_byte_identical_whatever_the_api_says_besides_success()
     {
         async Task<(string Redirect, string Page)> RunAsync(Func<HttpResponseMessage> answer, string email)
