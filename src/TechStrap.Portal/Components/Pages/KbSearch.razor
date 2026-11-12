@@ -8,7 +8,7 @@
 }
 else if (Theme is { } theme)
 {
-    <SeoHead Title="@KbCopy.SearchTitle(theme.DisplayName)" Description="@KbCopy.SearchDescription(theme.DisplayName)" RelativeUrl="@Links.Absolute(Links.KbSearch(theme.Key))" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" NoIndex="@(Text.Length > 0)" />
+    <SeoHead Title="@KbCopy.SearchTitle(theme.DisplayName)" Description="@KbCopy.SearchDescription(theme.DisplayName)" RelativeUrl="@Links.Absolute(Links.KbSearch(theme.Key))" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" NoIndex="true" />
     <KbBreadcrumbs Crumbs="@Crumbs(theme)" />
     <h1>@KbCopy.SearchPageHeading</h1>
     <KbSearchBox ProductKey="@theme.Key" Query="@Text" />

@@ -170,7 +170,7 @@ Four pages, each on `ProductPageBase`, each static SSR with plain links and a GE
 - `/p/{key}/kb` (`KbHome`) lists the categories the product can see with their article counts and descriptions (`IPublicKbClient.ListCategoriesAsync`); a product with no article shows the empty state.
 - `/p/{key}/kb/{category}` (`KbCategory`) is a page of the category's published articles, newest update first, 10 a page (`ListCategoryArticlesAsync`). The pager (`Pager`) is `?page=n` links: page one has no query.
 - `/p/{key}/kb/search?q=&page=` (`KbSearch`) is a GET form (`KbSearchBox`). An empty text shows a prompt and makes no call; no result shows a link to contact support; a snippet is plain text; a text is cut at 200
-  characters; a page with a text is `noindex`; paging links keep the escaped text.
+  characters; the page is always `noindex`; paging links keep the escaped text.
 - `/p/{key}/kb/{category}/{slug}` (`KbArticle`) shows the article: breadcrumbs, the title, the day it changed, the body and a "Still need help?" link. **`KbArticleBody` is the second and last place the Portal turns
   text into markup** (`PortalRules.MarkupStringSites` lists exactly it and `CustomerMessageBody`): the API renders the Markdown and sanitizes the HTML (D-044), and the Portal passes it on byte for byte
   (`KbArticleHostTests` compares it with the API's string), except that an `h1` in the body is shown as an `h2` (`BodyHeadings`), because the page's own title is its one `h1`. A plain-http image in an article is blocked by the CSP's `img-src 'self' https: data:` in Production; that is the intended posture.
@@ -187,7 +187,7 @@ refused by `IPublicKbClient` without a call (`KbSlugShape`, like `ProductKeyShap
 
 Each page sets its head with `SeoHead` (`SyntaxCircus.Blazor.Seo`): a unique title ("{page} - {product} Help Center", the product being the site because `Seo:SiteName` is global), a description, the canonical
 address (on the default host built from `TECHSTRAP_PORTAL_PUBLIC_URL`, on a product host from the product's stored `PortalHost`, through `PortalLinks.Absolute`; the raw Host header is only a lookup key into the host map and never appears in a URL; a page of a category names its own page, and a shared article is canonical under the product the visitor is on), Open Graph (the product's logo
-when it has an acceptable one, else `/icon-512.png`, never the bare site address) and `NoIndex` for a search with a text. The description of an article is its summary, else the first sentence of the body as plain
+when it has an acceptable one, else `/icon-512.png`, never the bare site address) and `NoIndex` for every search page. The description of an article is its summary, else the first sentence of the body as plain
 text (`KbPlainText`), else the title and product. The article page also writes a `BreadcrumbList` and an `Article` as JSON-LD.
 
 **JSON-LD must go through `JsonLdText`.** `SyntaxCircus.Blazor.Seo` 0.1.4's `JsonLd` writes its JSON through a markup string with an encoder that leaves `<`, `>` and `&` alone, so a `</script>` in an article title
@@ -256,7 +256,7 @@ A product with a `PortalHost` (set in the Admin, D-050) is also served at `https
 
 `UseTechStrapWebHost(PortalHeaderRules.Rules)` applies per-path rules after the shared security headers: everything under `/t` gets `Referrer-Policy: no-referrer`, `Cache-Control: no-store` and
 `X-Robots-Tag: noindex`, only `/t/{token}/attachments/{id}` is sandboxed (so the ticket page keeps the normal CSP), and the four form pages of a product (`/p/{key}/contact`, `/contact/received`, `/lost-link` and
-`/suggest`) get `no-store` and `noindex`; a delivered help-center page gets `public, max-age=60` and the search page `no-store` (see Caching). `/robots.txt` disallows `/t/` and names `{public url}/sitemap.xml` (on a product host, that host's own sitemap). The
+`/suggest`) get `no-store` and `noindex`; a delivered help-center page gets `public, max-age=60` and the search page `no-store` and `noindex` (see Caching). `/robots.txt` disallows `/t/` and names `{public url}/sitemap.xml` (on a product host, that host's own sitemap). The
 canonical-host redirect is an allow-list of legacy hosts and does nothing until configured.
 
 ### Logs and Sentry

@@ -50,12 +50,12 @@ public sealed class FormPageHeaderHostTests
         response.StatusCode.ShouldNotBe(HttpStatusCode.InternalServerError, path);
     }
 
-    // PHASE-09c: the help center's search page is never stored by a browser or a cache (any text can be asked and shown), but it is not a form page: it is not marked noindex by a header (the page does that itself when it has a query).
+    // PHASE-09c: the help center's search page is never stored by a browser or a cache (any text can be asked and shown), and, although it is not a form page, search results are never indexed, so it carries noindex too (the empty form included).
     [Theory]
     [InlineData("/p/probe/kb/search")]
     [InlineData("/p/probe/kb/search?q=x")]
     [InlineData("/P/Probe/KB/SEARCH/")]
-    public async Task The_search_page_is_never_stored_but_is_not_marked_noindex_by_a_header_rule(string path)
+    public async Task The_search_page_is_never_stored_and_is_noindex(string path)
     {
         await using var factory = new PortalFactory();
         using var client = factory.CreateClient();
@@ -63,6 +63,6 @@ public sealed class FormPageHeaderHostTests
         using var response = await client.GetAsync(path, Ct);
 
         Header(response, "Cache-Control").ShouldBe(["no-store"], path);
-        Header(response, "X-Robots-Tag").ShouldBeEmpty(path);
+        Header(response, "X-Robots-Tag").ShouldBe(["noindex"], path);
     }
 }

@@ -76,6 +76,7 @@ public sealed class FeatureBoardHostTests
         var (empty, _, dom) = await KbTestKit.GetAsync(client, "/p/paperplane/features", Ct);
         empty.StatusCode.ShouldBe(HttpStatusCode.OK);
         dom.QuerySelector("main")!.TextContent.ShouldContain("No features");
+        KbTestKit.Meta(dom, "meta[name=robots]").ShouldBe("noindex, nofollow");
         dom.QuerySelector("a[href='/p/paperplane/contact?type=FeatureRequest']").ShouldNotBeNull();
         factory.Api.OnStatus(HttpMethod.Get, ApiPath, HttpStatusCode.TooManyRequests);
         var (busy, html, _) = await KbTestKit.GetAsync(client, "/p/paperplane/features", Ct);
