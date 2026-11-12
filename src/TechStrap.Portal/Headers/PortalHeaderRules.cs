@@ -26,9 +26,9 @@ internal static class PortalHeaderRules
         // The form pages keep the shared referrer policy (a visitor's own address is no secret from the same site) but are never indexed and never stored: their address can carry a name, an address and a subject.
         PathHeaderRule.Set(IsFormPagePath, ("Cache-Control", CacheControl), ("X-Robots-Tag", RobotsTag)),
 
-        // The help center (PHASE-09c): a delivered page may be kept by a browser for the minute the server keeps it, but only a delivered one: a 404, a 429 or a 503 never gets a public header. The search page is never kept anywhere.
+        // The help center (PHASE-09c): a delivered page may be kept by a browser for the minute the server keeps it, but only a delivered one: a 404, a 429 or a 503 never gets a public header. The search page is never kept anywhere and never indexed.
         PathHeaderRule.SetOnSuccess(PortalCachePaths.IsKbPage, ("Cache-Control", PortalCachePaths.BrowserCacheControl)),
-        PathHeaderRule.Set(PortalCachePaths.IsKbSearchPath, ("Cache-Control", CacheControl)),
+        PathHeaderRule.Set(PortalCachePaths.IsKbSearchPath, ("Cache-Control", CacheControl), ("X-Robots-Tag", RobotsTag)),
 
         // The landing page is the same for every visitor and is kept for a minute like a help-center page; the Neutral root never gets a public header.
         PathHeaderRule.SetOnSuccess(path => options.ListsProducts && PortalCachePaths.IsRoot(path), ("Cache-Control", PortalCachePaths.BrowserCacheControl)),

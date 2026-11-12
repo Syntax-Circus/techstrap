@@ -26,7 +26,7 @@ public sealed class KbSearchHostTests
     }
 
     [Fact]
-    public async Task An_empty_query_shows_the_prompt_makes_no_search_call_and_stays_indexable()
+    public async Task An_empty_query_shows_the_prompt_makes_no_search_call_and_is_noindex()
     {
         await using var factory = KbTestKit.Factory();
         using var client = FormTestKit.Client(factory);
@@ -36,7 +36,7 @@ public sealed class KbSearchHostTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         KbTestKit.Texts(dom, ".ts-state h2").ShouldBe(["What are you looking for?"]);
         dom.QuerySelector("form[role=search] input[name=q]")!.GetAttribute("value").ShouldBeNullOrEmpty();
-        KbTestKit.Meta(dom, "meta[name=robots]").ShouldStartWith("index, follow");
+        KbTestKit.Meta(dom, "meta[name=robots]").ShouldBe("noindex, nofollow");
         factory.Api.Requests.Select(request => request.Path).ShouldBe([KbTestKit.ProductPath], "an empty text is never sent to the API");
     }
 
@@ -142,7 +142,7 @@ public sealed class KbSearchHostTests
         using var response = await client.GetAsync("/p/paperplane/kb/search?q=router&page=9", Ct);
         var seen = await Seen.OfAsync(response, factory.Api.Requests.Count, Ct);
 
-        // The path rule for the search page adds no-store (never kept by anyone), which no other 404 has; everything else is the neutral page byte for byte.
+        // The path rule for the search page adds no-store (never kept by anyone) and noindex, which no other 404 has; everything else is the neutral page byte for byte.
         seen.Status.ShouldBe(HttpStatusCode.NotFound);
         seen.Body.ShouldBe(neutral.Body, "byte for byte");
         seen.Body.ShouldNotContain("--ts-accent");
@@ -151,7 +151,7 @@ public sealed class KbSearchHostTests
         Without(seen.HeadersWithoutEnhancedNav).ShouldBe(Without(neutral.HeadersWithoutEnhancedNav));
     }
 
-    private static string Without(string headers) => string.Join("\n", headers.Split('\n').Where(line => !line.StartsWith("Cache-Control:", StringComparison.Ordinal)));
+    private static string Without(string headers) => string.Join("\n", headers.Split('\n').Where(line => !line.StartsWith("Cache-Control:", StringComparison.Ordinal) && !line.StartsWith("X-Robots-Tag:", StringComparison.Ordinal)));
 
     [Fact]
     public async Task A_later_page_of_a_search_with_no_results_at_all_is_still_the_no_result_message()

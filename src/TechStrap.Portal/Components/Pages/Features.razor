@@ -9,7 +9,7 @@
 }
 else if (Theme is { } theme && Results is { } results)
 {
-    <SeoHead Title="@($"Features - {theme.DisplayName}")" Description="@($"Explore features for {theme.DisplayName}.")" RelativeUrl="@Links.Absolute(Links.Features(theme.Key, Text, Status, results.Page))" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" NoIndex="@(Text.Length > 0 || Status is not null)" />
+    <SeoHead Title="@($"Features - {theme.DisplayName}")" Description="@($"Explore features for {theme.DisplayName}.")" RelativeUrl="@Links.Absolute(Links.Features(theme.Key, Text, Status, results.Page))" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" NoIndex="@(Text.Length > 0 || Status is not null || results.Items.Count == 0)" />
     <h1>Features</h1>
     <p>See what we are considering, building, and shipping for @theme.DisplayName.</p>
     <p><a class="btn btn-primary" href="@Links.RequestFeature(theme.Key)">Request a feature</a></p>
