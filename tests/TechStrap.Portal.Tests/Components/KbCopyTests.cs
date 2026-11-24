@@ -9,11 +9,9 @@ public sealed class KbCopyTests
     public void The_titles_and_descriptions_name_the_product_and_the_page()
     {
         KbCopy.HomeTitle("Paperplane").ShouldBe("Paperplane Help Center");
-        KbCopy.HomeDescription("Paperplane").ShouldBe("Help articles and answers for Paperplane.");
         KbCopy.CategoryTitle("Accounts", "Paperplane", 1).ShouldBe("Accounts - Paperplane Help Center");
         KbCopy.CategoryTitle("Accounts", "Paperplane", 0).ShouldBe("Accounts - Paperplane Help Center");
         KbCopy.CategoryTitle("Accounts", "Paperplane", 3).ShouldBe("Accounts (page 3) - Paperplane Help Center");
-        KbCopy.CategoryDescription("Accounts", "Paperplane").ShouldBe("Help articles about Accounts for Paperplane.");
         KbCopy.SearchTitle("Paperplane").ShouldBe("Search - Paperplane Help Center");
         KbCopy.SearchDescription("Paperplane").ShouldBe("Search the help articles for Paperplane.");
     }

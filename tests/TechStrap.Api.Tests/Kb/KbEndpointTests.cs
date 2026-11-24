@@ -220,6 +220,55 @@ public sealed class KbEndpointTests(TestPostgres postgres) : IDisposable
         raw.ShouldNotContain("paperplane-only");
     }
 
+    [Fact]
+    public async Task The_recent_list_serves_only_published_articles_across_categories_newest_first_clamped_and_cached()
+    {
+        await using var started = await StartAsync();
+        var product = await CreateProductAsync(started.Admin, "orbitly", "ORB");
+        var other = await CreateProductAsync(started.Admin, "paperplane", "PPL");
+        var account = await CreateCategoryAsync(started.Agent, product.Id, "account");
+        var otherCategory = await CreateCategoryAsync(started.Agent, other.Id, "billing");
+        var shared = await CreateCategoryAsync(started.Agent, null, "general");
+        await CreateArticleAsync(started.Agent, product.Id, account.Id, "still-a-draft");
+        foreach (var (owner, category, slug) in new[] { ((Guid?)product.Id, account.Id, "first"), ((Guid?)product.Id, account.Id, "second"), ((Guid?)null, shared.Id, "shared-tips") })
+        {
+            var article = await CreateArticleAsync(started.Agent, owner, category, slug);
+            (await started.Agent.PostAsync($"/api/kb/articles/{article.Id}/publish", null, Ct)).EnsureSuccessStatusCode();
+        }
+
+        var elsewhere = await CreateArticleAsync(started.Agent, other.Id, otherCategory.Id, "paperplane-only");
+        (await started.Agent.PostAsync($"/api/kb/articles/{elsewhere.Id}/publish", null, Ct)).EnsureSuccessStatusCode();
+
+        using var all = await started.Anonymous.GetAsync("/api/public/kb/orbitly/articles", Ct);
+        using var two = await started.Anonymous.GetAsync("/api/public/kb/orbitly/articles?pageSize=2", Ct);
+        using var clamped = await started.Anonymous.GetAsync("/api/public/kb/orbitly/articles?pageSize=0", Ct);
+        var items = await ReadAsync<List<PublicKbArticleSummaryDto>>(all);
+
+        items.Select(item => item.Slug).ShouldBe(["shared-tips", "second", "first"]);
+        items.Select(item => item.UpdatedAt).ShouldBe(items.Select(item => item.UpdatedAt).OrderDescending());
+        items.Select(item => item.CategorySlug).ShouldBe(["general", "account", "account"]);
+        (await ReadAsync<List<PublicKbArticleSummaryDto>>(two)).Count.ShouldBe(2);
+        (await ReadAsync<List<PublicKbArticleSummaryDto>>(clamped)).Count.ShouldBe(1);
+        all.Headers.GetValues("Cache-Control").Single().ShouldBe("public, max-age=60");
+        var raw = await all.Content.ReadAsStringAsync(Ct);
+        raw.ShouldNotContain("still-a-draft");
+        raw.ShouldNotContain("paperplane-only");
+    }
+
+    [Fact]
+    public async Task The_recent_list_of_a_product_with_no_published_article_is_an_empty_200_and_an_unknown_product_is_a_404_that_is_never_cached()
+    {
+        await using var started = await StartAsync();
+        await CreateProductAsync(started.Admin, "orbitly", "ORB");
+
+        using var empty = await started.Anonymous.GetAsync("/api/public/kb/orbitly/articles", Ct);
+        using var unknown = await started.Anonymous.GetAsync("/api/public/kb/nobody/articles", Ct);
+
+        (await ReadAsync<List<PublicKbArticleSummaryDto>>(empty)).ShouldBeEmpty();
+        unknown.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        unknown.Headers.GetValues("Cache-Control").Single().ShouldBe("no-store");
+    }
+
     [Theory]
     [InlineData("/api/public/kb/orbitly/categories/no-such-category/articles")]
     [InlineData("/api/public/kb/orbitly/categories/billing/articles")]

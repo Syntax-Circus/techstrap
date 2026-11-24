@@ -22,7 +22,7 @@ internal static class ProductMapping
             product.NumberPrefix,
             product.IsActive,
             new ProductBrandingDto(branding.DisplayName, branding.LogoPath, colours.Accent, colours.OnAccent, colours.AccentInk, branding.FromAddress, branding.ReplyTo,
-                branding.Tagline, branding.UploadedLogo is { } name ? logoUrls.UrlFor(name) : null),
+                branding.Tagline, branding.UploadedLogo is { } name ? logoUrls.UrlFor(name) : null, branding.SeoDescription, branding.HelpCenterIntro),
             product.Version,
             product.PortalHost,
             product.ListedOnLanding,

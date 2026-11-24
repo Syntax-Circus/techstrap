@@ -129,6 +129,18 @@
   margin-top: 24px;
 }
 
+// The product and help-center homes: the intro under the heading, and the topic and newest-article sections.
+.ts-help-intro {
+  white-space: pre-line;
+  max-width: 65ch;
+  margin-bottom: 16px;
+}
+
+.ts-kb-topics,
+.ts-kb-featured {
+  margin-top: 24px;
+}
+
 // The contact form and the received page (PHASE-09b). The honeypot is hidden here, not with an inline style (the CSP allows none): out of the layout, out of sight, and never focusable (tabindex -1 on the input).
 .ts-hp {
   position: absolute;

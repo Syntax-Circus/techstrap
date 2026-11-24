@@ -44,7 +44,7 @@ public sealed class ProductThemeViewModelTests
 
         theme.ToString().ShouldNotContain("evil");
         theme.ToString().ShouldNotContain("red;x:y");
-        typeof(ProductThemeViewModel).GetProperties().Select(p => p.Name).ShouldBe(["Key", "DisplayName", "Accent", "LogoUrl", "Skin"], ignoreOrder: true);
+        typeof(ProductThemeViewModel).GetProperties().Select(p => p.Name).ShouldBe(["Key", "DisplayName", "Accent", "LogoUrl", "Skin", "SeoDescription", "HelpCenterIntro"], ignoreOrder: true);
     }
 
     [Theory]
@@ -126,5 +126,16 @@ public sealed class ProductThemeViewModelTests
     public void Markup_in_the_name_stays_text_because_every_renderer_encodes_it()
     {
         ProductThemeViewModel.From(Dto(name: "<b>Paper</b> & \"plane\""), allowLoopbackImages: false).DisplayName.ShouldBe("<b>Paper</b> & \"plane\"");
+    }
+
+    [Fact]
+    public void The_seo_description_and_intro_are_carried_trimmed_and_blank_is_null()
+    {
+        var dto = Dto(name: "Paper") with { SeoDescription = "  Meta.  ", HelpCenterIntro = "   " };
+
+        var theme = ProductThemeViewModel.From(dto, allowLoopbackImages: false);
+
+        theme.SeoDescription.ShouldBe("Meta.");
+        theme.HelpCenterIntro.ShouldBeNull();
     }
 }

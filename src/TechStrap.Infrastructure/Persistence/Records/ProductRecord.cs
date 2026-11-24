@@ -27,6 +27,10 @@ internal sealed class ProductRecord
 
     public string? Tagline { get; set; }
 
+    public string? SeoDescription { get; set; }
+
+    public string? HelpCenterIntro { get; set; }
+
     /// <summary>The stored file name of the uploaded logo (<c>{32 hex}.{ext}</c>), or null (D-052).</summary>
     public string? UploadedLogo { get; set; }
 

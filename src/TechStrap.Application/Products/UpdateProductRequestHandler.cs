@@ -50,7 +50,7 @@ public sealed class UpdateProductRequestHandler(
 
         // The stored branding is passed in so a logo address saved before the logo rule, and left as it is, does not block the edit (ProductBranding.CreateForUpdate).
         var input = request.Branding;
-        var branding = ProductBranding.CreateForUpdate(product.Branding, input?.DisplayName, input?.LogoPath, input?.AccentColour, input?.FromAddress, input?.ReplyTo, input?.Tagline);
+        var branding = ProductBranding.CreateForUpdate(product.Branding, input?.DisplayName, input?.LogoPath, input?.AccentColour, input?.FromAddress, input?.ReplyTo, input?.Tagline, input?.SeoDescription, input?.HelpCenterIntro);
         if (branding.IsFailure)
         {
             return Result<ProductDto>.Failure(branding.Error!.ToError());

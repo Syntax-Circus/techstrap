@@ -967,4 +967,51 @@ public sealed class ProductEditorTests : AdminPageTest
         cut.Find("fieldset").HasAttribute("disabled").ShouldBeFalse();
         cut.FindAll(".ts-dirty").ShouldBeEmpty();
     }
+
+    [Fact]
+    public void The_seo_fields_load_show_a_live_counter_and_are_sent_trimmed_with_blank_as_null()
+    {
+        _products.GetAsync(TestData.OrbitlyId, Arg.Any<CancellationToken>()).Returns(TestData.Ok(TestData.ProductDetail(seoDescription: "Meta", helpCenterIntro: "Intro")));
+        var cut = RenderEdit();
+        Value(cut, "ts-product-seo-description").ShouldBe("Meta");
+        cut.Find("#ts-product-help-intro").TextContent.ShouldBe("Intro");
+        cut.Find("#ts-product-seo-description-count").TextContent.ShouldBe(ProductsCopy.SeoDescriptionCounter(4));
+
+        Type(cut, "ts-product-seo-description", "  Quick answers about Orbitly: how to sign in, manage your plan, fix a failed delivery and contact the support team directly.  ");
+        Type(cut, "ts-product-help-intro", "   ");
+        cut.Find("#ts-product-seo-description-count").TextContent.ShouldBe(ProductsCopy.SeoDescriptionCounter(123));
+        Save(cut);
+
+        var sent = Updates.ShouldHaveSingleItem();
+        sent.Branding.SeoDescription.ShouldBe("Quick answers about Orbitly: how to sign in, manage your plan, fix a failed delivery and contact the support team directly.");
+        sent.Branding.HelpCenterIntro.ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_description_over_160_or_an_intro_over_600_characters_blocks_the_save_at_the_field()
+    {
+        var cut = RenderEdit();
+
+        Type(cut, "ts-product-seo-description", new string('a', 161));
+        Type(cut, "ts-product-help-intro", new string('a', 601));
+        Save(cut);
+
+        FieldError(cut, "ts-product-seo-description").ShouldBe(ProductsCopy.SeoDescriptionInvalid);
+        FieldError(cut, "ts-product-help-intro").ShouldBe(ProductsCopy.HelpCenterIntroInvalid);
+        Updates.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("Too short.")]
+    [InlineData("A description with a tab\tin it that is otherwise long enough to pass the floor of one hundred and ten characters, as real ones do.")]
+    public void A_description_that_is_too_short_or_has_a_control_character_blocks_the_save_at_the_field(string text)
+    {
+        var cut = RenderEdit();
+
+        Type(cut, "ts-product-seo-description", text);
+        Save(cut);
+
+        FieldError(cut, "ts-product-seo-description").ShouldBe(ProductsCopy.SeoDescriptionInvalid);
+        Updates.ShouldBeEmpty();
+    }
 }

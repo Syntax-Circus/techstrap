@@ -40,7 +40,7 @@ public sealed class ProductHomeHostTests
         html.ShouldContain("class=\"ts-product-name\"");
         html.ShouldContain(">Paperplane</a>");
         html.ShouldContain("<img class=\"ts-product-logo\" src=\"https://cdn.example.com/paperplane.png\"");
-        html.ShouldContain("<h1>How can we help?</h1>");
+        html.ShouldContain("<h1>Paperplane support</h1>");
         html.ShouldContain("<form method=\"get\" action=\"/p/paperplane/kb/search\"");
         html.ShouldContain("name=\"q\"");
         html.ShouldContain("maxlength=\"200\"");

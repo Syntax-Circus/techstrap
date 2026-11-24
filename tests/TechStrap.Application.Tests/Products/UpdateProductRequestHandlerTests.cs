@@ -368,4 +368,39 @@ public sealed class UpdateProductRequestHandlerTests
         _product.Branding.UploadedLogo.ShouldBe("0123456789abcdef0123456789abcdef.png");
         result.Value.Branding.UploadedLogoUrl.ShouldBe("https://api.test/product-logos/0123456789abcdef0123456789abcdef.png");
     }
+
+    [Fact]
+    public async Task The_seo_fields_are_saved_and_a_seo_only_edit_is_audited_as_branding()
+    {
+        var request = new UpdateProductRequest("Orbitly", new ProductBrandingRequest("Orbitly", null, "#1F6FEB", null, null, null, "  Quick answers about Orbitly: how to sign in, manage your plan, fix a failed delivery and contact the support team directly.  ", "Intro text."), true, 7);
+
+        var result = await Handler().HandleAsync(_product.Id, request, TestContext.Current.CancellationToken);
+
+        result.Value.Branding.SeoDescription.ShouldBe("Quick answers about Orbitly: how to sign in, manage your plan, fix a failed delivery and contact the support team directly.");
+        result.Value.Branding.HelpCenterIntro.ShouldBe("Intro text.");
+        _events.Received(1).Add(Arg.Is<AdminEvent>(e => e.PayloadJson == "{\"changed\":[\"branding\"]}"));
+    }
+
+    [Fact]
+    public async Task A_seo_description_over_160_characters_is_a_validation_error_on_the_field()
+    {
+        var request = new UpdateProductRequest("Orbitly", new ProductBrandingRequest("Orbitly", null, "#1F6FEB", null, null, null, new string('a', 161)), true, 7);
+
+        var result = await Handler().HandleAsync(_product.Id, request, TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Errors[0].Target.ShouldBe("seo-description");
+    }
+
+    [Fact]
+    public async Task An_update_that_omits_the_seo_fields_clears_them_like_the_tagline_because_the_branding_is_replaced_as_a_whole()
+    {
+        var first = new UpdateProductRequest("Orbitly", new ProductBrandingRequest("Orbitly", null, "#1F6FEB", null, null, null, "Quick answers about Orbitly: how to sign in, manage your plan, fix a failed delivery and contact the support team directly.", "Intro"), true, 7);
+        (await Handler().HandleAsync(_product.Id, first, TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+
+        var result = await Handler().HandleAsync(_product.Id, new UpdateProductRequest("Orbitly", SameBranding, true, 7), TestContext.Current.CancellationToken);
+
+        result.Value.Branding.SeoDescription.ShouldBeNull();
+        result.Value.Branding.HelpCenterIntro.ShouldBeNull();
+    }
 }

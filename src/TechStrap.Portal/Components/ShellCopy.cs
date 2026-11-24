@@ -14,7 +14,15 @@ public static class ShellCopy
     public const string LandingIntro = "Choose your product to find help articles or contact support.";
 
     // A product page.
-    public const string HomeHeading = "How can we help?";
+    public const string StillNeedHelpHeading = "Still need help?";
+    public const string StillNeedHelpText = "Contact support and a member of the team will reply by email. Your message becomes a support ticket, and every reply is sent to the address you give us.";
+
+    public static string ProductHeading(string productName) => $"{productName} support";
+
+    /// <summary>The intro paragraph of a product home whose owner wrote none.</summary>
+    public static string ProductIntroFallback(string productName) =>
+        $"Welcome to the {productName} support center. Search the help articles for quick answers, browse by topic, or contact the support team if you need personal help.";
+
     public const string SearchLabel = "Search help articles";
     public const string SearchButton = "Search";
     public const string ContactSupport = "Contact support";

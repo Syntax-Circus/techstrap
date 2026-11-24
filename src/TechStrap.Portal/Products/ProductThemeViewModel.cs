@@ -17,7 +17,7 @@ namespace TechStrap.Portal.Products;
 /// </list>
 /// The name is kept as text; every renderer encodes it, and no page may render it as markup.
 /// </summary>
-public sealed record ProductThemeViewModel(string Key, string DisplayName, string? Accent, string? LogoUrl, ProductSkin? Skin = null)
+public sealed record ProductThemeViewModel(string Key, string DisplayName, string? Accent, string? LogoUrl, ProductSkin? Skin = null, string? SeoDescription = null, string? HelpCenterIntro = null)
 {
     public static ProductThemeViewModel From(PublicProductDto product, bool allowLoopbackImages)
     {
@@ -28,8 +28,13 @@ public sealed record ProductThemeViewModel(string Key, string DisplayName, strin
             string.IsNullOrEmpty(name) ? product.Key : name,
             ProductAccent.TryDerive(product.AccentColour, out var colours) ? colours.Accent : null,
             AcceptableLogoUrl(product.LogoPath, allowLoopbackImages),
-            product.Skin);
+            product.Skin,
+            Text(product.SeoDescription),
+            Text(product.HelpCenterIntro));
     }
+
+    // Plain text as typed, trimmed; blank is null. Every renderer encodes it.
+    private static string? Text(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     internal static string? AcceptableLogoUrl(string? logoUrl, bool allowLoopbackImages)
     {

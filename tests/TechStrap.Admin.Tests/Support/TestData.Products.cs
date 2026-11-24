@@ -21,7 +21,9 @@ internal static partial class TestData
         string? tagline = null,
         string? uploadedLogoUrl = null,
         bool listed = true,
-        ProductSkin? skin = null) => new(
+        ProductSkin? skin = null,
+        string? seoDescription = null,
+        string? helpCenterIntro = null) => new(
             id ?? OrbitlyId, key, name, prefix, active,
-            new ProductBrandingDto(name, logo, accent, "#FFFFFF", accent, from, replyTo, tagline, uploadedLogoUrl), version, portalHost, listed, skin);
+            new ProductBrandingDto(name, logo, accent, "#FFFFFF", accent, from, replyTo, tagline, uploadedLogoUrl, seoDescription, helpCenterIntro), version, portalHost, listed, skin);
 }

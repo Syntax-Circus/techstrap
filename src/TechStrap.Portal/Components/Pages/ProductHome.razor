@@ -3,10 +3,40 @@
 
 @if (Theme is { } theme)
 {
-    <PageTitle>@ShellCopy.ProductTitle(theme.DisplayName)</PageTitle>
-    <h1>@ShellCopy.HomeHeading</h1>
+    <SeoHead Title="@SeoText.Title(ShellCopy.ProductTitle(theme.DisplayName))" Description="@Description(theme)" RelativeUrl="@Links.Absolute(Links.ProductHome(theme.Key))" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" StructuredData="@StructuredData(theme)" />
+    <h1>@ShellCopy.ProductHeading(theme.DisplayName)</h1>
+    <p class="ts-help-intro">@(theme.HelpCenterIntro ?? ShellCopy.ProductIntroFallback(theme.DisplayName))</p>
     <KbSearchBox ProductKey="@theme.Key" />
-    <p class="ts-help-contact"><a class="btn btn-primary" href="@Links.Contact(theme.Key)">@ShellCopy.ContactSupport</a></p>
+    @if (Categories is { Count: > 0 })
+    {
+        <section class="ts-kb-topics" aria-labelledby="ts-kb-topics-heading">
+            <h2 id="ts-kb-topics-heading">@KbCopy.BrowseByTopic</h2>
+            <ul class="ts-kb-list ts-kb-list--cards">
+                @foreach (var category in Categories)
+                {
+                    <li>
+                        <article class="ts-kb-card">
+                            <h3><a href="@Links.KbCategory(theme.Key, category.Slug)">@category.Name</a></h3>
+                            @if (!string.IsNullOrWhiteSpace(category.Description))
+                            {
+                                <p class="ts-kb-summary">@category.Description</p>
+                            }
+                            <p class="ts-kb-meta">@KbCopy.ArticleCount(category.ArticleCount)</p>
+                        </article>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+    @if (Recent is { Count: > 0 })
+    {
+        <FeaturedArticles ProductKey="@theme.Key" Articles="@Recent" />
+    }
+    <section class="ts-help-contact" aria-labelledby="ts-help-contact-heading">
+        <h2 id="ts-help-contact-heading">@ShellCopy.StillNeedHelpHeading</h2>
+        <p>@ShellCopy.StillNeedHelpText</p>
+        <p><a class="btn btn-primary" href="@Links.Contact(theme.Key)">@ShellCopy.ContactSupport</a></p>
+    </section>
 }
 else if (UnavailableMessage is not null)
 {

@@ -114,4 +114,16 @@ public sealed class GetPublicProductRequestHandlerTests
         result.Value.Tagline.ShouldBe("One line.");
         result.Value.LogoPath.ShouldBe("https://api.test/product-logos/0123456789abcdef0123456789abcdef.png");
     }
+
+    [Fact]
+    public async Task The_public_product_carries_the_seo_fields()
+    {
+        var branding = ProductBranding.Restore("Orbitly", null, "#1F6FEB", null, null, null, null, "Meta text.", "Intro text.");
+        _products.GetByKeyAsync("orbitly", Arg.Any<CancellationToken>()).Returns(Product.Restore(Guid.CreateVersion7(), "orbitly", "Orbitly", "ORB", branding, true, 1));
+
+        var result = await new GetPublicProductRequestHandler(_products, _logoUrls).HandleAsync("orbitly", TestContext.Current.CancellationToken);
+
+        result.Value.SeoDescription.ShouldBe("Meta text.");
+        result.Value.HelpCenterIntro.ShouldBe("Intro text.");
+    }
 }

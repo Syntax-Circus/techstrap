@@ -48,6 +48,18 @@ internal sealed partial class ProductEditorViewModel
 
     public string Tagline { get; set; } = string.Empty;
 
+    /// <summary>Blank, or one line of plain text of 110 to 160 characters (the same rule as the API: a tab or line break is refused too).</summary>
+    private static bool IsAcceptableSeoDescription(string value)
+    {
+        var text = value.Trim();
+        return text.Length == 0
+            || (text.Length is >= ProductFields.SeoDescriptionMinLength and <= ProductFields.SeoDescriptionMaxLength && !text.Any(char.IsControl));
+    }
+
+    public string SeoDescription { get; set; } = string.Empty;
+
+    public string HelpCenterIntro { get; set; } = string.Empty;
+
     /// <summary>The skin as the agent edits it: indented JSON, or empty when the product has none.</summary>
     public ProductSkinDraft Appearance { get; } = new();
 
@@ -73,6 +85,8 @@ internal sealed partial class ProductEditorViewModel
         NumberPrefix = product.NumberPrefix,
         DisplayName = product.Branding.DisplayName,
         Tagline = product.Branding.Tagline ?? string.Empty,
+        SeoDescription = product.Branding.SeoDescription ?? string.Empty,
+        HelpCenterIntro = product.Branding.HelpCenterIntro ?? string.Empty,
         UploadedLogoUrl = product.Branding.UploadedLogoUrl,
         ListedOnLanding = product.ListedOnLanding,
         LogoPath = product.Branding.LogoPath ?? string.Empty,
@@ -146,7 +160,7 @@ internal sealed partial class ProductEditorViewModel
     }
 
     private ProductBrandingRequest ToBranding() =>
-        new(DisplayName.Trim(), Blank(LogoPath), Blank(AccentColour), Blank(FromAddress), Blank(ReplyTo), Blank(Tagline));
+        new(DisplayName.Trim(), Blank(LogoPath), Blank(AccentColour), Blank(FromAddress), Blank(ReplyTo), Blank(Tagline), Blank(SeoDescription), Blank(HelpCenterIntro));
 
     // Update: null would mean "unchanged" to the Api, so a blanked field is sent as "" (the explicit clear); a valid host goes trimmed and lower-case. An invalid value
     // (which Check refuses before a save) is sent as typed, never as "": the Api answers 400 on the field rather than clearing a stored host.
@@ -170,6 +184,8 @@ internal sealed partial class ProductEditorViewModel
         ApiFields.DisplayName => string.IsNullOrWhiteSpace(DisplayName) ? ProductsCopy.DisplayNameRequired
             : DisplayName.Trim().Length > ProductFields.DisplayNameMaxLength ? ProductsCopy.NameTooLong : null,
         ApiFields.Tagline => BrandingRules.IsAcceptableTagline(Tagline) ? null : ProductsCopy.TaglineInvalid,
+        ApiFields.SeoDescription => IsAcceptableSeoDescription(SeoDescription) ? null : ProductsCopy.SeoDescriptionInvalid,
+        ApiFields.HelpCenterIntro => HelpCenterIntro.Trim().Length > ProductFields.HelpCenterIntroMaxLength ? ProductsCopy.HelpCenterIntroInvalid : null,
         ApiFields.LogoPath => BrandingRules.IsAcceptableLogoUrl(LogoPath) || LogoUnchanged ? null : ProductsCopy.LogoInvalid,
         ApiFields.AccentColour => string.IsNullOrWhiteSpace(AccentColour) || Regex.IsMatch(AccentColour.Trim(), BrandingRules.ColourPattern) ? null : ProductsCopy.AccentInvalid,
         ApiFields.FromAddress => IsEmailOrBlank(FromAddress) ? null : ProductsCopy.EmailInvalid,

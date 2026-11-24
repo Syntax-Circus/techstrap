@@ -34,7 +34,7 @@ public sealed class RootPageHostTests
 
         var html = await client.GetStringAsync("/", Ct);
 
-        html.ShouldContain("How can we help?");
+        html.ShouldContain("Paperplane support");
         html.ShouldContain("--ts-accent:#F59E0B");
     }
 

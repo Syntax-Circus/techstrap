@@ -4,6 +4,7 @@ using TechStrap.Portal.Clients;
 using TechStrap.Portal.Components.Kb;
 using TechStrap.Portal.Products;
 using TechStrap.Portal.Routing;
+using TechStrap.Portal.Seo;
 
 namespace TechStrap.Portal.Components.Pages;
 
@@ -18,6 +19,8 @@ public partial class KbHome : ProductPageBase
 
     private IReadOnlyList<PublicKbCategoryDto>? Categories { get; set; }
 
+    private IReadOnlyList<PublicKbArticleSummaryDto>? Recent { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         await base.OnInitializedAsync();
@@ -26,15 +29,33 @@ public partial class KbHome : ProductPageBase
             return;
         }
 
-        var result = await Kb.ListCategoriesAsync(Key, RequestAborted);
+        // Both reads start together, so the page waits for the slower one and not for the sum.
+        var categories = Kb.ListCategoriesAsync(Key, RequestAborted);
+        var newest = Kb.ListRecentArticlesAsync(Key, KbLimits.DefaultRecentArticlesCount, RequestAborted);
+        var result = await categories;
+        var recent = await newest;
         if (result.IsSuccess)
         {
             Categories = result.Value;
+
+            // The newest articles are an extra: when they cannot be read the list is left out and the categories stay.
+            if (recent.IsSuccess)
+            {
+                Recent = recent.Value;
+            }
+
             return;
         }
 
         Fail(result.Errors[0]);
     }
+
+    // Generated per page, never the product-wide override: the product home carries that one, and two pages of a site should not share a description.
+    private static string Description(ProductThemeViewModel theme, IReadOnlyList<PublicKbCategoryDto> categories) =>
+        SeoText.KbHomeDescription(theme.DisplayName, categories.Select(c => c.Name).ToList(), categories.Sum(c => c.ArticleCount));
+
+    private IReadOnlyList<object> StructuredData(ProductThemeViewModel theme, IReadOnlyList<PublicKbCategoryDto> categories) =>
+        KbStructuredData.ForKbHome(Links.Absolute, Links.KbHome(theme.Key), SeoText.Title(KbCopy.HomeTitle(theme.DisplayName)), Description(theme, categories), Crumbs(theme));
 
     private IReadOnlyList<KbCrumb> Crumbs(ProductThemeViewModel theme) =>
         [new KbCrumb(theme.DisplayName, Links.ProductHome(theme.Key)), new KbCrumb(KbCopy.HomeHeading)];

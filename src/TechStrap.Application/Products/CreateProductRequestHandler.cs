@@ -41,7 +41,7 @@ public sealed class CreateProductRequestHandler(
         ProductBranding? branding = null;
         if (request.Branding is { } input)
         {
-            var built = ProductBranding.Create(input.DisplayName, input.LogoPath, input.AccentColour, input.FromAddress, input.ReplyTo, input.Tagline);
+            var built = ProductBranding.Create(input.DisplayName, input.LogoPath, input.AccentColour, input.FromAddress, input.ReplyTo, input.Tagline, input.SeoDescription, input.HelpCenterIntro);
             if (built.IsFailure)
             {
                 return Result<ProductDto>.Failure(built.Error!.ToError());

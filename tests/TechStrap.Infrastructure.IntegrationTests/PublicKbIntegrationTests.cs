@@ -502,6 +502,88 @@ public sealed class PublicKbIntegrationTests(PostgresFixture postgres) : Postgre
         error.Code.ShouldBe("kb-category-not-found");
     }
 
+    private static Task<Result<IReadOnlyList<PublicKbArticleSummaryDto>>> Recent(World world, string product, int count = 8) =>
+        WithHandlersAsync(world, sp => new ListRecentPublicKbArticlesRequestHandler(sp.GetRequiredService<IProductRepository>(), sp.GetRequiredService<IKbRepository>())
+            .HandleAsync(product, count, Ct));
+
+    [Fact]
+    public async Task The_recent_list_holds_only_published_articles_the_product_can_see_across_categories()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var world = await SeedAsync(host);
+
+        var acme = await Recent(world, "acme");
+        var orbitly = await Recent(world, "orbitly");
+
+        // Left out for acme: drafts, the archived article, Orbitly's articles, and the article filed in a category of another scope.
+        acme.Value.Select(item => item.Slug).Order().ShouldBe(["acme-published", "shared-published"]);
+        acme.Value.Single(item => item.Slug == "acme-published").ShouldSatisfyAllConditions(
+            item => item.CategorySlug.ShouldBe("acme-cat"),
+            item => item.CategoryName.ShouldBe("Acme things"),
+            item => item.Title.ShouldBe("Router reset guide"),
+            item => item.ProductKey.ShouldBe("acme"));
+        acme.Value.Single(item => item.Slug == "shared-published").ProductKey.ShouldBeNull();
+        orbitly.Value.Select(item => item.Slug).Order().ShouldBe(["orbitly-published", "shared-published"]);
+    }
+
+    [Fact]
+    public async Task The_recent_list_is_newest_update_first_and_honors_the_count()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var scenario = await TicketScenario.CreateAsync(host);
+        var first = KbCategory.Create(null, "general", "General", 1, host.Clock).Value;
+        var second = KbCategory.Create(scenario.Acme.Id, "acme-cat", "Acme things", 2, host.Clock).Value;
+        var articles = new List<KbArticle>();
+        foreach (var (slug, category) in new[] { ("a-oldest", first), ("b-second", second), ("c-third", first), ("d-fourth", second), ("e-newest", first) })
+        {
+            host.Clock.Advance(TimeSpan.FromMinutes(10));
+            var article = Article(scenario, host, category == first ? null : scenario.Acme.Id, category, slug, slug, "s", "body");
+            Publish(host, article);
+            articles.Add(article);
+        }
+
+        (await host.CommitAsync(sp =>
+        {
+            var kb = sp.GetRequiredService<IKbRepository>();
+            kb.AddCategory(first);
+            kb.AddCategory(second);
+            articles.ForEach(kb.AddArticle);
+            return Task.CompletedTask;
+        })).IsSuccess.ShouldBeTrue();
+        Task<Result<IReadOnlyList<PublicKbArticleSummaryDto>>> Page(int count) =>
+            host.ReadAsync(sp => new ListRecentPublicKbArticlesRequestHandler(sp.GetRequiredService<IProductRepository>(), sp.GetRequiredService<IKbRepository>()).HandleAsync("acme", count, Ct));
+
+        var all = await Page(8);
+        var three = await Page(3);
+        var clamped = await Page(0);
+
+        all.Value.Select(item => item.Slug).ShouldBe(["e-newest", "d-fourth", "c-third", "b-second", "a-oldest"]);
+        all.Value.Select(item => item.CategorySlug).ShouldBe(["general", "acme-cat", "general", "acme-cat", "general"]);
+        three.Value.Select(item => item.Slug).ShouldBe(["e-newest", "d-fourth", "c-third"]);
+        clamped.Value.Select(item => item.Slug).ShouldBe(["e-newest"], "a count below one is clamped to one");
+
+        // The repository clamps the count itself, whatever the handler passed.
+        var direct = await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().ListPublicRecentArticlesAsync(scenario.Acme.Id, 1000, Ct));
+        direct.Count.ShouldBe(5);
+        (await host.ReadAsync(sp => sp.GetRequiredService<IKbRepository>().ListPublicRecentArticlesAsync(scenario.Acme.Id, -4, Ct))).Count.ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData("nobody")]
+    [InlineData("dormant")]
+    public async Task The_recent_list_of_an_unknown_or_inactive_product_is_the_same_404_as_the_category_list(string product)
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var world = await SeedAsync(host);
+        var dormant = Product.Create("dormant", "Dormant", "DOR", null, host.Clock).Value;
+        dormant.SetActive(false);
+        (await host.CommitAsync(sp => { sp.GetRequiredService<IProductRepository>().Add(dormant); return Task.CompletedTask; })).IsSuccess.ShouldBeTrue();
+
+        var result = await Recent(world, product);
+
+        result.Errors.ShouldHaveSingleItem().Code.ShouldBe("kb-category-not-found");
+    }
+
     [Fact]
     public async Task Archiving_the_last_published_article_of_a_category_makes_it_a_404_like_the_category_list_does()
     {

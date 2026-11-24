@@ -35,6 +35,13 @@ internal sealed class PublicKbClient(ApiConnection api) : IPublicKbClient
                 cancellationToken)
             : NotFound<PagedResponse<PublicKbArticleSummaryDto>>();
 
+    public Task<Result<IReadOnlyList<PublicKbArticleSummaryDto>>> ListRecentArticlesAsync(string productKey, int pageSize, CancellationToken cancellationToken) =>
+        ProductKeyShape.IsWellFormed(productKey)
+            ? api.GetAsync<IReadOnlyList<PublicKbArticleSummaryDto>>(
+                ApiQuery.Build($"api/public/kb/{productKey}/articles", ("pageSize", Number(pageSize))),
+                cancellationToken)
+            : NotFound<IReadOnlyList<PublicKbArticleSummaryDto>>();
+
     public Task<Result<PublishedKbArticleDto>> GetArticleAsync(string productKey, string categorySlug, string slug, CancellationToken cancellationToken) =>
         ProductKeyShape.IsWellFormed(productKey) && KbSlugShape.IsWellFormed(categorySlug) && KbSlugShape.IsWellFormed(slug)
             ? api.GetAsync<PublishedKbArticleDto>($"api/public/kb/{productKey}/articles/{categorySlug}/{slug}", cancellationToken)

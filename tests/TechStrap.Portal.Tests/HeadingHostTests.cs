@@ -44,7 +44,7 @@ public sealed class HeadingHostTests
     public static TheoryData<string, string> Pages => new()
     {
         { "/", "Support" },
-        { "/p/paperplane", "How can we help?" },
+        { "/p/paperplane", "Paperplane support" },
         { "/p/paperplane/contact", "Contact support" },
         { "/p/paperplane/contact/received", "We have received your request." },
         { "/p/paperplane/lost-link", "Lost your ticket link?" },

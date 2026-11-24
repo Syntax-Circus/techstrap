@@ -52,7 +52,7 @@ public sealed partial class CspStyleTests
 
         var dom = PageKit.Parse(html);
         dom.QuerySelectorAll("style").ShouldBeEmpty();
-        dom.QuerySelectorAll("script:not([src])").ShouldBeEmpty();
+        dom.QuerySelectorAll("script:not([src]):not([type='application/ld+json'])").ShouldBeEmpty("a structured-data block is data, not a script");
         dom.QuerySelectorAll("[style]").ShouldAllBe(e => e.ClassList.Contains("ts-accent-scope"));
         dom.All.SelectMany(e => e.Attributes).Where(a => a.Name.StartsWith("on", StringComparison.OrdinalIgnoreCase)).ShouldBeEmpty();
     }
