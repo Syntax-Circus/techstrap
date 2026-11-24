@@ -17,6 +17,8 @@ public static class ApiFields
     public const string ReplyTo = "reply-to";
     public const string PortalHost = "portal-host";
     public const string Tagline = "tagline";
+    public const string SeoDescription = "seo-description";
+    public const string HelpCenterIntro = "help-center-intro";
     public const string Skin = "skin";
 
     // API keys.

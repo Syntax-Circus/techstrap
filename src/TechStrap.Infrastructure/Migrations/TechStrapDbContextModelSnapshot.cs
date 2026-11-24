@@ -700,6 +700,11 @@ namespace TechStrap.Infrastructure.Migrations
                         .HasColumnType("character varying(320)")
                         .HasColumnName("from_address");
 
+                    b.Property<string>("HelpCenterIntro")
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)")
+                        .HasColumnName("help_center_intro");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
@@ -742,6 +747,11 @@ namespace TechStrap.Infrastructure.Migrations
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)")
                         .HasColumnName("reply_to");
+
+                    b.Property<string>("SeoDescription")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("seo_description");
 
                     b.Property<string>("Skin")
                         .HasMaxLength(2000)

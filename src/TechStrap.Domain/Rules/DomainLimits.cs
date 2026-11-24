@@ -13,6 +13,15 @@ public static class DomainLimits
     /// <summary>The longest product tagline (one line on the landing card, D-052).</summary>
     public const int TaglineMaxLength = 160;
 
+    /// <summary>The longest per-product meta description override (the usual search result snippet limit).</summary>
+    public const int SeoDescriptionMaxLength = 160;
+
+    /// <summary>The shortest per-product meta description override: a shorter one reads as thin to search engines (the Portal would ignore it), so it is refused at save.</summary>
+    public const int SeoDescriptionMinLength = 110;
+
+    /// <summary>The longest help center intro paragraph of a product.</summary>
+    public const int HelpCenterIntroMaxLength = 600;
+
     /// <summary>The longest stored name of an uploaded product logo (<c>{32 hex}.{ext}</c> is 37; the column leaves room).</summary>
     public const int UploadedLogoNameMaxLength = 64;
 

@@ -9,12 +9,20 @@ public static class ProductFields
     public const int NameMaxLength = 100;
     public const int DisplayNameMaxLength = 100;
     public const int EmailMaxLength = 320;
+    public const int SeoDescriptionMaxLength = 160;
+
+    /// <summary>The shortest description the API accepts (shorter ones are refused at save).</summary>
+    public const int SeoDescriptionMinLength = 110;
+
+    /// <summary>The lower end of the length a meta description should aim for (search engines show about 150 to 160 characters).</summary>
+    public const int SeoDescriptionTargetMinLength = 150;
+    public const int HelpCenterIntroMaxLength = 600;
 
     /// <summary>The fields that have an input only while a product is being created (they are read-only text afterwards).</summary>
     public static readonly IReadOnlyList<string> CreateOnly = [ApiFields.Key, ApiFields.NumberPrefix];
 
     public static readonly IReadOnlyList<string> All =
-        [ApiFields.Key, ApiFields.Name, ApiFields.NumberPrefix, ApiFields.DisplayName, ApiFields.Tagline, ApiFields.LogoPath, ApiFields.AccentColour, ApiFields.FromAddress, ApiFields.ReplyTo, ApiFields.PortalHost, ApiFields.Skin];
+        [ApiFields.Key, ApiFields.Name, ApiFields.NumberPrefix, ApiFields.DisplayName, ApiFields.Tagline, ApiFields.SeoDescription, ApiFields.HelpCenterIntro, ApiFields.LogoPath, ApiFields.AccentColour, ApiFields.FromAddress, ApiFields.ReplyTo, ApiFields.PortalHost, ApiFields.Skin];
 
     /// <summary>The names a skin error targets on a 400 (a contrast error targets a pair such as <c>ink/background</c>). Every one of them is shown at the skin field.</summary>
     public static readonly IReadOnlyList<string> SkinTokenNames =

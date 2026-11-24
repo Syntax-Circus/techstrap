@@ -203,4 +203,15 @@ public sealed class CreateProductRequestHandlerTests
         result.Value.ListedOnLanding.ShouldBeFalse();
         _added!.ListedOnLanding.ShouldBeFalse();
     }
+
+    [Fact]
+    public async Task The_seo_fields_are_stored_trimmed_and_returned()
+    {
+        var result = await Handler().HandleAsync(
+            new CreateProductRequest("orbitly", "Orbitly", "ORB", new ProductBrandingRequest("Orbitly", null, null, null, null, null, " Quick answers about Orbitly: how to sign in, manage your plan, fix a failed delivery and contact the support team directly. ", " Welcome. ")),
+            TestContext.Current.CancellationToken);
+
+        result.Value.Branding.SeoDescription.ShouldBe("Quick answers about Orbitly: how to sign in, manage your plan, fix a failed delivery and contact the support team directly.");
+        result.Value.Branding.HelpCenterIntro.ShouldBe("Welcome.");
+    }
 }

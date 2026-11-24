@@ -86,6 +86,22 @@ public static class ProductsCopy
     public const string TaglineLabel = "Tagline";
     public const string TaglineHelp = "One line about the product, shown on the landing page card. Optional.";
     public const string TaglineInvalid = "Use one line of plain text, 160 characters or fewer.";
+    public const string SeoDescriptionLabel = "Search description";
+    public const string SeoDescriptionHelp = "Used as the meta description of this product's home page in search results; other pages get a generated one. One line of plain text, 110 to 160 characters (aim for 150 to 160), or leave it blank. Optional.";
+    public const string SeoDescriptionInvalid = "Use one line of plain text of 110 to 160 characters, or leave it blank.";
+    public const string HelpCenterIntroLabel = "Help center introduction";
+    public const string HelpCenterIntroHelp = "A short paragraph shown at the top of the product's help center. Plain text. Optional.";
+    public const string HelpCenterIntroInvalid = "Use plain text of 600 characters or fewer.";
+
+    public static string SeoDescriptionCounter(int length) =>
+        length > ProductFields.SeoDescriptionMaxLength ? $"{length} of {ProductFields.SeoDescriptionMaxLength} characters: too long"
+        : length is > 0 and < ProductFields.SeoDescriptionMinLength ? $"{length} of {ProductFields.SeoDescriptionMaxLength} characters: too short (at least {ProductFields.SeoDescriptionMinLength})"
+        : length < ProductFields.SeoDescriptionTargetMinLength ? $"{length} of {ProductFields.SeoDescriptionMaxLength} characters (aim for {ProductFields.SeoDescriptionTargetMinLength} to {ProductFields.SeoDescriptionMaxLength})"
+        : $"{length} of {ProductFields.SeoDescriptionMaxLength} characters";
+
+    public static string HelpCenterIntroCounter(int length) =>
+        length > ProductFields.HelpCenterIntroMaxLength ? $"{length} of {ProductFields.HelpCenterIntroMaxLength} characters: too long" : $"{length} of {ProductFields.HelpCenterIntroMaxLength} characters";
+
     public const string ListedLabel = "Listed on the landing page";
     public const string ListedHelp = "When the portal lists products on its front page, this product has a card. Unlisting hides the card only: the product's own pages, host and help articles stay reachable.";
     public const string ColumnListed = "Landing";

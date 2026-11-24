@@ -12,7 +12,7 @@ internal static class ProductMappings
             record.Key,
             record.Name,
             record.NumberPrefix,
-            ProductBranding.Restore(record.DisplayName, record.Logo, record.AccentColour, record.FromAddress, record.ReplyTo, record.Tagline, record.UploadedLogo),
+            ProductBranding.Restore(record.DisplayName, record.Logo, record.AccentColour, record.FromAddress, record.ReplyTo, record.Tagline, record.UploadedLogo, record.SeoDescription, record.HelpCenterIntro),
             record.IsActive,
             record.Version,
             record.PortalHost,
@@ -43,6 +43,8 @@ internal static class ProductMappings
         record.IsActive = product.IsActive;
         record.PortalHost = product.PortalHost;
         record.Tagline = product.Branding.Tagline;
+        record.SeoDescription = product.Branding.SeoDescription;
+        record.HelpCenterIntro = product.Branding.HelpCenterIntro;
         record.UploadedLogo = product.Branding.UploadedLogo;
         record.ListedOnLanding = product.ListedOnLanding;
         record.Skin = product.SkinJson;

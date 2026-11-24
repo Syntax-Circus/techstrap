@@ -11,6 +11,8 @@ namespace TechStrap.Contracts.Products;
 /// <param name="FromAddress">The sender address for customer emails, or null.</param>
 /// <param name="ReplyTo">The reply-to address for customer emails, or null.</param>
 /// <param name="Tagline">One line of plain text shown on the product's landing card, or null.</param>
+/// <param name="SeoDescription">Plain text meta description override for the product's portal pages, or null.</param>
+/// <param name="HelpCenterIntro">A short plain-text intro paragraph for the product's help center, or null.</param>
 /// <param name="UploadedLogoUrl">The absolute https address of the uploaded logo, or null when none is uploaded (or the host cannot build it). It supersedes <paramref name="LogoPath"/> wherever a logo is shown.</param>
 public sealed record ProductBrandingDto(
     string DisplayName,
@@ -21,7 +23,9 @@ public sealed record ProductBrandingDto(
     string? FromAddress,
     string? ReplyTo,
     string? Tagline = null,
-    string? UploadedLogoUrl = null);
+    string? UploadedLogoUrl = null,
+    string? SeoDescription = null,
+    string? HelpCenterIntro = null);
 
 /// <summary>Branding input. A null accent means the default accent; the accent must be #RRGGBB (D-031).</summary>
 /// <param name="DisplayName">The name customers see, or null to derive it.</param>
@@ -30,13 +34,17 @@ public sealed record ProductBrandingDto(
 /// <param name="FromAddress">The sender address for customer emails, or null.</param>
 /// <param name="ReplyTo">The reply-to address for customer emails, or null.</param>
 /// <param name="Tagline">One line of plain text, at most 160 characters, shown on the landing card; null or blank clears it.</param>
+/// <param name="SeoDescription">Plain text meta description override, one line, at most 160 characters; null or blank clears it.</param>
+/// <param name="HelpCenterIntro">A plain-text intro paragraph for the help center, at most 600 characters; null or blank clears it.</param>
 public sealed record ProductBrandingRequest(
     string? DisplayName,
     string? LogoPath,
     string? AccentColour,
     string? FromAddress,
     string? ReplyTo,
-    string? Tagline = null);
+    string? Tagline = null,
+    string? SeoDescription = null,
+    string? HelpCenterIntro = null);
 
 /// <summary><paramref name="Version"/> is the concurrency token; send it back unchanged in <see cref="UpdateProductRequest"/>.</summary>
 /// <param name="Id">The product id.</param>

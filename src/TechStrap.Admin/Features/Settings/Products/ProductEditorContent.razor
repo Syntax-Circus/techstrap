@@ -68,6 +68,8 @@
                 <h2>@ProductsCopy.BrandingHeading</h2>
                 @Field("ts-product-display", ProductsCopy.DisplayNameLabel, ApiFields.DisplayName, _model.DisplayName, v => _model.DisplayName = v, ProductsCopy.DisplayNameHelp)
                 @Field("ts-product-tagline", ProductsCopy.TaglineLabel, ApiFields.Tagline, _model.Tagline, v => _model.Tagline = v, ProductsCopy.TaglineHelp)
+                @Field("ts-product-seo-description", ProductsCopy.SeoDescriptionLabel, ApiFields.SeoDescription, _model.SeoDescription, v => _model.SeoDescription = v, ProductsCopy.SeoDescriptionHelp, counter: ProductsCopy.SeoDescriptionCounter(_model.SeoDescription.Trim().Length))
+                @Field("ts-product-help-intro", ProductsCopy.HelpCenterIntroLabel, ApiFields.HelpCenterIntro, _model.HelpCenterIntro, v => _model.HelpCenterIntro = v, ProductsCopy.HelpCenterIntroHelp, multiline: true, counter: ProductsCopy.HelpCenterIntroCounter(_model.HelpCenterIntro.Trim().Length))
                 @Field("ts-product-logo", ProductsCopy.LogoLabel, ApiFields.LogoPath, _model.LogoPath, v => _model.LogoPath = v, ProductsCopy.LogoHelp, "url")
                 @Field("ts-product-accent", ProductsCopy.AccentLabel, ApiFields.AccentColour, _model.AccentColour, v => _model.AccentColour = v, ProductsCopy.AccentHelp)
                 @Field("ts-product-from", ProductsCopy.FromLabel, ApiFields.FromAddress, _model.FromAddress, v => _model.FromAddress = v, null, "email")
@@ -129,11 +131,24 @@
 
 @code {
     /// <summary>One labeled text input with its help text and its error; the value is bound on input and checked on blur.</summary>
-    private RenderFragment Field(string id, string label, string field, string value, Action<string> set, string? help = null, string type = "text") => @<div class="ts-field">
+    private RenderFragment Field(string id, string label, string field, string value, Action<string> set, string? help = null, string type = "text", bool multiline = false, string? counter = null) => @<div class="ts-field">
         <label for="@id" class="form-label">@label</label>
-        <input id="@id" type="@type" class="form-control @(_errors.ContainsKey(field) ? "is-invalid" : null)" value="@value" autocomplete="off"
-               aria-invalid="@(_errors.ContainsKey(field) ? "true" : null)" aria-describedby="@(_errors.ContainsKey(field) ? $"{id}-error" : help is not null ? $"{id}-help" : null)"
-               @oninput="e => OnInput(set, e)" @onblur="() => CheckField(field)" />
+        @if (multiline)
+        {
+            <textarea id="@id" rows="5" class="form-control @(_errors.ContainsKey(field) ? "is-invalid" : null)" autocomplete="off"
+                      aria-invalid="@(_errors.ContainsKey(field) ? "true" : null)" aria-describedby="@(_errors.ContainsKey(field) ? $"{id}-error" : help is not null ? $"{id}-help" : null)"
+                      @oninput="e => OnInput(set, e)" @onblur="() => CheckField(field)">@value</textarea>
+        }
+        else
+        {
+            <input id="@id" type="@type" class="form-control @(_errors.ContainsKey(field) ? "is-invalid" : null)" value="@value" autocomplete="off"
+                   aria-invalid="@(_errors.ContainsKey(field) ? "true" : null)" aria-describedby="@(_errors.ContainsKey(field) ? $"{id}-error" : help is not null ? $"{id}-help" : null)"
+                   @oninput="e => OnInput(set, e)" @onblur="() => CheckField(field)" />
+        }
+        @if (counter is not null)
+        {
+            <p id="@($"{id}-count")" class="ts-field-help" aria-live="polite">@counter</p>
+        }
         @if (help is not null)
         {
             <p id="@($"{id}-help")" class="ts-field-help">@help</p>

@@ -49,4 +49,26 @@ public sealed class ProductLandingAndLogoPersistenceTests(PostgresFixture postgr
         record.Tagline.ShouldBeNull();
         record.UploadedLogo.ShouldBeNull();
     }
+
+    [Fact]
+    public async Task The_seo_fields_round_trip_through_the_repository()
+    {
+        await using var host = new PersistenceTestHost(Database);
+        var scenario = await TicketScenario.CreateAsync(host);
+        var committed = await host.CommitAsync(async sp =>
+        {
+            var products = sp.GetRequiredService<IProductRepository>();
+            var product = (await products.GetByIdAsync(scenario.Acme.Id, Ct))!;
+            var b = product.Branding;
+            var branding = ProductBranding.CreateForUpdate(b, b.DisplayName, b.LogoPath, b.AccentColour, null, null, null, "Quick answers about Orbitly: how to sign in, manage your plan, fix a failed delivery and contact the support team directly.", new string('i', 600)).Value;
+            product.UpdateDetails(product.Name, branding).IsSuccess.ShouldBeTrue();
+            products.Update(product);
+        });
+        committed.IsSuccess.ShouldBeTrue();
+
+        var reread = (await host.ReadAsync(sp => sp.GetRequiredService<IProductRepository>().GetByIdAsync(scenario.Acme.Id, Ct)))!;
+
+        reread.Branding.SeoDescription.ShouldBe("Quick answers about Orbitly: how to sign in, manage your plan, fix a failed delivery and contact the support team directly.");
+        reread.Branding.HelpCenterIntro.ShouldBe(new string('i', 600));
+    }
 }
