@@ -74,6 +74,12 @@ public interface IKbRepository
     /// </summary>
     Task<PagedResult<PublicKbCategoryArticle>?> ListPublicCategoryArticlesAsync(Guid productId, string categorySlug, int page, int pageSize, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The most recently updated Published articles the product can see across all its categories (its own and the shared ones), newest update first, then id descending.
+    /// <paramref name="count"/> is clamped to 1..<c>KbLimits.MaxRecentArticlesCount</c>.
+    /// </summary>
+    Task<IReadOnlyList<PublicKbCategoryArticle>> ListPublicRecentArticlesAsync(Guid productId, int count, CancellationToken cancellationToken);
+
     /// <summary>Published articles visible to the product, newest update first, at most <c>KbLimits.MaxSitemapEntries</c>.</summary>
     Task<IReadOnlyList<PublicKbSitemapRow>> ListPublicSitemapAsync(Guid productId, CancellationToken cancellationToken);
 

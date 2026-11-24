@@ -25,6 +25,12 @@ public interface IPublicKbClient
     /// <summary>One page of a category's published articles, newest update first. An unknown, invisible or empty category (and an unknown product) is the not-found error.</summary>
     Task<Result<PagedResponse<PublicKbArticleSummaryDto>>> ListCategoryArticlesAsync(string productKey, string categorySlug, int page, int pageSize, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The product's most recently updated published articles across all categories, newest first, <paramref name="pageSize"/> at most (the API defaults to 8 and clamps to 1..20).
+    /// An unknown or inactive product is the not-found error; a product with no published article is an empty list.
+    /// </summary>
+    Task<Result<IReadOnlyList<PublicKbArticleSummaryDto>>> ListRecentArticlesAsync(string productKey, int pageSize, CancellationToken cancellationToken);
+
     /// <summary>A published article. A draft, an archived article, another product's article, a wrong category and an unknown product are the same not-found error.</summary>
     Task<Result<PublishedKbArticleDto>> GetArticleAsync(string productKey, string categorySlug, string slug, CancellationToken cancellationToken);
 

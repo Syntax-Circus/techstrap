@@ -125,6 +125,57 @@ public sealed class PublicKbClientTests
     }
 
     [Fact]
+    public async Task The_recent_articles_are_a_read_of_the_articles_route_with_the_page_size_in_the_query()
+    {
+        using var api = ApiHarness.Create();
+        PublicKbArticleSummaryDto[] items =
+        [
+            new("reset-password", "Reset your password", "How to reset", "accounts", "Accounts", "paperplane", Updated),
+            new("shared-tips", "Shared tips", null, "general", "General", null, Updated.AddDays(-1)),
+        ];
+        api.Stub.OnJson(HttpMethod.Get, "/api/public/kb/paperplane/articles", items);
+
+        var result = await api.Get<IPublicKbClient>().ListRecentArticlesAsync("paperplane", 8, Ct);
+
+        result.Value.ShouldBe(items);
+        var sent = api.Stub.Requests.ShouldHaveSingleItem();
+        sent.Query.ShouldBe("?pageSize=8");
+        sent.Client.ShouldBe(ApiClientNames.Read);
+        sent.TicketToken.ShouldBeNull();
+        api.Stub.AssertEveryCallBore(ApiHarness.DefaultClientIp);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("Paperplane")]
+    [InlineData("../admin")]
+    [InlineData("paperplane/kb")]
+    public async Task The_recent_articles_refuse_a_key_that_is_not_a_slug_without_a_call(string? product)
+    {
+        using var api = ApiHarness.Create();
+
+        var result = await api.Get<IPublicKbClient>().ListRecentArticlesAsync(product!, 8, Ct);
+
+        result.Errors.ShouldHaveSingleItem().ShouldBe(new ResultError(ApiErrorCodes.NotFound, ProblemCopy.NotFound, ResultErrorKind.NotFound));
+        api.Stub.Requests.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task The_recent_articles_map_a_404_to_not_found_and_a_429_to_rate_limited()
+    {
+        using var api = ApiHarness.Create();
+        api.Stub.OnProblem(HttpMethod.Get, "/api/public/kb/gone/articles", HttpStatusCode.NotFound, "kb-category-not-found", "That category does not exist.");
+        api.Stub.OnStatus(HttpMethod.Get, "/api/public/kb/paperplane/articles", HttpStatusCode.TooManyRequests);
+
+        var missing = await api.Get<IPublicKbClient>().ListRecentArticlesAsync("gone", 8, Ct);
+        var limited = await api.Get<IPublicKbClient>().ListRecentArticlesAsync("paperplane", 8, Ct);
+
+        missing.Errors.ShouldHaveSingleItem().ShouldBe(new ResultError(ApiErrorCodes.NotFound, ProblemCopy.NotFound, ResultErrorKind.NotFound));
+        limited.Errors.ShouldHaveSingleItem().Code.ShouldBe(ApiErrorCodes.RateLimited);
+    }
+
+    [Fact]
     public async Task An_article_is_a_read_of_its_own_route_and_its_html_comes_back_untouched()
     {
         using var api = ApiHarness.Create();

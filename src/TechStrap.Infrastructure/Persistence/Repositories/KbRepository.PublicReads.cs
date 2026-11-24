@@ -165,6 +165,20 @@ internal sealed partial class KbRepository
         return new PagedResult<PublicKbCategoryArticle>(items, normalisedPage, size, total);
     }
 
+    public async Task<IReadOnlyList<PublicKbCategoryArticle>> ListPublicRecentArticlesAsync(Guid productId, int count, CancellationToken cancellationToken)
+    {
+        var size = Math.Clamp(count, 1, KbLimits.MaxRecentArticlesCount);
+        return await (
+            from article in PublishedIn(productId)
+            join category in context.Set<KbCategoryRecord>().AsNoTracking() on article.CategoryId equals category.Id
+            join owner in context.Set<ProductRecord>().AsNoTracking() on article.ProductId equals owner.Id into owners
+            from owner in owners.DefaultIfEmpty()
+            orderby article.UpdatedAt descending, article.Id descending
+            select new PublicKbCategoryArticle(article.Slug, article.Title, article.Summary, category.Slug, category.Name, owner == null ? null : owner.Key, article.UpdatedAt))
+            .Take(size)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<PublicKbSitemapRow>> ListPublicSitemapAsync(Guid productId, CancellationToken cancellationToken) =>
         await (
             from article in PublishedIn(productId)

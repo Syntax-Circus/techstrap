@@ -89,6 +89,7 @@ public static class ControllerActions
         ["PublicKbController.Search"] = 200,
         ["PublicKbController.Categories"] = 200,
         ["PublicKbController.CategoryArticles"] = 200,
+        ["PublicKbController.RecentArticles"] = 200,
         ["PublicKbController.Article"] = 200,
         ["PublicKbController.Sitemap"] = 200,
         ["CustomerTicketsController.Get"] = 200,

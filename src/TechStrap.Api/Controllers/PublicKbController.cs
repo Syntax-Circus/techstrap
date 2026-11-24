@@ -55,6 +55,15 @@ public sealed class PublicKbController : ControllerBase
         [FromQuery] int pageSize = KbLimits.DefaultPublicSearchPageSize) =>
         CachedFor(HitMaxAgeSeconds, await handler.HandleAsync(productKey, categorySlug, page, pageSize, cancellationToken));
 
+    /// <summary>The product's most recently updated Published articles (its own and the shared ones) across all categories, newest update first; <c>pageSize</c> defaults to 8 and is clamped to 1..20. An unknown or inactive product is a 404.</summary>
+    [HttpGet("articles")]
+    public async Task<IActionResult> RecentArticles(
+        string productKey,
+        [FromServices] IListRecentPublicKbArticlesRequestHandler handler,
+        CancellationToken cancellationToken,
+        [FromQuery] int pageSize = KbLimits.DefaultRecentArticlesCount) =>
+        CachedFor(HitMaxAgeSeconds, await handler.HandleAsync(productKey, pageSize, cancellationToken));
+
     [HttpGet("sitemap")]
     public async Task<IActionResult> Sitemap(string productKey, [FromServices] IGetKbSitemapRequestHandler handler, CancellationToken cancellationToken) =>
         CachedFor(SitemapMaxAgeSeconds, await handler.HandleAsync(productKey, cancellationToken));

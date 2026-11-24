@@ -15,7 +15,8 @@ internal static class KbTestKit
 {
     public const string CategoriesPath = "/api/public/kb/paperplane/categories";
     public const string CategoryArticlesPath = "/api/public/kb/paperplane/categories/accounts/articles";
-    public const string SearchPath = "/api/public/kb/paperplane/search";
+    public const string RecentArticlesPath = "/api/public/kb/paperplane/articles";
+    public const string SearchPath ="/api/public/kb/paperplane/search";
     public const string ProductPath = "/api/public/products/paperplane";
 
     public static readonly DateTimeOffset Updated = new(2026, 10, 5, 9, 30, 0, TimeSpan.Zero);
@@ -36,6 +37,10 @@ internal static class KbTestKit
         new(slug, title, summary, category, categoryName, product, Updated);
 
     public static PagedResponse<PublicKbArticleSummaryDto> Page(int page, int pageSize, int total, params PublicKbArticleSummaryDto[] items) => new(items, page, pageSize, total);
+
+    /// <summary>Stubs the recent-articles route (the API answers a plain list, not a page); with no items it answers an empty list.</summary>
+    public static void StubRecentArticles(PortalFactory factory, params PublicKbArticleSummaryDto[] items) =>
+        factory.Api.OnJson(HttpMethod.Get, RecentArticlesPath, items);
 
     public static PublicKbSearchResultDto Hit(string slug = "reset-password", string title = "Reset your password", string snippet = "Use the reset link.", string category = "accounts", string categoryName = "Accounts") =>
         new(slug, title, snippet, category, categoryName, "paperplane");

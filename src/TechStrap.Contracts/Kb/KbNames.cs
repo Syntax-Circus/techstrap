@@ -38,6 +38,12 @@ public static class KbLimits
     /// <summary>The largest page size the public search accepts (25).</summary>
     public const int MaxPublicSearchPageSize = 25;
 
+    /// <summary>The number of recent articles the public recent list returns when the caller names no size (8).</summary>
+    public const int DefaultRecentArticlesCount = 8;
+
+    /// <summary>The most recent articles the public recent list returns (20).</summary>
+    public const int MaxRecentArticlesCount = 20;
+
     /// <summary>The category slug the portal reserves for its KB search page; no category may use it.</summary>
     public const string ReservedCategorySlug = "search";
 
