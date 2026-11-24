@@ -2387,3 +2387,15 @@ After the first UAT deploy the owner found the Portal bland even as a default an
 - **Why:** In production, `NavigateTo`'s `NavigationException` left a faulted task nobody observed, reported by GlitchTip as `UnobservedTaskException` (issues 119, 120) after each successful submit. The redirect itself worked. It did not reproduce in the in-memory test host, so the regression test guards the redirect and the absence of unobserved exceptions but could not fail before the change.
 - **Not chosen:** A `NavigationException` noise filter in `SyntaxCircus.Observability` (like the JSDisconnected one); it would hide the report but leave the task.
 - **Approval:** Owner chose the source fix in this conversation (2026-10-26).
+
+## D-058: Portal SEO: owner-editable product SEO text, generated fallbacks, and a recent-articles endpoint
+
+- **Date:** 2026-11-24
+- **Decision:** Bing Webmaster Tools flagged the product home (`/` on a product host) and `/kb` as thin and `/kb` as having a too-short description. The product home becomes a real landing page with a full SEO head (description, canonical, Open Graph, `WebSite` JSON-LD with a `SearchAction`), an intro, topics, newest articles and a contact section. `/kb` gets an intro, newest articles and `BreadcrumbList` plus `CollectionPage` JSON-LD.
+- **Product fields:** Two optional plain-text fields, `SeoDescription` (max 160) and `HelpCenterIntro` (max 600), follow `Tagline` end to end (nullable columns, no backfill, Admin editor with a live counter). An update replaces the whole branding block, so omitting them clears them, exactly as `Tagline` does. The description override applies to the product home only: `/kb` and category pages always use a generated description so two pages never share one.
+- **Guardrail:** `Seo/SeoText` normalizes text, keeps an owner description only at 110 to 160 characters (otherwise it builds a generated fallback of real sentences that always lands in range), and clamps titles to 70. Tests render both pages and fail on a missing or out-of-range description, thin body text or unparsable JSON-LD.
+- **API:** `GET api/public/kb/{productKey}/articles?pageSize=` (default 8, max 20) lists a product's newest published articles across categories, with the same visibility rules as the other public KB reads. The product home degrades without the KB sections when the KB cannot be read; `/kb` keeps its unavailable page.
+- **Package:** `SyntaxCircus.Blazor.Seo` 0.1.5 to 0.1.8. `JsonLdText` stays: it writes its own escaped value and is not escaped twice.
+- **Not chosen:** Generated-only text (cannot be tuned per product); redirecting `/` to `/kb`; IndexNow and `SyntaxCircus.Seo.Analysis` (deferred).
+- **Related artifacts:** `docs/superpowers/specs/2026-11-24-portal-seo-design.md`.
+- **Approval:** Owner chose the new endpoint, the 0.1.8 package and ProductHome-only degradation in this conversation (2026-11-24).

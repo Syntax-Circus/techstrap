@@ -8,9 +8,10 @@
 }
 else if (Theme is { } theme && Categories is { } categories)
 {
-    <SeoHead Title="@KbCopy.HomeTitle(theme.DisplayName)" Description="@KbCopy.HomeDescription(theme.DisplayName)" RelativeUrl="@Links.Absolute(Links.KbHome(theme.Key))" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" />
+    <SeoHead Title="@SeoText.Title(KbCopy.HomeTitle(theme.DisplayName))" Description="@Description(theme, categories)" RelativeUrl="@Links.Absolute(Links.KbHome(theme.Key))" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" StructuredData="@StructuredData(theme, categories)" />
     <KbBreadcrumbs Crumbs="@Crumbs(theme)" />
     <h1>@KbCopy.HomeHeading</h1>
+    <p class="ts-help-intro">@(theme.HelpCenterIntro ?? KbCopy.HomeIntroFallback(theme.DisplayName))</p>
     <KbSearchBox ProductKey="@theme.Key" />
     @if (categories.Count == 0)
     {
@@ -35,5 +36,9 @@ else if (Theme is { } theme && Categories is { } categories)
                 </li>
             }
         </ul>
+    }
+    @if (Recent is { Count: > 0 })
+    {
+        <FeaturedArticles ProductKey="@theme.Key" Articles="@Recent" />
     }
 }

@@ -34,14 +34,17 @@ public static class KbCopy
     public const string NoResultsText = "Try different words, or contact support and we will help you.";
     public const string ContactUs = "Contact support";
 
-    public static string HomeTitle(string productName) => $"{productName} Help Center";
+    public const string BrowseByTopic = "Browse by topic";
+    public const string FeaturedHeading = "Popular and recent articles";
 
-    public static string HomeDescription(string productName) => $"Help articles and answers for {productName}.";
+    /// <summary>The intro paragraph of a help center whose owner wrote none.</summary>
+    public static string HomeIntroFallback(string productName) =>
+        $"Find answers, how-to guides and troubleshooting for {productName}. Browse the topics below or search the help center, and contact support if you still need a hand.";
+
+    public static string HomeTitle(string productName) => $"{productName} Help Center";
 
     public static string CategoryTitle(string categoryName, string productName, int page) =>
         page <= 1 ? $"{categoryName} - {productName} Help Center" : $"{categoryName} (page {page.ToString(CultureInfo.InvariantCulture)}) - {productName} Help Center";
-
-    public static string CategoryDescription(string categoryName, string productName) => $"Help articles about {categoryName} for {productName}.";
 
     public static string ArticleTitle(string articleTitle, string productName) => $"{articleTitle} - {productName} Help Center";
 

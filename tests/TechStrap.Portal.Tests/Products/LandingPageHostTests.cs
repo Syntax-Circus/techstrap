@@ -105,7 +105,7 @@ public sealed class LandingPageHostTests
 
         var html = await client.GetStringAsync("/", Ct);
 
-        html.ShouldContain("How can we help?");
+        html.ShouldContain("Paperplane support");
         html.ShouldNotContain("ts-landing-card");
         html.ShouldNotContain("Acme Corp");
     }

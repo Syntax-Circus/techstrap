@@ -42,7 +42,7 @@ public sealed class KbHomeHostTests
         form.GetAttribute("method").ShouldBe("get");
         form.GetAttribute("action").ShouldBe("/p/paperplane/kb/search");
         form.QuerySelector("input[name=q]")!.GetAttribute("maxlength").ShouldBe("200");
-        factory.Api.Requests.Select(request => request.Path).ShouldBe([KbTestKit.ProductPath, KbTestKit.CategoriesPath]);
+        factory.Api.Requests.Select(request => request.Path).ShouldBe([KbTestKit.ProductPath, KbTestKit.CategoriesPath, KbTestKit.RecentArticlesPath]);
         factory.Api.Requests.ShouldAllBe(request => request.Client == ApiClientNames.Read);
     }
 
@@ -92,7 +92,7 @@ public sealed class KbHomeHostTests
         var (_, _, dom) = await KbTestKit.GetAsync(client, "/p/paperplane/kb?utm_source=mail", Ct);
 
         dom.Title.ShouldBe("Paperplane Help Center");
-        KbTestKit.Meta(dom, "meta[name=description]").ShouldBe("Help articles and answers for Paperplane.");
+        KbTestKit.Meta(dom, "meta[name=description]").Length.ShouldBeInRange(110, 160);
         dom.QuerySelector("link[rel=canonical]")!.GetAttribute("href").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb", "the canonical address has no query and comes from the public URL, never the Host header");
         KbTestKit.Meta(dom, "meta[name=robots]").ShouldStartWith("index, follow");
         KbTestKit.Meta(dom, "meta[property='og:title']").ShouldBe("Paperplane Help Center");

@@ -44,6 +44,7 @@ public sealed class ProductPageBaseTests : BunitContext
     {
         var fake = new FakeProducts(answer);
         Services.AddSingleton<IPublicProductClient>(fake);
+        Services.AddSingleton(NSubstitute.Substitute.For<TechStrap.Portal.Clients.IPublicKbClient>());
         Services.AddSingleton<ProductScope>();
         Services.AddPortalLinks();
         Services.AddSingleton<IHostEnvironment>(new Environment());

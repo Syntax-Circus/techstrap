@@ -50,7 +50,7 @@ public sealed class PortalFormsHostTests
         var (_, html) = await GetAsync(factory, path);
 
         var document = Parse(html);
-        var scripts = document.QuerySelectorAll("script").ToList();
+        var scripts = document.QuerySelectorAll("script:not([type='application/ld+json'])").ToList();
         scripts.Select(s => s.GetAttribute("src") ?? "(inline)").Where(src => src.Contains("blazor.web")).ShouldHaveSingleItem();
         var modules = scripts.Where(s => s.GetAttribute("type") == "module").Select(s => s.GetAttribute("src")!).ToList();
         modules.Count(src => Regex.IsMatch(src, @"js/kb-suggestions\.[A-Za-z0-9]+\.js")).ShouldBe(1);

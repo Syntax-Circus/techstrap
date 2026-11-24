@@ -121,7 +121,8 @@ public sealed class KbCategoryHostTests
         var (_, _, dom) = await KbTestKit.GetAsync(client, "/p/paperplane/kb/accounts?page=2&utm=x", Ct);
 
         dom.Title.ShouldBe("Accounts (page 2) - Paperplane Help Center");
-        KbTestKit.Meta(dom, "meta[name=description]").ShouldBe("Help articles about Accounts for Paperplane.");
+        KbTestKit.Meta(dom, "meta[name=description]").ShouldContain("Accounts for Paperplane");
+        KbTestKit.Meta(dom, "meta[name=description]").Length.ShouldBeInRange(110, 160);
         dom.QuerySelector("link[rel=canonical]")!.GetAttribute("href").ShouldBe(PortalFactory.PublicUrl + "/p/paperplane/kb/accounts?page=2");
         KbTestKit.Meta(dom, "meta[name=robots]").ShouldStartWith("index, follow");
         KbTestKit.Meta(dom, "meta[property='og:type']").ShouldBe("website");

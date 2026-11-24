@@ -1,0 +1,30 @@
+@if (Articles.Count > 0)
+{
+    <section class="ts-kb-featured" aria-labelledby="ts-kb-featured-heading">
+        <h2 id="ts-kb-featured-heading">@KbCopy.FeaturedHeading</h2>
+        <ul class="ts-kb-list">
+            @foreach (var article in Articles)
+            {
+                <li>
+                    <a href="@Links.KbArticle(ProductKey, article.CategorySlug, article.Slug)">@article.Title</a>
+                    @if (!string.IsNullOrWhiteSpace(article.Summary))
+                    {
+                        <p class="ts-kb-summary">@article.Summary</p>
+                    }
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    [Inject]
+    private PortalLinks Links { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public string ProductKey { get; set; } = string.Empty;
+
+    /// <summary>The published articles to list (plain text, encoded when shown); an empty list renders nothing.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<PublicKbArticleSummaryDto> Articles { get; set; } = [];
+}

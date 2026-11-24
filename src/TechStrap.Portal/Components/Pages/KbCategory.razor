@@ -9,7 +9,7 @@
 else if (Theme is { } theme && Listing is { } listing)
 {
     var name = listing.Items[0].CategoryName;
-    <SeoHead Title="@KbCopy.CategoryTitle(name, theme.DisplayName, listing.Page)" Description="@KbCopy.CategoryDescription(name, theme.DisplayName)" RelativeUrl="@Links.Absolute(Links.KbCategory(theme.Key, Category, listing.Page))" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" />
+    <SeoHead Title="@SeoText.Title(KbCopy.CategoryTitle(name, theme.DisplayName, listing.Page))" Description="@SeoText.CategoryDescription(name, theme.DisplayName, listing.TotalCount)" RelativeUrl="@Links.Absolute(Links.KbCategory(theme.Key, Category, listing.Page))" ImageUrl="@KbSeo.Image(theme)" ImageAlt="@theme.DisplayName" />
     <KbBreadcrumbs Crumbs="@Crumbs(theme, name)" />
     <h1>@name</h1>
     <ul class="ts-kb-list">
