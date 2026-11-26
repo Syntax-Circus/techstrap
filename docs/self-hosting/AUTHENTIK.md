@@ -6,7 +6,8 @@ This guide sets up Authentik as the OpenID Connect provider for a self-hosted Te
 
 You configure three things in Authentik: two groups, one OAuth2/OpenID provider and one application. TechStrap then signs agents in through the Admin app and validates the resulting access token in the Api.
 
-What this guide does not do: no Authentik blueprint ships with TechStrap, and no provisioning code is copied here. Everything is done by hand in the Authentik admin interface.
+What this guide does not do: no Authentik blueprint ships with TechStrap for deployment, and no provisioning code is copied here. Everything is done by hand in the Authentik admin interface.
+(The repository does hold a blueprint for the [local development stack](../development/LOCAL-STACK.md). It has fixed dev users and a different subject mode: never apply it to a deployment.)
 
 The provider-neutral contract (what any OIDC provider must satisfy) is in [SELF-HOSTING.md](SELF-HOSTING.md#oidc-requirements); every environment key is listed in the [environment reference](SELF-HOSTING.md#environment-reference). The values below use `https://admin.example.com` for the Admin and `https://auth.example.com` for Authentik; replace them with your own hosts.
 

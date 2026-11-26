@@ -141,7 +141,8 @@ public partial class Ticket
             // Straight after each redirect: nothing else may run or render.
             if (outcome.Target.Path is { } path)
             {
-                Navigation.NavigateTo(path);
+                // A plain response redirect, not NavigateTo: after an await NavigateTo's NavigationException faults a task nobody observes, reported later as an UnobservedTaskException (D-057).
+                Http.HttpContext!.Response.Redirect(Navigation.ToAbsoluteUri(path).AbsoluteUri);
                 return;
             }
 

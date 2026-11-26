@@ -36,6 +36,11 @@
     <Project Path="tests/TechStrap.Client.Tests/TechStrap.Client.Tests.csproj" />
     <Project Path="tests/TechStrap.Domain.Tests/TechStrap.Domain.Tests.csproj" />
     <Project Path="tests/TechStrap.Infrastructure.IntegrationTests/TechStrap.Infrastructure.IntegrationTests.csproj" />
+    <Project Path="tests/TechStrap.LocalStack.Tests/TechStrap.LocalStack.Tests.csproj" />
     <Project Path="tests/TechStrap.Portal.Tests/TechStrap.Portal.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/TechStrap.AppHost/TechStrap.AppHost.csproj" />
+    <Project Path="tools/TechStrap.WebhookCatcher/TechStrap.WebhookCatcher.csproj" />
   </Folder>
 </Solution>

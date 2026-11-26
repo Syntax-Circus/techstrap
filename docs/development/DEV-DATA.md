@@ -4,6 +4,8 @@ With `ASPNETCORE_ENVIRONMENT=Development` and `TECHSTRAP_SEED_DEV_DATA=true`, th
 requesters, tags, tickets in every status and knowledge base articles. Seeding runs once per database (markers: product
 `orbitly`, shared article `welcome`).
 
+The [Aspire local stack](LOCAL-STACK.md) sets both for you (turn the data off with the AppHost user secret `LocalStack:SeedDevData`), and its `sam` and `riley` logins sign in as the seeded agents below.
+
 ## Dev knowledge base
 
 Three categories (shared `getting-started`, Orbitly `account`, Paperplane `guides`) and five articles. Three are published, so the
@@ -38,3 +40,4 @@ working keys (remove the dev database volume yourself; the seeder never deletes 
 
 Seeded agents are `dev|sam` (Admin) and `dev|riley` (Agent, public display name "Ry"). A token from your own identity provider
 signs you in as a new agent on your first `GET /api/agents/me`; roles come from your IdP groups (D-029).
+The exception is the [local stack](LOCAL-STACK.md), whose Authentik issues exactly these two subjects.

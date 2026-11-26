@@ -6,6 +6,11 @@
     <ProjectReference Include="../TechStrap.Contracts/TechStrap.Contracts.csproj" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(Configuration)' != 'Debug'">
+    <!-- The local-stack webhook capture switch redirects outbound deliveries, so only a Debug build compiles it. -->
+    <Compile Remove="Webhooks/LocalCapture/**" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- Health checks (IHealthCheck) and ConfigurationBinder live in the shared framework. -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />

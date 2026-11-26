@@ -25,7 +25,12 @@ Out of scope for the core, and planned as later sub-projects: inbound email, cus
 
 ## Quick start
 
-You need Docker with Compose v2. The local stack builds the four images from this checkout and starts Postgres 17.
+For development, `aspire run` from the repository root starts a signed-in, seeded TechStrap with its own identity provider, mail capture and webhook catcher. It needs Docker, the .NET SDK, the Aspire CLI and a trusted
+.NET development certificate: see [Local stack](docs/development/LOCAL-STACK.md). Docker Compose, below, still works and needs only Docker.
+
+### Docker Compose
+
+You need Docker with Compose v2. The compose stack builds the four images from this checkout and starts Postgres 17.
 
 ```bash
 git clone https://github.com/Syntax-Circus/techstrap.git
@@ -77,6 +82,9 @@ dotnet test --solution TechStrap.slnx   # needs Docker running; Testcontainers s
 
 Each project's `appsettings.json` lists every setting the host reads, with its default (secrets are blank). Per-host settings for `dotnet run` go in
 `src/TechStrap.<Host>/.env.local` (gitignored; copy the `.env.example` next to it, which documents the same keys as `SECTION__KEY`).
+Each host has a launch profile named `aspire` (used by the [local stack](docs/development/LOCAL-STACK.md)), so a plain `dotnet run` of a host now starts in Development on its 552xx ports. The profile's
+`ASPNETCORE_ENVIRONMENT=Development` replaces a value set in your shell. The Api, Admin and Portal also bind https, which needs a trusted development certificate (`dotnet dev-certs https --trust`) unless you pass `--urls` with only
+`http://` addresses. `--urls` overrides the ports, and `--no-launch-profile` skips the profile. The Aspire stack itself ignores `.env` files.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [SECURITY.md](SECURITY.md) to report a vulnerability.
 
 ## Packages
@@ -96,6 +104,7 @@ Start at the [discovery index](docs/architecture/00-DISCOVERY-INDEX.md).
 | [Decision log](docs/architecture/04-DECISION-LOG.md) | Material decisions and their status |
 | [Admin UX brief](docs/architecture/UX-BRIEF-admin.md) · [Portal UX brief](docs/architecture/UX-BRIEF-portal.md) | Designer handoffs |
 | [Agent authentication](docs/self-hosting/AGENT-AUTHENTICATION.md) | Self-hosting: OIDC issuer, audience and group settings |
+| [Local stack](docs/development/LOCAL-STACK.md) | `aspire run`: ports, logins, mail and webhook capture, reset, smoke test, troubleshooting |
 | [Development seed data](docs/development/DEV-DATA.md) | What the Development seeder creates and when |
 | [Ticket operations](docs/development/TICKET-OPERATIONS.md) | Agent ticket API: curl examples, RowVersion, email kinds |
 | [Admin app](docs/development/ADMIN-APP.md) | The agent app: configuration, sign-in, Authentik setup, shortcuts, known limits |

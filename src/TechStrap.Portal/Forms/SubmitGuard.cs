@@ -181,6 +181,7 @@ public sealed class SubmitGuard : IDisposable
 
         if (existing is not null)
         {
+            RepeatFoundClaim?.Invoke();
             var earlier = await existing.Done.Task.WaitAsync(requestAborted);
             return earlier.Status switch
             {
@@ -206,6 +207,9 @@ public sealed class SubmitGuard : IDisposable
     }
 
     public void Dispose() => _claims.Dispose();
+
+    /// <summary>For tests only: called when a repeat has found an earlier claim, so from here on it can only get that claim's answer. It lets a test know a repeat is waiting instead of guessing with a delay.</summary>
+    internal Action? RepeatFoundClaim { get; set; }
 
     private static SubmitOutcome From(Result<SubmitTarget> result) => result.IsSuccess ? SubmitOutcome.Done(result.Value) : SubmitOutcome.Failed(result.Errors);
 

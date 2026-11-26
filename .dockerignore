@@ -24,5 +24,6 @@ publish/
 **/storage/
 **/logs/
 tests/
+tools/
 **/Styles/Vendor/
 **/wwwroot/fonts/

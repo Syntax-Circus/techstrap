@@ -54,6 +54,11 @@
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.401" />
     <PackageVersion Include="Microsoft.Web.LibraryManager.Build" Version="3.0.114" />
   </ItemGroup>
+  <ItemGroup Label="Local development stack (tools/ only)">
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="17.0.0" />
+    <PackageVersion Include="Aspire.Hosting.Dotnet" Version="17.0.0" />
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="17.0.0" />
+  </ItemGroup>
   <ItemGroup Label="Testing">
     <PackageVersion Include="bunit" Version="2.11.3" />
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.10.0" />

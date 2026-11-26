@@ -41,6 +41,16 @@ Event types are `ticket.created`, `ticket.status_changed`, `feature.created`, `f
 
 Requests carry `Content-Type: application/json` and `X-TechStrap-Event-Id`. Receivers should deduplicate by event ID: delivery is at least once, and a lost acknowledgment can cause a duplicate. Generic webhook signing, additional authorization headers and custom payload templates are outside this version. HTTPS endpoints must resolve exclusively to public addresses. Private/local networks, URL authority credentials and redirects are refused.
 
+## Local development
+
+In the [Aspire local stack](LOCAL-STACK.md#webhook-capture) the Worker sends every delivery to a catcher on your machine (<http://localhost:55270>), whatever the destination. Only the checks on the URL itself still apply: https, no user name, password or `#` fragment, a host that contains a
+dot and does not end in `.localhost`, and, when the host is written as an IP address, a public one. Host names are not resolved: the DNS and public-address check happens when the real sender connects, and capture replaces
+that part. A name that resolves to a private address, or does not resolve at all, shows `Sent` locally but would be blocked or fail in a deployment. The source of the webhook policy and sender is unchanged, and shipped builds
+behave as before.
+
+This is a Debug-only switch (`TECHSTRAP_WEBHOOK_CAPTURE_URL`): it is not a setting of a deployment, a Release Worker refuses to start with it, and it is deliberately absent from the appsettings, env examples and
+compose files. Under Docker Compose, deliveries go to their real destinations.
+
 ## Delivery and operations
 
 Events and deliveries commit in the same transaction as the ticket/feature change. Intake idempotency replays do not enqueue another creation event. One destination failing does not stop others or delay the submission request. The Worker polls every five seconds, claims batches of 20 with ten-minute leases, and recovers expired claims after restarts. Each request has a ten-second timeout.

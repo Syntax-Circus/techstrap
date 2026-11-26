@@ -333,7 +333,9 @@ public sealed class DoubleSendHostTests
     public async Task Contact_a_repeat_that_was_waiting_when_the_first_failed_gets_the_same_failure_and_sends_nothing()
     {
         var gate = new Gate();
-        await using var factory = Host();
+        var repeatWaiting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var guard = new SubmitGuard { RepeatFoundClaim = () => repeatWaiting.TrySetResult() };
+        await using var factory = Host(services => services.AddSingleton(guard));
         gate.Hold(factory.Api, FormTestKit.ApiTicketsPath, () => StubApiHandler.Problem(HttpStatusCode.TooManyRequests, "rate-limited", "slow down"));
         var (client, token, id) = await OpenContactAsync(factory);
         using var _ = client;
@@ -341,7 +343,9 @@ public sealed class DoubleSendHostTests
         var first = PostContact(client, token, id, TestContext.Current.CancellationToken);
         await gate.Arrived.WaitAsync(TestContext.Current.CancellationToken);
         var second = PostContact(client, token, id, TestContext.Current.CancellationToken);
-        await Task.Delay(300, TestContext.Current.CancellationToken);
+
+        // A failure frees the claim, so the first must not be answered until the repeat is behind it: a repeat that arrives later is a new send.
+        await repeatWaiting.Task.WaitAsync(TestContext.Current.CancellationToken);
         gate.Release();
         using var firstResponse = await first;
         using var secondResponse = await second;

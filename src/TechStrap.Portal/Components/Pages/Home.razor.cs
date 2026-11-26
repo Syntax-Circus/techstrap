@@ -54,7 +54,8 @@ public partial class Home
     {
         if (Portal.Value.DefaultProductKeyOrNull is { } key)
         {
-            Navigation.NavigateTo(Links.ProductHome(key));
+            // A plain response redirect, not NavigateTo (D-057): its NavigationException ends rendering at once, while the layout may still be waiting for its branding; the layout then draws into a torn-down page and faults a task nobody observes.
+            Http.HttpContext!.Response.Redirect(Navigation.ToAbsoluteUri(Links.ProductHome(key)).AbsoluteUri);
             return;
         }
 
