@@ -123,7 +123,7 @@ function Get-DockerLine {
 
     $lines = @(& docker @Arguments)
     if ($LASTEXITCODE -ne 0) {
-        throw "docker $($Arguments -join ' ') failed (exit $LASTEXITCODE). Is Docker running? The reset stopped here."
+        throw "docker $($Arguments -join ' ') failed (exit $LASTEXITCODE). The reset stopped here. Docker's own error above says why: for example, Docker is not running, or a container you chose to keep still uses it."
     }
     return $lines | Where-Object { $_ }
 }

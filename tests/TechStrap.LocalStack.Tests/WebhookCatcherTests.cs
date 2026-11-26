@@ -239,6 +239,51 @@ public sealed class WebhookCatcherTests
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
+    // Any web page can send a form post to localhost; the Host and caller checks both pass, so the browser's own headers must give it away.
+    [Theory]
+    [InlineData("Origin", "https://attacker.example")]
+    [InlineData("Origin", "null")]
+    [InlineData("Origin", "http://localhost:55250")]
+    [InlineData("Sec-Fetch-Site", "cross-site")]
+    [InlineData("Sec-Fetch-Site", "same-site")]
+    public async Task Posts_from_another_web_page_get_403_and_change_nothing(string header, string value)
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        using var kept = await PostCaptureAsync(client, Json("""{"kept":true}"""));
+
+        using var capture = await SendWithHeaderAsync(client, "/capture", header, value, Json("{}"));
+        using var clear = await SendWithHeaderAsync(client, "/clear", header, value);
+
+        capture.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        clear.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await ListAsync(client)).ShouldHaveSingleItem().Body.ShouldBe("""{"kept":true}""");
+    }
+
+    // The Clear button on the catcher's own page. The Worker sends neither header (every other capture test).
+    [Theory]
+    [InlineData("Origin", "http://localhost")]
+    [InlineData("Sec-Fetch-Site", "same-origin")]
+    [InlineData("Sec-Fetch-Site", "none")]
+    public async Task Posts_from_the_catchers_own_page_are_allowed(string header, string value)
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        using var captured = await PostCaptureAsync(client, Json("{}"));
+
+        using var clear = await SendWithHeaderAsync(client, "/clear", header, value);
+
+        clear.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ListAsync(client)).ShouldBeEmpty();
+    }
+
+    private static async Task<HttpResponseMessage> SendWithHeaderAsync(HttpClient client, string path, string header, string value, HttpContent? content = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = content };
+        request.Headers.TryAddWithoutValidation(header, value).ShouldBeTrue();
+        return await client.SendAsync(request, Cancellation);
+    }
+
     private static async Task<HttpResponseMessage> SendWithHostAsync(HttpClient client, HttpMethod method, string path, string host, HttpContent? content = null)
     {
         using var request = new HttpRequestMessage(method, path) { Content = content };

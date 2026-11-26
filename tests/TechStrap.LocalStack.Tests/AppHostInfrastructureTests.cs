@@ -68,6 +68,18 @@ public sealed class AppHostInfrastructureTests
         mount.Target.ShouldBe(target);
     }
 
+    // Authentik refuses uploads unless its storage folder is itself a mount. Its default (./data) is not: only a link under it leads to /media.
+    [Theory]
+    [InlineData(Server)]
+    [InlineData(Worker)]
+    public async Task Authentik_stores_files_at_the_mounted_volume(string name)
+    {
+        var mount = Resource(name).Annotations.OfType<ContainerMountAnnotation>()
+            .Single(annotation => annotation.Source == "techstrap-local-authentik-media");
+
+        (await EnvironmentAsync(name)).ShouldContainKeyAndValue("AUTHENTIK_STORAGE__FILE__PATH", mount.Target);
+    }
+
     [Theory]
     [InlineData("postgres", "tcp", LocalStackPorts.Postgres, 5432)]
     [InlineData("mailpit", "smtp", LocalStackPorts.MailpitSmtp, 1025)]

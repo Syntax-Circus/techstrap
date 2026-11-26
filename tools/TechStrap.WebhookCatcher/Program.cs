@@ -27,6 +27,25 @@ app.Use((context, next) =>
     return next(context);
 });
 
+// Any web page open in the same browser can post a form to localhost, which passes both checks above. The browser says where such a post comes from; the Worker sends neither header.
+app.Use((context, next) =>
+{
+    var request = context.Request;
+    if (HttpMethods.IsPost(request.Method))
+    {
+        var origin = request.Headers.Origin.ToString();
+        var fetchSite = request.Headers["Sec-Fetch-Site"].ToString();
+        if ((origin.Length > 0 && !string.Equals(origin, $"{request.Scheme}://{request.Host}", StringComparison.OrdinalIgnoreCase))
+            || (fetchSite.Length > 0 && fetchSite is not ("same-origin" or "none")))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        }
+    }
+
+    return next(context);
+});
+
 app.MapPost("/capture", async (HttpRequest request, CaptureStore store, CancellationToken cancellationToken) =>
 {
     // One byte more than the limit tells a body that is too long from one that just fits, with or without a Content-Length.

@@ -470,6 +470,17 @@ Describe 'Reset-LocalStack.ps1 switches' {
         $result.Output | Should -Match 'Keeping the generated secrets: the volume techstrap-local-postgres still exists'
     }
 
+    It 'points to docker''s own error when a removal fails, and does not only blame a stopped Docker' {
+        $machine = New-Machine
+        $machine.failOn = 'volume rm techstrap-local-postgres'
+        $result = Invoke-Reset -Machine $machine
+        $result.Code | Should -Be 1 -Because $result.Output
+        $output = $result.Output -replace '\s+', ' '
+        $output | Should -Match 'docker volume rm techstrap-local-postgres failed'
+        $output | Should -Match "Docker's own error above says why"
+        $output | Should -Match 'a container you chose to keep still uses it'
+    }
+
     It 'keeps the secrets when a volume cannot be removed' {
         $machine = New-Machine
         $machine.failOn = 'volume rm techstrap-local-postgres'

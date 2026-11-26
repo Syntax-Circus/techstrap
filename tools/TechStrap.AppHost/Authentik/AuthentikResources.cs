@@ -55,6 +55,8 @@ public static class AuthentikResources
                 .WithEnvironment("AUTHENTIK_DISABLE_UPDATE_CHECK", "true")
                 .WithEnvironment("AUTHENTIK_DISABLE_STARTUP_ANALYTICS", "true")
                 .WithEnvironment("AUTHENTIK_AVATARS", "initials")
+                // Authentik refuses uploads unless its storage folder is itself a mount. Its default (./data) is not: only a link under it leads to /media.
+                .WithEnvironment("AUTHENTIK_STORAGE__FILE__PATH", "/media")
                 .WithVolume("techstrap-local-authentik-media", "/media")
                 .WaitFor(db)
                 .WithLifetime(ContainerLifetime.Persistent);
