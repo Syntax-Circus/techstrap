@@ -6,6 +6,7 @@ using TechStrap.Api.Startup;
 using TechStrap.Api.Tests.Auth;
 using TechStrap.Contracts.Http;
 using TechStrap.Contracts.Intake;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Api.Tests.Intake;
 
@@ -48,7 +49,7 @@ public sealed class IntakeEndpointTests(TestPostgres postgres) : IAsyncLifetime
         var factory = new ApiFactory(settings: settings);
         if (kestrel)
         {
-            factory.UseKestrel(0); // TestServer has no IHttpMaxRequestBodySizeFeature, so RequestSizeLimit needs the real server.
+            factory.UseLoopbackKestrel(); // TestServer has no IHttpMaxRequestBodySizeFeature, so RequestSizeLimit needs the real server.
         }
 
         var seed = await IntakeTestData.SeedAsync(factory.Services, TestContext.Current.CancellationToken);

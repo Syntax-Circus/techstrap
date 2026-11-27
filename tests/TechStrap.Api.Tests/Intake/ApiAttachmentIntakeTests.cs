@@ -7,6 +7,7 @@ using TechStrap.Application.Persistence;
 using TechStrap.Contracts.Http;
 using TechStrap.Contracts.Intake;
 using TechStrap.Contracts.Webhooks;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Api.Tests.Intake;
 
@@ -32,7 +33,7 @@ public sealed class ApiAttachmentIntakeTests(TestPostgres postgres) : IAsyncLife
             ["Storage:Local:RootPath"] = _storage,
             ["RateLimiting:Intake:TrustedKeyPermitLimit"] = (permitLimit ?? 120).ToString(),
         }, configureServices: configure);
-        if (kestrel) factory.UseKestrel(0);
+        if (kestrel) factory.UseLoopbackKestrel();
         var seed = await IntakeTestData.SeedAsync(factory.Services, Ct);
         return (factory, database, seed);
     }

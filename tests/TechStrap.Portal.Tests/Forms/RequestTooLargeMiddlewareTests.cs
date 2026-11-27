@@ -10,12 +10,13 @@ using Microsoft.Extensions.DependencyInjection;
 using TechStrap.Contracts.Intake;
 using TechStrap.Portal.Clients;
 using TechStrap.Portal.Uploads;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Portal.Tests.Forms;
 
 /// <summary>
 /// Review Focus 3: the request size limit applies before the form is buffered. The unit tests drive the middleware with a feature the way Kestrel supplies it (the in-memory test server has none, so the host
-/// tests below use the real server, <c>UseKestrel(0)</c>): a declared length over the applied limit is a plain 413, one at the limit passes, and a server without the feature does nothing. The host tests prove
+/// tests below use the real server, <c>UseLoopbackKestrel</c>): a declared length over the applied limit is a plain 413, one at the limit passes, and a server without the feature does nothing. The host tests prove
 /// the page's own <c>[RequestSizeLimit(IntakeLimits.FormBodyBytes)]</c> is the applied limit and that it is in force before antiforgery reads the form, with a real post over the wire.
 /// </summary>
 public sealed class RequestTooLargeMiddlewareTests
@@ -88,7 +89,7 @@ public sealed class RequestTooLargeMiddlewareTests
         {
             if (delayPost) services.AddSingleton<IStartupFilter>(new DelayPostStartupFilter());
         });
-        factory.UseKestrel(0);
+        factory.UseLoopbackKestrel();
         factory.StartServer();
         var address = factory.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();
         var timeout = TimeSpan.FromMinutes(2);

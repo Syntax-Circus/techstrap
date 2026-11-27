@@ -7,6 +7,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../Shared/LoopbackKestrel.cs" LinkBase="Shared" />
     <!-- The reusable Api test plumbing (Postgres fixture, database helpers, test issuer, intake seed) is linked, not copied. -->
     <Compile Include="../TechStrap.Api.Tests/TestPostgres.cs;../TechStrap.Api.Tests/Auth/ApiTestDatabase.cs;../TechStrap.Api.Tests/Auth/TestJwt.cs;../TechStrap.Api.Tests/Intake/IntakeTestData.cs;../TechStrap.Api.Tests/SetRemoteIpAddressStartupFilter.cs" LinkBase="ApiTests" />
   </ItemGroup>

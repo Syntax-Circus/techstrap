@@ -8,6 +8,7 @@ using TechStrap.Api.Tests.Tickets;
 using TechStrap.Application.Live;
 using TechStrap.Contracts.Live;
 using TechStrap.Contracts.Tickets;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Api.Tests.Live;
 
@@ -25,7 +26,7 @@ public sealed class HubWebSocketTests(TestPostgres postgres)
         var database = await ApiTestDatabase.CreateAsync(postgres);
         var settings = new Dictionary<string, string?>(database.Settings) { ["TECHSTRAP_PORTAL_PUBLIC_URL"] = "https://help.test" };
         await using var factory = new ApiFactory(settings: settings);
-        factory.UseKestrel(0);
+        factory.UseLoopbackKestrel();
         factory.StartServer();
         await TicketTestData.SeedAsync(factory, ct);
         var address = new Uri(factory.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First());

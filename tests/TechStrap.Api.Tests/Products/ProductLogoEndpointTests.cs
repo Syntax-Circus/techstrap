@@ -5,6 +5,7 @@ using System.Text.Json;
 using TechStrap.Api.Startup;
 using TechStrap.Api.Tests.Auth;
 using TechStrap.Contracts.Products;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Api.Tests.Products;
 
@@ -32,7 +33,7 @@ public sealed class ProductLogoEndpointTests(TestPostgres postgres) : IDisposabl
         var factory = new ApiFactory(settings: settings);
         if (kestrel)
         {
-            factory.UseKestrel(0); // TestServer has no IHttpMaxRequestBodySizeFeature, so RequestSizeLimit needs the real server.
+            factory.UseLoopbackKestrel(); // TestServer has no IHttpMaxRequestBodySizeFeature, so RequestSizeLimit needs the real server.
         }
 
         var admin = factory.CreateClient().Bearer(TestJwt.Token("admin", [TestJwt.AdminGroup], email: "admin@example.com"));

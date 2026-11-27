@@ -45,7 +45,7 @@ public sealed class PublicIntakeEndpointTests(TestPostgres postgres) : IAsyncLif
         var factory = new ApiFactory(settings: settings);
         if (kestrel)
         {
-            factory.UseKestrel(0); // TestServer has no IHttpMaxRequestBodySizeFeature, so RequestSizeLimit needs the real server.
+            factory.UseLoopbackKestrel(); // TestServer has no IHttpMaxRequestBodySizeFeature, so RequestSizeLimit needs the real server.
         }
 
         var seed = await IntakeTestData.SeedAsync(factory.Services, TestContext.Current.CancellationToken);

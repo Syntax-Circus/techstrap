@@ -15,7 +15,7 @@ namespace TechStrap.Portal.Tests;
 /// The two required settings (the API address and the public URL) get test values; <paramref name="settings"/> is applied on top, so a test can blank one to prove the start fails.
 /// A stub API (<see cref="Api"/>) sits behind the Portal's two named HTTP clients, and <see cref="LogSink"/> records every log event.
 /// </summary>
-internal sealed class PortalFactory(
+internal class PortalFactory(
     string environment = "Development",
     IReadOnlyDictionary<string, string?>? settings = null,
     Action<IServiceCollection>? configureServices = null) : WebApplicationFactory<TechStrap.Portal.Program>

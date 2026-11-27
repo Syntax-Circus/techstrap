@@ -8,6 +8,7 @@ using TechStrap.Contracts.Tickets;
 using TechStrap.Portal.Clients;
 using TechStrap.Portal.Tests.Api;
 using TechStrap.Portal.Tests.Forms;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Portal.Tests.Tickets;
 
@@ -196,7 +197,7 @@ public sealed class TicketReplyHostTests
     public async Task On_the_real_server_a_post_over_the_forms_limit_is_a_413_before_anything_is_read()
     {
         await using var factory = TicketTestKit.Factory();
-        factory.UseKestrel(0);
+        factory.UseLoopbackKestrel();
         factory.StartServer();
         var address = factory.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();
         using var client = new HttpClient { BaseAddress = new Uri(address), Timeout = TimeSpan.FromMinutes(2) };

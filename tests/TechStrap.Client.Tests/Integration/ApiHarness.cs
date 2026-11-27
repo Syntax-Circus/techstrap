@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TechStrap.Api.Tests;
 using TechStrap.Api.Tests.Auth;
 using TechStrap.Api.Tests.Intake;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Client.Tests.Integration;
 
@@ -46,7 +47,7 @@ internal sealed class ApiHarness : IAsyncDisposable
         var factory = new ClientApiFactory(settings, services => services.AddSingleton<IStartupFilter>(new SetRemoteIpAddressStartupFilter(Peer)));
         if (kestrel)
         {
-            factory.UseKestrel(0);
+            factory.UseLoopbackKestrel();
         }
 
         var seed = await IntakeTestData.SeedAsync(factory.Services, Xunit.TestContext.Current.CancellationToken);

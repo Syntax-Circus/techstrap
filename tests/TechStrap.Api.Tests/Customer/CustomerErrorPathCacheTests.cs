@@ -4,6 +4,7 @@ using System.Text;
 using TechStrap.Api.Startup;
 using TechStrap.Api.Tests.Auth;
 using TechStrap.Contracts.Http;
+using TechStrap.Tests.Shared;
 
 namespace TechStrap.Api.Tests.Customer;
 
@@ -22,7 +23,7 @@ public sealed class CustomerErrorPathCacheTests(TestPostgres postgres)
     {
         var database = await ApiTestDatabase.CreateAsync(postgres);
         await using var factory = new ApiFactory(settings: database.Settings);
-        factory.UseKestrel(0); // RequestSizeLimit (413) needs the real server.
+        factory.UseLoopbackKestrel(); // RequestSizeLimit (413) needs the real server.
         var seed = await CustomerTestData.SeedAsync(factory, Ct);
         using var client = factory.CreateClient();
 
