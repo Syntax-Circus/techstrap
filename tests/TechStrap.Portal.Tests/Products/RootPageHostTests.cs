@@ -38,6 +38,24 @@ public sealed class RootPageHostTests
         html.ShouldContain("--ts-accent:#F59E0B");
     }
 
+    [Fact]
+    public async Task The_default_product_redirect_leaves_no_unobserved_task_exception()
+    {
+        var unobserved = await UnobservedTasks.DuringAsync(async () =>
+        {
+            // A new host each time: the layout waits only on the first request of a host, and that wait is what a thrown redirect used to abandon.
+            for (var i = 0; i < 5; i++)
+            {
+                await using var factory = new PortalFactory(settings: Default("paperplane"));
+                using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+                using var response = await client.GetAsync("/", Ct);
+                response.StatusCode.ShouldBe(HttpStatusCode.Found);
+            }
+        }, Ct);
+
+        unobserved.ShouldBeEmpty();
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

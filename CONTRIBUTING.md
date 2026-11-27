@@ -12,6 +12,8 @@ Thanks for helping. This file is the short version of how work lands in this rep
 
 - .NET SDK 10 (see `global.json`), Docker with buildx, PowerShell 7 (for the scripts).
 - `dotnet tool restore` installs the pinned `dotnet-ef` tool.
+- To run the whole application, with sign-in, demo data and captured mail and webhooks, use the [local stack](docs/development/LOCAL-STACK.md) (`aspire run`; needs the Aspire CLI).
+  CI builds Release only, so after a change to webhook capture run its tests with `-c Debug` (the commands are in that guide).
 
 ## Workflow
 

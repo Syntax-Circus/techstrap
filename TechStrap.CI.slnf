@@ -22,7 +22,10 @@
       "tests/TechStrap.Client.Tests/TechStrap.Client.Tests.csproj",
       "tests/TechStrap.Domain.Tests/TechStrap.Domain.Tests.csproj",
       "tests/TechStrap.Infrastructure.IntegrationTests/TechStrap.Infrastructure.IntegrationTests.csproj",
-      "tests/TechStrap.Portal.Tests/TechStrap.Portal.Tests.csproj"
+      "tests/TechStrap.LocalStack.Tests/TechStrap.LocalStack.Tests.csproj",
+      "tests/TechStrap.Portal.Tests/TechStrap.Portal.Tests.csproj",
+      "tools/TechStrap.AppHost/TechStrap.AppHost.csproj",
+      "tools/TechStrap.WebhookCatcher/TechStrap.WebhookCatcher.csproj"
     ]
   }
 }

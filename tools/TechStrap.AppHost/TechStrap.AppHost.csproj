@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Local development orchestration only. Never published, containerized, deployed or referenced by a shipped project.
+       Aspire 17 deprecates Aspire.AppHost.Sdk: a plain SDK project with IsAspireHost=true and package references. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsAspireHost>true</IsAspireHost>
+    <IsPackable>false</IsPackable>
+    <UserSecretsId>856c5756-a3d1-4ca3-be3c-073c3febeb0c</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.Dotnet" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Linked, not referenced: the sample resource gets the seeded key from the one place that defines it. -->
+    <Compile Include="..\..\src\TechStrap.Infrastructure\Seeding\DevelopmentApiKeys.cs" Link="Seeding\DevelopmentApiKeys.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="TechStrap.LocalStack.Tests" />
+  </ItemGroup>
+
+</Project>

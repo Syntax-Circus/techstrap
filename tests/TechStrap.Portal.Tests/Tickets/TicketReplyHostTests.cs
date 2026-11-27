@@ -89,6 +89,26 @@ public sealed class TicketReplyHostTests
         factory.Api.Requests.Single(r => r.Method == HttpMethod.Post).Body!.ShouldContain("\r\n\r\nHello.\r\n");
     }
 
+    [Fact]
+    public async Task A_redirecting_reply_leaves_no_unobserved_task_exception()
+    {
+        await using var factory = Host();
+        factory.Api.OnJson(HttpMethod.Post, TicketTestKit.ReplyApi, Replied(), HttpStatusCode.Created);
+        var (client, token) = await OpenAsync(factory);
+        using var _ = client;
+
+        var unobserved = await UnobservedTasks.DuringAsync(async () =>
+        {
+            for (var i = 0; i < 5; i++)
+            {
+                using var response = await client.PostAsync(TicketTestKit.Path, TicketTestKit.ReplyForm(token, $"Still broken, {i}."), Ct);
+                response.StatusCode.ShouldBe(HttpStatusCode.Found);
+            }
+        }, Ct);
+
+        unobserved.ShouldBeEmpty();
+    }
+
     // ---- the Closed ticket and the follow-up ----
 
     [Fact]

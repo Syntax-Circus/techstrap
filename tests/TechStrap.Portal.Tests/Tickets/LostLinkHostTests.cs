@@ -89,37 +89,21 @@ public sealed class LostLinkHostTests
     [Fact]
     public async Task A_redirecting_post_leaves_no_unobserved_task_exception()
     {
-        var unobserved = new List<Exception>();
-        void Record(object? sender, UnobservedTaskExceptionEventArgs args) { lock (unobserved) { unobserved.AddRange(args.Exception.InnerExceptions); } }
-        TaskScheduler.UnobservedTaskException += Record;
-        try
+        await using var factory = Host();
+        factory.Api.OnStatus(HttpMethod.Post, LinkApi, HttpStatusCode.Accepted);
+        var (client, token) = await OpenAsync(factory);
+        using var _ = client;
+
+        var unobserved = await UnobservedTasks.DuringAsync(async () =>
         {
-            await using var factory = Host();
-            factory.Api.OnStatus(HttpMethod.Post, LinkApi, HttpStatusCode.Accepted);
-            var (client, token) = await OpenAsync(factory);
-            using var _ = client;
             for (var i = 0; i < 5; i++)
             {
                 using var response = await client.PostAsync(Path, Form(token), Ct);
                 response.StatusCode.ShouldBe(HttpStatusCode.Found);
             }
+        }, Ct);
 
-            await Task.Delay(200, Ct);
-            for (var i = 0; i < 3; i++)
-            {
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-            }
-
-            lock (unobserved)
-            {
-                unobserved.ShouldBeEmpty();
-            }
-        }
-        finally
-        {
-            TaskScheduler.UnobservedTaskException -= Record;
-        }
+        unobserved.ShouldBeEmpty();
     }
 
     [Fact]

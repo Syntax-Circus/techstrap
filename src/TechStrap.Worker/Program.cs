@@ -11,6 +11,9 @@ using TechStrap.Infrastructure.AutoClose;
 using TechStrap.Infrastructure.Email;
 using TechStrap.Infrastructure.Live;
 using TechStrap.Infrastructure.Persistence;
+#if DEBUG
+using TechStrap.Infrastructure.Webhooks.LocalCapture;
+#endif
 using TechStrap.Worker.AutoClose;
 using TechStrap.Worker.Outbox;
 
@@ -54,7 +57,12 @@ builder.Services.AddTechStrapEmail(builder.Configuration);
 // Uploaded product logos in emails (D-052): optional; blank keeps the linked logo.
 builder.Services.AddTechStrapProductLogoUrls(builder.Configuration);
 builder.Services.AddHostedService<EmailOutboxWorker>();
+#if DEBUG
+// Debug builds only: a local development stack may send deliveries to a catcher on this machine.
+builder.Services.AddTechStrapWebhookSender();
+#else
 builder.Services.AddSingleton<TechStrap.Infrastructure.Webhooks.IWebhookSender, TechStrap.Infrastructure.Webhooks.WebhookSender>();
+#endif
 builder.Services.AddScoped<TechStrap.Application.Webhooks.IWebhookDeliveryQueue, TechStrap.Infrastructure.Webhooks.WebhookDeliveryProcessor>();
 builder.Services.AddScoped<TechStrap.Application.Webhooks.IDrainWebhookOutboxHandler, TechStrap.Application.Webhooks.DrainWebhookOutboxHandler>();
 builder.Services.AddHostedService<WebhookOutboxWorker>();
@@ -65,6 +73,16 @@ builder.Services.AddHostedService<OutboxRetentionWorker>();
 
 var app = builder.Build();
 telemetry.LogStartupWarning(app.Logger);
+#if DEBUG
+// Resolved now so a bad capture setting stops the start, not the first delivery.
+app.Services.GetRequiredService<TechStrap.Infrastructure.Webhooks.IWebhookSender>();
+#else
+// Nothing here would honor it, and a Worker that silently delivered to the real destinations would surprise whoever set it.
+if (!string.IsNullOrWhiteSpace(app.Configuration["TECHSTRAP_WEBHOOK_CAPTURE_URL"]))
+{
+    throw new InvalidOperationException("TECHSTRAP_WEBHOOK_CAPTURE_URL works only in Debug builds. Remove it from this build's settings.");
+}
+#endif
 
 app.UseCorrelationId();
 app.MapStandardHealthChecks();

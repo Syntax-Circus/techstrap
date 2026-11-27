@@ -21,6 +21,9 @@ cp src/TechStrap.Portal/.env.example src/TechStrap.Portal/.env.local     # then 
 dotnet run --project src/TechStrap.Portal --urls http://localhost:8082
 ```
 
+The command picks up the host's `aspire` launch profile, so the Portal runs in Development, and `--urls` replaces the profile's ports: it listens on 8082 only. Without `--urls` it listens on 55250 (https) and 55251
+(http). The [local stack](LOCAL-STACK.md) (`aspire run`) runs the Portal and the API together and needs no `.env.local`.
+
 `.env.local` is read in Development only and is git-ignored. Open `http://localhost:8082/p/paperplane` for the themed product home, `http://localhost:8082/p/paperplane/contact` for the contact form (try
 `?subject=Printer%20jam&name=Jane%20Doe&email=jane%40example.com` for the prefill) and `http://localhost:8082/p/nope` for the not-found page. A ticket link from an email is `/t/{token}`. With Docker Compose the
 Portal listens on `http://127.0.0.1:8082` and compose sets `Api__BaseUrl` and `TECHSTRAP_PORTAL_PUBLIC_URL` for it.

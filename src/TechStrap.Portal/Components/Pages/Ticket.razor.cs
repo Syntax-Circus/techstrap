@@ -138,10 +138,11 @@ public partial class Ticket
             Cancellation);
         if (outcome.Status == SubmitStatus.Done)
         {
-            // Straight after each redirect: nothing else may run or render.
+            // Return straight after the redirect. The page still renders into the redirect response, so nothing in rendering may have a side effect.
             if (outcome.Target.Path is { } path)
             {
-                Navigation.NavigateTo(path);
+                // A plain response redirect, not NavigateTo: after an await NavigateTo's NavigationException faults a task nobody observes, reported later as an UnobservedTaskException (D-057).
+                Http.HttpContext!.Response.Redirect(Navigation.ToAbsoluteUri(path).AbsoluteUri);
                 return;
             }
 

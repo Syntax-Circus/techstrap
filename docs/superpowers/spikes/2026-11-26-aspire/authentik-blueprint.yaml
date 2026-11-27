@@ -1,0 +1,117 @@
+# TechStrap local-development Authentik blueprint. LOCAL ONLY: fixed dev users; passwords and the client secret come
+# from the Authentik worker's environment (TS_*). Verified against ghcr.io/goauthentik/server:2026.8.5.
+#
+# This differs from docs/self-hosting/AUTHENTIK.md on purpose: sub_mode is user_upn so that sam and riley sign in with the
+# subjects the development data seeder uses (dev|sam, dev|riley). Never apply this blueprint to a deployment.
+version: 1
+metadata:
+  name: TechStrap local development
+  labels:
+    blueprints.goauthentik.io/description: "TechStrap OIDC client and dev users (local AppHost only)."
+entries:
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        name: Default - Provider authorization flow (implicit consent)
+      required: true
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        name: Default - Invalidation flow
+      required: true
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        name: System - OAuth2 Provider - Scopes
+      required: true
+
+  - model: authentik_core.group
+    id: group-admins
+    state: present
+    identifiers:
+      name: techstrap-admins
+  - model: authentik_core.group
+    id: group-agents
+    state: present
+    identifiers:
+      name: techstrap-agents
+
+  # Names and emails must equal DevelopmentDataSeeder's: sign-in overwrites the agent row with these claims.
+  - model: authentik_core.user
+    state: present
+    identifiers:
+      username: sam
+    attrs:
+      name: Sam Whitfield
+      email: sam@example.com
+      is_active: true
+      password: !Env TS_SAM_PASSWORD
+      attributes:
+        upn: dev|sam
+      groups:
+        - !KeyOf group-admins
+  - model: authentik_core.user
+    state: present
+    identifiers:
+      username: riley
+    attrs:
+      name: Riley Chen
+      email: riley@example.com
+      is_active: true
+      password: !Env TS_RILEY_PASSWORD
+      attributes:
+        upn: dev|riley
+      groups:
+        - !KeyOf group-agents
+  # No group and no upn: signs in at Authentik, gets no TechStrap access.
+  - model: authentik_core.user
+    state: present
+    identifiers:
+      username: casey
+    attrs:
+      name: Casey Morgan
+      email: casey@example.com
+      is_active: true
+      password: !Env TS_CASEY_PASSWORD
+      groups: []
+
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-techstrap
+    state: present
+    identifiers:
+      name: techstrap
+    attrs:
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      # Not default-provider-invalidation-flow: that one leaves the Authentik session alive after app sign-out.
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-invalidation-flow]]
+      client_type: confidential
+      client_id: techstrap
+      client_secret: !Env TS_CLIENT_SECRET
+      grant_types:
+        - authorization_code
+        - refresh_token
+      redirect_uris:
+        - matching_mode: strict
+          url: !Format ["%s/signin-oidc", !Env TS_ADMIN_ORIGIN]
+          redirect_uri_type: authorization
+        - matching_mode: strict
+          url: !Format ["%s/signout-callback-oidc", !Env TS_ADMIN_ORIGIN]
+          redirect_uri_type: logout
+      access_token_validity: minutes=10
+      refresh_token_validity: days=30
+      sub_mode: user_upn
+      issuer_mode: per_provider
+      include_claims_in_id_token: true
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [managed, goauthentik.io/providers/oauth2/scope-openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [managed, goauthentik.io/providers/oauth2/scope-profile]]
+        - !Find [authentik_providers_oauth2.scopemapping, [managed, goauthentik.io/providers/oauth2/scope-email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [managed, goauthentik.io/providers/oauth2/scope-offline_access]]
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: techstrap
+    attrs:
+      name: TechStrap
+      provider: !KeyOf provider-techstrap

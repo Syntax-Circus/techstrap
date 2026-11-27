@@ -12,13 +12,16 @@ page) and an article picker in the reply composer; the "Knowledge base (08)" sec
 
 ## Run it locally
 
-You need the API running (see [TICKET-OPERATIONS.md](TICKET-OPERATIONS.md) and the root README) and an OpenID Connect provider. Without a provider the Admin still
+The quickest way to a signed-in Admin is the [local stack](LOCAL-STACK.md) (`aspire run`). To run the Admin by itself, as below, you need the API running (see [TICKET-OPERATIONS.md](TICKET-OPERATIONS.md) and the root README) and an OpenID Connect provider. Without a provider the Admin still
 starts if you give it placeholder values, but signing in fails: that is expected until an identity provider exists (see [Authentik setup](#authentik-setup-note)).
 
 ```bash
 cp src/TechStrap.Admin/.env.example src/TechStrap.Admin/.env.local     # then edit the values below
 dotnet run --project src/TechStrap.Admin --urls http://localhost:8081
 ```
+
+The command picks up the host's `aspire` launch profile, so the Admin runs in Development (no need to set `ASPNETCORE_ENVIRONMENT`), and `--urls` replaces the profile's ports: it listens on 8081 only. Without `--urls` it
+listens on 55240 (https) and 55241 (http).
 
 `.env.local` is read in Development only and is git-ignored. With Docker Compose the Admin listens on `http://127.0.0.1:8081` and reads the same
 `src/TechStrap.Admin/.env.local`: compose no longer sets the sign-in values itself, so there is one place to put them. Uncomment and fill the three keys in that file:
