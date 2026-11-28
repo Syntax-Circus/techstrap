@@ -75,6 +75,16 @@ public sealed class SeoTextTests
         result.Length.ShouldBeInRange(SeoText.DescriptionMinLength, SeoText.DescriptionMaxLength);
     }
 
+    public static TheoryData<string> ProductNames() => ["X", "Sin Forgiver", "Paperplane", new string('P', 40), new string('P', 120)];
+
+    [Theory]
+    [MemberData(nameof(ProductNames))]
+    public void FormPageDescriptions_AlwaysInRange(string product)
+    {
+        SeoText.ContactDescription(product).Length.ShouldBeInRange(SeoText.DescriptionMinLength, SeoText.DescriptionMaxLength);
+        SeoText.LostLinkDescription(product).Length.ShouldBeInRange(SeoText.DescriptionMinLength, SeoText.DescriptionMaxLength);
+    }
+
     [Fact]
     public void KbHomeDescription_MentionsProductCountAndCategories()
     {

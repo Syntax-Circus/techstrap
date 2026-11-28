@@ -6,6 +6,10 @@
 @if (Theme is { } theme)
 {
     <PageTitle>@ContactCopy.Title(theme.DisplayName)</PageTitle>
+    @* Only the description: the page stays unindexed through its X-Robots-Tag header, so it takes no SeoHead (which would add a canonical and a robots tag). *@
+    <HeadContent>
+        <meta name="description" content="@TechStrap.Portal.Seo.SeoText.ContactDescription(theme.DisplayName)" />
+    </HeadContent>
     <div class="ts-reading">
     <h1>@ContactCopy.Heading</h1>
     <p class="ts-help-link"><a href="@Links.KbHome(theme.Key)">@ContactCopy.BrowseHelp</a></p>
