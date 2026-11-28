@@ -146,6 +146,30 @@ public static class SeoText
         ]);
     }
 
+    /// <summary>The description of a product's contact page.</summary>
+    public static string ContactDescription(string productName)
+    {
+        var product = Normalize(productName);
+        return Fit(
+        [
+            $"Contact {product} support: send a question, report a problem or request a feature. We email you a link to follow the conversation and reply.",
+            $"Contact {product} support. We will email you a link so you can follow your request, read our answers and reply to the team.",
+            $"Contact {product} support.",
+        ]);
+    }
+
+    /// <summary>The description of a product's lost-link page. Like the page, it does not say whether an address has tickets.</summary>
+    public static string LostLinkDescription(string productName)
+    {
+        var product = Normalize(productName);
+        return Fit(
+        [
+            $"Lost the link to your {product} support ticket? Enter the email address you used, and if we have tickets for it we will send you a new link.",
+            $"Lost your {product} ticket link? Enter your email address, and if we have tickets for it we will send you a new link.",
+            $"Lost your {product} ticket link?",
+        ]);
+    }
+
     /// <summary>The first candidate that is in range; otherwise the longest short one padded with filler sentences, or the shortest long one cut down.</summary>
     private static string Fit(IReadOnlyList<string> candidates)
     {

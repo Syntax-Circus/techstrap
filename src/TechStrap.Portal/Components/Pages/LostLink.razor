@@ -4,6 +4,10 @@
 @if (Theme is { } theme)
 {
     <PageTitle>@LostLinkCopy.Title(theme.DisplayName)</PageTitle>
+    @* Only the description: the page stays unindexed through its X-Robots-Tag header, so it takes no SeoHead (which would add a canonical and a robots tag). *@
+    <HeadContent>
+        <meta name="description" content="@TechStrap.Portal.Seo.SeoText.LostLinkDescription(theme.DisplayName)" />
+    </HeadContent>
     <div class="ts-reading">
     <h1>@LostLinkCopy.Heading</h1>
     @if (SentFlag == "1")

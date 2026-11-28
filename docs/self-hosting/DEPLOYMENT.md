@@ -199,10 +199,11 @@ A product can have its own public host, for example `support.dragonpoop.com`, se
 Per product host, do these in this order. As soon as the host is saved in the Admin, the default host sends permanent 301s for that product and every new email links to `https://{host}`, so the host must work before it is set.
 
 1. **DNS.** Add an A or CNAME record for the host that points at the reverse proxy, like the default host.
-2. **One Caddy site per host, with a working TLS certificate,** proxying to the same Portal loopback port as the default site, with the same forwarded headers. The Portal trusts only `REVERSE_PROXY_CIDR`, so the new site must forward the client address in the same way as the existing one. Caddy's `reverse_proxy` keeps the original Host header and sets `X-Forwarded-For` and `X-Forwarded-Proto` itself; copy any extra header lines from the default site's block. For example:
+2. **One Caddy site per host, with a working TLS certificate,** proxying to the same Portal loopback port as the default site, with the same forwarded headers. The Portal trusts only `REVERSE_PROXY_CIDR`, so the new site must forward the client address in the same way as the existing one. Caddy's `reverse_proxy` keeps the original Host header and sets `X-Forwarded-For` and `X-Forwarded-Proto` itself; copy any extra header lines from the default site's block, and keep `encode zstd gzip`: the Portal does not compress its own pages, so without it this host serves them uncompressed. For example:
 
    ```
    support.dragonpoop.com {
+       encode zstd gzip
        reverse_proxy 127.0.0.1:<TECHSTRAP_PORTAL_PORT>
    }
    ```
